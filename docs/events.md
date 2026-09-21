@@ -27,6 +27,8 @@ One guided dialog, **one step at a time**: *Vorlage* (segment "Letzte Events" / 
 
 ## Kalender-Link und öffentliche Event-Seite (`src/web/icsFeed.js`, `src/web/eventPublicPage.js`, #308)
 
+> Öffentliche Event-Seite, ICS-Texte und Discord-Event sind für Raider und deshalb **Englisch** (siehe [signups.md](signups.md), „Sprache im Discord“). Die Seite schreibt Zeiten als englischen Text in Serverzeit („Thu 24 Sep 2026, 19:30“, `<html lang="en">`); die ICS-Zeiten bleiben UTC und der Kalender zeigt sie in der Zeitzone des Lesers.
+
 Two paths an own event owns, both **server-rendered and reachable without a login**, both matched in `server.js` *above* the SPA fallback (like `/r/<id>`), both with an id pattern of `[A-Za-z0-9_-]+` only — no path can traverse:
 
 - **`GET /r/cal/<eventId>.ics`** — one VEVENT, `text/calendar`, `Content-Disposition: attachment`. `buildIcs(event)` in `icsFeed.js` is pure and is the whole rule: CRLF endings, every line folded at **75 octets** (`foldLine` counts UTF-8 bytes and never splits a character; continuation lines start with one space), text escaped per RFC 5545 (`\` `;` `,` newline) and every time in **UTC** — a local time would need a VTIMEZONE block and the store keeps unix seconds anyway. `UID` is the event id, `DTSTAMP`/`SEQUENCE` come from the last change (`SEQUENCE` counts seconds since 2020, so it stays inside 32 bits), `DTEND` from the duration (#305, `utils/eventTime.js`; an event stored before it reads as the default 3 h), `LOCATION` is the event channel's Discord link, `URL` the public page, and a cancelled event is `STATUS:CANCELLED` with „Abgesagt" in the summary. An event without an id or without a start answers "" and the route 404s.

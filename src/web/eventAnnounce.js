@@ -54,8 +54,8 @@ function buildAnnouncement(event) {
     const start = Number(event && event.startTime) || 0;
     const url = messageUrl(event);
     const when = start ? `<t:${start}:F> · <t:${start}:R>` : "";
-    const line = [when, url ? `[Zur Anmeldung](${url})` : ""].filter(Boolean).join("\n");
-    return { title: `Neuer Raid: ${title}`, body: line || "Ein neuer Raid steht im Kalender." };
+    const line = [when, url ? `[Sign up](${url})` : ""].filter(Boolean).join("\n");
+    return { title: `New raid: ${title}`, body: line || "A new raid is on the calendar." };
 }
 
 /**

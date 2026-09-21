@@ -78,14 +78,14 @@ describe("commands/signup/eventPick", () => {
         profiles.addCharacter(ANNA, { name: "Devire", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
         const i = pick("mine");
         await command.execute(i);
-        expect(followOf(i).content).toBe("Gespeichert für **Karazhan**:\n`1.` Devire · Arkan – **Dabei**");
+        expect(followOf(i).content).toBe("Saved for **Karazhan**:\n`1.` Devire · Arcane – **Signed up**");
         expect(stored()).toMatchObject({ status: "signed", character: "Devire" });
     });
 
     it("Meine Charaktere without a profile character goes the class way", async () => {
         const i = pick("mine");
         await command.execute(i);
-        expect(followOf(i).content).toContain("Noch kein Charakter");
+        expect(followOf(i).content).toContain("No character in your profile yet");
         expect(selectOf(followOf(i)).custom_id).toBe("event-btn:eh-kara:cls:s");
     });
 
@@ -93,7 +93,7 @@ describe("commands/signup/eventPick", () => {
         const i = pick("Priest");
         await command.execute(i);
         const specs = followOf(i);
-        expect(specs.content).toContain("**Priester** – welche Spec?");
+        expect(specs.content).toContain("**Priest** – which spec?");
         expect(selectOf(specs).custom_id).toBe("event-btn:eh-kara:spec:s");
 
         const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
@@ -106,14 +106,14 @@ describe("commands/signup/eventPick", () => {
 
         const unknown = pick("Tinker");
         await command.execute(unknown);
-        expect(followOf(unknown).content).toBe("Unbekannte Klasse.");
+        expect(followOf(unknown).content).toBe("Unknown class.");
     });
 
     it("refuses after the deadline and for the raider role, still ephemeral", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
         const late = pick("mine");
         await command.execute(late);
-        expect(followOf(late)).toEqual({ content: "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.", flags: MessageFlags.Ephemeral });
+        expect(followOf(late)).toEqual({ content: "The signup deadline has passed – only “Late” or Absence now.", flags: MessageFlags.Ephemeral });
         // the reset draws the phase's components: no select any more
         expect(late.update.mock.calls[0][0].components.flatMap((r) => r.components).map((c) => c.custom_id)).toEqual(["event-btn:eh-kara:late", "event-btn:eh-kara:absence"]);
 
@@ -122,7 +122,7 @@ describe("commands/signup/eventPick", () => {
         mocks.access.roleIds = ["other"];
         const cls = pick("Mage");
         await command.execute(cls);
-        expect(followOf(cls).content).toBe("Für diesen Raid brauchst du eine Raider-Rolle.");
+        expect(followOf(cls).content).toBe("You need a raider role for this raid.");
     });
 
     it("answers with a reply when the select cannot be reset, and for a gone event", async () => {
@@ -132,12 +132,12 @@ describe("commands/signup/eventPick", () => {
             const i = mockInteraction({ customId: "event-pick:eh-kara", userId: ANNA, values: ["mine"] });
             i.update.mockRejectedValue(new Error("Unknown interaction"));
             await command.execute(i);
-            expect(i.reply.mock.calls[0][0].content).toContain("Devire · Arkan");
+            expect(i.reply.mock.calls[0][0].content).toContain("Devire · Arcane");
         } finally {
             warn.mockRestore();
         }
         const gone = mockInteraction({ customId: "event-pick:eh-weg", userId: ANNA, values: ["mine"] });
         await command.execute(gone);
-        expect(gone.reply.mock.calls[0][0]).toEqual({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
+        expect(gone.reply.mock.calls[0][0]).toEqual({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
     });
 });

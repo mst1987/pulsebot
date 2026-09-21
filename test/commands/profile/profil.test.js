@@ -23,7 +23,7 @@ describe("commands/profile/profil", () => {
         await command.execute(interaction);
         const arg = interaction.reply.mock.calls[0][0];
         expect(arg.flags).toBe(MessageFlags.Ephemeral);
-        expect(embedText(arg)).toContain("Noch kein Charakter");
+        expect(embedText(arg)).toContain("No character yet");
         const [tank, heal, link] = arg.components[0].components.map((c) => c.data);
         expect(tank.custom_id).toBe("profil:tank");
         expect(heal.custom_id).toBe("profil:heal");
@@ -34,9 +34,9 @@ describe("commands/profile/profil", () => {
         store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
         const profile = store.saveProfile(USER, { availability: ["mi", "so"] });
         const text = command.summaryLines(profile).join("\n");
-        expect(text).toContain("**Nerathil** · Main — Arkan (raidbereit)");
-        expect(text).toContain("Offtank: nein · Heilen: nein");
-        expect(text).toContain("Verfügbar: Mi · So");
+        expect(text).toContain("**Nerathil** · Main — Arcane (raid ready)");
+        expect(text).toContain("Off-tank: no · Heal: no");
+        expect(text).toContain("Available: Wed · Sun");
     });
 
     it("schaltet per Button um und speichert es im eigenen Profil", async () => {
@@ -45,7 +45,7 @@ describe("commands/profile/profil", () => {
         await command.execute(interaction);
         // vorgeschlagen war "kann Offtank" (Bär), der Klick schaltet es aus
         expect(store.getProfile(USER).canOfftank).toBe(false);
-        expect(embedText(interaction.update.mock.calls[0][0])).toContain("Offtank: nein");
+        expect(embedText(interaction.update.mock.calls[0][0])).toContain("Off-tank: no");
 
         await command.execute(mockInteraction({ userId: USER, customId: "profil:heal" }));
         expect(store.getProfile(USER).canHeal).toBe(true);

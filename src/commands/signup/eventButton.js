@@ -11,6 +11,7 @@ const {
     parseButtonId, refusal, savedText, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
 } = require("../../utils/signupButtons");
+const { toEnglish } = require("../../utils/botEnglish");
 const { noteMode, MIN_NOTE } = require("../../web/signupNotes");
 
 // The signup buttons under an EventHelper event message and every step after
@@ -21,10 +22,10 @@ const STATUS_ACTIONS = ["late", "tentative", "bench"];
 
 // After the public select reset itself (eventPick.js: interaction.update), the answer is a follow-up.
 const reply = (interaction, payload) => {
-    const body = { ...(typeof payload === "string" ? { content: payload } : payload), flags: MessageFlags.Ephemeral };
+    const body = { ...(typeof payload === "string" ? { content: toEnglish(payload) } : payload), flags: MessageFlags.Ephemeral };
     return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
 };
-const done = (interaction, content) => interaction.update({ content, embeds: [], components: [] });
+const done = (interaction, content) => interaction.update({ content: toEnglish(content), embeds: [], components: [] });
 
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
@@ -79,7 +80,7 @@ async function save(interaction, event, input, { update = false } = {}) {
         ...input,
     });
     const emojis = result.error ? {} : await emojisFor(interaction);
-    // "Du stehst auf der Warteliste" belongs under the confirmation, not into the roster (#306).
+    // "You are on the waiting list" belongs under the confirmation, not into the roster (#306).
     const text = result.error
         ? `⚠️ ${result.error}`
         : [savedText(event, result.signup, profiles.getProfile(uid), { emojis }), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
@@ -94,7 +95,7 @@ async function onJoin(interaction, event) {
     const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
     const emojis = await emojisFor(interaction);
     if (!options.length) {
-        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice: "Noch kein Charakter in deinem Profil – wähle Klasse und Spec, danach fragt der Bot nach dem Namen." }));
+        return reply(interaction, buildClassPicker(event, "signed", { emojis, notice: "No character in your profile yet – pick class and spec, then the bot asks for the name." }));
     }
     if (options.length === 1) {
         const [only] = options;
@@ -109,7 +110,7 @@ async function onClass(interaction, event, classId) {
     if (why) return reply(interaction, why);
     const emojis = await emojisFor(interaction);
     if (!classId) return reply(interaction, buildClassPicker(event, "signed", { emojis }));
-    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unbekannte Klasse.");
+    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unknown class.");
 }
 
 /**
@@ -129,7 +130,7 @@ async function onStatus(interaction, event, status, { note } = {}) {
     const emojis = await emojisFor(interaction);
     const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
     if (!options.length) {
-        return reply(interaction, buildClassPicker(event, status, { emojis, notice: `Noch kein Charakter in deinem Profil – mit welcher Klasse kommst du als „${STATUS_WORD[status]}“?` }));
+        return reply(interaction, buildClassPicker(event, status, { emojis, notice: `No character in your profile yet – which class are you coming with as “${STATUS_WORD[status]}”?` }));
     }
     return reply(interaction, buildCharacterPicker(event, uid, status, { emojis }));
 }
@@ -138,7 +139,7 @@ async function onStatus(interaction, event, status, { note } = {}) {
 async function onPick(interaction, event, status) {
     const listed = (interaction.component && interaction.component.options) || [];
     const picks = orderedValues(interaction.values, listed);
-    if (!picks.length) return done(interaction, "Kein Charakter gewählt.");
+    if (!picks.length) return done(interaction, "No character picked.");
     const note = takeNote(event.id, interaction.user.id, status);
     return save(interaction, event, { characters: picksWithStatus(picks, status), status, ...note }, { update: true });
 }
@@ -147,14 +148,14 @@ async function onPick(interaction, event, status) {
 async function onName(interaction, event, status, specKey) {
     const uid = interaction.user.id;
     const info = profiles.specInfo(specKey);
-    if (!info) return done(interaction, "⚠️ Unbekannte Spec – bitte neu wählen.");
+    if (!info) return done(interaction, "⚠️ Unknown spec – please pick again.");
     const why = await blocked(event, uid, status);
     if (why) return done(interaction, `⚠️ ${why}`);
     const name = String(interaction.fields.getTextInputValue("character") || "").trim();
     const profile = profiles.getProfile(uid) || { characters: [] };
     const existing = profile.characters.find((c) => c.key === profiles.characterKey(name));
     if (existing && existing.className !== info.classId) {
-        return done(interaction, `⚠️ ${existing.name} steht in deinem Profil schon als ${classLabel(event, existing.className)} – nimm einen anderen Namen.`);
+        return done(interaction, `⚠️ ${existing.name} is already in your profile as a ${classLabel(event, existing.className)} – pick another name.`);
     }
     const added = profiles.addCharacter(uid, {
         name,
@@ -212,7 +213,7 @@ module.exports = {
         const isModal = !!(interaction.isModalSubmit && interaction.isModalSubmit());
         // A click on the public message replies; a step in the member's own message updates it.
         const fromPublic = ["join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
-        if (!event) return fromPublic ? reply(interaction, "Dieses Event gibt es nicht mehr.") : done(interaction, "Dieses Event gibt es nicht mehr.");
+        if (!event) return fromPublic ? reply(interaction, "This event no longer exists.") : done(interaction, "This event no longer exists.");
         const uid = interaction.user.id;
 
         switch (action) {
@@ -242,7 +243,7 @@ module.exports = {
         case "why":
             return onAbsence(interaction, event);
         case "note":
-            if (!isModal || !status) return reply(interaction, "Unbekannte Aktion.");
+            if (!isModal || !status) return reply(interaction, "Unknown action.");
             return onNote(interaction, event, status);
         case "pick":
             return onPick(interaction, event, status || "signed");
@@ -250,18 +251,18 @@ module.exports = {
             return interaction.update(buildClassPicker(event, status || "signed", { emojis: await emojisFor(interaction) }));
         case "cls": {
             const picker = buildSpecPicker(event, status || "signed", String((interaction.values || [])[0] || ""), { emojis: await emojisFor(interaction) });
-            return picker ? interaction.update(picker) : done(interaction, "Unbekannte Klasse.");
+            return picker ? interaction.update(picker) : done(interaction, "Unknown class.");
         }
         case "spec": {
             const specKey = String((interaction.values || [])[0] || "");
-            if (!profiles.specInfo(specKey)) return done(interaction, "Unbekannte Spec.");
+            if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.");
             return interaction.showModal(buildNameModal(event, uid, status || "signed", specKey, { displayName: displayName(interaction) }));
         }
         case "name":
-            if (!isModal) return done(interaction, "Unbekannte Aktion.");
+            if (!isModal) return done(interaction, "Unknown action.");
             return onName(interaction, event, status || "signed", arg);
         default:
-            return fromPublic ? reply(interaction, "Unbekannte Aktion.") : done(interaction, "Unbekannte Aktion.");
+            return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.");
         }
     },
 };

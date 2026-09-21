@@ -71,7 +71,7 @@ module.exports = {
             );
         } catch (error) {
             console.log(error);
-            await botReply(interaction, messages.signup.errorTitle, `Anmeldung bei Raid-Helper fehlgeschlagen: ${error.message}`);
+            await botReply(interaction, messages.signup.errorTitle, `Signup at Raid-Helper failed: ${error.message}`);
         }
     },
 };

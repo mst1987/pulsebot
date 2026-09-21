@@ -4,7 +4,7 @@
 // customIds, the builders and the pure rules, so both can be tested apart.
 //
 //   event-pick:<eventId>              the public select (#303, commands/signup/eventPick.js):
-//                                     "Meine Charaktere …" = what `join` does, a class = the spec step
+//                                     "My characters …" = what `join` does, a class = the spec step
 //   event-btn:<eventId>:join          Anmelden: own characters (multi-select, the classes below), or directly
 //                                     with only one — the button only sits under messages posted before #303
 //   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup; same)
@@ -20,7 +20,7 @@
 //
 // Steps (the status rides along as the dialog's code s/t/l/b):
 //   event-btn:<eventId>:pick:<code>          own characters · specs, up to MAX_CHARACTERS — saves
-//   event-btn:<eventId>:other:<code>         "Andere Klasse …" → the class select
+//   event-btn:<eventId>:other:<code>         "Other class …" → the class select
 //   event-btn:<eventId>:cls:<code>           class select → spec select
 //   event-btn:<eventId>:spec:<code>          spec select → name modal
 //   event-btn:<eventId>:name:<code>:<spec>   the name modal — adds the character to the profile, saves
@@ -44,9 +44,11 @@ const { MIN_NOTE } = require("../web/signupNotes");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;
-const GEAR_TEXT = { ready: "raidbereit", usable: "brauchbar", none: "kein Gear" };
-// What a status is called in a sentence: "als **Spät**".
-const STATUS_WORD = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank" };
+const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
+// What a status is called in a sentence: "as **Late**".
+const STATUS_WORD = { signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Bench" };
+// The English label of a class or spec, the German one as a fallback.
+const en = (x) => (x && (x.labelEn || x.label)) || "";
 
 const btnId = (eventId, ...parts) => [BUTTON_PREFIX, eventId, ...parts].join(":");
 const codeOf = (status) => STATUS_CODES[status] || "s";
@@ -63,20 +65,20 @@ function parseButtonId(customId) {
  * The service refuses the same on save; this only saves a pointless step.
  */
 function refusal(event, status, now = Date.now()) {
-    if (!event) return "Dieses Event gibt es nicht mehr.";
-    if (event.status === "cancelled") return "Das Event wurde abgesagt.";
+    if (!event) return "This event no longer exists.";
+    if (event.status === "cancelled") return "The event was cancelled.";
     if (allowedStatuses(event, { now }).includes(status)) return "";
     const w = signupWindow(event, now);
-    if (w.started) return "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.";
-    if (event.signupsClosed) return "Die Anmeldung ist geschlossen – du kannst nur noch absagen.";
-    return "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.";
+    if (w.started) return "The raid has already started – signups are closed.";
+    if (event.signupsClosed) return "Signups are closed – you can only sign off now.";
+    return "The signup deadline has passed – only “Late” or Absence now.";
 }
 
-/** "Zibbo · Heilig" for a character entry. */
+/** "Zibbo · Holy" for a character entry. */
 function characterText(profile, entry) {
     const ch = ((profile && profile.characters) || []).find((c) => c.key === profiles.characterKey(entry.character));
     const info = profiles.specInfo(entry.spec) || {};
-    return [ch ? ch.name : entry.character, info.label || ""].filter(Boolean).join(" · ");
+    return [ch ? ch.name : entry.character, en(info)].filter(Boolean).join(" · ");
 }
 
 /**
@@ -89,7 +91,7 @@ function savedText(event, signup, profile, { emojis = {} } = {}) {
     const icon = (name) => emojiText(emojis, name);
     const lead = (name, text) => [icon(name), text].filter(Boolean).join(" ");
     if (!signup || signup.status === "absence") {
-        return `${lead(uiEmojiName("absence"), `Abgemeldet von **${title}**`)}${signup && signup.comment ? ` – Grund: ${signup.comment}` : ""}.`;
+        return `${lead(uiEmojiName("absence"), `Signed off from **${title}**`)}${signup && signup.comment ? ` – reason: ${signup.comment}` : ""}.`;
     }
     const s = migrateSignup(signup);
     const lines = s.characters.map((c, i) => {
@@ -100,7 +102,7 @@ function savedText(event, signup, profile, { emojis = {} } = {}) {
         return `\`${i + 1}\` ${[spec, characterText(profile, c)].filter(Boolean).join(" ")}  ·  ${[status, `**${word}**`].filter(Boolean).join(" ")}`;
     });
     const headIcon = icon(uiEmojiName("signed"));
-    return [headIcon ? `${headIcon} Gespeichert für **${title}**` : `Gespeichert für **${title}**:`, ...lines].join("\n");
+    return [headIcon ? `${headIcon} Saved for **${title}**` : `Saved for **${title}**:`, ...lines].join("\n");
 }
 
 /**
@@ -134,7 +136,7 @@ function withAddedCharacter(signup, entry) {
     const at = list.findIndex((c) => profiles.characterKey(c.character) === key);
     if (at >= 0) list[at] = entry;
     else if (list.length >= MAX_CHARACTERS) {
-        return { error: `Du bist schon mit ${MAX_CHARACTERS} Charakteren angemeldet – wähle über „Anmelden“ neu aus.` };
+        return { error: `You are already signed up with ${MAX_CHARACTERS} characters – pick again under “My characters …”.` };
     } else list.push(entry);
     return { characters: list, status: list[0].status };
 }
@@ -173,7 +175,7 @@ function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
     return ordered.slice(0, MAX_OPTIONS).map((o) => {
         const info = profiles.specInfo(o.spec) || {};
         const option = {
-            label: `${o.name} · ${info.label || o.spec}`.slice(0, 100),
+            label: `${o.name} · ${en(info) || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
             description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
         };
@@ -185,10 +187,10 @@ function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
 
 const headLine = (event, status) => {
     const start = Number(event.startTime) || 0;
-    return `**${String(event.title || "Raid")}**${start ? ` · <t:${start}:f>` : ""} · ${status === "signed" ? "Anmelden" : `als **${STATUS_WORD[status]}**`}`;
+    return `**${String(event.title || "Raid")}**${start ? ` · <t:${start}:f>` : ""} · ${status === "signed" ? "Sign up" : `as **${STATUS_WORD[status]}**`}`;
 };
 
-const otherClassButton = (eventId, status, emojis, label = "Andere Klasse …") => {
+const otherClassButton = (eventId, status, emojis, label = "Other class …") => {
     const button = { type: 2, style: 2, custom_id: btnId(eventId, "other", codeOf(status)), label };
     const emoji = emojiOption(emojis, uiEmojiName("class"));
     if (emoji) button.emoji = emoji;
@@ -196,7 +198,7 @@ const otherClassButton = (eventId, status, emojis, label = "Andere Klasse …") 
 };
 
 /** The class select of a step (`cls`): every class of the event's game version with its icon. */
-function classSelect(event, status, emojis, placeholder = "Klasse wählen …") {
+function classSelect(event, status, emojis, placeholder = "Pick a class …") {
     return {
         type: 3,
         custom_id: btnId(event.id, "cls", codeOf(status)),
@@ -204,7 +206,7 @@ function classSelect(event, status, emojis, placeholder = "Klasse wählen …") 
         min_values: 1,
         max_values: 1,
         options: classesFor(event).slice(0, MAX_OPTIONS).map((c) => {
-            const option = { label: c.label, value: c.id };
+            const option = { label: en(c), value: c.id };
             const emoji = emojiOption(emojis, classEmojiName(c.id));
             if (emoji) option.emoji = emoji;
             return option;
@@ -224,11 +226,11 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
     const lines = [headLine(event, status)];
     const mine = migrateSignup(getSignup(event.id, userId));
     if (mine && mine.status !== "absence" && (mine.characters || []).length) {
-        lines.push(`Bisher: ${mine.characters.map((c) => `${characterText(profile, c)} (${STATUS_WORD[c.status] || c.status})`).join(", ")}`);
+        lines.push(`So far: ${mine.characters.map((c) => `${characterText(profile, c)} (${STATUS_WORD[c.status] || c.status})`).join(", ")}`);
     }
     lines.push(max > 1
-        ? `Wähle bis zu ${max} Charaktere – der oberste in der Liste ist deine 1. Wahl.`
-        : "Wähle deinen Charakter.");
+        ? `Pick up to ${max} characters – the topmost in the list is your 1st choice.`
+        : "Pick your character.");
     if (notice) lines.push("", notice);
     return {
         content: lines.join("\n"),
@@ -238,20 +240,20 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
                 components: [{
                     type: 3,
                     custom_id: btnId(event.id, "pick", codeOf(status)),
-                    placeholder: "Charakter wählen …",
+                    placeholder: "Pick a character …",
                     min_values: 1,
                     max_values: Math.max(1, max),
                     options,
                 }],
             },
-            { type: 1, components: [classSelect(event, status, emojis, "Oder neuer Charakter: Klasse wählen …")] },
+            { type: 1, components: [classSelect(event, status, emojis, "Or a new character: pick a class …")] },
         ],
     };
 }
 
 /** Step: the classes of the event's game version. */
 function buildClassPicker(event, status, { emojis = {}, notice = "" } = {}) {
-    const lines = [headLine(event, status), "Welche Klasse?"];
+    const lines = [headLine(event, status), "Which class?"];
     if (notice) lines.push("", notice);
     return {
         content: lines.join("\n"),
@@ -264,25 +266,25 @@ function buildSpecPicker(event, status, classId, { emojis = {} } = {}) {
     const cls = classesFor(event).find((c) => c.id === classId);
     if (!cls) return null;
     return {
-        content: `${headLine(event, status)}\n**${cls.label}** – welche Spec?`,
+        content: `${headLine(event, status)}\n**${en(cls)}** – which spec?`,
         components: [
             {
                 type: 1,
                 components: [{
                     type: 3,
                     custom_id: btnId(event.id, "spec", codeOf(status)),
-                    placeholder: "Spec wählen …",
+                    placeholder: "Pick a spec …",
                     min_values: 1,
                     max_values: 1,
                     options: cls.specs.slice(0, MAX_OPTIONS).map((s) => {
-                        const option = { label: s.label, value: s.key };
+                        const option = { label: en(s), value: s.key };
                         const emoji = emojiOption(emojis, specEmojiName(s.key));
                         if (emoji) option.emoji = emoji;
                         return option;
                     }),
                 }],
             },
-            { type: 1, components: [otherClassButton(event.id, status, emojis, "Andere Klasse")] },
+            { type: 1, components: [otherClassButton(event.id, status, emojis, "Other class")] },
         ],
     };
 }
@@ -299,7 +301,7 @@ function buildNameModal(event, userId, status, specKey, { displayName = "" } = {
     const cls = classesFor(event).find((c) => c.id === info.classId);
     return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
         defaultName: known ? known.name : displayName,
-        classText: [cls ? cls.label : info.classId, info.label].filter(Boolean).join(" · "),
+        classText: [cls ? en(cls) : info.classId, en(info)].filter(Boolean).join(" · "),
         versionId: event.versionId,
     });
 }

@@ -308,7 +308,7 @@ describe("web/discord channel management", () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
             setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
             await discord.postMissingPing("chan", ["1"], "");
-            expect(send.mock.calls[0][0].content).toMatch(/an oder ab/);
+            expect(send.mock.calls[0][0].content).toMatch(/sign up or sign off/);
         });
 
         it("throws when there are no users to ping", async () => {

@@ -161,7 +161,7 @@ describe("moving an event", () => {
         expect(reminderStore.getSent(event.id).missing).toBeUndefined();
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
         expect(scheduleOverviewSync).toHaveBeenCalled();
-        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ target: "event", userIds: [RAIDER], text: expect.stringContaining("verschoben") }));
+        expect(deliverUserPing).toHaveBeenCalledWith(expect.objectContaining({ target: "event", userIds: [RAIDER], text: expect.stringContaining("has been moved") }));
         expect(result.body.message).toMatch(/Kanal heißt jetzt #fr-26-09-ssc-tk/);
         expect(moved.log.at(-1)).toMatchObject({ action: "move", by: ORGA.id, byName: "Orga", detail: expect.stringContaining("Kanal #fr-26-09-ssc-tk") });
     });
@@ -261,7 +261,7 @@ describe("cancelling an event", () => {
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1, failed: 0 } });
         const ev = eventStore.getEvent(event.id);
         expect(ev).toMatchObject({ status: "cancelled", signupsClosed: true, cancel: { reason: "Zu wenig Heiler, wir verschieben auf Do.", by: ORGA.id, archived: true } });
-        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("Grund: Zu wenig Heiler") });
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("Reason: Zu wenig Heiler") });
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
         expect(refreshEventMessage).toHaveBeenCalledWith(event.id);
@@ -365,7 +365,7 @@ describe("deleting an event", () => {
         signUp(OTHER, "Ysolde", "Priest-Holy", "absence");
         const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, archiveChannel: true, notify: true, user: ORGA, byName: "Orga" });
         expect(result.body).toMatchObject({ archived: true, dm: { sent: 1 } });
-        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("findet nicht statt") });
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("will not take place") });
         expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
 

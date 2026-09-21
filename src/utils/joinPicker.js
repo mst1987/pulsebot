@@ -18,6 +18,7 @@ const profiles = require("../web/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../web/signupService");
 const { buildClasses } = require("../config/gameVersions/classes");
 const { emojiOption, specEmojiName } = require("../web/appEmojis");
+const { toEnglish } = require("./botEnglish");
 const {
     MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_STATE,
     encodeState, decodeState, statusId, commentId, signableCharacters, pickText,
@@ -25,10 +26,10 @@ const {
 
 const JOIN_PREFIX = "event-join";
 const MAX_OPTIONS = 25;
-const GEAR_TEXT = { ready: "raidbereit", usable: "brauchbar", none: "kein Gear" };
+const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
 const GEAR_RANK = { ready: 2, usable: 1, none: 0 };
-const ROLE_TEXT = { tank: "Tank", healer: "Heiler" };
-const CLASS_LABEL = new Map(buildClasses().map((c) => [c.id, c.label]));
+const ROLE_TEXT = { tank: "Tank", healer: "Healer" };
+const CLASS_LABEL = new Map(buildClasses().map((c) => [c.id, c.labelEn || c.label]));
 
 const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
@@ -125,13 +126,13 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     const lines = [];
     const start = Number(event.startTime) || 0;
     lines.push([`**${STATUS_STATE[status] || status}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · "));
-    lines.push("Mit welchem Charakter? – aus deinem EventHelper-Profil");
+    lines.push("Which character? – from your EventHelper profile");
     if (mine) {
         const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec);
-        lines.push(`Bisher: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}`);
+        lines.push(`So far: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}`);
     }
-    if (win.deadlinePassed && !win.started) lines.push("Anmeldeschluss vorbei – nur noch „Spät“ oder Abmelden.");
-    if (notice) lines.push("", notice);
+    if (win.deadlinePassed && !win.started) lines.push("The signup deadline has passed – only “Late” or Absence now.");
+    if (notice) lines.push("", toEnglish(notice));
 
     const lastOption = last
         ? options.find((o) => sameOption(o, last.character, last.spec))
@@ -144,10 +145,10 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
             GEAR_TEXT[o.gear] || "",
             ROLE_TEXT[info.role] || "",
             o.main ? "Main" : "",
-            o === lastOption ? "zuletzt" : "",
+            o === lastOption ? "last used" : "",
         ].filter(Boolean).join(" · ");
         const option = {
-            label: `${o.name} · ${info.label || o.spec}`.slice(0, 100),
+            label: `${o.name} · ${info.labelEn || info.label || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
             description: description.slice(0, 100),
             default: o.character === picks.character && o.spec === picks.spec,
@@ -164,7 +165,7 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
             components: [{
                 type: 3,
                 custom_id: joinId(event.id, status, "c", picks),
-                placeholder: "Charakter · Spec wählen …",
+                placeholder: "Pick character · spec …",
                 min_values: 1,
                 max_values: 1,
                 options: selectOptions,
@@ -178,20 +179,20 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
                 type: 2,
                 style: 3,
                 custom_id: statusId(event.id, status, picks),
-                label: status === "signed" ? "Anmelden" : `Speichern: ${STATUS_STATE[status] || status}`,
+                label: status === "signed" ? "Sign up" : `Save: ${STATUS_STATE[status] || status}`,
                 disabled: !picks.spec || win.started,
             },
-            { type: 2, style: 2, custom_id: joinId(event.id, status, "m", picks), label: "Kann auch …", disabled: win.started },
-            { type: 2, style: 2, custom_id: commentId(event.id, picks), label: "Kommentar", disabled: !mine || win.started },
+            { type: 2, style: 2, custom_id: joinId(event.id, status, "m", picks), label: "Can also …", disabled: win.started },
+            { type: 2, style: 2, custom_id: commentId(event.id, picks), label: "Comment", disabled: !mine || win.started },
             // Several own characters, first choice + "kann auch mit" (#293, commands/signup/signupMulti.js).
             ...(options.length > 1 && status !== "absence"
-                ? [{ type: 2, style: 2, custom_id: `signup-multi:e:${event.id}:${STATUS_CODES[status] || "s"}`, label: "Mehrere Charaktere …", disabled: win.started }]
+                ? [{ type: 2, style: 2, custom_id: `signup-multi:e:${event.id}:${STATUS_CODES[status] || "s"}`, label: "Several characters …", disabled: win.started }]
                 : []),
         ],
     });
     // A link button needs an absolute url.
     if (/^https?:\/\//.test(baseUrl())) {
-        components[components.length - 1].components.push({ type: 2, style: 5, label: "Profil", url: `${baseUrl()}/profile` });
+        components[components.length - 1].components.push({ type: 2, style: 5, label: "Profile", url: `${baseUrl()}/profile` });
     }
 
     const embed = {

@@ -22,7 +22,7 @@ module.exports = {
     async execute(interaction) {
         const { eventId, field, state } = parsePickId(interaction.customId);
         const event = getEvent(eventId);
-        if (!event) return plainUpdate(interaction, "Dieses Event gibt es nicht mehr.");
+        if (!event) return plainUpdate(interaction, "This event no longer exists.");
         const uid = interaction.user.id;
         const profile = profiles.getProfile(uid) || { characters: [] };
         const mine = getSignup(event.id, uid);

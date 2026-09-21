@@ -1,4 +1,5 @@
-// /profil — the raider's own profile in short (#255), with the one change that
+// /profil — the raider's own profile in short (#255, English like every
+// raider-facing bot text), with the one change that
 // is worth a button: "kann Offtank" / "kann heilen". Everything else is a link
 // into the web page, where there is room for it.
 //
@@ -9,8 +10,8 @@ const profiles = require("../../web/raiderProfileStore");
 const { effectiveRoles } = require("../../web/profileView");
 const { publicBaseUrl } = require("../../config/variables");
 
-const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
-const DAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
+const GEAR_LABELS = { none: "no gear", usable: "usable", ready: "raid ready" };
+const DAY_LABELS = { mo: "Mon", di: "Tue", mi: "Wed", do: "Thu", fr: "Fri", sa: "Sat", so: "Sun" };
 const TOGGLES = { tank: "canOfftank", heal: "canHeal" };
 
 function profileUrl() {
@@ -21,21 +22,21 @@ function profileUrl() {
 function summaryLines(profile) {
     const lines = [];
     if (!profile.characters.length) {
-        lines.push("Noch kein Charakter eingetragen.");
+        lines.push("No character yet.");
     }
     for (const c of profile.characters) {
         const specs = c.specs
             .map((s) => {
                 const info = profiles.specInfo(s.key);
-                return `${(info && info.label) || s.key} (${GEAR_LABELS[s.gear] || s.gear})`;
+                return `${(info && (info.labelEn || info.label)) || s.key} (${GEAR_LABELS[s.gear] || s.gear})`;
             })
             .join(", ");
-        lines.push(`**${c.name}**${c.main ? " · Main" : ""} — ${specs || "keine Specs"}`);
+        lines.push(`**${c.name}**${c.main ? " · Main" : ""} — ${specs || "no specs"}`);
     }
     const roles = effectiveRoles(profile);
     lines.push("");
-    lines.push(`Offtank: ${roles.canOfftank ? "ja" : "nein"} · Heilen: ${roles.canHeal ? "ja" : "nein"}`);
-    lines.push(`Verfügbar: ${profile.availability.length ? profile.availability.map((d) => DAY_LABELS[d]).join(" · ") : "nicht angegeben"}`);
+    lines.push(`Off-tank: ${roles.canOfftank ? "yes" : "no"} · Heal: ${roles.canHeal ? "yes" : "no"}`);
+    lines.push(`Available: ${profile.availability.length ? profile.availability.map((d) => DAY_LABELS[d]).join(" · ") : "not given"}`);
     return lines;
 }
 
@@ -44,19 +45,19 @@ function buttons(profile) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId("profil:tank")
-            .setLabel(roles.canOfftank ? "Kein Offtank" : "Kann Offtank")
+            .setLabel(roles.canOfftank ? "No off-tank" : "Can off-tank")
             .setStyle(roles.canOfftank ? ButtonStyle.Secondary : ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId("profil:heal")
-            .setLabel(roles.canHeal ? "Kein Heilen" : "Kann heilen")
+            .setLabel(roles.canHeal ? "No healing" : "Can heal")
             .setStyle(roles.canHeal ? ButtonStyle.Secondary : ButtonStyle.Primary),
-        new ButtonBuilder().setLabel("Profil öffnen").setStyle(ButtonStyle.Link).setURL(profileUrl()),
+        new ButtonBuilder().setLabel("Open profile").setStyle(ButtonStyle.Link).setURL(profileUrl()),
     );
 }
 
 function message(profile) {
     const embed = new EmbedBuilder()
-        .setTitle("Mein Profil")
+        .setTitle("My profile")
         .setDescription(summaryLines(profile).join("\n"))
         .setColor(0x38bdf8);
     return { embeds: [embed], components: [buttons(profile)] };

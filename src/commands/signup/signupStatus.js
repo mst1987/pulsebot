@@ -45,9 +45,9 @@ module.exports = {
     async execute(interaction) {
         const { eventId, status, state } = parseStatusId(interaction.customId);
         const event = getEvent(eventId);
-        if (!event) return plainUpdate(interaction, "Dieses Event gibt es nicht mehr.");
+        if (!event) return plainUpdate(interaction, "This event no longer exists.");
         const uid = interaction.user.id;
-        if (!status) return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Unbekannter Status." }));
+        if (!status) return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Unknown status." }));
 
         const profile = profiles.getProfile(uid) || { characters: [] };
         const picks = resolveState(event, profile, getSignup(event.id, uid), state);
@@ -55,7 +55,7 @@ module.exports = {
         if (interaction.isModalSubmit()) {
             const name = String(interaction.fields.getTextInputValue("character") || "").trim();
             const info = profiles.specInfo(picks.spec);
-            if (!info) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: "⚠️ Bitte zuerst Klasse und Spec wählen." }));
+            if (!info) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: "⚠️ Please pick class and spec first." }));
             const added = profiles.addCharacter(uid, {
                 name,
                 className: info.classId,
@@ -68,7 +68,7 @@ module.exports = {
 
         if (status === "absence") return save(interaction, event, status, picks, picks.character);
         if (!picks.spec) {
-            return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: "⚠️ Bitte zuerst Charakter und Spec wählen." }));
+            return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: "⚠️ Please pick character and spec first." }));
         }
         if (!picks.character) {
             // Refused anyway (deadline, started)? Say so before asking for a name.
@@ -77,7 +77,7 @@ module.exports = {
             if (access.error) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${access.error}` }));
             const info = profiles.specInfo(picks.spec) || {};
             const defaultName = (interaction.member && interaction.member.displayName) || "";
-            const classText = [classLabel(event, info.classId), info.label].filter(Boolean).join(" · ");
+            const classText = [classLabel(event, info.classId), info.labelEn || info.label].filter(Boolean).join(" · ");
             return interaction.showModal(buildCharacterModal(interaction.customId, { defaultName, classText, versionId: event.versionId }));
         }
         return save(interaction, event, status, picks, picks.character);

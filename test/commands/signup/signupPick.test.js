@@ -73,7 +73,7 @@ describe("commands/signup/signupPick", () => {
     it("clears the message when the event is gone", async () => {
         const i = mockInteraction({ customId: "signup-pick:eh-gone:a:::", values: [] });
         await command.execute(i);
-        expect(i.update).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", embeds: [], components: [] });
+        expect(i.update).toHaveBeenCalledWith({ content: "This event no longer exists.", embeds: [], components: [] });
     });
 });
 

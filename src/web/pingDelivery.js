@@ -120,7 +120,7 @@ async function deliverUserPing({ target, event, userIds, text = "", guildId = ""
         if (present.length) result.talk = await discord.postMissingPing(talk.channelId, present, text);
         result.mentioned = present.length;
         if (!includesEvent(mode) && absent.length) {
-            result.dm = await sendDms(absent, { content: dmContent(text || "Bitte melde dich für den Raid an oder ab.", event, guildId) });
+            result.dm = await sendDms(absent, { content: dmContent(text || "Please sign up or sign off for the raid.", event, guildId) });
         }
     }
     return result;
