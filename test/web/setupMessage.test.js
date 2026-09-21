@@ -100,7 +100,11 @@ describe("buildSetupMessage", () => {
         expect(bench.value).toContain("Thalia");
         expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
         expect(embed.footer.text).toContain("Stand 2");
-        expect(msg.components).toEqual([]);
+        // one button for the orga: "Invite callen" (inviteCallBot.js)
+        expect(msg.components).toEqual([{
+            type: 1,
+            components: [{ type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Invite callen", emoji: { name: "📣" } }],
+        }]);
     });
 
     it("reads the same without app emojis (text fallbacks)", () => {
@@ -163,6 +167,8 @@ describe("buildSetupMessage", () => {
         expect(embed.title).toBe("Abgesagt: Setup · Kara Donnerstag");
         expect(embed.description).toContain("Zu wenige Heiler");
         expect(embed.fields).toBeUndefined();
+        // nobody is invited to a cancelled raid: no button
+        expect(sm.buildSetupMessage(event, event.setup.approved, { emojis }).components).toEqual([]);
     });
 });
 

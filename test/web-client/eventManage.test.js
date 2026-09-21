@@ -86,6 +86,14 @@ describe("the manage menu", () => {
         expect(ids(lib.manageMenu(base))).toContain("softres");
     });
 
+    it("offers Invite callen with an approved setup — also once the raid started, never when cancelled", () => {
+        expect(ids(lib.manageMenu(base))).not.toContain("invite");
+        expect(ids(lib.manageMenu({ ...base, invite: true }))).toEqual(["move", "signups", "raider", "|", "invite", "notify", "sheet", "softres", "|", "history", "|", "cancel", "delete"]);
+        expect(ids(lib.manageMenu({ ...base, invite: true, isPast: true }))).toContain("invite");
+        expect(ids(lib.manageMenu({ ...base, invite: true, cancelled: true }))).not.toContain("invite");
+        expect(lib.manageMenu({ ...base, invite: true }).find((e) => e.id === "invite").sub).toContain("/w");
+    });
+
     it("says open or close depending on the state and counts the log", () => {
         expect(lib.manageMenu(base).find((e) => e.id === "signups").label).toBe("Anmeldung schließen");
         expect(lib.manageMenu({ ...base, signupsClosed: true }).find((e) => e.id === "signups").label).toBe("Anmeldung öffnen");

@@ -19,6 +19,9 @@
 // again on the next run. DMs go out one after the other with a pause between
 // them; the outcome (sent, failed with the reason) is stored for the editor.
 //
+// Under the message sits one button, "Invite callen" (inviteCallBot.js): the
+// orga pings groups 1–5 with "/w <Charakter> inv". A cancelled event has none.
+//
 // The bar carries the **same colour as the signup message** (#307,
 // embedLook.embedColor): the two posts sit in one channel and belong together.
 // The picture stays with the signup message — two copies of the same boss icon
@@ -171,7 +174,9 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         if (embedLength(embed) <= LIMITS.total) break;
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    return { content: "", embeds: [embed], components: [] };
+    // "Invite callen" for the orga (inviteCallBot.js) — loaded here, like setupEditor above, to keep the requires acyclic.
+    const { inviteButtonRow } = require("./inviteCallBot");
+    return { content: "", embeds: [embed], components: [inviteButtonRow(event.id)] };
 }
 
 // ---- DMs --------------------------------------------------------------------

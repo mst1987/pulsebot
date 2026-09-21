@@ -6,10 +6,13 @@
 import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
 
 export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
-    | "notify" | "sheet" | "softres";
+    | "notify" | "sheet" | "softres" | "invite";
 export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
-/** `softres` false = the raid's loot system has no softres list (Loot-Council, …): no menu entry for it. */
-export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean };
+/**
+ * `softres` false = the raid's loot system has no softres list (Loot-Council, …): no menu entry for it.
+ * `invite` = an approved setup exists, so "Invite callen" has groups to ping.
+ */
+export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean; invite?: boolean };
 
 function entry(id: ManageAction, label: string, icon: string, sub: string, danger: boolean): ManageMenuEntry {
     return { id, label, icon, sub, danger };
@@ -54,6 +57,8 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
         );
     }
     out.push(sep());
+    // Raid night: also after the start — the invite goes out right then.
+    if (state.invite) out.push(entry("invite", "Invite callen", "spell_holy_prayerofspirit", "Gruppe 1–5 pingen: /w dein Charakter inv", false));
     if (!state.isPast) out.push(entry("notify", "Anmelde-Aufruf", "inv_letter_15", "Vorlage in den Kanal posten und Rollen pingen", false));
     out.push(entry("sheet", "Raidsheet", "inv_scroll_03", "Kopie der Vorlage füllen und posten", false));
     // Only where the loot system uses one; the chip in the head switches it on for this raid.

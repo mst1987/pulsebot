@@ -26,6 +26,7 @@ import CancelModal from "./raid-detail/manage/CancelModal";
 import DeleteModal from "./raid-detail/manage/DeleteModal";
 import RaiderModal from "./raid-detail/manage/RaiderModal";
 import HistoryModal from "./raid-detail/manage/HistoryModal";
+import InviteModal from "./raid-detail/manage/InviteModal";
 import "../styles/event-manage.css";
 import RaidCreateDialog from "../components/RaidCreateDialog";
 import { usePersistedSearchParam } from "../lib/persistedState";
@@ -158,6 +159,7 @@ export default function RaidDetailPage() {
         else if (action === "move") setModal("move");
         else if (action === "raider") setModal("raider");
         else if (action === "ping") setModal("ping");
+        else if (action === "invite") setModal("invite");
         else if (action === "history") setModal("history");
         else if (action === "cancel") setModal("cancel");
         else if (action === "delete") setModal("delete");
@@ -224,7 +226,7 @@ export default function RaidDetailPage() {
                 ) : undefined}
                 manage={canManage ? (
                     <ManageMenu
-                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres }}
+                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt }}
                         onAction={runManage}
                     />
                 ) : undefined}
@@ -260,6 +262,7 @@ export default function RaidDetailPage() {
                     <DeleteModal ctx={ctx} open={modal === "delete"} onClose={close} />
                     <RaiderModal ctx={ctx} open={modal === "raider"} onClose={close} />
                     <HistoryModal ctx={ctx} open={modal === "history"} onClose={close} />
+                    <InviteModal ctx={ctx} open={modal === "invite"} onClose={close} />
                 </>
             )}
             {editing && (
