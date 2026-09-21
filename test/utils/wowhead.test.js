@@ -99,4 +99,18 @@ describe("utils/wowhead", () => {
             expect(await wowhead.lookupItem(99902)).toBeNull();
         });
     });
+
+    // TBC Anniversary re-issues Wowhead does not know (config/wowheadItemAliases.js).
+    describe("Anniversary re-issues", () => {
+        it("links the original item Wowhead knows", () => {
+            expect(wowhead.itemLink(281895)).toBe("https://www.wowhead.com/tbc/item=37127");
+        });
+
+        it("looks the original up but keeps the re-issue's id", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Brightbrew Charm", icon: "inv_misc_orb_01", quality: 4 } });
+            const item = await wowhead.lookupItem(281895);
+            expect(axios.get.mock.calls[0][0]).toBe("https://nether.wowhead.com/tbc/tooltip/item/37127");
+            expect(item).toMatchObject({ id: 281895, name: "Brightbrew Charm" });
+        });
+    });
 });

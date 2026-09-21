@@ -4,6 +4,7 @@
 // keeps (the loot store and the raid-event snapshots) — nothing is stored.
 
 const { countsAsLoot } = require("../utils/lootReasons");
+const { wowheadLink } = require("../config/wowheadItemAliases");
 
 const WEEK_MS = 7 * 86400000;
 const RECENT_ITEMS = 3;
@@ -17,7 +18,7 @@ function recentItem(it) {
         itemName: it.itemName || "",
         itemIconUrl: it.itemIconUrl || "",
         itemQuality: it.itemQuality ?? null,
-        itemLink: it.itemLink || "",
+        itemLink: wowheadLink(it.itemLink),
         response: it.response || "",
         reasonLabel: it.reasonLabel || "",
         reasonTone: it.reasonTone || "",

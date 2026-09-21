@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { characterKey, enrichItemNames, needsLookup } = require("../utils/lootImport");
+const { wowheadLink } = require("../config/wowheadItemAliases");
 const { describeReason } = require("../utils/lootReasons");
 const { contentForLoot, tokenTier } = require("../config/tbcContent");
 
@@ -152,7 +153,7 @@ function charLootPreview(it) {
         itemIconUrl: it.itemIconUrl || "",
         // null (not 0) when Wowhead never resolved it — 0 is "poor" quality.
         itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
-        itemLink: it.itemLink || "",
+        itemLink: wowheadLink(it.itemLink),
         response: it.response || "",
         offspec: !!it.offspec,
         reason: it.reason || "",

@@ -10,6 +10,7 @@ const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
 const { ribbonChart, markerChart, lineChart, fmtTime, bandStats, CHART_STYLE, PX_PER_SEC } = require("./charts");
 const { bossIconUrl } = require("../config/bosses");
+const { itemLink: wowheadItemLink } = require("../utils/wowhead");
 const { armoryUrlFor } = require("./charLinks");
 const { TANK_AURAS } = require("../config/healerSpells");
 const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../config/raidBuffs");
@@ -206,7 +207,7 @@ function issueRow(issue) {
     const icon = `<img class="icon" src="${esc(iconUrl(issue.icon))}" loading="lazy" alt="">`;
     let name;
     if (issue.itemId) {
-        name = `<a class="item" href="https://www.wowhead.com/tbc/item=${esc(issue.itemId)}" target="_blank" rel="noopener">${icon}<span>${esc(issue.itemName)}</span></a>`;
+        name = `<a class="item" href="${esc(wowheadItemLink(issue.itemId))}" target="_blank" rel="noopener">${icon}<span>${esc(issue.itemName)}</span></a>`;
     } else {
         name = `<span class="item">${icon}<span>${esc(issue.itemName)}</span></span>`;
     }
@@ -446,7 +447,7 @@ const ICON_BY_NAME = (() => {
 
 /** Wowhead target for a tracked thing — item pages win over spell pages. */
 function wowheadHref(o) {
-    if (o.itemId) return `https://www.wowhead.com/tbc/item=${o.itemId}`;
+    if (o.itemId) return wowheadItemLink(o.itemId);
     if (o.spellId) return `https://www.wowhead.com/tbc/spell=${o.spellId}`;
     return "";
 }
@@ -1206,7 +1207,7 @@ function renderShadowResiPanel(sr, linkFor) {
     if (!sr || !sr.players || sr.players.length === 0) return "<div class=\"empty\">Kein Mother-Shahraz-Kampf im Report.</div>";
     const body = sr.players.map((p) => {
         const items = p.items.map((it) =>
-            `<a href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`
+            `<a href="${esc(wowheadItemLink(it.itemId))}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`
         ).join(", ");
         return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "–"}</td></tr>`;
     }).join("");
@@ -3195,7 +3196,7 @@ function raiderPrep(ctx, p, i) {
     // Gear: only the problem items, the paperdoll behind "Ausrüstung"
     const gearRows = issues.map((it) => {
         const inner = `${it.icon ? hicon(it.icon, "") : ""}<span>${esc(it.itemName)}</span>`;
-        const label = it.itemId ? `<a class="item" href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${inner}</a>` : inner;
+        const label = it.itemId ? `<a class="item" href="${esc(wowheadItemLink(it.itemId))}" target="_blank" rel="noopener">${inner}</a>` : inner;
         return `<div class="kv"><span class="k">${label}</span>${badge(it.label, it.severity === "high" ? "bad" : "mid")}</div>`;
     }).join("");
     const armory = (p.armory || []).length;
@@ -3617,7 +3618,7 @@ function wowheadItemUrl(it) {
     const gemIds = (it.gems || []).map((g) => g.id).filter(Boolean);
     if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
     const qs = params.length ? `?${params.join("&")}` : "";
-    return `https://www.wowhead.com/tbc/item=${esc(it.itemId)}${qs}`;
+    return `${esc(wowheadItemLink(it.itemId))}${qs}`;
 }
 
 // one equipment slot in the paperdoll (side = "left"/"right"/"bottom" controls alignment)
@@ -3641,7 +3642,7 @@ function paperdollSlot(it, side) {
     }
     // real gem icons + empty sockets
     let gems = (it.gems || []).map((g) =>
-        `<a class="gemicon ${g.bad ? "gem-bad" : ""}" href="https://www.wowhead.com/tbc/item=${esc(g.id)}" target="_blank" rel="noopener" data-tip="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"><img src="${esc(iconUrl(g.icon))}" alt=""></a>`).join("");
+        `<a class="gemicon ${g.bad ? "gem-bad" : ""}" href="${esc(wowheadItemLink(g.id))}" target="_blank" rel="noopener" data-tip="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"><img src="${esc(iconUrl(g.icon))}" alt=""></a>`).join("");
     for (let i = 0; i < (it.emptySockets || 0); i++) gems += "<span class=\"gemicon gem-empty\" data-tip=\"leerer Sockel\"></span>";
     const gemsRow = gems ? `<div class="slot-gems">${gems}</div>` : "";
     return `<div class="slot slot-${side}">

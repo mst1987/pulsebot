@@ -4,6 +4,8 @@
 
 const axios = require("axios");
 const httpsAgent = require("./httpAgent");
+// Anniversary re-issues Wowhead does not know link and resolve as the original.
+const { wowheadItemId } = require("../config/wowheadItemAliases");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -19,7 +21,7 @@ function iconUrl(icon) {
 }
 
 function itemLink(itemId, edition = "tbc") {
-    return itemId ? `https://www.wowhead.com/${branchFor(edition)}/item=${itemId}` : "";
+    return itemId ? `https://www.wowhead.com/${branchFor(edition)}/item=${wowheadItemId(itemId)}` : "";
 }
 
 /**
@@ -77,7 +79,7 @@ async function lookupItem(itemId, { edition = "tbc" } = {}) {
     if (!id) return null;
     if (itemCache.has(id)) return itemCache.get(id);
     try {
-        const { data } = await axios.get(`https://nether.wowhead.com/${branchFor(edition)}/tooltip/item/${id}`, {
+        const { data } = await axios.get(`https://nether.wowhead.com/${branchFor(edition)}/tooltip/item/${wowheadItemId(id)}`, {
             httpsAgent,
             timeout: 15000,
             headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" },

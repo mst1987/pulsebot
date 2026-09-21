@@ -29,6 +29,7 @@ jest.mock("../../src/utils/wowhead", () => ({
 const fs = require("fs");
 const {
     addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
+    charLootPreview,
 } = require("../../src/web/lootStore.js");
 
 beforeEach(() => {
@@ -43,6 +44,14 @@ const item = (over = {}) => ({
 });
 
 describe("web/lootStore", () => {
+    // A row imported before the alias table keeps the Anniversary re-issue's
+    // id in its stored link — Wowhead does not know it, so it is served rewritten.
+    it("serves a stored Anniversary re-issue link as the original Wowhead knows", () => {
+        const row = item({ itemId: 281895, itemLink: "https://www.wowhead.com/tbc/item=281895" });
+        expect(charLootPreview(row).itemLink).toBe("https://www.wowhead.com/tbc/item=37127");
+        expect(charLootPreview(item({ itemLink: "" })).itemLink).toBe("");
+    });
+
     // Reason, raid and tier are derived on every read rather than stored, so
     // rows imported before those tables existed profit from them too.
     describe("read-time enrichment", () => {

@@ -7,6 +7,7 @@
 // the numbers are what gets tested: the route only adds class colours and icons.
 
 const { listAll, charLootPreview } = require("./lootStore");
+const { wowheadLink } = require("../config/wowheadItemAliases");
 const { annotatedCharacters } = require("./characterInfo");
 const { reasonCatalog, reasonMeta } = require("../utils/lootReasons");
 const { CONTENTS, TIERS, content: contentMeta } = require("../config/tbcContent");
@@ -144,7 +145,7 @@ function itemCatalog() {
                 itemIconUrl: it.itemIconUrl || "",
                 // null (not 0) when Wowhead never resolved it — 0 is "poor".
                 itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
-                itemLink: it.itemLink || "",
+                itemLink: wowheadLink(it.itemLink),
                 contentId: it.contentId || "",
                 tier: (contentMeta(it.contentId) || {}).tier || "",
                 boss: it.boss || "",
