@@ -12,6 +12,7 @@ const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess 
 const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("./raidTemplates");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("./lootSystem");
+const { normalizeCategoryMessageLook } = require("./embedLook");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -131,6 +132,11 @@ const CONFIG_DEFAULTS = {
     // category id: { [categoryId]: channelId }. Only the preset of a new event
     // (`event.voiceChannelId`) — an event keeps whatever was picked for it.
     categoryVoiceChannel: {},
+    // The look of a category's signup message (embedLook.js): the raid picture
+    // below it (`raidArt`, on by default) and the size of the title tiles
+    // (`titleSize` "normal" | "large" | "huge", default "large"). Only what
+    // differs from the default is stored: { [categoryId]: { raidArt?, titleSize? } }.
+    categoryMessageLook: {},
     // "Beim Anlegen ankündigen" per Discord category (#306):
     // { [categoryId]: { enabled: true, target: "event" | "talk" | "both" } }.
     // Off by default — only switched-on categories are stored.
@@ -535,6 +541,7 @@ function getConfig() {
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
+        categoryMessageLook: normalizeCategoryMessageLook(stored.categoryMessageLook),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
         categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
@@ -913,6 +920,10 @@ function saveConfig(partial) {
     }
     if (partial.categoryVoiceChannel) {
         next.categoryVoiceChannel = normalizeCategoryVoiceChannel({ ...current.categoryVoiceChannel, ...partial.categoryVoiceChannel });
+    }
+    // Merged per category, then normalised: a category back at the defaults drops out.
+    if (partial.categoryMessageLook) {
+        next.categoryMessageLook = normalizeCategoryMessageLook({ ...current.categoryMessageLook, ...partial.categoryMessageLook });
     }
     if (partial.categoryAnnounce) {
         next.categoryAnnounce = normalizeCategoryAnnounce({ ...current.categoryAnnounce, ...partial.categoryAnnounce });

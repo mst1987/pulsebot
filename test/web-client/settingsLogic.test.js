@@ -173,6 +173,14 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Neue Events → EventHelper"]);
     });
 
+    it("names the message look, and treats a missing one as raid picture on, title large", () => {
+        const draft = base();
+        draft.categoryMessageLook = { c1: { raidArt: false, titleSize: "huge" }, c2: { raidArt: true, titleSize: "large" } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Raid-Bild aus", "Hyjal & BT · Titelgröße → sehr groß"]);
+        expect(logic.messageLook(undefined, "c1")).toEqual({ raidArt: true, titleSize: "large" });
+        expect(logic.messageLook({ c1: { titleSize: "quatsch" } }, "c1")).toEqual({ raidArt: true, titleSize: "large" });
+    });
+
     it("names the setup DM switch, and treats a missing one as off (#290)", () => {
         const draft = base();
         draft.categorySetupDms = { c1: true, c2: false };

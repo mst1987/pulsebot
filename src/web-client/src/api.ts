@@ -559,6 +559,10 @@ export type AdminConfig = {
     categoryDiscordEvent?: Record<string, boolean>;
     // The voice channel a category's raids meet in (#305), keyed by category id.
     categoryVoiceChannel?: Record<string, string>;
+    // The look of a category's signup message: raid picture below it (default on)
+    // and the size of the title tiles ("normal" | "large" | "huge", default "large").
+    // Only what differs from the default is listed.
+    categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
     // listed; `target` is a ping target ("event" | "talk" | "both").
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;

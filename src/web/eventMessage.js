@@ -63,7 +63,7 @@ const crypto = require("crypto");
 const { publicBaseUrl } = require("../config/variables");
 // Colour and picture of the embed (#307): the event's own, else the rule set of
 // its instances, else the accent — and never a picture Discord cannot load.
-const { embedColor, embedImageFields } = require("./embedLook");
+const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
 const { getEvent, setEventMessage, listEvents } = require("./eventStore");
 const { listSignups, onSignupsChanged } = require("./signupStore");
 const discord = require("./discord");
@@ -211,13 +211,18 @@ function rosterEntries(signups) {
     return out;
 }
 
-/** One roster line: "<spec icon> `12` **Name**" — without the icon, the spec in words. */
+/**
+ * One roster line: "<spec icon> `12` **Name**" — without the icon, the spec in
+ * words. A raider's further character (`index` > 0, "kann auch mit") is not
+ * bold: it is an offer, not a seat.
+ */
 function rosterLine(entry, number, emojis) {
     const icon = emojiText(emojis, specEmojiName(entry.spec));
     const num = `\`${number}\``;
-    if (icon) return `${icon} ${num} **${nameOf(entry)}**`;
+    const name = entry.index > 0 ? nameOf(entry) : `**${nameOf(entry)}**`;
+    if (icon) return `${icon} ${num} ${name}`;
     const spec = SPEC_BY_KEY.get(entry.spec);
-    return `${num} **${nameOf(entry)}**${spec ? ` · ${spec.labelEn || spec.label}` : ""}`;
+    return `${num} ${name}${spec ? ` · ${spec.labelEn || spec.label}` : ""}`;
 }
 
 /** Lines as one field value: at most `maxLines` lines and `max` characters, "+N more" for the rest. */
@@ -266,6 +271,8 @@ function embedLength(embed) {
 
 // A title longer than this stays text — the tiles would wrap into a wall.
 const MAX_TILES = 32;
+// How large the tiles are (embedLook.TITLE_SIZES): a markdown heading before the line.
+const TITLE_HEADINGS = { normal: "", large: "## ", huge: "# " };
 
 /**
  * The title as a line of letter tiles, Raid-Helper's look ("Hyjal+BT" →
@@ -304,16 +311,22 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     const signed = entries.filter((e) => e.status === "signed");
     const fields = [];
     const block = (icon, label, list) => {
-        const sorted = list.slice().sort(byNumber);
+        // A raider's first character first, in signup order; their further
+        // characters below all of them — and only the first ones count.
+        const first = list.filter((e) => !(e.index > 0)).sort(byNumber);
+        const further = list.filter((e) => e.index > 0).sort(byNumber);
+        const sorted = [...first, ...further];
         // "<icon> __Priest__ (3)"; the empty last line keeps the rows of blocks apart.
         fields.push({
-            name: clip(`${icon ? `${icon} ` : ""}__${label}__ (${sorted.length})`, LIMITS.fieldName),
+            name: clip(`${icon ? `${icon} ` : ""}__${label}__ (${first.length})`, LIMITS.fieldName),
             value: `${blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis)), maxLines, LIMITS.fieldValue - 2)}\n${ZWS}`,
             inline: true,
         });
     };
     const tanks = signed.filter((e) => e.role === "tank");
-    if (tanks.length) block(roleIcon(emojis, "tank", style), "Tanks", tanks);
+    // The Tanks block wears the Protection Warrior's icon — the WoW picture of a
+    // tank beside the class blocks' WoW icons; the flat role icon as fallback.
+    if (tanks.length) block(emojiText(emojis, specEmojiName("Warrior-Protection")) || roleIcon(emojis, "tank", style), "Tanks", tanks);
     for (const cls of CLASSES) {
         const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
         if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.labelEn || cls.label, members);
@@ -324,9 +337,17 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
 
     const other = [];
     for (const [status, label] of OTHER_LINES) {
-        const list = entries.filter((e) => e.status === status).sort(byNumber);
+        // One entry per raider: several characters on the same status share one
+        // number and count once ("`3` Darkdisi / Lakunoc").
+        const people = new Map();
+        for (const e of entries.filter((x) => x.status === status).sort(byNumber)) {
+            const key = String(e.userId);
+            if (!people.has(key)) people.set(key, { entry: e, names: [] });
+            people.get(key).names.push(nameOf(e));
+        }
+        const list = [...people.values()];
         if (!list.length) continue;
-        const shown = list.slice(0, maxLines * 2).map((e) => `\`${numberOf(e)}\` ${nameOf(e)}`);
+        const shown = list.slice(0, maxLines * 2).map((p) => `\`${numberOf(p.entry)}\` ${p.names.join(" / ")}`);
         const more = list.length - shown.length;
         other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` +${more} more` : ""}`);
     }
@@ -425,7 +446,7 @@ function messageComponents(event, { emojis = {}, now = Date.now(), phase = messa
  *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = labels only
  *   `icsUrl`: the calendar link; empty = the event's own `/r/cal/<id>.ics` (#308)
  */
-function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsUrl = "" } = {}) {
+function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal" } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
     const phase = messagePhase(event, now);
@@ -512,13 +533,15 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     // The title as letter tiles opens the description — an embed title cannot
     // show emojis. A cancelled event keeps "Cancelled: …" as plain text.
     const tiles = phase === "cancelled" ? null : titleTiles(title, emojis, style);
-    if (tiles) desc.unshift(tiles, ...(desc.length ? [""] : []));
+    // A markdown heading enlarges the tiles — an emoji grows with the line it
+    // sits in, and a heading is the only larger line an embed description has.
+    if (tiles) desc.unshift(`${TITLE_HEADINGS[titleSize] || ""}${tiles}`, ...(desc.length ? [""] : []));
     // A cancelled event keeps the red bar and loses its picture: "Cancelled"
     // should read as off, not as an advert for the raid (#307).
     const embed = {
         ...(tiles ? {} : { title: clip(title, LIMITS.title) }),
         color: phase === "cancelled" ? CANCELLED_COLOR : embedColor(event),
-        ...(phase === "cancelled" ? {} : embedImageFields(event)),
+        ...(phase === "cancelled" ? {} : embedImageFields(event, { raidArt })),
         fields: [],
     };
     const text = clip(desc.join("\n"), LIMITS.description);
@@ -547,7 +570,10 @@ async function textChannel(channelId) {
 /** The payload with the application emojis (read once per process; labels without them). */
 async function payloadFor(event) {
     await loadAppEmojis(discord.getClient());
-    return buildEventMessage(event, listSignups(event.id), { emojis: appEmojiMap() });
+    // The category's look (Einstellungen › Kategorien): raid picture and title size.
+    const { getConfig } = require("./settingsStore");
+    const look = messageLookOf(getConfig(), event.categoryId);
+    return buildEventMessage(event, listSignups(event.id), { emojis: appEmojiMap(), raidArt: look.raidArt, titleSize: look.titleSize });
 }
 
 async function postPayload(event, payload) {

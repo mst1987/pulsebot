@@ -108,6 +108,8 @@ export type DraftShape = {
     categoryDiscordEvent?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
     categoryVoiceChannel?: Record<string, string>;
+    /** The look of the signup message; missing = raid picture on, title "large". */
+    categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes?: Record<string, string>;
@@ -161,6 +163,15 @@ export function noteChannelPick(channels: { id: string; name: string }[], defaul
     return { defaultLabel, unreachable: !!value && channels.length > 0 && !channels.some((c) => c.id === value) };
 }
 
+/** The title sizes of the signup message (src/web/embedLook.js, TITLE_SIZES). */
+export const TITLE_SIZE_LABEL: Record<string, string> = { normal: "normal", large: "groß", huge: "sehr groß" };
+
+/** One category's message look with the defaults filled in: raid picture on, title "large". */
+export function messageLook(map: Record<string, { raidArt?: boolean; titleSize?: string }> | undefined, id: string): { raidArt: boolean; titleSize: string } {
+    const entry = (map || {})[id] || {};
+    return { raidArt: entry.raidArt !== false, titleSize: TITLE_SIZE_LABEL[entry.titleSize || ""] ? String(entry.titleSize) : "large" };
+}
+
 function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
     const x = [...(a || [])].sort();
     const y = [...(b || [])].sort();
@@ -193,6 +204,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
+        ...Object.keys(saved.categoryMessageLook || {}), ...Object.keys(draft.categoryMessageLook || {}),
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
         ...Object.keys(saved.categorySignupNoteChannel || {}), ...Object.keys(draft.categorySignupNoteChannel || {}),
@@ -223,6 +235,10 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
         const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
         if (voiceWas !== voiceIs) out.push(`${name} · Sprachkanal ${voiceIs ? "gesetzt" : "entfernt"}`);
+        const lookWas = messageLook(saved.categoryMessageLook, id);
+        const lookIs = messageLook(draft.categoryMessageLook, id);
+        if (lookWas.raidArt !== lookIs.raidArt) out.push(`${name} · Raid-Bild ${lookIs.raidArt ? "an" : "aus"}`);
+        if (lookWas.titleSize !== lookIs.titleSize) out.push(`${name} · Titelgröße → ${TITLE_SIZE_LABEL[lookIs.titleSize] || lookIs.titleSize}`);
         const annWas = announceMode((saved.categoryAnnounce || {})[id]);
         const annIs = announceMode((draft.categoryAnnounce || {})[id]);
         if (annWas !== annIs) out.push(`${name} · Ankündigung → ${ANNOUNCE_LABEL[annIs] || annIs}`);

@@ -38,6 +38,20 @@ function normalizeCategoryLootTool(raw) {
     return out;
 }
 
+// The message look per category: `{ id: { raidArt, titleSize } }`, every entry
+// kept whole — one back at the defaults must reach the store's merge, which
+// then drops it (embedLook.normalizeCategoryMessageLook).
+function normalizeCategoryMessageLookPatch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, look] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        const src = look && typeof look === "object" ? look : {};
+        if (id) out[id] = { raidArt: src.raidArt !== false, titleSize: String(src.titleSize || "") };
+    }
+    return out;
+}
+
 // The loot system per category: `{ id: system|"" }` — an empty string (also
 // for an unknown value) survives the merge, so the store drops the category
 // and it follows its loot addon again.
@@ -420,6 +434,7 @@ async function updateSettings(req, res) {
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
+    if (body.categoryMessageLook !== undefined) partial.categoryMessageLook = normalizeCategoryMessageLookPatch(body.categoryMessageLook);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
     if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
     // The channel of those messages per category (#335): same contract as the voice channel.

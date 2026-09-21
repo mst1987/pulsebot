@@ -45,8 +45,10 @@ const RETRY_MS = 10 * 60 * 1000;
 const UI_ICONS = [
     "leader", "signups", "date", "time", "deadline", "start",
     "signed", "late", "tentative", "bench", "absence", "closed", "class",
-    // the role totals and the Tank block of the event message (#303)
-    "tank", "healer", "melee", "ranged",
+    // the role totals and the Tank block of the event message (#303); melee is
+    // drawn as two crossed swords ("swords") — the single sword ("melee") read
+    // as an exclamation mark and stays only for the emojis already uploaded
+    "tank", "healer", "melee", "swords", "ranged",
     // the voice channel and the raid's end in the message head (#305)
     "voice", "end",
 ];
@@ -76,8 +78,13 @@ function specEmojiName(specKey) {
 
 const classEmojiName = (classId) => (classId ? `${PREFIX}class_${slug(classId)}`.slice(0, 32) : "");
 const uiEmojiName = (name) => (name ? `${PREFIX}ui_${slug(name)}` : "");
-/** A role's flat UI icon (`eh_ui_tank`, …) — the signup and the setup message draw these; the WoW role icons are gone (#303/#320). */
-const roleUiEmojiName = (role) => (ROLES.includes(role) ? uiEmojiName(role) : "");
+// What a role's icon shows, where that differs from the role's name: melee is
+// two crossed swords. A new name, because the bot never replaces an emoji that
+// is uploaded already (scripts/render-role-swords.js).
+const ROLE_ICONS = { melee: "swords" };
+const roleIconKey = (role) => ROLE_ICONS[role] || role;
+/** A role's flat UI icon (`eh_ui_tank`, `eh_ui_swords`, …) — the signup and the setup message draw these; the WoW role icons are gone (#303/#320). */
+const roleUiEmojiName = (role) => (ROLES.includes(role) ? uiEmojiName(roleIconKey(role)) : "");
 /** A signup status's icon — the flat UI icon of the same name. */
 const statusEmojiName = (status) => uiEmojiName(status);
 /** Where the PNG of a UI icon lives. */
@@ -87,11 +94,11 @@ function tileEmojiName(char, style = DEFAULT_EMOJI_STYLE) {
     const code = EMOJI_STYLES[emojiStyleOf(style)];
     return code && TITLE_TILES[char] ? `${PREFIX}t${code}_${TITLE_TILES[char]}` : "";
 }
-/** A role's icon in a style ("tank" → "eh_ra_tank"); "plain" gives the flat `eh_ui_<role>`. */
+/** A role's icon in a style ("tank" → "eh_ra_tank", "melee" → "eh_ra_swords"); "plain" gives the flat `eh_ui_<icon>`. */
 function roleEmojiName(role, style = DEFAULT_EMOJI_STYLE) {
     if (!ROLES.includes(role)) return "";
     const code = EMOJI_STYLES[emojiStyleOf(style)];
-    return code ? `${PREFIX}r${code}_${role}` : uiEmojiName(role);
+    return code ? `${PREFIX}r${code}_${roleIconKey(role)}` : uiEmojiName(roleIconKey(role));
 }
 /** Where the PNG of a styled emoji (tile or role) lives. */
 const styledFile = (name) => path.join(UI_DIR, `${name}.png`);

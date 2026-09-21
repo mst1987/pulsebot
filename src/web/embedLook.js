@@ -133,14 +133,58 @@ function leadInstance(instanceIds) {
  */
 function ruleSetLook(instanceIds) {
     const inst = leadInstance(instanceIds);
-    if (!inst) return { color: "", thumbnail: "", instanceId: "" };
+    if (!inst) return { color: "", thumbnail: "", art: "", instanceId: "" };
     return {
         color: normalizeColor(inst.color),
         // 56 px, the largest size the icon CDN has — Discord shows a thumbnail
         // at up to 80 px and never upscales, so it stays crisp.
         thumbnail: inst.icon ? wowIconUrl(inst.icon, 56) : "",
+        art: raidArtUrl(inst.art),
         instanceId: inst.id,
     };
+}
+
+// Blizzard's zone pictures (600 × 300) — the artwork of every raid, served by
+// the same CDN the Armory uses. Only the "-small" size is public.
+const RAID_ART_BASE = "https://render.worldofwarcraft.com/eu/zones";
+
+/** The raid picture of an instance's `art` slug ("black-temple"), "" without one. */
+function raidArtUrl(slug) {
+    const s = String(slug || "").trim();
+    return /^[a-z0-9-]+$/.test(s) ? `${RAID_ART_BASE}/${s}-small.jpg` : "";
+}
+
+// The look of the signup message a category can switch (Einstellungen ›
+// Kategorien): the raid picture below the message and how large the letter
+// tiles of the title are. What is not stored is the default.
+const TITLE_SIZES = ["normal", "large", "huge"];
+const MESSAGE_LOOK_DEFAULTS = { raidArt: true, titleSize: "large" };
+
+/** One category's look in the stored shape: only what differs from the default. */
+function normalizeMessageLookEntry(raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    const out = {};
+    if (src.raidArt === false) out.raidArt = false;
+    if (TITLE_SIZES.includes(src.titleSize) && src.titleSize !== MESSAGE_LOOK_DEFAULTS.titleSize) out.titleSize = src.titleSize;
+    return out;
+}
+
+/** `{ [categoryId]: { raidArt?, titleSize? } }`; a category at the defaults drops out. */
+function normalizeCategoryMessageLook(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, value] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const entry = normalizeMessageLookEntry(value);
+        if (key && Object.keys(entry).length) out[key] = entry;
+    }
+    return out;
+}
+
+/** The message look of a category: `{ raidArt, titleSize }` with the defaults filled in. */
+function messageLookOf(config, categoryId) {
+    const stored = ((config && config.categoryMessageLook) || {})[String(categoryId || "")];
+    return { ...MESSAGE_LOOK_DEFAULTS, ...normalizeMessageLookEntry(stored) };
 }
 
 /**
@@ -184,15 +228,27 @@ function embedColor(event) {
 /**
  * The picture fields for an embed: `{ thumbnail: { url } }`, `{ image: { url } }`
  * or `{}` when there is none. Spread into the embed.
+ *
+ * With `raidArt` the raid's own picture (the leading instance's zone art) goes
+ * below the message too — unless the event already put a banner of its own there.
  */
-function embedImageFields(event) {
+function embedImageFields(event, { raidArt = false } = {}) {
     const look = lookOf(event);
-    if (!look.url) return {};
-    return look.mode === "banner" ? { image: { url: look.url } } : { thumbnail: { url: look.url } };
+    const out = {};
+    if (look.url) {
+        if (look.mode === "banner") out.image = { url: look.url };
+        else out.thumbnail = { url: look.url };
+    }
+    if (raidArt && !out.image) {
+        const art = ruleSetLook((event || {}).instanceIds).art;
+        if (art) out.image = { url: art };
+    }
+    return out;
 }
 
 module.exports = {
-    IMAGE_MODES, DEFAULT_IMAGE_MODE, MAX_URL,
+    IMAGE_MODES, DEFAULT_IMAGE_MODE, MAX_URL, TITLE_SIZES, MESSAGE_LOOK_DEFAULTS, RAID_ART_BASE,
     normalizeColor, colorProblem, colorValue, usableUrl, normalizeImage, imageProblem, normalizeLook,
     leadInstance, ruleSetLook, lookOf, embedColor, embedImageFields,
+    raidArtUrl, normalizeCategoryMessageLook, messageLookOf,
 };
