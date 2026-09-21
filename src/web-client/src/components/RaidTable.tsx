@@ -4,6 +4,7 @@ import { formatEventTime } from "../lib/format";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "./SortTh";
+import { useT } from "../i18n";
 
 // The link column is the only one that isn't sorted: its cells are the same
 // two or three buttons on every row, so there is nothing to order by.
@@ -17,12 +18,13 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { event: "asc", time: "desc", logs: 
 // that fits time-wise but stayed unassigned (two raids the same evening) shows
 // up as an open decision instead, linking to the detail page's Logs tab.
 function LogsCell({ ev }: { ev: RaidRow }) {
+    const t = useT();
     const { logs } = ev;
     const pending = ev.pendingLogCount || 0;
     const pendingHint = pending ? (
         <div className="small">
             <Link className="mlink" to={`/raids/detail?event=${encodeURIComponent(ev.id)}&tab=logs`}>
-                {pending} Log{pending === 1 ? "" : "s"} offen
+                {t("raids.table.pendingLogs", { count: pending })}
             </Link>
         </div>
     ) : null;
@@ -31,14 +33,14 @@ function LogsCell({ ev }: { ev: RaidRow }) {
         <>
             {logs.map((l, i) => {
                 const url = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
-                const name = l.title || l.reportId || "(Log)";
+                const name = l.title || l.reportId || t("raids.table.logFallback");
                 return (
                     <div key={i}>
                         {url
                             ? <a className="mlink" href={url} target="_blank" rel="noopener noreferrer">{name} ↗</a>
                             : name}
                         {l.status === "done" && (l.reportUrl || l.reportRefId) && (
-                            <> · <a className="mlink" href={l.reportUrl || `/r/${l.reportRefId}`}>Auswertung</a></>
+                            <> · <a className="mlink" href={l.reportUrl || `/r/${l.reportRefId}`}>{t("raids.table.report")}</a></>
                         )}
                     </div>
                 );
@@ -49,18 +51,20 @@ function LogsCell({ ev }: { ev: RaidRow }) {
 }
 
 function LootCell({ ev }: { ev: RaidRow }) {
+    const t = useT();
     return ev.lootCount
-        ? <Link className="mlink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>{ev.lootCount} Items</Link>
-        : <Link className="mlink" to="/history?tab=import">importieren</Link>;
+        ? <Link className="mlink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>{t("raids.table.items", { count: ev.lootCount })}</Link>
+        : <Link className="mlink" to="/history?tab=import">{t("raids.table.import")}</Link>;
 }
 
 function LinksCell({ ev, guildId }: { ev: RaidRow; guildId: string }) {
+    const t = useT();
     const links: React.ReactNode[] = [];
     if (guildId && ev.channelId) {
         links.push(<a key="discord" className="mlink" href={eventPostUrl(guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">Discord</a>);
     }
     if (raidplanUrl(ev.id)) {
-        links.push(<a key="setup" className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup/Comp</a>);
+        links.push(<a key="setup" className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">{t("raids.list.setup")}</a>);
     }
     if (ev.softres?.url) {
         links.push(<a key="softres" className="mlink" href={ev.softres.url} target="_blank" rel="noopener noreferrer">Softres</a>);
@@ -80,6 +84,7 @@ export default function RaidTable({ events, guildId, error, emptyMessage, sortKe
      *  raids leads with the next one, a list of past ones with the latest. */
     initialDir?: Dir;
 }) {
+    const t = useT();
     const { sort, dir, onSort, apply } = useTableSort<SortKey>(sortKey, SORT_DEFAULTS, "time", initialDir);
     const sorted = apply(events, (ev, key) => {
         switch (key) {
@@ -103,11 +108,11 @@ export default function RaidTable({ events, guildId, error, emptyMessage, sortKe
         <table className="idx" style={{ margin: 0 }}>
             <thead>
                 <tr>
-                    <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="time" label="Termin" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="logs" label="Logs" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="loot" label="Loot" sort={sort} dir={dir} onSort={onSort} />
-                    <th>Links</th>
+                    <SortTh sortKey="event" label={t("raids.table.event")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="time" label={t("raids.table.time")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="logs" label={t("raids.table.logs")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="loot" label={t("raids.table.loot")} sort={sort} dir={dir} onSort={onSort} />
+                    <th>{t("raids.table.links")}</th>
                 </tr>
             </thead>
             <tbody>

@@ -16,11 +16,14 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../../lib/signups";
 import { filterRaiders, orgaStatuses, raiderInputOk, specsOfClass } from "../../../lib/eventManage";
+import { classLabel, specLabel } from "../../../lib/wowNames";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 const NEW = "__new";
 
 export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const [candidates, setCandidates] = useState<ManageCandidates | null>(null);
     const [query, setQuery] = useState("");
@@ -81,7 +84,7 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const remove = async () => {
         if (!raider) return;
         const who = raider.signup?.character || raider.name;
-        if (!(await ask({ title: `${who} austragen?`, text: "Die Anmeldung wird entfernt. Der Raider bekommt keine Nachricht.", action: "Austragen" }))) return;
+        if (!(await ask({ title: t("raidManage.raider.removeTitle", { who }), text: t("raidManage.raider.removeText"), action: t("raidManage.raider.remove") }))) return;
         try {
             const r = await removeRaiderFromRaid(csrfToken, { event: eventId, userId: raider.userId });
             onClose();
@@ -94,59 +97,59 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_groupneedmore" tone="raids"
-            kicker={data.event.title} title="Raider eintragen" width={600}
-            hint={raider && charKey === NEW ? "Der neue Charakter wird auch ins Profil des Raiders übernommen." : "Anmeldeschluss und geschlossene Anmeldung gelten für die Orga nicht."}
+            kicker={data.event.title} title={t("raidManage.raider.title")} width={600}
+            hint={raider && charKey === NEW ? t("raidManage.raider.hintNewChar") : t("raidManage.raider.hintDefault")}
             footer={(
                 <>
-                    {raider?.signup && <Button variant="ghost" onClick={remove} className="em-remove">Austragen</Button>}
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    {raider?.signup && <Button variant="ghost" onClick={remove} className="em-remove">{t("raidManage.raider.remove")}</Button>}
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button type="submit" form="em-raider-form" icon="inv_misc_groupneedmore" running={busy} disabled={!raiderInputOk(userId, characterName, spec)}>
-                        {raider?.signup ? "Ändern" : "Eintragen"}
+                        {raider?.signup ? t("raidManage.raider.change") : t("raidManage.raider.add")}
                     </Button>
                 </>
             )}
         >
             <form id="em-raider-form" className="rd-form" onSubmit={submit}>
-                {!candidates ? <p className="rd-empty">Raider werden geladen …</p> : !raider ? (
+                {!candidates ? <p className="rd-empty">{t("raidManage.raider.loading")}</p> : !raider ? (
                     <>
                         <div className="field">
-                            <label htmlFor="em-raider-q">Raider <span className="rd-muted">Discord-Name oder Charakter</span></label>
-                            <input id="em-raider-q" type="search" value={query} autoFocus onChange={(e) => setQuery(e.target.value)} placeholder="Suchen …" />
+                            <label htmlFor="em-raider-q">{t("raidManage.raider.raider")} <span className="rd-muted">{t("raidManage.raider.raiderSub")}</span></label>
+                            <input id="em-raider-q" type="search" value={query} autoFocus onChange={(e) => setQuery(e.target.value)} placeholder={t("raidManage.raider.search")} />
                         </div>
-                        <div className="em-pick" role="listbox" aria-label="Raider">
+                        <div className="em-pick" role="listbox" aria-label={t("raidManage.raider.listAria")}>
                             {shown.map((r) => (
                                 <button key={r.userId} type="button" role="option" aria-selected={false} className="em-pick-row" onClick={() => pick(r)}>
                                     <span className="em-pick-name">{r.characters.find((c) => c.main)?.name || r.name || r.userId}</span>
-                                    <span className="em-sub">{r.name ? `@${r.name}` : ""}{r.characters.length > 1 ? ` · ${r.characters.length} Charaktere` : ""}</span>
+                                    <span className="em-sub">{r.name ? `@${r.name}` : ""}{r.characters.length > 1 ? ` · ${t("raidManage.raider.characters", { count: r.characters.length })}` : ""}</span>
                                     {r.signup && <Badge tone={SIGNUP_STATUS[r.signup.status].tone}>{statusBadgeLabel(r.signup.status)}</Badge>}
                                 </button>
                             ))}
-                            {!shown.length && <p className="rd-empty">Niemand gefunden.</p>}
+                            {!shown.length && <p className="rd-empty">{t("raidManage.raider.notFound")}</p>}
                         </div>
                     </>
                 ) : (
                     <>
                         <div className="em-who">
                             <div className="em-cell">
-                                <span className="kicker">Raider</span>
+                                <span className="kicker">{t("raidManage.raider.raider")}</span>
                                 <span className="em-val">{raider.name ? `@${raider.name}` : raider.userId}</span>
                                 <span className="em-sub">
-                                    {raider.signup ? `angemeldet als ${statusBadgeLabel(raider.signup.status)}${raider.signup.character ? ` · ${raider.signup.character}` : ""}` : "noch nicht angemeldet"}
+                                    {raider.signup ? `${t("raidManage.raider.signedAs", { status: statusBadgeLabel(raider.signup.status) })}${raider.signup.character ? ` · ${raider.signup.character}` : ""}` : t("raidManage.raider.notSigned")}
                                 </span>
                             </div>
-                            <Button variant="ghost" size="sm" onClick={() => setUserId("")}>Anderer Raider</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setUserId("")}>{t("raidManage.raider.otherRaider")}</Button>
                         </div>
 
                         <div className="field">
-                            <label>Charakter</label>
+                            <label>{t("raidManage.raider.character")}</label>
                             <div className="em-chips">
                                 {raider.characters.map((c) => (
                                     <button key={c.key} type="button" className={`em-chip${charKey === c.key ? " on" : ""}`} onClick={() => { setCharKey(c.key); setSpec(c.specs[0]?.key || ""); }}>
-                                        {c.name}{c.main && <span className="em-sub">Main</span>}
+                                        {c.name}{c.main && <span className="em-sub">{t("raidManage.raider.main")}</span>}
                                     </button>
                                 ))}
                                 <button type="button" className={`em-chip${charKey === NEW ? " on" : ""}`} onClick={() => { setCharKey(NEW); setSpec(""); }}>
-                                    Neuer Charakter
+                                    {t("raidManage.raider.newChar")}
                                 </button>
                             </div>
                         </div>
@@ -154,14 +157,14 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                         {charKey === NEW && (
                             <div className="em-fields">
                                 <div className="field">
-                                    <label htmlFor="em-raider-name">Name</label>
+                                    <label htmlFor="em-raider-name">{t("raidManage.raider.name")}</label>
                                     <input id="em-raider-name" type="text" maxLength={24} value={newName} onChange={(e) => setNewName(e.target.value)} />
                                 </div>
                                 <div className="field">
-                                    <label htmlFor="em-raider-class">Klasse</label>
+                                    <label htmlFor="em-raider-class">{t("raidManage.raider.class")}</label>
                                     <select id="em-raider-class" value={classId} onChange={(e) => { setClassId(e.target.value); setSpec(""); }}>
-                                        <option value="">wählen …</option>
-                                        {(candidates.classes || []).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                        <option value="">{t("raidManage.raider.choose")}</option>
+                                        {(candidates.classes || []).map((c) => <option key={c.id} value={c.id}>{classLabel(c.id, c.label)}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -169,11 +172,11 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
 
                         {specs.length > 0 && (
                             <div className="field">
-                                <label>Spezialisierung</label>
+                                <label>{t("raidManage.raider.spec")}</label>
                                 <div className="em-chips">
                                     {specs.map((s) => (
                                         <button key={s.key} type="button" className={`em-chip${spec === s.key ? " on" : ""}`} onClick={() => setSpec(s.key)}>
-                                            {s.icon && <WowIcon name={s.icon} size={18} />}{s.label}
+                                            {s.icon && <WowIcon name={s.icon} size={18} />}{specLabel(s.key, s.label)}
                                         </button>
                                     ))}
                                 </div>
@@ -181,9 +184,9 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                         )}
 
                         <div className="field">
-                            <label>Status</label>
+                            <label>{t("raidManage.raider.status")}</label>
                             <Segment<SignupStatus>
-                                size="sm" ariaLabel="Status" value={status} onChange={(s) => setStatus(s)}
+                                size="sm" ariaLabel={t("raidManage.raider.status")} value={status} onChange={(s) => setStatus(s)}
                                 options={orgaStatuses().map((s) => ({ value: s, label: SIGNUP_STATUS[s].label }))}
                             />
                         </div>

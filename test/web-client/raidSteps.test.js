@@ -5,53 +5,15 @@
 // zweite Haupt-Tat im Kopf, auf dem Handy eine Zeile statt waagerechtem Scrollen.
 const fs = require("fs");
 const path = require("path");
+const { loadTs, makeT, makeTOr } = require("./i18nHelper");
 const { eventSteps, STEP_IDS, STEP_STATES } = require("../../src/web/raidDetailSteps");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-function splitParams(list) {
-    const out = [];
-    let depth = 0;
-    let cur = "";
-    for (let i = 0; i < list.length; i++) {
-        const c = list[i];
-        if (c === "=" && list[i + 1] === ">") { cur += "=>"; i++; continue; }
-        if ("(<{[".includes(c)) depth++;
-        if (")>}]".includes(c)) depth--;
-        if (c === "," && depth === 0) { out.push(cur); cur = ""; continue; }
-        cur += c;
-    }
-    if (cur.trim()) out.push(cur);
-    return out;
-}
-
-/** The lib without its TypeScript: `import type`, `export type` and one-line signatures only. */
+/** The lib run for real, its `t` bound to the German texts. */
 function load() {
-    const lines = read("lib", "raidSteps.ts").split("\n");
-    const out = [];
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/^import type /.test(line)) continue;
-        if (/^export type /.test(line)) {
-            let depth = 0;
-            for (; i < lines.length; i++) {
-                for (const c of lines[i]) { if ("({[".includes(c)) depth++; if (")}]".includes(c)) depth--; }
-                if (depth === 0 && /;\s*$/.test(lines[i])) break;
-            }
-            continue;
-        }
-        const fn = line.match(/^(export )?function (\w+)\((.*)\)(: .*)? \{$/);
-        if (fn) {
-            const params = splitParams(fn[3]).map((p) => p.trim().split(":")[0].replace("?", "").trim()).filter(Boolean);
-            out.push(`function ${fn[2]}(${params.join(", ")}) {`);
-            continue;
-        }
-        out.push(line.replace(/^export /, ""));
-    }
-    const js = out.join("\n");
-    const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return loadTs("lib/raidSteps.ts", { t: makeT("de"), tOr: makeTOr("de") });
 }
 
 const lib = load();
@@ -185,5 +147,36 @@ describe("the step bar in the page", () => {
     it("carries no native title and no glyph icons", () => {
         expect(/<[a-z][a-z0-9]*\s[^<>]*\btitle=/.test(bar)).toBe(false);
         expect(/[✕×↗✓✗○🎉]/u.test(bar)).toBe(false);
+    });
+});
+
+// The step names and deed labels come from the server in German next to a
+// fixed id; the client shows them in the menu language by that id (#i18n).
+describe("the cockpit in the menu language", () => {
+    const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "raidDetailSteps.js"), "utf8");
+    const deedIds = [...server.matchAll(/deed\("(\w+)"/g)].map((m) => m[1]).filter((id) => id !== "evaluate");
+    const de = makeT("de");
+    const en = makeT("en");
+
+    it("knows every step and every deed the server can send", () => {
+        expect(deedIds.length).toBeGreaterThan(5);
+        for (const id of STEP_IDS) expect({ id, en: en(`raidDetail.steps.title.${id}`) }).not.toEqual({ id, en: `raidDetail.steps.title.${id}` });
+        for (const id of deedIds) expect({ id, de: de(`raidDetail.steps.deed.${id}`) }).not.toEqual({ id, de: `raidDetail.steps.deed.${id}` });
+    });
+
+    it("keeps the server's German where the dictionary has the same text", () => {
+        const labels = Object.fromEntries([...server.matchAll(/deed\("(\w+)", "([^"]+)"/g)].map((m) => [m[1], m[2]]));
+        for (const [id, label] of Object.entries(labels)) expect({ id, text: de(`raidDetail.steps.deed.${id}`) }).toEqual({ id, text: label });
+    });
+
+    it("names steps and deeds by id, the server's text only as fallback", () => {
+        const step = { id: "approval", label: "Freigabe" };
+        expect(lib.stepTitle(step)).toBe("Freigabe");
+        expect(lib.stepTitle({ id: "future", label: "Neu" })).toBe("Neu");
+        expect(lib.deedLabel({ id: "evaluate", label: "CLA auswerten" })).toBe("CLA auswerten");
+        expect(lib.deedLabel({ id: "approve", label: "egal" })).toBe("Setup freigeben");
+        const stepBar = read("pages", "raid-detail", "StepBar.tsx");
+        expect(stepBar).toContain("deedLabel(step.action)");
+        expect(stepBar).toContain("const title = stepTitle(step);");
     });
 });

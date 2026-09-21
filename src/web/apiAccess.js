@@ -207,8 +207,9 @@ const AREA_BY_PATH = {
 
 // Answers for anyone, logged in or not — the client bootstraps from it.
 const UNGATED = new Set(["/api/session"]);
-// Needs a menu user, but belongs to no single area (the guild switcher).
-const ANY_AREA = new Set(["/api/session/guild"]);
+// Needs a menu user, but belongs to no single area (the guild switcher, the
+// account's own menu language).
+const ANY_AREA = new Set(["/api/session/guild", "/api/session/lang"]);
 // Authenticated by an API token instead of a Discord session (the loot-sync
 // uploader — see apiRoutes/ingest.js). These bypass *this* gate because there is
 // no session user to check, never the auth itself: the handler rejects anything

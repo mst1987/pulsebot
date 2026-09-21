@@ -1,0 +1,22 @@
+{
+    "day": "{day}.{month}.",
+    "unknown": "Server-Stand unbekannt",
+    "runningOn": "Server läuft auf {commit} vom {day}",
+    "runningOnNoDay": "Server läuft auf {commit}",
+    "current": "aktuell mit main",
+    "ahead": { "one": "main ist {count} Commit weiter", "other": "main ist {count} Commits weiter" },
+    "notComparable": "Abstand zu main nicht prüfbar",
+    "behindSince": { "one": "seit {count} Tag", "other": "seit {count} Tagen" },
+    "mainAt": "main auf {commit}",
+    "behind": {
+        "one": "Dieser Stand ist {count} Commit hinter main{since}{head}. Das automatische Deployment hat ihn nicht übernommen.",
+        "other": "Dieser Stand ist {count} Commits hinter main{since}{head}. Das automatische Deployment hat ihn nicht übernommen."
+    },
+    "upToDate": "Der Server läuft auf dem neuesten Stand von main.",
+    "started": "Gestartet {day}",
+    "reason": {
+        "noCommit": "Der laufende Prozess kennt seinen Commit nicht (kein Git im Verzeichnis und kein GIT_COMMIT gesetzt).",
+        "notFound": "Der laufende Commit steht nicht unter den letzten 100 Commits von main — ein eigener Branch oder ein sehr alter Stand.",
+        "unreachable": "GitHub war nicht erreichbar. Wird alle 10 Minuten erneut versucht."
+    }
+}

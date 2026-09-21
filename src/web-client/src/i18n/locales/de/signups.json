@@ -1,0 +1,152 @@
+{
+    "status": {
+        "signed": "Dabei",
+        "tentative": "Vielleicht",
+        "late": "Spät",
+        "bench": "Bank",
+        "absence": "Abmelden"
+    },
+    "statusTip": {
+        "signed": "Du kommst und spielst mit.",
+        "tentative": "Noch nicht sicher – die Orga plant dich nicht fest ein.",
+        "late": "Du kommst, aber später. Geht auch nach dem Anmeldeschluss.",
+        "bench": "Du springst ein, wenn jemand fehlt.",
+        "absence": "Du bist nicht dabei. Geht immer bis zum Raidbeginn."
+    },
+    "absentBadge": "Abgemeldet",
+    "canAlso": {
+        "tank": "Offtank",
+        "healer": "Heilen",
+        "melee": "Nahkampf",
+        "ranged": "Fernkampf"
+    },
+    "gear": {
+        "none": "kein Gear",
+        "usable": "brauchbar",
+        "ready": "raidbereit"
+    },
+    "viaRaidHelper": "über Raid-Helper",
+    "deadlinePassed": "Anmeldeschluss vorbei",
+    "deadlineAt": "Anmeldeschluss {time}",
+    "attending": "{count} angemeldet",
+    "signUp": "Anmelden",
+    "quoted": "„{text}“",
+    "selectedCount": {
+        "one": "{count} Raid gewählt",
+        "other": "{count} Raids gewählt"
+    },
+    "bulkTitle": "Für alle gewählten anmelden",
+    "statusForAll": "Status für alle",
+    "page": {
+        "title": "Anmeldungen",
+        "loadError": "Anmeldungen konnten nicht geladen werden: {message}",
+        "loading": "Kommende Raids werden geladen",
+        "upcoming": {
+            "one": "{count} kommender Raid",
+            "other": "{count} kommende Raids"
+        },
+        "noCharTip": "Noch kein Charakter",
+        "noCharTipSub": "Zum Anmelden brauchst du einen Charakter mit Spec in deinem Profil. Klick öffnet Mein Profil.",
+        "noCharLink": "Charakter im Profil anlegen",
+        "raidHelperError": "Raid-Helper nicht erreichbar – es fehlen vielleicht Events: {error}",
+        "empty": "Gerade stehen keine Raids an, die du sehen darfst.",
+        "bulkAria": "Mehrere Raids anmelden",
+        "selectAll": "Alle wählen",
+        "clearSelection": "Auswahl aufheben"
+    },
+    "row": {
+        "tentative": "{count} vielleicht",
+        "bench": "{count} Bank",
+        "absence": "{count} abgemeldet",
+        "raidHelperState": "Stand aus Raid-Helper.",
+        "selectAria": "{title} auswählen",
+        "selectTip": "Auswählen",
+        "selectTipSub": "Mehrere Raids wählen und mit „Für alle gewählten anmelden“ auf einmal anmelden.",
+        "discordTip": "In Discord anmelden",
+        "discordTipSub": "Dieses Event läuft über Raid-Helper – die Anmeldung ist das Widget unter dem Event-Post.",
+        "inDiscord": "In Discord",
+        "clickToChange": "Klick zum Ändern",
+        "started": "begonnen",
+        "latePossible": "Du kannst dich noch abmelden oder „Spät“ angeben.",
+        "offOrLate": "Abmelden / Spät"
+    },
+    "dialog": {
+        "toastAbsent": "Von {title} abgemeldet.",
+        "toastSaved": "Für {title} gespeichert: {status}.",
+        "size": "{size}er",
+        "change": "Anmeldung ändern",
+        "started": "Der Raid hat begonnen.",
+        "deadlineHint": "Anmeldeschluss vorbei – nur noch Abmelden oder Spät.",
+        "signOff": "Abmelden",
+        "noCharBefore": "In deinem Profil steht noch kein Charakter.",
+        "noCharLink": "Charakter anlegen",
+        "noCharAfter": "– abmelden geht auch ohne.",
+        "status": "Status",
+        "notAfterDeadline": "Nach dem Anmeldeschluss nicht mehr wählbar.",
+        "mixedStatus": "Deine Charaktere haben verschiedene Status – hier setzt du alle auf einen.",
+        "canAlso": "Ich kann auch",
+        "canAlsoHint": "Vorbelegt aus deinem Profil. Die Orga sieht das beim Setup.",
+        "comment": "Kommentar",
+        "optional": "(optional)",
+        "commentPlaceholder": "z. B. komme ca. 10 min später",
+        "wishTip": "Wunschpartner angemeldet",
+        "wishOn": "Dein Wunsch aus dem Profil wird beim Setup berücksichtigt.",
+        "wishOff": "Bei diesem Event werden Wünsche beim Setup nicht berücksichtigt.",
+        "wishSignedUp": {
+            "one": "{names} ist auch angemeldet",
+            "other": "{names} sind auch angemeldet"
+        },
+        "calendar": "In Kalender eintragen",
+        "publicPage": "Öffentliche Event-Seite",
+        "note": "Nachricht an die Raidleitung",
+        "noteTip": "Der Bot postet sie in den Kanal der Raidleitung.",
+        "required": "(Pflicht)",
+        "notePlaceholderAbsent": "z. B. Arbeit, Urlaub, krank",
+        "notePlaceholderTentative": "z. B. noch unsicher, evtl. später"
+    },
+    "bulk": {
+        "toast": "{saved} von {total} Raids gespeichert.",
+        "hint": "Was in einem Raid nicht passt (Anmeldeschluss, Klasse, Raider-Rolle), wird dort mit Grund übersprungen.",
+        "signOffAll": {
+            "one": "Von {count} Raids abmelden",
+            "other": "Von {count} Raids abmelden"
+        },
+        "signUpAll": {
+            "one": "Für {count} Raids anmelden",
+            "other": "Für {count} Raids anmelden"
+        },
+        "skipped": "{character} übersprungen: {reason}",
+        "waitlisted": "Warteliste",
+        "saved": "gespeichert",
+        "notSaved": "nicht gespeichert",
+        "absent": "abgemeldet"
+    },
+    "picks": {
+        "characters": "Charaktere",
+        "firstChoice": "1. Wahl",
+        "canAlsoWith": "Kann auch mit",
+        "firstChoiceSub": "Mit diesem Charakter kommst du am liebsten.",
+        "canAlsoWithSub": "Nimmt die Orga, wenn es für den Raid besser passt.",
+        "characterAria": "Charakter {n}",
+        "main": " (Main)",
+        "specAria": "Spec {n}",
+        "noSpec": "kein Spec im Profil",
+        "statusTip": "Status dieses Charakters",
+        "statusTipSub": "Gilt nur für diese Zeile – der Schalter unten setzt alle auf einmal.",
+        "statusAria": "Status {n}",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten",
+        "remove": "Entfernen",
+        "add": "+ Kann auch mit …",
+        "upTo": "(bis {max})",
+        "hint": "1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.",
+        "hintStatus": " Der Status gilt je Charakter."
+    },
+    "specPicker": {
+        "removeAria": "{name} entfernen",
+        "remove": "Entfernen",
+        "add": "Spec hinzufügen",
+        "search": "Suchen …",
+        "noHits": "Keine Treffer."
+    }
+}

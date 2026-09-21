@@ -1,0 +1,164 @@
+{
+    "title": "My profile",
+    "loadError": "Could not load the profile: {message}",
+    "loading": "Loading profile",
+    "characters": {
+        "one": "{count} character",
+        "other": "{count} characters"
+    },
+    "charactersAria": "Characters",
+    "changed": "changed {date}",
+    "new": "new",
+    "addCharacter": "Add character",
+    "remove": {
+        "title": "Remove {name}?",
+        "text": "The character disappears from your profile. Logs and loot stay untouched.",
+        "action": "Remove"
+    },
+    "weekday": {
+        "mo": "Mon",
+        "di": "Tue",
+        "mi": "Wed",
+        "do": "Thu",
+        "fr": "Fri",
+        "sa": "Sat",
+        "so": "Sun"
+    },
+    "gear": {
+        "none": "none",
+        "usable": "usable",
+        "ready": "raid-ready"
+    },
+    "gearAria": "Gear level {spec}",
+    "fold": {
+        "days": "When I can raid",
+        "daysNone": "nothing set",
+        "raids": "Preferred raids",
+        "raidsChosen": "{count} chosen",
+        "raidsNone": "no preference",
+        "wishes": "Like to raid with",
+        "wishesNone": "nobody added",
+        "orgaOnly": "orga only",
+        "orgaOnlyTip": "Only the orga sees this",
+        "orgaOnlySub": "Other raiders do not see your wishes – nor whether someone added you.",
+        "note": "Note for the orga",
+        "noteNone": "no note",
+        "calendar": "Calendar subscription",
+        "calendarLoading": "loading",
+        "calendarNone": "no link",
+        "calendarActive": {
+            "one": "{count} link active",
+            "other": "{count} links active"
+        }
+    },
+    "first": {
+        "title": "No character yet",
+        "crumb": "Choose how you want to start",
+        "logTitle": "From the logs",
+        "logText": "We may know you already – class and spec come from the log evaluations.",
+        "armoryTitle": "With the armory",
+        "armoryText": "Name and realm; class and level come from the armory.",
+        "manualTitle": "By hand",
+        "manualText": "Enter name, class and specs yourself."
+    },
+    "char": {
+        "main": "Main",
+        "makeMain": "Make main",
+        "claimed": "Already claimed",
+        "claimedChip": "Also added by: {names}. The orga sorts it out.",
+        "claimedCard": "Also added by: {names}. The orga sees this in the roster and sorts it out.",
+        "claimedBy": "claimed by {name}",
+        "otherAccount": "another account",
+        "unknown": "unknown",
+        "level": "Level {level}",
+        "armory": "Armory",
+        "openArmory": "Open armory",
+        "remove": "Remove character",
+        "noSpec": "No spec yet – add what you can play.",
+        "removeSpec": "Remove spec",
+        "addSpec": "Add spec"
+    },
+    "logs": {
+        "seen": "per logs",
+        "seenTip": "Confirmed with exactly this spec in the log evaluations.",
+        "other": "not confirmed",
+        "otherTip": "The character shows up in the logs, but not with this spec. That is only a hint for the orga, not a block.",
+        "reports": {
+            "one": "{count} evaluation with this character.",
+            "other": "{count} evaluations with this character."
+        }
+    },
+    "roles": {
+        "offtank": "Can offtank",
+        "heal": "Can heal",
+        "suggested": "Suggested from your specs: {answer}. You can change it any time.",
+        "yes": "yes",
+        "no": "no"
+    },
+    "cal": {
+        "loading": "Loading calendar links",
+        "revokeTitle": "Revoke calendar link?",
+        "revokeText": "The link stops working at once. Calendars subscribed to it get no more raids.",
+        "revoke": "Revoke",
+        "revoked": "Calendar link revoked.",
+        "intro": "One link with every raid you are signed up for — add it to your calendar once, every new raid shows up by itself.",
+        "secret": "The link is secret:",
+        "secretText": "whoever has it sees your raids. Do not share it, do not post it.",
+        "onlyNow": "visible only now",
+        "copied": "Copied",
+        "copy": "Copy link",
+        "link": "Link …{hint}",
+        "created": "created {date}",
+        "lastUsed": " · last fetched {date}",
+        "neverUsed": " · never fetched",
+        "noBaseUrl": "No public address is set (PUBLIC_BASE_URL) — without it no subscription link can be built.",
+        "creating": "Creating…",
+        "createMore": "Create another link",
+        "create": "Create link"
+    },
+    "raids": {
+        "versionAria": "Game version",
+        "incomplete": "Details follow after the release."
+    },
+    "wishes": {
+        "remove": "Remove",
+        "search": "Search raiders …",
+        "searchAria": "Search raiders",
+        "hint": "A wish, not a guarantee – the orga takes it into account for the setup."
+    },
+    "note": {
+        "placeholder": "e.g. online only from 19:45 on Wednesdays."
+    },
+    "add": {
+        "title": "Add character",
+        "wayAria": "Way",
+        "wayLog": "From logs",
+        "wayArmory": "Armory",
+        "wayManual": "By hand",
+        "link": "Link",
+        "create": "Create",
+        "name": "Character name",
+        "nameHint": "Letters only, at most 12 – in WoW Forever first and last name (12 each).",
+        "realm": "Realm",
+        "realmHint": "Class, level and guild come from the armory when it answers – otherwise it stays a link.",
+        "class": "Class",
+        "fromRaidhelper": "from Raid-Helper",
+        "fromRaidhelperTip": "Suggested from Raid-Helper",
+        "fromRaidhelperSub": "Class, specs and name come from your last Raid-Helper signups. If it does not fit, just change it.",
+        "specs": "Specs",
+        "search": "Search name …",
+        "searchAria": "Search name",
+        "searching": "Searching the logs",
+        "noHit": "No matching character in the logs. Try the armory or enter it by hand.",
+        "reports": {
+            "one": "{count} evaluation",
+            "other": "{count} evaluations"
+        },
+        "lastSeen": "last {date}",
+        "matchAssigned": "assigned to you",
+        "matchName": "name matches",
+        "claimed": "claimed",
+        "claimedSub": "Added by: {names}. You can take it anyway – the orga sorts it out.",
+        "thatsMe": "That's me"
+    }
+}

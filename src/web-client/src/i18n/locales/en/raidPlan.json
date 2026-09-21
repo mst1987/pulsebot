@@ -1,0 +1,93 @@
+{
+    "step": {
+        "start": "Template",
+        "termin": "Date",
+        "raid": "Raid",
+        "kanal": "Channel & signups",
+        "check": "Review"
+    },
+    "overflow": {
+        "off": "full: no more signups",
+        "bench": "full: waiting list (bench)",
+        "lock": "{full} · signups close when full"
+    },
+    "problem": {
+        "size": "The raid size must be a positive number.",
+        "tooBig": "No raid fits more than {max} players.",
+        "compNumbers": "The composition needs numbers from 0 up.",
+        "compTooBig": "The composition ({planned}) is bigger than the raid ({size}).",
+        "duration": "The duration must be between {min} and {max} minutes.",
+        "invalidCount": "{label}: not a valid number.",
+        "minOverMax": "{label}: minimum is greater than maximum.",
+        "maxOverSize": "{label}: maximum is greater than the size {size}.",
+        "color": "The colour must be given as #rrggbb, e.g. #8a7cff.",
+        "imageMode": "The image must be “thumbnail” or “banner”.",
+        "imageLong": "The image URL may be at most {max} characters long.",
+        "imageHttps": "The image URL must start with https://.",
+        "nameMissing": "Name missing.",
+        "sizeRange": "Size must be between 1 and {max}.",
+        "negative": "Tanks and healers must not be negative.",
+        "tanksHealers": "Tanks + healers ({sum}) do not fit into size {limit}.",
+        "minimums": "Tanks, healers and the melee/ranged minimums ({sum}) do not fit into size {limit}."
+    },
+    "defaultFor": "Default for {names}",
+    "fields": {
+        "instances": "Instances",
+        "instancesTip": "Several possible, e.g. SSC + TK in one evening. The sizes and the suggested tanks and healers come from the rule set.",
+        "incompleteTip": "Info missing: bosses and final boss are not known yet.",
+        "players": "{sizes} players",
+        "incomplete": "Info missing",
+        "size": "Raid size",
+        "sizeTip": "The allowed sizes of the chosen instances. “free” for any other size up to 40. Changing it suggests tanks and healers anew.",
+        "free": "free",
+        "freeAria": "Custom raid size",
+        "min": "min",
+        "max": "max",
+        "look": "Appearance",
+        "lookTip": "Colour bar and image of the signup message. Leave empty: colour and boss icon of the evening's biggest instance — so SSC, BT and Hyjal already look different on their own.",
+        "ownColor": "own colour",
+        "colorOf": "colour of {name}",
+        "defaultColor": "default colour",
+        "ownImageBanner": "own image, wide below",
+        "ownImageThumb": "own image, small beside",
+        "bossIconOf": "boss icon of {name}",
+        "noImage": "no image",
+        "pickColor": "Pick colour",
+        "colorHex": "Colour as hex value",
+        "reset": "Reset",
+        "resetTip": "Uses the instance's colour again.",
+        "imageUrl": "Image URL",
+        "imagePlaceholder": "https://… (empty = boss icon)",
+        "image": "Image",
+        "thumbnail": "Thumbnail",
+        "thumbnailTip": "Small, next to the message text.",
+        "banner": "Banner",
+        "bannerTip": "Wide, below the message.",
+        "buffs": "Required buffs",
+        "buffsTip": "Buffs the raid should bring — the setup suggestion plans someone in for each and warns when nobody brings them.",
+        "partyBuff": "Party buff",
+        "raidBuff": "Raid buff"
+    },
+    "comp": {
+        "tankLess": "One tank fewer",
+        "tankMore": "One tank more",
+        "healerLess": "One healer fewer",
+        "healerMore": "One healer more",
+        "dpsLine": {
+            "one": "{count} spot for DPS · suggestion on size change",
+            "other": "{count} spots for DPS · suggestion on size change"
+        }
+    },
+    "emoji": {
+        "label": "Emojis",
+        "aria": "Emoji style",
+        "arcane": "Arcane",
+        "arcaneTip": "Silver letter tiles on slate with matching role icons. Default.",
+        "gold": "Gold",
+        "goldTip": "Golden letter tiles on dark stone with matching role icons.",
+        "parchment": "Parchment",
+        "parchmentTip": "Dark letters on light parchment – closest to Raid-Helper.",
+        "plain": "Plain",
+        "plainTip": "Title as plain text, flat grey role icons."
+    }
+}

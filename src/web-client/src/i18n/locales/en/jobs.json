@@ -1,0 +1,24 @@
+{
+    "done": "{label} done.",
+    "failed": "{label} failed.",
+    "pageLoader": {
+        "busy": "Processing"
+    },
+    "pager": {
+        "prev": "Back",
+        "next": "Next",
+        "info": "Page {page} / {pages} · {total} total"
+    },
+    "incomplete": {
+        "title": "Raid not finished yet",
+        "fallback": "The raid does not look finished yet.",
+        "action": "Evaluate anyway",
+        "cancelled": "Cancelled — the raid is still running.",
+        "and": "and",
+        "notInLog": {
+            "one": "{finals} is not in the log. If the raid continues, further pulls change the numbers – better evaluate afterwards.",
+            "other": "{finals} are not in the log. If the raid continues, further pulls change the numbers – better evaluate afterwards."
+        },
+        "bosses": "{raid}: bosses"
+    }
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
+import LangToggle from "./LangToggle";
 import GuildSwitcher from "./GuildSwitcher";
 import { CrestIcon, BurgerIcon, LogoutIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
@@ -9,6 +10,7 @@ import { TipLayer } from "./ui/Tip";
 import { MENU, type MenuEntry } from "../lib/menu";
 import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild } from "../api";
 import { deployLine, type DeployVersion } from "../lib/deployVersion";
+import { t as tr, tOr, useLang, useT } from "../i18n";
 
 export type ShellContext = { user: SessionUser; csrfToken: string | null };
 
@@ -30,6 +32,11 @@ function matchesTab(tabHref: string, pathname: string): boolean {
     return pathname === tabHref || (tabHref !== "/" && pathname.startsWith(`${tabHref}/`));
 }
 
+/** A menu entry's label in the active language (menu.json holds the German one). */
+export function tabLabel(tab: Tab): string {
+    return tOr(`shell.menu.${tab.id}`, tab.label);
+}
+
 function crumbTab(pathname: string) {
     return TABS.find((t) => matchesTab(t.href, pathname));
 }
@@ -38,19 +45,20 @@ function crumbTab(pathname: string) {
 // (e.g. the raid-create form under "Raid-Events", or the post-edit form under
 // "Recruitment" — mirrors the equivalent crumb in src/web/renderAdmin.js).
 function subCrumb(pathname: string, search: URLSearchParams): string | null {
-    if (pathname === "/raids/new") return "Neues Event";
-    if (pathname === "/raids/templates") return "Aufruf-Vorlagen";
-    if (pathname === "/raids/raid-templates") return "Raid-Vorlagen";
-    if (pathname === "/raids/series") return "Serien";
-    if (pathname === "/history/event") return "Event-Loot";
-    if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || "Charakter";
+    if (pathname === "/raids/new") return tr("shell.crumb.newEvent");
+    if (pathname === "/raids/templates") return tr("shell.crumb.notifyTemplates");
+    if (pathname === "/raids/raid-templates") return tr("shell.crumb.raidTemplates");
+    if (pathname === "/raids/series") return tr("shell.crumb.series");
+    if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
+    if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
-        return "Nachricht bearbeiten";
+        return tr("shell.crumb.editPost");
     }
     return null;
 }
 
 function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
+    const t = useT();
     let lastGroup: string | null = null;
     const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
     // The sidebar is always rendered, so it has to say something when a member's
@@ -58,9 +66,9 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     if (!allowed.length) {
         return (
             <nav className="menu">
-                <div className="menu-label">Kein Bereich freigegeben</div>
+                <div className="menu-label">{t("shell.noArea.label")}</div>
                 <p className="hint" style={{ padding: "0 14px" }}>
-                    Für dein Discord-Konto ist noch kein Bereich dieses Menüs freigeschaltet.
+                    {t("shell.noArea.text")}
                 </p>
             </nav>
         );
@@ -72,7 +80,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                 lastGroup = tab.group;
                 return (
                     <div key={tab.id}>
-                        {label && <div className="menu-label">{label}</div>}
+                        {label && <div className="menu-label">{tOr(`shell.group.${label}`, label)}</div>}
                         <NavLink
                             to={tab.href}
                             end={tab.href === "/"}
@@ -80,7 +88,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                             className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}
                         >
                             <WowIcon name={tab.wowIcon} size={24} />
-                            <span>{tab.label}</span>
+                            <span>{tabLabel(tab)}</span>
                         </NavLink>
                     </div>
                 );
@@ -122,10 +130,14 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const location = useLocation();
+    const t = useT();
+    // The page below remounts on a language switch, so labels a page computed
+    // once (memoised tables, lib helpers) are drawn again in the new language.
+    const lang = useLang();
     const initial = (user.name || "Admin").slice(0, 1).toUpperCase() || "A";
 
     const tab = crumbTab(location.pathname);
-    const label = tab ? tab.label : "Übersicht";
+    const label = tab ? tabLabel(tab) : t("shell.menu.home");
     const crumb = subCrumb(location.pathname, new URLSearchParams(location.search));
 
     return (
@@ -136,13 +148,13 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     first section that account may open. The menu closes on the
                     click like a nav item, so on a phone the page shows. The
                     crest stays a line icon: it is the brand, not a game thing. */}
-                <Link className="brand" to="/" aria-label="Zur Übersicht" onClick={() => setMenuOpen(false)}>
+                <Link className="brand" to="/" aria-label={t("shell.toHome")} onClick={() => setMenuOpen(false)}>
                     <div className="crest"><CrestIcon /></div>
                     <div>
                         <div className="brand-name">EventHelper</div>
                         {/* Not "Gilden-Admin": most people in here are members
                             looking up loot, not officers. */}
-                        <div className="brand-sub">Gildenmenü</div>
+                        <div className="brand-sub">{t("shell.brandSub")}</div>
                     </div>
                 </Link>
                 <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
@@ -152,30 +164,31 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     <div className="ub-meta">
                         <div className="u-name">{user.name}</div>
                         <div className="u-role">
-                            {user.isAdmin ? "Administrator" : firstAllowedTab(user) ? "Eingeschränkter Zugang" : "Kein Zugang"}
+                            {user.isAdmin ? t("shell.role.admin") : firstAllowedTab(user) ? t("shell.role.limited") : t("shell.role.none")}
                         </div>
                     </div>
                     {/* A real link, not a button: logging out is a navigation to
                         the server, and it has to work without any script state. */}
-                    <a className="ibtn sm u-logout" href="/auth/logout" aria-label="Logout" data-tip="Logout" data-tip-sub="Vom Gildenmenü abmelden">
+                    <a className="ibtn sm u-logout" href="/auth/logout" aria-label={t("shell.logout")} data-tip={t("shell.logout")} data-tip-sub={t("shell.logoutSub")}>
                         <LogoutIcon />
                     </a>
                 </div>
             </aside>
             <div className="main">
                 <header className="topbar">
-                    <IconButton className="menu-toggle" icon={<BurgerIcon />} tip="Menü" onClick={() => setMenuOpen((o) => !o)} />
+                    <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
                     <div className="crumbs">
-                        <Link to="/">Menü</Link> <span className="crumb-sep">/</span>{" "}
+                        <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
                         {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
                         {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                     </div>
                     <div className="top-actions">
                         <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
+                        <LangToggle csrfToken={csrfToken} />
                         <ThemeToggle />
                     </div>
                 </header>
-                <div className="content">
+                <div className="content" key={lang}>
                     <Outlet context={{ user, csrfToken } satisfies ShellContext} />
                 </div>
             </div>

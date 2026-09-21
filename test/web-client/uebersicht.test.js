@@ -13,6 +13,8 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
+const { makeT } = require("./i18nHelper");
+const de = makeT("de");
 
 describe("Übersicht (DashboardPage)", () => {
     const page = read("pages", "DashboardPage.tsx");
@@ -35,7 +37,8 @@ describe("Übersicht (DashboardPage)", () => {
     it("renders only the tasks it got, and 'Alles erledigt' when there are none", () => {
         const list = page.slice(page.indexOf("export function TaskList"), page.indexOf("function AreaTile("));
         expect(list).toContain("tasks.length === 0");
-        expect(list).toContain("Alles erledigt");
+        expect(list).toContain("t(\"dashboard.tasks.allDone\")");
+        expect(de("dashboard.tasks.allDone")).toBe("Alles erledigt");
         expect(list).toMatch(/tasks\.map\(\(t\) =>/);
         // no hard-coded task rows
         expect(list).not.toMatch(/Sheet füllen|Logs zuordnen|Addon-Inbox|Empfehlungen prüfen/);
@@ -54,21 +57,25 @@ describe("Übersicht (DashboardPage)", () => {
             expect(src).not.toMatch(/<[a-z]+\b[^>]*\stitle=["{]/);
         }
         expect(page).not.toMatch(/ClaIcon|ClockIcon|BoltIcon|RecruitmentIcon/);
-        expect(page).toContain('"Raid-Event anlegen"'.slice(1, -1));
+        expect(page).toContain("t(\"dashboard.page.newRaid\")");
+        expect(de("dashboard.page.newRaid")).toBe("Raid-Event anlegen");
         expect(page).toContain('icon="inv_misc_note_02"');
     });
 
     it("links the next raid straight to its page: the title and an „Öffnen“ beside „Details“", () => {
         const card = page.slice(page.indexOf("function NextRaidCard"), page.indexOf("const TASK_TILE"));
         expect(card).toContain('<Link className="ov-next-title" to={raidDetailHref(raid.id)}>');
-        expect(card).toMatch(/to=\{raidDetailHref\(raid\.id\)\}[^>]*>Öffnen<\/Link>/);
+        expect(card).toMatch(/to=\{raidDetailHref\(raid\.id\)\}[^>]*>\{t\("dashboard\.next\.open"\)\}<\/Link>/);
+        expect(de("dashboard.next.open")).toBe("Öffnen");
+        expect(de("dashboard.next.details")).toBe("Details");
         expect(page).toContain("return `/raids/detail?event=${encodeURIComponent(eventId)}`;");
     });
 
     it("names the loot system instead of „Softres fehlt“ when the raid has no softres list", () => {
         const badge = page.slice(page.indexOf("export function LootBadge"), page.indexOf("function raidDetailHref"));
         expect(badge).toMatch(/if \(ls && !ls\.softres\)/);
-        expect(badge).toContain("Softres fehlt");
+        expect(badge).toContain("t(\"dashboard.lootBadge.softresMissing\")");
+        expect(de("dashboard.lootBadge.softresMissing")).toBe("Softres fehlt");
         expect(page).toContain("<LootBadge raid={raid} />");
     });
 
@@ -91,8 +98,18 @@ describe("Raid-Details modal", () => {
     });
 
     it("shows signups, preparation and who has not signed up, with a way to the raid", () => {
-        for (const text of ["Anmeldungen", "Vorbereitung", "Noch nicht angemeldet", "Stand Raid-Helper", "Schließen", "Sheet füllen", "Raid öffnen"]) {
-            expect(modal).toContain(text);
+        const texts = {
+            "dashboard.raidDetails.signups": "Anmeldungen",
+            "dashboard.raidDetails.prep": "Vorbereitung",
+            "dashboard.raidDetails.notSignedUp": "Noch nicht angemeldet",
+            "dashboard.raidDetails.fetched": "Stand Raid-Helper: {time}",
+            "common.close": "Schließen",
+            "dashboard.raidDetails.fillSheet": "Sheet füllen",
+            "dashboard.raidDetails.openRaid": "Raid öffnen",
+        };
+        for (const [key, text] of Object.entries(texts)) {
+            expect(modal).toContain(`t("${key}"`);
+            expect(de(key)).toBe(text);
         }
         // the softres row gives way to the loot system where no list is used
         expect(modal).toMatch(/raid\.lootSystem && !raid\.lootSystem\.softres/);
@@ -109,6 +126,7 @@ describe("Latest-Loot list", () => {
 
     it("explains the winner with spec, class and the raw addon answer in the tooltip", () => {
         expect(list).toContain("data-tip={tip.head} data-tip-sub={tip.sub}");
-        expect(list).toContain("Rückmeldung im Addon");
+        expect(list).toContain("\"dashboard.topLoot.responseSub\"");
+        expect(de("dashboard.topLoot.responseSub", { response: "BIS" })).toBe("Rückmeldung im Addon: „BIS“.");
     });
 });

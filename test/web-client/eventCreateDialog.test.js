@@ -11,6 +11,7 @@ const path = require("path");
 const { publicVersions } = require("../../src/config/gameVersions");
 const { normalizePlan } = require("../../src/web/eventStore");
 const { renderChannelName } = require("../../src/utils/channelNames");
+const { makeT } = require("./i18nHelper");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
@@ -56,10 +57,11 @@ function strip(source) {
     return out.join("\n");
 }
 
-function load() {
+// Both libs import `t` (the menu language); German keeps the server's wording.
+function load(lang = "de") {
     const js = `${strip(read("lib", "raidTemplates.ts"))}\n${strip(read("lib", "eventPlan.ts"))}`;
     const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return new Function("t", `${js}\nreturn { ${names.join(", ")} };`)(makeT(lang));
 }
 
 const logic = load();
@@ -75,7 +77,8 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.stepsFor(false, "raidhelper")).toEqual(["start", "termin", "kanal", "check"]);
         // editing starts at the event itself
         expect(logic.stepsFor(true, "eventhelper")).toEqual(["termin", "raid", "kanal", "check"]);
-        expect(logic.STEP_LABELS.kanal).toBe("Kanal & Anmeldung");
+        expect(logic.stepLabel("kanal")).toBe("Kanal & Anmeldung");
+        expect(load("en").stepLabel("kanal")).toBe("Channel & signups");
     });
 
     it("presets the source from the category", () => {
@@ -298,49 +301,49 @@ describe("Event anlegen: dialog", () => {
         const more = raid.indexOf("<details className=\"rt-more\">");
         expect(more).toBeGreaterThan(raid.indexOf("<CompositionEditor"));
         expect(raid.indexOf("<SizePicker")).toBeLessThan(raid.indexOf("<CompositionEditor"));
-        for (const later of ["<AppearanceFields", "<RoleRanges", "<BuffPicker", "label=\"Fairness\"", "label=\"Wünsche\"", "label=\"Vorschlag bei Anmeldeschluss\""]) {
+        for (const later of ["<AppearanceFields", "<RoleRanges", "<BuffPicker", "raidCreate.raid.fairness", "raidCreate.raid.wishes", "raidCreate.raid.autoSuggest"]) {
             expect({ later, afterMore: raid.indexOf(later) > more }).toEqual({ later, afterMore: true });
         }
         // the sum check is one badge, not a paragraph
-        expect(raid).toContain("verplant</Badge>");
+        expect(raid).toContain("t(\"raidCreate.raid.planned\", { planned: plannedSeats(plan), size: plan.size })}</Badge>");
     });
 
     it("offers instances as icon chips from the rule set with the Infos-fehlen badge, sizes as a segment with frei", () => {
         expect(fields).toContain("className={`rt-inst${on ? \" on\" : \"\"}`}");
-        expect(fields).toContain("Infos fehlen</Badge>");
-        expect(fields).toContain("{ value: FREE, label: \"frei\" }");
+        expect(fields).toContain("{t(\"raidPlan.fields.incomplete\")}</Badge>");
+        expect(fields).toContain("{ value: FREE, label: t(\"raidPlan.fields.free\") }");
     });
 
     it("starts from the last events, a raid template or empty", () => {
-        expect(dialog).toContain("{ value: \"events\", label: \"Letzte Events\" }, { value: \"templates\", label: \"Raid-Vorlagen\" }");
-        expect(dialog).toContain("applyChoice(ctx, { kind: \"template\", id: t.id })");
-        expect(dialog).toContain("title=\"Leer beginnen\"");
+        expect(dialog).toContain("{ value: \"events\", label: t(\"raidCreate.start.tabEvents\") }, { value: \"templates\", label: t(\"raidCreate.templatesLink\") }");
+        expect(dialog).toContain("applyChoice(ctx, { kind: \"template\", id: tpl.id })");
+        expect(dialog).toContain("title={t(\"raidCreate.start.empty\")}");
         // ?source= still jumps past the start step
         expect(dialog).toMatch(/applyChoice\(data, \{ kind: "event", id: sourceId \}\);\s+setStep\("termin"\);/);
     });
 
     it("sets channel by schema, deadline and source in Kanal & Anmeldung, the source preset from the category", () => {
         const kanal = dialog.slice(dialog.indexOf("step === \"kanal\""));
-        expect(kanal).toContain("label: \"Neu nach Schema\"");
-        expect(kanal).toContain("ariaLabel=\"Anmeldung über\"");
+        expect(kanal).toContain("label: t(\"raidCreate.kanal.modeNew\")");
+        expect(kanal).toContain("ariaLabel={t(\"raidCreate.kanal.source\")}");
         expect(kanal).toContain("id=\"re-deadline\"");
         expect(dialog).toContain("setSource(sourceOf(data.signupSources, catId));");
         expect(dialog).toContain("schemaName(schema?.schema || ctx?.defaultSchema || \"\", date, raidTag(");
         // a Raid-Helper event keeps today's template select
-        expect(kanal).toContain("value={t.raidhelperTemplateId}");
+        expect(kanal).toContain("value={tpl.raidhelperTemplateId}");
     });
 
     // #305: the duration small beside the time, the voice channel in Kanal & Anmeldung
     it("puts the duration next to the time and the voice channel into Kanal & Anmeldung", () => {
         const termin = dialog.slice(dialog.indexOf("step === \"termin\""), dialog.indexOf("step === \"raid\""));
         expect(termin).toContain("id=\"re-time\"");
-        expect(termin).toContain("aria-label=\"Dauer in Minuten\"");
+        expect(termin).toContain("aria-label={t(\"raidCreate.termin.durationAria\")}");
         expect(termin).toContain("durationMinutes: Math.floor(Number(e.target.value) || 0)");
         // the end follows from it and is shown small, not as a second field
-        expect(termin).toContain("Ende {endPreview.time}");
+        expect(termin).toContain("t(\"raidCreate.termin.end\", { time: endPreview.time })");
         const kanal = dialog.slice(dialog.indexOf("step === \"kanal\""));
         expect(kanal).toContain("id=\"re-voice\"");
-        expect(kanal).toContain("text=\"Sprachkanal\"");
+        expect(kanal).toContain("text={t(\"raidCreate.kanal.voice\")}");
         // preset from the category until it is picked by hand
         expect(dialog).toContain("if (!voiceTouched) setVoiceChannelId((data.categoryVoiceChannel || {})[catId] || \"\");");
         expect(dialog).toContain("planBody(plan), announce, voiceChannelId");
@@ -348,7 +351,7 @@ describe("Event anlegen: dialog", () => {
 
     it("saves the plan as a template without touching the event, and edits own events with the same dialog", () => {
         expect(dialog).toContain("saveRaidTemplate(csrfToken, templateFromPlan(plan, base, tplName))");
-        expect(dialog).toContain(">Als Vorlage speichern</Button>");
+        expect(dialog).toContain(">{t(\"raidCreate.raid.saveAsTemplate\")}</Button>");
         expect(dialog).toContain("updateRaid(csrfToken, { id: editEventId,");
         expect(read("api.ts")).toContain("send(\"PATCH\", \"/api/raids\", csrfToken, input)");
         // the raid detail edits from its one "Verwalten" menu (#288), only for an own event and raids write

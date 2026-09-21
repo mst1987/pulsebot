@@ -10,9 +10,11 @@ import Badge from "../../../components/ui/Badge";
 import { SwitchRow } from "../../../components/RaidPlanFields";
 import { useToast } from "../../../components/Jobs";
 import { berlinDateTime, moveChannelText, moveNotifyText } from "../../../lib/eventManage";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const initial = berlinDateTime(data.event.startTime);
     const [date, setDate] = useState(initial.date);
@@ -67,23 +69,23 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_pocketwatch_02" tone="raids"
-            kicker={data.event.title} title="Verschieben" width={560}
+            kicker={data.event.title} title={t("raidManage.move.title")} width={560}
             hint={plan ? moveNotifyText(plan.recipients, notify) : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="em-move-form" icon="inv_misc_pocketwatch_02" running={busy} disabled={!plan || loading}>Verschieben</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="em-move-form" icon="inv_misc_pocketwatch_02" running={busy} disabled={!plan || loading}>{t("raidManage.move.confirm")}</Button>
                 </>
             )}
         >
             <form id="em-move-form" className="rd-form" onSubmit={submit}>
                 <div className="em-fields">
                     <div className="field">
-                        <label htmlFor="em-move-date">Neues Datum</label>
+                        <label htmlFor="em-move-date">{t("raidManage.move.date")}</label>
                         <input id="em-move-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                     </div>
                     <div className="field">
-                        <label htmlFor="em-move-time">Uhrzeit</label>
+                        <label htmlFor="em-move-time">{t("raidManage.move.time")}</label>
                         <input id="em-move-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
                     </div>
                 </div>
@@ -93,27 +95,27 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
                 {plan && channel && (
                     <div className={`em-preview${loading ? " is-loading" : ""}`}>
                         <div className="em-cell">
-                            <span className="kicker">Termin</span>
+                            <span className="kicker">{t("raidManage.move.when")}</span>
                             <span className="em-val">{plan.to.label}</span>
-                            <span className="em-sub">statt {plan.from.label}</span>
+                            <span className="em-sub">{t("raidManage.move.insteadOf", { from: plan.from.label })}</span>
                         </div>
                         <div className="em-cell">
-                            <span className="kicker">Kanal</span>
+                            <span className="kicker">{t("raidManage.move.channel")}</span>
                             <span className="em-val em-mono" data-tip={channel.value}>{channel.value}</span>
                             <span className="em-sub">
                                 {channel.sub}
                                 {plan.channel.label && (
                                     <Badge tone={plan.channel.rename ? "accent" : undefined} tip={plan.channel.label} tipSub={plan.channel.detail || undefined}>
-                                        {plan.channel.rename ? "abgeleitet" : "Name bleibt"}
+                                        {plan.channel.rename ? t("raidManage.move.derived") : t("raidManage.move.nameStays")}
                                     </Badge>
                                 )}
                             </span>
                         </div>
                         {plan.deadlineLabel && (
                             <div className="em-cell">
-                                <span className="kicker">Anmeldeschluss</span>
+                                <span className="kicker">{t("raidManage.move.deadline")}</span>
                                 <span className="em-val em-val-sm">{plan.deadlineLabel}</span>
-                                <span className="em-sub">wandert mit, gleicher Abstand zum Start</span>
+                                <span className="em-sub">{t("raidManage.move.deadlineSub")}</span>
                             </div>
                         )}
                     </div>
@@ -123,14 +125,14 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
                     <div className="em-switches">
                         {plan.channel.rename && (
                             <SwitchRow
-                                label="Kanal umbenennen" checked={rename} onChange={setRename}
-                                tip={`#${plan.channel.current} → #${plan.channel.next}. Nur Datum und Wochentag im Namen werden ersetzt.`}
+                                label={t("raidManage.move.rename")} checked={rename} onChange={setRename}
+                                tip={t("raidManage.move.renameTip", { current: plan.channel.current, next: plan.channel.next })}
                             />
                         )}
                         {plan.recipients > 0 && (
                             <SwitchRow
-                                label={`Angemeldete benachrichtigen (${plan.recipients})`} checked={notify} onChange={setNotify}
-                                tip="Ein Post im Event-Kanal, der alle Angemeldeten erwähnt. Abgemeldete werden nicht erwähnt."
+                                label={t("raidManage.move.notifyLabel", { count: plan.recipients })} checked={notify} onChange={setNotify}
+                                tip={t("raidManage.move.notifyTip")}
                             />
                         )}
                     </div>

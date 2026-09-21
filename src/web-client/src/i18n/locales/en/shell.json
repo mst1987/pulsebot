@@ -1,0 +1,80 @@
+{
+    "brandSub": "Guild menu",
+    "toHome": "Go to overview",
+    "menu": {
+        "home": "Overview",
+        "signups": "Signups",
+        "profile": "My profile",
+        "raids": "Raid events",
+        "roster": "Roster",
+        "cla": "Log analysis",
+        "history": "History & loot",
+        "lootcouncil": "Loot council",
+        "recruitment": "Recruitment",
+        "channels": "Channels",
+        "settings": "Settings"
+    },
+    "group": {
+        "Start": "Start",
+        "Raids": "Raids",
+        "Loot": "Loot",
+        "Gilde": "Guild",
+        "System": "System"
+    },
+    "crumb": {
+        "menu": "Menu",
+        "newEvent": "New event",
+        "notifyTemplates": "Call templates",
+        "raidTemplates": "Raid templates",
+        "series": "Series",
+        "eventLoot": "Event loot",
+        "character": "Character",
+        "editPost": "Edit message"
+    },
+    "noArea": {
+        "label": "No area unlocked",
+        "text": "Your Discord account has no access to any area of this menu yet."
+    },
+    "role": {
+        "admin": "Administrator",
+        "limited": "Limited access",
+        "none": "No access"
+    },
+    "logout": "Logout",
+    "logoutSub": "Sign out of the guild menu",
+    "menuToggle": "Menu",
+    "theme": {
+        "tip": "Toggle light / dark",
+        "aria": "Toggle theme"
+    },
+    "lang": {
+        "tip": "Language",
+        "switchTo": "Switch to {lang}"
+    },
+    "guild": {
+        "roleEvent": "Event",
+        "roleEventTip": "Event Discord",
+        "roleEventSub": "Event channels and Raid-Helper live on this server.",
+        "roleTalk": "Talk",
+        "roleTalkTip": "Community Discord",
+        "roleTalkSub": "Raid overview, bot signups and reminders run on this server.",
+        "none": "No server",
+        "noneTip": "No server connected",
+        "noneSub": "The bot is not connected to any Discord server – it is probably not ready yet.",
+        "choose": "Choose server",
+        "notChosen": "No server chosen",
+        "notChosenSub": "Please choose a server first – the areas only show its data after that."
+    },
+    "app": {
+        "noWrite": "You lack write access for this area.",
+        "noRead": "Your role has no access to this area.",
+        "noAccess": "Your Discord account has no access to this menu yet.",
+        "noAccessHint": "An admin can unlock areas for you in the settings under \"Permissions\".",
+        "notFound": "This page does not exist.",
+        "backHome": "Back to the overview",
+        "loadingMenu": "Loading menu",
+        "sessionError": "Could not load the session: {message}",
+        "loginPrompt": "Please sign in with Discord to use the guild menu.",
+        "loginButton": "Sign in with Discord"
+    }
+}

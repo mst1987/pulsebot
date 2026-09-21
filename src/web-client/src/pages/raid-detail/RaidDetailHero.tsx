@@ -14,15 +14,17 @@ import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
 import WowIcon from "../../components/ui/WowIcon";
+import { useT } from "../../i18n";
 
 function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) => void }) {
+    const t = useT();
     return (
         <button
             type="button"
             className={`rd-step${step.next ? " next" : ""}`}
             data-tip={step.tip.head}
             data-tip-sub={step.tip.sub || undefined}
-            aria-label={`${step.label}: ${step.value} ${step.unit}`.trim()}
+            aria-label={t("raidDetail.hero.stepAria", { label: step.label, value: step.value, unit: step.unit }).trim()}
             onClick={() => onOpen(step)}
         >
             <span className="rd-step-top">
@@ -39,7 +41,7 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
             <span className="rd-step-badge">
                 {/* A neutral badge on the next step says nothing; "nächster
                     Schritt" does. A badge with its own finding ("RPB offen") stays. */}
-                <Badge tone={step.next ? "mid" : step.badge.tone}>{step.next && !step.badge.tone ? "nächster Schritt" : step.badge.label}</Badge>
+                <Badge tone={step.next ? "mid" : step.badge.tone}>{step.next && !step.badge.tone ? t("raidDetail.hero.nextStep") : step.badge.label}</Badge>
             </span>
         </button>
     );
@@ -50,14 +52,16 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
  * Lootsystem dialog where the user may change it, else plain text.
  */
 function LootSystemChip({ data, onOpen }: { data: RaidDetailData; onOpen?: () => void }) {
+    const t = useT();
     const ls = data.lootSystem;
     if (!ls) return null;
     const label = `${ls.label}${ls.softresExtra ? " + Softres" : ""}`;
-    const origin = ls.source === "event" ? "Für diesen Raid festgelegt." : `Wie die Kategorie (${ls.categoryLabel}).`;
-    const sub = `${origin}${onOpen ? " Klick: für diesen Raid ändern oder Softres zuschalten." : ""}`;
+    const origin = ls.source === "event" ? t("raidDetail.hero.lootOriginEvent") : t("raidDetail.hero.lootOriginCategory", { category: ls.categoryLabel });
+    const sub = `${origin}${onOpen ? ` ${t("raidDetail.hero.lootClickHint")}` : ""}`;
+    const tip = t("raidDetail.hero.lootTip", { label });
     return onOpen
-        ? <button type="button" className="cat-badge rd-loot-chip" data-tip={`Lootsystem: ${label}`} data-tip-sub={sub} onClick={onOpen}>{label}</button>
-        : <span className="cat-badge rd-loot-chip" data-tip={`Lootsystem: ${label}`} data-tip-sub={sub}>{label}</span>;
+        ? <button type="button" className="cat-badge rd-loot-chip" data-tip={tip} data-tip-sub={sub} onClick={onOpen}>{label}</button>
+        : <span className="cat-badge rd-loot-chip" data-tip={tip} data-tip-sub={sub}>{label}</span>;
 }
 
 export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, onLootSystem }: {
@@ -72,6 +76,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
     /** an own event's step bar (#319); it replaces the progress bar and the primary button */
     cockpit?: ReactNode;
 }) {
+    const t = useT();
     const ev = data.event;
     const when = eventTimeParts(ev.startTime);
     const relDay = relativeDayLabel(ev.startTime);
@@ -90,23 +95,23 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                 </div>
                 <div className="hero-ident">
                     <div className="hero-eyebrow">
-                        <span className="kicker">Raid-Event</span>
+                        <span className="kicker">{t("raidDetail.hero.kicker")}</span>
                         {data.categoryName && <span className="cat-badge">{data.categoryName}</span>}
                         <LootSystemChip data={data} onOpen={onLootSystem} />
                     </div>
-                    <h1 className="hero-title">{ev.title || "(ohne Titel)"}</h1>
+                    <h1 className="hero-title">{ev.title || t("raidDetail.hero.noTitle")}</h1>
                     <div className="hero-when">
                         <span className="hero-time">{when?.time || "—"}</span>
-                        <span className="hero-time-unit">Uhr</span>
+                        <span className="hero-time-unit">{t("raidDetail.hero.timeUnit")}</span>
                         {relDay && <Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge>}
                         {cancelled && (
-                            <Badge tone="bad" className="em-state" tip="Abgesagt" tipSub={[ev.cancelReason, ev.cancelArchived ? "Kanal im Archiv" : ""].filter(Boolean).join(" · ") || undefined}>
-                                abgesagt
+                            <Badge tone="bad" className="em-state" tip={t("raidDetail.hero.cancelledTip")} tipSub={[ev.cancelReason, ev.cancelArchived ? t("raidDetail.hero.channelArchived") : ""].filter(Boolean).join(" · ") || undefined}>
+                                {t("raidDetail.hero.cancelled")}
                             </Badge>
                         )}
                         {!cancelled && ev.signupsClosed && (
-                            <Badge tone="mid" className="em-state" tip="Anmeldung geschlossen" tipSub="Raider können sich nur noch abmelden. Die Orga trägt weiter ein.">
-                                Anmeldung geschlossen
+                            <Badge tone="mid" className="em-state" tip={t("raidDetail.hero.signupsClosed")} tipSub={t("raidDetail.hero.signupsClosedSub")}>
+                                {t("raidDetail.hero.signupsClosed")}
                             </Badge>
                         )}
                     </div>
@@ -115,14 +120,14 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                     {manage}
                     <a
                         className="ibtn" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer"
-                        data-tip="Event-Post in Discord" data-tip-sub={channel ? `#${channel}` : undefined} aria-label="Event-Post in Discord öffnen"
+                        data-tip={t("raidDetail.hero.eventPost")} data-tip-sub={channel ? `#${channel}` : undefined} aria-label={t("raidDetail.hero.eventPostAria")}
                     >
                         <WowIcon name="inv_letter_15" size={24} />
                     </a>
                     {raidplanUrl(ev.id) && (
                         <a
                             className="ibtn" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer"
-                            data-tip="Raidplan im Raid-Helper" data-tip-sub="Setup und Gruppen bearbeiten" aria-label="Raidplan im Raid-Helper öffnen"
+                            data-tip={t("raidDetail.hero.raidplan")} data-tip-sub={t("raidDetail.hero.raidplanSub")} aria-label={t("raidDetail.hero.raidplanAria")}
                         >
                             <WowIcon name="inv_misc_map_01" size={24} />
                         </a>
@@ -137,7 +142,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                             <Button
                                 icon={primary.icon}
                                 running={primaryRunning}
-                                data-tip="Nächster offener Schritt"
+                                data-tip={t("raidDetail.hero.nextOpenStep")}
                                 onClick={() => onPrimary(primary)}
                             >
                                 {primary.label}

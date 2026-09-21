@@ -1,6 +1,7 @@
 // Time bands of the Raid-Events list: coming raids by calendar week (Monday to
 // Sunday), past raids by month — both in the guild's time zone, so a raid on
 // Sunday 23:30 does not slip into the next week for a viewer elsewhere.
+import { locale, t } from "../i18n";
 
 const TZ = "Europe/Berlin";
 const DAY_MS = 86400000;
@@ -57,7 +58,10 @@ export function weekBands<T extends { startTime: number }>(rows: T[], now: numbe
     return bandsBy(rows, (row) => {
         const monday = mondayOf(dayOf((row.startTime || 0) * 1000));
         const weeks = Math.round((monday - thisMonday) / (7 * DAY_MS));
-        const label = weeks === 0 ? "Diese Woche" : weeks === 1 ? "Nächste Woche" : weeks === -1 ? "Letzte Woche" : `KW ${isoWeek(monday)}`;
+        const label = weeks === 0 ? t("raids.time.thisWeek")
+            : weeks === 1 ? t("raids.time.nextWeek")
+                : weeks === -1 ? t("raids.time.lastWeek")
+                    : t("raids.time.week", { week: isoWeek(monday) });
         const sunday = monday + 6 * DAY_MS;
         const from = ddmm(monday);
         const range = new Date(monday).getUTCMonth() === new Date(sunday).getUTCMonth()
@@ -72,7 +76,7 @@ export function monthBands<T extends { startTime: number }>(rows: T[]): TimeBand
     return bandsBy(rows, (row) => {
         const d = new Date((row.startTime || 0) * 1000);
         const key = d.toLocaleDateString("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit" });
-        const label = d.toLocaleDateString("de-DE", { timeZone: TZ, month: "long", year: "numeric" });
+        const label = d.toLocaleDateString(locale(), { timeZone: TZ, month: "long", year: "numeric" });
         return { key: `m${key}`, label, range: "" };
     });
 }
@@ -81,8 +85,8 @@ export function monthBands<T extends { startTime: number }>(rows: T[]): TimeBand
 export function eventDay(startTime: number): { day: string; time: string } {
     if (!startTime) return { day: "", time: "" };
     const d = new Date(startTime * 1000);
-    const weekday = d.toLocaleDateString("de-DE", { timeZone: TZ, weekday: "short" }).replace(".", "");
-    const date = d.toLocaleDateString("de-DE", { timeZone: TZ, day: "2-digit", month: "2-digit" });
-    const time = d.toLocaleTimeString("de-DE", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+    const weekday = d.toLocaleDateString(locale(), { timeZone: TZ, weekday: "short" }).replace(".", "");
+    const date = d.toLocaleDateString(locale(), { timeZone: TZ, day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleTimeString(locale(), { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
     return { day: `${weekday} ${date}`, time };
 }

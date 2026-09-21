@@ -4,6 +4,7 @@
 // strippable (one-line signatures, no types inside bodies), so
 // test/web-client/eventManage.test.js runs it for real.
 import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
+import { t } from "../i18n";
 
 export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
     | "notify" | "sheet" | "softres" | "invite";
@@ -36,36 +37,36 @@ function sep(): ManageMenuEntry {
  * directions, while the step only offers closing in the moment it is due.
  */
 export function manageMenu(state: ManageState): ManageMenuEntry[] {
-    const history = entry("history", "Verlauf", "inv_misc_book_09", state.logCount ? `${state.logCount} Einträge — wer hat wann was geändert` : "Noch nichts geändert", false);
-    const remove = entry("delete", "Löschen", "inv_misc_bone_humanskull_01", state.isPast ? "Mit Bestätigung — Anmeldungen und Anwesenheit gehen verloren" : "Event, Anmeldungen und Nachricht entfernen — der Kanal bleibt", true);
+    const history = entry("history", t("raidDetail.manage.history"), "inv_misc_book_09", state.logCount ? t("raidDetail.manage.historySub", { count: state.logCount }) : t("raidDetail.manage.historyEmpty"), false);
+    const remove = entry("delete", t("raidDetail.manage.delete"), "inv_misc_bone_humanskull_01", state.isPast ? t("raidDetail.manage.deleteSubPast") : t("raidDetail.manage.deleteSub"), true);
     if (state.cancelled) {
         return [
-            entry("reopen", "Absage zurücknehmen", "spell_holy_divineintervention", "Anmeldung wieder offen; ein archivierter Kanal bleibt im Archiv", false),
+            entry("reopen", t("raidDetail.manage.reopen"), "spell_holy_divineintervention", t("raidDetail.manage.reopenSub"), false),
             sep(),
             history,
             sep(),
             remove,
         ];
     }
-    const out = [entry("raider", "Raider eintragen", "inv_misc_groupneedmore", "Jemanden an- oder austragen", false)];
+    const out = [entry("raider", t("raidDetail.manage.raider"), "inv_misc_groupneedmore", t("raidDetail.manage.raiderSub"), false)];
     if (!state.isPast) {
         out.unshift(
-            entry("move", "Verschieben", "inv_misc_pocketwatch_02", "Neuer Termin — der Kanal wird mit umbenannt", false),
+            entry("move", t("raidDetail.manage.move"), "inv_misc_pocketwatch_02", t("raidDetail.manage.moveSub"), false),
             state.signupsClosed
-                ? entry("signups", "Anmeldung öffnen", "inv_misc_note_02", "Raider können sich wieder anmelden", false)
-                : entry("signups", "Anmeldung schließen", "inv_misc_note_02", "Nur noch Abmelden möglich; die Orga trägt weiter ein", false),
+                ? entry("signups", t("raidDetail.manage.signupsOpen"), "inv_misc_note_02", t("raidDetail.manage.signupsOpenSub"), false)
+                : entry("signups", t("raidDetail.manage.signupsClose"), "inv_misc_note_02", t("raidDetail.manage.signupsCloseSub"), false),
         );
     }
     out.push(sep());
     // Raid night: also after the start — the invite goes out right then.
-    if (state.invite) out.push(entry("invite", "Invite callen", "spell_holy_prayerofspirit", "Gruppe 1–5 pingen: /w dein Charakter inv", false));
-    if (!state.isPast) out.push(entry("notify", "Anmelde-Aufruf", "inv_letter_15", "Vorlage in den Kanal posten und Rollen pingen", false));
-    out.push(entry("sheet", "Raidsheet", "inv_scroll_03", "Kopie der Vorlage füllen und posten", false));
+    if (state.invite) out.push(entry("invite", t("raidDetail.manage.invite"), "spell_holy_prayerofspirit", t("raidDetail.manage.inviteSub"), false));
+    if (!state.isPast) out.push(entry("notify", t("raidDetail.manage.notify"), "inv_letter_15", t("raidDetail.manage.notifySub"), false));
+    out.push(entry("sheet", t("raidDetail.manage.sheet"), "inv_scroll_03", t("raidDetail.manage.sheetSub"), false));
     // Only where the loot system uses one; the chip in the head switches it on for this raid.
-    if (state.softres !== false) out.push(entry("softres", "Softres-Liste", "inv_misc_ticket_tarot_madness", "Liste erstellen oder verlinken", false));
+    if (state.softres !== false) out.push(entry("softres", t("raidDetail.manage.softres"), "inv_misc_ticket_tarot_madness", t("raidDetail.manage.softresSub"), false));
     out.push(sep(), history);
     out.push(sep());
-    if (!state.isPast) out.push(entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));
+    if (!state.isPast) out.push(entry("cancel", t("raidDetail.manage.cancel"), "ability_creature_cursed_02", t("raidDetail.manage.cancelSub"), true));
     out.push(remove);
     return out;
 }
@@ -83,23 +84,23 @@ export function berlinDateTime(startTime: number): { date: string; time: string 
 /** The channel line of a move: what it will be called, and why. */
 export function moveChannelText(plan: MovePlan, rename: boolean): { value: string; sub: string } {
     const ch = plan.channel;
-    if (ch.rename && rename) return { value: `#${ch.next}`, sub: `statt #${ch.current}` };
-    if (ch.rename) return { value: `#${ch.current}`, sub: "bleibt — Umbenennen ist ausgeschaltet" };
-    return { value: `#${ch.current || "—"}`, sub: ch.reason || "Der Name bleibt." };
+    if (ch.rename && rename) return { value: `#${ch.next}`, sub: t("raidDetail.manage.channelInstead", { channel: ch.current }) };
+    if (ch.rename) return { value: `#${ch.current}`, sub: t("raidDetail.manage.channelKept") };
+    return { value: `#${ch.current || "—"}`, sub: ch.reason || t("raidDetail.manage.channelNameStays") };
 }
 
 /** Who hears about a move: a post in the event channel, or nobody. */
 export function moveNotifyText(recipients: number, notify: boolean): string {
-    if (!recipients) return "Niemand angemeldet — kein Hinweis nötig.";
-    if (!notify) return `Die ${recipients} Angemeldeten erfahren es nicht.`;
-    return `Post im Event-Kanal, ${recipients} Angemeldete werden erwähnt.`;
+    if (!recipients) return t("raidDetail.manage.notifyNobody");
+    if (!notify) return t("raidDetail.manage.notifySilent", { count: recipients });
+    return t("raidDetail.manage.notifyPost", { count: recipients });
 }
 
 /** What cancelling does, in one line for the dialog foot. */
 export function cancelSummary(recipients: number, notify: boolean, archive: boolean): string {
-    const parts = ["Nachricht wird als ABGESAGT markiert"];
-    parts.push(notify && recipients ? `DM an ${recipients} Angemeldete` : "keine DM");
-    if (archive) parts.push("Kanal ins Archiv");
+    const parts = [t("raidDetail.manage.cancelMarked")];
+    parts.push(notify && recipients ? t("raidDetail.manage.dmTo", { count: recipients }) : t("raidDetail.manage.noDm"));
+    if (archive) parts.push(t("raidDetail.manage.channelArchive"));
     return parts.join(" · ");
 }
 
@@ -131,30 +132,26 @@ export function raiderInputOk(userId: string, character: string, spec: string): 
     return !!userId && character.trim().length > 1 && !!spec;
 }
 
-function plural(n: number, one: string, many: string): string {
-    return `${n} ${n === 1 ? one : many}`;
-}
-
 /**
  * What deleting takes along and what stays, as short lines for the dialog:
  * the signups (and with them a started raid's attendance), the posted messages —
  * while linked logs and loot keep the raid's name and stay.
  */
 export function deleteLines(d: ManageDeletion): { gone: string[]; stays: string[] } {
-    const gone = [d.signups ? plural(d.signups, "Anmeldung", "Anmeldungen") : "keine Anmeldungen"];
-    if (d.started && d.signups) gone.push("die Anwesenheit dieses Raids");
-    if (d.messages) gone.push(d.messages === 1 ? "die Nachricht im Kanal" : "Anmelde- und Setup-Nachricht im Kanal");
+    const gone = [d.signups ? t("raidDetail.manage.signups", { count: d.signups }) : t("raidDetail.manage.noSignups")];
+    if (d.started && d.signups) gone.push(t("raidDetail.manage.attendance"));
+    if (d.messages) gone.push(d.messages === 1 ? t("raidDetail.manage.messageOne") : t("raidDetail.manage.messageBoth"));
     const stays = [];
-    if (d.logs) stays.push(plural(d.logs, "Log", "Logs"));
-    if (d.loot) stays.push(plural(d.loot, "Loot-Eintrag", "Loot-Einträge"));
+    if (d.logs) stays.push(t("raidDetail.manage.logs", { count: d.logs }));
+    if (d.loot) stays.push(t("raidDetail.manage.loot", { count: d.loot }));
     return { gone, stays };
 }
 
 /** What pressing "Löschen" does, in one line for the dialog foot. */
 export function deleteSummary(d: ManageDeletion, notify: boolean, archive: boolean): string {
-    const parts = ["Event wird entfernt"];
-    if (d.canNotify && notify && d.recipients) parts.push(`DM an ${d.recipients} Angemeldete`);
-    parts.push(archive ? "Kanal ins Archiv" : "Kanal bleibt");
+    const parts = [t("raidDetail.manage.eventRemoved")];
+    if (d.canNotify && notify && d.recipients) parts.push(t("raidDetail.manage.dmTo", { count: d.recipients }));
+    parts.push(archive ? t("raidDetail.manage.channelArchive") : t("raidDetail.manage.channelStays"));
     return parts.join(" · ");
 }
 

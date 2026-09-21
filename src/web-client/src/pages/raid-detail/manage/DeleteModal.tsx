@@ -11,9 +11,11 @@ import { Button } from "../../../components/ui/Button";
 import { SwitchRow } from "../../../components/RaidPlanFields";
 import { useToast } from "../../../components/Jobs";
 import { deleteLines, deleteReady, deleteSummary } from "../../../lib/eventManage";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken } = ctx;
     const [info, setInfo] = useState<ManageInfo | null>(null);
     const [notify, setNotify] = useState(false);
@@ -54,54 +56,54 @@ export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_bone_humanskull_01" tone="bad"
-            kicker={data.event.title} title="Event löschen" width={520}
+            kicker={data.event.title} title={t("raidManage.delete.title")} width={520}
             hint={d ? deleteSummary(d, notify, archive) : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="em-delete-form" variant="danger" running={busy} disabled={!deleteReady(d, confirmed)}>Löschen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="em-delete-form" variant="danger" running={busy} disabled={!deleteReady(d, confirmed)}>{t("raidManage.delete.confirm")}</Button>
                 </>
             )}
         >
             <form id="em-delete-form" className="rd-form" onSubmit={submit}>
                 <div className={`em-preview${d ? "" : " is-loading"}`}>
                     <div className="em-cell">
-                        <span className="em-sub">Geht verloren</span>
+                        <span className="em-sub">{t("raidManage.delete.gone")}</span>
                         <span className="em-val em-val-sm">{lines.gone[0] || "…"}</span>
                         {lines.gone.length > 1 && <span className="em-sub">{lines.gone.slice(1).join(" · ")}</span>}
                     </div>
-                    <div className="em-cell" data-tip="Bleibt erhalten" data-tip-sub="Logs und Loot tragen den Namen des Raids selbst und bleiben unter Historie & Loot. Der Kanal wird nie gelöscht.">
-                        <span className="em-sub">Bleibt</span>
-                        <span className="em-val em-val-sm">{lines.stays.length ? lines.stays.join(" · ") : "der Kanal"}</span>
-                        {lines.stays.length > 0 && <span className="em-sub">und der Kanal</span>}
+                    <div className="em-cell" data-tip={t("raidManage.delete.staysTip")} data-tip-sub={t("raidManage.delete.staysTipSub")}>
+                        <span className="em-sub">{t("raidManage.delete.stays")}</span>
+                        <span className="em-val em-val-sm">{lines.stays.length ? lines.stays.join(" · ") : t("raidManage.delete.theChannel")}</span>
+                        {lines.stays.length > 0 && <span className="em-sub">{t("raidManage.delete.andChannel")}</span>}
                     </div>
                 </div>
                 <div className="em-switches">
                     {d && d.started && (
                         <div className="em-switch-line">
                             <SwitchRow
-                                label="Der Raid hat schon stattgefunden — trotzdem löschen" checked={confirmed} onChange={setConfirmed}
-                                tip="Mit den Anmeldungen verschwindet die Anwesenheit dieses Raids aus Roster und Loot-Council."
+                                label={t("raidManage.delete.startedLabel")} checked={confirmed} onChange={setConfirmed}
+                                tip={t("raidManage.delete.startedTip")}
                             />
                         </div>
                     )}
                     {d && d.canNotify && d.recipients > 0 && (
                         <div className="em-switch-line">
                             <SwitchRow
-                                label={`${d.recipients} Angemeldete per DM informieren`} checked={notify} onChange={setNotify}
-                                tip="Aus: niemand erfährt davon — richtig für Test- und Fehl-Events. An: jeder, der nicht abgemeldet ist, bekommt eine kurze DM."
+                                label={t("raidManage.delete.notifyLabel", { count: d.recipients })} checked={notify} onChange={setNotify}
+                                tip={t("raidManage.delete.notifyTip")}
                             />
                         </div>
                     )}
                     <div className="em-switch-line">
                         {info && !info.archive.configured ? (
-                            <span className="em-sub" data-tip="Keine Archiv-Kategorie" data-tip-sub="Unter Kanäle → Archiv eine Archiv-Kategorie festlegen, dann lässt sich der Kanal hier mit archivieren.">
-                                Kanal bleibt — keine Archiv-Kategorie festgelegt
+                            <span className="em-sub" data-tip={t("raidManage.archive.noneTip")} data-tip-sub={t("raidManage.archive.noneTipSub")}>
+                                {t("raidManage.archive.none")}
                             </span>
                         ) : (
                             <SwitchRow
-                                label="Kanal ins Archiv" checked={archive} onChange={setArchive}
-                                tip="Der Kanal wandert in die Archiv-Kategorie und niemand kann mehr schreiben. Gelöscht wird er nie."
+                                label={t("raidManage.archive.label")} checked={archive} onChange={setArchive}
+                                tip={t("raidManage.archive.tipDelete")}
                             />
                         )}
                     </div>

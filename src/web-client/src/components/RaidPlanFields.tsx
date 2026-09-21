@@ -5,6 +5,8 @@ import Segment from "./ui/Segment";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
 import { WarnIcon } from "./settingsUi";
+import { roleLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 import "../styles/raid-templates.css";
 
 // The fields of a raid plan besides CompositionEditor, shared by the "Event
@@ -18,12 +20,7 @@ import "../styles/raid-templates.css";
 const FREE = "free";
 
 /** The emoji styles of the event message: title as letter tiles plus role icons, or plain. */
-const EMOJI_STYLE_OPTIONS: { value: EmojiStyle; label: string; tip: string }[] = [
-    { value: "arcane", label: "Arkan", tip: "Silberne Buchstaben-Kacheln auf Schiefer und passende Rollen-Icons. Standard." },
-    { value: "gold", label: "Gold", tip: "Goldene Buchstaben-Kacheln auf dunklem Stein und passende Rollen-Icons." },
-    { value: "parchment", label: "Pergament", tip: "Dunkle Buchstaben auf hellem Pergament – am nächsten an Raid-Helper." },
-    { value: "plain", label: "Schlicht", tip: "Titel als normaler Text, flache graue Rollen-Icons." },
-];
+const EMOJI_STYLES: EmojiStyle[] = ["arcane", "gold", "parchment", "plain"];
 
 /** A small label with its explanation in the tooltip. */
 export function FieldLabel({ text, tip }: { text: string; tip?: string }) {
@@ -36,23 +33,24 @@ export function InstancePicker({ version, value, onToggle }: {
     value: string[];
     onToggle: (id: string) => void;
 }) {
+    const t = useT();
     const chosen = instancesOf(version, value);
     return (
         <div className="rt-field">
-            <FieldLabel text="Instanzen" tip="Mehrere möglich, z. B. SSC + TK an einem Abend. Die Größen und der Vorschlag für Tanks und Heiler kommen aus dem Regelsatz." />
-            <div className="rt-insts" role="group" aria-label="Instanzen">
+            <FieldLabel text={t("raidPlan.fields.instances")} tip={t("raidPlan.fields.instancesTip")} />
+            <div className="rt-insts" role="group" aria-label={t("raidPlan.fields.instances")}>
                 {(version?.instances || []).map((inst) => {
                     const on = value.includes(inst.id);
                     return (
                         <button key={inst.id} type="button" className={`rt-inst${on ? " on" : ""}`} aria-pressed={on} onClick={() => onToggle(inst.id)}
-                            data-tip={inst.name} data-tip-sub={inst.status === "incomplete" ? "Infos fehlen: Bosse und Endboss sind noch nicht bekannt." : `${inst.sizes.join("/")} Spieler`}>
+                            data-tip={inst.name} data-tip-sub={inst.status === "incomplete" ? t("raidPlan.fields.incompleteTip") : t("raidPlan.fields.players", { sizes: inst.sizes.join("/") })}>
                             <WowIcon name={inst.icon} size={20} />{inst.short}
                             {inst.status === "incomplete" && <WarnIcon />}
                         </button>
                     );
                 })}
             </div>
-            {chosen.some((i) => i.status === "incomplete") && <Badge tone="mid" icon={<WarnIcon />}>Infos fehlen</Badge>}
+            {chosen.some((i) => i.status === "incomplete") && <Badge tone="mid" icon={<WarnIcon />}>{t("raidPlan.fields.incomplete")}</Badge>}
         </div>
     );
 }
@@ -72,25 +70,26 @@ export function SizePicker({ version, instanceIds, size, free, onFree, onSize, c
     onSize: (size: number | null) => void;
     children?: ReactNode;
 }) {
+    const t = useT();
     const sizes = allowedSizes(version, instanceIds);
     const isFree = free || (size !== null && !sizes.includes(size));
     return (
         <div className="rt-field">
-            <FieldLabel text="Raidgröße" tip="Die erlaubten Größen der gewählten Instanzen. „frei“ für jede andere Größe bis 40. Ein Wechsel schlägt Tanks und Heiler neu vor." />
+            <FieldLabel text={t("raidPlan.fields.size")} tip={t("raidPlan.fields.sizeTip")} />
             <div className="rt-sizes">
                 <Segment
                     size="sm"
-                    ariaLabel="Raidgröße"
+                    ariaLabel={t("raidPlan.fields.size")}
                     value={size === null && !free ? "" : (isFree ? FREE : String(size))}
                     onChange={(v) => {
                         if (v === FREE) { onFree(true); return; }
                         onFree(false);
                         onSize(Number(v));
                     }}
-                    options={[...sizes.map((s) => ({ value: String(s), label: String(s) })), { value: FREE, label: "frei" }]}
+                    options={[...sizes.map((s) => ({ value: String(s), label: String(s) })), { value: FREE, label: t("raidPlan.fields.free") }]}
                 />
                 {isFree && (
-                    <input className="inp-sm rt-size-input" type="number" min={1} max={40} aria-label="Freie Raidgröße" value={size || ""}
+                    <input className="inp-sm rt-size-input" type="number" min={1} max={40} aria-label={t("raidPlan.fields.freeAria")} value={size || ""}
                         onChange={(e) => onSize(e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
                 )}
                 {children}
@@ -124,6 +123,7 @@ export function RoleRanges({ melee, ranged, onChange, idPrefix }: {
     onChange: (next: { melee: RoleRange | null; ranged: RoleRange | null }) => void;
     idPrefix: string;
 }) {
+    const t = useT();
     const row = (key: "melee" | "ranged", label: string, value: RoleRange | null) => {
         const set = (min: number | null, max: number | null) => {
             const range = min === null && max === null ? null : { min: min || 0, max };
@@ -132,15 +132,15 @@ export function RoleRanges({ melee, ranged, onChange, idPrefix }: {
         return (
             <div className="rt-range">
                 <span className="rt-range-lbl">{label}</span>
-                <NumberInput id={`${idPrefix}-${key}-min`} label="min" value={value ? value.min : null} onChange={(min) => set(min, value ? value.max : null)} />
-                <NumberInput id={`${idPrefix}-${key}-max`} label="max" value={value ? value.max : null} onChange={(max) => set(value ? value.min : null, max)} />
+                <NumberInput id={`${idPrefix}-${key}-min`} label={t("raidPlan.fields.min")} value={value ? value.min : null} onChange={(min) => set(min, value ? value.max : null)} />
+                <NumberInput id={`${idPrefix}-${key}-max`} label={t("raidPlan.fields.max")} value={value ? value.max : null} onChange={(max) => set(value ? value.min : null, max)} />
             </div>
         );
     };
     return (
         <div className="rt-ranges">
-            {row("melee", "Nahkampf", melee)}
-            {row("ranged", "Fernkampf", ranged)}
+            {row("melee", roleLabel("melee"), melee)}
+            {row("ranged", roleLabel("ranged"), ranged)}
         </div>
     );
 }
@@ -163,21 +163,22 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
     onChange: (next: { color?: string; image?: EmbedImage; emojiStyle?: EmojiStyle }) => void;
     idPrefix: string;
 }) {
+    const t = useT();
     const lead = leadInstance(version, instanceIds);
     const ownColor = /^#[0-9a-f]{6}$/i.test(String(color || "").trim());
     const shown = ownColor ? color.trim().toLowerCase() : ((lead && lead.color) || EMBED_ACCENT);
     const url = String(image.url || "").trim();
     const banner = image.mode === "banner";
     const from = ownColor
-        ? "eigene Farbe"
-        : (lead && lead.color ? `Farbe von ${lead.short}` : "Standardfarbe");
+        ? t("raidPlan.fields.ownColor")
+        : (lead && lead.color ? t("raidPlan.fields.colorOf", { name: lead.short }) : t("raidPlan.fields.defaultColor"));
     const picture = url
-        ? (banner ? "eigenes Bild, breit unten" : "eigenes Bild, klein daneben")
-        : (lead ? `Boss-Icon von ${lead.short}` : "kein Bild");
+        ? (banner ? t("raidPlan.fields.ownImageBanner") : t("raidPlan.fields.ownImageThumb"))
+        : (lead ? t("raidPlan.fields.bossIconOf", { name: lead.short }) : t("raidPlan.fields.noImage"));
 
     return (
         <div className="rt-field">
-            <FieldLabel text="Aussehen" tip="Farbbalken und Bild der Anmelde-Nachricht. Leer lassen: Farbe und Boss-Icon der größten Instanz des Abends — dann sehen SSC, BT und Hyjal schon von selbst verschieden aus." />
+            <FieldLabel text={t("raidPlan.fields.look")} tip={t("raidPlan.fields.lookTip")} />
             <div className="rt-look">
                 <div className="rt-look-prev" aria-hidden="true">
                     <span className="rt-look-bar" style={{ background: shown }} />
@@ -187,32 +188,32 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
                 </div>
                 <div className="rt-look-fields">
                     <div className="rt-look-row">
-                        <input id={`${idPrefix}-color-pick`} className="rt-look-swatch" type="color" aria-label="Farbe wählen"
+                        <input id={`${idPrefix}-color-pick`} className="rt-look-swatch" type="color" aria-label={t("raidPlan.fields.pickColor")}
                             value={shown} onChange={(e) => onChange({ color: e.target.value.toLowerCase() })} />
-                        <input id={`${idPrefix}-color`} className="inp-sm mono rt-look-hex" type="text" aria-label="Farbe als Hex-Wert"
+                        <input id={`${idPrefix}-color`} className="inp-sm mono rt-look-hex" type="text" aria-label={t("raidPlan.fields.colorHex")}
                             value={color} placeholder={shown} onChange={(e) => onChange({ color: e.target.value })} />
                         {ownColor && (
                             <button type="button" className="rt-look-reset" onClick={() => onChange({ color: "" })}
-                                data-tip="Zurücksetzen" data-tip-sub="Nimmt wieder die Farbe der Instanz.">Zurücksetzen</button>
+                                data-tip={t("raidPlan.fields.reset")} data-tip-sub={t("raidPlan.fields.resetTip")}>{t("raidPlan.fields.reset")}</button>
                         )}
                         <span className="rt-look-note">{from} · {picture}</span>
                     </div>
                     <div className="rt-look-row">
-                        <input id={`${idPrefix}-image`} className="inp-sm rt-look-url" type="url" aria-label="Bild-Adresse"
-                            value={image.url} placeholder="https://… (leer = Boss-Icon)"
+                        <input id={`${idPrefix}-image`} className="inp-sm rt-look-url" type="url" aria-label={t("raidPlan.fields.imageUrl")}
+                            value={image.url} placeholder={t("raidPlan.fields.imagePlaceholder")}
                             onChange={(e) => onChange({ image: { mode: image.mode, url: e.target.value } })} />
-                        <Segment size="sm" ariaLabel="Bild" value={image.mode}
+                        <Segment size="sm" ariaLabel={t("raidPlan.fields.image")} value={image.mode}
                             onChange={(mode) => onChange({ image: { mode: mode === "banner" ? "banner" : "thumbnail", url: image.url } })}
                             options={[
-                                { value: "thumbnail", label: "Thumbnail", tip: "Klein neben dem Text der Nachricht." },
-                                { value: "banner", label: "Banner", tip: "Breit unter der Nachricht." },
+                                { value: "thumbnail", label: t("raidPlan.fields.thumbnail"), tip: t("raidPlan.fields.thumbnailTip") },
+                                { value: "banner", label: t("raidPlan.fields.banner"), tip: t("raidPlan.fields.bannerTip") },
                             ]} />
                     </div>
                     <div className="rt-look-row">
-                        <span className="rt-look-note">Emojis</span>
-                        <Segment size="sm" ariaLabel="Emoji-Stil" value={emojiStyle}
+                        <span className="rt-look-note">{t("raidPlan.emoji.label")}</span>
+                        <Segment size="sm" ariaLabel={t("raidPlan.emoji.aria")} value={emojiStyle}
                             onChange={(v) => onChange({ emojiStyle: v })}
-                            options={EMOJI_STYLE_OPTIONS} />
+                            options={EMOJI_STYLES.map((value) => ({ value, label: t(`raidPlan.emoji.${value}`), tip: t(`raidPlan.emoji.${value}Tip`) }))} />
                     </div>
                 </div>
             </div>
@@ -222,16 +223,17 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
 
 /** The version's raid and party buffs as icon toggles. */
 export function BuffPicker({ version, value, onToggle }: { version: GameVersion | null; value: string[]; onToggle: (key: string) => void }) {
+    const t = useT();
     const buffs = version ? [...version.raidBuffs, ...version.partyBuffs] : [];
     return (
         <div className="rt-field">
-            <FieldLabel text="Pflicht-Buffs" tip="Buffs, die der Raid dabeihaben soll — der Setup-Vorschlag plant jemanden dafür ein und warnt, wenn keiner sie mitbringt." />
+            <FieldLabel text={t("raidPlan.fields.buffs")} tip={t("raidPlan.fields.buffsTip")} />
             <div className="rt-buffs">
                 {buffs.map((b) => {
                     const on = value.includes(b.key);
                     return (
                         <button key={`${b.scope}-${b.key}`} type="button" className={`rt-buff${on ? " on" : ""}`} aria-pressed={on} onClick={() => onToggle(b.key)}
-                            data-tip={b.label} data-tip-sub={b.scope === "party" ? "Gruppen-Buff" : "Raid-Buff"}>
+                            data-tip={b.label} data-tip-sub={b.scope === "party" ? t("raidPlan.fields.partyBuff") : t("raidPlan.fields.raidBuff")}>
                             <WowIcon name={b.icon} size={24} />
                         </button>
                     );

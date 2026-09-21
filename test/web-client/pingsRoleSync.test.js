@@ -27,7 +27,8 @@ describe("Wohin in the raid-detail modals", () => {
     it("is one compact segment, rendered only when the server offers the talk server", () => {
         expect(targetField).toContain("const options = pingTargetOptions(info);");
         expect(targetField).toContain("if (!options.length) return null;");
-        expect(targetField).toContain('<Segment size="sm" ariaLabel="Wohin"');
+        expect(targetField).toContain('<Segment size="sm" ariaLabel={t("raidModals.target.label")}');
+        expect(require("./i18nHelper").makeT("de")("raidModals.target.label")).toBe("Wohin");
         for (const modal of [pingModal, notifyModal]) {
             expect(modal).toContain("<TargetField info={data.pingTargets} value={target} onChange={setTarget} />");
             expect(modal).toContain('useState<PingTarget>("event")');

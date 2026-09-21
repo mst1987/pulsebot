@@ -1,0 +1,16 @@
+{
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "ok": "OK",
+    "save": "Save",
+    "moreOptions": "More options",
+    "relDay": {
+        "today": "today",
+        "tomorrow": "tomorrow",
+        "yesterday": "yesterday",
+        "inDays": "in {count} days",
+        "daysAgo": "{count} days ago"
+    },
+    "quoted": "“{text}”"
+}

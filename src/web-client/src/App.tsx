@@ -24,7 +24,9 @@ import DropCheckPage from "./pages/lootcouncil/DropCheckPage";
 import { JobsProvider } from "./components/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import { getLang, setLang, useT } from "./i18n";
 import RaidLoader from "./components/ui/RaidLoader";
+import LangToggle from "./components/LangToggle";
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -38,22 +40,22 @@ function Guard({ user, areas, level = "read", children }: {
     level?: "read" | "write";
     children: ReactNode;
 }) {
+    const t = useT();
     if (canAccessAny(user, areas, level)) return <>{children}</>;
     return (
         <div className="empty">
-            {level === "write"
-                ? "Für diesen Bereich fehlen dir die Schreibrechte."
-                : "Für diesen Bereich hat deine Rolle keine Berechtigung."}
+            {level === "write" ? t("shell.app.noWrite") : t("shell.app.noRead")}
         </div>
     );
 }
 
 /** Start page for an account no area is open to — it still gets the shell. */
 function NoAreaNotice() {
+    const t = useT();
     return (
         <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", paddingTop: 60 }}>
-            <p>Dein Discord-Konto hat noch keinen Zugang zu diesem Menü.</p>
-            <p className="hint">Ein Admin kann dir in den Einstellungen unter „Berechtigungen" Bereiche freischalten.</p>
+            <p>{t("shell.app.noAccess")}</p>
+            <p className="hint">{t("shell.app.noAccessHint")}</p>
         </div>
     );
 }
@@ -63,10 +65,11 @@ function NoAreaNotice() {
  * (staticClient.js), so without this the page would simply stay blank.
  */
 function NotFound() {
+    const t = useT();
     return (
         <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", paddingTop: 60 }}>
-            <p>Diese Seite gibt es nicht.</p>
-            <Link className="mlink" to="/">Zurück zur Übersicht</Link>
+            <p>{t("shell.app.notFound")}</p>
+            <Link className="mlink" to="/">{t("shell.app.backHome")}</Link>
         </div>
     );
 }
@@ -81,7 +84,13 @@ function useSession(): LoadState {
 
     useEffect(() => {
         getSession()
-            .then((session) => setState({ status: "ready", session }))
+            .then((session) => {
+                // The account's saved language wins over this browser's: it is
+                // what makes the choice follow the user to another device.
+                const saved = session.user && session.user.lang;
+                if (saved && saved !== getLang()) setLang(saved);
+                setState({ status: "ready", session });
+            })
             .catch((error: ApiError) => setState({ status: "error", error }));
     }, []);
 
@@ -90,10 +99,11 @@ function useSession(): LoadState {
 
 export default function App() {
     const state = useSession();
+    const t = useT();
 
-    if (state.status === "loading") return <RaidLoader text="Menü wird geladen" />;
+    if (state.status === "loading") return <RaidLoader text={t("shell.app.loadingMenu")} />;
     if (state.status === "error") {
-        return <div className="empty">Fehler beim Laden der Session: {state.error.message}</div>;
+        return <div className="empty">{t("shell.app.sessionError", { message: state.error.message })}</div>;
     }
 
     const { user, csrfToken, guilds, activeGuildId } = state.session;
@@ -102,8 +112,10 @@ export default function App() {
     if (!user) {
         return (
             <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
-                <p>Bitte melde dich mit Discord an, um das Gildenmenü zu nutzen.</p>
-                <a className="mlink" href="/auth/login">Mit Discord anmelden</a>
+                <p>{t("shell.app.loginPrompt")}</p>
+                <a className="mlink" href="/auth/login">{t("shell.app.loginButton")}</a>
+                {/* The one switch a visitor gets before logging in — kept in the browser only. */}
+                <LangToggle />
             </div>
         );
     }

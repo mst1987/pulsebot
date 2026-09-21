@@ -7,6 +7,8 @@ import {
     MAX_CHARACTERS, addPick, canAddPick, movePick, removePick, setPickCharacter, setPickSpec, setPickStatus,
     type CharacterPick,
 } from "../lib/signupPicks";
+import { specLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 
 // The characters of a signup (#293): one line per character · spec, numbered —
 // the first is the choice, the others "kann auch mit" — with arrows to reorder
@@ -30,10 +32,11 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
     /** What the event's phase still allows; a character may always keep the status it has. */
     allowedStatuses?: SignupStatus[];
 }) {
+    const t = useT();
     const showStatus = statuses && !disabled && picks.length > 1;
     return (
         <div className="field">
-            <label>Charaktere</label>
+            <label>{t("signups.picks.characters")}</label>
             <ol className="an-picks">
                 {picks.map((p, i) => {
                     const character = profile.characters.find((c) => c.key === p.characterKey);
@@ -43,33 +46,33 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                         <li key={`${p.characterKey}-${i}`} className="an-pickrow">
                             <span
                                 className={`an-rank${i === 0 ? " an-rank-first" : ""}`}
-                                data-tip={i === 0 ? "1. Wahl" : "Kann auch mit"}
-                                data-tip-sub={i === 0 ? "Mit diesem Charakter kommst du am liebsten." : "Nimmt die Orga, wenn es für den Raid besser passt."}
+                                data-tip={i === 0 ? t("signups.picks.firstChoice") : t("signups.picks.canAlsoWith")}
+                                data-tip-sub={i === 0 ? t("signups.picks.firstChoiceSub") : t("signups.picks.canAlsoWithSub")}
                             >
                                 {i + 1}
                             </span>
                             <div className="an-pick">
                                 {cls && <WowIcon name={cls.icon} size={22} />}
-                                <select aria-label={`Charakter ${i + 1}`} value={p.characterKey} disabled={disabled} onChange={(e) => onChange(setPickCharacter(profile, picks, i, e.target.value))} {...classColorProps(cls?.color)}>
-                                    {profile.characters.map((c) => <option key={c.key} value={c.key}>{c.name}{c.main ? " (Main)" : ""}</option>)}
+                                <select aria-label={t("signups.picks.characterAria", { n: i + 1 })} value={p.characterKey} disabled={disabled} onChange={(e) => onChange(setPickCharacter(profile, picks, i, e.target.value))} {...classColorProps(cls?.color)}>
+                                    {profile.characters.map((c) => <option key={c.key} value={c.key}>{c.name}{c.main ? t("signups.picks.main") : ""}</option>)}
                                 </select>
                             </div>
                             <div className="an-pick">
                                 {spec && <WowIcon name={spec.icon} size={22} />}
-                                <select aria-label={`Spec ${i + 1}`} value={p.spec} disabled={disabled || !character?.specs.length} onChange={(e) => onChange(setPickSpec(picks, i, e.target.value))}>
-                                    {!character?.specs.length && <option value="">kein Spec im Profil</option>}
-                                    {character?.specs.map((s) => <option key={s.key} value={s.key}>{s.label} · {GEAR_LABEL[s.gear] || s.gear}</option>)}
+                                <select aria-label={t("signups.picks.specAria", { n: i + 1 })} value={p.spec} disabled={disabled || !character?.specs.length} onChange={(e) => onChange(setPickSpec(picks, i, e.target.value))}>
+                                    {!character?.specs.length && <option value="">{t("signups.picks.noSpec")}</option>}
+                                    {character?.specs.map((s) => <option key={s.key} value={s.key}>{specLabel(s.key, s.label)} · {GEAR_LABEL[s.gear] || s.gear}</option>)}
                                 </select>
                             </div>
                             {showStatus && (
                                 <div
                                     className="an-pick an-pick-status"
-                                    data-tip="Status dieses Charakters"
-                                    data-tip-sub="Gilt nur für diese Zeile – der Schalter unten setzt alle auf einmal."
+                                    data-tip={t("signups.picks.statusTip")}
+                                    data-tip-sub={t("signups.picks.statusTipSub")}
                                 >
                                     <i className="an-dot" style={{ background: SIGNUP_STATUS[p.status || "signed"].color }} />
                                     <select
-                                        aria-label={`Status ${i + 1}`}
+                                        aria-label={t("signups.picks.statusAria", { n: i + 1 })}
                                         value={p.status || "signed"}
                                         onChange={(e) => onChange(setPickStatus(picks, i, e.target.value as SignupStatus))}
                                     >
@@ -80,9 +83,9 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                             )}
                             {picks.length > 1 && (
                                 <span className="an-pick-tools">
-                                    <IconButton size="sm" className="an-up" icon={<ChevronDownIcon />} tip="Nach oben" disabled={disabled || i === 0} onClick={() => onChange(movePick(picks, i, -1))} />
-                                    <IconButton size="sm" icon={<ChevronDownIcon />} tip="Nach unten" disabled={disabled || i === picks.length - 1} onClick={() => onChange(movePick(picks, i, 1))} />
-                                    <IconButton size="sm" icon={<XIcon />} tip="Entfernen" disabled={disabled} onClick={() => onChange(removePick(picks, i))} />
+                                    <IconButton size="sm" className="an-up" icon={<ChevronDownIcon />} tip={t("signups.picks.moveUp")} disabled={disabled || i === 0} onClick={() => onChange(movePick(picks, i, -1))} />
+                                    <IconButton size="sm" icon={<ChevronDownIcon />} tip={t("signups.picks.moveDown")} disabled={disabled || i === picks.length - 1} onClick={() => onChange(movePick(picks, i, 1))} />
+                                    <IconButton size="sm" icon={<XIcon />} tip={t("signups.picks.remove")} disabled={disabled} onClick={() => onChange(removePick(picks, i))} />
                                 </span>
                             )}
                         </li>
@@ -91,13 +94,13 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
             </ol>
             {canAddPick(profile, picks) && !disabled && (
                 <button type="button" className="an-add" onClick={() => onChange(addPick(profile, picks))}>
-                    + Kann auch mit … <span className="an-opt">(bis {MAX_CHARACTERS})</span>
+                    {t("signups.picks.add")} <span className="an-opt">{t("signups.picks.upTo", { max: MAX_CHARACTERS })}</span>
                 </button>
             )}
             {picks.length > 1 && (
                 <div className="hint">
-                    1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.
-                    {showStatus ? " Der Status gilt je Charakter." : ""}
+                    {t("signups.picks.hint")}
+                    {showStatus ? t("signups.picks.hintStatus") : ""}
                 </div>
             )}
         </div>

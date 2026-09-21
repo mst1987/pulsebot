@@ -6,6 +6,7 @@
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
 import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../api";
+import { t } from "../i18n";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -467,12 +468,12 @@ export const TARGET_TEXT: Record<PingTarget, string> = { event: "Event-Kanal", t
  */
 export function pingTargetOptions(info: { talk: boolean; talkGuildName?: string; talkChannelName?: string } | null | undefined): { value: PingTarget; label: string; tip: string }[] {
     if (!info || !info.talk) return [];
-    const where = info.talkChannelName ? `#${info.talkChannelName}` : "den Ping-Kanal";
-    const server = info.talkGuildName || "dem Kommunikations-Discord";
+    const where = info.talkChannelName ? `#${info.talkChannelName}` : t("raidModals.target.pingChannel");
+    const server = info.talkGuildName || t("raidModals.target.talkServer");
     return [
-        { value: "event", label: "Event-Kanal", tip: "Nur im Kanal des Events" },
-        { value: "talk", label: "Talk", tip: `In ${where} auf ${server}; wer dort nicht ist, bekommt eine DM` },
-        { value: "both", label: "Beides", tip: `Im Event-Kanal und in ${where}; keine DMs zusätzlich` },
+        { value: "event", label: t("raidModals.target.event"), tip: t("raidModals.target.eventTip") },
+        { value: "talk", label: t("raidModals.target.talk"), tip: t("raidModals.target.talkTip", { where, server }) },
+        { value: "both", label: t("raidModals.target.both"), tip: t("raidModals.target.bothTip", { where }) },
     ];
 }
 
@@ -480,9 +481,9 @@ export function pingTargetOptions(info: { talk: boolean; talkGuildName?: string;
 export function targetHint(target: PingTarget, eventChannel: string, info: PingTargetInfo | undefined): string | undefined {
     const talk = info && info.talkChannelName ? `#${info.talkChannelName}` : "Talk";
     const event = eventChannel ? `#${eventChannel}` : "";
-    if (target === "talk") return `in ${talk}`;
-    if (target === "both") return event ? `in ${event} + ${talk}` : `in ${talk}`;
-    return event ? `in ${event}` : undefined;
+    if (target === "talk") return t("raidModals.target.in", { where: talk });
+    if (target === "both") return t("raidModals.target.in", { where: event ? `${event} + ${talk}` : talk });
+    return event ? t("raidModals.target.in", { where: event }) : undefined;
 }
 
 /** The PATCH body of the role mapping: complete pairs only, one per pair, the list replaces the stored one. */

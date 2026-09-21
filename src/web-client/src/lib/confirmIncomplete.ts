@@ -3,6 +3,7 @@ import { RAID_INCOMPLETE, type IncompleteRaidError } from "../api";
 import type { ConfirmFn } from "../components/ui/Modal";
 import IncompleteRaid from "../components/IncompleteRaid";
 import { raidIcon } from "./logRaids";
+import { t } from "../i18n";
 
 // The admin-menu half of the "is this raid actually over?" guard (the rule
 // itself lives in src/utils/logcheck/raidProgress.js).
@@ -25,19 +26,19 @@ export async function withIncompleteConfirm<T>(ask: ConfirmFn, run: (force: bool
     } catch (err) {
         const refusal = err as IncompleteRaidError;
         if (refusal.code !== RAID_INCOMPLETE) throw err;
-        const message = refusal.message || "Der Raid sieht noch nicht abgeschlossen aus.";
+        const message = refusal.message || t("jobs.incomplete.fallback");
         const pending = (refusal.raids || []).find((r) => !r.finalKilled);
         const go = await ask({
-            title: "Raid noch nicht abgeschlossen",
+            title: t("jobs.incomplete.title"),
             text: createElement(IncompleteRaid, { raids: refusal.raids, message }),
-            action: "Trotzdem auswerten",
+            action: t("jobs.incomplete.action"),
             tone: "run",
             icon: pending ? raidIcon(pending.contentId) : "inv_misc_pocketwatch_01",
         });
         if (!go) {
             // Deliberately an error: it ends the job's toast as "abgebrochen"
             // rather than reporting a report that was never built.
-            throw { code: "cancelled", message: "Abgebrochen — der Raid läuft noch." } as IncompleteRaidError;
+            throw { code: "cancelled", message: t("jobs.incomplete.cancelled") } as IncompleteRaidError;
         }
         return run(true);
     }

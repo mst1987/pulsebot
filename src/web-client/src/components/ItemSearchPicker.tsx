@@ -8,12 +8,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { ItemSearchResult } from "../api";
 import { itemQualityProps } from "../lib/itemQuality";
+import { useT } from "../i18n";
 
-export default function ItemSearchPicker({ search, onPick, placeholder = "Item-Namen suchen (Wowhead) …" }: {
+export default function ItemSearchPicker({ search, onPick, placeholder }: {
     search: (q: string) => Promise<{ items: ItemSearchResult[] }>;
     onPick: (item: ItemSearchResult) => void;
     placeholder?: string;
 }) {
+    const t = useT();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<ItemSearchResult[]>([]);
     const [open, setOpen] = useState(false);
@@ -59,7 +61,7 @@ export default function ItemSearchPicker({ search, onPick, placeholder = "Item-N
         <div className="hr-picker" ref={rootRef}>
             <input
                 type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-                placeholder={placeholder} autoComplete="off"
+                placeholder={placeholder ?? t("raidModals.itemSearch.placeholder")} autoComplete="off"
                 onFocus={() => { if (results.length) setOpen(true); }}
             />
             <div className={`hr-panel${open ? " open" : ""}`}>

@@ -15,6 +15,7 @@ import WowIcon from "../components/ui/WowIcon";
 import { buttonClass } from "../components/ui/Button";
 import "../styles/raid-events.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { useT } from "../i18n";
 
 // Raid-Events: one page, two views of the same list — what is coming and what
 // took place — filtered by Discord category. "Neues Event" (/raids/new) is a
@@ -34,11 +35,11 @@ const NO_CATEGORY = "__none__";
 type Pill = { id: string; name: string; count: number; icon: string };
 
 /** One filter pill per category of the open view, with the raid icon its events show most. */
-function categoryPills(events: (UpcomingRaid | PastRaid)[]): Pill[] {
+function categoryPills(events: (UpcomingRaid | PastRaid)[], noCategory: string): Pill[] {
     const byId = new Map<string, { name: string; count: number; contents: Map<string, number> }>();
     for (const ev of events) {
         const key = ev.categoryId || NO_CATEGORY;
-        const entry = byId.get(key) || { name: ev.categoryName || "Ohne Kategorie", count: 0, contents: new Map() };
+        const entry = byId.get(key) || { name: ev.categoryName || noCategory, count: 0, contents: new Map() };
         entry.count += 1;
         const first = knownContents(ev.contentIds)[0];
         if (first) entry.contents.set(first, (entry.contents.get(first) || 0) + 1);
@@ -52,9 +53,10 @@ function categoryPills(events: (UpcomingRaid | PastRaid)[]): Pill[] {
 
 /** The Kommend/Vergangen switch — the Segment look with a count badge per option. */
 function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: View) => void; counts: Record<View, number | null> }) {
-    const opts: { v: View; label: string }[] = [{ v: "upcoming", label: "Kommend" }, { v: "past", label: "Vergangen" }];
+    const t = useT();
+    const opts: { v: View; label: string }[] = [{ v: "upcoming", label: t("raids.page.upcoming") }, { v: "past", label: t("raids.page.past") }];
     return (
-        <div className="seg re-seg" role="radiogroup" aria-label="Ansicht">
+        <div className="seg re-seg" role="radiogroup" aria-label={t("raids.page.viewAria")}>
             {opts.map((o) => (
                 <button key={o.v} type="button" role="radio" aria-checked={value === o.v} className={`seg-opt${value === o.v ? " active" : ""}`} onClick={() => onChange(o.v)}>
                     {o.label}
@@ -66,6 +68,7 @@ function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: Vi
 }
 
 export default function RaidsPage() {
+    const t = useT();
     const { user, csrfToken } = useOutletContext<ShellContext>();
     const location = useLocation();
     const navigate = useNavigate();
@@ -92,18 +95,18 @@ export default function RaidsPage() {
     const closeCreate = () => navigate(view === "past" ? "/raids?view=past" : "/raids");
     const repeat = (id: string) => navigate(`/raids/new?source=${encodeURIComponent(id)}`);
 
-    if (error) return <div className="empty">Fehler beim Laden der Raid-Events: {error.message}</div>;
-    if (!upcoming) return <RaidLoader text="Raids werden geladen" />;
+    if (error) return <div className="empty">{t("raids.page.loadError", { message: error.message })}</div>;
+    if (!upcoming) return <RaidLoader text={t("raids.page.loading")} />;
 
     const events: (UpcomingRaid | PastRaid)[] = view === "past" ? (past?.events || []) : upcoming.events;
-    const pills = categoryPills(events);
+    const pills = categoryPills(events, t("raids.page.noCategory"));
     // A remembered category with nothing in this view shows everything instead of an empty list.
     const activeCategory = categoryId && pills.some((p) => p.id === categoryId) ? categoryId : null;
     const filtered = activeCategory === null ? events : events.filter((ev) => (ev.categoryId || NO_CATEGORY) === activeCategory);
 
     let listing: React.ReactNode;
     if (!upcoming.activeGuildId) {
-        listing = <div className="glist re-glist"><div className="re-empty">Wähle oben einen Server, um die Events zu sehen.</div></div>;
+        listing = <div className="glist re-glist"><div className="re-empty">{t("raids.page.pickServer")}</div></div>;
     } else if (view === "upcoming") {
         listing = (
             <>
@@ -113,19 +116,19 @@ export default function RaidsPage() {
                     guildId={upcoming.activeGuildId}
                     canWrite={canWrite}
                     onRepeat={repeat}
-                    emptyMessage={upcoming.error ? "Keine Events geladen." : "Keine anstehenden Events gefunden."}
+                    emptyMessage={upcoming.error ? t("raids.page.noneLoaded") : t("raids.page.noneUpcoming")}
                 />
             </>
         );
     } else if (pastError) {
-        listing = <div className="glist re-glist"><div className="re-empty">Fehler beim Laden der vergangenen Raids: {pastError.message}</div></div>;
+        listing = <div className="glist re-glist"><div className="re-empty">{t("raids.page.pastError", { message: pastError.message })}</div></div>;
     } else if (!past) {
-        listing = <div className="glist re-glist"><div className="re-empty">Lade vergangene Raids…</div></div>;
+        listing = <div className="glist re-glist"><div className="re-empty">{t("raids.page.pastLoading")}</div></div>;
     } else {
         listing = (
             <>
                 {past.error && <div className="re-warn">{past.error}</div>}
-                <PastRaidList events={filtered as PastRaid[]} emptyMessage="Keine vergangenen Raids gefunden." />
+                <PastRaidList events={filtered as PastRaid[]} emptyMessage={t("raids.page.nonePast")} />
             </>
         );
     }
@@ -137,19 +140,19 @@ export default function RaidsPage() {
                 <div className="ph-text">
                     <div className="kicker">Raid-Helper{upcoming.guildName ? ` · ${upcoming.guildName}` : ""}</div>
                     <h1 className="re-h1">
-                        Raid-Events
+                        {t("raids.page.title")}
                         <span
                             className="re-info" tabIndex={0}
-                            data-tip="Raid-Events"
-                            data-tip-sub="Alle Events des gewählten Servers aus Raid-Helper, kommende und vergangene. Anmelde-Aufruf, Raidsheet, Logs und Loot findest du im Event selbst."
+                            data-tip={t("raids.page.title")}
+                            data-tip-sub={t("raids.page.info")}
                         >i</span>
                     </h1>
                 </div>
                 <div className="ph-act">
-                    <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />Serien</Link>
-                    <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />Raid-Vorlagen</Link>
-                    <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />Aufruf-Vorlagen</Link>
-                    {canWrite && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />Neues Event</Link>}
+                    <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />{t("raids.page.series")}</Link>
+                    <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />{t("raids.page.raidTemplates")}</Link>
+                    <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />{t("raids.page.notifyTemplates")}</Link>
+                    {canWrite && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />{t("raids.page.newEvent")}</Link>}
                 </div>
             </div>
 
@@ -160,9 +163,9 @@ export default function RaidsPage() {
                     counts={{ upcoming: upcoming.events.length, past: past ? past.events.length : null }}
                 />
                 {pills.length > 0 && (
-                    <div className="re-pills" role="radiogroup" aria-label="Kategorie">
+                    <div className="re-pills" role="radiogroup" aria-label={t("raids.page.categoryAria")}>
                         <button type="button" role="radio" aria-checked={activeCategory === null} className={`re-pill noimg${activeCategory === null ? " on" : ""}`} onClick={() => setCategoryId("")}>
-                            Alle <Badge count>{events.length}</Badge>
+                            {t("raids.page.all")} <Badge count>{events.length}</Badge>
                         </button>
                         {pills.map((p) => (
                             <button

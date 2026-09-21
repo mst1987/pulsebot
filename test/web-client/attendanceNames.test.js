@@ -45,6 +45,7 @@ describe("attendance names", () => {
     it("falls back to the Discord name when no character is assigned", () => {
         const chip = fnBody(roster, "PersonChip");
         expect(chip).toContain("const discordName = p.displayName || p.id;");
-        expect(chip).toContain("{!p.character && <Badge>kein Charakter</Badge>}");
+        expect(chip).toContain("{!p.character && <Badge>{t(\"raidDetail.roster.noCharacter\")}</Badge>}");
+        expect(require("./i18nHelper").makeT("de")("raidDetail.roster.noCharacter")).toBe("kein Charakter");
     });
 });

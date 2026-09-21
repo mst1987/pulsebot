@@ -7,6 +7,7 @@
 // The server holds the same rules for real (src/web/raidTemplates.js) — this
 // copy only lets the modal say what is wrong before anybody presses Speichern.
 import type { EmbedImage, EmojiStyle, GameVersion, GameInstance, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import { t } from "../i18n";
 
 /** The event message's emoji style unless one is picked (src/web/appEmojis.js has the same). */
 export const DEFAULT_EMOJI_STYLE = "arcane";
@@ -78,9 +79,9 @@ export function dpsSlots(size: number | null, tank: number, healer: number): num
 /** What is wrong with a melee/ranged range, "" when nothing (or no range). */
 export function rangeProblem(label: string, range: RoleRange | null, limit: number): string {
     if (!range) return "";
-    if (range.min < 0 || (range.max !== null && range.max < 0)) return `${label}: keine gültige Anzahl.`;
-    if (range.max !== null && range.min > range.max) return `${label}: Minimum ist größer als Maximum.`;
-    if (range.max !== null && range.max > limit) return `${label}: Maximum ist größer als die Größe ${limit}.`;
+    if (range.min < 0 || (range.max !== null && range.max < 0)) return t("raidPlan.problem.invalidCount", { label });
+    if (range.max !== null && range.min > range.max) return t("raidPlan.problem.minOverMax", { label });
+    if (range.max !== null && range.max > limit) return t("raidPlan.problem.maxOverSize", { label, size: limit });
     return "";
 }
 
@@ -94,7 +95,7 @@ export function colorProblem(raw: string): string {
     const s = String(raw || "").trim().toLowerCase();
     if (!s) return "";
     const hex = s.startsWith("#") ? s : `#${s}`;
-    return /^#[0-9a-f]{6}$/.test(hex) ? "" : "Die Farbe muss als #rrggbb angegeben werden, z. B. #8a7cff.";
+    return /^#[0-9a-f]{6}$/.test(hex) ? "" : t("raidPlan.problem.color");
 }
 
 /** Whether a picture URL is one Discord may load: absolute, https, with a host. */
@@ -113,10 +114,10 @@ export function usableImageUrl(raw: string): boolean {
 export function imageProblem(image: EmbedImage | null | undefined): string {
     const mode = image ? image.mode : "";
     const url = String((image && image.url) || "").trim();
-    if (mode && mode !== "thumbnail" && mode !== "banner") return "Das Bild muss „thumbnail“ oder „banner“ sein.";
+    if (mode && mode !== "thumbnail" && mode !== "banner") return t("raidPlan.problem.imageMode");
     if (!url) return "";
-    if (url.length > MAX_IMAGE_URL) return `Die Bild-Adresse darf höchstens ${MAX_IMAGE_URL} Zeichen lang sein.`;
-    return usableImageUrl(url) ? "" : "Die Bild-Adresse muss mit https:// beginnen.";
+    if (url.length > MAX_IMAGE_URL) return t("raidPlan.problem.imageLong", { max: MAX_IMAGE_URL });
+    return usableImageUrl(url) ? "" : t("raidPlan.problem.imageHttps");
 }
 
 /**
@@ -134,29 +135,29 @@ export function leadInstance(version: GameVersion | null | undefined, instanceId
     return best;
 }
 
-/** The first problem of a draft as a German sentence, "" when it can be saved. Mirrors the server. */
-export function validateDraft(t: RaidTemplateInput): string {
-    if (!String(t.name || "").trim()) return "Name fehlt.";
-    const size = t.size;
-    if (size !== null && (size < 1 || size > MAX_SIZE)) return `Größe muss zwischen 1 und ${MAX_SIZE} liegen.`;
+/** The first problem of a draft as a sentence in the menu language, "" when it can be saved. Mirrors the server. */
+export function validateDraft(draft: RaidTemplateInput): string {
+    if (!String(draft.name || "").trim()) return t("raidPlan.problem.nameMissing");
+    const size = draft.size;
+    if (size !== null && (size < 1 || size > MAX_SIZE)) return t("raidPlan.problem.sizeRange", { max: MAX_SIZE });
     const limit = size === null ? MAX_SIZE : size;
-    const { tank, healer, melee, ranged } = t.composition;
-    if (tank < 0 || healer < 0) return "Tanks und Heiler dürfen nicht negativ sein.";
-    if (tank + healer > limit) return `Tanks + Heiler (${tank + healer}) passen nicht in die Größe ${limit}.`;
-    const rangeError = rangeProblem("Nahkampf", melee, limit) || rangeProblem("Fernkampf", ranged, limit);
+    const { tank, healer, melee, ranged } = draft.composition;
+    if (tank < 0 || healer < 0) return t("raidPlan.problem.negative");
+    if (tank + healer > limit) return t("raidPlan.problem.tanksHealers", { sum: tank + healer, limit });
+    const rangeError = rangeProblem(t("wow.role.melee"), melee, limit) || rangeProblem(t("wow.role.ranged"), ranged, limit);
     if (rangeError) return rangeError;
     const minimums = tank + healer + (melee ? melee.min : 0) + (ranged ? ranged.min : 0);
-    if (minimums > limit) return `Tanks, Heiler und die Nah-/Fernkampf-Minima (${minimums}) passen nicht in die Größe ${limit}.`;
-    const look = colorProblem(t.color || "") || imageProblem(t.image);
+    if (minimums > limit) return t("raidPlan.problem.minimums", { sum: minimums, limit });
+    const look = colorProblem(draft.color || "") || imageProblem(draft.image);
     if (look) return look;
     return "";
 }
 
 /** The small label under a template's name: "TBC · Standard für Donnerstag, Montag". */
-export function templateLabel(t: RaidTemplate, versionShort: string, categoryNames: Record<string, string>): string {
-    const parts = [versionShort || t.versionId];
-    const cats = (t.defaultFor || []).map((id) => categoryNames[id] || id);
-    if (cats.length) parts.push(`Standard für ${cats.join(", ")}`);
+export function templateLabel(tpl: RaidTemplate, versionShort: string, categoryNames: Record<string, string>): string {
+    const parts = [versionShort || tpl.versionId];
+    const cats = (tpl.defaultFor || []).map((id) => categoryNames[id] || id);
+    if (cats.length) parts.push(t("raidPlan.defaultFor", { names: cats.join(", ") }));
     return parts.join(" · ");
 }
 

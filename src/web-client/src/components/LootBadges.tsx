@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import type { LootReason } from "../api";
 import { itemQualityColor } from "../lib/itemQuality";
 import { classColorProps } from "./ClassSpec";
+import { useT } from "../i18n";
 
 // Tones the stylesheet knows (.rbadge-*, --reason-*). Anything else falls back to
 // the neutral badge rather than rendering an unstyled chip.
@@ -85,13 +86,14 @@ export function ReasonBadgeButton({ label, reasonLabel, tone, count, onOpen }: {
     count: number;
     onOpen: () => void;
 }) {
+    const t = useT();
     const differs = !!reasonLabel && reasonLabel !== label;
     return (
         <button
             type="button"
             className={reasonToneClass(tone)}
             data-tip={differs ? `„${label}" · ${reasonLabel}` : label}
-            data-tip-sub={`${count} Item${count === 1 ? "" : "s"} — Klick zeigt welche`}
+            data-tip-sub={t("raidDetail.lootBadges.itemsClick", { count })}
             onClick={onOpen}
         >
             {label}
@@ -187,11 +189,12 @@ export function StackBar({ parts, size, tip, tipSub }: {
     tip?: string;
     tipSub?: string;
 }) {
+    const t = useT();
     const total = parts.reduce((n, p) => n + p.count, 0);
     return (
         <span
             className={["hl-stack", size || ""].filter(Boolean).join(" ")}
-            data-tip={tip ?? `${total} Vergabe${total === 1 ? "" : "n"} · nach Grund`}
+            data-tip={tip ?? t("raidDetail.lootBadges.awards", { count: total })}
             data-tip-sub={tipSub ?? reasonSummary(parts)}
             role="img"
             aria-label={reasonSummary(parts)}

@@ -1,0 +1,93 @@
+{
+    "step": {
+        "start": "Vorlage",
+        "termin": "Termin",
+        "raid": "Raid",
+        "kanal": "Kanal & Anmeldung",
+        "check": "Prüfen"
+    },
+    "overflow": {
+        "off": "voll: keine Anmeldung mehr",
+        "bench": "voll: Warteliste (Bank)",
+        "lock": "{full} · Anmeldung schließt bei Voll"
+    },
+    "problem": {
+        "size": "Die Raidgröße muss eine positive Zahl sein.",
+        "tooBig": "Mehr als {max} Spieler passen in keinen Raid.",
+        "compNumbers": "Die Zusammensetzung braucht Zahlen ab 0.",
+        "compTooBig": "Die Zusammensetzung ({planned}) ist größer als der Raid ({size}).",
+        "duration": "Die Dauer muss zwischen {min} und {max} Minuten liegen.",
+        "invalidCount": "{label}: keine gültige Anzahl.",
+        "minOverMax": "{label}: Minimum ist größer als Maximum.",
+        "maxOverSize": "{label}: Maximum ist größer als die Größe {size}.",
+        "color": "Die Farbe muss als #rrggbb angegeben werden, z. B. #8a7cff.",
+        "imageMode": "Das Bild muss „thumbnail“ oder „banner“ sein.",
+        "imageLong": "Die Bild-Adresse darf höchstens {max} Zeichen lang sein.",
+        "imageHttps": "Die Bild-Adresse muss mit https:// beginnen.",
+        "nameMissing": "Name fehlt.",
+        "sizeRange": "Größe muss zwischen 1 und {max} liegen.",
+        "negative": "Tanks und Heiler dürfen nicht negativ sein.",
+        "tanksHealers": "Tanks + Heiler ({sum}) passen nicht in die Größe {limit}.",
+        "minimums": "Tanks, Heiler und die Nah-/Fernkampf-Minima ({sum}) passen nicht in die Größe {limit}."
+    },
+    "defaultFor": "Standard für {names}",
+    "fields": {
+        "instances": "Instanzen",
+        "instancesTip": "Mehrere möglich, z. B. SSC + TK an einem Abend. Die Größen und der Vorschlag für Tanks und Heiler kommen aus dem Regelsatz.",
+        "incompleteTip": "Infos fehlen: Bosse und Endboss sind noch nicht bekannt.",
+        "players": "{sizes} Spieler",
+        "incomplete": "Infos fehlen",
+        "size": "Raidgröße",
+        "sizeTip": "Die erlaubten Größen der gewählten Instanzen. „frei“ für jede andere Größe bis 40. Ein Wechsel schlägt Tanks und Heiler neu vor.",
+        "free": "frei",
+        "freeAria": "Freie Raidgröße",
+        "min": "min",
+        "max": "max",
+        "look": "Aussehen",
+        "lookTip": "Farbbalken und Bild der Anmelde-Nachricht. Leer lassen: Farbe und Boss-Icon der größten Instanz des Abends — dann sehen SSC, BT und Hyjal schon von selbst verschieden aus.",
+        "ownColor": "eigene Farbe",
+        "colorOf": "Farbe von {name}",
+        "defaultColor": "Standardfarbe",
+        "ownImageBanner": "eigenes Bild, breit unten",
+        "ownImageThumb": "eigenes Bild, klein daneben",
+        "bossIconOf": "Boss-Icon von {name}",
+        "noImage": "kein Bild",
+        "pickColor": "Farbe wählen",
+        "colorHex": "Farbe als Hex-Wert",
+        "reset": "Zurücksetzen",
+        "resetTip": "Nimmt wieder die Farbe der Instanz.",
+        "imageUrl": "Bild-Adresse",
+        "imagePlaceholder": "https://… (leer = Boss-Icon)",
+        "image": "Bild",
+        "thumbnail": "Thumbnail",
+        "thumbnailTip": "Klein neben dem Text der Nachricht.",
+        "banner": "Banner",
+        "bannerTip": "Breit unter der Nachricht.",
+        "buffs": "Pflicht-Buffs",
+        "buffsTip": "Buffs, die der Raid dabeihaben soll — der Setup-Vorschlag plant jemanden dafür ein und warnt, wenn keiner sie mitbringt.",
+        "partyBuff": "Gruppen-Buff",
+        "raidBuff": "Raid-Buff"
+    },
+    "comp": {
+        "tankLess": "Ein Tank weniger",
+        "tankMore": "Ein Tank mehr",
+        "healerLess": "Ein Heiler weniger",
+        "healerMore": "Ein Heiler mehr",
+        "dpsLine": {
+            "one": "{count} Platz für DPS · Vorschlag bei Größenwechsel",
+            "other": "{count} Plätze für DPS · Vorschlag bei Größenwechsel"
+        }
+    },
+    "emoji": {
+        "label": "Emojis",
+        "aria": "Emoji-Stil",
+        "arcane": "Arkan",
+        "arcaneTip": "Silberne Buchstaben-Kacheln auf Schiefer und passende Rollen-Icons. Standard.",
+        "gold": "Gold",
+        "goldTip": "Goldene Buchstaben-Kacheln auf dunklem Stein und passende Rollen-Icons.",
+        "parchment": "Pergament",
+        "parchmentTip": "Dunkle Buchstaben auf hellem Pergament – am nächsten an Raid-Helper.",
+        "plain": "Schlicht",
+        "plainTip": "Titel als normaler Text, flache graue Rollen-Icons."
+    }
+}

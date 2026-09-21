@@ -3,6 +3,7 @@
 // in its tooltip.
 const fs = require("fs");
 const path = require("path");
+const { makeT } = require("./i18nHelper");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
@@ -23,12 +24,13 @@ function splitParams(list) {
     return out;
 }
 
-/** The lib without its TypeScript: `export type` blocks and one-line signatures only. */
-function load() {
+/** The lib without its TypeScript: `export type` blocks and one-line signatures only; `t` injected for one language. */
+function load(lang = "de") {
     const lines = read("lib", "deployVersion.ts").split("\n");
     const out = [];
     let inType = false;
     for (const line of lines) {
+        if (/^import /.test(line)) continue;
         if (inType) {
             if (/^};?$/.test(line.trim())) inType = false;
             continue;
@@ -47,7 +49,7 @@ function load() {
     }
     const js = out.join("\n");
     const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return new Function("t", `${js}\nreturn { ${names.join(", ")} };`)(makeT(lang));
 }
 
 const { deployLine, shortDay, daysAgo, reasonText } = load();
@@ -128,6 +130,14 @@ describe("web-client/lib/deployVersion", () => {
             expect(reasonText(reason).length).toBeGreaterThan(20);
         }
         expect(reasonText("not_found")).toContain("100 Commits");
+    });
+
+    it("speaks English when the menu does", () => {
+        const en = load("en");
+        expect(en.shortDay("2026-09-12T10:00:00Z")).toBe("12/09");
+        const line = en.deployLine(base({ status: "behind", behind: 1, behindSince: "2026-09-14T12:00:00Z" }), NOW);
+        expect(line.text).toBe("Server runs a1b2c3d from 12/09 · main is 1 commit ahead");
+        expect(line.tipSub).toContain("1 commit behind main (for 6 days)");
     });
 });
 

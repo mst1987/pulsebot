@@ -15,6 +15,7 @@ import {
 import {
     commonStatus, initialPicks, picksToInput, setAllStatuses, signupStatusOf, type CharacterPick,
 } from "../lib/signupPicks";
+import { useT } from "../i18n";
 
 // The signup dialog (#256): characters and specs from the profile (several since
 // #293: the first is the choice, the others "kann auch mit"), the status,
@@ -38,6 +39,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     onClose: () => void;
     onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts) => void;
 }) {
+    const t = useT();
     const toast = useToast();
     const mine = row?.mine || null;
 
@@ -112,7 +114,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
             // A full raid turned the "Dabei" into the waiting list (#306) — the
             // raider hears it here, not from the roster.
             if (res.notice) toast(res.notice, res.waitlisted ? "err" : undefined);
-            else toast(absent ? `Von ${row.title} abgemeldet.` : `Für ${row.title} gespeichert: ${SIGNUP_STATUS[signupStatusOf(picks, status)].label}.`);
+            else toast(absent ? t("signups.dialog.toastAbsent", { title: row.title }) : t("signups.dialog.toastSaved", { title: row.title, status: SIGNUP_STATUS[signupStatusOf(picks, status)].label }));
         } catch (e) {
             toast((e as ApiError).message, "err");
         } finally {
@@ -122,8 +124,8 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
 
     const kicker = [
         formatEventTime(row.startTime),
-        row.size ? `${row.size}er` : "",
-        `${row.attending} angemeldet`,
+        row.size ? t("signups.dialog.size", { size: row.size }) : "",
+        t("signups.attending", { count: row.attending }),
         roleCountText(row.counts),
     ].filter(Boolean).join(" · ");
 
@@ -134,16 +136,16 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
             icon={row.instanceIcon || "inv_misc_book_09"}
             tone="signups"
             kicker={kicker}
-            title={`${row.title} · ${mine ? "Anmeldung ändern" : "Anmelden"}`}
+            title={`${row.title} · ${mine ? t("signups.dialog.change") : t("signups.signUp")}`}
             width={720}
             hint={closed
-                ? "Der Raid hat begonnen."
-                : row.deadlinePassed ? "Anmeldeschluss vorbei – nur noch Abmelden oder Spät." : undefined}
+                ? t("signups.dialog.started")
+                : row.deadlinePassed ? t("signups.dialog.deadlineHint") : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "danger" : "primary"}>
-                        {absent ? "Abmelden" : mine ? "Speichern" : "Anmelden"}
+                        {absent ? t("signups.dialog.signOff") : mine ? t("common.save") : t("signups.signUp")}
                     </Button>
                 </>
             )}
@@ -151,7 +153,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
             <div className="an-dlg">
                 {noCharacter ? (
                     <p className="an-note">
-                        In deinem Profil steht noch kein Charakter. <Link to="/profile">Charakter anlegen</Link> – abmelden geht auch ohne.
+                        {t("signups.dialog.noCharBefore")} <Link to="/profile">{t("signups.dialog.noCharLink")}</Link> {t("signups.dialog.noCharAfter")}
                     </p>
                 ) : (
                     <SignupCharacterPicks
@@ -161,8 +163,8 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                 )}
 
                 <div className="field">
-                    <label>{picks.length > 1 ? "Status für alle" : "Status"}</label>
-                    <div className="seg an-status" role="radiogroup" aria-label="Status">
+                    <label>{picks.length > 1 ? t("signups.statusForAll") : t("signups.dialog.status")}</label>
+                    <div className="seg an-status" role="radiogroup" aria-label={t("signups.dialog.status")}>
                         {SIGNUP_STATUS_ORDER.map((s) => {
                             const allowed = row.allowedStatuses.includes(s);
                             return (
@@ -171,7 +173,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                                     className={`seg-opt${shared === s ? " active" : ""}`}
                                     disabled={!allowed || (noCharacter && s !== "absence")}
                                     data-tip={SIGNUP_STATUS[s].label}
-                                    data-tip-sub={allowed ? SIGNUP_STATUS[s].tip : "Nach dem Anmeldeschluss nicht mehr wählbar."}
+                                    data-tip-sub={allowed ? SIGNUP_STATUS[s].tip : t("signups.dialog.notAfterDeadline")}
                                     onClick={() => pickStatus(s)}
                                 >
                                     <i className="an-dot" style={{ background: SIGNUP_STATUS[s].color }} />
@@ -180,12 +182,12 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                             );
                         })}
                     </div>
-                    {!shared && <div className="hint">Deine Charaktere haben verschiedene Status – hier setzt du alle auf einen.</div>}
+                    {!shared && <div className="hint">{t("signups.dialog.mixedStatus")}</div>}
                 </div>
 
                 {!absent && !noCharacter && (
                     <div className="field">
-                        <label>Ich kann auch</label>
+                        <label>{t("signups.dialog.canAlso")}</label>
                         <div className="an-also">
                             {alsoOptions.map((r) => {
                                 const on = canAlso.includes(r);
@@ -200,20 +202,20 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                                 );
                             })}
                         </div>
-                        <div className="hint">Vorbelegt aus deinem Profil. Die Orga sieht das beim Setup.</div>
+                        <div className="hint">{t("signups.dialog.canAlsoHint")}</div>
                     </div>
                 )}
 
                 <div className="field">
                     {noteMode === "none" ? (
-                        <label htmlFor="an-comment">Kommentar <span className="an-opt">(optional)</span></label>
+                        <label htmlFor="an-comment">{t("signups.dialog.comment")} <span className="an-opt">{t("signups.dialog.optional")}</span></label>
                     ) : (
-                        <label htmlFor="an-comment" data-tip="Nachricht an die Raidleitung" data-tip-sub="Der Bot postet sie in den Kanal der Raidleitung.">
-                            Nachricht an die Raidleitung {noteMode === "required" ? <span className="an-opt">(Pflicht)</span> : <span className="an-opt">(optional)</span>}
+                        <label htmlFor="an-comment" data-tip={t("signups.dialog.note")} data-tip-sub={t("signups.dialog.noteTip")}>
+                            {t("signups.dialog.note")} {noteMode === "required" ? <span className="an-opt">{t("signups.dialog.required")}</span> : <span className="an-opt">{t("signups.dialog.optional")}</span>}
                         </label>
                     )}
                     <input id="an-comment" type="text" maxLength={noteMode === "none" ? 300 : 100} value={comment}
-                        placeholder={noteMode === "none" ? "z. B. komme ca. 10 min später" : absent ? "z. B. Arbeit, Urlaub, krank" : "z. B. noch unsicher, evtl. später"}
+                        placeholder={noteMode === "none" ? t("signups.dialog.commentPlaceholder") : absent ? t("signups.dialog.notePlaceholderAbsent") : t("signups.dialog.notePlaceholderTentative")}
                         aria-required={noteMode === "required"} onChange={(e) => setComment(e.target.value)} />
                 </div>
 
@@ -222,10 +224,10 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                         <Badge
                             tone="ok"
                             icon="achievement_guildperk_everybodysfriend"
-                            tip="Wunschpartner angemeldet"
-                            tipSub={row.wishes ? "Dein Wunsch aus dem Profil wird beim Setup berücksichtigt." : "Bei diesem Event werden Wünsche beim Setup nicht berücksichtigt."}
+                            tip={t("signups.dialog.wishTip")}
+                            tipSub={row.wishes ? t("signups.dialog.wishOn") : t("signups.dialog.wishOff")}
                         >
-                            {row.wishPartners.map((p) => p.name).join(", ")} {row.wishPartners.length === 1 ? "ist" : "sind"} auch angemeldet
+                            {t("signups.dialog.wishSignedUp", { count: row.wishPartners.length, names: row.wishPartners.map((p) => p.name).join(", ") })}
                         </Badge>
                     </div>
                 )}
@@ -233,8 +235,8 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                 {/* #308: the raid in one's own calendar, and the page everyone can open. Both
                     are server-rendered and public — see src/web/icsFeed.js / eventPublicPage.js. */}
                 <div className="an-links">
-                    <a href={`/r/cal/${encodeURIComponent(row.id)}.ics`}>In Kalender eintragen</a>
-                    <a href={`/e/${encodeURIComponent(row.id)}`} target="_blank" rel="noreferrer">Öffentliche Event-Seite</a>
+                    <a href={`/r/cal/${encodeURIComponent(row.id)}.ics`}>{t("signups.dialog.calendar")}</a>
+                    <a href={`/e/${encodeURIComponent(row.id)}`} target="_blank" rel="noreferrer">{t("signups.dialog.publicPage")}</a>
                 </div>
             </div>
         </Modal>

@@ -1,9 +1,11 @@
 // Date wording of the start page ("Übersicht") and its raid-details modal —
-// always in the guild's time zone, like lib/format.ts.
+// always in the guild's time zone, like lib/format.ts, in the menu's language.
+import { locale, t } from "../i18n";
+
 const TZ = "Europe/Berlin";
 
 const fmt = (ms: number, opts: Intl.DateTimeFormatOptions) =>
-    new Date(ms).toLocaleString("de-DE", { timeZone: TZ, ...opts });
+    new Date(ms).toLocaleString(locale(), { timeZone: TZ, ...opts });
 
 /** "Montag, 14. September" */
 export function longDay(ms: number): string {
@@ -37,5 +39,5 @@ export function raidWhen(startTime: number): string {
 export function fetchedAt(ms: number, now = Date.now()): string {
     if (!ms) return "";
     const sameDay = fmt(ms, { day: "2-digit", month: "2-digit", year: "numeric" }) === fmt(now, { day: "2-digit", month: "2-digit", year: "numeric" });
-    return `${sameDay ? "heute" : dayDate(ms)} ${clock(ms)}`;
+    return `${sameDay ? t("common.relDay.today") : dayDate(ms)} ${clock(ms)}`;
 }

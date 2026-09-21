@@ -12,8 +12,16 @@
 //   * a stored key is validated against the columns that exist.
 const fs = require("fs");
 const path = require("path");
+const { makeT } = require("./i18nHelper");
 
-const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
+// A translated header (`<th>{t("ns.key")}</th>`) is checked by its German text.
+const deT = makeT("de");
+const headerText = (label) => {
+    const key = label.match(/^\{t\("([^"]+)"\)\}$/);
+    return key ? deT(key[1]) : label;
+};
+
+const CLIENT =path.join(__dirname, "..", "..", "src", "web-client", "src");
 
 function readClient(...parts) {
     return fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
@@ -57,7 +65,7 @@ describe("table sorting", () => {
             // sort control.
             const labels = [...src.matchAll(/<th([^>]*)>([^<]+)<\/th>/g)]
                 .filter((m) => !/scope=("row"|\{"row"\})/.test(m[1]))
-                .map((m) => m[2].trim())
+                .map((m) => headerText(m[2].trim()))
                 .filter((label) => label && !ALLOWED_PLAIN_HEADERS.has(label));
             expect({ file: name, unsortable: labels }).toEqual({ file: name, unsortable: [] });
         }

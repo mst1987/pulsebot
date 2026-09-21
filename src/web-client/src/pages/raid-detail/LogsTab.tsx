@@ -12,8 +12,10 @@ import { useConfirm } from "../../components/ui/Modal";
 import { CheckIcon, ExternalIcon, RefreshIcon, XIcon } from "../../components/icons";
 import { LOG_ANALYSES, type RaidCtx } from "./meta";
 import type { Evaluator } from "./useEvaluate";
+import { useT } from "../../i18n";
 
 export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: Evaluator }) {
+    const t = useT();
     const { data, csrfToken, onChanged, openModal } = ctx;
     const ask = useConfirm();
     const [unlinkBusyId, setUnlinkBusyId] = useState("");
@@ -21,7 +23,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
 
     const reset = async (l: RaidLogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: "Die Auswertung dieses Logs wird verworfen und kann danach neu gestartet werden.", action: "Verwerfen" }))) return;
+        if (!(await ask({ title: t("raidDetail.logs.resetTitle", { label }), text: t("raidDetail.logs.resetText"), action: t("raidDetail.logs.resetAction") }))) return;
         try {
             const r = await resetEval(csrfToken, l.id, section);
             onChanged(r.message);
@@ -31,7 +33,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
     };
 
     const unlink = async (l: RaidLogRow) => {
-        if (!(await ask({ title: "Zuordnung lösen?", text: "Das Log wird von diesem Raid gelöst und steht danach wieder unter den nicht zugeordneten Logs.", action: "Lösen" }))) return;
+        if (!(await ask({ title: t("raidDetail.logs.unlinkTitle"), text: t("raidDetail.logs.unlinkText"), action: t("raidDetail.logs.unlinkAction") }))) return;
         setUnlinkBusyId(l.id);
         try {
             const r = await unlinkLog(csrfToken, l.id);
@@ -48,16 +50,16 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
             <PartHead
                 icon="inv_misc_pocketwatch_01"
                 tone="cla"
-                title="Logs"
-                crumb={`${data.event.title || "Raid"} · ${logs.length ? `${logs.length} ${logs.length === 1 ? "Log" : "Logs"} zugeordnet` : "noch kein Log zugeordnet"}`}
-                action={<Button variant="ghost" size="sm" icon="inv_misc_pocketwatch_01" onClick={() => openModal("log")}>Log zuordnen</Button>}
+                title={t("raidDetail.logs.title")}
+                crumb={`${data.event.title || "Raid"} · ${logs.length ? t("raidDetail.logs.assigned", { count: logs.length }) : t("raidDetail.logs.noneAssigned")}`}
+                action={<Button variant="ghost" size="sm" icon="inv_misc_pocketwatch_01" onClick={() => openModal("log")}>{t("raidDetail.logs.assign")}</Button>}
             />
 
             {!logs.length ? (
-                <p className="rd-empty">Nach dem Raid ein erkanntes Log oder einen Warcraft-Logs-Link diesem Raid zuordnen.</p>
+                <p className="rd-empty">{t("raidDetail.logs.empty")}</p>
             ) : (
                 <div className="rd-glist">
-                    <div className="rd-log-row rd-loot-th" aria-hidden="true"><span>Log</span><span>Auswertung</span><span className="rd-right">Aktion</span></div>
+                    <div className="rd-log-row rd-loot-th" aria-hidden="true"><span>{t("raidDetail.logs.colLog")}</span><span>{t("raidDetail.logs.colEvaluation")}</span><span className="rd-right">{t("raidDetail.logs.colAction")}</span></div>
                     {logs.map((l) => {
                         const done = l.sections || [];
                         const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
@@ -68,45 +70,45 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                                 <span className="rd-log-title">
                                     <IconTile icon="inv_misc_pocketwatch_01" tone="cla" />
                                     <span>
-                                        <b>{l.title || l.reportId || "(unbekannt)"}</b>
-                                        <span className="rd-mono">{l.reportId || "ohne Report-ID"}</span>
+                                        <b>{l.title || l.reportId || t("raidDetail.logs.unknown")}</b>
+                                        <span className="rd-mono">{l.reportId || t("raidDetail.logs.noReportId")}</span>
                                     </span>
                                 </span>
                                 <span className="rd-log-badges">
                                     {LOG_ANALYSES.map((a) => (done.includes(a.key)
-                                        ? <Badge key={a.key} tone="ok" icon={<CheckIcon />} tip={`${a.label} · ausgewertet`} tipSub={a.tip}>{a.label}</Badge>
-                                        : <Badge key={a.key} tone="mid" tip={`${a.label} · noch nicht ausgewertet`} tipSub={a.tip}>{a.label} offen</Badge>))}
+                                        ? <Badge key={a.key} tone="ok" icon={<CheckIcon />} tip={t("raidDetail.logs.evaluatedTip", { label: a.label })} tipSub={a.tip}>{a.label}</Badge>
+                                        : <Badge key={a.key} tone="mid" tip={t("raidDetail.logs.notEvaluatedTip", { label: a.label })} tipSub={a.tip}>{t("raidDetail.logs.open", { label: a.label })}</Badge>))}
                                 </span>
                                 <span className="rd-log-actions">
                                     {open.map((a) => (
                                         <Button
                                             key={a.key} variant="run" size="sm" icon="inv_misc_pocketwatch_01"
                                             running={evaluator.isRunning(l.id, a.key)}
-                                            data-tip={`${a.label} auswerten`} data-tip-sub={a.tip}
+                                            data-tip={t("raidDetail.logs.evaluate", { label: a.label })} data-tip-sub={a.tip}
                                             onClick={() => evaluator.evaluate(l, a.key)}
                                         >
-                                            {a.label} auswerten
+                                            {t("raidDetail.logs.evaluate", { label: a.label })}
                                         </Button>
                                     ))}
                                     {reportHref && (
-                                        <a className="ibtn sm" href={reportHref} data-tip="Report öffnen" data-tip-sub="Die Auswertungsseite dieses Logs" aria-label="Report öffnen">
+                                        <a className="ibtn sm" href={reportHref} data-tip={t("raidDetail.logs.openReport")} data-tip-sub={t("raidDetail.logs.openReportSub")} aria-label={t("raidDetail.logs.openReport")}>
                                             <ExternalIcon />
                                         </a>
                                     )}
                                     {!reportHref && wclUrl && (
-                                        <a className="ibtn sm" href={wclUrl} target="_blank" rel="noopener noreferrer" data-tip="Auf Warcraft Logs öffnen" aria-label="Auf Warcraft Logs öffnen">
+                                        <a className="ibtn sm" href={wclUrl} target="_blank" rel="noopener noreferrer" data-tip={t("raidDetail.logs.openWcl")} aria-label={t("raidDetail.logs.openWcl")}>
                                             <ExternalIcon />
                                         </a>
                                     )}
                                     {done.map((key) => (
                                         <IconButton
                                             key={key} size="sm" tone="danger" icon={<RefreshIcon />}
-                                            tip={`${key.toUpperCase()}-Auswertung verwerfen`} tipSub="Kann danach neu gestartet werden."
+                                            tip={t("raidDetail.logs.resetTip", { label: key.toUpperCase() })} tipSub={t("raidDetail.logs.resetSub")}
                                             onClick={() => reset(l, key as LogSection)}
                                         />
                                     ))}
                                     <IconButton
-                                        size="sm" tone="danger" icon={<XIcon />} tip="Zuordnung lösen" tipSub="Das Log bleibt erhalten, nur nicht mehr an diesem Raid."
+                                        size="sm" tone="danger" icon={<XIcon />} tip={t("raidDetail.logs.unlinkTip")} tipSub={t("raidDetail.logs.unlinkSub")}
                                         disabled={unlinkBusyId === l.id} onClick={() => unlink(l)}
                                     />
                                 </span>

@@ -7,11 +7,13 @@ import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Segment from "../../../components/ui/Segment";
 import { useToast } from "../../../components/Jobs";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 type Mode = "detected" | "url";
 
 export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const unlinked = data.unlinkedLogs;
     const toast = useToast();
@@ -50,34 +52,34 @@ export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; o
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_pocketwatch_01" tone="cla"
-            kicker={data.event.title} title="Log zuordnen" width={540}
-            hint={`${unlinked.length} ${unlinked.length === 1 ? "Log" : "Logs"} ohne Event`}
+            kicker={data.event.title} title={t("raidModals.logAssign.title")} width={540}
+            hint={t("raidModals.logAssign.hint", { count: unlinked.length })}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="rd-log-form" running={busy} disabled={mode === "detected" ? !unlinked.length : !urlDraft.wclUrl.trim()}>Zuordnen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="rd-log-form" running={busy} disabled={mode === "detected" ? !unlinked.length : !urlDraft.wclUrl.trim()}>{t("raidModals.logAssign.assign")}</Button>
                 </>
             )}
         >
             <div className="rd-dlg-stack">
                 <Segment<Mode>
-                    ariaLabel="Quelle" size="sm" value={mode} onChange={setMode}
-                    options={[{ value: "detected", label: "Erkanntes Log", disabled: !unlinked.length }, { value: "url", label: "WCL-Link" }]}
+                    ariaLabel={t("raidModals.logAssign.source")} size="sm" value={mode} onChange={setMode}
+                    options={[{ value: "detected", label: t("raidModals.logAssign.detected"), disabled: !unlinked.length }, { value: "url", label: t("raidModals.logAssign.wclLink") }]}
                 />
                 <form id="rd-log-form" className="rd-form" onSubmit={submit}>
                     {mode === "detected" ? (
-                        <div className="rd-checks" role="radiogroup" aria-label="Erkannte Logs">
+                        <div className="rd-checks" role="radiogroup" aria-label={t("raidModals.logAssign.detectedLogs")}>
                             {unlinked.map((l) => (
                                 <label key={l.id} className={`rd-check rd-check-row${current === l.id ? " on" : ""}`}>
                                     <input type="radio" name="rd-log" checked={current === l.id} onChange={() => setPicked(l.id)} />
-                                    <span className="rd-grow">{l.title || l.reportId || "(unbekannt)"}</span>
+                                    <span className="rd-grow">{l.title || l.reportId || t("raidModals.logAssign.unknown")}</span>
                                     <span className="rd-mono">{l.reportId}</span>
                                 </label>
                             ))}
                         </div>
                     ) : (
                         <div className="field">
-                            <label htmlFor="rd-log-url">Warcraft-Logs-Link</label>
+                            <label htmlFor="rd-log-url">{t("raidModals.logAssign.urlLabel")}</label>
                             <input
                                 id="rd-log-url" type="text" value={urlDraft.wclUrl} onChange={(e) => patchUrlDraft({ wclUrl: e.target.value })}
                                 placeholder="https://classic.warcraftlogs.com/reports/abc123…"

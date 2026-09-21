@@ -14,11 +14,12 @@ import { RaiderBadge, reasonToneClass } from "./LootBadges";
 import { TrashIcon } from "./icons";
 import { useConfirm } from "./ui/Modal";
 import { IconButton } from "./ui/Button";
+import { t, useT } from "../i18n";
 
 // "manual" is a row somebody entered in the admin menu rather than one an addon
 // exported (see lootImport.js's buildManualItem) — worth saying in the table,
 // since it is the one kind of row no re-import will bring back.
-const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
+const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", get manual() { return t("raidDetail.lootTool.manual"); } };
 
 type SortKey = "item" | "character" | "response" | "boss" | "event" | "time" | "source";
 
@@ -74,6 +75,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
     onDelete?: (item: LootItem) => Promise<unknown> | void;
 }) {
     const ask = useConfirm();
+    const t = useT();
     // One shared memory for every place this table shows up (raid detail, event
     // loot, character history): it is the same table, so whoever sorts it by item
     // wants it that way in the next raid too.
@@ -83,8 +85,8 @@ export function LootTable({ items, showEvent = false, onDelete }: {
 
     const remove = async (it: LootItem) => {
         if (!onDelete) return;
-        const label = it.itemName || `Item ${it.itemId}`;
-        if (!(await ask({ title: "Loot-Eintrag löschen?", text: `„${label}" von ${it.character} wird aus dem Loot gelöscht.`, action: "Löschen" }))) return;
+        const label = it.itemName || t("raidDetail.loot.itemFallback", { id: it.itemId });
+        if (!(await ask({ title: t("raidDetail.loot.deleteTitle"), text: t("raidDetail.loot.deleteText", { item: label, character: it.character }), action: t("raidDetail.loot.deleteAction") }))) return;
         setBusyId(it.id);
         try {
             await onDelete(it);
@@ -97,13 +99,13 @@ export function LootTable({ items, showEvent = false, onDelete }: {
         <table className="idx loot-table" style={{ margin: 0 }}>
             <thead>
                 <tr>
-                    <SortTh sortKey="item" label="Item" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="response" label="Response" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="boss" label="Boss" sort={sort} dir={dir} onSort={onSort} />
-                    {showEvent && <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />}
-                    <SortTh sortKey="time" label="Zeit" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="item" label={t("raidDetail.loot.colItem")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="character" label={t("raidDetail.loot.colCharacter")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="response" label={t("raidDetail.loot.colResponse")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="boss" label={t("raidDetail.loot.colBoss")} sort={sort} dir={dir} onSort={onSort} />
+                    {showEvent && <SortTh sortKey="event" label={t("raidDetail.loot.colEvent")} sort={sort} dir={dir} onSort={onSort} />}
+                    <SortTh sortKey="time" label={t("raidDetail.loot.colTime")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="source" label={t("raidDetail.loot.colSource")} sort={sort} dir={dir} onSort={onSort} />
                     {onDelete && <th />}
                 </tr>
             </thead>
@@ -115,8 +117,8 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                                 <img className="loot-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                             )}
                             {it.itemLink
-                                ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
-                                : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
+                                ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || t("raidDetail.loot.itemFallback", { id: it.itemId })}</a>
+                                : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || t("raidDetail.loot.itemFallback", { id: it.itemId })}</span>}
                         </td>
                         {/* Spec icon + class colour, not a plain link: "who got
                             what" is read down this column, and the class is the
@@ -135,8 +137,8 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
                                     <IconButton
                                         icon={<TrashIcon />} tone="danger" size="sm"
-                                        tip="Eintrag löschen" tipSub="Nur diese eine Vergabe — mit Rückfrage."
-                                        aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
+                                        tip={t("raidDetail.loot.deleteEntry")} tipSub={t("raidDetail.loot.deleteEntrySub")}
+                                        aria-label={t("raidDetail.loot.deleteEntryAria", { item: it.itemName || t("raidDetail.loot.itemFallback", { id: it.itemId }), character: it.character })}
                                         disabled={busyId === it.id} onClick={() => remove(it)}
                                     />
                                 </div>

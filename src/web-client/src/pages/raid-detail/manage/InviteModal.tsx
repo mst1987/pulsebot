@@ -8,6 +8,7 @@ import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
 import type { RaidCtx } from "../meta";
+import { useT } from "../../../i18n";
 
 type Preview = { count: number; text: string; groups: number[] };
 
@@ -17,6 +18,7 @@ export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const [problem, setProblem] = useState("");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     useEffect(() => {
         if (!open) return;
@@ -48,13 +50,13 @@ export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     return (
         <Modal
             open={open} onClose={onClose} icon="spell_holy_prayerofspirit" tone="raids"
-            kicker={data.event.title} title="Invite callen" width={460}
-            hint={channel ? `Post im Event-Kanal #${channel}` : undefined}
+            kicker={data.event.title} title={t("raidManage.invite.title")} width={460}
+            hint={channel ? t("raidManage.invite.hint", { channel }) : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button icon="inv_letter_15" running={busy} disabled={!preview} onClick={submit}>
-                        {preview ? `${preview.count} Raider pingen` : "Pingen"}
+                        {preview ? t("raidManage.invite.pingCount", { count: preview.count }) : t("raidManage.invite.ping")}
                     </Button>
                 </>
             )}
@@ -63,19 +65,19 @@ export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
             {!problem && (
                 <div className={`em-preview${preview ? "" : " is-loading"}`}>
                     <div className="em-cell">
-                        <span className="kicker">Nachricht</span>
+                        <span className="kicker">{t("raidManage.invite.message")}</span>
                         <span className="em-val em-mono" data-tip={preview?.text || ""}>{preview?.text || "…"}</span>
                     </div>
                     <div className="em-cell">
-                        <span className="kicker">Gepingt</span>
-                        <span className="em-val">{preview ? `${preview.count} Raider` : "…"}</span>
+                        <span className="kicker">{t("raidManage.invite.pinged")}</span>
+                        <span className="em-val">{preview ? t("raidManage.invite.raiders", { count: preview.count }) : "…"}</span>
                         <span
                             className="em-sub"
                             tabIndex={0}
-                            data-tip="Wer gepingt wird"
-                            data-tip-sub="Alle Raider aus Gruppe 1–5 des freigegebenen Setups, du selbst nicht. Gruppe 6–8 und die Bank warten."
+                            data-tip={t("raidManage.invite.whoTip")}
+                            data-tip-sub={t("raidManage.invite.whoSub")}
                         >
-                            {preview ? `Gruppe ${preview.groups.join(", ")}` : ""}
+                            {preview ? t("raidManage.invite.groups", { groups: preview.groups.join(", ") }) : ""}
                         </span>
                     </div>
                 </div>

@@ -4,24 +4,26 @@
 import type { PingTarget, PingTargetInfo } from "../../../api";
 import Segment from "../../../components/ui/Segment";
 import { pingTargetOptions } from "../../../lib/settingsLogic";
+import { useT } from "../../../i18n";
 
 export default function TargetField({ info, value, onChange }: {
     info: PingTargetInfo | undefined;
     value: PingTarget;
     onChange: (target: PingTarget) => void;
 }) {
+    const t = useT();
     const options = pingTargetOptions(info);
     if (!options.length) return null;
     return (
         <div className="field">
             <label
                 className="tipped"
-                data-tip="Wohin"
-                data-tip-sub="Event-Kanal wie bisher, der Ping-Kanal des Kommunikations-Discords oder beides. Wer nicht auf dem Kommunikations-Discord ist, bekommt bei „Talk“ eine DM."
+                data-tip={t("raidModals.target.tip")}
+                data-tip-sub={t("raidModals.target.tipSub")}
             >
-                Wohin
+                {t("raidModals.target.label")}
             </label>
-            <Segment size="sm" ariaLabel="Wohin" options={options} value={value} onChange={onChange} />
+            <Segment size="sm" ariaLabel={t("raidModals.target.label")} options={options} value={value} onChange={onChange} />
         </div>
     );
 }

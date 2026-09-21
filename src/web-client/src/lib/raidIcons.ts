@@ -4,19 +4,20 @@
 // (src/web/raidListing.js). Names checked against the zamimg CDN: Archimonde's
 // only exists with the trailing "-", Kael'thas' with the apostrophe (WowIcon
 // encodes it).
+import { t } from "../i18n";
 
 export const RAID_ICON_FALLBACK = "inv_misc_note_02";
 
 export const RAID_CONTENTS: Record<string, { icon: string; label: string; short: string }> = {
-    kara: { icon: "achievement_boss_princemalchezaar_02", label: "Karazhan", short: "Kara" },
-    gruul: { icon: "achievement_boss_gruulthedragonkiller", label: "Gruuls Unterschlupf", short: "Gruul" },
-    mag: { icon: "achievement_boss_magtheridon", label: "Magtheridons Kammer", short: "Magtheridon" },
-    ssc: { icon: "achievement_boss_ladyvashj", label: "Höhle des Schlangenschreins", short: "SSC" },
-    tk: { icon: "achievement_boss_kael'thassunstrider_01", label: "Festung der Stürme", short: "TK" },
-    za: { icon: "achievement_boss_zuljin", label: "Zul'Aman", short: "ZA" },
-    hyjal: { icon: "achievement_boss_archimonde-", label: "Hyjalgipfel", short: "Hyjal" },
-    bt: { icon: "achievement_boss_illidan", label: "Schwarzer Tempel", short: "BT" },
-    swp: { icon: "achievement_boss_kiljaedan", label: "Sonnenbrunnenplateau", short: "SWP" },
+    kara: { icon: "achievement_boss_princemalchezaar_02", get label() { return t("wow.instance.kara"); }, short: "Kara" },
+    gruul: { icon: "achievement_boss_gruulthedragonkiller", get label() { return t("wow.instance.gruul"); }, short: "Gruul" },
+    mag: { icon: "achievement_boss_magtheridon", get label() { return t("wow.instance.mag"); }, short: "Magtheridon" },
+    ssc: { icon: "achievement_boss_ladyvashj", get label() { return t("wow.instance.ssc"); }, short: "SSC" },
+    tk: { icon: "achievement_boss_kael'thassunstrider_01", get label() { return t("wow.instance.tk"); }, short: "TK" },
+    za: { icon: "achievement_boss_zuljin", get label() { return t("wow.instance.za"); }, short: "ZA" },
+    hyjal: { icon: "achievement_boss_archimonde-", get label() { return t("wow.instance.hyjal"); }, short: "Hyjal" },
+    bt: { icon: "achievement_boss_illidan", get label() { return t("wow.instance.bt"); }, short: "BT" },
+    swp: { icon: "achievement_boss_kiljaedan", get label() { return t("wow.instance.swp"); }, short: "SWP" },
 };
 
 /** Only the ids this table knows, in the order given. */
@@ -34,19 +35,12 @@ export function raidLabel(ids: string[] | undefined): string {
     return knownContents(ids).map((id) => RAID_CONTENTS[id].label).join(" + ");
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-    event: "Event",
-    title: "Titel",
-    category: "Kategorie",
-    channel: "Kanalname",
-    logs: "Log-Zone",
-    loot: "Loot",
-};
+const SOURCES = ["event", "title", "category", "channel", "logs", "loot"];
 
 /** "erkannt aus Titel und Loot" — where the server found the content. */
 export function raidSourceText(sources: string[] | undefined): string {
-    const names = (sources || []).map((s) => SOURCE_LABELS[s]).filter(Boolean);
+    const names = (sources || []).filter((s) => SOURCES.includes(s)).map((s) => t(`raids.source.${s}`));
     if (!names.length) return "";
-    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]}` : names[0];
-    return `erkannt aus ${list}`;
+    const list = names.length > 1 ? t("raids.source.and", { list: names.slice(0, -1).join(", "), last: names[names.length - 1] }) : names[0];
+    return t("raids.source.detected", { list });
 }

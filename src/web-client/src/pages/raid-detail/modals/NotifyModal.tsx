@@ -9,9 +9,11 @@ import { targetHint } from "../../../lib/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const { notifyTemplates, roles, event: ev } = data;
     const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
@@ -40,34 +42,34 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_letter_15" tone="raids"
-            kicker={ev.title} title="Anmelde-Aufruf" width={560}
+            kicker={ev.title} title={t("raidModals.notify.title")} width={560}
             hint={targetHint(target, channel, data.pingTargets)}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     {notifyTemplates.length > 0 && (
-                        <Button type="submit" form="rd-notify-form" icon="inv_letter_15" running={busy}>Aufruf posten</Button>
+                        <Button type="submit" form="rd-notify-form" icon="inv_letter_15" running={busy}>{t("raidModals.notify.post")}</Button>
                     )}
                 </>
             )}
         >
             {!notifyTemplates.length ? (
                 <p className="rd-empty">
-                    Noch keine Aufruf-Vorlagen. Lege zuerst unter <Link className="mlink" to="/raids/templates">Aufruf-Vorlagen</Link> eine an.
+                    {t("raidModals.notify.noTemplatesBefore")} <Link className="mlink" to="/raids/templates">{t("raidModals.notify.noTemplatesLink")}</Link>{t("raidModals.notify.noTemplatesAfter")}
                 </p>
             ) : (
                 <form id="rd-notify-form" className="rd-form" onSubmit={submit}>
                     <TargetField info={data.pingTargets} value={target} onChange={setTarget} />
                     <div className="field">
-                        <label htmlFor="rd-notify-template">Vorlage</label>
+                        <label htmlFor="rd-notify-template">{t("raidModals.notify.template")}</label>
                         <select id="rd-notify-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
-                            {notifyTemplates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                            {notifyTemplates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("raidModals.notify.unnamed")}</option>)}
                         </select>
                     </div>
                     <div className="field">
-                        <label data-tip="Rollen pingen" data-tip-sub={target === "event"
-                            ? "Die ausgewählten Rollen werden im Event-Channel angepingt."
-                            : "Auf dem Kommunikations-Discord wird eine abgeglichene Rolle zu ihrem Gegenstück; Mitglieder anderer Rollen werden einzeln erwähnt, wer nicht dort ist, bekommt eine DM (nur bei „Talk“)."} className="tipped">Rollen pingen</label>
+                        <label data-tip={t("raidModals.notify.rolesTip")} data-tip-sub={target === "event"
+                            ? t("raidModals.notify.rolesTipEvent")
+                            : t("raidModals.notify.rolesTipTalk")} className="tipped">{t("raidModals.notify.rolesLabel")}</label>
                         {roles.length
                             ? (
                                 <div className="rd-checks">
@@ -79,7 +81,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                                     ))}
                                 </div>
                             )
-                            : <p className="rd-empty">Keine Rollen gefunden (Server gewählt?).</p>}
+                            : <p className="rd-empty">{t("raidModals.notify.noRoles")}</p>}
                     </div>
                 </form>
             )}

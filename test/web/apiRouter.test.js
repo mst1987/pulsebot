@@ -42,6 +42,11 @@ jest.mock("../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+// The account's menu language: none saved unless a test says otherwise.
+jest.mock("../../src/web/userPrefsStore", () => ({
+    getLang: jest.fn(() => ""),
+    setLang: jest.fn((userId, lang) => (["de", "en"].includes(String(lang).trim().toLowerCase()) ? { lang: String(lang).trim().toLowerCase() } : { code: "unknown_lang" })),
+}));
 jest.mock("../../src/web/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
@@ -530,6 +535,55 @@ describe("web/apiRouter", () => {
             const res = await post("/api/session/guild", { guildId: "" });
             expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "");
             expect(body(res)).toEqual({ data: { activeGuildId: "" } });
+        });
+    });
+
+    describe("POST /api/session/lang", () => {
+        const userPrefs = require("../../src/web/userPrefsStore");
+
+        it("saves the language for the caller's own account", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/session/lang", { lang: "en" });
+            expect(userPrefs.setLang).toHaveBeenCalledWith("42", "en");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res)).toEqual({ data: { lang: "en" } });
+        });
+
+        it("is open to a limited member, not only to admins", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), signup: { read: true, write: true } } });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/session/lang", { lang: "de" });
+            expect(userPrefs.setLang).toHaveBeenCalledWith("7", "de");
+            expect(body(res)).toEqual({ data: { lang: "de" } });
+        });
+
+        it("refuses an unknown language with 400", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/session/lang", { lang: "fr" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "unknown_lang", message: expect.any(String) } });
+        });
+
+        it("needs the CSRF token and a login", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/session/lang", { lang: "en" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            auth.getUser.mockReturnValue(null);
+            const anon = await post("/api/session/lang", { lang: "en" });
+            expect(anon.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(userPrefs.setLang).not.toHaveBeenCalled();
+        });
+
+        it("hands the saved language out with the session", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            userPrefs.getLang.mockReturnValueOnce("en");
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(userPrefs.getLang).toHaveBeenCalledWith("42");
+            expect(body(res).data.user.lang).toBe("en");
         });
     });
 

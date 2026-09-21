@@ -6,6 +6,7 @@ import {
 import { Button } from "./ui/Button";
 import WowIcon from "./ui/WowIcon";
 import { XIcon } from "./icons";
+import { useT } from "../i18n";
 
 // Ported from renderAdmin.js's specPickerScript()/specPicker(). Unlike the SSR
 // version (which re-parses the textarea's raw DOM value), this re-derives the
@@ -22,6 +23,7 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
     specCatalog: SpecCatalogEntry[];
     emojis: Emoji[];
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const rootRef = useRef<HTMLDivElement>(null);
@@ -57,8 +59,8 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
                     {entry.spec ? <SpecImg url={specEmojiUrl(entry.iconId, entry.spec.icon, emojis)} /> : <span className="spec-pill-q">?</span>}
                     <span>{entry.spec ? entry.spec.name : entry.label}</span>
                     <button
-                        type="button" className="spec-pill-x" aria-label={`${entry.spec ? entry.spec.name : entry.label} entfernen`}
-                        data-tip="Entfernen" onClick={() => onChange(removeSpecLine(value, entry.index))}
+                        type="button" className="spec-pill-x" aria-label={t("signups.specPicker.removeAria", { name: entry.spec ? entry.spec.name : entry.label })}
+                        data-tip={t("signups.specPicker.remove")} onClick={() => onChange(removeSpecLine(value, entry.index))}
                     >
                         <XIcon />
                     </button>
@@ -69,11 +71,11 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
                     variant="ghost" size="sm" icon="inv_misc_grouplooking" className="spec-add-trigger" aria-expanded={open}
                     onClick={() => { setOpen((o) => !o); setSearch(""); }}
                 >
-                    Spec hinzufügen
+                    {t("signups.specPicker.add")}
                 </Button>
                 <div className={`spec-add-panel${open ? " open" : ""}`}>
                     <input
-                        ref={searchRef} className="spec-add-search" placeholder="Suchen …"
+                        ref={searchRef} className="spec-add-search" placeholder={t("signups.specPicker.search")}
                         value={search} onChange={(e) => setSearch(e.target.value)}
                     />
                     <div className="spec-add-list">
@@ -84,7 +86,7 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
                                     <span>{s.name}</span>
                                 </button>
                             ))
-                            : <div className="spec-empty">Keine Treffer.</div>}
+                            : <div className="spec-empty">{t("signups.specPicker.noHits")}</div>}
                     </div>
                 </div>
             </div>
