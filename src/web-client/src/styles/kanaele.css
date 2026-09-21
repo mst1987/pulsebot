@@ -84,7 +84,8 @@ a.ibtn svg { width: 15px; height: 15px; }
     white-space: nowrap; cursor: default;
 }
 .kn-row-icons { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
-.kn-row:hover .kn-row-icons, .kn-row:focus-within .kn-row-icons { opacity: 1; }
+.kn-row:hover .kn-row-icons, .kn-row:focus-within .kn-row-icons,
+.kn-cat-row:hover .kn-row-icons, .kn-cat-row:focus-within .kn-row-icons { opacity: 1; }
 .kn-row-icons .ibtn { border: 0; background: none; }
 
 .kn-inline-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }

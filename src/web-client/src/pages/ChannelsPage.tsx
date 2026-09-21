@@ -16,6 +16,7 @@ import { ChannelTree } from "../components/channels/ChannelTree";
 import { BulkBar, BulkEditDialog, RenameSchemaDialog } from "../components/channels/ChannelBulk";
 import { ChannelEditDialog } from "../components/channels/ChannelEditDialog";
 import { QuickCreateDialog } from "../components/channels/QuickCreateDialog";
+import { CategorySchemaDialog } from "../components/channels/CategorySchemaDialog";
 import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
 import { BULK_DELETE_WORD, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
@@ -37,6 +38,7 @@ type Dialog =
     | { kind: "duplicate"; channel: Channel }
     | { kind: "create" }
     | { kind: "quick" }
+    | { kind: "schema"; categoryId: string }
     | { kind: "edit"; channel: Channel }
     | { kind: "bulk"; focus: "category" | "topic" }
     | { kind: "rename" }
@@ -267,6 +269,7 @@ export default function ChannelsPage() {
                             onRename={(channel, name) => applyChanges([channel.id], { name }, `#${channel.name} umbenennen`)}
                             onEdit={(channel) => setDialog({ kind: "edit", channel })}
                             onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
+                            onSchema={(categoryId) => setDialog({ kind: "schema", categoryId })}
                         />
                     )
                     : (
@@ -355,6 +358,9 @@ export default function ChannelsPage() {
             )}
             {dialog?.kind === "quick" && (
                 <QuickCreateDialog data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onCreate={quickCreate} />
+            )}
+            {dialog?.kind === "schema" && (
+                <CategorySchemaDialog data={data} csrfToken={csrfToken} categoryId={dialog.categoryId} onClose={() => setDialog(null)} onSaved={done} />
             )}
             {dialog?.kind === "edit" && (
                 <ChannelEditDialog

@@ -3,7 +3,7 @@ import type { Channel, ChannelsData } from "../../api";
 import { Badge, IconButton } from "../ui";
 import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon } from "../icons";
 import { ChannelTypeIcon, PencilIcon } from "./channelBits";
-import { channelTip, eventDateLabel, groupByCategory } from "../../lib/channels";
+import { channelTip, eventDateLabel, groupByCategory, ownSchemaOf } from "../../lib/channels";
 import { normalizeForType } from "../../lib/channelNames";
 
 // The Discord sidebar of the Kanäle page (issue #259): categories that fold,
@@ -85,7 +85,7 @@ function InlineName({ channel, onSave, onCancel }: {
     );
 }
 
-export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate }: {
+export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate, onSchema }: {
     data: ChannelsData;
     selected: Set<string>;
     /** Select (true) or deselect (false) these channel ids. */
@@ -94,6 +94,8 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
     onRename: (channel: Channel, name: string) => void;
     onEdit: (channel: Channel) => void;
     onDuplicate: (channel: Channel) => void;
+    /** Open the naming schema of this category. */
+    onSchema: (categoryId: string) => void;
 }) {
     const [query, setQuery] = useState("");
     const [closed, setClosed] = useState<Record<string, boolean>>({});
@@ -158,6 +160,20 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                             </button>
                             <Badge count>{g.channels.length}</Badge>
                             {categoryPurposes.length > 0 && <Badge className="area">Event-Kategorie</Badge>}
+                            {g.id && ownSchemaOf(data, g.id) && (
+                                <Badge tip="Eigenes Namensschema" tipSub={`${ownSchemaOf(data, g.id)} — gilt für jeden neuen Event-Kanal dieser Kategorie.`}>Schema</Badge>
+                            )}
+                            {canWrite && g.id && (
+                                <span className="kn-row-icons">
+                                    <IconButton
+                                        size="sm"
+                                        icon={<PencilIcon />}
+                                        tip="Namensschema"
+                                        tipSub={ownSchemaOf(data, g.id) ? `Neue Event-Kanäle heißen nach ${ownSchemaOf(data, g.id)}.` : "Neue Event-Kanäle heißen wie der letzte Event-Kanal. Hier ein eigenes Schema festlegen."}
+                                        onClick={() => onSchema(g.id)}
+                                    />
+                                </span>
+                            )}
                         </div>
                         {open && g.visible.map((c) => {
                             const tip = channelTip(c, data);

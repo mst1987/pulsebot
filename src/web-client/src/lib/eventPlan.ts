@@ -240,6 +240,7 @@ export function raidTag(version: GameVersion | null | undefined, instanceIds: st
  */
 export function schemaName(schema: string, isoDate: string, raid: string): string {
     const days = ["so", "mo", "di", "mi", "do", "fr", "sa"];
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
     const day = m ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
     const valid = !!day && day.getUTCDate() === Number(m && m[3]);
@@ -248,6 +249,7 @@ export function schemaName(schema: string, isoDate: string, raid: string): strin
         tag: valid ? days[day.getUTCDay()] : "",
         dd: valid ? pad(day.getUTCDate()) : "",
         mm: valid ? pad(day.getUTCMonth() + 1) : "",
+        mon: valid ? months[day.getUTCMonth()] : "",
         yy: valid ? String(day.getUTCFullYear()).slice(-2) : "",
         yyyy: valid ? String(day.getUTCFullYear()) : "",
         raid: String(raid || ""),

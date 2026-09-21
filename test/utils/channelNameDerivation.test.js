@@ -53,6 +53,11 @@ describe("utils/channelNames — deriving a name from the previous channel (#285
         ["wed-16_09_26-ssctk", "2026-09-16", "2026-09-24", "hyjal-bt", "thu-24_09_26-hyjalbt"],
         ["t6-do-17-9-25er", "2026-09-17", "2026-10-01", "", "t6-do-1-10-25er"],
         ["🔥・mi-16-09-ssc-tk", "2026-09-16", "2026-09-23", "hyjal-bt", "🔥・mi-23-09-hyjal-bt"],
+        // the month in three letters ({mon}): with and without separator, day first or last
+        ["🔥・mi-16-sep-ssc-tk", "2026-09-16", "2026-10-07", "", "🔥・mi-07-oct-ssc-tk"],
+        ["raid-sep16-t6", "2026-09-16", "2026-10-07", "", "raid-oct07-t6"],
+        ["mi_16sep_25er", "2026-09-16", "2026-12-30", "", "mi_30dec_25er"],
+        ["t6-3-mar-2027", "2027-03-03", "2027-05-12", "", "t6-12-may-2027"],
     ])("%s (%s) → %s: %s", (name, oldDay, newDay, raid, expected) => {
         const pattern = derive(name, oldDay);
         expect(pattern.recognized).toBe(true);
@@ -70,6 +75,9 @@ describe("utils/channelNames — deriving a name from the previous channel (#285
         expect(derive("raid-116-09", "2026-09-16").recognized).toBe(false);
         // a raid that is part of a longer word stays
         expect(next("mi-16-09-sscx", "2026-09-16", "2026-09-23", "bt").name).toBe("mi-23-09-sscx");
+        // a month that runs on into a longer word is no month ("sept", "separat")
+        expect(derive("16-sept-t6", "2026-09-16").recognized).toBe(false);
+        expect(derive("raid-16separat", "2026-09-16").recognized).toBe(false);
     });
 
     it("keeps the old raid without a new one, and the old date without a day", () => {

@@ -226,8 +226,34 @@ describe("ChannelsPage", () => {
     });
 
     it("calls every channel endpoint the server serves", () => {
-        for (const p of ["\"PATCH\", \"/api/channels\"", "/api/channels/archive", "/api/channels/delete", "/api/channels/rename-preview", "/api/channels/batch", "/api/channels/config"]) {
+        for (const p of ["\"PATCH\", \"/api/channels\"", "/api/channels/archive", "/api/channels/delete", "/api/channels/rename-preview", "/api/channels/batch", "/api/channels/schema", "/api/channels/config"]) {
             expect(api).toContain(p);
         }
+    });
+});
+
+// A category's naming schema has a place of its own: the pencil on the category
+// head opens CategorySchemaDialog, instead of only quick-create's "merken".
+describe("Kanäle — Namensschema pro Kategorie", () => {
+    const schemaDialog = read("components", "channels", "CategorySchemaDialog.tsx");
+
+    it("opens from the category head, only for writers and real categories", () => {
+        expect(tree).toMatch(/canWrite && g\.id && \([\s\S]*?tip="Namensschema"[\s\S]*?onClick=\{\(\) => onSchema\(g\.id\)\}/);
+        expect(page).toContain("onSchema={(categoryId) => setDialog({ kind: \"schema\", categoryId })}");
+        expect(page).toMatch(/dialog\?\.kind === "schema" && \([\s\S]*?<CategorySchemaDialog[\s\S]*?onSaved=\{done\}/);
+        // the pencil shows on hover of the category head like the channel rows' icons
+        expect(css).toContain(".kn-cat-row:hover .kn-row-icons");
+    });
+
+    it("marks a category with its own schema, the schema in the tooltip", () => {
+        expect(tree).toContain("ownSchemaOf(data, g.id) && (");
+        expect(lib).toMatch(/export function ownSchemaOf[\s\S]*?schema !== data\.defaultSchema/);
+    });
+
+    it("saves through its own endpoint and previews what an empty field would mean", () => {
+        expect(schemaDialog).toContain("saveChannelSchema(csrfToken, { categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId })");
+        expect(schemaDialog).toMatch(/quickCreateChannels\(csrfToken, \{[\s\S]*?dryRun: true, ignoreStoredSchema: true/);
+        expect(schemaDialog).toContain("<PlaceholderChips");
+        expect(schemaDialog).toContain("placeholder=\"leer = wie der letzte Event-Kanal\"");
     });
 });

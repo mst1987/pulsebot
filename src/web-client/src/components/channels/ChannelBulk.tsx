@@ -194,7 +194,7 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
                             {!r.conflict && r.to === r.from && <Badge>unverändert</Badge>}
                             {!r.conflict && r.to !== r.from && <NamingBadge naming={r.naming} short />}
                             {!r.hasDate && !schema.trim() && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event — ohne sein Datum lässt sich der Name nicht ableiten, er bleibt.">kein Datum</Badge>}
-                            {!r.hasDate && /\{(tag|dd|mm|yy|yyyy)\}/.test(schema) && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event, die Datumsteile bleiben leer.">kein Datum</Badge>}
+                            {!r.hasDate && /\{(tag|dd|mm|mon|yy|yyyy)\}/.test(schema) && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event, die Datumsteile bleiben leer.">kein Datum</Badge>}
                         </div>
                     ))}
                 </div>

@@ -9,7 +9,7 @@ const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
 const { getVersion } = require("./apiRoutes/version");
 const {
     getChannels, createChannel, duplicateChannel,
-    patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveConfig: saveChannelConfig,
+    patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveSchema: saveChannelSchema, saveConfig: saveChannelConfig,
 } = require("./apiRoutes/channels");
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
@@ -167,6 +167,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/channels/batch" && req.method === "POST") {
         await batchCreate(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/schema" && req.method === "POST") {
+        await saveChannelSchema(req, res);
         return true;
     }
     if (pathname === "/api/channels/config" && req.method === "POST") {

@@ -335,6 +335,8 @@ export type QuickCreateInput = {
     templateChannelId: string;
     saveSchema?: boolean;
     dryRun?: boolean;
+    /** Preview an empty schema as derived from the channels, not by the category's stored one. */
+    ignoreStoredSchema?: boolean;
     /** "gleich Event anlegen": an event per created channel at `time` ("19:30"). */
     withEvent?: boolean;
     time?: string;
@@ -343,6 +345,14 @@ export type QuickCreatePlanRow = { date: string; name: string; exists: boolean }
 
 export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[]; naming?: ChannelNaming | null } & Partial<ChannelBulkResult> & { skipped?: number }> {
     return send("POST", "/api/channels/batch", csrfToken, input);
+}
+
+/** A category's naming schema on its own; an empty schema = like the latest event channel again. */
+export function saveChannelSchema(
+    csrfToken: string | null,
+    input: { categoryId: string; schema: string; raid: string; templateChannelId: string },
+): Promise<{ schema: ChannelSchema }> {
+    return send("POST", "/api/channels/schema", csrfToken, input);
 }
 
 export function saveChannelConfig(

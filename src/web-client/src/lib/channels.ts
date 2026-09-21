@@ -169,3 +169,9 @@ export function rightsStatus(channel: Channel, need: "send" | "read" | null, con
         ? { tone: "ok", label: "Bot liest mit", tip: `Der Bot sieht #${channel.name} und kann dort antworten.` }
         : { tone: "ok", label: "Bot schreibt", tip: `Der Bot darf in #${channel.name} posten.` };
 }
+
+/** A category's own naming schema, or "" (none, or only the default an old quick-create stored). */
+export function ownSchemaOf(data: Pick<ChannelsData, "schemas" | "defaultSchema">, categoryId: string): string {
+    const schema = data.schemas?.[categoryId]?.schema || "";
+    return schema && schema !== data.defaultSchema ? schema : "";
+}

@@ -365,7 +365,7 @@ function batchNaming(ctx, { schemaInput, day, raid, templateChannelId, channels 
 
 /**
  * POST /api/channels/batch — quick-create by naming schema. Body:
- * `{ categoryId, schema, raid, tag, from, count, interval, templateChannelId, dryRun, saveSchema, withEvent, time }`.
+ * `{ categoryId, schema, raid, tag, from, count, interval, templateChannelId, dryRun, saveSchema, withEvent, time, ignoreStoredSchema }`.
  * `dryRun` only answers the plan (names, and which exist already); otherwise the
  * missing ones are created one after another and existing names are skipped,
  * never duplicated. `saveSchema` remembers schema, raid and template (and the
@@ -393,9 +393,11 @@ async function batchCreate(req, res) {
     // In a category, new channels look like its previous event channel (#285):
     // an empty schema names them after it, and they are copies of it unless a
     // template channel is chosen.
-    const ctx = categoryId
-        ? channelNaming.namingContext({ ...await channelNaming.loadNamingInputs(guildId), categoryId, raid })
-        : null;
+    // `ignoreStoredSchema` (the schema dialog's preview): what an empty field would
+    // mean once saved — derived from the channels, not the schema stored so far.
+    const inputs = categoryId ? await channelNaming.loadNamingInputs(guildId) : null;
+    if (inputs && body.ignoreStoredSchema) inputs.schemas = { ...inputs.schemas, [categoryId]: {} };
+    const ctx = inputs ? channelNaming.namingContext({ ...inputs, categoryId, raid }) : null;
     const plan = planChannels({
         schema, raid, tag: body.tag || "", from: body.from, count: body.count, interval: body.interval, existingNames,
         render: ctx && !schemaInput ? (day) => channelNaming.nameFor(ctx, day, raid).name : null,
@@ -465,6 +467,42 @@ async function batchCreate(req, res) {
     }, 201);
 }
 
+/** A stored schema longer than a channel name can be is a typo, not a design. */
+const SCHEMA_MAX = 200;
+
+/**
+ * POST /api/channels/schema — a category's naming schema, set on its own (the
+ * Kanäle page's category head) instead of only as a side effect of quick-create.
+ * Body: `{ categoryId, schema, raid, templateChannelId }`. An empty schema means
+ * "wie der letzte Event-Kanal" again; the time "gleich Event anlegen" remembered
+ * stays. Answers the stored entry.
+ */
+async function saveSchema(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const guildId = activeGuildFor(req);
+    if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
+    const body = await readJsonBody(req);
+    const categoryId = String(body.categoryId || "").trim();
+    const schema = String(body.schema || "").trim();
+    const templateChannelId = String(body.templateChannelId || "").trim();
+    if (!discord.listCategories(guildId).some((c) => c.id === categoryId)) {
+        return error(res, 400, "unknown_category", "Kategorie nicht auf diesem Server.");
+    }
+    if (schema.length > SCHEMA_MAX) return error(res, 400, "schema_too_long", `Das Schema ist länger als ${SCHEMA_MAX} Zeichen.`);
+    if (schema && !renderChannelName(schema, { date: "2026-01-01", raid: "raid", nr: 1 })) {
+        return error(res, 400, "schema_empty", "Aus diesem Schema entsteht kein Kanalname.");
+    }
+    if (templateChannelId && !discord.listAllChannels(guildId).some((c) => c.id === templateChannelId)) {
+        return error(res, 400, "unknown_channel", "Vorlage-Kanal nicht auf diesem Server.");
+    }
+    const stored = archiveStore.saveCategorySchema(guildId, categoryId, {
+        schema, raid: String(body.raid || "").trim(), templateChannelId,
+    });
+    ok(res, { schema: stored });
+}
+
 /**
  * POST /api/channels/config — the archive settings. Body:
  * `{ archiveCategoryId?, archiveDeleteHintDays?, createArchiveCategory? }`;
@@ -498,5 +536,5 @@ async function saveConfig(req, res) {
 module.exports = {
     BULK_DELETE_WORD,
     getChannels, createChannel, duplicateChannel,
-    patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveConfig,
+    patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveSchema, saveConfig,
 };
