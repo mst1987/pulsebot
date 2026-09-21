@@ -14,7 +14,8 @@ export type AreaAccess = { read: boolean; write: boolean };
 export type Access = Record<string, AreaAccess | undefined>;
 export type RolePermissions = Record<string, Record<string, AreaAccess>>;
 
-export type SessionUser = { id: string; name: string; isAdmin: boolean; access: Access };
+/** `lang` = the menu language the account saved (POST /api/session/lang); absent until it chose one. */
+export type SessionUser = { id: string; name: string; isAdmin: boolean; access: Access; lang?: "de" | "en" };
 /** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
 export type GuildRole = "event" | "talk" | "";
 export type SessionGuild = { id: string; name: string; role?: GuildRole };
@@ -431,6 +432,11 @@ export function getSession(): Promise<Session> {
 
 export function switchGuild(csrfToken: string | null, guildId: string): Promise<{ activeGuildId: string }> {
     return send("POST", "/api/session/guild", csrfToken, { guildId });
+}
+
+/** Saves the menu language for the own account, so it follows the user to other devices. */
+export function saveLang(csrfToken: string | null, lang: "de" | "en"): Promise<{ lang: string }> {
+    return send("POST", "/api/session/lang", csrfToken, { lang });
 }
 
 /** Which commit the server runs and how far behind main it is (#314) — settings readers only. */

@@ -151,14 +151,15 @@ describe("menu access", () => {
         // It sits in the shell's footer, outside anything permission-dependent:
         // being locked out of every area is exactly when logging out matters.
         // An icon button with its tooltip — but still a plain link to the server.
-        expect(shellSrc).toMatch(/<a className="ibtn sm u-logout" href="\/auth\/logout" aria-label="Logout" data-tip="Logout"/);
+        expect(shellSrc).toMatch(/<a className="ibtn sm u-logout" href="\/auth\/logout" aria-label=\{t\("shell.logout"\)\} data-tip=\{t\("shell.logout"\)\}/);
         const foot = shellSrc.slice(shellSrc.indexOf("className=\"side-foot\""));
         expect(foot).not.toMatch(/canAccess\w*\(/);
     });
 
     it("says something in the menu when no tab is allowed", () => {
         expect(shellSrc).toContain("if (!allowed.length)");
-        expect(shellSrc).toContain("Kein Bereich freigegeben");
+        expect(shellSrc).toContain("t(\"shell.noArea.label\")");
+        expect(require("./i18nHelper").makeT("de")("shell.noArea.label")).toBe("Kein Bereich freigegeben");
     });
 
     it("checks tabs and routes against a list of areas", () => {

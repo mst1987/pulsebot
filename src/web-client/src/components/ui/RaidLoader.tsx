@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import WowIcon from "./WowIcon";
-import { CLASS_LABELS, classIconName } from "../../lib/rosterView";
+import { classIconName } from "../../lib/rosterView";
+import { classLabel } from "../../lib/wowNames";
+import { t } from "../../i18n";
 import { RAID_CONTENTS } from "../../lib/raidIcons";
 
 // The one loading state of the menu: four classes going at a TBC raid boss.
@@ -42,7 +44,7 @@ function pickParty(): string[] {
     return party;
 }
 
-export default function RaidLoader({ text = "Lade…", compact = false }: {
+export default function RaidLoader({ text = t("common.loading"), compact = false }: {
     /** What is being waited for — one short line under the scene. */
     text?: string;
     /** Smaller, for a loading state inside a card instead of a whole page. */
@@ -59,7 +61,7 @@ export default function RaidLoader({ text = "Lade…", compact = false }: {
                 <div className="rl-party">
                     {party.map((className, i) => (
                         <span key={className} className="rl-unit">
-                            <span className="rl-name">{CLASS_LABELS[className] || className}</span>
+                            <span className="rl-name">{classLabel(className)}</span>
                             {/* every third one runs the wrong way — it is a raid, after all */}
                             <span
                                 className={`rl-icon ${i % 3 === 1 ? "flee" : "attack"}`}

@@ -1698,3 +1698,5 @@ dialog.dlg::backdrop { background: rgba(10, 11, 14, .62); }
 dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
 /* A button in the hint (Löschen, Archivieren …) is a button, not mono hint text. */
 .dlg-foot .dlg-hint .btn { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+/* ---- language switch in the top bar: the active language as two letters ---- */
+.ibtn.lang-toggle { font-size: 12px; font-weight: 700; letter-spacing: .06em; }

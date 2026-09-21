@@ -111,7 +111,7 @@ describe("building blocks", () => {
         const guild = read("components", "GuildSwitcher.tsx");
         expect(guild).toContain("const GUILD_ICON = \"inv_misc_tabardpvp_01\";");
         expect(guild).not.toContain("← bitte zuerst einen Server wählen");
-        expect(guild).toMatch(/<Badge tone="mid"[^>]*>\s*Kein Server gewählt/);
+        expect(guild).toMatch(/<Badge tone="mid"[^>]*>\s*\{t\("shell.guild.notChosen"\)\}/);
     });
 
     it("swaps the glyphs of pager, sort header and toast for icons", () => {

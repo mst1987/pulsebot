@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import IconTile, { type TileTone } from "./IconTile";
 import { Button, IconButton } from "./Button";
 import { TrashIcon, XIcon } from "../icons";
+import { t } from "../../i18n";
 
 // Modals on the native <dialog>: it brings the backdrop, the focus trap and Esc
 // for free. Head with icon tile, kicker and title plus a close button; body;
@@ -62,7 +63,7 @@ export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, 
                             {kicker && <div className="kicker">{kicker}</div>}
                             <div className="dlg-title">{title}</div>
                         </div>
-                        <IconButton icon={<XIcon />} tip="Schließen" size="sm" onClick={onClose} />
+                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
                     </div>
                     {children && <div className="dlg-body">{children}</div>}
                     {(footer || hint) && (
@@ -144,14 +145,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 footer={current && (
                     <>
                         <Button variant="ghost" data-confirm-cancel="" onClick={() => answer(false)}>
-                            {current.cancelLabel || "Abbrechen"}
+                            {current.cancelLabel || t("common.cancel")}
                         </Button>
                         <Button
                             variant={tone}
                             icon={tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : undefined}
                             onClick={() => answer(true)}
                         >
-                            {current.action || "OK"}
+                            {current.action || t("common.ok")}
                         </Button>
                     </>
                 )}

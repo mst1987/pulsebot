@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SunIcon, MoonIcon } from "./icons";
 import { IconButton } from "./ui/Button";
+import { useT } from "../i18n";
 
 type Theme = "light" | "dark";
 
@@ -15,6 +16,7 @@ function effectiveTheme(): Theme {
 
 export default function ThemeToggle() {
     const [theme, setTheme] = useState<Theme>(() => effectiveTheme());
+    const t = useT();
 
     const toggle = () => {
         const next: Theme = theme === "dark" ? "light" : "dark";
@@ -30,8 +32,8 @@ export default function ThemeToggle() {
     return (
         <IconButton
             icon={theme === "dark" ? <SunIcon /> : <MoonIcon />}
-            tip="Hell / Dunkel umschalten"
-            aria-label="Design umschalten"
+            tip={t("shell.theme.tip")}
+            aria-label={t("shell.theme.aria")}
             onClick={toggle}
         />
     );

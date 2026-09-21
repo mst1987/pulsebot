@@ -1,0 +1,15 @@
+{
+    "loading": "Lade…",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "ok": "OK",
+    "save": "Speichern",
+    "moreOptions": "Weitere Optionen",
+    "relDay": {
+        "today": "heute",
+        "tomorrow": "morgen",
+        "yesterday": "gestern",
+        "inDays": "in {count} Tagen",
+        "daysAgo": "vor {count} Tagen"
+    }
+}

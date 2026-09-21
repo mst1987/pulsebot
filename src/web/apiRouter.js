@@ -4,7 +4,7 @@
 const { error } = require("./apiResponse");
 const auth = require("./auth");
 const { checkAccess } = require("./apiAccess");
-const { getSession, postActiveGuild } = require("./apiRoutes/session");
+const { getSession, postActiveGuild, postLang } = require("./apiRoutes/session");
 const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
 const { getVersion } = require("./apiRoutes/version");
 const {
@@ -123,6 +123,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/session/guild" && req.method === "POST") {
         await postActiveGuild(req, res);
+        return true;
+    }
+    if (pathname === "/api/session/lang" && req.method === "POST") {
+        await postLang(req, res);
         return true;
     }
     if (pathname === "/api/version" && req.method === "GET") {

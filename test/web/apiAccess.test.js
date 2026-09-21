@@ -161,6 +161,9 @@ describe("web/apiAccess", () => {
         it("lets any menu user switch the active guild", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({ raids: { read: true, write: false } }))).toBeNull();
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });
+            // the own menu language: any menu user, whatever area
+            expect(checkAccess("/api/session/lang", "POST", limited({ signup: { read: true, write: false } }))).toBeNull();
+            expect(checkAccess("/api/session/lang", "POST", null)).toMatchObject({ status: 401 });
         });
 
         // The loot-sync uploader has no Discord session at all, so the session

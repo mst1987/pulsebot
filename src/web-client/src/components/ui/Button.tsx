@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import WowIcon from "./WowIcon";
 import { ChevronDownIcon } from "../icons";
+import { t } from "../../i18n";
 
 // One button system for the whole menu (see the "Bausteine" artboard of the
 // Grundgerüst canvas). The variants are a hierarchy, not a palette:
@@ -82,7 +83,7 @@ export function IconButton({ icon, tip, tipSub, size = "md", tone, className = "
 export type SplitOption = { id: string; label: string; icon?: string; onSelect: () => void; disabled?: boolean };
 
 /** The main action plus a chevron that opens its variants ("In Discord posten ▾"). */
-export function SplitButton({ label, icon, onClick, options, disabled, menuTip = "Weitere Optionen" }: {
+export function SplitButton({ label, icon, onClick, options, disabled, menuTip = t("common.moreOptions") }: {
     label: string;
     icon?: string | ReactNode;
     onClick: () => void;

@@ -1,10 +1,12 @@
 // Mirrors src/web/renderAdmin.js's formatEventTime()/DISPLAY_TZ so dates read
 // identically to the classic admin pages.
+import { locale, t } from "../i18n";
+
 const DISPLAY_TZ = "Europe/Berlin";
 
 export function formatEventTime(startTime: number): string {
     if (!startTime) return "";
-    return new Date(startTime * 1000).toLocaleString("de-DE", {
+    return new Date(startTime * 1000).toLocaleString(locale(), {
         timeZone: DISPLAY_TZ,
         weekday: "short",
         day: "2-digit",
@@ -16,7 +18,7 @@ export function formatEventTime(startTime: number): string {
 
 export function formatDate(ms: number): string {
     if (!ms) return "";
-    return new Date(ms).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ });
+    return new Date(ms).toLocaleDateString(locale(), { timeZone: DISPLAY_TZ });
 }
 
 // The same event start time, but broken into its parts so the raid-detail
@@ -35,7 +37,7 @@ export function eventTimeParts(startTime: number): EventTimeParts | null {
     if (!startTime) return null;
     const d = new Date(startTime * 1000);
     const part = (opts: Intl.DateTimeFormatOptions) =>
-        d.toLocaleString("de-DE", { timeZone: DISPLAY_TZ, ...opts });
+        d.toLocaleString(locale(), { timeZone: DISPLAY_TZ, ...opts });
     return {
         // de-DE renders short weekdays as "So." — the trailing dot is noise in a badge.
         weekday: part({ weekday: "short" }).replace(".", ""),
@@ -57,18 +59,18 @@ export function relativeDayLabel(startTime: number, now: number = Date.now()): s
         new Date(ms).toLocaleDateString("en-CA", { timeZone: DISPLAY_TZ }),
     );
     const diff = Math.round((dayOf(startTime * 1000) - dayOf(now)) / 86400000);
-    if (diff === 0) return "heute";
-    if (diff === 1) return "morgen";
-    if (diff === -1) return "gestern";
-    if (diff > 1) return `in ${diff} Tagen`;
-    return `vor ${Math.abs(diff)} Tagen`;
+    if (diff === 0) return t("common.relDay.today");
+    if (diff === 1) return t("common.relDay.tomorrow");
+    if (diff === -1) return t("common.relDay.yesterday");
+    if (diff > 1) return t("common.relDay.inDays", { count: diff });
+    return t("common.relDay.daysAgo", { count: Math.abs(diff) });
 }
 
 // Mirrors renderAdmin.js's fmtMs() — an epoch-ms timestamp for loot rows (awardedAt/importedAt).
 export function fmtMs(ms: number | undefined, withTime = true): string {
     const n = Number(ms);
     if (!n) return "";
-    return new Date(n).toLocaleString("de-DE", withTime
+    return new Date(n).toLocaleString(locale(), withTime
         ? { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
         : { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric" });
 }

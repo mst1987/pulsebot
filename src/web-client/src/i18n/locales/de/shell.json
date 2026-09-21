@@ -1,0 +1,80 @@
+{
+    "brandSub": "Gildenmenü",
+    "toHome": "Zur Übersicht",
+    "menu": {
+        "home": "Übersicht",
+        "signups": "Anmeldungen",
+        "profile": "Mein Profil",
+        "raids": "Raid-Events",
+        "roster": "Roster",
+        "cla": "Log-Auswertung",
+        "history": "Historie & Loot",
+        "lootcouncil": "Loot-Council",
+        "recruitment": "Recruitment",
+        "channels": "Kanäle",
+        "settings": "Einstellungen"
+    },
+    "group": {
+        "Start": "Start",
+        "Raids": "Raids",
+        "Loot": "Loot",
+        "Gilde": "Gilde",
+        "System": "System"
+    },
+    "crumb": {
+        "menu": "Menü",
+        "newEvent": "Neues Event",
+        "notifyTemplates": "Aufruf-Vorlagen",
+        "raidTemplates": "Raid-Vorlagen",
+        "series": "Serien",
+        "eventLoot": "Event-Loot",
+        "character": "Charakter",
+        "editPost": "Nachricht bearbeiten"
+    },
+    "noArea": {
+        "label": "Kein Bereich freigegeben",
+        "text": "Für dein Discord-Konto ist noch kein Bereich dieses Menüs freigeschaltet."
+    },
+    "role": {
+        "admin": "Administrator",
+        "limited": "Eingeschränkter Zugang",
+        "none": "Kein Zugang"
+    },
+    "logout": "Logout",
+    "logoutSub": "Vom Gildenmenü abmelden",
+    "menuToggle": "Menü",
+    "theme": {
+        "tip": "Hell / Dunkel umschalten",
+        "aria": "Design umschalten"
+    },
+    "lang": {
+        "tip": "Sprache",
+        "switchTo": "Auf {lang} umstellen"
+    },
+    "guild": {
+        "roleEvent": "Event",
+        "roleEventTip": "Event-Discord",
+        "roleEventSub": "Event-Kanäle und Raid-Helper liegen auf diesem Server.",
+        "roleTalk": "Talk",
+        "roleTalkTip": "Kommunikations-Discord",
+        "roleTalkSub": "Raid-Übersicht, Anmeldung per Bot und Erinnerungen laufen auf diesem Server.",
+        "none": "Kein Server",
+        "noneTip": "Kein Server verbunden",
+        "noneSub": "Der Bot ist mit keinem Discord-Server verbunden – vermutlich ist er noch nicht bereit.",
+        "choose": "Server wählen",
+        "notChosen": "Kein Server gewählt",
+        "notChosenSub": "Bitte zuerst einen Server wählen – die Bereiche zeigen erst dann seine Daten."
+    },
+    "app": {
+        "noWrite": "Für diesen Bereich fehlen dir die Schreibrechte.",
+        "noRead": "Für diesen Bereich hat deine Rolle keine Berechtigung.",
+        "noAccess": "Dein Discord-Konto hat noch keinen Zugang zu diesem Menü.",
+        "noAccessHint": "Ein Admin kann dir in den Einstellungen unter „Berechtigungen\" Bereiche freischalten.",
+        "notFound": "Diese Seite gibt es nicht.",
+        "backHome": "Zurück zur Übersicht",
+        "loadingMenu": "Menü wird geladen",
+        "sessionError": "Fehler beim Laden der Session: {message}",
+        "loginPrompt": "Bitte melde dich mit Discord an, um das Gildenmenü zu nutzen.",
+        "loginButton": "Mit Discord anmelden"
+    }
+}
