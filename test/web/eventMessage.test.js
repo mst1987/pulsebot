@@ -195,6 +195,23 @@ describe("web/eventMessage", () => {
         expect(blocks[1].value).toMatch(/<:eh_priest_shadow:\d+> `6` \*\*Thalia\*\*/);
     });
 
+    it("fills the last row of blocks up to three columns, so it stays aligned with the rows above", () => {
+        const blocksOf = (list) => {
+            const fields = buildEventMessage(event(), list, { emojis, now: NOW }).embeds[0].fields;
+            return fields.slice(fields.findIndex((f) => f.name.includes("__Tanks__"))).filter((f) => f.inline);
+        };
+        // Tanks · Priest · Mage: one full row, nothing added
+        expect(blocksOf(signups).length).toBe(3);
+        // plus Rogue and Warlock: five blocks, one empty column at the end
+        const five = blocksOf([...signups, su("8", "Dvra", "Rogue-Combat", "melee"), su("9", "Hypnos", "Warlock-Destruction", "ranged")]);
+        expect(five.length).toBe(6);
+        expect(five[5]).toEqual({ name: ZWS, value: ZWS, inline: true });
+        // plus Druid as well: six blocks, a full second row again
+        const six = blocksOf([...signups, su("8", "Dvra", "Rogue-Combat", "melee"), su("9", "Hypnos", "Warlock-Destruction", "ranged"), su("10", "Ganjey", "Druid-Feral", "melee")]);
+        expect(six.length).toBe(6);
+        expect(six.every((f) => f.name !== ZWS)).toBe(true);
+    });
+
     it("lists every character of a signup in the block of its own status, under one number — only the first one counts", () => {
         const multi = { ...su("9", "Zibbo", "Priest-Holy", "healer", "late"), characters: [
             { character: "Zibbo", spec: "Priest-Holy", role: "healer", status: "late" },
