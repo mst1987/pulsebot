@@ -66,11 +66,15 @@ function runOptions(options, extra = {}) {
     return out;
 }
 
-/** Who stands where — what a raider would notice. Locks and weights are not part of it. */
+/**
+ * Who stands where — what a raider would notice, the order inside a group
+ * included (the setup message lists a group in that order). Locks and weights
+ * are not part of it.
+ */
 function lineupSignature(setup) {
     if (!setup) return "";
     const groups = (setup.groups || [])
-        .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`).sort().join(",")}`)
+        .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`).join(",")}`)
         .sort();
     return groups.join("|");
 }
@@ -154,6 +158,17 @@ function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() }
 }
 
 /**
+ * The valued groups in the order the orga placed them: the evaluation sorts a
+ * group by role, but the orga may have arranged it (the editor's places 1–5).
+ */
+function inPlacedOrder(groups, placed) {
+    const rank = new Map();
+    for (const g of placed || []) (g.slots || []).forEach((s, i) => rank.set(`${g.index}:${String(s.userId)}`, i));
+    const at = (index, s) => { const key = `${index}:${String(s.userId)}`; return rank.has(key) ? rank.get(key) : Infinity; };
+    return (groups || []).map((g) => ({ ...g, slots: (g.slots || []).slice().sort((a, b) => at(g.index, a) - at(g.index, b)) }));
+}
+
+/**
  * The orga's own lineup: validated, valued like a proposal and stored. A change
  * of who stands where turns an approved setup back into a draft
  * ("geändert seit Freigabe"); a lock or a weight alone does not.
@@ -182,7 +197,8 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const got = new Set(result.groups.flatMap((g) => g.slots.map((s) => String(s.userId))));
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
-    const setup = nextSetup(prev, { ...result, historySource: input.historySource }, { origin: "manual", options, userId, now });
+    const groups = inPlacedOrder(result.groups, checked.value.groups);
+    const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource }, { origin: "manual", options, userId, now });
     const saved = eventStore.setEventSetup(event.id, setup);
     return { setup: saved.setup, event: saved };
 }

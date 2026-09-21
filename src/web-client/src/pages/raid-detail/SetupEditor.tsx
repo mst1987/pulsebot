@@ -6,7 +6,8 @@
 // and so does Claude's explanation.
 //
 // Moving: drag a raider onto a group, onto the bench or onto another raider
-// (swap). Without a mouse: activate a raider (click, Enter), then the target.
+// (swap — inside one group that reorders it; every group always shows its five
+// places). Without a mouse: activate a raider (click, Enter), then the target.
 // Every move is saved at once and comes back valued by the server.
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
@@ -185,12 +186,16 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
                 </span>
                 <span className={`se-count${full ? " se-full" : ""}`}>{group.slots.length}/{GROUP_SIZE}</span>
             </header>
+            {/* always five places: the raiders in their order, then an empty box per free place */}
             <div className="se-slots">
                 {group.slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
-                {canTake && !full && (
-                    <button type="button" className="se-here" onClick={() => ui.onDrop({ group: group.index })}>Hierher</button>
-                )}
-                {!group.slots.length && !canTake && <span className="se-empty">leer</span>}
+                {Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }, (_, i) => (canTake
+                    ? (
+                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ group: group.index })}>
+                            {i === 0 ? "Hierher" : ""}
+                        </button>
+                    )
+                    : <span key={`free-${i}`} className="se-ph" aria-hidden="true">{group.slots.length + i + 1}</span>))}
             </div>
         </section>
     );
@@ -201,7 +206,7 @@ function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
     const canTake = ui.editable && !!ui.selected && !bench.some((b) => b.userId === ui.selected);
     return (
         <section className={`se-bench${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label="Ersatzbank">
-            <header className="se-group-head">
+            <header className="se-bench-head">
                 <span className="se-group-title">Bank</span>
                 <span className="se-count">{bench.length}</span>
             </header>
@@ -426,10 +431,12 @@ function ReadOnly({ data }: { data: SetupEditorData }) {
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
         <div className="se-layout se-readonly">
-            <div className="se-groups">
-                {withAllGroups(approved.groups, groupCount).map((g) => <GroupCard key={g.index} group={g} buffs={[]} ui={ui} />)}
+            <div className="se-main">
+                <div className="se-groups">
+                    {withAllGroups(approved.groups, groupCount).map((g) => <GroupCard key={g.index} group={g} buffs={[]} ui={ui} />)}
+                </div>
+                <BenchCard bench={approved.bench} ui={ui} />
             </div>
-            <BenchCard bench={approved.bench} ui={ui} />
         </div>
     );
 }
@@ -631,12 +638,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
 
             <div className="se-layout">
-                <div className="se-groups">
-                    {groups.map((g) => (
-                        <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
-                    ))}
+                {/* the setup on top, the bench under a divider */}
+                <div className="se-main">
+                    <div className="se-groups">
+                        {groups.map((g) => (
+                            <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
+                        ))}
+                    </div>
+                    <BenchCard bench={setup.bench} ui={ui} />
                 </div>
-                <BenchCard bench={setup.bench} ui={ui} />
                 <Summary
                     data={data} setup={setup} busy={busy}
                     onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
