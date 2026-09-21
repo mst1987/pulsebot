@@ -1,5 +1,7 @@
 # Anmeldung
 
+> **Sprache im Discord:** Alles, was ein Raider im Discord rund um Events und Anmeldung liest (Anmelder-Nachricht, Dialoge, Modals, Antworten, Ankündigung, Erinnerungen, DMs, Setup-Nachricht, Discord-Event, Raid-Übersicht auf dem Talk-Server), ist **Englisch** — Klassen/Specs über `labelEn` (`config/gameVersions/classes.js`, `labelEnOf()`, `ROLE_LABELS_EN`), das Web behält `label` (Deutsch). Deutsche Meldungen der gemeinsamen Services (`signupService`, `raiderProfileStore`, Bank-Gründe aus `utils/setup/reasons.js`) übersetzt der Bot mit `utils/botEnglish.js` `toEnglish()` — wer dort einen Satz ändert oder neu anlegt, trägt ihn in `RULES` nach (der Test prüft alle festen `fail(...)`-Sätze). Datum/Uhrzeit im Discord sind immer **Discord-Timestamps** (`<t:…:F>` usw., `utils/discordTime.js`); wo keiner rendert (Select-Optionen, Modal-Labels, öffentliche Seite) steht englischer Text in Serverzeit (Europe/Berlin). Gespeicherte Werte (Status-Keys, Spec-Keys) bleiben unverändert.
+
 ## Anmeldung (Web) (`/signups`, `signup` area, #256)
 
 The member's coming raids and their own signup. Menu entry *Anmeldungen* next to *Mein Profil*.

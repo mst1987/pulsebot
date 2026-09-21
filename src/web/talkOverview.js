@@ -16,7 +16,7 @@
 // A channel link crosses servers as a plain URL — `<#id>` only resolves on the
 // server it is posted on.
 const crypto = require("crypto");
-const { DateTime } = require("luxon");
+const { discordTimestamp, shortServerTime } = require("../utils/discordTime");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");
@@ -37,8 +37,6 @@ const MAX_FIELDS = 25;
 const MAX_FIELD_VALUE = 1024;
 const MAX_EMBED_CHARS = 6000;
 const MAX_OPTIONS = 25;
-const ZONE = "Europe/Berlin";
-const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const SWEEP_MS = 5 * 60 * 1000;
 const DEBOUNCE_MS = 3000;
 // Raid-Helper's event list is cached for 30 s (raidEventGroups.js): a sync
@@ -60,12 +58,13 @@ function channelUrl(guildId, channelId) {
     return guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "";
 }
 
-/** "Mi 17.09. 19:30" in Berlin time; start is unix seconds (or ms). */
+/**
+ * "Wed 17 Sep 19:30" in server time (Berlin); start is unix seconds (or ms).
+ * For the select options, which cannot render a Discord timestamp — the embed
+ * lines use `<t:…:F>` instead, so every reader sees their own time zone.
+ */
 function formatStart(startTime) {
-    const n = Number(startTime) || 0;
-    if (!n) return "";
-    const dt = DateTime.fromMillis(n < 1e12 ? n * 1000 : n, { zone: ZONE });
-    return `${WEEKDAYS[dt.weekday - 1]} ${dt.toFormat("dd.MM. HH:mm")}`;
+    return shortServerTime(startTime);
 }
 
 /** Markdown that would break a line's layout (bold, links) taken out of a title. */
@@ -88,10 +87,10 @@ function fillText(event) {
 function raidLine(event, eventGuildId) {
     // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
     if (event.status === "cancelled") {
-        return [`~~${plain(event.title) || "Raid"}~~`, "**ABGESAGT**", formatStart(event.startTime)].filter(Boolean).join(" · ");
+        return [`~~${plain(event.title) || "Raid"}~~`, "**CANCELLED**", discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
     }
     const parts = [`**${plain(event.title) || "Raid"}**`];
-    const when = formatStart(event.startTime);
+    const when = discordTimestamp(event.startTime, "F");
     if (when) parts.push(when);
     parts.push(`👥 ${fillText(event)}`);
     const url = channelUrl(eventGuildId, event.channelId);
@@ -111,7 +110,7 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [] } = {}) {
         .filter((g) => !allowed.size || allowed.has(String(g.categoryId || "")))
         .map((g) => ({
             categoryId: g.categoryId || "",
-            categoryName: g.categoryName || "Ohne Kategorie",
+            categoryName: g.categoryName || "No category",
             events: (g.events || [])
                 .filter((e) => e && e.id && (Number(e.startTime) || 0) >= nowSec)
                 .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)),
@@ -134,23 +133,23 @@ function buildOverviewMessage(groups, opts = {}) {
     // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
     const signable = all.filter((e) => e.status !== "cancelled");
 
-    const title = "Kommende Raids";
+    const title = "Upcoming raids";
     const description = all.length
-        ? `Aktualisiert sich selbst · Links führen in den Event-Kanal${eventGuildName ? ` auf **${plain(eventGuildName)}**` : ""}`
-        : "Gerade sind keine Raids geplant. Neue Raids erscheinen hier von selbst.";
+        ? `Updates itself · links lead to the event channel${eventGuildName ? ` on **${plain(eventGuildName)}**` : ""}`
+        : "No raids are planned right now. New raids show up here by themselves.";
     let used = title.length + description.length;
     const fields = [];
     let shown = 0;
 
     for (const group of list) {
         if (fields.length >= MAX_FIELDS) break;
-        const name = plain(group.categoryName).slice(0, 256) || "Ohne Kategorie";
+        const name = plain(group.categoryName).slice(0, 256) || "No category";
         const lines = [];
         let length = 0;
         for (let i = 0; i < group.events.length; i++) {
             const line = raidLine(group.events[i], eventGuildId);
             const rest = group.events.length - i - 1;
-            // Room for this line, plus a "+N weitere" line if more follow.
+            // Room for this line, plus a "+N more" line if more follow.
             const reserve = rest ? 24 : 0;
             const next = length + (lines.length ? 1 : 0) + line.length;
             if (next + reserve > MAX_FIELD_VALUE || used + name.length + next + reserve > MAX_EMBED_CHARS - 80) break;
@@ -159,7 +158,7 @@ function buildOverviewMessage(groups, opts = {}) {
         }
         if (!lines.length) break;
         const hidden = group.events.length - lines.length;
-        if (hidden) lines.push(`+${hidden} weitere`);
+        if (hidden) lines.push(`+${hidden} more`);
         const value = lines.join("\n");
         fields.push({ name, value, inline: false });
         used += name.length + value.length;
@@ -172,20 +171,20 @@ function buildOverviewMessage(groups, opts = {}) {
         .setDescription(description);
     if (fields.length) embed.addFields(fields);
     const missing = all.length - shown;
-    if (missing > 0) embed.setFooter({ text: `+${missing} weitere Raids in der Web-Übersicht` });
+    if (missing > 0) embed.setFooter({ text: `+${missing} more raids in the web overview` });
 
     const components = [];
     // Several raids at once (#293) — only EventHelper events take a signup here.
     if (signable.some((e) => e.source === "eventhelper")) {
         components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel("Für alle Raids anmelden").setEmoji("✅"),
-            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel("Mehrere Raids wählen …"),
+            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel("Sign up for all raids").setEmoji("✅"),
+            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel("Pick several raids …"),
         ));
     }
     if (signable.length) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(SELECT_ID)
-            .setPlaceholder("Einzelnen Raid wählen …")
+            .setPlaceholder("Pick a single raid …")
             .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
                 description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
@@ -195,9 +194,9 @@ function buildOverviewMessage(groups, opts = {}) {
     }
     const links = overviewLinks(baseUrl);
     components.push(new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Web-Übersicht").setURL(links.web),
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Meine Anmeldungen").setURL(links.signups),
-        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Mein Profil").setURL(links.profile),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Web overview").setURL(links.web),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My signups").setURL(links.signups),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("My profile").setURL(links.profile),
     ));
 
     return {

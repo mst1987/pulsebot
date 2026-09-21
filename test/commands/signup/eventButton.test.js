@@ -67,8 +67,8 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
         await command.execute(i);
         expect(stored().status).toBe("bench");
         const text = String(replyOf(i).content || "");
-        expect(text).toContain("Warteliste");
-        expect(text).toContain("Raid ist voll (2/2)");
+        expect(text).toContain("waiting list");
+        expect(text).toContain("raid is full (2/2)");
     });
 
     it("lehnt die Anmeldung ab, wenn die Warteliste aus ist", async () => {
@@ -78,7 +78,7 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
         const i = click("join");
         await command.execute(i);
         expect(stored()).toBeUndefined();
-        expect(String(replyOf(i).content || "")).toContain("voll (2/2)");
+        expect(String(replyOf(i).content || "")).toContain("full (2/2)");
     });
 });
 
@@ -107,7 +107,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             expect(replyOf(i).flags).toBe(MessageFlags.Ephemeral);
-            expect(replyOf(i).content).toBe("Gespeichert für **Karazhan**:\n`1.` Zibbo · Heilig – **Dabei**");
+            expect(replyOf(i).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Signed up**");
             expect(stored()).toMatchObject({ status: "signed", character: "Zibbo", spec: "Priest-Holy" });
         });
 
@@ -117,7 +117,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(i);
             const payload = replyOf(i);
             expect(payload.flags).toBe(MessageFlags.Ephemeral);
-            expect(payload.content).toContain("bis zu 2 Charaktere");
+            expect(payload.content).toContain("up to 2 characters");
             const select = selectOf(payload);
             expect(select).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", min_values: 1, max_values: 2 });
             expect(select.options.map((o) => o.value)).toEqual(["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"]);
@@ -131,7 +131,7 @@ describe("commands/signup/eventButton", () => {
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"] }), select);
             await command.execute(pick);
             expect(updateOf(pick)).toMatchObject({ components: [], embeds: [] });
-            expect(updateOf(pick).content).toContain("`2.` Zibbowar · Schutz – **Dabei**");
+            expect(updateOf(pick).content).toContain("`2.` Zibbowar · Protection – **Signed up**");
             expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbowar", "signed"]]);
 
             // "Spät" moves the first; "Anmelden" again names the current characters (never preselected,
@@ -140,7 +140,7 @@ describe("commands/signup/eventButton", () => {
             const again = click("join");
             await command.execute(again);
             const next = replyOf(again);
-            expect(next.content).toContain("Bisher: Zibbo · Heilig (Spät), Zibbowar · Schutz (Dabei)");
+            expect(next.content).toContain("So far: Zibbo · Holy (Late), Zibbowar · Protection (Signed up)");
             expect(selectOf(next).options.some((o) => o.default)).toBe(false);
             const same = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), selectOf(next));
             await command.execute(same);
@@ -151,7 +151,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             const payload = replyOf(i);
-            expect(payload.content).toContain("Noch kein Charakter");
+            expect(payload.content).toContain("No character in your profile yet");
             expect(selectOf(payload).custom_id).toBe("event-btn:eh-kara:cls:s");
             expect(selectOf(payload).options.map((o) => o.value)).toContain("Priest");
         });
@@ -166,7 +166,7 @@ describe("commands/signup/eventButton", () => {
             const cls = mockInteraction({ customId: "event-btn:eh-kara:cls:b", userId: ANNA, values: ["Priest"] });
             await command.execute(cls);
             const specs = updateOf(cls);
-            expect(specs.content).toContain("**Priester** – welche Spec?");
+            expect(specs.content).toContain("**Priest** – which spec?");
             expect(selectOf(specs)).toMatchObject({ custom_id: "event-btn:eh-kara:spec:b" });
             expect(selectOf(specs).options.map((o) => o.value)).toContain("Priest-Holy");
 
@@ -179,7 +179,7 @@ describe("commands/signup/eventButton", () => {
 
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { character: "Zibbo" } });
             await command.execute(submit);
-            expect(updateOf(submit).content).toBe("Gespeichert für **Karazhan**:\n`1.` Zibbo · Heilig – **Bank**");
+            expect(updateOf(submit).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Bench**");
             expect(profiles.getProfile(ANNA).characters.map((c) => c.name)).toEqual(["Zibbo"]);
             expect(stored()).toMatchObject({ status: "bench", character: "Zibbo" });
         });
@@ -199,7 +199,7 @@ describe("commands/signup/eventButton", () => {
             expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbomage", "signed"], ["Zibbowar", "signed"]]);
             const fourth = mockInteraction({ customId: "event-btn:eh-kara:name:s:Rogue-Combat", userId: ANNA, modal: true, options: { character: "Zibborog" } });
             await command.execute(fourth);
-            expect(updateOf(fourth).content).toMatch(/schon mit 3 Charakteren angemeldet/);
+            expect(updateOf(fourth).content).toMatch(/already signed up with 3 characters/);
             expect(stored().characters).toHaveLength(3);
         });
 
@@ -207,7 +207,7 @@ describe("commands/signup/eventButton", () => {
             twoCharacters();
             const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Mage-Fire", userId: ANNA, modal: true, options: { character: "Zibbowar" } });
             await command.execute(submit);
-            expect(updateOf(submit).content).toBe("⚠️ Zibbowar steht in deinem Profil schon als Krieger – nimm einen anderen Namen.");
+            expect(updateOf(submit).content).toBe("⚠️ Zibbowar is already in your profile as a Warrior – pick another name.");
             expect(stored()).toBeUndefined();
         });
     });
@@ -219,7 +219,7 @@ describe("commands/signup/eventButton", () => {
             const late = click("late");
             await command.execute(late);
             expect(replyOf(late).flags).toBe(MessageFlags.Ephemeral);
-            expect(replyOf(late).content).toBe("Gespeichert für **Karazhan**:\n`1.` Zibbo · Heilig – **Spät**\n`2.` Zibbowar · Schutz – **Dabei**");
+            expect(replyOf(late).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Late**\n`2.` Zibbowar · Protection – **Signed up**");
             expect(stored().status).toBe("late");
             expect(statuses()).toEqual([["Zibbo", "late"], ["Zibbowar", "signed"]]);
             // a single signup's one character goes to the status
@@ -232,7 +232,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("tentative");
             await command.execute(i);
             const payload = replyOf(i);
-            expect(payload.content).toContain("als **Vielleicht**");
+            expect(payload.content).toContain("as **Tentative**");
             const select = selectOf(payload);
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:t");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: select.options.map((o) => o.value) }), select);
@@ -255,15 +255,15 @@ describe("commands/signup/eventButton", () => {
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:b");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["devire|Mage-Arcane"] }), select);
             await command.execute(pick);
-            expect(updateOf(pick).content).toBe("Gespeichert für **Karazhan**:\n`1.` Devire · Arkan – **Bank**");
+            expect(updateOf(pick).content).toBe("Saved for **Karazhan**:\n`1.` Devire · Arcane – **Bench**");
             expect(stored()).toMatchObject({ status: "bench", character: "Devire" });
             expect(statuses()).toEqual([["Devire", "bench"]]);
 
             // what the channel sees, built from the same store
             const { buildEventMessage } = require("../../../src/web/eventMessage");
             const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"));
-            const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bank|Abgemeldet/.test(f.value)).value.split("\n");
-            expect(lines).toEqual(["Bank (1): `1` Devire"]);
+            const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bench|Absence/.test(f.value)).value.split("\n");
+            expect(lines).toEqual(["Bench (1): `1` Devire"]);
         });
 
         it("keeps a character that is re-added in its place", () => {
@@ -284,13 +284,13 @@ describe("commands/signup/eventButton", () => {
             await command.execute(pick);
             const lines = updateOf(pick).content.replace(/:\d+>/g, ">").split("\n");
             expect(lines).toEqual([
-                "<:eh_ui_signed> Gespeichert für **Karazhan**",
-                "`1` <:eh_priest_holy> Zibbo · Heilig  ·  <:eh_ui_bench> **Bank**",
-                "`2` <:eh_warrior_protection> Zibbowar · Schutz  ·  <:eh_ui_bench> **Bank**",
+                "<:eh_ui_signed> Saved for **Karazhan**",
+                "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_bench> **Bench**",
+                "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Bench**",
             ]);
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
-            expect(replyOf(submit).content.replace(/:\d+>/g, ">")).toBe("<:eh_ui_absence> Abgemeldet von **Karazhan** – Grund: Arbeit.");
+            expect(replyOf(submit).content.replace(/:\d+>/g, ">")).toBe("<:eh_ui_absence> Signed off from **Karazhan** – reason: Arbeit.");
         });
     });
 
@@ -308,7 +308,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(submit);
             // the modal came from the public message: reply, never edit that message
             expect(submit.update).not.toHaveBeenCalled();
-            expect(replyOf(submit)).toEqual({ content: "Abgemeldet von **Karazhan** – Grund: Arbeit.", flags: MessageFlags.Ephemeral });
+            expect(replyOf(submit)).toEqual({ content: "Signed off from **Karazhan** – reason: Arbeit.", flags: MessageFlags.Ephemeral });
             expect(stored()).toMatchObject({ status: "absence", comment: "Arbeit", character: "Zibbo" });
         });
 
@@ -326,13 +326,13 @@ describe("commands/signup/eventButton", () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
             const join = click("join");
             await command.execute(join);
-            expect(replyOf(join).content).toBe("Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.");
+            expect(replyOf(join).content).toBe("The signup deadline has passed – only “Late” or Absence now.");
             const late = click("late");
             await command.execute(late);
             expect(statuses()).toEqual([["Zibbo", "late"], ["Zibbowar", "signed"]]);
             const bench = click("bench");
             await command.execute(bench);
-            expect(replyOf(bench).content).toMatch(/Anmeldeschluss/);
+            expect(replyOf(bench).content).toMatch(/signup deadline/);
             const off = click("absence");
             await command.execute(off);
             expect(off.showModal).toHaveBeenCalled();
@@ -342,7 +342,7 @@ describe("commands/signup/eventButton", () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ signupsClosed: true }));
             const late = click("late");
             await command.execute(late);
-            expect(replyOf(late).content).toBe("Die Anmeldung ist geschlossen – du kannst nur noch absagen.");
+            expect(replyOf(late).content).toBe("Signups are closed – you can only sign off now.");
             const off = click("absence");
             await command.execute(off);
             expect(off.showModal).toHaveBeenCalled();
@@ -351,8 +351,8 @@ describe("commands/signup/eventButton", () => {
             const cancelled = click("absence");
             await command.execute(cancelled);
             expect(cancelled.showModal).not.toHaveBeenCalled();
-            expect(replyOf(cancelled).content).toBe("Das Event wurde abgesagt.");
-            expect(refusal(null, "signed")).toBe("Dieses Event gibt es nicht mehr.");
+            expect(replyOf(cancelled).content).toBe("The event was cancelled.");
+            expect(refusal(null, "signed")).toBe("This event no longer exists.");
         });
 
         it("asks for the raider role before anything else", async () => {
@@ -362,19 +362,19 @@ describe("commands/signup/eventButton", () => {
             mocks.access.roleIds = ["other"];
             const i = click("join");
             await command.execute(i);
-            expect(replyOf(i).content).toBe("Für diesen Raid brauchst du eine Raider-Rolle.");
+            expect(replyOf(i).content).toBe("You need a raider role for this raid.");
             const cls = click("class");
             await command.execute(cls);
-            expect(replyOf(cls).content).toBe("Für diesen Raid brauchst du eine Raider-Rolle.");
+            expect(replyOf(cls).content).toBe("You need a raider role for this raid.");
         });
 
         it("answers a gone event in the right place", async () => {
             const gone = mockInteraction({ customId: "event-btn:eh-weg:join", userId: ANNA });
             await command.execute(gone);
-            expect(replyOf(gone).content).toBe("Dieses Event gibt es nicht mehr.");
+            expect(replyOf(gone).content).toBe("This event no longer exists.");
             const step = mockInteraction({ customId: "event-btn:eh-weg:cls:s", userId: ANNA, values: ["Priest"] });
             await command.execute(step);
-            expect(updateOf(step).content).toBe("Dieses Event gibt es nicht mehr.");
+            expect(updateOf(step).content).toBe("This event no longer exists.");
         });
     });
 });

@@ -7,6 +7,7 @@ const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../web/eventMessage")
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
 const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signupDialog");
 const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/joinPicker");
+const { toEnglish } = require("../../utils/botEnglish");
 
 // The public "Anmelden …" select under an event message (#287) and the
 // components of the character select it opens (utils/joinPicker.js):
@@ -22,14 +23,18 @@ const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/
 //   * otherwise the character select with Anmelden / Kann auch … / Kommentar.
 // Deadline, start, raider roles and the profile rules are the service's; the
 // select on the message already offers only what is still allowed.
-const reply = (interaction, payload) => interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+const reply = (interaction, payload) => interaction.reply({
+    ...payload,
+    ...(payload.content ? { content: toEnglish(payload.content) } : {}),
+    flags: MessageFlags.Ephemeral,
+});
 
 /** Why a status cannot be chosen right now, or "". */
 function refusal(event, status, now = Date.now()) {
     if (allowedStatuses(event, { now }).includes(status)) return "";
     const w = signupWindow(event, now);
-    if (w.started) return "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.";
-    return "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.";
+    if (w.started) return "The raid has already started – signups are closed.";
+    return "The signup deadline has passed – you can only sign off or sign up as “Late” now.";
 }
 
 async function emojisFor(interaction) {
@@ -41,7 +46,7 @@ async function emojisFor(interaction) {
 async function onStatus(interaction, event) {
     const uid = interaction.user.id;
     const status = String((interaction.values && interaction.values[0]) || "");
-    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: "Unbekannter Status." });
+    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: "Unknown status." });
     const refused = refusal(event, status);
     if (refused) return reply(interaction, { content: refused });
     const access = await checkRaiderRole(event, uid);
@@ -57,14 +62,14 @@ async function onStatus(interaction, event) {
             canAlso: mine ? mine.canAlso || [] : [],
             comment: mine ? mine.comment : "",
         });
-        return reply(interaction, { content: result.error ? `⚠️ ${result.error}` : "✅ Abgemeldet." });
+        return reply(interaction, { content: result.error ? `⚠️ ${result.error}` : "✅ Signed off." });
     }
 
     const options = characterOptions(profile);
     if (!options.length) {
         const label = STATUS_OPTIONS[status].label;
         return reply(interaction, buildSignupDialog(event, uid, {
-            notice: `Wähle Klasse und Spec und klicke dann „${label}“ – danach fragt der Bot nach deinem Charakternamen.`,
+            notice: `Pick class and spec, then click “${label}” – the bot then asks for your character's name.`,
         }));
     }
 
@@ -97,13 +102,13 @@ module.exports = {
         const { eventId, status, field, state } = parseJoinId(interaction.customId);
         const event = getEvent(eventId);
         if (!field) {
-            if (!event) return reply(interaction, { content: "Dieses Event gibt es nicht mehr." });
+            if (!event) return reply(interaction, { content: "This event no longer exists." });
             return onStatus(interaction, event);
         }
 
-        if (!event) return plainUpdate(interaction, "Dieses Event gibt es nicht mehr.");
+        if (!event) return plainUpdate(interaction, "This event no longer exists.");
         const uid = interaction.user.id;
-        if (!status) return plainUpdate(interaction, "Unbekannter Status.");
+        if (!status) return plainUpdate(interaction, "Unknown status.");
         if (field === "m") {
             return interaction.update(buildSignupDialog(event, uid, { state }));
         }
@@ -114,7 +119,7 @@ module.exports = {
             const next = same ? state : nextState(uid, { character, spec });
             return interaction.update(buildJoinPicker(event, uid, status, { state: next, emojis: await emojisFor(interaction) }));
         }
-        return plainUpdate(interaction, "Unbekannte Aktion.");
+        return plainUpdate(interaction, "Unknown action.");
     },
 };
 

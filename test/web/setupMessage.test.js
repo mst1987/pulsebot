@@ -89,26 +89,26 @@ describe("buildSetupMessage", () => {
         // the flat role icons of the signup message, not the WoW ones (#320)
         expect(embed.description).toContain(`<:eh_ui_tank:${emojis.eh_ui_tank.id}> 1`);
         expect(embed.description).not.toContain("eh_role_");
-        const g1 = embed.fields.find((f) => f.name === "Gruppe 1");
+        const g1 = embed.fields.find((f) => f.name === "Group 1");
         expect(g1.inline).toBe(true);
         expect(g1.value).toBe(`<:eh_priest_holy:${emojis.eh_priest_holy.id}> **Zibbo**`.replace(/^/, `<:eh_warrior_protection:${emojis.eh_warrior_protection.id}> **Brokk**\n`));
         // an empty group is not drawn
-        expect(embed.fields.some((f) => f.name === "Gruppe 3")).toBe(false);
-        const bench = embed.fields.find((f) => f.name.includes("Bank"));
+        expect(embed.fields.some((f) => f.name === "Group 3")).toBe(false);
+        const bench = embed.fields.find((f) => f.name.includes("Bench"));
         expect(bench.name).toContain("(1)");
         expect(bench.inline).toBe(false);
         expect(bench.value).toContain("Thalia");
         expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
-        expect(embed.footer.text).toContain("Stand 2");
+        expect(embed.footer.text).toContain("version 2");
         expect(msg.components).toEqual([]);
     });
 
     it("reads the same without app emojis (text fallbacks)", () => {
         const event = seed();
         const embed = sm.buildSetupMessage(event, event.setup.approved, { emojis: {} }).embeds[0];
-        expect(embed.fields.find((f) => f.name === "Gruppe 1").value).toBe("**Brokk** · Schutz\n**Zibbo** · Heilig");
+        expect(embed.fields.find((f) => f.name === "Group 1").value).toBe("**Brokk** · Protection\n**Zibbo** · Holy");
         expect(embed.description).toContain("Tank 1");
-        expect(embed.fields.find((f) => f.name.includes("Bank")).name).toMatch(/^Bank \(\d+\)$/);
+        expect(embed.fields.find((f) => f.name.includes("Bench")).name).toMatch(/^Bench \(\d+\)$/);
     });
 
     it("trägt dieselbe Farbe wie die Anmelde-Nachricht, aber kein Bild (#307)", () => {
@@ -154,13 +154,13 @@ describe("buildSetupMessage", () => {
         expect(sm.embedLength(embed)).toBeLessThanOrEqual(sm.LIMITS.total);
         expect(embed.fields.length).toBeLessThanOrEqual(25);
         for (const f of embed.fields) expect(f.value.length).toBeLessThanOrEqual(1024);
-        expect(embed.fields.find((f) => f.name.includes("Bank")).value).toMatch(/\+\d+ weitere$/);
+        expect(embed.fields.find((f) => f.name.includes("Bench")).value).toMatch(/\+\d+ more$/);
     });
 
     it("marks a cancelled event instead of showing the groups", () => {
         const event = seed({ status: "cancelled", cancel: { reason: "Zu wenige Heiler" } });
         const embed = sm.buildSetupMessage(event, event.setup.approved, { emojis }).embeds[0];
-        expect(embed.title).toBe("Abgesagt: Setup · Kara Donnerstag");
+        expect(embed.title).toBe("Cancelled: Setup · Kara Donnerstag");
         expect(embed.description).toContain("Zu wenige Heiler");
         expect(embed.fields).toBeUndefined();
     });
@@ -218,7 +218,7 @@ describe("postOrEditSetupMessage", () => {
 
         mockEvents.get("eh-1").setupPost = { channelId: "c1", messageId: "m1", version: 2 };
         expect(await sm.refreshSetupMessage("eh-1")).toBeNull();
-        expect(message.edit.mock.calls[0][0].embeds[0].title).toMatch(/^Abgesagt/);
+        expect(message.edit.mock.calls[0][0].embeds[0].title).toMatch(/^Cancelled/);
     });
 
     it("stores a Discord error instead of throwing", async () => {
@@ -241,13 +241,13 @@ describe("DMs", () => {
     it("builds the placed and the bench text", () => {
         const event = seed();
         const placed = sm.buildSetupDm(event, { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 2 }, { messageUrl: "https://discord.com/channels/g1/c1/m1" });
-        expect(placed.content).toContain("Du bist in **Gruppe 2** als **Heiler** (Zibbo · Heilig).");
-        expect(placed.content).toContain("[Zum Setup](https://discord.com/channels/g1/c1/m1)");
+        expect(placed.content).toContain("You are in **Group 2** as **Healer** (Zibbo · Holy).");
+        expect(placed.content).toContain("[Go to the setup](https://discord.com/channels/g1/c1/m1)");
         const bench = sm.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: true, reasons: ["Raid voll (10/10)"] });
-        expect(bench.content).toContain("Diesmal **Bank** (Thalia · Schatten) – nächstes Mal hast du Vorrang.");
-        expect(bench.content).toContain("Grund: Raid voll (10/10)");
+        expect(bench.content).toContain("This time on the **bench** (Thalia · Shadow) – next time you have priority.");
+        expect(bench.content).toContain("Reason: Raid full (10/10)");
         const noFair = sm.buildSetupDm(event, { ...p("5", "Thalia", "Priest-Shadow", "ranged"), bench: true }, { fairness: false });
-        expect(noFair.content).not.toContain("Vorrang");
+        expect(noFair.content).not.toContain("priority");
     });
 
     it("takes bench reasons only from the approved version and never names wish partners", () => {
@@ -301,7 +301,7 @@ describe("DMs", () => {
         event.setup = { ...event.setup, version: 3, approved: next };
         await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
         expect(discord.sendDirectMessage.mock.calls.map((c) => c[0])).toEqual(["4"]);
-        expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("Gruppe 1");
+        expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("Group 1");
     });
 
     it("publishSetup posts first and starts the DMs only with the switch", async () => {

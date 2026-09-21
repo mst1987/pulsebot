@@ -258,7 +258,7 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
         try {
             await deliverUserPing({
                 target: "event", event, userIds: recipients, guildId,
-                text: `📅 **${event.title}** wurde verschoben: jetzt <t:${start}:F> (<t:${start}:R>).`,
+                text: `📅 **${event.title}** has been moved: now <t:${start}:F> (<t:${start}:R>).`,
             });
             notified = recipients.length;
         } catch (e) {
@@ -392,8 +392,8 @@ function cancelDm(event, reason, guildId) {
     const start = Number(event.startTime) || 0;
     const url = guildId && event.channelId ? `https://discord.com/channels/${guildId}/${event.channelId}` : "";
     return [
-        `❌ **${event.title}**${start ? ` am <t:${start}:F>` : ""} wurde abgesagt.`,
-        `Grund: ${reason}`,
+        `❌ **${event.title}**${start ? ` on <t:${start}:F>` : ""} has been cancelled.`,
+        `Reason: ${reason}`,
         url,
     ].filter(Boolean).join("\n");
 }
@@ -557,7 +557,7 @@ function deletionInfo(event, now = Date.now()) {
 /** The DM a raider gets when an event they signed up for is deleted (only on request). */
 function deleteDm(event) {
     const start = Number(event.startTime) || 0;
-    return `🗑️ **${event.title}**${start ? ` am <t:${start}:F>` : ""} findet nicht statt — das Event wurde entfernt.`;
+    return `🗑️ **${event.title}**${start ? ` on <t:${start}:F>` : ""} will not take place — the event has been removed.`;
 }
 
 /**

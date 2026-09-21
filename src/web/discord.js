@@ -218,7 +218,7 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
     const body = String(text || "").trim()
-        || "Bitte meldet euch für den Raid an oder ab, damit die Aufstellung vollständig ist.";
+        || "Please sign up or sign off for the raid, so the roster is complete.";
     // Discord refuses a message over 2000 characters, and a mention costs about
     // 22 — a roster of ~90 missing raiders would otherwise post nothing at all.
     // The mentions are split over as many messages as needed, the text rides

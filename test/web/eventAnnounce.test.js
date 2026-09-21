@@ -62,7 +62,7 @@ describe("buildAnnouncement", () => {
     it("ist eine Zeile mit Titel, Termin und Link auf die Anmelde-Nachricht", () => {
         const event = makeEvent();
         const payload = announce.buildAnnouncement(event);
-        expect(payload.title).toBe("Neuer Raid: SSC + TK");
+        expect(payload.title).toBe("New raid: SSC + TK");
         expect(payload.body).toContain(`<t:${START}:F>`);
         expect(payload.body).toContain("https://discord.com/channels/g1/c1/msg1");
     });

@@ -48,7 +48,7 @@ describe("commands/signup/signupComment", () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "  komme 20 min später " } });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "signed", spec: "Mage-Arcane", comment: "komme 20 min später" });
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Kommentar gespeichert.");
+        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment saved.");
     });
 
     it("works after the deadline, since nothing but the comment changes", async () => {
@@ -57,19 +57,19 @@ describe("commands/signup/signupComment", () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "" } });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`).comment).toBe("");
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Kommentar entfernt.");
+        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment removed.");
     });
 
     it("asks to sign up first when there is no signup", async () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "hi" } });
         await command.execute(i);
         expect(mocks.signups.size).toBe(0);
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ Melde dich zuerst an");
+        expect(payloadOf(i).embeds[0].description).toContain("⚠️ Sign up first");
     });
 
     it("clears the message when the event is gone", async () => {
         const i = mockInteraction({ customId: "signup-comment:eh-gone:::", modal: true });
         await command.execute(i);
-        expect(i.update).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", embeds: [], components: [] });
+        expect(i.update).toHaveBeenCalledWith({ content: "This event no longer exists.", embeds: [], components: [] });
     });
 });

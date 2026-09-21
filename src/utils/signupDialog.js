@@ -23,6 +23,7 @@ const {
 const { embedAccentColor, publicBaseUrl } = require("../config/variables");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { ROLES } = require("../config/gameVersions/classes");
+const { toEnglish } = require("./botEnglish");
 const { listSignups, getSignup } = require("../web/signupStore");
 const profiles = require("../web/raiderProfileStore");
 const {
@@ -37,11 +38,14 @@ const MAX_OPTIONS = 25;
 
 const STATUS_CODES = { signed: "s", tentative: "t", late: "l", bench: "b", absence: "a" };
 const STATUS_BY_CODE = Object.fromEntries(Object.entries(STATUS_CODES).map(([k, v]) => [v, k]));
-const STATUS_LABELS = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abmelden" };
-const STATUS_STATE = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abgemeldet" };
+// Raider-facing, so English (like every signup text in Discord).
+const STATUS_LABELS = { signed: "Sign up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence" };
+const STATUS_STATE = { signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence" };
 const ROLE_CODES = { tank: "t", healer: "h", melee: "m", ranged: "r" };
-const ALSO_LABELS = { tank: "Offtank", healer: "Heilen", melee: "Nahkampf (Zweitspec)", ranged: "Fernkampf (Zweitspec)" };
-const GEAR_LABELS = { none: "kein Gear", usable: "Gear brauchbar", ready: "Gear raidbereit" };
+const ALSO_LABELS = { tank: "Off-tank", healer: "Heal", melee: "Melee (off-spec)", ranged: "Ranged (off-spec)" };
+const GEAR_LABELS = { none: "no gear", usable: "gear usable", ready: "gear raid ready" };
+// The English label of a class or spec, the German one as a fallback.
+const en = (x) => (x && (x.labelEn || x.label)) || "";
 
 const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
@@ -136,21 +140,21 @@ function resolveState(event, profile, mine, state) {
 
 function specLabel(specKey) {
     const info = profiles.specInfo(specKey);
-    return info ? info.label : "";
+    return info ? en(info) : "";
 }
 
 function classLabel(event, classId) {
     const cls = classesFor(event).find((c) => c.id === classId);
-    return cls ? cls.label : classId;
+    return cls ? en(cls) : classId;
 }
 
-/** "Tank 1/2 · Heiler 1/3 · DPS 4/5" (without a target just the count). */
+/** "Tank 1/2 · Healer 1/3 · DPS 4/5" (without a target just the count). */
 function roleCountLine(counts) {
     const part = (label, c) => `${label} ${c.n}${c.target ? `/${c.target}` : ""}`;
-    return [part("Tank", counts.tank), part("Heiler", counts.healer), part("DPS", counts.dps)].join(" · ");
+    return [part("Tank", counts.tank), part("Healer", counts.healer), part("DPS", counts.dps)].join(" · ");
 }
 
-/** "Thorwald · Schutz" for a signup or a state. */
+/** "Thorwald · Protection" for a signup or a state. */
 function pickText(profile, character, spec) {
     const ch = signableCharacters(profile).find((c) => c.key === profiles.characterKey(character));
     const name = ch ? ch.name : String(character || "");
@@ -179,18 +183,18 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     lines.push([start ? `<t:${start}:f>` : "", roleCountLine(roleCounts(event, signups))].filter(Boolean).join(" · "));
     if (mine) {
         const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec);
-        lines.push(`Dein Status: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
+        lines.push(`Your status: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
     }
-    if (event.status === "cancelled") lines.push(`Das Event wurde abgesagt${event.cancel && event.cancel.reason ? ` – ${event.cancel.reason}` : ""}.`);
-    else if (win.started) lines.push("Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
-    else if (event.signupsClosed) lines.push("Die Anmeldung ist geschlossen – nur noch Abmelden.");
-    else if (win.deadlinePassed) lines.push("Anmeldeschluss vorbei – nur noch Abmelden oder „Spät“.");
+    if (event.status === "cancelled") lines.push(`The event was cancelled${event.cancel && event.cancel.reason ? ` – ${event.cancel.reason}` : ""}.`);
+    else if (win.started) lines.push("The raid has already started – signups are closed.");
+    else if (event.signupsClosed) lines.push("Signups are closed – you can only sign off now.");
+    else if (win.deadlinePassed) lines.push("The signup deadline has passed – only Absence or “Late” now.");
     if (!chars.length) {
-        lines.push(`Noch kein Charakter im Profil – Klasse und Spec hier wählen oder [Profil anlegen](${baseUrl()}/profile).`);
+        lines.push(`No character in your profile yet – pick class and spec here or [create a profile](${baseUrl()}/profile).`);
     }
     const partners = wishPartnersSignedUp(profile, signups.filter((s) => String(s.userId) !== uid));
-    if (partners.length) lines.push(`Auch angemeldet: ${partners.map((p) => p.name).filter(Boolean).join(", ")}`);
-    if (notice) lines.push("", notice);
+    if (partners.length) lines.push(`Also signed up: ${partners.map((p) => p.name).filter(Boolean).join(", ")}`);
+    if (notice) lines.push("", toEnglish(notice));
 
     const embed = new EmbedBuilder()
         .setColor(embedAccentColor)
@@ -213,21 +217,21 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
         }
         rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
             .setCustomId(pickId(event.id, "s", picks))
-            .setPlaceholder("Charakter · Spec wählen …")
+            .setPlaceholder("Pick character · spec …")
             .addOptions(options)));
     } else {
         const classes = classesFor(event);
         const classId = (profiles.specInfo(picks.spec) || {}).classId || "";
         rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
             .setCustomId(pickId(event.id, "k", picks))
-            .setPlaceholder("Klasse wählen …")
-            .addOptions(classes.slice(0, MAX_OPTIONS).map((c) => ({ label: c.label, value: c.id, default: c.id === classId })))));
+            .setPlaceholder("Pick a class …")
+            .addOptions(classes.slice(0, MAX_OPTIONS).map((c) => ({ label: en(c), value: c.id, default: c.id === classId })))));
         const cls = classes.find((c) => c.id === classId);
         if (cls) {
             rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
                 .setCustomId(pickId(event.id, "s", picks))
-                .setPlaceholder("Spec wählen …")
-                .addOptions(cls.specs.map((s) => ({ label: s.label, value: `|${s.key}`, default: s.key === picks.spec })))));
+                .setPlaceholder("Pick a spec …")
+                .addOptions(cls.specs.map((s) => ({ label: en(s), value: `|${s.key}`, default: s.key === picks.spec })))));
         }
     }
 
@@ -235,7 +239,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     const alsoRoles = ROLES.filter((r) => r !== ownRole);
     rows.push(new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
         .setCustomId(pickId(event.id, "a", picks))
-        .setPlaceholder("Kann auch … (Heilen, Offtank, Zweitspec)")
+        .setPlaceholder("Can also … (heal, off-tank, off-spec)")
         .setMinValues(0)
         .setMaxValues(alsoRoles.length)
         .addOptions(alsoRoles.map((r) => ({ label: ALSO_LABELS[r], value: r, default: picks.canAlso.includes(r) })))));
@@ -250,16 +254,16 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     const extra = [
         new ButtonBuilder()
             .setCustomId(commentId(event.id, picks))
-            .setLabel("Kommentar")
+            .setLabel("Comment")
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(!mine || win.started),
         new ButtonBuilder()
             .setStyle(ButtonStyle.Link)
-            .setLabel("Im Web öffnen")
+            .setLabel("Open on the web")
             .setURL(`${baseUrl()}/signups?event=${encodeURIComponent(event.id)}`),
     ];
     if (!chars.length) {
-        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Profil anlegen").setURL(`${baseUrl()}/profile`));
+        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Create profile").setURL(`${baseUrl()}/profile`));
     }
     rows.push(new ActionRowBuilder().addComponents(extra));
 
@@ -268,16 +272,16 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
 
 /** The confirmation line after a save. */
 function savedNotice(signup, profile) {
-    if (signup.status === "absence") return "✅ Abgemeldet.";
+    if (signup.status === "absence") return "✅ Signed off.";
     const what = pickText(profile, signup.character, signup.spec);
-    return `✅ Gespeichert: **${STATUS_STATE[signup.status]}**${what ? ` (${what})` : ""}`;
+    return `✅ Saved: **${STATUS_STATE[signup.status]}**${what ? ` (${what})` : ""}`;
 }
 
 /** Modal asking for the character name — the path without a profile character. */
 function buildCharacterModal(customId, { defaultName = "", classText = "" } = {}) {
     const input = new TextInputBuilder()
         .setCustomId("character")
-        .setLabel(`Name deines Charakters${classText ? ` (${classText})` : ""}`.slice(0, 45))
+        .setLabel(`Your character's name${classText ? ` (${classText})` : ""}`.slice(0, 45))
         .setStyle(TextInputStyle.Short)
         .setMinLength(2)
         .setMaxLength(24)
@@ -285,7 +289,7 @@ function buildCharacterModal(customId, { defaultName = "", classText = "" } = {}
     if (defaultName) input.setValue(String(defaultName).slice(0, 24));
     return new ModalBuilder()
         .setCustomId(customId)
-        .setTitle("Charakter anlegen")
+        .setTitle("Add a character")
         .addComponents(new ActionRowBuilder().addComponents(input));
 }
 
@@ -293,21 +297,21 @@ function buildCharacterModal(customId, { defaultName = "", classText = "" } = {}
 function buildCommentModal(customId, comment = "") {
     const input = new TextInputBuilder()
         .setCustomId("comment")
-        .setLabel("Kommentar zur Anmeldung")
-        .setPlaceholder("z. B. komme 15 Minuten später")
+        .setLabel("Comment on your signup")
+        .setPlaceholder("e.g. joining 15 minutes late")
         .setStyle(TextInputStyle.Paragraph)
         .setMaxLength(300)
         .setRequired(false);
     if (comment) input.setValue(String(comment).slice(0, 300));
     return new ModalBuilder()
         .setCustomId(customId)
-        .setTitle("Kommentar")
+        .setTitle("Comment")
         .addComponents(new ActionRowBuilder().addComponents(input));
 }
 
 /** Reply to or update the dialog message with a short text (the event is gone, …). */
 function plainUpdate(interaction, content) {
-    return interaction.update({ content, embeds: [], components: [] });
+    return interaction.update({ content: toEnglish(content), embeds: [], components: [] });
 }
 
 module.exports = {

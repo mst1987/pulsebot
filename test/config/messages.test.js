@@ -25,16 +25,16 @@ describe("config/messages", () => {
         }
     });
 
-    it("uses 'Fehler' as the shared error title", () => {
-        expect(messages.general.errorTitle).toBe("Fehler");
+    it("uses 'Error' as the raider-facing error title and keeps 'Fehler' for GDKP", () => {
+        expect(messages.general.errorTitle).toBe("Error");
         expect(messages.gdkpraids.errorTitle).toBe("Fehler");
     });
 
-    it("keeps the German error strings non-empty where they inform the user", () => {
-        expect(messages.general.errorMessage).toContain("Raidhelper Bot");
+    it("keeps the error strings non-empty where they inform the user", () => {
+        expect(messages.general.errorMessage).toContain("Raid-Helper bot");
         expect(messages.mysetups.errorMessage.length).toBeGreaterThan(0);
-        expect(messages.signup.errorTitle).toBe("Anmeldung nicht möglich");
-        expect(messages.signup.errorMessage).toBe("Keinen passenden Raid gefunden.");
+        expect(messages.signup.errorTitle).toBe("Signup not possible");
+        expect(messages.signup.errorMessage).toBe("No matching raid found.");
     });
 
     it("keeps the ___replace___ placeholder intact in templated strings", () => {
