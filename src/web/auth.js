@@ -8,6 +8,7 @@ const {
 } = require("../config/variables");
 const { getConfig } = require("./settingsStore");
 const { fullAccess, emptyAccess, accessForRoles, accessForUser, baseAccessMap, mergeAccess } = require("../config/permissions");
+const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }
@@ -135,9 +136,49 @@ function maybeRefreshAdmin(sid, s) {
         });
 }
 
-/** Resolve the logged-in user (or null) from the request. */
+/**
+ * Resolve the logged-in user (or null) from the request — as every reader
+ * should see them: while a full admin looks at the menu as a role (viewAs.js),
+ * with that role's rights instead of their own.
+ */
 function getUser(req) {
+    const s = sessionFor(req);
+    if (!s) return null;
+    if (!s.viewAs) return s;
+    if (!viewAsActive(s.viewAs)) {
+        // A view that ran out ends by itself.
+        delete s.viewAs;
+        saveSessions();
+        return s;
+    }
+    return effectiveUser(s, getConfig(), envAdminRoleIds || []);
+}
+
+/**
+ * The logged-in user with their own rights, ignoring an active "Ansicht als
+ * Rolle" — only for starting and stopping that view.
+ */
+function getRealUser(req) {
     return sessionFor(req) || null;
+}
+
+/**
+ * Start (`roleIds` an array, [] = only the base access) or stop (`null`) the
+ * view as a role for the request's session. Only a real full admin may start
+ * one; stopping always works. Returns false when nothing was changed.
+ */
+function setViewAs(req, roleIds) {
+    const s = sessionFor(req);
+    if (!s) return false;
+    if (roleIds === null) {
+        if (!s.viewAs) return false;
+        delete s.viewAs;
+    } else {
+        if (!s.isAdmin) return false;
+        s.viewAs = { roleIds: normalizeRoleIds(roleIds), at: Date.now() };
+    }
+    saveSessions();
+    return true;
 }
 
 
@@ -309,6 +350,6 @@ function destroy(sid) {
 }
 
 module.exports = {
-    configured, parseCookies, getUser, loginUrl, completeLogin, destroy,
+    configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
     setClient, csrfToken, checkCsrf, getActiveGuild, setActiveGuild,
 };

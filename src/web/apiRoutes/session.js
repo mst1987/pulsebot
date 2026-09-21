@@ -7,6 +7,9 @@ const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const userPrefs = require("../userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
+const { getConfig } = require("../settingsStore");
+const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+const { normalizeRoleIds, MAX_ROLES } = require("../viewAs");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -26,6 +29,9 @@ function getSession(req, res) {
                 // The menu language the account chose ("de" | "en"), left out
                 // while it never chose one — the browser's own choice stands then.
                 ...langField(user.id),
+                // "Ansicht als Rolle" (viewAs.js): which roles the menu shows
+                // right now, and whether this account may start such a view.
+                ...viewAsFields(req, user),
             }
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
@@ -74,4 +80,71 @@ async function postLang(req, res) {
     ok(res, { lang: result.lang });
 }
 
-module.exports = { getSession, postActiveGuild, postLang };
+// ---- "Ansicht als Rolle" (src/web/viewAs.js) --------------------------------
+
+/** The server whose roles carry the menu rights (Einstellungen › Zugang/Berechtigungen). */
+function permissionGuildId() {
+    return String(getConfig().guildId || envGuildId || "");
+}
+
+/** The roles of that server, each marked admin role / with permissions of its own. */
+function viewAsRoles() {
+    const config = getConfig();
+    const adminIds = new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])].map(String));
+    const perms = config.rolePermissions || {};
+    return discord.listRoles(permissionGuildId()).map((r) => ({
+        id: r.id, name: r.name, color: r.color || "",
+        admin: adminIds.has(r.id),
+        configured: !!perms[r.id] && Object.keys(perms[r.id]).length > 0,
+    }));
+}
+
+/** `{ canViewAs, viewAs? }` for the session answer. */
+function viewAsFields(req, user) {
+    const real = auth.getRealUser(req);
+    const out = { canViewAs: !!(real && real.isAdmin) };
+    if (user.viewAs) {
+        const names = new Map(viewAsRoles().map((r) => [r.id, r.name]));
+        out.viewAs = {
+            roleIds: user.viewAs.roleIds,
+            roleNames: user.viewAs.roleIds.map((id) => names.get(id) || id),
+            at: user.viewAs.at,
+        };
+    }
+    return out;
+}
+
+/**
+ * GET /api/session/view-as — the roles a full admin can look at the menu as.
+ * Checked against the admin's *own* rights, so it also answers while a view runs.
+ */
+function getViewAs(req, res) {
+    const real = auth.getRealUser(req);
+    if (!real) return error(res, 401, "unauthorized", "Nicht angemeldet.");
+    if (!real.isAdmin) return error(res, 403, "forbidden", "Nur für Administratoren.");
+    ok(res, { roles: viewAsRoles(), maxRoles: MAX_ROLES });
+}
+
+/**
+ * POST /api/session/view-as — `{ roleIds: [...] }` starts the view as those
+ * roles ([] = only the base access every account has), `{ stop: true }` ends
+ * it. Starting takes a real full admin; stopping works whatever the viewed role
+ * may do, so nobody gets stuck in it.
+ */
+async function postViewAs(req, res) {
+    const real = auth.getRealUser(req);
+    if (!real) return error(res, 401, "unauthorized", "Nicht angemeldet.");
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    if (body.stop === true) {
+        auth.setViewAs(req, null);
+        return ok(res, { viewAs: null });
+    }
+    if (!real.isAdmin) return error(res, 403, "forbidden", "Nur für Administratoren.");
+    const known = new Set(viewAsRoles().map((r) => r.id));
+    const roleIds = normalizeRoleIds(body.roleIds).filter((id) => known.has(id));
+    auth.setViewAs(req, roleIds);
+    ok(res, { viewAs: { roleIds } });
+}
+
+module.exports = { getSession, postActiveGuild, postLang, getViewAs, postViewAs };

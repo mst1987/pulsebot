@@ -74,6 +74,47 @@ describe("web/auth", () => {
         });
     });
 
+    describe("Ansicht als Rolle (setViewAs / getRealUser)", () => {
+        const RAIDER = "111111111111111111";
+        beforeEach(() => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok-abc" } });
+            getConfig.mockReturnValue({ adminRoleIds: [], rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } });
+        });
+        afterEach(() => getConfig.mockReturnValue({ adminRoleIds: [] }));
+
+        it("shows every reader the role's rights while the session keeps the admin's own", async () => {
+            axios.get.mockResolvedValue({ data: { id: "233598324022837249", username: "adminuser" } });
+            const sid = await auth.completeLogin("code-va");
+            const req = { headers: { cookie: `sid=${sid}` } };
+            expect(auth.getUser(req).isAdmin).toBe(true);
+
+            expect(auth.setViewAs(req, [RAIDER])).toBe(true);
+            const viewed = auth.getUser(req);
+            expect(viewed.isAdmin).toBe(false);
+            expect(viewed.access.signup).toEqual({ read: true, write: true });
+            expect(viewed.access.settings).toEqual({ read: false, write: false });
+            expect(viewed.viewAs.roleIds).toEqual([RAIDER]);
+            // the admin's own rights are untouched
+            expect(auth.getRealUser(req).isAdmin).toBe(true);
+            expect(auth.getRealUser(req).access.settings.write).toBe(true);
+
+            expect(auth.setViewAs(req, null)).toBe(true);
+            expect(auth.getUser(req).isAdmin).toBe(true);
+            expect(auth.getUser(req).viewAs).toBeUndefined();
+            auth.destroy(sid);
+        });
+
+        it("lets no one but a full admin start a view", async () => {
+            axios.get.mockResolvedValue({ data: { id: "555", username: "member" } });
+            const sid = await auth.completeLogin("code-member");
+            const req = { headers: { cookie: `sid=${sid}` } };
+            expect(auth.setViewAs(req, [RAIDER])).toBe(false);
+            expect(auth.getUser(req).viewAs).toBeUndefined();
+            expect(auth.setViewAs({ headers: {} }, [RAIDER])).toBe(false);
+            auth.destroy(sid);
+        });
+    });
+
     describe("completeLogin", () => {
         beforeEach(() => {
             axios.post.mockResolvedValue({ data: { access_token: "tok-abc" } });

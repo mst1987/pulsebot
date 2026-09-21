@@ -206,7 +206,10 @@ const AREA_BY_PATH = {
 };
 
 // Answers for anyone, logged in or not — the client bootstraps from it.
-const UNGATED = new Set(["/api/session"]);
+// "/api/session/view-as" checks the caller's *own* rights in its handler
+// (auth.getRealUser): while an admin looks at the menu as a role, this gate only
+// sees the role's rights — and the way back out must never be refused by them.
+const UNGATED = new Set(["/api/session", "/api/session/view-as"]);
 // Needs a menu user, but belongs to no single area (the guild switcher, the
 // account's own menu language).
 const ANY_AREA = new Set(["/api/session/guild", "/api/session/lang"]);
