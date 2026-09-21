@@ -37,6 +37,7 @@ const discord = require("./discord");
 const { buildClasses } = require("../config/gameVersions/classes");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
+    roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
@@ -136,9 +137,9 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
     const counts = roleCounts(approved);
     const totals = ROLE_ORDER
         .filter((r) => counts[r])
-        // the flat role icons of the signup message (#303/#320), not the
-        // colourful WoW ones; without them the role's name: "Tank 1"
-        .map((r) => `${emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
+        // the role icons of the signup message in the event's emoji style, else
+        // the flat ones (#303/#320); without them the role's name: "Tank 1"
+        .map((r) => `${emojiText(emojis, roleEmojiName(r, emojiStyleOf(event.emojiStyle))) || emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
         .join("  ·  ");
     const description = [start ? `<t:${start}:F>` : "", totals].filter(Boolean).join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);

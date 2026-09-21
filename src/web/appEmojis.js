@@ -16,6 +16,12 @@
 //   eh_ui_<name>         eh_ui_leader, eh_ui_date, eh_ui_signed, … (flat line icon)
 //                        eh_ui_tank|healer|melee|ranged — the flat role icons (#303)
 //                        eh_ui_voice, eh_ui_end — the raid's voice channel and its end (#305)
+//   eh_t<s>_<char>       eh_ta_h, eh_tg_7, eh_tp_plus — the letter tiles of the title line
+//                        (embed titles cannot show emojis, so the line opens the description)
+//   eh_r<s>_<role>       eh_ra_tank, eh_rg_healer — the role icons in the same style
+//                        <s> is the event's emoji style: a(rcane) · g(old) · p(archment).
+//                        Drawn with Gemini ("Nano Banana"), checked in as PNGs like the UI icons;
+//                        the style "plain" draws no tiles and the flat eh_ui_<role> icons.
 //
 // The `eh_ui_` icons are the message's chrome — leader, count, date, time,
 // deadline, start, the five signup statuses, closed, class, the four roles —
@@ -45,6 +51,21 @@ const UI_ICONS = [
     "voice", "end",
 ];
 
+// The letter tiles of the message's title line, like Raid-Helper's: one emoji
+// per character (a PNG in assets/emojis/ like the UI icons). Character → name.
+const TITLE_TILES = Object.fromEntries([
+    ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").map((c) => [c, c.toLowerCase()]),
+    ["+", "plus"], ["-", "minus"], ["&", "amp"],
+]);
+
+// The emoji styles an event can pick (its `emojiStyle`): each one a full set of
+// letter tiles and role icons, keyed by the letter in their names. "plain"
+// has none of its own — plain title, flat role icons.
+const EMOJI_STYLES = { arcane: "a", gold: "g", parchment: "p", plain: "" };
+const DEFAULT_EMOJI_STYLE = "arcane";
+/** A known style, else the default. */
+const emojiStyleOf = (style) => (Object.prototype.hasOwnProperty.call(EMOJI_STYLES, style) ? style : DEFAULT_EMOJI_STYLE);
+
 const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 /** "Priest-Shadow" → "eh_priest_shadow" ("" for anything that is not a spec key). */
@@ -61,12 +82,27 @@ const roleUiEmojiName = (role) => (ROLES.includes(role) ? uiEmojiName(role) : ""
 const statusEmojiName = (status) => uiEmojiName(status);
 /** Where the PNG of a UI icon lives. */
 const uiIconFile = (name) => path.join(UI_DIR, `${uiEmojiName(name)}.png`);
+/** The tile of one title character in a style ("H" → "eh_ta_h", "+" → "eh_ta_plus"); "" without a tile or for "plain". */
+function tileEmojiName(char, style = DEFAULT_EMOJI_STYLE) {
+    const code = EMOJI_STYLES[emojiStyleOf(style)];
+    return code && TITLE_TILES[char] ? `${PREFIX}t${code}_${TITLE_TILES[char]}` : "";
+}
+/** A role's icon in a style ("tank" → "eh_ra_tank"); "plain" gives the flat `eh_ui_<role>`. */
+function roleEmojiName(role, style = DEFAULT_EMOJI_STYLE) {
+    if (!ROLES.includes(role)) return "";
+    const code = EMOJI_STYLES[emojiStyleOf(style)];
+    return code ? `${PREFIX}r${code}_${role}` : uiEmojiName(role);
+}
+/** Where the PNG of a styled emoji (tile or role) lives. */
+const styledFile = (name) => path.join(UI_DIR, `${name}.png`);
 
 /**
  * Every emoji the bot uses, with where its image comes from:
  * `[{ name, icon, url }]` for the WoW icons (specs and classes of the shared
  * rule set) and `[{ name, icon, file }]` for the flat UI icons — which carry
- * the four roles too since #320.
+ * the four roles too since #320 — and `[{ name, tile, file }]` for the
+ * letter tiles and the role icons of each emoji style (`tile` names what it
+ * shows: "H", "+", "tank").
  */
 function emojiCatalog() {
     const out = [];
@@ -76,6 +112,16 @@ function emojiCatalog() {
         for (const spec of cls.specs) add(specEmojiName(spec.key), spec.icon);
     }
     for (const name of UI_ICONS) out.push({ name: uiEmojiName(name), icon: name, file: uiIconFile(name) });
+    for (const style of Object.keys(EMOJI_STYLES).filter((s) => EMOJI_STYLES[s])) {
+        for (const char of Object.keys(TITLE_TILES)) {
+            const name = tileEmojiName(char, style);
+            out.push({ name, tile: char, file: styledFile(name) });
+        }
+        for (const role of ROLES) {
+            const name = roleEmojiName(role, style);
+            out.push({ name, tile: role, file: styledFile(name) });
+        }
+    }
     return out;
 }
 
@@ -178,7 +224,8 @@ function resetAppEmojis() {
 }
 
 module.exports = {
-    ICON_BASE, PREFIX, UI_DIR, UI_ICONS,
-    specEmojiName, classEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile, emojiCatalog, validEmojiName,
+    ICON_BASE, PREFIX, UI_DIR, UI_ICONS, TITLE_TILES, EMOJI_STYLES, DEFAULT_EMOJI_STYLE, emojiStyleOf,
+    specEmojiName, classEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile,
+    tileEmojiName, roleEmojiName, styledFile, emojiCatalog, validEmojiName,
     emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };

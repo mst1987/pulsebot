@@ -286,6 +286,17 @@ describe("web/eventCreate", () => {
             expect(eventStore.getEvent(cleared.body.id).color).toBe("");
         });
 
+        it("nimmt den Emoji-Stil aus der Vorlage, der Dialog überschreibt ihn, ohne beides gilt Arkan", async () => {
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, emojiStyle: "gold" } : null));
+            const fromTemplate = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(fromTemplate.body.id).emojiStyle).toBe("gold");
+            const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", emojiStyle: "plain" }) });
+            expect(eventStore.getEvent(own.body.id).emojiStyle).toBe("plain");
+            getRaidTemplate.mockImplementation(() => null);
+            const none = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(eventStore.getEvent(none.body.id).emojiStyle).toBe("arcane");
+        });
+
         it("weist eine kaputte Farbe oder Bild-Adresse ab (#307)", async () => {
             const badColor = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", color: "rot" }) });
             expect(badColor.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/#rrggbb/) });
@@ -438,6 +449,18 @@ describe("web/eventCreate", () => {
             });
             await updateEvent({ guildId: "g1", body: { id: ev.id, signupDeadlineHours: 0 } });
             expect(eventStore.getEvent(ev.id).signupDeadline).toBe(0);
+        });
+
+        it("ändert den Emoji-Stil und schreibt ihn ins Verlaufsprotokoll", async () => {
+            const ev = own();
+            expect(eventStore.getEvent(ev.id).emojiStyle).toBe("arcane");
+            await updateEvent({ guildId: "g1", body: { id: ev.id, emojiStyle: "parchment" }, user: { id: "u1" }, byName: "Orga" });
+            expect(eventStore.getEvent(ev.id)).toMatchObject({ emojiStyle: "parchment", instanceIds: ["kara"] });
+            const log = eventStore.getEvent(ev.id).log || [];
+            expect(log[log.length - 1].detail).toContain("Emoji-Stil");
+            // an unknown style is the default, never stored as it came
+            await updateEvent({ guildId: "g1", body: { id: ev.id, emojiStyle: "neon" } });
+            expect(eventStore.getEvent(ev.id).emojiStyle).toBe("arcane");
         });
 
         it("ändert Farbe und Bild, hält den Rest fest und schreibt es ins Verlaufsprotokoll (#307)", async () => {

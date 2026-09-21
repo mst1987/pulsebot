@@ -1451,11 +1451,15 @@ export type RaidTemplateInput = {
     color?: string;
     /** the picture of the event message (#307); an empty url = the instance's boss icon */
     image?: EmbedImage;
+    /** the letter tiles and role icons of the event message; the event copies it */
+    emojiStyle?: EmojiStyle;
     raidhelperTemplateId: string;
 };
 
 /** Where a picture sits in the bot's event message (#307) and which one it is. */
 export type EmbedImage = { mode: "thumbnail" | "banner"; url: string };
+/** The letter tiles and role icons of the event message: three drawn sets, or the flat icons and a plain title. */
+export type EmojiStyle = "arcane" | "gold" | "parchment" | "plain";
 
 export type RaidTemplate = RaidTemplateInput & {
     id: string;
@@ -1521,6 +1525,8 @@ export type OwnEvent = {
     color?: string;
     /** #307: the event's own picture, an empty url = the instance's boss icon */
     image?: EmbedImage;
+    /** the letter tiles and role icons of the event message */
+    emojiStyle?: EmojiStyle;
     /** when the "Beim Anlegen ankündigen" ping went out, 0 = never */
     announcedAt?: number;
 };
@@ -1593,6 +1599,7 @@ export type EventPlanInput = {
     color: string;
     /** #307: an empty url = the instance's boss icon as the thumbnail */
     image: EmbedImage;
+    emojiStyle: EmojiStyle;
 };
 
 export type CreateRaidInput = Partial<EventPlanInput> & {

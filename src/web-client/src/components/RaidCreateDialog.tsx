@@ -620,7 +620,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         const moreCount = [plan.melee, plan.ranged].filter(Boolean).length + plan.requiredBuffs.length
             + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0)
             + (plan.overflow === "off" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0)
-            + (plan.color ? 1 : 0) + (plan.image.url ? 1 : 0);
+            + (plan.color ? 1 : 0) + (plan.image.url ? 1 : 0) + (plan.emojiStyle !== "arcane" ? 1 : 0);
         const toggleBuff = (key: string) => changePlan({
             ...plan, requiredBuffs: plan.requiredBuffs.includes(key) ? plan.requiredBuffs.filter((b) => b !== key) : [...plan.requiredBuffs, key],
         });
@@ -663,7 +663,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                 <details className="rt-more">
                     <summary>Mehr: Aussehen, Nah-/Fernkampf, Pflicht-Buffs, Setup, Warteliste{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                     <div className="rt-more-body">
-                        <AppearanceFields idPrefix="re" version={version} instanceIds={plan.instanceIds} color={plan.color} image={plan.image}
+                        <AppearanceFields idPrefix="re" version={version} instanceIds={plan.instanceIds} color={plan.color} image={plan.image} emojiStyle={plan.emojiStyle}
                             onChange={(look) => changePlan({ ...plan, ...look })} />
                         <RoleRanges idPrefix="re" melee={plan.melee} ranged={plan.ranged} onChange={(r) => changePlan({ ...plan, ...r })} />
                         <BuffPicker version={version} value={plan.requiredBuffs} onToggle={toggleBuff} />
