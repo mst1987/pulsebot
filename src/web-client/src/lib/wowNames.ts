@@ -25,3 +25,8 @@ export function roleLabel(role: string, fallback = ""): string {
 export function rolePluralLabel(role: string, fallback = ""): string {
     return tOr(`wow.rolePlural.${role}`, fallback || role);
 }
+
+/** "bt" -> "Schwarzer Tempel" / "Black Temple"; an instance the dictionaries lack keeps the server's name. */
+export function instanceName(id: string, fallback = ""): string {
+    return tOr(`wow.instance.${id}`, fallback || id);
+}

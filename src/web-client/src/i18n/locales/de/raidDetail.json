@@ -121,7 +121,19 @@
         "missingSub": "Raider-Rolle, aber weder an- noch abgemeldet",
         "asideTitle": "Nicht im Setup",
         "asideAll": "alle Reagierten stehen im Raidplan",
-        "allReacted": "Alle erwarteten Raider haben reagiert."
+        "allReacted": "Alle erwarteten Raider haben reagiert.",
+        "crumbCategory": "„{name}“",
+        "snapshotRaidDay": "Stand vom Raidtag",
+        "crumbRaidhelper": "Raidplan aus Raid-Helper",
+        "crumbMatched": "abgeglichen mit den Raider-Rollen von „{name}“",
+        "pingMissing": "Fehlende pingen",
+        "pingMissingSub": "Postet im Event-Channel und pingt genau die Raider ohne Reaktion.",
+        "roleSub": "{spread}. Rolle aus der Spec im Raidplan, nicht aus der Anmeldung.",
+        "noPlan": "Für dieses Event ist noch kein Raidplan angelegt.",
+        "noReaction": "Ohne Reaktion",
+        "noReactionSub": "Raider-Rolle, aber weder an- noch abgemeldet",
+        "notInSetup": "Nicht im Setup",
+        "allInPlan": "alle Reagierten stehen im Raidplan"
     },
     "loot": {
         "title": "Loot",
@@ -159,7 +171,12 @@
         "noHit": "Kein Treffer für „{query}“.",
         "footGroups": "{count} Gruppen · aufklappen mit „Details“",
         "footBosses": "{count} Bosse · aufklappen mit „Details“",
-        "clearButton": "Loot dieses Raids löschen"
+        "clearButton": "Loot dieses Raids löschen",
+        "colCharacter": "Charakter",
+        "colResponse": "Response",
+        "colEvent": "Event",
+        "deleteEntrySub": "Nur diese eine Vergabe — mit Rückfrage.",
+        "deleteEntryAria": "Eintrag „{item}“ von {character} löschen"
     },
     "logs": {
         "title": "Logs",
@@ -270,5 +287,18 @@
             "one": "{count} Vergabe · nach Grund",
             "other": "{count} Vergaben · nach Grund"
         }
+    },
+    "logRaid": {
+        "doneHead": "{raid} abgeschlossen",
+        "doneSub": "{killed} von {total} Bossen im Log, der Endboss liegt.",
+        "doneSubNoTotal": "Der Endboss liegt im Log.",
+        "openHead": "Raid nicht abgeschlossen",
+        "openCount": "Im Log liegen {killed} von {total} {raid}-Bossen",
+        "openNoTotal": "{raid} ist nicht beendet",
+        "standing": {
+            "one": "{names} steht noch.",
+            "other": "{names} stehen noch."
+        },
+        "evalAnyway": "„Auswerten“ fragt vorher nach – ein abgebrochener Raid lässt sich trotzdem auswerten."
     }
 }

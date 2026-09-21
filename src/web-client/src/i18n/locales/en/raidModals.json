@@ -14,7 +14,16 @@
     "target": {
         "tip": "Where",
         "tipSub": "The event channel as before, the ping channel of the communication Discord, or both. With “Talk”, anyone not on the communication Discord gets a DM.",
-        "label": "Where"
+        "label": "Where",
+        "event": "Event channel",
+        "eventTip": "Only in the event's channel",
+        "talk": "Talk",
+        "talkTip": "In {where} on {server}; whoever is not there gets a DM",
+        "both": "Both",
+        "bothTip": "In the event channel and in {where}; no extra DMs",
+        "pingChannel": "the ping channel",
+        "talkServer": "the communication Discord",
+        "in": "in {where}"
     },
     "logAssign": {
         "title": "Assign log",

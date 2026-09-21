@@ -1,0 +1,164 @@
+{
+    "title": "Mein Profil",
+    "loadError": "Profil konnte nicht geladen werden: {message}",
+    "loading": "Profil wird geladen",
+    "characters": {
+        "one": "{count} Charakter",
+        "other": "{count} Charaktere"
+    },
+    "charactersAria": "Charaktere",
+    "changed": "geändert {date}",
+    "new": "neu",
+    "addCharacter": "Charakter hinzufügen",
+    "remove": {
+        "title": "{name} entfernen?",
+        "text": "Der Charakter verschwindet aus deinem Profil. Logs und Loot bleiben unberührt.",
+        "action": "Entfernen"
+    },
+    "weekday": {
+        "mo": "Mo",
+        "di": "Di",
+        "mi": "Mi",
+        "do": "Do",
+        "fr": "Fr",
+        "sa": "Sa",
+        "so": "So"
+    },
+    "gear": {
+        "none": "keins",
+        "usable": "brauchbar",
+        "ready": "raidbereit"
+    },
+    "gearAria": "Gear-Stand {spec}",
+    "fold": {
+        "days": "Wann ich kann",
+        "daysNone": "nichts angegeben",
+        "raids": "Bevorzugte Raids",
+        "raidsChosen": "{count} gewählt",
+        "raidsNone": "keine Vorliebe",
+        "wishes": "Gerne zusammen raiden mit",
+        "wishesNone": "niemand eingetragen",
+        "orgaOnly": "nur Orga",
+        "orgaOnlyTip": "Nur die Orga sieht das",
+        "orgaOnlySub": "Andere Raider sehen deine Wünsche nicht – auch nicht, ob jemand dich eingetragen hat.",
+        "note": "Notiz für die Orga",
+        "noteNone": "keine Notiz",
+        "calendar": "Kalender-Abo",
+        "calendarLoading": "wird geladen",
+        "calendarNone": "kein Link",
+        "calendarActive": {
+            "one": "{count} Link aktiv",
+            "other": "{count} Links aktiv"
+        }
+    },
+    "first": {
+        "title": "Noch kein Charakter",
+        "crumb": "Wähle, wie du anfangen willst",
+        "logTitle": "Aus den Logs",
+        "logText": "Wir kennen dich vielleicht schon – Klasse und Spec kommen aus den Auswertungen.",
+        "armoryTitle": "Mit der Armory",
+        "armoryText": "Name und Realm, Klasse und Level holen wir aus der Armory.",
+        "manualTitle": "Von Hand",
+        "manualText": "Name, Klasse und Specs selbst eintragen."
+    },
+    "char": {
+        "main": "Main",
+        "makeMain": "Als Main",
+        "claimed": "Bereits vergeben",
+        "claimedChip": "Auch eingetragen von: {names}. Die Orga klärt das.",
+        "claimedCard": "Auch eingetragen von: {names}. Die Orga sieht das im Roster und klärt es.",
+        "claimedBy": "vergeben an {name}",
+        "otherAccount": "anderes Konto",
+        "unknown": "unbekannt",
+        "level": "Stufe {level}",
+        "armory": "Armory",
+        "openArmory": "Armory öffnen",
+        "remove": "Charakter entfernen",
+        "noSpec": "Noch kein Spec – füge hinzu, was du spielen kannst.",
+        "removeSpec": "Spec entfernen",
+        "addSpec": "Spec hinzufügen"
+    },
+    "logs": {
+        "seen": "laut Logs",
+        "seenTip": "In den Auswertungen mit genau diesem Spec belegt.",
+        "other": "nicht belegt",
+        "otherTip": "Der Charakter taucht in den Logs auf, aber nicht mit diesem Spec. Das ist nur ein Hinweis für die Orga, keine Sperre.",
+        "reports": {
+            "one": "{count} Auswertung mit diesem Charakter.",
+            "other": "{count} Auswertungen mit diesem Charakter."
+        }
+    },
+    "roles": {
+        "offtank": "Kann Offtank",
+        "heal": "Kann heilen",
+        "suggested": "Vorgeschlagen aus deinen Specs: {answer}. Du kannst es jederzeit umstellen.",
+        "yes": "ja",
+        "no": "nein"
+    },
+    "cal": {
+        "loading": "Kalender-Links werden geladen",
+        "revokeTitle": "Kalender-Link widerrufen?",
+        "revokeText": "Der Link hört sofort auf zu funktionieren. Kalender, die ihn abonniert haben, bekommen keine Raids mehr.",
+        "revoke": "Widerrufen",
+        "revoked": "Kalender-Link widerrufen.",
+        "intro": "Ein Link mit allen Raids, für die du angemeldet bist — einmal im Kalender eintragen, jeder neue Raid kommt von selbst dazu.",
+        "secret": "Der Link ist geheim:",
+        "secretText": "wer ihn hat, sieht deine Raids. Nicht weitergeben, nicht posten.",
+        "onlyNow": "nur jetzt sichtbar",
+        "copied": "Kopiert",
+        "copy": "Link kopieren",
+        "link": "Link …{hint}",
+        "created": "erstellt {date}",
+        "lastUsed": " · zuletzt abgerufen {date}",
+        "neverUsed": " · noch nie abgerufen",
+        "noBaseUrl": "Es ist keine öffentliche Adresse eingestellt (PUBLIC_BASE_URL) — ohne sie lässt sich kein Abo-Link bauen.",
+        "creating": "Wird erzeugt…",
+        "createMore": "Weiteren Link erzeugen",
+        "create": "Link erzeugen"
+    },
+    "raids": {
+        "versionAria": "Spielversion",
+        "incomplete": "Infos folgen nach dem Release."
+    },
+    "wishes": {
+        "remove": "Entfernen",
+        "search": "Raider suchen …",
+        "searchAria": "Raider suchen",
+        "hint": "Ein Wunsch, keine Garantie – die Orga berücksichtigt ihn beim Setup."
+    },
+    "note": {
+        "placeholder": "z. B. Mittwochs erst ab 19:45 online."
+    },
+    "add": {
+        "title": "Charakter hinzufügen",
+        "wayAria": "Weg",
+        "wayLog": "Aus Logs",
+        "wayArmory": "Armory",
+        "wayManual": "Von Hand",
+        "link": "Verknüpfen",
+        "create": "Anlegen",
+        "name": "Charaktername",
+        "nameHint": "Nur Buchstaben, höchstens 12 – in WoW Forever Vor- und Nachname (je 12).",
+        "realm": "Realm",
+        "realmHint": "Klasse, Stufe und Gilde kommen aus der Armory, wenn sie antwortet – sonst bleibt es beim Link.",
+        "class": "Klasse",
+        "fromRaidhelper": "aus Raid-Helper",
+        "fromRaidhelperTip": "Vorschlag aus Raid-Helper",
+        "fromRaidhelperSub": "Klasse, Specs und Name stammen aus deinen letzten Raid-Helper-Anmeldungen. Passt es nicht, einfach ändern.",
+        "specs": "Specs",
+        "search": "Name suchen …",
+        "searchAria": "Name suchen",
+        "searching": "Logs werden durchsucht",
+        "noHit": "Kein passender Charakter in den Logs. Versuch es über die Armory oder von Hand.",
+        "reports": {
+            "one": "{count} Auswertung",
+            "other": "{count} Auswertungen"
+        },
+        "lastSeen": "zuletzt {date}",
+        "matchAssigned": "dir zugeordnet",
+        "matchName": "Name passt",
+        "claimed": "vergeben",
+        "claimedSub": "Eingetragen von: {names}. Du kannst ihn trotzdem übernehmen – die Orga klärt das.",
+        "thatsMe": "Das bin ich"
+    }
+}

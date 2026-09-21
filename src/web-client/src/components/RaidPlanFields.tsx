@@ -20,12 +20,7 @@ import "../styles/raid-templates.css";
 const FREE = "free";
 
 /** The emoji styles of the event message: title as letter tiles plus role icons, or plain. */
-const EMOJI_STYLE_OPTIONS: { value: EmojiStyle; label: string; tip: string }[] = [
-    { value: "arcane", label: "Arkan", tip: "Silberne Buchstaben-Kacheln auf Schiefer und passende Rollen-Icons. Standard." },
-    { value: "gold", label: "Gold", tip: "Goldene Buchstaben-Kacheln auf dunklem Stein und passende Rollen-Icons." },
-    { value: "parchment", label: "Pergament", tip: "Dunkle Buchstaben auf hellem Pergament – am nächsten an Raid-Helper." },
-    { value: "plain", label: "Schlicht", tip: "Titel als normaler Text, flache graue Rollen-Icons." },
-];
+const EMOJI_STYLES: EmojiStyle[] = ["arcane", "gold", "parchment", "plain"];
 
 /** A small label with its explanation in the tooltip. */
 export function FieldLabel({ text, tip }: { text: string; tip?: string }) {
@@ -215,10 +210,10 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
                             ]} />
                     </div>
                     <div className="rt-look-row">
-                        <span className="rt-look-note">Emojis</span>
-                        <Segment size="sm" ariaLabel="Emoji-Stil" value={emojiStyle}
+                        <span className="rt-look-note">{t("raidPlan.emoji.label")}</span>
+                        <Segment size="sm" ariaLabel={t("raidPlan.emoji.aria")} value={emojiStyle}
                             onChange={(v) => onChange({ emojiStyle: v })}
-                            options={EMOJI_STYLE_OPTIONS} />
+                            options={EMOJI_STYLES.map((value) => ({ value, label: t(`raidPlan.emoji.${value}`), tip: t(`raidPlan.emoji.${value}Tip`) }))} />
                     </div>
                 </div>
             </div>

@@ -139,4 +139,18 @@ function makeTOr(lang = "de") {
     return (key, fallback, params) => (d[lang][key] !== undefined || d.de[key] !== undefined ? t(key, params) : fallback);
 }
 
-module.exports = { CLIENT, LOCALES, loadTs, loadCore, namespaces, flatDict, allDicts, makeT, makeTOr, read };
+/**
+ * The source without its comments (block, JSX `{/* … *\/}` and whole-line `//`),
+ * so a scan for literals does not trip over a comment quoting the old text.
+ * A `//` after code is dropped only when a space precedes it (keeps "https://").
+ */
+function stripComments(src) {
+    return src
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .split("\n")
+        .map((line) => (/^\s*\/\//.test(line) ? "" : line.replace(/\s\/\/\s.*$/, "")))
+        .join("\n");
+}
+
+module.exports = { CLIENT, LOCALES, loadTs, loadCore, namespaces, flatDict, allDicts, makeT, makeTOr, read, stripComments };

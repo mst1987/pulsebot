@@ -82,7 +82,7 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                                         s.status !== "signed" ? SIGNUP_META[s.status].label : "",
                                         s.name ? `@${s.name}` : "",
                                         also ? t("raidDetail.roster.canAlso", { roles: also }) : "",
-                                        s.comment ? `„${s.comment}“` : "",
+                                        s.comment ? t("common.quoted", { text: s.comment }) : "",
                                     ].filter(Boolean).join(" · ");
                                     const color = classColorProps(s.classColor);
                                     return (
@@ -128,7 +128,7 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                         <Badge
                             tone="bad"
                             tip={t("raidDetail.roster.absentCount", { count: absent.length })}
-                            tipSub={absent.map((s) => [s.character || s.name || s.userId, s.comment ? `„${s.comment}“` : ""].filter(Boolean).join(" ")).join(", ")}
+                            tipSub={absent.map((s) => [s.character || s.name || s.userId, s.comment ? t("common.quoted", { text: s.comment }) : ""].filter(Boolean).join(" ")).join(", ")}
                         >
                             {t("raidDetail.roster.absentCount", { count: absent.length })}
                         </Badge>
@@ -171,6 +171,7 @@ function AttendanceState({ ctx }: { ctx: RaidCtx }) {
 }
 
 export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
+    const t = useT();
     const { data, openModal, openPlayer } = ctx;
     const { setup, setupError, setupFromSnapshot, attendance, event: ev } = data;
     const attendanceOk = !!data.attendanceRoleIds.length && ev.signupsKnown !== false && !data.membersError;
@@ -211,24 +212,24 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         .join(" · ");
 
     const crumb = data.ownSignups
-        ? `Anmeldungen im EventHelper${data.categoryName ? ` · „${data.categoryName}“` : ""}`
+        ? `${t("raidDetail.roster.crumbOwn")}${data.categoryName ? ` · ${t("raidDetail.roster.crumbCategory", { name: data.categoryName })}` : ""}`
         : setupFromSnapshot
-        ? `Raidplan · ${ev.isPast ? "Stand vom Raidtag" : "gespeicherter Stand"} (lokal gespeichert)`
-        : `Raidplan aus Raid-Helper${data.categoryName ? ` · abgeglichen mit den Raider-Rollen von „${data.categoryName}“` : ""}`;
+        ? t("raidDetail.roster.crumbSnapshot", { when: ev.isPast ? t("raidDetail.roster.snapshotRaidDay") : t("raidDetail.roster.snapshotSaved") })
+        : `${t("raidDetail.roster.crumbRaidhelper")}${data.categoryName ? ` · ${t("raidDetail.roster.crumbMatched", { name: data.categoryName })}` : ""}`;
 
     const state = <AttendanceState ctx={ctx} />;
     // An own event (#288): the orga signs somebody up from here as well.
     const addRaider = ctx.canManage && data.ownSignups && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" size="sm" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip="Raider eintragen" data-tip-sub="Jemanden als Orga an- oder austragen — auch nach dem Anmeldeschluss.">
-                Raider eintragen
+            <Button variant="ghost" size="sm" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip={t("raidDetail.roster.addRaider")} data-tip-sub={t("raidDetail.roster.addRaiderSub")}>
+                {t("raidDetail.roster.addRaider")}
             </Button>
         )
         : null;
     const pingAction = !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" size="sm" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip="Fehlende pingen" data-tip-sub="Postet im Event-Channel und pingt genau die Raider ohne Reaktion.">
-                Fehlende pingen<Badge tone="bad" count>{missing.length}</Badge>
+            <Button variant="ghost" size="sm" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
+                {t("raidDetail.roster.pingMissing")}<Badge tone="bad" count>{missing.length}</Badge>
             </Button>
         )
         : null;
@@ -240,17 +241,17 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         <section className="panel rd-panel">
             <PartHead
                 icon="achievement_guildperk_everybodysfriend"
-                title="Roster"
+                title={t("raidDetail.roster.title")}
                 crumb={crumb}
                 action={action}
             />
 
-            {setupError && <div className="flash flash-err">Setup konnte nicht geladen werden: {setupError}</div>}
+            {setupError && <div className="flash flash-err">{t("raidDetail.roster.setupError", { error: setupError })}</div>}
 
             {(players.length > 0 || statusCounts.length > 0 || missing.length > 0) && (
                 <div className="rd-badges">
                     {ROLE_ORDER.filter((r) => byRole.get(r)?.length).map((r) => (
-                        <Badge key={r} className="rd-role" icon={ROLE_META[r].icon} tip={`${ROLE_META[r].label} · ${byRole.get(r)!.length}`} tipSub={`${classSpread(byRole.get(r)!)}. Rolle aus der Spec im Raidplan, nicht aus der Anmeldung.`}>
+                        <Badge key={r} className="rd-role" icon={ROLE_META[r].icon} tip={`${ROLE_META[r].label} · ${byRole.get(r)!.length}`} tipSub={t("raidDetail.roster.roleSub", { spread: classSpread(byRole.get(r)!) })}>
                             {ROLE_META[r].label}<b>{byRole.get(r)!.length}</b>
                         </Badge>
                     ))}
@@ -258,14 +259,14 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                     {statusCounts.map(({ status, n }) => (
                         <Badge key={status} tone={SIGNUP_META[status].tone}>{n} {SIGNUP_META[status].label.toLowerCase()}</Badge>
                     ))}
-                    {missing.length > 0 && <Badge tone="bad">{missing.length} ohne Reaktion</Badge>}
+                    {missing.length > 0 && <Badge tone="bad">{t("raidDetail.roster.noReactionCount", { count: missing.length })}</Badge>}
                 </div>
             )}
 
             {data.ownSignups
                 ? <OwnSignupGroups signups={data.ownSignups} openPlayer={openPlayer} />
                 : !setup?.total
-                ? !setupError && <p className="rd-empty">Für dieses Event ist noch kein Raidplan angelegt.</p>
+                ? !setupError && <p className="rd-empty">{t("raidDetail.roster.noPlan")}</p>
                 : (
                     <div className="rd-groups">
                         {setup.groups.map((g, gi) => (
@@ -299,9 +300,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                 <div className="rd-glist">
                     <div className={`rd-grp${missingOpen && missing.length ? " open bad" : ""}`}>
                         <IconTile icon="spell_holy_borrowedtime" tone={missing.length ? "bad" : "none"} />
-                        <b>Ohne Reaktion</b>
+                        <b>{t("raidDetail.roster.noReaction")}</b>
                         <Badge tone={missing.length ? "bad" : undefined} count>{missing.length}</Badge>
-                        <span className="rd-grp-sub">Raider-Rolle, aber weder an- noch abgemeldet</span>
+                        <span className="rd-grp-sub">{t("raidDetail.roster.noReactionSub")}</span>
                         {missing.length > 0 && <Expand open={missingOpen} onToggle={() => setMissingOpen((o) => !o)} showLabel={!missingOpen} />}
                     </div>
                     {missingOpen && missing.length > 0 && (
@@ -311,9 +312,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                     )}
                     <div className={`rd-grp${asideOpen && notInSetup.length ? " open" : ""}`}>
                         <IconTile icon="spell_holy_divineintervention" tone="none" />
-                        <b>Nicht im Setup</b>
+                        <b>{t("raidDetail.roster.notInSetup")}</b>
                         <Badge count>{notInSetup.length}</Badge>
-                        <span className="rd-grp-sub">{asideSummary || "alle Reagierten stehen im Raidplan"}</span>
+                        <span className="rd-grp-sub">{asideSummary || t("raidDetail.roster.allInPlan")}</span>
                         {notInSetup.length > 0 && <Expand open={asideOpen} onToggle={() => setAsideOpen((o) => !o)} showLabel={!asideOpen} />}
                     </div>
                     {asideOpen && notInSetup.length > 0 && (
@@ -325,7 +326,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             )}
 
             {attendanceOk && !ev.isPast && !missing.length && responded.length > 0 && (
-                <p className="rd-empty"><WowIcon name="achievement_guildperk_everybodysfriend" size={18} />Alle erwarteten Raider haben reagiert.</p>
+                <p className="rd-empty"><WowIcon name="achievement_guildperk_everybodysfriend" size={18} />{t("raidDetail.roster.allReacted")}</p>
             )}
         </section>
     );

@@ -99,5 +99,15 @@
         "nextWeek": "Next week",
         "lastWeek": "Last week",
         "week": "Week {week}"
+    },
+    "source": {
+        "event": "event",
+        "title": "title",
+        "category": "category",
+        "channel": "channel name",
+        "logs": "log zone",
+        "loot": "loot",
+        "and": "{list} and {last}",
+        "detected": "detected from {list}"
     }
 }

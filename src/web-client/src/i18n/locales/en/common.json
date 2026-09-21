@@ -11,5 +11,6 @@
         "yesterday": "yesterday",
         "inDays": "in {count} days",
         "daysAgo": "{count} days ago"
-    }
+    },
+    "quoted": "“{text}”"
 }

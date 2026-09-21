@@ -14,7 +14,16 @@
     "target": {
         "tip": "Wohin",
         "tipSub": "Event-Kanal wie bisher, der Ping-Kanal des Kommunikations-Discords oder beides. Wer nicht auf dem Kommunikations-Discord ist, bekommt bei „Talk“ eine DM.",
-        "label": "Wohin"
+        "label": "Wohin",
+        "event": "Event-Kanal",
+        "eventTip": "Nur im Kanal des Events",
+        "talk": "Talk",
+        "talkTip": "In {where} auf {server}; wer dort nicht ist, bekommt eine DM",
+        "both": "Beides",
+        "bothTip": "Im Event-Kanal und in {where}; keine DMs zusätzlich",
+        "pingChannel": "den Ping-Kanal",
+        "talkServer": "dem Kommunikations-Discord",
+        "in": "in {where}"
     },
     "logAssign": {
         "title": "Log zuordnen",

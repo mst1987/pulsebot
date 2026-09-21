@@ -165,7 +165,9 @@ describe("SignupDialog", () => {
     it("turns the comment into a message to the raid lead with Vielleicht/Absagen, per category", () => {
         expect(dialog).toContain("const noteStatus = absent || signupStatusOf(picks, status) === \"tentative\";");
         expect(dialog).toContain("row.noteMode || \"optional\"");
-        expect(dialog).toContain("Nachricht an die Raidleitung");
+        expect(dialog).toContain("t(\"signups.dialog.note\")");
+        expect(makeT("de")("signups.dialog.note")).toBe("Nachricht an die Raidleitung");
+        expect(makeT("en")("signups.dialog.note")).toBe("Message to the raid lead");
         // "required" blocks the button until a message is there
         expect(dialog).toMatch(/noteMissing = noteMode === "required" && comment\.trim\(\)\.length < 2/);
         expect(dialog).toMatch(/canSubmit = [^;]*!noteMissing/);
@@ -346,15 +348,17 @@ describe("several raids at once on the page (#293)", () => {
 describe("Raid detail roster", () => {
     it("lists an own event's signups in role columns with \"kann auch\" and comment in the tooltip", () => {
         expect(roster).toContain("data.ownSignups");
-        expect(roster).toMatch(/function OwnSignupGroups[\s\S]*kann auch: \$\{also\}[\s\S]*s\.comment \? `„\$\{s\.comment\}“`/);
+        expect(roster).toMatch(/function OwnSignupGroups[\s\S]*t\("raidDetail\.roster\.canAlso", \{ roles: also \}\)[\s\S]*s\.comment \? t\("common\.quoted", \{ text: s\.comment \}\)/);
+        expect(makeT("de")("raidDetail.roster.canAlso", { roles: "Heiler" })).toBe("kann auch: Heiler");
         expect(roster).toMatch(/data-tip-sub=\{sub \|\| undefined\}/);
     });
 
     it("says how many wait on the bench, with the names in the tooltip (#306)", () => {
         expect(roster).toContain('s.status === "bench"');
-        expect(roster).toMatch(/\{bench\.length\} auf der Warteliste/);
+        expect(roster).toContain("t(\"raidDetail.roster.benchCount\", { count: bench.length })");
+        expect(makeT("de")("raidDetail.roster.benchCount", { count: 2 })).toBe("2 auf der Warteliste");
         // nobody moves up by itself — the badge says who decides
-        expect(roster).toContain("wer nachrückt, entscheidest du im Setup");
+        expect(makeT("de")("raidDetail.roster.benchSub", { names: "A" })).toContain("wer nachrückt, entscheidest du im Setup");
     });
 });
 

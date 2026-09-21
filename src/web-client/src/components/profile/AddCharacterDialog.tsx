@@ -8,6 +8,8 @@ import { classColorProps } from "../ClassSpec";
 import { SearchIcon } from "../icons";
 import { formatDate } from "../../lib/format";
 import type { CharacterSuggestion } from "../../lib/raidhelperRetirement";
+import { classLabel, specLabel as specName } from "../../lib/wowNames";
+import { useT } from "../../i18n";
 
 // "Charakter hinzufügen" — the three ways of #255 behind one segment:
 //   log    — "Das bin ich" on a character the evaluations already know,
@@ -18,13 +20,13 @@ import type { CharacterSuggestion } from "../../lib/raidhelperRetirement";
 
 export type AddWay = "log" | "armory" | "manual";
 
-const WAYS: { value: AddWay; label: string; icon: string }[] = [
-    { value: "log", label: "Aus Logs", icon: "inv_misc_pocketwatch_01" },
-    { value: "armory", label: "Armory", icon: "inv_misc_book_09" },
-    { value: "manual", label: "Von Hand", icon: "inv_scroll_03" },
+const WAYS: { value: AddWay; key: string; icon: string }[] = [
+    { value: "log", key: "profile.add.wayLog", icon: "inv_misc_pocketwatch_01" },
+    { value: "armory", key: "profile.add.wayArmory", icon: "inv_misc_book_09" },
+    { value: "manual", key: "profile.add.wayManual", icon: "inv_scroll_03" },
 ];
 
-const MATCH_LABEL: Record<string, string> = { assigned: "dir zugeordnet", name: "Name passt" };
+const MATCH_KEY: Record<string, string> = { assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
 
 export default function AddCharacterDialog({ way, onClose, classes, csrfToken, onAdded, suggestion = null }: {
     way: AddWay | null;
@@ -35,6 +37,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
     csrfToken: string | null;
     onAdded: (profile: RaiderProfile, key: string) => void;
 }) {
+    const t = useT();
     const [tab, setTab] = useState<AddWay>(way || "log");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
@@ -91,13 +94,13 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
             onClose={onClose}
             icon="achievement_character_human_male"
             tone="profile"
-            kicker="Mein Profil"
-            title="Charakter hinzufügen"
+            kicker={t("profile.title")}
+            title={t("profile.add.title")}
             width={620}
             hint={error ? <span className="pf-err">{error}</span> : undefined}
-            footer={tab === "log" ? <Button variant="ghost" onClick={onClose}>Schließen</Button> : (
+            footer={tab === "log" ? <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button> : (
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button
                         running={busy}
                         disabled={!canSubmit}
@@ -105,43 +108,43 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                             ? { source: "armory", name, realm, className: className || undefined }
                             : { source: "manual", name, className, specs })}
                     >
-                        {tab === "armory" ? "Verknüpfen" : "Anlegen"}
+                        {tab === "armory" ? t("profile.add.link") : t("profile.add.create")}
                     </Button>
                 </>
             )}
         >
-            <Segment<AddWay> ariaLabel="Weg" value={tab} onChange={(v) => { setTab(v); setError(""); if (v === "manual" && !className) applySuggestion(); }} options={WAYS} />
+            <Segment<AddWay> ariaLabel={t("profile.add.wayAria")} value={tab} onChange={(v) => { setTab(v); setError(""); if (v === "manual" && !className) applySuggestion(); }} options={WAYS.map((w) => ({ value: w.value, label: t(w.key), icon: w.icon }))} />
 
             {tab === "log" && <LogList classes={classes} busy={busy} onPick={(c) => submit({ source: "log", name: c.character })} />}
 
             {tab !== "log" && (
                 <div className="pf-form">
                     <div className="field">
-                        <label htmlFor="pf-name">Charaktername</label>
+                        <label htmlFor="pf-name">{t("profile.add.name")}</label>
                         <input id="pf-name" value={name} maxLength={25} onChange={(e) => setName(e.target.value)} autoComplete="off" />
-                        <p className="hint">Nur Buchstaben, höchstens 12 – in WoW Forever Vor- und Nachname (je 12).</p>
+                        <p className="hint">{t("profile.add.nameHint")}</p>
                     </div>
                     {tab === "armory" && (
                         <div className="field">
-                            <label htmlFor="pf-realm">Realm</label>
+                            <label htmlFor="pf-realm">{t("profile.add.realm")}</label>
                             <input id="pf-realm" value={realm} maxLength={32} placeholder="Thunderstrike" onChange={(e) => setRealm(e.target.value)} />
-                            <p className="hint">Klasse, Stufe und Gilde kommen aus der Armory, wenn sie antwortet – sonst bleibt es beim Link.</p>
+                            <p className="hint">{t("profile.add.realmHint")}</p>
                         </div>
                     )}
                     {(tab === "manual" || needClass) && (
                         <div className="field">
-                            <label>Klasse{tab === "manual" && suggested && (
-                                <Badge tip="Vorschlag aus Raid-Helper" tipSub="Klasse, Specs und Name stammen aus deinen letzten Raid-Helper-Anmeldungen. Passt es nicht, einfach ändern.">aus Raid-Helper</Badge>
+                            <label>{t("profile.add.class")}{tab === "manual" && suggested && (
+                                <Badge tip={t("profile.add.fromRaidhelperTip")} tipSub={t("profile.add.fromRaidhelperSub")}>{t("profile.add.fromRaidhelper")}</Badge>
                             )}</label>
                             <div className="pf-classes">
                                 {classes.map((c) => {
                                     const color = classColorProps(c.color);
                                     return (
                                         <button key={c.id} type="button" className={`pf-class${c.id === className ? " is-on" : ""}`}
-                                            aria-pressed={c.id === className} data-tip={c.label}
+                                            aria-pressed={c.id === className} data-tip={classLabel(c.id, c.label)}
                                             onClick={() => { setClassName(c.id); setSpecs([]); }}>
                                             <WowIcon name={c.icon} size={24} />
-                                            <span className={color.className} style={color.style}>{c.label}</span>
+                                            <span className={color.className} style={color.style}>{classLabel(c.id, c.label)}</span>
                                         </button>
                                     );
                                 })}
@@ -150,7 +153,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                     )}
                     {tab === "manual" && cls && (
                         <div className="field">
-                            <label>Specs</label>
+                            <label>{t("profile.add.specs")}</label>
                             <div className="pf-classes">
                                 {cls.specs.map((s) => {
                                     const on = specs.includes(s.key);
@@ -158,7 +161,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                                         <button key={s.key} type="button" className={`pf-class${on ? " is-on" : ""}`} aria-pressed={on}
                                             onClick={() => setSpecs(on ? specs.filter((x) => x !== s.key) : [...specs, s.key])}>
                                             <WowIcon name={s.icon} size={20} />
-                                            {s.label}
+                                            {specName(s.key, s.label)}
                                         </button>
                                     );
                                 })}
@@ -173,6 +176,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
 
 /** Suggestions from the logs, the likely ones first, filtered by a name search. */
 function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolean; onPick: (c: LogCharacterSuggestion) => void }) {
+    const t = useT();
     const [q, setQ] = useState("");
     const [list, setList] = useState<LogCharacterSuggestion[] | null>(null);
     const timer = useRef<number | undefined>(undefined);
@@ -187,17 +191,18 @@ function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolea
 
     const specLabel = (key: string) => {
         const [classId] = key.split("-");
-        return classes.find((c) => c.id === classId)?.specs.find((s) => s.key === key)?.label || "";
+        const label = classes.find((c) => c.id === classId)?.specs.find((s) => s.key === key)?.label || "";
+        return label ? specName(key, label) : "";
     };
 
     return (
         <div className="pf-loglist">
             <div className="pf-search">
                 <SearchIcon />
-                <input className="inp-sm" placeholder="Name suchen …" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Name suchen" />
+                <input className="inp-sm" placeholder={t("profile.add.search")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("profile.add.searchAria")} />
             </div>
-            {list === null && <RaidLoader compact text="Logs werden durchsucht" />}
-            {list && list.length === 0 && <p className="pf-muted">Kein passender Charakter in den Logs. Versuch es über die Armory oder von Hand.</p>}
+            {list === null && <RaidLoader compact text={t("profile.add.searching")} />}
+            {list && list.length === 0 && <p className="pf-muted">{t("profile.add.noHit")}</p>}
             {list && list.map((c) => {
                 const cls = classes.find((x) => x.id === c.className);
                 const color = classColorProps(cls?.color);
@@ -207,16 +212,16 @@ function LogList({ classes, busy, onPick }: { classes: GameClass[]; busy: boolea
                         <div className="pf-logname">
                             <span className={color.className} style={color.style}>{c.character}</span>
                             <span className="kicker">
-                                {[specLabel(c.specKey) || cls?.label, c.reports ? `${c.reports} Auswertungen` : "", c.lastSeen ? `zuletzt ${formatDate(c.lastSeen)}` : ""].filter(Boolean).join(" · ")}
+                                {[specLabel(c.specKey) || (cls ? classLabel(cls.id, cls.label) : ""), c.reports ? t("profile.add.reports", { count: c.reports }) : "", c.lastSeen ? t("profile.add.lastSeen", { date: formatDate(c.lastSeen) }) : ""].filter(Boolean).join(" · ")}
                             </span>
                         </div>
-                        {c.match && <Badge tone="ok">{MATCH_LABEL[c.match]}</Badge>}
+                        {c.match && MATCH_KEY[c.match] && <Badge tone="ok">{t(MATCH_KEY[c.match])}</Badge>}
                         {c.claimedBy.length > 0 && (
-                            <Badge tone="mid" tip="Bereits vergeben" tipSub={`Eingetragen von: ${c.claimedBy.map((x) => x.name || "unbekannt").join(", ")}. Du kannst ihn trotzdem übernehmen – die Orga klärt das.`}>
-                                vergeben
+                            <Badge tone="mid" tip={t("profile.char.claimed")} tipSub={t("profile.add.claimedSub", { names: c.claimedBy.map((x) => x.name || t("profile.char.unknown")).join(", ") })}>
+                                {t("profile.add.claimed")}
                             </Badge>
                         )}
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPick(c)}>Das bin ich</Button>
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onPick(c)}>{t("profile.add.thatsMe")}</Button>
                     </div>
                 );
             })}

@@ -11,7 +11,8 @@ describe("web client — visible channel naming (#285)", () => {
         const badge = read("components", "channels", "NamingBadge.tsx");
         expect(badge).toContain("tip={naming.label}");
         expect(badge).toContain("tipSub={[naming.detail, naming.design].filter(Boolean).join(\" · \")}");
-        expect(badge).toContain("previous: \"abgeleitet\"");
+        expect(badge).toContain("t(`raidCreate.naming.${naming.source}`)");
+        expect(require("./i18nHelper").makeT("de")("raidCreate.naming.previous")).toBe("abgeleitet");
     });
 
     it("asks the server for the create dialog's name suggestion and shows where it comes from", () => {

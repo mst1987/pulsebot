@@ -21,7 +21,10 @@
         "templateCreated": "Template “{name}” created."
     },
     "start": {
-        "players": { "one": "{count} player", "other": "{count} players" },
+        "players": {
+            "one": "{count} player",
+            "other": "{count} players"
+        },
         "composition": "{tank} tanks · {healer} healers",
         "needsSize": "Add size",
         "label": "Start from what?",
@@ -154,5 +157,11 @@
         "stepOf": "Step {n} of {total}",
         "titleEdit": "Edit event",
         "titleNew": "New raid event"
+    },
+    "naming": {
+        "previous": "derived",
+        "schema": "schema",
+        "default": "default",
+        "typed": "schema"
     }
 }

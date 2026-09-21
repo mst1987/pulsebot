@@ -73,6 +73,21 @@
         "tankMore": "One tank more",
         "healerLess": "One healer fewer",
         "healerMore": "One healer more",
-        "dpsLine": { "one": "{count} spot for DPS · suggestion on size change", "other": "{count} spots for DPS · suggestion on size change" }
+        "dpsLine": {
+            "one": "{count} spot for DPS · suggestion on size change",
+            "other": "{count} spots for DPS · suggestion on size change"
+        }
+    },
+    "emoji": {
+        "label": "Emojis",
+        "aria": "Emoji style",
+        "arcane": "Arcane",
+        "arcaneTip": "Silver letter tiles on slate with matching role icons. Default.",
+        "gold": "Gold",
+        "goldTip": "Golden letter tiles on dark stone with matching role icons.",
+        "parchment": "Parchment",
+        "parchmentTip": "Dark letters on light parchment – closest to Raid-Helper.",
+        "plain": "Plain",
+        "plainTip": "Title as plain text, flat grey role icons."
     }
 }

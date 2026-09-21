@@ -110,7 +110,7 @@
         "crumbRaidHelper": "Raid plan from Raid-Helper",
         "crumbRaidHelperCategory": "Raid plan from Raid-Helper · matched against the raider roles of “{category}”",
         "addRaider": "Add raider",
-        "addRaiderSub": "Sign someone up or remove them as an organiser — even after the signup deadline.",
+        "addRaiderSub": "Sign someone up or off as the orga — even after signups close.",
         "ping": "Ping missing",
         "pingSub": "Posts in the event channel and pings exactly the raiders who have not reacted.",
         "setupError": "Could not load the setup: {error}",
@@ -121,7 +121,19 @@
         "missingSub": "Has a raider role but neither signed up nor signed off",
         "asideTitle": "Not in the setup",
         "asideAll": "everyone who reacted is in the raid plan",
-        "allReacted": "All expected raiders have reacted."
+        "allReacted": "All expected raiders have reacted.",
+        "crumbCategory": "“{name}”",
+        "snapshotRaidDay": "as of raid day",
+        "crumbRaidhelper": "Raid plan from Raid-Helper",
+        "crumbMatched": "matched against the raider roles of “{name}”",
+        "pingMissing": "Ping missing",
+        "pingMissingSub": "Posts in the event channel and pings exactly the raiders without a reaction.",
+        "roleSub": "{spread}. Role taken from the spec in the raid plan, not from the signup.",
+        "noPlan": "No raid plan exists for this event yet.",
+        "noReaction": "No reaction",
+        "noReactionSub": "Raider role, but neither signed up nor off",
+        "notInSetup": "Not in the setup",
+        "allInPlan": "everyone who reacted is in the raid plan"
     },
     "loot": {
         "title": "Loot",
@@ -159,7 +171,12 @@
         "noHit": "No match for “{query}”.",
         "footGroups": "{count} groups · expand with “Details”",
         "footBosses": "{count} bosses · expand with “Details”",
-        "clearButton": "Delete this raid's loot"
+        "clearButton": "Delete this raid's loot",
+        "colCharacter": "Character",
+        "colResponse": "Response",
+        "colEvent": "Event",
+        "deleteEntrySub": "Only this one award — asks first.",
+        "deleteEntryAria": "Delete entry “{item}” for {character}"
     },
     "logs": {
         "title": "Logs",
@@ -270,5 +287,18 @@
             "one": "{count} award · by reason",
             "other": "{count} awards · by reason"
         }
+    },
+    "logRaid": {
+        "doneHead": "{raid} complete",
+        "doneSub": "{killed} of {total} bosses in the log, the final boss is down.",
+        "doneSubNoTotal": "The final boss is down in the log.",
+        "openHead": "Raid not finished",
+        "openCount": "The log holds {killed} of {total} {raid} bosses",
+        "openNoTotal": "{raid} is not finished",
+        "standing": {
+            "one": "{names} is still standing.",
+            "other": "{names} are still standing."
+        },
+        "evalAnyway": "“Evaluate” asks first – an unfinished raid can still be evaluated."
     }
 }

@@ -81,7 +81,8 @@ describe("Log-Auswertung: one list", () => {
         const raids = read("lib", "logRaids.ts");
         expect(raids).toContain("import { RAID_CONTENTS } from \"./raidIcons\";");
         expect(raids).toContain("export const LOG_FALLBACK_ICON = \"inv_misc_pocketwatch_01\";");
-        expect(raids).toContain("head: \"Raid nicht abgeschlossen\"");
+        expect(raids).toContain("head: t(\"raidDetail.logRaid.openHead\")");
+        expect(require("./i18nHelper").makeT("de")("raidDetail.logRaid.openHead")).toBe("Raid nicht abgeschlossen");
     });
 });
 

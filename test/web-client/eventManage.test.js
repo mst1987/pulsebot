@@ -4,52 +4,14 @@
 // one question, only for an own event with raids write.
 const fs = require("fs");
 const path = require("path");
+const { loadTs, makeT } = require("./i18nHelper");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-function splitParams(list) {
-    const out = [];
-    let depth = 0;
-    let cur = "";
-    for (let i = 0; i < list.length; i++) {
-        const c = list[i];
-        if (c === "=" && list[i + 1] === ">") { cur += "=>"; i++; continue; }
-        if ("(<{[".includes(c)) depth++;
-        if (")>}]".includes(c)) depth--;
-        if (c === "," && depth === 0) { out.push(cur); cur = ""; continue; }
-        cur += c;
-    }
-    if (cur.trim()) out.push(cur);
-    return out;
-}
-
-/** The lib without its TypeScript: `import type`, `export type` and one-line signatures only. */
+/** The lib run for real, its `t` bound to the German texts. */
 function load() {
-    const lines = read("lib", "eventManage.ts").split("\n");
-    const out = [];
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/^import type /.test(line)) continue;
-        if (/^export type /.test(line)) {
-            let depth = 0;
-            for (; i < lines.length; i++) {
-                for (const c of lines[i]) { if ("({[".includes(c)) depth++; if (")}]".includes(c)) depth--; }
-                if (depth === 0 && /;\s*$/.test(lines[i])) break;
-            }
-            continue;
-        }
-        const fn = line.match(/^(export )?function (\w+)\((.*)\)(: .*)? \{$/);
-        if (fn) {
-            const params = splitParams(fn[3]).map((p) => p.trim().split(":")[0].replace("?", "").trim()).filter(Boolean);
-            out.push(`function ${fn[2]}(${params.join(", ")}) {`);
-            continue;
-        }
-        out.push(line.replace(/^export /, ""));
-    }
-    const js = out.join("\n");
-    const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return loadTs("lib/eventManage.ts", { t: makeT("de") });
 }
 
 const lib = load();
@@ -227,8 +189,10 @@ describe("the raid detail page", () => {
     });
 
     it("marks a cancelled event and a closed signup in the head", () => {
-        expect(hero).toContain("abgesagt");
-        expect(hero).toContain("Anmeldung geschlossen");
+        expect(hero).toContain("{t(\"raidDetail.hero.cancelled\")}");
+        expect(hero).toContain("{t(\"raidDetail.hero.signupsClosed\")}");
+        expect(makeT("de")("raidDetail.hero.cancelled")).toBe("abgesagt");
+        expect(makeT("de")("raidDetail.hero.signupsClosed")).toBe("Anmeldung geschlossen");
     });
 
     it("offers Raider eintragen in the roster of an own event", () => {

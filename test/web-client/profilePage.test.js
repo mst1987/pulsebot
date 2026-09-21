@@ -5,6 +5,10 @@
 // route is open to the "signup" area only.
 const fs = require("fs");
 const path = require("path");
+const { makeT } = require("./i18nHelper");
+
+const de = makeT("de");
+const en = makeT("en");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
@@ -54,15 +58,21 @@ describe("ProfilePage", () => {
     // block that pushes the rest of the profile down.
     describe("Kalender-Abo (#312)", () => {
         it("is one folded line with the link shown once and a way to revoke it", () => {
-            expect(page).toMatch(/<FoldPart\s+id="calendar"[\s\S]*?title="Kalender-Abo"/);
+            expect(page).toMatch(/<FoldPart\s+id="calendar"[\s\S]*?title=\{t\("profile\.fold\.calendar"\)\}/);
+            expect(de("profile.fold.calendar")).toBe("Kalender-Abo");
+            expect(en("profile.fold.calendar")).toBe("Calendar subscription");
             expect(page).toContain("<CalendarPart");
-            expect(page).toContain("nur jetzt sichtbar");
-            expect(page).toContain("Link erzeugen");
-            expect(page).toContain("tip=\"Widerrufen\"");
+            expect(page).toContain("t(\"profile.cal.onlyNow\")");
+            expect(de("profile.cal.onlyNow")).toBe("nur jetzt sichtbar");
+            expect(page).toContain("t(\"profile.cal.create\")");
+            expect(de("profile.cal.create")).toBe("Link erzeugen");
+            expect(page).toContain("tip={t(\"profile.cal.revoke\")}");
         });
 
         it("warns that the link is secret", () => {
-            expect(page).toContain("Der Link ist geheim");
+            expect(page).toContain("<strong>{t(\"profile.cal.secret\")}</strong>");
+            expect(de("profile.cal.secret")).toBe("Der Link ist geheim:");
+            expect(en("profile.cal.secret")).toBe("The link is secret:");
         });
 
         // The secret only ever exists in the answer that created it, so the page
@@ -70,7 +80,7 @@ describe("ProfilePage", () => {
         it("creates and revokes through the one profile endpoint", () => {
             expect(page).toContain("getCalendarTokens()");
             expect(page).toContain("createCalendarToken(csrfToken)");
-            expect(page).toContain("revokeCalendarToken(csrfToken, t.id)");
+            expect(page).toContain("revokeCalendarToken(csrfToken, token.id)");
             expect(api).toContain("/api/profile/calendar");
             expect(api).toMatch(/send\("POST", "\/api\/profile\/calendar"/);
         });
@@ -78,23 +88,27 @@ describe("ProfilePage", () => {
 
     it("shows the gear level as a segment and the log evidence as a badge with a tooltip", () => {
         expect(page).toMatch(/<Segment<GearLevel>[\s\S]*data\.gearLevels\.map/);
-        expect(page).toMatch(/<Badge tone=\{logs\.tone\} tip=\{logs\.label\} tipSub=/);
-        expect(page).toContain("laut Logs");
+        expect(page).toMatch(/<Badge tone=\{logTone\} tip=\{logLabel\} tipSub=/);
+        expect(de("profile.logs.seen")).toBe("laut Logs");
+        expect(en("profile.logs.seen")).toBe("per logs");
     });
 
     it("marks the wishes as visible to the orga only and never shows whether one is mutual", () => {
-        expect(page).toContain("nur Orga");
+        expect(page).toContain("{t(\"profile.fold.orgaOnly\")}");
+        expect(de("profile.fold.orgaOnly")).toBe("nur Orga");
         expect(page).not.toMatch(/mutual|gegenseitig/);
     });
 
     it("warns about a character another account claimed instead of hiding it", () => {
         expect(page).toContain("claimedBy.length > 0");
-        expect(page).toContain("vergeben an");
+        expect(page).toContain("t(\"profile.char.claimedBy\"");
+        expect(de("profile.char.claimedBy", { name: "Ann" })).toBe("vergeben an Ann");
     });
 
     it("offers the three ways in one dialog", () => {
         expect(dialog).toMatch(/value: "log"[\s\S]*value: "armory"[\s\S]*value: "manual"/);
-        expect(dialog).toContain("Das bin ich");
+        expect(dialog).toContain("t(\"profile.add.thatsMe\")");
+        expect(de("profile.add.thatsMe")).toBe("Das bin ich");
         expect(dialog).toContain("class_required");
         expect(page).toContain("<AddCharacterDialog");
     });

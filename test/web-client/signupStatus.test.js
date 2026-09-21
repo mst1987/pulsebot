@@ -13,6 +13,9 @@
 const fs = require("fs");
 const path = require("path");
 const { SIGNUP_STATUSES } = require("../../src/utils/attendance");
+const { makeT } = require("./i18nHelper");
+
+const de = makeT("de");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...p) => fs.readFileSync(path.join(CLIENT, ...p), "utf8");
@@ -24,7 +27,7 @@ const pageCss = read("styles", "raid-detail.css");
 describe("signup status display", () => {
     it("knows every status the backend can send", () => {
         for (const status of SIGNUP_STATUSES) {
-            expect(meta).toMatch(new RegExp(`\\b${status}:\\s*\\{ label:`));
+            expect(meta).toMatch(new RegExp(`\\b${status}:\\s*\\{ get label\\(\\) \\{ return t\\("raidDetail\\.signupStatus\\.${status}"\\); \\}`));
         }
         // ... and the client's own union type lists exactly those.
         const union = read("api.ts").match(/export type SignupStatus =([^;]+);/);
@@ -34,10 +37,12 @@ describe("signup status display", () => {
     });
 
     it("gives signed, maybe and absent their badge tone", () => {
-        expect(meta).toContain("signed: { label: \"Angemeldet\", tone: \"ok\" }");
-        expect(meta).toContain("tentative: { label: \"Unsicher\", tone: \"mid\" }");
-        expect(meta).toContain("late: { label: \"Kommt später\", tone: \"mid\" }");
-        expect(meta).toContain("absence: { label: \"Abgemeldet\", tone: \"bad\" }");
+        const tones = { signed: "ok", tentative: "mid", late: "mid", absence: "bad" };
+        for (const [status, tone] of Object.entries(tones)) {
+            expect(meta).toContain(`${status}: { get label() { return t("raidDetail.signupStatus.${status}"); }, tone: "${tone}" }`);
+        }
+        expect(["signed", "tentative", "late", "absence"].map((s) => de(`raidDetail.signupStatus.${s}`)))
+            .toEqual(["Angemeldet", "Unsicher", "Kommt später", "Abgemeldet"]);
     });
 
     it("shows the status as a badge instead of a line icon", () => {
@@ -45,7 +50,7 @@ describe("signup status display", () => {
             expect(roster).not.toContain(icon);
         }
         expect(roster).toContain("<Badge tone={SIGNUP_META[status].tone}>{SIGNUP_META[status].label}</Badge>");
-        expect(roster).toContain("<Badge tone=\"bad\">{missing.length} ohne Reaktion</Badge>");
+        expect(roster).toContain("<Badge tone=\"bad\">{t(\"raidDetail.roster.noReactionCount\", { count: missing.length })}</Badge>");
     });
 
     it("marks a maybe in the raid groups with a dot in every theme's status colour", () => {

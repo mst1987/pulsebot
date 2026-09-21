@@ -53,5 +53,23 @@
         "Balance": "Balance",
         "Feral": "Feral (Cat)",
         "Guardian": "Feral (Bear)"
+    },
+    "instance": {
+        "kara": "Karazhan",
+        "gruul": "Gruul's Lair",
+        "mag": "Magtheridon's Lair",
+        "ssc": "Serpentshrine Cavern",
+        "tk": "Tempest Keep",
+        "za": "Zul'Aman",
+        "hyjal": "Hyjal Summit",
+        "bt": "Black Temple",
+        "swp": "Sunwell Plateau",
+        "ony": "Onyxia's Lair",
+        "mc": "Molten Core",
+        "bwl": "Blackwing Lair",
+        "zg": "Zul'Gurub",
+        "aq20": "Ruins of Ahn'Qiraj",
+        "aq40": "Temple of Ahn'Qiraj",
+        "naxx": "Naxxramas"
     }
 }

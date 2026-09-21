@@ -15,6 +15,8 @@ import AddCharacterDialog, { type AddWay } from "../components/profile/AddCharac
 import { ExternalIcon, TrashIcon, XIcon, SearchIcon, EyeOffIcon, CopyIcon, CheckIcon } from "../components/icons";
 import { formatDate } from "../lib/format";
 import { specSuggestion } from "../lib/raidhelperRetirement";
+import { classLabel, instanceName, roleLabel, specLabel } from "../lib/wowNames";
+import { tOr, useT } from "../i18n";
 import "../styles/profil.css";
 
 // "Mein Profil" (#255): the raider's own page. Deliberately calm — the
@@ -25,16 +27,13 @@ import "../styles/profil.css";
 
 type Fold = "days" | "raids" | "wishes" | "note" | "calendar" | "";
 
-const LOG_TIP: Record<ProfileSpec["logs"]["status"], { tone?: "ok" | "mid"; label: string; tip: string }> = {
-    seen: { tone: "ok", label: "laut Logs", tip: "In den Auswertungen mit genau diesem Spec belegt." },
-    other: { tone: "mid", label: "nicht belegt", tip: "Der Charakter taucht in den Logs auf, aber nicht mit diesem Spec. Das ist nur ein Hinweis für die Orga, keine Sperre." },
-    unknown: { label: "", tip: "" },
-};
+const LOG_TONE: Record<ProfileSpec["logs"]["status"], "ok" | "mid" | undefined> = { seen: "ok", other: "mid", unknown: undefined };
 
 export default function ProfilePage() {
     const { user, csrfToken } = useOutletContext<ShellContext>();
     const toast = useToast();
     const ask = useConfirm();
+    const t = useT();
     const [data, setData] = useState<ProfileData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [params, setParams] = useSearchParams();
@@ -54,8 +53,8 @@ export default function ProfilePage() {
     const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
     const classOf = (id: string) => data?.classes.find((c) => c.id === id);
 
-    if (error) return <div className="empty">Profil konnte nicht geladen werden: {error.message}</div>;
-    if (!data || !profile) return <RaidLoader text="Profil wird geladen" />;
+    if (error) return <div className="empty">{t("profile.loadError", { message: error.message })}</div>;
+    if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));
 
@@ -80,7 +79,7 @@ export default function ProfilePage() {
     };
 
     const removeChar = async (c: ProfileCharacter) => {
-        if (!(await ask({ title: `${c.name} entfernen?`, text: "Der Charakter verschwindet aus deinem Profil. Logs und Loot bleiben unberührt.", action: "Entfernen" }))) return;
+        if (!(await ask({ title: t("profile.remove.title", { name: c.name }), text: t("profile.remove.text"), action: t("profile.remove.action") }))) return;
         try {
             const res = await removeProfileCharacter(csrfToken, c.key);
             setProfile(res.profile);
@@ -97,11 +96,11 @@ export default function ProfilePage() {
             <PageHead
                 icon={mainClass ? mainClass.icon : "achievement_character_human_male"}
                 tone="profile"
-                kicker={`Discord · ${user.name} · ${profile.characters.length === 1 ? "1 Charakter" : `${profile.characters.length} Charaktere`}`}
-                title="Mein Profil"
-                meta={profile.updatedAt ? <Badge>geändert {formatDate(profile.updatedAt)}</Badge> : <Badge tone="accent">neu</Badge>}
+                kicker={`Discord · ${user.name} · ${t("profile.characters", { count: profile.characters.length })}`}
+                title={t("profile.title")}
+                meta={profile.updatedAt ? <Badge>{t("profile.changed", { date: formatDate(profile.updatedAt) })}</Badge> : <Badge tone="accent">{t("profile.new")}</Badge>}
                 action={profile.characters.length > 0 && (
-                    <Button icon="inv_misc_grouplooking" onClick={() => setAdding("log")}>Charakter hinzufügen</Button>
+                    <Button icon="inv_misc_grouplooking" onClick={() => setAdding("log")}>{t("profile.addCharacter")}</Button>
                 )}
             />
 
@@ -109,7 +108,7 @@ export default function ProfilePage() {
                 <FirstCharacter onPick={setAdding} />
             ) : (
                 <>
-                    <div className="pf-chips" role="tablist" aria-label="Charaktere">
+                    <div className="pf-chips" role="tablist" aria-label={t("profile.charactersAria")}>
                         {profile.characters.map((c) => (
                             <CharChip key={c.key} character={c} cls={classOf(c.className)} active={c.key === selected?.key} onClick={() => selectChar(c.key)} />
                         ))}
@@ -138,10 +137,10 @@ export default function ProfilePage() {
 
                         <div className="pf-col pf-side">
                             <FoldPart
-                                id="days" open={fold} onOpen={setFold} title="Wann ich kann"
+                                id="days" open={fold} onOpen={setFold} title={t("profile.fold.days")}
                                 summary={profile.availability.length
-                                    ? data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => d.label).join(" · ")
-                                    : "nichts angegeben"}
+                                    ? data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => tOr(`profile.weekday.${d.id}`, d.label)).join(" · ")
+                                    : t("profile.fold.daysNone")}
                             >
                                 <div className="pf-days">
                                     {data.weekdays.map((d) => {
@@ -150,7 +149,7 @@ export default function ProfilePage() {
                                         return (
                                             <button key={d.id} type="button" className={`pf-day${on ? " is-on" : ""}`} aria-pressed={on}
                                                 onClick={() => patch({ availability: next }, { availability: next })}>
-                                                {d.label}
+                                                {tOr(`profile.weekday.${d.id}`, d.label)}
                                             </button>
                                         );
                                     })}
@@ -158,16 +157,16 @@ export default function ProfilePage() {
                             </FoldPart>
 
                             <FoldPart
-                                id="raids" open={fold} onOpen={setFold} title="Bevorzugte Raids"
-                                summary={profile.preferredRaids.length ? `${profile.preferredRaids.length} gewählt` : "keine Vorliebe"}
+                                id="raids" open={fold} onOpen={setFold} title={t("profile.fold.raids")}
+                                summary={profile.preferredRaids.length ? t("profile.fold.raidsChosen", { count: profile.preferredRaids.length }) : t("profile.fold.raidsNone")}
                             >
                                 <RaidPicker data={data} value={profile.preferredRaids} onChange={(next) => patch({ preferredRaids: next }, { preferredRaids: next })} />
                             </FoldPart>
 
                             <FoldPart
-                                id="wishes" open={fold} onOpen={setFold} title="Gerne zusammen raiden mit"
-                                summary={profile.wishes.length ? profile.wishes.map((w) => w.main || w.name).join(", ") : "niemand eingetragen"}
-                                badge={<Badge icon={<EyeOffIcon />} tip="Nur die Orga sieht das" tipSub="Andere Raider sehen deine Wünsche nicht – auch nicht, ob jemand dich eingetragen hat.">nur Orga</Badge>}
+                                id="wishes" open={fold} onOpen={setFold} title={t("profile.fold.wishes")}
+                                summary={profile.wishes.length ? profile.wishes.map((w) => w.main || w.name).join(", ") : t("profile.fold.wishesNone")}
+                                badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.fold.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
                             >
                                 <WishPicker
                                     wishes={profile.wishes}
@@ -178,15 +177,15 @@ export default function ProfilePage() {
                             </FoldPart>
 
                             <FoldPart
-                                id="note" open={fold} onOpen={setFold} title="Notiz für die Orga"
-                                summary={profile.note ? profile.note : "keine Notiz"}
+                                id="note" open={fold} onOpen={setFold} title={t("profile.fold.note")}
+                                summary={profile.note ? profile.note : t("profile.fold.noteNone")}
                             >
                                 <NoteField value={profile.note} max={data.limits.note} onSave={(note) => patch({ note }, { note })} />
                             </FoldPart>
 
                             <FoldPart
-                                id="calendar" open={fold} onOpen={setFold} title="Kalender-Abo"
-                                summary={!cal ? "wird geladen" : cal.tokens.length === 0 ? "kein Link" : cal.tokens.length === 1 ? "1 Link aktiv" : `${cal.tokens.length} Links aktiv`}
+                                id="calendar" open={fold} onOpen={setFold} title={t("profile.fold.calendar")}
+                                summary={!cal ? t("profile.fold.calendarLoading") : cal.tokens.length === 0 ? t("profile.fold.calendarNone") : t("profile.fold.calendarActive", { count: cal.tokens.length })}
                             >
                                 <CalendarPart data={cal} onChange={setCal} csrfToken={csrfToken} />
                             </FoldPart>
@@ -213,14 +212,15 @@ export default function ProfilePage() {
 
 /** No character yet: the three ways in, nothing else. */
 function FirstCharacter({ onPick }: { onPick: (way: AddWay) => void }) {
+    const t = useT();
     const ways: { way: AddWay; icon: string; title: string; text: string }[] = [
-        { way: "log", icon: "inv_misc_pocketwatch_01", title: "Aus den Logs", text: "Wir kennen dich vielleicht schon – Klasse und Spec kommen aus den Auswertungen." },
-        { way: "armory", icon: "inv_misc_book_09", title: "Mit der Armory", text: "Name und Realm, Klasse und Level holen wir aus der Armory." },
-        { way: "manual", icon: "inv_scroll_03", title: "Von Hand", text: "Name, Klasse und Specs selbst eintragen." },
+        { way: "log", icon: "inv_misc_pocketwatch_01", title: t("profile.first.logTitle"), text: t("profile.first.logText") },
+        { way: "armory", icon: "inv_misc_book_09", title: t("profile.first.armoryTitle"), text: t("profile.first.armoryText") },
+        { way: "manual", icon: "inv_scroll_03", title: t("profile.first.manualTitle"), text: t("profile.first.manualText") },
     ];
     return (
         <div className="pf-first">
-            <PartHead icon="achievement_character_human_male" tone="profile" title="Noch kein Charakter" crumb="Wähle, wie du anfangen willst" />
+            <PartHead icon="achievement_character_human_male" tone="profile" title={t("profile.first.title")} crumb={t("profile.first.crumb")} />
             <div className="pf-ways">
                 {ways.map((w) => (
                     <button key={w.way} type="button" className="pf-way" onClick={() => onPick(w.way)}>
@@ -235,15 +235,16 @@ function FirstCharacter({ onPick }: { onPick: (way: AddWay) => void }) {
 }
 
 function CharChip({ character, cls, active, onClick }: { character: ProfileCharacter; cls?: GameClass; active: boolean; onClick: () => void }) {
+    const t = useT();
     const color = classColorProps(cls?.color);
     const claimed = character.claimedBy.length > 0;
     return (
         <button type="button" role="tab" aria-selected={active} className={`pf-chip${active ? " is-active" : ""}`} onClick={onClick}>
             {cls && <WowIcon name={cls.icon} size={22} />}
             <span className={color.className} style={color.style}>{character.name}</span>
-            {character.main && <span className="pf-chip-main">Main</span>}
+            {character.main && <span className="pf-chip-main">{t("profile.char.main")}</span>}
             {claimed && (
-                <span className="pf-chip-warn" data-tip="Bereits vergeben" data-tip-sub={`Auch eingetragen von: ${character.claimedBy.map((c) => c.name || "unbekannt").join(", ")}. Die Orga klärt das.`}>!</span>
+                <span className="pf-chip-warn" data-tip={t("profile.char.claimed")} data-tip-sub={t("profile.char.claimedChip", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>!</span>
             )}
         </button>
     );
@@ -257,9 +258,10 @@ function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
     onSpecs: (specs: ProfileSpec[]) => void;
     onRemove: () => void;
 }) {
+    const t = useT();
     const [picking, setPicking] = useState(false);
     const missing = (cls?.specs || []).filter((s) => !character.specs.some((own) => own.key === s.key));
-    const crumb = [cls?.label || character.className, character.realm, character.armory?.level ? `Stufe ${character.armory.level}` : "", character.armory?.guild || ""]
+    const crumb = [classLabel(character.className, cls?.label || character.className), character.realm, character.armory?.level ? t("profile.char.level", { level: character.armory.level }) : "", character.armory?.guild || ""]
         .filter(Boolean).join(" · ");
 
     const addSpec = (key: string) => {
@@ -281,47 +283,49 @@ function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
                 action={(
                     <>
                         {character.claimedBy.length > 0 && (
-                            <Badge tone="mid" tip="Bereits vergeben" tipSub={`Auch eingetragen von: ${character.claimedBy.map((c) => c.name || "unbekannt").join(", ")}. Die Orga sieht das im Roster und klärt es.`}>
-                                vergeben an {character.claimedBy[0].name || "anderes Konto"}
+                            <Badge tone="mid" tip={t("profile.char.claimed")} tipSub={t("profile.char.claimedCard", { names: character.claimedBy.map((c) => c.name || t("profile.char.unknown")).join(", ") })}>
+                                {t("profile.char.claimedBy", { name: character.claimedBy[0].name || t("profile.char.otherAccount") })}
                             </Badge>
                         )}
                         {character.main
-                            ? <Badge tone="accent">Main</Badge>
-                            : <Button variant="ghost" size="sm" onClick={onMain}>Als Main</Button>}
+                            ? <Badge tone="accent">{t("profile.char.main")}</Badge>
+                            : <Button variant="ghost" size="sm" onClick={onMain}>{t("profile.char.makeMain")}</Button>}
                         {character.armoryUrl && (
-                            <a className="ibtn sm" href={character.armoryUrl} target="_blank" rel="noreferrer" aria-label="Armory" data-tip="Armory öffnen">
+                            <a className="ibtn sm" href={character.armoryUrl} target="_blank" rel="noreferrer" aria-label={t("profile.char.armory")} data-tip={t("profile.char.openArmory")}>
                                 <ExternalIcon />
                             </a>
                         )}
-                        <IconButton icon={<TrashIcon />} tip="Charakter entfernen" size="sm" tone="danger" onClick={onRemove} />
+                        <IconButton icon={<TrashIcon />} tip={t("profile.char.remove")} size="sm" tone="danger" onClick={onRemove} />
                     </>
                 )}
             />
 
             <div className="pf-specs">
-                {character.specs.length === 0 && <p className="pf-muted">Noch kein Spec – füge hinzu, was du spielen kannst.</p>}
+                {character.specs.length === 0 && <p className="pf-muted">{t("profile.char.noSpec")}</p>}
                 {character.specs.map((s) => {
-                    const logs = LOG_TIP[s.logs.status];
+                    const logTone = LOG_TONE[s.logs.status];
+                    const logLabel = s.logs.status === "unknown" ? "" : t(`profile.logs.${s.logs.status}`);
+                    const logTip = s.logs.status === "unknown" ? "" : t(`profile.logs.${s.logs.status}Tip`);
                     return (
                         <div key={s.key} className="pf-spec">
                             <WowIcon name={s.icon || "inv_misc_questionmark"} size={30} />
                             <div className="pf-spec-name">
-                                <span className="pf-spec-label">{s.label}</span>
-                                <span className="kicker">{data.roles[s.role as keyof ProfileData["roles"]] || ""}</span>
+                                <span className="pf-spec-label">{specLabel(s.key, s.label)}</span>
+                                <span className="kicker">{s.role ? roleLabel(s.role, data.roles[s.role as keyof ProfileData["roles"]] || "") : ""}</span>
                             </div>
-                            {logs.label && (
-                                <Badge tone={logs.tone} tip={logs.label} tipSub={s.logs.reports ? `${logs.tip}\n${s.logs.reports} Auswertung${s.logs.reports === 1 ? "" : "en"} mit diesem Charakter.` : logs.tip}>
-                                    {logs.label}
+                            {logLabel && (
+                                <Badge tone={logTone} tip={logLabel} tipSub={s.logs.reports ? `${logTip}\n${t("profile.logs.reports", { count: s.logs.reports })}` : logTip}>
+                                    {logLabel}
                                 </Badge>
                             )}
                             <Segment<GearLevel>
                                 size="sm"
-                                ariaLabel={`Gear-Stand ${s.label}`}
+                                ariaLabel={t("profile.gearAria", { spec: specLabel(s.key, s.label) })}
                                 value={s.gear}
-                                options={data.gearLevels.map((g) => ({ value: g.id, label: g.label }))}
+                                options={data.gearLevels.map((g) => ({ value: g.id, label: tOr(`profile.gear.${g.id}`, g.label) }))}
                                 onChange={(gear) => onSpecs(character.specs.map((x) => (x.key === s.key ? { ...x, gear } : x)))}
                             />
-                            <IconButton icon={<XIcon />} tip="Spec entfernen" size="sm" onClick={() => onSpecs(character.specs.filter((x) => x.key !== s.key))} />
+                            <IconButton icon={<XIcon />} tip={t("profile.char.removeSpec")} size="sm" onClick={() => onSpecs(character.specs.filter((x) => x.key !== s.key))} />
                         </div>
                     );
                 })}
@@ -331,9 +335,9 @@ function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
                 <div className="pf-addspec">
                     {picking
                         ? missing.map((s) => (
-                            <Button key={s.key} variant="ghost" size="sm" icon={s.icon} onClick={() => addSpec(s.key)}>{s.label}</Button>
+                            <Button key={s.key} variant="ghost" size="sm" icon={s.icon} onClick={() => addSpec(s.key)}>{specLabel(s.key, s.label)}</Button>
                         ))
-                        : <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>Spec hinzufügen</Button>}
+                        : <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>{t("profile.char.addSpec")}</Button>}
                 </div>
             )}
         </section>
@@ -341,16 +345,17 @@ function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
 }
 
 function RolesCard({ profile, onChange }: { profile: RaiderProfile; onChange: (field: "canOfftank" | "canHeal", value: boolean) => void }) {
+    const t = useT();
     const rows: { field: "canOfftank" | "canHeal"; icon: string; label: string }[] = [
-        { field: "canOfftank", icon: "ability_warrior_defensivestance", label: "Kann Offtank" },
-        { field: "canHeal", icon: "spell_holy_flashheal", label: "Kann heilen" },
+        { field: "canOfftank", icon: "ability_warrior_defensivestance", label: t("profile.roles.offtank") },
+        { field: "canHeal", icon: "spell_holy_flashheal", label: t("profile.roles.heal") },
     ];
     return (
         <section className="pf-card pf-roles">
             {rows.map((r) => (
                 <label key={r.field} className="pf-role"
                     data-tip={r.label}
-                    data-tip-sub={`Vorgeschlagen aus deinen Specs: ${profile.suggested[r.field] ? "ja" : "nein"}. Du kannst es jederzeit umstellen.`}>
+                    data-tip-sub={t("profile.roles.suggested", { answer: profile.suggested[r.field] ? t("profile.roles.yes") : t("profile.roles.no") })}>
                     <WowIcon name={r.icon} size={26} />
                     <span className="pf-role-label">{r.label}</span>
                     <span className="switch">
@@ -405,11 +410,12 @@ function CalendarPart({ data, onChange, csrfToken }: {
 }) {
     const toast = useToast();
     const ask = useConfirm();
+    const t = useT();
     const [fresh, setFresh] = useState<string>("");
     const [copied, setCopied] = useState(false);
     const [busy, setBusy] = useState(false);
 
-    if (!data) return <RaidLoader compact text="Kalender-Links werden geladen" />;
+    if (!data) return <RaidLoader compact text={t("profile.cal.loading")} />;
 
     const create = async () => {
         setBusy(true);
@@ -425,17 +431,17 @@ function CalendarPart({ data, onChange, csrfToken }: {
         }
     };
 
-    const revoke = async (t: CalendarToken) => {
+    const revoke = async (token: CalendarToken) => {
         if (!(await ask({
-            title: "Kalender-Link widerrufen?",
-            text: "Der Link hört sofort auf zu funktionieren. Kalender, die ihn abonniert haben, bekommen keine Raids mehr.",
-            action: "Widerrufen",
+            title: t("profile.cal.revokeTitle"),
+            text: t("profile.cal.revokeText"),
+            action: t("profile.cal.revoke"),
         }))) return;
         try {
-            const res = await revokeCalendarToken(csrfToken, t.id);
+            const res = await revokeCalendarToken(csrfToken, token.id);
             onChange(res);
             setFresh("");
-            toast("Kalender-Link widerrufen.");
+            toast(t("profile.cal.revoked"));
         } catch (e) {
             toast((e as ApiError).message, "err");
         }
@@ -444,46 +450,46 @@ function CalendarPart({ data, onChange, csrfToken }: {
     return (
         <div className="pf-cal">
             <p className="pf-muted">
-                Ein Link mit allen Raids, für die du angemeldet bist — einmal im Kalender eintragen, jeder neue Raid kommt von selbst dazu.
-                {" "}<strong>Der Link ist geheim:</strong> wer ihn hat, sieht deine Raids. Nicht weitergeben, nicht posten.
+                {t("profile.cal.intro")}
+                {" "}<strong>{t("profile.cal.secret")}</strong> {t("profile.cal.secretText")}
             </p>
 
             {fresh && (
                 <div className="pf-cal-fresh">
-                    <Badge tone="mid">nur jetzt sichtbar</Badge>
+                    <Badge tone="mid">{t("profile.cal.onlyNow")}</Badge>
                     <div className="pf-cal-link">
                         <input type="text" readOnly className="mono" value={fresh} onFocus={(e) => e.target.select()} />
                         <IconButton
                             icon={copied ? <CheckIcon /> : <CopyIcon />}
-                            tip={copied ? "Kopiert" : "Link kopieren"}
+                            tip={copied ? t("profile.cal.copied") : t("profile.cal.copy")}
                             onClick={() => { navigator.clipboard?.writeText(fresh); setCopied(true); }}
                         />
                     </div>
                 </div>
             )}
 
-            {data.tokens.map((t) => (
-                <div className="pf-cal-row" key={t.id}>
+            {data.tokens.map((token) => (
+                <div className="pf-cal-row" key={token.id}>
                     <span className="pf-cal-name">
-                        Link …{t.hint}
+                        {t("profile.cal.link", { hint: token.hint })}
                         <span className="kicker">
-                            {`erstellt ${formatDate(t.createdAt)}`}
-                            {t.lastUsedAt ? ` · zuletzt abgerufen ${formatDate(t.lastUsedAt)}` : " · noch nie abgerufen"}
+                            {t("profile.cal.created", { date: formatDate(token.createdAt) })}
+                            {token.lastUsedAt ? t("profile.cal.lastUsed", { date: formatDate(token.lastUsedAt) }) : t("profile.cal.neverUsed")}
                         </span>
                     </span>
-                    <IconButton icon={<TrashIcon />} tip="Widerrufen" onClick={() => revoke(t)} />
+                    <IconButton icon={<TrashIcon />} tip={t("profile.cal.revoke")} onClick={() => revoke(token)} />
                 </div>
             ))}
 
             {!data.configured
-                ? <p className="pf-muted pf-err">Es ist keine öffentliche Adresse eingestellt (PUBLIC_BASE_URL) — ohne sie lässt sich kein Abo-Link bauen.</p>
+                ? <p className="pf-muted pf-err">{t("profile.cal.noBaseUrl")}</p>
                 : (
                     <Button
                         variant="ghost"
                         onClick={create}
                         disabled={busy || data.tokens.length >= data.max}
                     >
-                        {busy ? "Wird erzeugt…" : data.tokens.length ? "Weiteren Link erzeugen" : "Link erzeugen"}
+                        {busy ? t("profile.cal.creating") : data.tokens.length ? t("profile.cal.createMore") : t("profile.cal.create")}
                     </Button>
                 )}
         </div>
@@ -491,13 +497,14 @@ function CalendarPart({ data, onChange, csrfToken }: {
 }
 
 function RaidPicker({ data, value, onChange }: { data: ProfileData; value: string[]; onChange: (next: string[]) => void }) {
+    const t = useT();
     // Groups the rule set's versions; a version stays folded unless it holds a pick.
     const [shown, setShown] = useState<string>(() => data.raidGroups.find((g) => g.instances.some((i) => value.includes(i.id)))?.id || data.raidGroups[0]?.id || "");
     const group = data.raidGroups.find((g) => g.id === shown) || data.raidGroups[0];
     return (
         <div className="pf-raids">
             {data.raidGroups.length > 1 && (
-                <Segment size="sm" ariaLabel="Spielversion" value={group.id} onChange={setShown}
+                <Segment size="sm" ariaLabel={t("profile.raids.versionAria")} value={group.id} onChange={setShown}
                     options={data.raidGroups.map((g) => ({ value: g.id, label: g.label }))} />
             )}
             <div className="pf-raid-list">
@@ -505,7 +512,7 @@ function RaidPicker({ data, value, onChange }: { data: ProfileData; value: strin
                     const on = value.includes(i.id);
                     return (
                         <button key={i.id} type="button" className={`pf-raid${on ? " is-on" : ""}`} aria-pressed={on}
-                            data-tip={i.name} data-tip-sub={i.status === "incomplete" ? "Infos folgen nach dem Release." : undefined}
+                            data-tip={instanceName(i.id, i.name)} data-tip-sub={i.status === "incomplete" ? t("profile.raids.incomplete") : undefined}
                             onClick={() => onChange(on ? value.filter((x) => x !== i.id) : [...value, i.id])}>
                             <WowIcon name={i.icon} size={20} />
                             {i.short}
@@ -523,6 +530,7 @@ function WishPicker({ wishes, max, classes, onChange }: {
     classes: GameClass[];
     onChange: (next: RaiderRef[]) => void;
 }) {
+    const t = useT();
     const [q, setQ] = useState("");
     const [hits, setHits] = useState<RaiderRef[]>([]);
     const timer = useRef<number | undefined>(undefined);
@@ -546,9 +554,9 @@ function WishPicker({ wishes, max, classes, onChange }: {
                         const color = colorOf(w.className);
                         return (
                             <span key={w.userId} className="pf-wish">
-                                <span className={color.className} style={color.style}>{w.main || w.name || "unbekannt"}</span>
+                                <span className={color.className} style={color.style}>{w.main || w.name || t("profile.char.unknown")}</span>
                                 {w.main && w.name && <span className="pf-muted">{w.name}</span>}
-                                <IconButton icon={<XIcon />} tip="Entfernen" size="sm" onClick={() => onChange(wishes.filter((x) => x.userId !== w.userId))} />
+                                <IconButton icon={<XIcon />} tip={t("profile.wishes.remove")} size="sm" onClick={() => onChange(wishes.filter((x) => x.userId !== w.userId))} />
                             </span>
                         );
                     })}
@@ -557,7 +565,7 @@ function WishPicker({ wishes, max, classes, onChange }: {
             {wishes.length < max && (
                 <div className="pf-search">
                     <SearchIcon />
-                    <input className="inp-sm" placeholder="Raider suchen …" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Raider suchen" />
+                    <input className="inp-sm" placeholder={t("profile.wishes.search")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("profile.wishes.searchAria")} />
                 </div>
             )}
             {hits.filter((h) => !chosen.has(h.userId)).slice(0, 6).map((h) => {
@@ -569,20 +577,21 @@ function WishPicker({ wishes, max, classes, onChange }: {
                     </button>
                 );
             })}
-            <p className="hint">Ein Wunsch, keine Garantie – die Orga berücksichtigt ihn beim Setup.</p>
+            <p className="hint">{t("profile.wishes.hint")}</p>
         </div>
     );
 }
 
 function NoteField({ value, max, onSave }: { value: string; max: number; onSave: (note: string) => void }) {
+    const t = useT();
     const [draft, setDraft] = useState(value);
     useEffect(() => setDraft(value), [value]);
     const dirty = useMemo(() => draft.trim() !== value.trim(), [draft, value]);
     return (
         <div className="pf-note">
             <textarea
-                value={draft} maxLength={max} rows={3} aria-label="Notiz für die Orga"
-                placeholder="z. B. Mittwochs erst ab 19:45 online."
+                value={draft} maxLength={max} rows={3} aria-label={t("profile.fold.note")}
+                placeholder={t("profile.note.placeholder")}
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={() => { if (dirty) onSave(draft); }}
             />

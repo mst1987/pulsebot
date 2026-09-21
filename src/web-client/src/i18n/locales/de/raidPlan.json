@@ -73,6 +73,21 @@
         "tankMore": "Ein Tank mehr",
         "healerLess": "Ein Heiler weniger",
         "healerMore": "Ein Heiler mehr",
-        "dpsLine": { "one": "{count} Platz für DPS · Vorschlag bei Größenwechsel", "other": "{count} Plätze für DPS · Vorschlag bei Größenwechsel" }
+        "dpsLine": {
+            "one": "{count} Platz für DPS · Vorschlag bei Größenwechsel",
+            "other": "{count} Plätze für DPS · Vorschlag bei Größenwechsel"
+        }
+    },
+    "emoji": {
+        "label": "Emojis",
+        "aria": "Emoji-Stil",
+        "arcane": "Arkan",
+        "arcaneTip": "Silberne Buchstaben-Kacheln auf Schiefer und passende Rollen-Icons. Standard.",
+        "gold": "Gold",
+        "goldTip": "Goldene Buchstaben-Kacheln auf dunklem Stein und passende Rollen-Icons.",
+        "parchment": "Pergament",
+        "parchmentTip": "Dunkle Buchstaben auf hellem Pergament – am nächsten an Raid-Helper.",
+        "plain": "Schlicht",
+        "plainTip": "Titel als normaler Text, flache graue Rollen-Icons."
     }
 }

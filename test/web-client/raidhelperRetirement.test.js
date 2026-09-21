@@ -120,7 +120,8 @@ describe("the profile's suggestion from Raid-Helper", () => {
     it("prefills only the manual way and says where it came from", () => {
         const dialog = read("components", "profile", "AddCharacterDialog.tsx");
         expect(dialog).toContain("if (way === \"manual\") applySuggestion();");
-        expect(dialog).toContain("aus Raid-Helper");
+        expect(dialog).toContain("t(\"profile.add.fromRaidhelper\")");
+        expect(require("./i18nHelper").makeT("de")("profile.add.fromRaidhelper")).toBe("aus Raid-Helper");
         expect(read("pages", "ProfilePage.tsx")).toContain("suggestion={specSuggestion(data.specHistory)}");
     });
 });

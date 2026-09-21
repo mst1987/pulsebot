@@ -2,7 +2,7 @@
 // languages (namespaces raidCreate + raidPlan): the German literals moved into
 // the dictionaries, the files translate at render time, and the English texts
 // read like English.
-const { makeT, read } = require("./i18nHelper");
+const { makeT, read, stripComments } = require("./i18nHelper");
 
 const FILES = {
     dialog: "components/RaidCreateDialog.tsx",
@@ -12,6 +12,7 @@ const FILES = {
     templates: "lib/raidTemplates.ts",
 };
 const src = Object.fromEntries(Object.entries(FILES).map(([k, f]) => [k, read(f)]));
+const code = Object.fromEntries(Object.entries(src).map(([k, s]) => [k, stripComments(s)]));
 
 describe("i18n: raidCreate / raidPlan", () => {
     it("no longer holds the moved German literals", () => {
@@ -23,7 +24,7 @@ describe("i18n: raidCreate / raidPlan", () => {
             templates: ["Name fehlt.", "Standard für", "Die Bild-Adresse muss"],
         };
         for (const [file, literals] of Object.entries(gone)) {
-            for (const lit of literals) expect({ file, lit, found: src[file].includes(lit) }).toEqual({ file, lit, found: false });
+            for (const lit of literals) expect({ file, lit, found: code[file].includes(lit) }).toEqual({ file, lit, found: false });
         }
     });
 

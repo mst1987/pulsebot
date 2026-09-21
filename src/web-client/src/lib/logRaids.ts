@@ -5,6 +5,7 @@
 
 import type { ClaRaid } from "../api";
 import { RAID_CONTENTS } from "./raidIcons";
+import { t } from "../i18n";
 
 /** The page's own icon, for a log whose raid is not known (yet). */
 export const LOG_FALLBACK_ICON = "inv_misc_pocketwatch_01";
@@ -22,13 +23,13 @@ export function raidCount(r: ClaRaid): string {
 export function raidTip(r: ClaRaid): { head: string; sub: string } {
     if (r.finalKilled) {
         return {
-            head: `${r.label} abgeschlossen`,
-            sub: r.total ? `${r.killed} von ${r.total} Bossen im Log, der Endboss liegt.` : "Der Endboss liegt im Log.",
+            head: t("raidDetail.logRaid.doneHead", { raid: r.label }),
+            sub: r.total ? t("raidDetail.logRaid.doneSub", { killed: r.killed, total: r.total }) : t("raidDetail.logRaid.doneSubNoTotal"),
         };
     }
     const standing = r.missing.length ? r.missing.join(", ") : r.finalBoss;
     return {
-        head: "Raid nicht abgeschlossen",
-        sub: `${r.total ? `Im Log liegen ${r.killed} von ${r.total} ${r.label}-Bossen` : `${r.label} ist nicht beendet`}, ${standing} ${r.missing.length > 1 ? "stehen" : "steht"} noch. „Auswerten“ fragt vorher nach – ein abgebrochener Raid lässt sich trotzdem auswerten.`,
+        head: t("raidDetail.logRaid.openHead"),
+        sub: `${r.total ? t("raidDetail.logRaid.openCount", { killed: r.killed, total: r.total, raid: r.label }) : t("raidDetail.logRaid.openNoTotal", { raid: r.label })}, ${t("raidDetail.logRaid.standing", { count: r.missing.length > 1 ? 2 : 1, names: standing })} ${t("raidDetail.logRaid.evalAnyway")}`,
     };
 }

@@ -9,6 +9,7 @@
 // top-level const.
 const fs = require("fs");
 const path = require("path");
+const { makeT } = require("./i18nHelper");
 
 const FILE = path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "settingsLogic.ts");
 
@@ -34,7 +35,7 @@ function stripTypes(src) {
     const out = [];
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (/^import type /.test(line)) continue;
+        if (/^import /.test(line)) continue;
         if (/^export type /.test(line)) {
             // A type declaration ends at the first line closing with ";" at depth 0.
             let depth = 0;
@@ -61,7 +62,7 @@ function load() {
     // LF regardless of the checkout: git's autocrlf hands Windows the file with CRLF
     const js = stripTypes(fs.readFileSync(FILE, "utf8").replace(/\r\n/g, "\n"));
     const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return new Function("t", `${js}\nreturn { ${names.join(", ")} };`)(makeT("de"));
 }
 
 const logic = load();

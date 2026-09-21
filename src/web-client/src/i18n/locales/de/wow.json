@@ -53,5 +53,23 @@
         "Balance": "Gleichgewicht",
         "Feral": "Wilder Kampf (Katze)",
         "Guardian": "Wilder Kampf (Bär)"
+    },
+    "instance": {
+        "kara": "Karazhan",
+        "gruul": "Gruuls Unterschlupf",
+        "mag": "Magtheridons Kammer",
+        "ssc": "Höhle des Schlangenschreins",
+        "tk": "Festung der Stürme",
+        "za": "Zul'Aman",
+        "hyjal": "Hyjalgipfel",
+        "bt": "Schwarzer Tempel",
+        "swp": "Sonnenbrunnenplateau",
+        "ony": "Onyxias Hort",
+        "mc": "Geschmolzener Kern",
+        "bwl": "Pechschwingenhort",
+        "zg": "Zul'Gurub",
+        "aq20": "Ruinen von Ahn'Qiraj",
+        "aq40": "Tempel von Ahn'Qiraj",
+        "naxx": "Naxxramas"
     }
 }

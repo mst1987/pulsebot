@@ -21,7 +21,10 @@
         "templateCreated": "Vorlage „{name}“ angelegt."
     },
     "start": {
-        "players": { "one": "{count} Spieler", "other": "{count} Spieler" },
+        "players": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        },
         "composition": "{tank} Tanks · {healer} Heiler",
         "needsSize": "Größe ergänzen",
         "label": "Wovon ausgehen?",
@@ -154,5 +157,11 @@
         "stepOf": "Schritt {n} von {total}",
         "titleEdit": "Event bearbeiten",
         "titleNew": "Neues Raid-Event"
+    },
+    "naming": {
+        "previous": "abgeleitet",
+        "schema": "Schema",
+        "default": "Standard",
+        "typed": "Schema"
     }
 }
