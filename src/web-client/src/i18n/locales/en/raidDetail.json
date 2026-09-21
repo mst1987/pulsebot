@@ -61,7 +61,27 @@
         "position": "Step {index} of {total}",
         "cancelled": "Cancelled",
         "nothingOpen": "Nothing open",
-        "clickDeed": "Click: {action}"
+        "clickDeed": "Click: {action}",
+        "title": {
+            "created": "Created",
+            "signup": "Signups",
+            "setup": "Setup",
+            "approval": "Approval",
+            "after": "Wrap-up"
+        },
+        "deed": {
+            "edit": "Edit",
+            "notify": "Post signup call",
+            "ping": "Ping missing",
+            "signups": "Close signups",
+            "setup": "Open setup",
+            "propose": "Suggest setup",
+            "post": "Post setup",
+            "approve": "Approve setup",
+            "log": "Assign log",
+            "loot": "Import loot",
+            "reopen": "Undo cancellation"
+        }
     },
     "signupStatus": {
         "signed": "Signed up",

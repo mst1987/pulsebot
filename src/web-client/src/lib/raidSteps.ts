@@ -6,9 +6,26 @@
 // Strippable wie lib/eventManage.ts (einzeilige Signaturen, keine Typen in den
 // Rümpfen), damit test/web-client/raidSteps.test.js sie wirklich ausführt und
 // gegen die Server-Regel hält.
-import type { RaidEventStep, RaidEventStepState, RaidEventSteps } from "../api";
+import type { RaidEventStep, RaidEventStepState, RaidEventSteps, RaidStepDeed } from "../api";
 import type { Tone } from "../components/ui/Badge";
-import { t } from "../i18n";
+import { t, tOr } from "../i18n";
+
+/**
+ * Der Name eines Schritts in der Menüsprache: über seine feste Id, der Text des
+ * Servers bleibt Rückfall für einen Schritt, den die Wörterbücher nicht kennen.
+ */
+export function stepTitle(step: RaidEventStep): string {
+    return tOr(`raidDetail.steps.title.${step.id}`, step.label);
+}
+
+/**
+ * Die Beschriftung einer Tat, ebenso über ihre Id. „CLA auswerten“ trägt den
+ * Namen der Auswertung in sich und bleibt, wie der Server ihn schickt.
+ */
+export function deedLabel(deed: RaidStepDeed): string {
+    if (deed.id === "evaluate") return deed.label;
+    return tOr(`raidDetail.steps.deed.${deed.id}`, deed.label);
+}
 
 /**
  * Wie ein Zustand heißt. „Übersprungen“ ist bewusst kein Fehlerwort: ein Raid
@@ -45,7 +62,7 @@ export function stepSummary(progress: RaidEventSteps): string {
     if (progress.cancelled) return progress.note || t("raidDetail.steps.cancelled");
     const step = progress.steps.find((s) => s.id === progress.current);
     if (!step) return progress.note || t("raidDetail.steps.nothingOpen");
-    return `${stepPosition(progress.steps, step.id)} · ${step.label}`;
+    return `${stepPosition(progress.steps, step.id)} · ${stepTitle(step)}`;
 }
 
 /** Die Zahl eines Schritts als ein Stück Text, für Vorlesehilfen und Tests. */
@@ -60,7 +77,7 @@ export function stepFigure(step: RaidEventStep): string {
  */
 export function stepTipSub(step: RaidEventStep, withDeed: boolean): string {
     const parts = [step.note, step.hint];
-    if (withDeed && step.action) parts.push(t("raidDetail.steps.clickDeed", { action: step.action.label }));
+    if (withDeed && step.action) parts.push(t("raidDetail.steps.clickDeed", { action: deedLabel(step.action) }));
     return parts.filter(Boolean).join(" · ");
 }
 

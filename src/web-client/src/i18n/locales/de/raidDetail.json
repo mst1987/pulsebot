@@ -61,7 +61,27 @@
         "position": "Schritt {index} von {total}",
         "cancelled": "Abgesagt",
         "nothingOpen": "Nichts offen",
-        "clickDeed": "Klick: {action}"
+        "clickDeed": "Klick: {action}",
+        "title": {
+            "created": "Angelegt",
+            "signup": "Anmeldung",
+            "setup": "Setup",
+            "approval": "Freigabe",
+            "after": "Nachbereitung"
+        },
+        "deed": {
+            "edit": "Bearbeiten",
+            "notify": "Anmelde-Aufruf posten",
+            "ping": "Fehlende pingen",
+            "signups": "Anmeldung schließen",
+            "setup": "Setup öffnen",
+            "propose": "Setup vorschlagen",
+            "post": "Setup posten",
+            "approve": "Setup freigeben",
+            "log": "Log zuordnen",
+            "loot": "Loot importieren",
+            "reopen": "Absage zurücknehmen"
+        }
     },
     "signupStatus": {
         "signed": "Angemeldet",

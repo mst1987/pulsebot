@@ -10,7 +10,7 @@
 // (src/web/raidDetailSteps.js' eventSteps); die Texte drumherum stehen rein in
 // lib/raidSteps.ts. Hier wird nur gezeichnet.
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
-import { stepStateLabel, stepStateTone, stepSummary, stepTipSub } from "../../lib/raidSteps";
+import { deedLabel, stepStateLabel, stepStateTone, stepSummary, stepTipSub, stepTitle } from "../../lib/raidSteps";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
@@ -31,11 +31,12 @@ function StepCell({ step, running, onDeed }: {
 }) {
     const t = useT();
     const tone = stepStateTone(step.state);
+    const title = stepTitle(step);
     const cell = (
         <>
             <span className="rd-ck-top">
                 <IconTile icon={step.icon} tone={tileTone(step)} />
-                <span className="kicker">{step.label}</span>
+                <span className="kicker">{title}</span>
             </span>
             <span className="rd-ck-v">
                 {step.value}
@@ -54,11 +55,11 @@ function StepCell({ step, running, onDeed }: {
     // auffällige Knopf darin nicht in einem Knopf steckt.
     if (step.state === "current") {
         return (
-            <div className={`rd-ck current state-${step.state}`} data-step={step.id} data-tip={step.label} data-tip-sub={stepTipSub(step, false)}>
+            <div className={`rd-ck current state-${step.state}`} data-step={step.id} data-tip={title} data-tip-sub={stepTipSub(step, false)}>
                 {cell}
                 {step.action && (
                     <Button size="sm" icon={step.action.icon} running={running} onClick={() => onDeed(step.action!)}>
-                        {step.action.label}
+                        {deedLabel(step.action)}
                     </Button>
                 )}
             </div>
@@ -66,7 +67,7 @@ function StepCell({ step, running, onDeed }: {
     }
     if (!step.action) {
         return (
-            <div className={`rd-ck state-${step.state}`} data-step={step.id} data-tip={step.label} data-tip-sub={stepTipSub(step, false)}>
+            <div className={`rd-ck state-${step.state}`} data-step={step.id} data-tip={title} data-tip-sub={stepTipSub(step, false)}>
                 {cell}
             </div>
         );
@@ -74,8 +75,8 @@ function StepCell({ step, running, onDeed }: {
     return (
         <button
             type="button" className={`rd-ck state-${step.state}`} data-step={step.id}
-            data-tip={step.label} data-tip-sub={stepTipSub(step, true)}
-            aria-label={t("raidDetail.stepBar.deedAria", { label: step.label, state: stepStateLabel(step.state), action: step.action.label })}
+            data-tip={title} data-tip-sub={stepTipSub(step, true)}
+            aria-label={t("raidDetail.stepBar.deedAria", { label: title, state: stepStateLabel(step.state), action: deedLabel(step.action) })}
             onClick={() => onDeed(step.action!)}
         >
             {cell}
@@ -102,7 +103,7 @@ export default function StepBar({ progress, running, onDeed }: {
                     </span>
                     {progress.action && (
                         <Button variant="ghost" size="sm" icon={progress.action.icon} onClick={() => onDeed(progress.action!)}>
-                            {progress.action.label}
+                            {deedLabel(progress.action)}
                         </Button>
                     )}
                 </div>
