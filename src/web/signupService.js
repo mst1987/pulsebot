@@ -34,6 +34,7 @@ const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupChar
 const profiles = require("./raiderProfileStore");
 const settingsStore = require("./settingsStore");
 const discord = require("./discord");
+const signupNotes = require("./signupNotes");
 const { SIGNUP_STATUSES } = require("../utils/attendance");
 const { ROLES } = require("../config/gameVersions/classes");
 const { spec: specOf } = require("../config/gameVersions");
@@ -460,6 +461,9 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, now =
     const lock = lockIfFull(event, { now });
     const notice = [overflow.notice, lock.locked ? "Der Raid ist damit voll – die Anmeldung ist jetzt geschlossen." : ""]
         .filter(Boolean).join(" ");
+    // The note of "Vielleicht" / "Absagen" goes to the orga's channel — not
+    // awaited: a slow or refused post never holds up or fails the signup.
+    signupNotes.postSignupNote(event, saved.signup, previous, { config: config || settingsStore.getConfig(), byOrga });
     return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 

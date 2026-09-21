@@ -556,6 +556,9 @@ export type AdminConfig = {
     // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
     // listed; `target` is a ping target ("event" | "talk" | "both").
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    // The message with "Vielleicht" / "Absagen" per category: "required" |
+    // "none"; a category without an entry is "optional".
+    categorySignupNotes?: Record<string, string>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -670,6 +673,8 @@ export type DiscordServers = {
     talkGuildId: string;
     talkOverviewChannelId: string;
     talkPingChannelId: string;
+    /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on either server. */
+    signupNoteChannelId: string;
 };
 
 export type BotPermission = { key: string; label: string; ok: boolean };
@@ -3723,6 +3728,8 @@ export type OwnSignupRow = SignupEventBase & {
     counts: SignupCounts;
     /** Whether the setup considers wishes (the dialog's hint text). */
     wishes: boolean;
+    /** The category's message with "Vielleicht" / "Absagen" (src/web/signupNotes.js); missing = optional. */
+    noteMode?: "required" | "optional" | "none";
     /** The member's own wish partners who already signed up. */
     wishPartners: { userId: string; name: string }[];
     mine: OwnSignup | null;

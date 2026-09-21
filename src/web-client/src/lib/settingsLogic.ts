@@ -108,6 +108,8 @@ export type DraftShape = {
     /** The voice channel a category's raids meet in (#305); missing = none. */
     categoryVoiceChannel?: Record<string, string>;
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
+    categorySignupNotes?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -131,6 +133,14 @@ export const ANNOUNCE_LABEL: Record<string, string> = { "": "aus", event: "Event
 
 export function announceMode(entry: { enabled: boolean; target: string } | undefined): string {
     return entry && entry.enabled ? String(entry.target || "event") : "";
+}
+
+/** The message with "Vielleicht" / "Absagen" per category: required, optional (the default) or not asked. */
+export const SIGNUP_NOTE_LABEL: Record<string, string> = { required: "Pflicht", optional: "optional", none: "keine" };
+
+export function signupNoteMode(map: Record<string, string> | undefined, categoryId: string): string {
+    const mode = (map || {})[categoryId];
+    return mode === "required" || mode === "none" ? mode : "optional";
 }
 
 function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
@@ -166,6 +176,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
+        ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -196,6 +207,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const annWas = announceMode((saved.categoryAnnounce || {})[id]);
         const annIs = announceMode((draft.categoryAnnounce || {})[id]);
         if (annWas !== annIs) out.push(`${name} · Ankündigung → ${ANNOUNCE_LABEL[annIs] || annIs}`);
+        const noteWas = signupNoteMode(saved.categorySignupNotes, id);
+        const noteIs = signupNoteMode(draft.categorySignupNotes, id);
+        if (noteWas !== noteIs) out.push(`${name} · Nachricht bei Vielleicht/Absage → ${SIGNUP_NOTE_LABEL[noteIs]}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {
@@ -317,7 +331,7 @@ export function missingConnections(data: SettingsLike, tokens: unknown[] | null,
 // ---- Discord-Server: the event and the talk server (#251) ----
 
 export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
-export type ServerFields = { eventGuildId: string; talkGuildId: string; talkOverviewChannelId: string; talkPingChannelId: string };
+export type ServerFields = { eventGuildId: string; talkGuildId: string; talkOverviewChannelId: string; talkPingChannelId: string; signupNoteChannelId: string };
 export type OverlapLike = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
 
 /**
@@ -343,7 +357,8 @@ export function serverIssues(servers: { event: ServerCardLike | null; talk: Serv
 /**
  * The PATCH body of the edit dialog. A talk server equal to the event server is
  * no second server, and without a talk server its channels mean nothing — both
- * are cleared, the same rule the server's normaliser applies.
+ * are cleared, the same rule the server's normaliser applies. The note channel
+ * may sit on either server and is kept as it is.
  */
 export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
     const v = (key) => String(fields[key] || "").trim();
@@ -355,6 +370,7 @@ export function discordServersPatch(fields: ServerFields): { discordServers: Ser
             talkGuildId,
             talkOverviewChannelId: talkGuildId ? v("talkOverviewChannelId") : "",
             talkPingChannelId: talkGuildId ? v("talkPingChannelId") : "",
+            signupNoteChannelId: v("signupNoteChannelId"),
         },
     };
 }

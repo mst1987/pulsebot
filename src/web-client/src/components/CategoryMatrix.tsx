@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { getRaiderCharacters, type Category, type EventSource, type Role } from "../api";
 import { usePersistedState } from "../lib/persistedState";
 import {
-    categoryRows, splitCategoryRows, summarizeRaiderChars, type CategoryRow, type RaiderCharSummary,
+    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, SIGNUP_NOTE_LABEL, type CategoryRow, type RaiderCharSummary,
 } from "../lib/settingsLogic";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
@@ -56,6 +56,13 @@ const ANNOUNCE_MODES = [
     { value: "both", label: "beide" },
 ];
 
+// The message with "Vielleicht" / "Absagen" (src/web/signupNotes.js).
+const NOTE_MODES = [
+    { value: "required", label: SIGNUP_NOTE_LABEL.required },
+    { value: "optional", label: SIGNUP_NOTE_LABEL.optional },
+    { value: "none", label: SIGNUP_NOTE_LABEL.none },
+];
+
 // Where NEW events of the category are created. Raid-Helper events stay in use either way.
 const SIGNUP_SOURCES = [
     { value: "raidhelper", label: "Raid-Helper" },
@@ -65,8 +72,12 @@ const SIGNUP_SOURCES = [
 export default function CategoryMatrix({
     categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categoryAnnounce = {}, categorySheets, savedCategoryRoles,
     categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [], categoryLootSystem = {}, onLootSystem,
+    categorySignupNotes = {}, onSignupNotes,
     onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
+    /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
+    categorySignupNotes?: Record<string, string>;
+    onSignupNotes?: (categoryId: string, mode: string) => void;
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
     raidTemplates?: CategoryRaidTemplates;
     categories: Category[];
@@ -123,6 +134,7 @@ export default function CategoryMatrix({
         ...Object.keys(categoryDiscordEvent).filter((id) => categoryDiscordEvent[id]),
         ...Object.keys(categoryVoiceChannel).filter((id) => categoryVoiceChannel[id]),
         ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),
+        ...Object.keys(categorySignupNotes).filter((id) => signupNoteMode(categorySignupNotes, id) !== "optional"),
         ...Object.keys(categorySheets),
     ];
     const rows = categoryRows(categories, configured);
@@ -299,6 +311,14 @@ export default function CategoryMatrix({
                                     <Segment ariaLabel={`Ankündigung ${cat.name}`}
                                         value={categoryAnnounce[cat.id] && categoryAnnounce[cat.id].enabled ? (categoryAnnounce[cat.id].target || "event") : ""}
                                         onChange={(v) => onAnnounce(cat.id, v)} options={ANNOUNCE_MODES} />
+                                </div>
+                            )}
+                            {onSignupNotes && (
+                                <div>
+                                    <FieldLabel tip="Nachricht bei Vielleicht/Absage" tipSub="Wer in Discord „Vielleicht“ oder „Absagen“ drückt, bekommt ein Feld für eine kurze Nachricht an die Raidleitung. Der Bot postet sie in den Kanal, den du unter Verbindungen › Discord-Server wählst. „keine“ fragt nicht und postet nichts.">Nachricht bei Vielleicht/Absage</FieldLabel>
+                                    <Segment ariaLabel={`Nachricht bei Vielleicht/Absage ${cat.name}`}
+                                        value={signupNoteMode(categorySignupNotes, cat.id)}
+                                        onChange={(v) => onSignupNotes(cat.id, v)} options={NOTE_MODES} />
                                 </div>
                             )}
                             {onDiscordEvent && (

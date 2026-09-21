@@ -12,6 +12,7 @@ const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersi
 const { signupStatus } = require("../utils/attendance");
 const { approvedPlacementFor } = require("./setupEditor");
 const { migrateSignup } = require("./signupCharacters");
+const { noteMode } = require("./signupNotes");
 
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 
@@ -139,6 +140,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 allowedStatuses: allowedStatuses(event, { now }),
                 counts: roleCounts(event, signUps),
                 wishes: !!stored.wishes,
+                // Whether "Vielleicht" / "Absagen" ask for a message: required | optional | none.
+                noteMode: noteMode(stored.categoryId || row.categoryId, config),
                 wishPartners: wishPartnersSignedUp(profile, signUps.filter((s) => String(s.userId) !== uid)),
                 mine: signupSummary(own),
                 // Where the *approved* setup puts the member (#263) — a draft is never shown.

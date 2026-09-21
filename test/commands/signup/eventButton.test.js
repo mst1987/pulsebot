@@ -227,18 +227,63 @@ describe("commands/signup/eventButton", () => {
             expect(firstCharacterTo({ status: "absence", characters: [] }, "bench")).toBeNull();
         });
 
-        it("asks for the characters without a signup and saves them with that status", async () => {
+        it("asks for the message, then the characters without a signup, and saves both", async () => {
             twoCharacters();
             const i = click("tentative");
             await command.execute(i);
-            const payload = replyOf(i);
+            const modal = i.showModal.mock.calls[0][0].toJSON();
+            expect(modal.custom_id).toBe("event-btn:eh-kara:note:t");
+            expect(modal.title).toBe("Tentative");
+            // "optional" is the default of a category
+            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "reason", required: false });
+
+            const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { reason: "  maybe   work " } });
+            await command.execute(submit);
+            const payload = replyOf(submit);
             expect(payload.content).toContain("als **Vielleicht**");
             const select = selectOf(payload);
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:t");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: select.options.map((o) => o.value) }), select);
             await command.execute(pick);
             expect(stored().status).toBe("tentative");
+            expect(stored().comment).toBe("maybe work");
             expect(statuses().map(([, s]) => s)).toEqual(["tentative", "tentative"]);
+        });
+
+        it("moves the first character with the message of the modal", async () => {
+            twoCharacters();
+            await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
+            const submit = mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: "late shift" } });
+            await command.execute(submit);
+            expect(stored()).toMatchObject({ status: "tentative", comment: "late shift" });
+            expect(replyOf(submit).flags).toBe(MessageFlags.Ephemeral);
+        });
+
+        it("a category without messages asks nothing; one that requires them insists", async () => {
+            twoCharacters();
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+            mocks.access.config = { categorySignupNotes: { "cat-1": "none" } };
+            const plain = click("tentative");
+            await command.execute(plain);
+            expect(plain.showModal).not.toHaveBeenCalled();
+            expect(selectOf(replyOf(plain)).custom_id).toBe("event-btn:eh-kara:pick:t");
+
+            mocks.access.config = { categorySignupNotes: { "cat-1": "required" } };
+            const strict = click("tentative");
+            await command.execute(strict);
+            expect(strict.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
+            const empty = mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: " " } });
+            await command.execute(empty);
+            expect(replyOf(empty).content).toBe("Please leave a short message.");
+            expect(stored()).toBeUndefined();
+        });
+
+        it("a message left waiting is only used for the same status", async () => {
+            twoCharacters();
+            await command.execute(mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: "unsure" } }));
+            const pick = withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:b", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null);
+            await command.execute(pick);
+            expect(stored()).toMatchObject({ status: "bench", comment: "" });
         });
 
         it("Bank after an absence: saved as Bank, and the message lists the raider under Bank, not Abgemeldet", async () => {
@@ -302,7 +347,8 @@ describe("commands/signup/eventButton", () => {
             await command.execute(btn);
             const modal = btn.showModal.mock.calls[0][0].toJSON();
             expect(modal.custom_id).toBe("event-btn:eh-kara:why");
-            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "reason", required: true, min_length: 2, max_length: 100 });
+            expect(modal.title).toBe("Sign off");
+            expect(modal.components[0].components[0]).toMatchObject({ custom_id: "reason", required: false, max_length: 100 });
 
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
@@ -316,6 +362,46 @@ describe("commands/signup/eventButton", () => {
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Urlaub" } });
             await command.execute(submit);
             expect(stored()).toMatchObject({ status: "absence", comment: "Urlaub" });
+        });
+
+        it("an empty optional message signs off without one", async () => {
+            const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "" } });
+            await command.execute(submit);
+            expect(stored()).toMatchObject({ status: "absence", comment: "" });
+            expect(replyOf(submit).content).toBe("Abgemeldet von **Karazhan**.");
+        });
+
+        it("follows the category: required insists, none signs off at once", async () => {
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
+            mocks.access.config = { categorySignupNotes: { "cat-1": "required" } };
+            const btn = click("absence");
+            await command.execute(btn);
+            expect(btn.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
+            const short = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "x" } });
+            await command.execute(short);
+            expect(replyOf(short).content).toBe("Please leave a short message.");
+            expect(stored()).toBeUndefined();
+
+            mocks.access.config = { categorySignupNotes: { "cat-1": "none" } };
+            const direct = click("absence");
+            await command.execute(direct);
+            expect(direct.showModal).not.toHaveBeenCalled();
+            expect(stored()).toMatchObject({ status: "absence" });
+            expect(replyOf(direct).flags).toBe(MessageFlags.Ephemeral);
+        });
+
+        it("posts the message to the orga's channel, pinging nobody", async () => {
+            twoCharacters();
+            mocks.access.config = { discordServers: { signupNoteChannelId: "777777" } };
+            await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
+            expect(mocks.postNotice).not.toHaveBeenCalled();
+            await command.execute(mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } }));
+            expect(mocks.postNotice).toHaveBeenCalledTimes(1);
+            const [channelId, content] = mocks.postNotice.mock.calls[0];
+            expect(channelId).toBe("777777");
+            expect(content).toContain(`<@${ANNA}> (Zibbo)`);
+            expect(content).toContain("**Absent**");
+            expect(content).toContain("> Arbeit");
         });
     });
 
