@@ -303,6 +303,17 @@ describe("web/settingsStore", () => {
             expect(getConfig().categorySignupNotes).toEqual({ c2: "none" });
         });
 
+        it("stores a message channel per category as a snowflake and merges it, \"\" = back to the default (#335)", () => {
+            expect(getConfig().categorySignupNoteChannel).toEqual({});
+            saveConfig({ categorySignupNoteChannel: { c1: "123456789012345678", c2: "#abmeldungen", c3: "223456789012345678" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c1: "123456789012345678", c3: "223456789012345678" });
+            saveConfig({ categorySignupNoteChannel: { c1: "" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c3: "223456789012345678" });
+            // another save leaves it alone
+            saveConfig({ categorySignupNotes: { c3: "required" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c3: "223456789012345678" });
+        });
+
         it("defaults categoryRoles to an empty object and round-trips a map", () => {
             expect(getConfig().categoryRoles).toEqual({});
             saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });

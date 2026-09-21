@@ -142,6 +142,55 @@ describe("Discord-Event und Sprachkanal je Kategorie (#305)", () => {
     });
 });
 
+describe("Kanal für Vielleicht/Absage je Kategorie (#335)", () => {
+    it("stores the channel as a string, so a category can go back to the default", async () => {
+        readJsonBody.mockResolvedValue({ categorySignupNoteChannel: { c1: " 123456789012345678 ", c2: "" } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupNoteChannel: { c1: "123456789012345678", c2: "" } });
+    });
+
+    it("is a setting a limited settings user may change (not full-admin-only)", async () => {
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+        requireFullAdmin.mockReturnValue(null);
+        readJsonBody.mockResolvedValue({ categorySignupNoteChannel: { c1: "123456789012345678" } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupNoteChannel: { c1: "123456789012345678" } });
+    });
+
+    it("lists the text channels of both servers, named with their server, and the default channel", async () => {
+        settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuildId: "200", talkGuildId: "300", signupNoteChannelId: "2001" } });
+        discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse Talk" }, { id: "400", name: "Andere" }]);
+        discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "200" ? "Raids" : "" }]);
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+        const res = mockRes();
+        await getSettings({}, res);
+        expect(body(res).data.noteChannels).toEqual({
+            defaultId: "2001",
+            channels: [
+                { id: "2001", name: "abmeldungen", category: "Pulse Events · Raids" },
+                { id: "3001", name: "abmeldungen", category: "Pulse Talk" },
+            ],
+        });
+        settingsStore.getConfig.mockReturnValue({});
+        discord.listTextChannels.mockReset().mockReturnValue([]);
+        discord.listGuilds.mockReset().mockReturnValue([]);
+    });
+
+    it("keeps the server name out with a single server and reads an offline bot as no channels", async () => {
+        settingsStore.getConfig.mockReturnValue({ guildId: "200" });
+        discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: "Raids" }]);
+        const res = mockRes();
+        await getSettings({}, res);
+        expect(body(res).data.noteChannels).toEqual({ defaultId: "", channels: [{ id: "2001", name: "abmeldungen", category: "Raids" }] });
+
+        discord.listTextChannels.mockReset().mockReturnValue([]);
+        const res2 = mockRes();
+        await getSettings({}, res2);
+        expect(body(res2).data.noteChannels).toEqual({ defaultId: "", channels: [] });
+        settingsStore.getConfig.mockReturnValue({});
+    });
+});
+
 describe("PATCH /api/settings userPermissions", () => {
     it("normalises and stores the per-account grants", async () => {
         readJsonBody.mockResolvedValue({

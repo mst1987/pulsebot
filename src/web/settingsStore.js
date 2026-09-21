@@ -140,6 +140,9 @@ const CONFIG_DEFAULTS = {
     // "optional" (the modal asks, the raider may leave it empty). The message is
     // posted to discordServers.signupNoteChannelId — see src/web/signupNotes.js.
     categorySignupNotes: {},
+    // Where a category's messages go instead (#335): { [categoryId]: channelId }.
+    // Missing = discordServers.signupNoteChannelId, the default for every category.
+    categorySignupNoteChannel: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -534,6 +537,7 @@ function getConfig() {
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
+        categorySignupNoteChannel: normalizeCategoryVoiceChannel(stored.categorySignupNoteChannel),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -697,7 +701,7 @@ function normalizeCategoryFlags(raw) {
     return normalizeCategorySetupDms(raw);
 }
 
-/** Normalise categoryVoiceChannel to `{ [categoryId]: channelId }`; anything that is no snowflake drops out. */
+/** Normalise categoryVoiceChannel (and categorySignupNoteChannel, #335) to `{ [categoryId]: channelId }`; anything that is no snowflake drops out. */
 function normalizeCategoryVoiceChannel(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
     const out = {};
@@ -916,6 +920,10 @@ function saveConfig(partial) {
     // Merged, then normalised: a category set back to "optional" drops out.
     if (partial.categorySignupNotes) {
         next.categorySignupNotes = normalizeCategorySignupNotes({ ...current.categorySignupNotes, ...partial.categorySignupNotes });
+    }
+    // Same contract as the voice channel: "" drops the category (back to the default).
+    if (partial.categorySignupNoteChannel) {
+        next.categorySignupNoteChannel = normalizeCategoryVoiceChannel({ ...current.categorySignupNoteChannel, ...partial.categorySignupNoteChannel });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);

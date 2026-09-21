@@ -559,6 +559,8 @@ export type AdminConfig = {
     // The message with "Vielleicht" / "Absagen" per category: "required" |
     // "none"; a category without an entry is "optional".
     categorySignupNotes?: Record<string, string>;
+    // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
+    categorySignupNoteChannel?: Record<string, string>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -661,6 +663,9 @@ export type SettingsData = {
     channels?: TextChannel[];
     // The server's voice channels, for the voice channel per category (#305).
     voiceChannels?: TextChannel[];
+    // The channel of "Vielleicht" / "Absagen" per category (#335): the text
+    // channels of both servers and the default channel's id.
+    noteChannels?: { defaultId: string; channels: TextChannel[] };
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
