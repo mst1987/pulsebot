@@ -2870,11 +2870,13 @@ function renderActivitySummary(activity, linkFor) {
     return `<div class="tbox"><table class="idx"><tr><th>Spieler</th><th>Kämpfe</th><th data-tip="Ø aktiv" data-tip-sub="${esc(AREA_HOW.activity)}">Ø aktiv</th><th data-tip="Lücken" data-tip-sub="Lücken über der GCD-Toleranz. Die Bänder je Kampf stehen in der Sicht Bosse unter „Aktivität“.">Lücken</th><th>Längste Lücke</th><th data-tip="Unerklärt" data-tip-sub="Lückenzeit, die auf keine Bewegungsphase fällt.">Unerklärt</th><th data-tip="Durch Mechanik" data-tip-sub="Lückenzeit in einer Bewegungsphase des Bosses.">Durch Mechanik</th></tr>${body}</table></div>`;
 }
 
+const WF_DERIVED_HOW = "Der Log enthält keinen Windfury-Buff. Die Uptime ist aus den Totem-Drops gerechnet: Puls alle 5 s, jeder Buff hält 10 s, ein anderes Lufttotem beendet die Pulse.";
+
 /** Raid-wide totem summary (report.totems.players): Windfury uptime, twisting, downtime per slot. */
 function renderTotemSummary(totems, linkFor) {
     const body = (totems.players || []).map((p) => {
         const slots = Object.entries(p.slotDowntimeMs || {}).filter(([, v]) => v > 0).map(([k, v]) => `${k}: ${fmtTime(v)}`).join(", ");
-        return `<tr><td>${classCell(p, linkFor(p.name))}<div class="sritems">${esc(p.role || "")}</div></td><td class="mono">${esc(p.fights)}</td><td>${p.wfUptimeAvg === null || p.wfUptimeAvg === undefined ? naCell("", "–") : barPct(p.wfUptimeAvg)}</td><td class="mono">${esc(p.twistingFights)} / ${esc(p.wfFights)}</td><td class="mono">${esc(p.gapCount)}</td><td class="mono">${fmtTime(p.downtimeMs)}</td><td class="sritems">${esc(slots) || "–"}</td></tr>`;
+        return `<tr><td>${classCell(p, linkFor(p.name))}<div class="sritems">${esc(p.role || "")}</div></td><td class="mono">${esc(p.fights)}</td><td>${p.wfUptimeAvg === null || p.wfUptimeAvg === undefined ? naCell("", "–") : p.wfDerived ? barPct(p.wfUptimeAvg, "Aus den Drops abgeleitet", WF_DERIVED_HOW) : barPct(p.wfUptimeAvg)}</td><td class="mono">${esc(p.twistingFights)} / ${esc(p.wfFights)}</td><td class="mono">${esc(p.gapCount)}</td><td class="mono">${fmtTime(p.downtimeMs)}</td><td class="sritems">${esc(slots) || "–"}</td></tr>`;
     }).join("");
     return `<div class="tbox"><table class="idx"><tr><th>Schamane</th><th>Kämpfe</th><th data-tip="Windfury Ø" data-tip-sub="${esc(AREA_HOW.totems)}">Windfury Ø</th><th data-tip="Twisting" data-tip-sub="Kämpfe mit Windfury-Twisting gegen Kämpfe mit Windfury.">Twisting</th><th>Lücken</th><th>Downtime</th><th data-tip="Leere Plätze" data-tip-sub="Wie lange ein Totemplatz leer blieb. Die Drops je Kampf stehen in der Sicht Bosse unter „Totems“.">Leere Plätze</th></tr>${body}</table></div>`;
 }
