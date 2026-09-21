@@ -300,6 +300,7 @@ function buildNameModal(event, userId, status, specKey, { displayName = "" } = {
     return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
         defaultName: known ? known.name : displayName,
         classText: [cls ? cls.label : info.classId, info.label].filter(Boolean).join(" · "),
+        versionId: event.versionId,
     });
 }
 

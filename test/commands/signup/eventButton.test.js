@@ -203,6 +203,38 @@ describe("commands/signup/eventButton", () => {
             expect(stored().characters).toHaveLength(3);
         });
 
+        it("asks for first and last name in a Forever raid and takes them", async () => {
+            mocks.events.set("eh-kara", mocks.ownEvent({ versionId: "forever", instanceIds: ["forever-barrow"] }));
+            const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
+            await command.execute(spec);
+            const input = spec.showModal.mock.calls[0][0].toJSON().components[0].components[0];
+            expect(input).toMatchObject({ max_length: 25, placeholder: expect.stringContaining("Vorname Nachname") });
+
+            const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Priest-Holy", userId: ANNA, modal: true, options: { character: "aldric sturmwind" } });
+            await command.execute(submit);
+            expect(profiles.getProfile(ANNA).characters.map((c) => c.name)).toEqual(["Aldric Sturmwind"]);
+            expect(stored()).toMatchObject({ status: "signed", character: "Aldric Sturmwind" });
+        });
+
+        it("refuses a last name outside Forever, a name over 12 letters and profanity", async () => {
+            const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
+            await command.execute(spec);
+            const input = spec.showModal.mock.calls[0][0].toJSON().components[0].components[0];
+            expect(input).toMatchObject({ max_length: 12 });
+
+            for (const [name, why] of [
+                ["Aldric Sturmwind", /nur in WoW Forever/],
+                ["Abcdefghijklm", /13 Buchstaben – höchstens 12/],
+                ["Fuckface", /nicht erlaubt/],
+            ]) {
+                const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Priest-Holy", userId: ANNA, modal: true, options: { character: name } });
+                await command.execute(submit);
+                expect(updateOf(submit).content).toMatch(why);
+            }
+            expect(profiles.getProfile(ANNA).characters).toEqual([]);
+            expect(stored()).toBeUndefined();
+        });
+
         it("refuses a name the profile already has with another class", async () => {
             twoCharacters();
             const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Mage-Fire", userId: ANNA, modal: true, options: { character: "Zibbowar" } });
