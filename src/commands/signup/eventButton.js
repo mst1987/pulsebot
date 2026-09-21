@@ -161,7 +161,7 @@ async function onName(interaction, event, status, specKey) {
         className: info.classId,
         specs: [{ key: info.key, gear: "usable" }],
         source: "manual",
-    }, { name: displayName(interaction) });
+    }, { name: displayName(interaction), versionId: event.versionId });
     if (added.error) return done(interaction, `⚠️ ${added.error}`);
     const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status });
     if (next.error) return done(interaction, `⚠️ ${next.error}`);
