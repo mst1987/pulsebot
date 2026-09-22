@@ -245,8 +245,8 @@ describe("what raiders see", () => {
         expect(slots).toHaveLength(10);
         expect(slots[0]).toMatchObject({ id: first.userId, name: first.character, groupNumber: 1, slotNumber: 1 });
         expect(slots.every((s) => s.specName)).toBe(true);
-        // no more inline "Grp 1 …" field on the event message — the setup lives in
-        // its own message (setupMessage.js) now, this one only links to it
+        // The event message only links the approved setup (#352) — the groups
+        // themselves are the dedicated setup message's job (setupMessage.js).
         expect(msg(event)).toContain("[Setup]");
         const reader = editor.editorView(event, { canWrite: false });
         expect(reader.approved.groups[0].slots[0]).toMatchObject({ classColor: expect.stringMatching(/^#/), specLabel: expect.any(String) });

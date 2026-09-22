@@ -463,7 +463,7 @@ describe("web/eventMessage", () => {
         expect(warriors.value).toMatch(/\+\d+ more\n​$/);
     });
 
-    it("fits 40 signups over every class, a setup and all links into 25 fields — the spacers go first", () => {
+    it("fits 40 signups over every class and all links (setup included) into 25 fields — the spacers go first", () => {
         const specs = [
             ["Warrior-Protection", "tank"], ["Warrior-Fury", "melee"], ["Paladin-Holy", "healer"], ["Hunter-BeastMastery", "ranged"],
             ["Rogue-Combat", "melee"], ["Priest-Shadow", "ranged"], ["Shaman-Restoration", "healer"], ["Mage-Fire", "ranged"],
@@ -488,11 +488,10 @@ describe("web/eventMessage", () => {
         expect(embed.fields.every((f) => Object.keys(f).sort().join() === "inline,name,value")).toBe(true);
     });
 
-    it("links the approved setup (its own message now, no inline preview), never for a draft", () => {
+    it("links the approved setup instead of repeating its groups — that's the setup message's own job (#352)", () => {
         const approved = { groups: [{ index: 1, slots: [{ character: "Brokk" }] }], bench: [{ character: "Kael" }] };
         const payload = buildEventMessage(event({ setup: { status: "approved", approved } }), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics" });
         const fields = payload.embeds[0].fields;
-        // no more "Grp 1 Brokk" field — that wrapped badly and duplicated the setup message
         expect(fields.some((f) => emojiless(f.name) === "Setup")).toBe(false);
         const links = fields[fields.length - 1].value;
         expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
