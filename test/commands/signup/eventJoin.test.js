@@ -73,10 +73,11 @@ describe("commands/signup/eventJoin", () => {
         expect(options[0]).toMatchObject({ label: "Nerathil · Arcane", description: "Mage · raid ready · Main", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
         expect(options[1]).toMatchObject({ description: "Warrior · usable · Tank", default: false });
         expect(options[1].emoji).toBeUndefined();
-        expect(selectOf(payload).custom_id).toBe("event-join:eh-kara:s:c:nerathil:Mage-Arcane:t");
+        // "kann auch" belongs to the character: Brokk tanks, the mage Nerathil does not
+        expect(selectOf(payload).custom_id).toBe("event-join:eh-kara:s:c:nerathil:Mage-Arcane:");
         const [ok, also, comment, multi, profile] = buttonsOf(payload);
-        expect(ok).toMatchObject({ label: "Sign up", custom_id: "signup-status:eh-kara:s:nerathil:Mage-Arcane:t", disabled: false });
-        expect(also).toMatchObject({ label: "Can also …", custom_id: "event-join:eh-kara:s:m:nerathil:Mage-Arcane:t" });
+        expect(ok).toMatchObject({ label: "Sign up", custom_id: "signup-status:eh-kara:s:nerathil:Mage-Arcane:", disabled: false });
+        expect(also).toMatchObject({ label: "Can also …", custom_id: "event-join:eh-kara:s:m:nerathil:Mage-Arcane:" });
         expect(comment).toMatchObject({ label: "Comment", disabled: true });
         // two characters: first choice + "kann auch mit" in one modal (#293)
         expect(multi).toMatchObject({ label: "Several characters …", custom_id: "signup-multi:e:eh-kara:s" });

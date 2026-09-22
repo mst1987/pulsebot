@@ -14,7 +14,7 @@
 //                       the proposal's output v1 (utils/setup/proposal.js) for the
 //                       event — a manual change is valued by evaluateSetup(), so
 //                       both read alike
-//   options             { weights, fairness, wishes } the orga set for this event
+//   options             { weights, fairness, wishes, avoid } the orga set for this event
 //   origin              "proposal" | "manual" — what produced the current lineup
 //   updatedAt/By
 //   approvedAt/By/Version
@@ -55,6 +55,8 @@ function mergeOptions(body = {}, previous = {}) {
         weights: body.weights !== undefined ? cleanWeights(body.weights) : cleanWeights(prev.weights),
         fairness: typeof body.fairness === "boolean" ? body.fairness : (typeof prev.fairness === "boolean" ? prev.fairness : null),
         wishes: typeof body.wishes === "boolean" ? body.wishes : (typeof prev.wishes === "boolean" ? prev.wishes : null),
+        // "nicht zusammen" has no event flag: null = never asked (the editor asks), off until yes
+        avoid: typeof body.avoid === "boolean" ? body.avoid : (typeof prev.avoid === "boolean" ? prev.avoid : null),
     };
 }
 
@@ -63,7 +65,26 @@ function runOptions(options, extra = {}) {
     const out = { ...extra, weights: options.weights };
     if (typeof options.fairness === "boolean") out.fairness = options.fairness;
     if (typeof options.wishes === "boolean") out.wishes = options.wishes;
+    if (options.avoid === true) out.avoid = true;
     return out;
+}
+
+/**
+ * How many "nicht zusammen" pairs stand among the event's signups — the number
+ * the editor asks about before a proposal. Only raiders who have the list
+ * switched on count, and only the count leaves this function.
+ */
+function avoidPairCount(signups, profileList) {
+    const signed = new Set((signups || []).filter((s) => s.status !== "absence").map((s) => str(s.userId)));
+    const seen = new Set();
+    for (const p of profileList || []) {
+        if (!signed.has(str(p.userId)) || p.avoidEnabled !== true) continue;
+        for (const other of p.avoid || []) {
+            if (!signed.has(str(other))) continue;
+            seen.add([str(p.userId), str(other)].sort().join("|"));
+        }
+    }
+    return seen.size;
 }
 
 /**
@@ -338,7 +359,7 @@ function decorateLineup(setup, table, names) {
  * reasons, checks and options; anyone else only the approved lineup — the
  * draft is not in the payload at all.
  */
-function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null } = {}) {
+function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null, avoidPairs = 0 } = {}) {
     const table = specTable(event.versionId);
     const approved = decorateLineup(approvedSetupOf(event), table, names);
     const head = {
@@ -359,6 +380,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         groupCount,
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,
+        avoidPairs,
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },
         hasApiKey,
         explainJob: job,
@@ -368,5 +390,5 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
 module.exports = {
     proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation,
     approvedSetupOf, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
-    lineupSignature, mergeOptions, cleanWeights, snapshotOf,
+    lineupSignature, mergeOptions, cleanWeights, snapshotOf, avoidPairCount,
 };

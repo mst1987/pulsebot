@@ -319,6 +319,8 @@ function search(model, scorer) {
  * @param {object} [options.weights]  overrides of DEFAULT_WEIGHTS (0 = off)
  * @param {boolean} [options.fairness]  overrides every event's fairness flag
  * @param {boolean} [options.wishes]  overrides every event's wishes flag
+ * @param {boolean} [options.avoid]  keep "nicht zusammen" pairs apart — off unless true; no event flag,
+ *   the orga is asked each time (`checks.avoid` counts the pairs either way, never names them)
  *
  * @returns {{
  *   version: number,
@@ -349,7 +351,9 @@ function prepare(input, options) {
     const model = buildModel(input, weights);
     if (typeof options.fairness === "boolean") model.fairnessOverride = options.fairness;
     if (typeof options.wishes === "boolean") model.wishesOverride = options.wishes;
+    model.avoidOverride = options.avoid === true;
     const effective = { ...weights };
+    if (!model.avoidOverride) effective.avoid = 0;
     const fairOn = model.fairnessOverride !== undefined ? model.fairnessOverride : model.events.some((e) => e.fairness);
     const wishOn = model.wishesOverride !== undefined ? model.wishesOverride : model.events.some((e) => e.wishes);
     if (!fairOn) effective.fairness = 0;

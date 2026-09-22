@@ -185,6 +185,24 @@ function wishCheck(model, state, eventIdx) {
     return { met: pairs.filter((p) => p.met).length, total: pairs.length, pairs };
 }
 
+/**
+ * "Nicht zusammen" pairs: how many there are among the signups and how many
+ * still stand together (same group in one raid, same raid when raids run in
+ * parallel). Counts only — who named whom never leaves the store.
+ */
+function avoidCheck(model, state) {
+    let together = 0;
+    for (const p of model.avoidPairs || []) {
+        const oa = state.opt[p.a];
+        const ob = state.opt[p.b];
+        if (oa < 0 || ob < 0) continue;
+        if (model.cands[p.a].options[oa].eventIdx !== model.cands[p.b].options[ob].eventIdx) continue;
+        if (model.events.length === 1 && state.grp[p.a] !== state.grp[p.b]) continue;
+        together++;
+    }
+    return { on: model.avoidOverride === true, together, total: (model.avoidPairs || []).length };
+}
+
 function eventChecks(model, facts, state, e) {
     const event = model.events[e];
     const ev = facts.events[e];
@@ -264,7 +282,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
         versionId: model.versionId,
         groups: first.groups,
         bench,
-        checks: { ...first.checks, ok: events.every((e) => e.checks.ok), wishes },
+        checks: { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) },
         events,
         weights,
         score: { total: round(facts ? facts.total : 0), parts },

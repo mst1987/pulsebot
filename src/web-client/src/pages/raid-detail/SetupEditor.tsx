@@ -1,7 +1,8 @@
 // Tab "Setup" of an own event (#263): the proposal, the orga's changes, the
 // approval. Kept calm on purpose — group cards with one compact line per
 // raider, the bench beside them and a narrow column with only what decides
-// the evening (roles against the plan, buffs, fairness, wishes). Why somebody
+// the evening (roles against the plan, buffs, fairness, wishes, "nicht
+// zusammen" — asked once, counts only, never names). Why somebody
 // stands where they do is the line's tooltip, the weights sit behind a dialog,
 // and so does Claude's explanation.
 //
@@ -55,6 +56,7 @@ function weightLabels(): { key: string; label: string; tip: string }[] {
         { key: "status", label: t("setup.weights.status.label"), tip: t("setup.weights.status.tip") },
         { key: "partyBuffs", label: t("setup.weights.partyBuffs.label"), tip: t("setup.weights.partyBuffs.tip") },
         { key: "wishes", label: t("setup.weights.wishes.label"), tip: t("setup.weights.wishes.tip") },
+        { key: "avoid", label: t("setup.weights.avoid.label"), tip: t("setup.weights.avoid.tip") },
         { key: "raidBuffs", label: t("setup.weights.raidBuffs.label"), tip: t("setup.weights.raidBuffs.tip") },
         { key: "attendance", label: t("setup.weights.attendance.label"), tip: t("setup.weights.attendance.tip") },
         { key: "gear", label: t("setup.weights.gear.label"), tip: t("setup.weights.gear.tip") },
@@ -255,11 +257,12 @@ function Stat({ label, value, target, ok, tip }: { label: string; value: number;
     );
 }
 
-function Summary({ data, setup, busy, onFairness, onWeights }: {
+function Summary({ data, setup, busy, onFairness, onAvoid, onWeights }: {
     data: SetupEditorData;
     setup: StoredSetup;
     busy: boolean;
     onFairness: (on: boolean) => void;
+    onAvoid: (on: boolean) => void;
     onWeights: () => void;
 }) {
     const t = useT();
@@ -274,6 +277,9 @@ function Summary({ data, setup, busy, onFairness, onWeights }: {
     const missingRaid = checks.buffs.raid.filter((b) => !b.present);
     const fairness = typeof setup.options?.fairness === "boolean" ? setup.options.fairness : data.event.fairness;
     const wishesOn = typeof setup.options?.wishes === "boolean" ? setup.options.wishes : data.event.wishes;
+    // "nicht zusammen": only when there are such pairs among the signups; counts, never names
+    const avoidOn = setup.options?.avoid === true;
+    const avoidTotal = Math.max(data.avoidPairs || 0, setup.checks.avoid?.total || 0);
     const buffTip = [
         checks.buffs.required.length
             ? t("setup.summary.required", { list: checks.buffs.required.map((b) => `${b.present ? "✓" : "–"} ${b.label}`).join(", ") })
@@ -313,6 +319,20 @@ function Summary({ data, setup, busy, onFairness, onWeights }: {
                     ? <span className="se-side-v" data-tip={t("setup.summary.wishesMet")} data-tip-sub={t("setup.summary.wishesMetSub")}>{checks.wishes.met}<small>/{checks.wishes.total}</small></span>
                     : <span className="se-side-off" data-tip={t("setup.summary.wishesOff")} data-tip-sub={t("setup.summary.wishesOffSub")}>{t("setup.summary.off")}</span>}
             </div>
+            {avoidTotal > 0 && (
+                <div className="se-side-row">
+                    <span className="kicker" data-tip={t("setup.summary.avoid")} data-tip-sub={t("setup.summary.avoidSub", { count: avoidTotal })}>{t("setup.summary.avoid")}</span>
+                    {avoidOn && !!setup.checks.avoid?.together && (
+                        <Badge tone="mid" tip={t("setup.summary.avoidTogetherTip")} tipSub={t("setup.summary.avoidTogetherSub")}>
+                            {t("setup.summary.avoidTogether", { count: setup.checks.avoid.together })}
+                        </Badge>
+                    )}
+                    <label className="switch">
+                        <input type="checkbox" checked={avoidOn} disabled={busy} onChange={() => onAvoid(!avoidOn)} aria-label={t("setup.summary.avoidAria")} />
+                        <span className="switch-track"><span className="switch-thumb" /></span>
+                    </label>
+                </div>
+            )}
             <button type="button" className="se-weights-btn" onClick={onWeights} disabled={busy}>{t("setup.summary.weights")}</button>
             {!!setup.warnings.length && (
                 <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
@@ -544,7 +564,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         ctx.onChanged(message || "");
     };
 
-    const save = (input: SetupPlacementInput, extra: { fairness?: boolean } = {}) => {
+    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; avoid?: boolean } = {}) => {
         const shown = current.current;
         if (!shown?.setup) return chain.current;
         const ticket = ++saving.current;
@@ -584,12 +604,30 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         move({ userId });
     };
 
+    /**
+     * "Nicht zusammen": asked once per event, the first time a proposal is made
+     * while such pairs stand among the signups. Afterwards the side column's
+     * switch changes it; the server remembers the answer.
+     */
+    const avoidAnswer = async (): Promise<boolean | undefined> => {
+        const shown = current.current;
+        if (!shown?.avoidPairs || typeof shown.setup?.options?.avoid === "boolean") return undefined;
+        return ask({
+            title: t("setup.avoid.askTitle"),
+            text: t("setup.avoid.askText", { count: shown.avoidPairs }),
+            action: t("setup.avoid.askYes"),
+            cancelLabel: t("setup.avoid.askNo"),
+            icon: "achievement_guildperk_everybodysfriend",
+        });
+    };
+
     const propose = async (weights?: Record<string, number>) => {
-        setBusy(true);
         setDialog(null);
+        const avoid = await avoidAnswer();
+        setBusy(true);
         await chain.current;
         const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
-            proposeRaidSetup(ctx.csrfToken, ctx.eventId, weights ? { weights } : {})
+            proposeRaidSetup(ctx.csrfToken, ctx.eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }) })
         ));
         setBusy(false);
         if (next) accept(next, next.message);
@@ -704,6 +742,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 <Summary
                     data={data} setup={setup} busy={busy}
                     onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                    onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     onWeights={() => setDialog("weights")}
                 />
             </div>

@@ -237,3 +237,22 @@ describe("what posting the setup will do / did (#290)", () => {
         expect(libEn.moveRaider(lib.toInput(setup()), "w", { group: 1 }, lib.peopleOf(setup()), 25).error).toBe("Group 1 is full — drag onto a raider to swap.");
     });
 });
+
+describe("„nicht zusammen“ in the editor", () => {
+    const page = read("pages", "raid-detail", "SetupEditor.tsx");
+    const de = makeT("de");
+
+    it("asks once per event before a proposal, only when such pairs stand among the signups", () => {
+        expect(page).toMatch(/if \(!shown\?\.avoidPairs \|\| typeof shown\.setup\?\.options\?\.avoid === "boolean"\) return undefined;/);
+        expect(page).toMatch(/const avoid = await avoidAnswer\(\);/);
+        expect(page).toMatch(/\.\.\.\(avoid === undefined \? \{\} : \{ avoid \}\)/);
+        expect(de("setup.avoid.askText", { count: 2 })).toMatch(/2 Raider-Paare/);
+        expect(de("setup.avoid.askNo")).toBe("Nicht berücksichtigen");
+    });
+
+    it("shows a switch and counts in the side column — never who named whom", () => {
+        expect(page).toMatch(/\{avoidTotal > 0 && \(/);
+        expect(page).toContain("onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}");
+        expect(de("setup.summary.avoidSub", { count: 1 })).toMatch(/Wer wen genannt hat, sieht niemand/);
+    });
+});

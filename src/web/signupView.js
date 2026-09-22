@@ -28,6 +28,7 @@ function profileForSignup(profile) {
             name: c.name,
             className: c.className,
             main: c.main,
+            ...profileRoles(p, c.key),
             specs: c.specs.map((s) => {
                 const info = profiles.specInfo(s.key) || {};
                 return { key: s.key, label: info.label || s.key, icon: info.icon || "", role: info.role || "", gear: s.gear };

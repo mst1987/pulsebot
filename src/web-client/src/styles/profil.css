@@ -56,8 +56,8 @@
 .pf-spec-label { font-size: 17px; font-weight: 800; letter-spacing: -.2px; line-height: 1.15; }
 .pf-addspec { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 14px 0; }
 
-/* ---- roles ---- */
-.pf-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+/* ---- roles: per character, at the foot of its card ---- */
+.pf-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px 14px 0; margin-top: 10px; border-top: 1px solid var(--line-soft); }
 .pf-role {
     display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--panel2); cursor: pointer;
@@ -86,7 +86,35 @@
 }
 .pf-day { min-width: 46px; }
 .pf-raid .wi, .pf-class .wi { border-radius: 50%; }
-.pf-day.is-on, .pf-raid.is-on, .pf-class.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); color: var(--text); }
+.pf-raid.is-on, .pf-class.is-on { background: var(--area-profile-soft); border-color: var(--area-profile); color: var(--text); }
+
+/* Every weekday its own colour, so the week reads at a glance — in the buttons
+   and in the folded summary alike. --day-ink is the text tone: the colour
+   itself on dark, a darker shade of it on light. */
+[data-day="mo"] { --day: #5b8def; --day-dark: #2f5fbf; }
+[data-day="di"] { --day: #22b8cf; --day-dark: #0f7f91; }
+[data-day="mi"] { --day: #3fbf73; --day-dark: #1f8a4c; }
+[data-day="do"] { --day: #8fbf3f; --day-dark: #5a7f1f; }
+[data-day="fr"] { --day: #f0883e; --day-dark: #b5561a; }
+[data-day="sa"] { --day: #e0569b; --day-dark: #b02f70; }
+[data-day="so"] { --day: #9b72f0; --day-dark: #6a43c4; }
+.pf-day, .pf-day-tag { --day-ink: var(--day); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .pf-day, :root:not([data-theme="dark"]) .pf-day-tag { --day-ink: var(--day-dark); }
+}
+:root[data-theme="light"] .pf-day, :root[data-theme="light"] .pf-day-tag { --day-ink: var(--day-dark); }
+.pf-day { border-color: color-mix(in srgb, var(--day) 45%, var(--line)); color: var(--day-ink); }
+.pf-day.is-on { background: color-mix(in srgb, var(--day) 26%, var(--panel2)); border-color: var(--day); color: var(--text); }
+.pf-day-sum { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.pf-day-tag {
+    padding: 1px 7px; border-radius: 999px; font-weight: 700; font-size: 12px; color: var(--day-ink);
+    background: color-mix(in srgb, var(--day) 18%, transparent);
+}
+
+/* ---- "nicht zusammen": a switch first, the list only once it is on ---- */
+.pf-avoid { display: flex; flex-direction: column; gap: 10px; }
+.pf-avoid-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.pf-avoid-label { flex: 1; font-weight: 700; }
 
 .pf-raids { display: flex; flex-direction: column; gap: 10px; }
 .pf-raid-list { display: flex; flex-wrap: wrap; gap: 6px; }

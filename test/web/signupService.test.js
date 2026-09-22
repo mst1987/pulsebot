@@ -95,9 +95,19 @@ describe("submitSignup", () => {
     });
 
     it("füllt „kann auch“ aus dem Profil vor, ohne die eigene Rolle", async () => {
+        // Nerathil hat nur Fernkampf-Specs; dass Nerasol heilen kann, gilt nur für Nerasol.
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW });
-        // Nerasol ist Heilig-Priester → heilen; die Magier-Specs sind alle Fernkampf.
-        expect(res.signup.canAlso).toEqual(["healer"]);
+        expect(res.signup.canAlso).toEqual([]);
+    });
+
+    it("nimmt „kann offtanken / heilen“ des angemeldeten Charakters", async () => {
+        profiles.saveProfile(ANNA, { characters: [{ key: "nerathil", canHeal: true }, { key: "nerasol", canOfftank: true }] });
+        const mage = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW });
+        expect(mage.signup.canAlso).toEqual(["healer"]);
+        expect(service.profileRoles(profiles.getProfile(ANNA), "Nerasol")).toEqual({ canOfftank: true, canHeal: true });
+        expect(service.profileRoles(profiles.getProfile(ANNA), "Nerathil")).toEqual({ canOfftank: false, canHeal: true });
+        // ohne Charakter: kann es irgendeiner?
+        expect(service.profileRoles(profiles.getProfile(ANNA))).toEqual({ canOfftank: true, canHeal: true });
     });
 
     it("nimmt eine eigene Auswahl bei „kann auch“, auch eine leere", async () => {

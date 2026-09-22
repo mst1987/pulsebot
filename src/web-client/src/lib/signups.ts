@@ -49,14 +49,14 @@ export const GEAR_LABEL: Readonly<Record<string, string>> = {
 
 /**
  * "Ich kann auch" prefilled from the profile, the same rule as the server's
- * defaultCanAlso(): off-tank and healing as set in the profile, plus the roles
- * of the character's other specs — never the role signed up with.
+ * defaultCanAlso(): off-tank and healing as set for this character, plus the
+ * roles of its other specs — never the role signed up with.
  */
 export function defaultCanAlso(profile: SignupProfile, characterKey: string, ownRole: GameRole | ""): GameRole[] {
     const roles = new Set<GameRole>();
-    if (profile.canOfftank) roles.add("tank");
-    if (profile.canHeal) roles.add("healer");
     const character = profile.characters.find((c) => c.key === characterKey);
+    if (character?.canOfftank) roles.add("tank");
+    if (character?.canHeal) roles.add("healer");
     for (const s of character?.specs || []) if (s.role) roles.add(s.role);
     return ROLE_ORDER.filter((r) => roles.has(r) && r !== ownRole);
 }

@@ -41,6 +41,9 @@
         "orgaOnly": "orga only",
         "orgaOnlyTip": "Only the orga sees this",
         "orgaOnlySub": "Other raiders do not see your wishes – nor whether someone added you.",
+        "avoid": "Rather not raid with",
+        "avoidOff": "off",
+        "avoidNone": "on – nobody added",
         "note": "Note for the orga",
         "noteNone": "no note",
         "calendar": "Calendar subscription",
@@ -91,9 +94,19 @@
     "roles": {
         "offtank": "Can offtank",
         "heal": "Can heal",
-        "suggested": "Suggested from your specs: {answer}. You can change it any time.",
+        "suggested": "Suggested from this character's specs: {answer}. You can change it any time.",
+        "forChar": "{label} – {name}",
         "yes": "yes",
         "no": "no"
+    },
+    "avoid": {
+        "switch": "Turn on",
+        "offText": "Off. We raid as a community – everyone should get a chance. If it really does not work with someone, you can turn this on.",
+        "hint": "The orga is asked when building a setup whether to take this into account – then you end up in different groups (different raids when raids run in parallel). It is not a guarantee.",
+        "orgaOnlySub": "Only the orga sees this – and only in the setup, when it explicitly includes it. The people named never find out.",
+        "confirmTitle": "Really turn this on?",
+        "confirmText": "In a community everyone should get a chance. Only turn this on if it really does not work with someone. Only the orga sees what you enter, and it decides for every setup whether to take it into account.",
+        "confirmAction": "Turn on anyway"
     },
     "cal": {
         "loading": "Loading calendar links",

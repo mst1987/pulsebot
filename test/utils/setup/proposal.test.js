@@ -271,6 +271,16 @@ describe("buildSetupProposal", () => {
             const out = buildSetupProposal({ events: [{ id: "e", size: 2, composition: { tank: 1, healer: 0 } }], signups, profiles });
             expect(slotOf(out, "feral")).toMatchObject({ role: "tank", spec: "Druid-Guardian" });
         });
+
+        it("reads can-offtank per character — the character's own word beats the old profile-wide one", () => {
+            const signups = [su("feral", "Druid-Feral", { character: "Katze" }), su("rogue", "Rogue-Combat")];
+            const event = { id: "e", size: 2, composition: { tank: 1, healer: 0 } };
+            const character = (canOfftank) => ({ key: "katze", name: "Katze", className: "Druid", main: true, specs: [{ key: "Druid-Feral", gear: "ready" }], canOfftank });
+            const on = buildSetupProposal({ events: [event], signups, profiles: [{ userId: "feral", characters: [character(true)] }] });
+            expect(slotOf(on, "feral")).toMatchObject({ role: "tank" });
+            const off = buildSetupProposal({ events: [event], signups, profiles: [{ userId: "feral", canOfftank: true, characters: [character(false)] }] });
+            expect(slotOf(off, "feral")).toMatchObject({ role: "melee" });
+        });
     });
 
     describe("fixed places", () => {
@@ -380,6 +390,52 @@ describe("buildSetupProposal", () => {
             const out = buildSetupProposal({ events: [{ id: "e", size: 2, composition: {} }], signups, profiles });
             expect(placedIds(out).sort()).toEqual(["a", "b"]);
             expect(out.weights.wishes).toBe(0);
+        });
+    });
+
+    describe("nicht zusammen (avoid)", () => {
+        const event = { id: "e", size: 10, composition: { tank: 1, healer: 2 } };
+        // r03 and r07 wish for each other, and r03 wants nothing to do with r05 — only with the list on
+        const profiles = [
+            { userId: "r03", wishes: ["r05"], avoidEnabled: true, avoid: ["r07"] },
+            { userId: "r05", wishes: ["r03", "r07"] },
+            { userId: "r07", wishes: ["r03", "r05"] },
+        ];
+
+        it("keeps a pair in different groups once the orga asks for it", () => {
+            const input = { events: [{ ...event, wishes: true }], signups: roster(10), profiles };
+            const out = buildSetupProposal(input, { avoid: true });
+            expect(slotOf(out, "r03").group).not.toBe(slotOf(out, "r07").group);
+            expect(out.checks.avoid).toEqual({ on: true, together: 0, total: 1 });
+            // it separates — nobody lands on the bench for it
+            expect(placedIds(out)).toEqual(expect.arrayContaining(["r03", "r07"]));
+            expectHardRules(input, out);
+        });
+
+        it("does nothing unless asked, but still counts the pairs (never names them)", () => {
+            const out = buildSetupProposal({ events: [{ ...event, wishes: true }], signups: roster(10), profiles });
+            expect(out.weights.avoid).toBe(0);
+            expect(out.checks.avoid).toMatchObject({ on: false, total: 1 });
+            expect(JSON.stringify(out.checks.avoid)).not.toContain("r07");
+        });
+
+        it("ignores a list the raider has switched off", () => {
+            const off = profiles.map((p) => (p.userId === "r03" ? { ...p, avoidEnabled: false } : p));
+            const out = buildSetupProposal({ events: [event], signups: roster(10), profiles: off }, { avoid: true });
+            expect(out.checks.avoid.total).toBe(0);
+        });
+
+        it("puts the pair into different raids when raids run in parallel", () => {
+            const signups = [
+                ...["a", "b", "c", "d"].map((x, i) => su(x, "Mage-Fire", { eventId: "e1", at: i })),
+                ...["a", "b", "c", "d"].map((x, i) => su(x, "Mage-Fire", { eventId: "e2", at: i })),
+            ];
+            const events = [{ id: "e1", size: 5, composition: {} }, { id: "e2", size: 5, composition: {} }];
+            const pairs = [{ userId: "a", avoidEnabled: true, avoid: ["b"] }];
+            const out = buildSetupProposal({ events, signups, profiles: pairs }, { avoid: true });
+            const raidOf = (userId) => out.events.find((e) => e.groups.some((g) => g.slots.some((s) => s.userId === userId))).eventId;
+            expect(raidOf("a")).not.toBe(raidOf("b"));
+            expect(out.checks.avoid).toEqual({ on: true, together: 0, total: 1 });
         });
     });
 

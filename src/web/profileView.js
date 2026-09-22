@@ -6,7 +6,9 @@
 // raiden mit" is between the raider and the orga. A member sees whom *they*
 // wished for, never whom anybody wished for them and never whether a wish is
 // mutual — that would reveal the other raider's wishes. Only `forOrga` adds
-// `mutual` and `wishedBy`.
+// `mutual` and `wishedBy`. "Nicht mit X raiden" (`avoid`) is stricter still:
+// there is no reverse list at all, not even for the orga — only the setup
+// proposal reads it, and only when the orga asks for it.
 
 const Blizzard = require("../classes/blizzard");
 const { getConfig } = require("./settingsStore");
@@ -30,23 +32,22 @@ function specView(character, spec, index) {
     };
 }
 
-/** What the specs of all characters allow, as the default for the two switches. */
+/** What the specs of all characters allow. */
 function suggestedRoles(profile) {
-    const specs = profile.characters.flatMap((c) => c.specs.map((s) => profiles.specInfo(s.key) || {}));
-    return {
-        canOfftank: specs.some((s) => s.canTank),
-        canHeal: specs.some((s) => s.canHeal),
-    };
+    return profiles.specRoles(profile.characters);
 }
 
-/** The effective switches: the raider's own word, else what the specs suggest. */
+/**
+ * The switches across the whole profile — true when *any* character may step
+ * in. The switches themselves live on the characters (characterRoles); this is
+ * the one-line summary of the bot's /profil. Without characters only the old
+ * profile-wide word counts.
+ */
 function effectiveRoles(profile) {
     const suggested = suggestedRoles(profile);
-    return {
-        canOfftank: profile.canOfftank === null ? suggested.canOfftank : profile.canOfftank,
-        canHeal: profile.canHeal === null ? suggested.canHeal : profile.canHeal,
-        suggested,
-    };
+    const per = profile.characters.map((c) => profiles.characterRoles(profile, c));
+    const any = (field) => (per.length ? per.some((r) => r[field]) : profile[field] === true);
+    return { canOfftank: any("canOfftank"), canHeal: any("canHeal"), suggested };
 }
 
 /**
@@ -55,23 +56,33 @@ function effectiveRoles(profile) {
  */
 function profileView(profile, { forOrga = false, index = logIndex(), all = profiles.listProfiles() } = {}) {
     const byId = new Map(all.map((p) => [p.userId, p]));
-    const characters = profile.characters.map((c) => ({
-        key: c.key,
-        name: c.name,
-        realm: c.realm,
-        className: c.className,
-        main: c.main,
-        source: c.source,
-        armory: c.armory,
-        armoryUrl: armoryUrlFor(c.name),
-        specs: c.specs.map((s) => specView(c, s, index)),
-        claimedBy: all
-            .filter((p) => p.userId !== profile.userId && p.characters.some((o) => o.key === c.key))
-            .map((p) => ({ userId: p.userId, name: p.name })),
-    }));
+    const characters = profile.characters.map((c) => {
+        const roles = profiles.characterRoles(profile, c);
+        return {
+            key: c.key,
+            name: c.name,
+            realm: c.realm,
+            className: c.className,
+            main: c.main,
+            source: c.source,
+            armory: c.armory,
+            armoryUrl: armoryUrlFor(c.name),
+            specs: c.specs.map((s) => specView(c, s, index)),
+            canOfftank: roles.canOfftank,
+            canHeal: roles.canHeal,
+            suggested: roles.suggested,
+            claimedBy: all
+                .filter((p) => p.userId !== profile.userId && p.characters.some((o) => o.key === c.key))
+                .map((p) => ({ userId: p.userId, name: p.name })),
+        };
+    });
+    const refOf = (id) => {
+        const other = byId.get(id);
+        return other ? profiles.raiderRef(other) : { userId: id, name: "", main: "", className: "" };
+    };
     const wishes = profile.wishes.map((id) => {
         const other = byId.get(id);
-        const ref = other ? profiles.raiderRef(other) : { userId: id, name: "", main: "", className: "" };
+        const ref = refOf(id);
         return forOrga ? { ...ref, mutual: !!(other && other.wishes.includes(profile.userId)) } : ref;
     });
     const view = {
@@ -82,6 +93,9 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
         availability: profile.availability,
         preferredRaids: profile.preferredRaids,
         wishes,
+        // Like the wishes: the owner sees whom *they* named, never who named them.
+        avoidEnabled: profile.avoidEnabled,
+        avoid: profile.avoid.map(refOf),
         note: profile.note,
         updatedAt: profile.updatedAt,
     };

@@ -25,7 +25,7 @@ import "../styles/profil.css";
 // that shows one line per part until it is opened. Every change saves itself;
 // there is no form to submit.
 
-type Fold = "days" | "raids" | "wishes" | "note" | "calendar" | "";
+type Fold = "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "";
 
 const LOG_TONE: Record<ProfileSpec["logs"]["status"], "ok" | "mid" | undefined> = { seen: "ok", other: "mid", unknown: undefined };
 
@@ -129,17 +129,26 @@ export default function ProfilePage() {
                                         { characters: [{ key: selected.key, specs: specs.map((s) => ({ key: s.key, gear: s.gear })) }] },
                                         { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, specs } : c)) },
                                     )}
+                                    onRoles={(field, value) => patch(
+                                        { characters: [{ key: selected.key, [field]: value }] },
+                                        { characters: profile.characters.map((c) => (c.key === selected.key ? { ...c, [field]: value } : c)) },
+                                    )}
                                     onRemove={() => removeChar(selected)}
                                 />
                             )}
-                            <RolesCard profile={profile} onChange={(field, value) => patch({ [field]: value }, { [field]: value })} />
                         </div>
 
                         <div className="pf-col pf-side">
                             <FoldPart
                                 id="days" open={fold} onOpen={setFold} title={t("profile.fold.days")}
                                 summary={profile.availability.length
-                                    ? data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => tOr(`profile.weekday.${d.id}`, d.label)).join(" · ")
+                                    ? (
+                                        <span className="pf-day-sum">
+                                            {data.weekdays.filter((d) => profile.availability.includes(d.id)).map((d) => (
+                                                <span key={d.id} className="pf-day-tag" data-day={d.id}>{tOr(`profile.weekday.${d.id}`, d.label)}</span>
+                                            ))}
+                                        </span>
+                                    )
                                     : t("profile.fold.daysNone")}
                             >
                                 <div className="pf-days">
@@ -147,7 +156,7 @@ export default function ProfilePage() {
                                         const on = profile.availability.includes(d.id);
                                         const next = on ? profile.availability.filter((x) => x !== d.id) : [...profile.availability, d.id];
                                         return (
-                                            <button key={d.id} type="button" className={`pf-day${on ? " is-on" : ""}`} aria-pressed={on}
+                                            <button key={d.id} type="button" data-day={d.id} className={`pf-day${on ? " is-on" : ""}`} aria-pressed={on}
                                                 onClick={() => patch({ availability: next }, { availability: next })}>
                                                 {tOr(`profile.weekday.${d.id}`, d.label)}
                                             </button>
@@ -172,7 +181,32 @@ export default function ProfilePage() {
                                     wishes={profile.wishes}
                                     max={data.limits.wishes}
                                     classes={data.classes}
+                                    exclude={profile.avoid}
+                                    hint={t("profile.wishes.hint")}
                                     onChange={(next) => patch({ wishes: next.map((w) => w.userId) }, { wishes: next })}
+                                />
+                            </FoldPart>
+
+                            <FoldPart
+                                id="avoid" open={fold} onOpen={setFold} title={t("profile.fold.avoid")}
+                                summary={!profile.avoidEnabled
+                                    ? t("profile.fold.avoidOff")
+                                    : profile.avoid.length ? profile.avoid.map((w) => w.main || w.name).join(", ") : t("profile.fold.avoidNone")}
+                                badge={<Badge icon={<EyeOffIcon />} tip={t("profile.fold.orgaOnlyTip")} tipSub={t("profile.avoid.orgaOnlySub")}>{t("profile.fold.orgaOnly")}</Badge>}
+                            >
+                                <AvoidPart
+                                    profile={profile}
+                                    max={data.limits.avoid}
+                                    classes={data.classes}
+                                    onEnable={async (on) => {
+                                        if (on && !(await ask({
+                                            title: t("profile.avoid.confirmTitle"),
+                                            text: t("profile.avoid.confirmText"),
+                                            action: t("profile.avoid.confirmAction"),
+                                        }))) return;
+                                        patch({ avoidEnabled: on }, { avoidEnabled: on, avoid: on ? profile.avoid : [] });
+                                    }}
+                                    onChange={(next) => patch({ avoid: next.map((w) => w.userId) }, { avoid: next })}
                                 />
                             </FoldPart>
 
@@ -250,12 +284,13 @@ function CharChip({ character, cls, active, onClick }: { character: ProfileChara
     );
 }
 
-function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
+function CharacterCard({ character, cls, data, onMain, onSpecs, onRoles, onRemove }: {
     character: ProfileCharacter;
     cls?: GameClass;
     data: ProfileData;
     onMain: () => void;
     onSpecs: (specs: ProfileSpec[]) => void;
+    onRoles: (field: RoleField, value: boolean) => void;
     onRemove: () => void;
 }) {
     const t = useT();
@@ -340,31 +375,75 @@ function CharacterCard({ character, cls, data, onMain, onSpecs, onRemove }: {
                         : <Button variant="ghost" size="sm" onClick={() => setPicking(true)}>{t("profile.char.addSpec")}</Button>}
                 </div>
             )}
+
+            <RolesRow character={character} onChange={onRoles} />
         </section>
     );
 }
 
-function RolesCard({ profile, onChange }: { profile: RaiderProfile; onChange: (field: "canOfftank" | "canHeal", value: boolean) => void }) {
+type RoleField = "canOfftank" | "canHeal";
+
+/** "Kann offtanken / heilen" of the selected character — a druid main may tank, the priest twink not. */
+function RolesRow({ character, onChange }: { character: ProfileCharacter; onChange: (field: RoleField, value: boolean) => void }) {
     const t = useT();
-    const rows: { field: "canOfftank" | "canHeal"; icon: string; label: string }[] = [
+    const rows: { field: RoleField; icon: string; label: string }[] = [
         { field: "canOfftank", icon: "ability_warrior_defensivestance", label: t("profile.roles.offtank") },
         { field: "canHeal", icon: "spell_holy_flashheal", label: t("profile.roles.heal") },
     ];
     return (
-        <section className="pf-card pf-roles">
+        <div className="pf-roles">
             {rows.map((r) => (
                 <label key={r.field} className="pf-role"
-                    data-tip={r.label}
-                    data-tip-sub={t("profile.roles.suggested", { answer: profile.suggested[r.field] ? t("profile.roles.yes") : t("profile.roles.no") })}>
+                    data-tip={t("profile.roles.forChar", { label: r.label, name: character.name })}
+                    data-tip-sub={t("profile.roles.suggested", { answer: character.suggested[r.field] ? t("profile.roles.yes") : t("profile.roles.no") })}>
                     <WowIcon name={r.icon} size={26} />
                     <span className="pf-role-label">{r.label}</span>
                     <span className="switch">
-                        <input type="checkbox" checked={profile[r.field]} onChange={(e) => onChange(r.field, e.target.checked)} />
+                        <input type="checkbox" checked={character[r.field]} onChange={(e) => onChange(r.field, e.target.checked)} />
                         <span className="switch-track"><span className="switch-thumb" /></span>
                     </span>
                 </label>
             ))}
-        </section>
+        </div>
+    );
+}
+
+/**
+ * "Nicht mit X raiden": off until the raider switches it on — past a question
+ * that reminds them everyone deserves a chance. Only the orga reads it, and
+ * only when it asks for it while building a setup. Switching it off forgets
+ * the names.
+ */
+function AvoidPart({ profile, max, classes, onEnable, onChange }: {
+    profile: RaiderProfile;
+    max: number;
+    classes: GameClass[];
+    onEnable: (on: boolean) => void;
+    onChange: (next: RaiderRef[]) => void;
+}) {
+    const t = useT();
+    return (
+        <div className="pf-avoid">
+            <label className="pf-avoid-switch">
+                <span className="pf-avoid-label">{t("profile.avoid.switch")}</span>
+                <span className="switch">
+                    <input type="checkbox" checked={profile.avoidEnabled} onChange={(e) => onEnable(e.target.checked)} aria-label={t("profile.avoid.switch")} />
+                    <span className="switch-track"><span className="switch-thumb" /></span>
+                </span>
+            </label>
+            {profile.avoidEnabled
+                ? (
+                    <WishPicker
+                        wishes={profile.avoid}
+                        max={max}
+                        classes={classes}
+                        exclude={profile.wishes}
+                        hint={t("profile.avoid.hint")}
+                        onChange={onChange}
+                    />
+                )
+                : <p className="pf-muted">{t("profile.avoid.offText")}</p>}
+        </div>
     );
 }
 
@@ -374,7 +453,7 @@ function FoldPart({ id, open, onOpen, title, summary, badge, children }: {
     open: Fold;
     onOpen: (f: Fold) => void;
     title: string;
-    summary: string;
+    summary: ReactNode;
     badge?: ReactNode;
     children: ReactNode;
 }) {
@@ -524,10 +603,14 @@ function RaidPicker({ data, value, onChange }: { data: ProfileData; value: strin
     );
 }
 
-function WishPicker({ wishes, max, classes, onChange }: {
+/** A short list of raiders with a search — the wishes, and the same for "nicht zusammen". */
+function WishPicker({ wishes, max, classes, exclude = [], hint, onChange }: {
     wishes: RaiderRef[];
     max: number;
     classes: GameClass[];
+    /** Raiders already on the other list — nobody is wished for and avoided at once. */
+    exclude?: RaiderRef[];
+    hint: string;
     onChange: (next: RaiderRef[]) => void;
 }) {
     const t = useT();
@@ -544,7 +627,7 @@ function WishPicker({ wishes, max, classes, onChange }: {
         return () => window.clearTimeout(timer.current);
     }, [q]);
 
-    const chosen = new Set(wishes.map((w) => w.userId));
+    const chosen = new Set([...wishes, ...exclude].map((w) => w.userId));
     const colorOf = (id: string) => classColorProps(classes.find((c) => c.id === id)?.color);
     return (
         <div className="pf-wishes">
@@ -577,7 +660,7 @@ function WishPicker({ wishes, max, classes, onChange }: {
                     </button>
                 );
             })}
-            <p className="hint">{t("profile.wishes.hint")}</p>
+            <p className="hint">{hint}</p>
         </div>
     );
 }
