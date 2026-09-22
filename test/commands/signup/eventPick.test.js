@@ -85,7 +85,7 @@ describe("commands/signup/eventPick", () => {
     it("Meine Charaktere without a profile character goes the class way", async () => {
         const i = pick("mine");
         await command.execute(i);
-        expect(followOf(i).content).toContain("No character in your profile yet");
+        expect(followOf(i).embeds[0].description).toContain("No character in your profile yet");
         expect(selectOf(followOf(i)).custom_id).toBe("event-btn:eh-kara:cls:s");
     });
 
@@ -93,7 +93,7 @@ describe("commands/signup/eventPick", () => {
         const i = pick("Priest");
         await command.execute(i);
         const specs = followOf(i);
-        expect(specs.content).toContain("**Priest** – which spec?");
+        expect(specs.embeds[0].description).toContain("**Priest** – which spec?");
         expect(selectOf(specs).custom_id).toBe("event-btn:eh-kara:spec:s");
 
         const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });
