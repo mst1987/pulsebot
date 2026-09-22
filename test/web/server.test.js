@@ -30,6 +30,9 @@ jest.mock("../../src/web/staticClient", () => ({ serve: jest.fn(() => true) }));
 // The public event page and the calendar file (#308) — the routing is what is
 // tested here, their content in eventPublicPage.test.js / icsFeed.test.js.
 jest.mock("../../src/web/eventPublicPage", () => ({ renderEventPage: jest.fn(() => null) }));
+// The in-app documentation (#349) — again only the routing; its content lives
+// in docsPage.test.js.
+jest.mock("../../src/web/docsPage", () => ({ renderDocsPage: jest.fn(() => "DOCS_PAGE") }));
 jest.mock("../../src/web/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFileName: jest.fn((id) => `raid-${id}.ics`) }));
 // The raider's subscription (#312) — again only the routing; the token check
 // and the content live in calendarFeed.test.js.
@@ -43,6 +46,7 @@ const http = require("http");
 const store = require("../../src/web/reportStore");
 const render = require("../../src/web/render");
 const eventPublicPage = require("../../src/web/eventPublicPage");
+const docsPage = require("../../src/web/docsPage");
 const icsFeed = require("../../src/web/icsFeed");
 const calendarFeed = require("../../src/web/calendarFeed");
 const eventStore = require("../../src/web/eventStore");
@@ -331,6 +335,31 @@ describe("web/server", () => {
                 expect(eventPublicPage.renderEventPage).not.toHaveBeenCalled();
                 expect(eventStore.getEvent).not.toHaveBeenCalled();
             }
+        });
+    });
+
+    describe("in-app documentation (#349)", () => {
+        it("GET /docs renders the docs page without requiring a session", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await request({ url: "/docs", method: "GET", headers: {} });
+            expect(docsPage.renderDocsPage).toHaveBeenCalledWith(null);
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(res.end).toHaveBeenCalledWith("DOCS_PAGE");
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("GET /docs/ (trailing slash) hits the same route", async () => {
+            const res = await request({ url: "/docs/", method: "GET", headers: {} });
+            expect(docsPage.renderDocsPage).toHaveBeenCalled();
+            expect(res.end).toHaveBeenCalledWith("DOCS_PAGE");
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("passes the logged-in user through, for the topbar login state", async () => {
+            const user = { id: "1", name: "Admin", isAdmin: true };
+            auth.getUser.mockReturnValue(user);
+            await request({ url: "/docs", method: "GET", headers: {} });
+            expect(docsPage.renderDocsPage).toHaveBeenCalledWith(user);
         });
     });
 

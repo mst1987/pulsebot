@@ -42,6 +42,7 @@
     },
     "logout": "Logout",
     "logoutSub": "Sign out of the guild menu",
+    "docs": "Documentation",
     "menuToggle": "Menu",
     "theme": {
         "tip": "Toggle light / dark",

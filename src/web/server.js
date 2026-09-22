@@ -11,6 +11,7 @@ const { startTalkOverview } = require("./talkOverview");
 const { startEventSeries } = require("./eventSeries");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { renderEventPage } = require("./eventPublicPage");
+const { renderDocsPage } = require("./docsPage");
 const { buildIcs, icsFileName } = require("./icsFeed");
 const calendarFeed = require("./calendarFeed");
 const { getEvent } = require("./eventStore");
@@ -158,6 +159,11 @@ async function handle(req, res) {
     if (ep) {
         const html = renderEventPage(ep[1]);
         return send(res, html ? 200 : 404, html || renderNotFound());
+    }
+    // The in-app documentation (#349): /docs, no login needed — the "Dokumentation"
+    // icon in the web menu's topbar (Shell.tsx) points here too. See docsPage.js.
+    if (pathname === "/docs" || pathname === "/docs/") {
+        return send(res, 200, renderDocsPage(auth.getUser(req)));
     }
     // per-raider detail page: /r/<id>/p/<idx>
     const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);
