@@ -267,3 +267,55 @@ describe("what raiders see", () => {
         expect(view.defaults.weights.fairness).toBe(150);
     });
 });
+
+describe("editorView's bench pool (#354)", () => {
+    it("adds a signup nobody placed yet to the draft's bench, by their first signed character", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        mockSignups = [...mockSignups, su("late1", "Priest-Holy")];
+        const event = mockEvents.get(ID);
+        const view = editor.editorView(event, { canWrite: true, signups: mockSignups });
+        expect(view.setup.bench.filter((b) => b.userId === "late1")).toHaveLength(1);
+        expect(view.setup.bench.find((b) => b.userId === "late1")).toMatchObject({
+            character: "Late1", spec: "Priest-Holy", role: "healer", locked: false, classColor: expect.stringMatching(/^#/),
+        });
+        // never into what raiders see — the approved snapshot stays exactly what was approved
+        expect(view.approved.bench.some((b) => b.userId === "late1")).toBe(false);
+    });
+
+    it("never adds someone already placed or signed off, and asking twice changes nothing", () => {
+        editor.proposeEventSetup(ID);
+        const event = mockEvents.get(ID);
+        const first = editor.editorView(event, { canWrite: true, signups: mockSignups });
+        const again = editor.editorView(event, { canWrite: true, signups: mockSignups });
+        expect(again.setup.bench.map((b) => b.userId).sort()).toEqual(first.setup.bench.map((b) => b.userId).sort());
+        expect(first.setup.bench.some((b) => b.userId === "gone")).toBe(false);
+    });
+});
+
+describe("addUnplacedSignups", () => {
+    const table = {
+        specs: new Map([["Priest-Holy", { classId: "Priest", label: "Heilig", icon: "spell_holy_guardianspirit" }]]),
+        classes: new Map([["Priest", { color: "#ffffff", label: "Priester", icon: "" }]]),
+    };
+
+    it("decorates every unplaced signup and appends it to the bench", () => {
+        const decorated = { groups: [{ index: 1, slots: [{ userId: "a" }] }], bench: [{ userId: "b" }] };
+        const signups = [
+            { userId: "a", character: "A", spec: "Priest-Holy", role: "healer" },
+            { userId: "c", character: "C", spec: "Priest-Holy", role: "healer", status: "late" },
+            { userId: "d", character: "D", spec: "Priest-Holy", role: "healer", status: "absence" },
+        ];
+        const out = editor.addUnplacedSignups(decorated, signups, table, { c: "Zibbo" });
+        expect(out.bench.map((b) => b.userId)).toEqual(["b", "c"]);
+        expect(out.bench[1]).toMatchObject({
+            character: "C", spec: "Priest-Holy", role: "healer", status: "late", locked: false, name: "Zibbo", classColor: "#ffffff",
+        });
+    });
+
+    it("changes nothing without a lineup, or once the bench already has everyone", () => {
+        expect(editor.addUnplacedSignups(null, [], table, {})).toBeNull();
+        const decorated = { groups: [], bench: [{ userId: "x" }] };
+        expect(editor.addUnplacedSignups(decorated, [{ userId: "x", spec: "Priest-Holy" }], table, {})).toBe(decorated);
+    });
+});

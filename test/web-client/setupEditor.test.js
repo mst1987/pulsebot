@@ -88,6 +88,57 @@ describe("setup editor moves (client)", () => {
         expect(drawn.groups[1].slots).toEqual([]);
     });
 
+    it("resizes the raid live: drops whole groups beyond the new count, then trims the rest onto the bench", () => {
+        const big = () => ({
+            version: 1,
+            groups: [1, 2, 3, 4, 5].map((idx) => ({
+                index: idx,
+                slots: [1, 2, 3, 4, 5].map((n) => ({ userId: `g${idx}s${n}`, character: `g${idx}s${n}`, spec: "Warrior-Protection", role: "tank", locked: false })),
+            })),
+            bench: [{ userId: "b1", locked: false }],
+        });
+
+        // 25 -> 10: two whole groups fit exactly, three drop entirely — no partial trim needed
+        const toTen = lib.resizeLineup(big(), 10);
+        expect(toTen.groups.map((g) => g.index)).toEqual([1, 2]);
+        expect(toTen.groups.every((g) => g.slots.length === 5)).toBe(true);
+        expect(toTen.bench).toHaveLength(1 + 15);
+
+        // 25 -> 12: groups 4/5 drop whole, then group 3 (the highest kept) is trimmed from its last slot down
+        const toTwelve = lib.resizeLineup(big(), 12);
+        expect(toTwelve.groups.map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 5], [3, 2]]);
+        expect(toTwelve.groups.reduce((n, g) => n + g.slots.length, 0)).toBe(12);
+        expect(toTwelve.bench.map((b) => b.userId)).toEqual([
+            "b1", "g4s1", "g4s2", "g4s3", "g4s4", "g4s5", "g5s1", "g5s2", "g5s3", "g5s4", "g5s5", "g3s5", "g3s4", "g3s3",
+        ]);
+
+        // growing touches nothing that already fits
+        const grown = lib.resizeLineup(big(), 30);
+        expect(grown.groups).toEqual(big().groups);
+        expect(grown.bench).toEqual(big().bench);
+
+        // locked is not special-cased here (a raw capacity trim, not a proposal re-run): a locked raider can still be bumped
+        const withLock = big();
+        withLock.groups[4].slots[0].locked = true;
+        const shrunk = lib.resizeLineup(withLock, 5);
+        expect(shrunk.groups).toEqual([{ index: 1, slots: withLock.groups[0].slots }]);
+        expect(shrunk.bench.find((b) => b.userId === "g5s1")).toEqual({ userId: "g5s1", locked: true });
+
+        // the original input is never mutated
+        const original = big();
+        lib.resizeLineup(original, 5);
+        expect(original.groups).toHaveLength(5);
+    });
+
+    it("splits the bench into group-sized cards, with a fresh empty one once the last is full", () => {
+        const make = (n) => Array.from({ length: n }, (_, i) => person(`b${i}`, "Priest-Holy", "healer"));
+        expect(lib.benchChunks(make(0)).map((c) => c.length)).toEqual([0]);
+        expect(lib.benchChunks(make(3)).map((c) => c.length)).toEqual([3]);
+        expect(lib.benchChunks(make(5)).map((c) => c.length)).toEqual([5, 0]);
+        expect(lib.benchChunks(make(7)).map((c) => c.length)).toEqual([5, 2]);
+        expect(lib.benchChunks(make(10)).map((c) => c.length)).toEqual([5, 5, 0]);
+    });
+
     it("lists every group of the raid, empty ones included", () => {
         expect(lib.withAllGroups(s.groups, 5).map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 1], [3, 0], [4, 0], [5, 0]]);
     });
@@ -120,7 +171,9 @@ describe("setup editor page", () => {
         expect(editor).toMatch(/draggable=\{ui\.editable\}/);
         expect(editor).toMatch(/onDrop: \(e: DragEvent<HTMLElement>\)/);
         expect(editor).toContain("aria-pressed={ui.editable ? selected : undefined}");
-        expect(editor).toContain("className=\"se-here\"");
+        // the bench is chunked into group-sized cards, every one of them a drop target for "onto the bench"
+        expect(editor).toContain("benchChunks(bench).map((slots, i) => <BenchChunk key={i}");
+        expect(editor).toMatch(/const zone = useZone\(\{ bench: true \}, ui\);/);
         expect(editor).toMatch(/e\.key === "Escape"/);
         // no drag-and-drop library
         expect(editor).not.toMatch(/from "(react-dnd|@dnd-kit|react-beautiful-dnd)/);
@@ -133,6 +186,27 @@ describe("setup editor page", () => {
         // groups and bench share one column; the summary stays beside them
         expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<Summary/);
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
+    });
+
+    it("draws the bench as cards the size and look of a group (#354), not one flat list", () => {
+        expect(editor).toContain("function BenchChunk(");
+        expect(editor).toMatch(/<section className=\{`se-group\$\{zone\.over/);
+        expect(editor).toContain("const title = t(\"setup.bench.chunkTitle\", { index });");
+        const de = makeT("de");
+        expect(de("setup.bench.chunkTitle", { index: 2 })).toBe("Bank 2");
+        // never the wording of a real raid group — a bench card is not a raid slot
+        expect(de("setup.bench.chunkTitle", { index: 2 })).not.toMatch(/^Gruppe/);
+    });
+
+    it("lets the orga change the raid size right in the bar, reshuffled live", () => {
+        expect(editor).toContain("<SizeControl size={data.event.size} disabled={busy} onCommit={resize} />");
+        expect(editor).toContain("const resized = resizeLineup(toInput(shown.setup), newSize);");
+        // reshuffled locally before anything is sent to the server
+        expect(editor).toMatch(/setData\(\{ \.\.\.shown, event: \{ \.\.\.shown\.event, size: newSize \}, groupCount, setup: applyLocal\(shown\.setup, resized\) \}\);\s*\n\s*setBusy\(true\);/);
+        // the size itself persists through the same PATCH the event-edit dialog uses
+        expect(editor).toContain("await updateRaidSize(ctx.csrfToken, ctx.eventId, newSize);");
+        const de = makeT("de");
+        expect(de("setup.editor.sizeLabel")).toBe("Größe");
     });
 
     it("keeps one line per raider — reasons only in the tooltip", () => {

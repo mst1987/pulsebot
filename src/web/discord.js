@@ -799,14 +799,17 @@ async function editLink(channelId, messageId, opts = {}) {
 }
 
 /**
- * Display names for a handful of user ids, best-effort.
+ * Display names for a set of user ids, best-effort.
  *
- * For the per-account permission grants (config.userPermissions): a raw 18-digit
- * id in a rights list tells an admin nothing, so the settings page shows the
- * name next to it. Fetched one by one rather than through the member cache,
- * because this is a few ids and a single-member fetch needs no privileged
- * intent — an id that cannot be resolved (left the server, bot offline) simply
- * has no entry, and the page falls back to showing the id.
+ * Used for the per-account permission grants (config.userPermissions, a
+ * handful of ids — a raw 18-digit id in a rights list tells an admin nothing)
+ * and for the setup editor's GET (up to a full raid's worth of raiders, #353's
+ * follow-up). Cache hits are free; everything else goes in **one** bulk
+ * member fetch (needs `GatewayIntentBits.GuildMembers`, already on for this
+ * bot) instead of a fetch per id — that was one Discord round trip per raider
+ * on every Setup-tab load. An id that cannot be resolved (left the server,
+ * bot offline, no access) simply has no entry, and the page falls back to
+ * showing the id.
  *
  * @returns {Promise<Record<string, string>>} id -> display name
  */
@@ -815,14 +818,20 @@ async function resolveUserNames(guildId, userIds = []) {
     const guild = getGuild(guildId);
     if (!guild || !ids.length) return {};
     const out = {};
-    await Promise.all(ids.map(async (id) => {
+    const missing = [];
+    for (const id of ids) {
+        const cached = guild.members.cache.get(id);
+        if (cached) out[id] = cached.displayName || cached.user.username;
+        else missing.push(id);
+    }
+    if (missing.length) {
         try {
-            const member = guild.members.cache.get(id) || await guild.members.fetch(id);
-            if (member) out[id] = member.displayName || member.user.username;
+            const fetched = await guild.members.fetch({ user: missing });
+            for (const member of fetched.values()) out[member.id] = member.displayName || member.user.username;
         } catch {
-            // Unknown member / no access — the page shows the bare id.
+            // Unknown members / no access — those ids stay out, the page shows the bare id.
         }
-    }));
+    }
     return out;
 }
 

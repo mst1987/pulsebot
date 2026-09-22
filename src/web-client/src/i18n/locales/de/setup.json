@@ -50,8 +50,7 @@
     "bench": {
         "aria": "Ersatzbank",
         "title": "Bank",
-        "here": "Auf die Bank",
-        "empty": "niemand"
+        "chunkTitle": "Bank {index}"
     },
     "summary": {
         "aria": "Zusammenfassung",
@@ -153,7 +152,13 @@
         "pickTarget": "Ziel wählen – Gruppe, Bank oder Raider · Esc",
         "dragHint": "Ziehen oder anklicken zum Umstellen",
         "explain": "KI-Begründung",
-        "repropose": "Neu vorschlagen"
+        "repropose": "Neu vorschlagen",
+        "sizeLabel": "Größe",
+        "sizeTip": "Raidgröße",
+        "sizeSub": "Ändert Gruppen und Bank sofort im Browser, übernommen wird es beim Verlassen des Felds oder mit Enter.",
+        "sizeUnsaved": "ungespeichert",
+        "sizeUnsavedTip": "Diese Größe ist noch nicht übernommen.",
+        "sizeFailed": "Größe konnte nicht geändert werden."
     },
     "moves": {
         "notInSetup": "Raider nicht im Setup.",

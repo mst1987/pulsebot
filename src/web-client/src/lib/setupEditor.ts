@@ -156,6 +156,48 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
     return { input };
 }
 
+/**
+ * Resize the raid, entirely client-side (#354): recompute how many groups fit
+ * `newSize`, drop every group beyond that (its raiders onto the bench), then
+ * trim what is left — from the highest-index group down, its last slot first —
+ * until the total placed count is no bigger than `newSize`. Everyone bumped is
+ * appended to the bench, its own order left alone. Locks are not special-cased
+ * here: this is a raw capacity trim, not a proposal re-run — a locked raider
+ * can still be bumped, and the next proposal is what should honour locks again.
+ */
+export function resizeLineup(input: SetupPlacementInput, newSize: number, groupSize = GROUP_SIZE): SetupPlacementInput {
+    const out = cloneInput(input);
+    const size = Math.max(0, Math.floor(newSize) || 0);
+    const groupCount = size > 0 ? Math.ceil(size / groupSize) : 0;
+    const overflow = out.groups.filter((g) => g.index > groupCount);
+    out.groups = out.groups.filter((g) => g.index <= groupCount);
+    for (const g of overflow) for (const s of g.slots) out.bench.push({ userId: s.userId, locked: s.locked });
+
+    let placed = out.groups.reduce((n, g) => n + g.slots.length, 0);
+    for (const g of [...out.groups].sort((a, b) => b.index - a.index)) {
+        if (placed <= size) break;
+        while (placed > size && g.slots.length) {
+            const s = g.slots.pop();
+            if (!s) break;
+            out.bench.push({ userId: s.userId, locked: s.locked });
+            placed--;
+        }
+    }
+    return out;
+}
+
+/**
+ * The bench split into cards the size of a group (#354) — always at least
+ * one, and a fresh empty one once the last is full, so there is always room
+ * to drop somebody without the last card looking closed off.
+ */
+export function benchChunks(bench: SetupPerson[], groupSize = GROUP_SIZE): SetupPerson[][] {
+    const chunks = [];
+    for (let i = 0; i < bench.length; i += groupSize) chunks.push(bench.slice(i, i + groupSize));
+    if (!chunks.length || chunks[chunks.length - 1].length >= groupSize) chunks.push([]);
+    return chunks;
+}
+
 /** Lock or unlock a raider's place. */
 export function toggleLock(current: SetupPlacementInput, userId: string): SetupPlacementInput {
     const input = cloneInput(current);

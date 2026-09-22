@@ -9,6 +9,12 @@
 .se-bar-hint { color: var(--muted); font-size: 12.5px; margin-left: 6px; flex: 1 1 120px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-bar-act { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* the raid size, editable right in the bar (#354) */
+.se-size { display: flex; align-items: center; gap: 6px; cursor: help; }
+.se-size input { width: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: 700 13px var(--mono); padding: 3px 6px; text-align: center; }
+.se-size input:disabled { opacity: .6; }
+.se-size-dirty { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+
 /* the setup in the channel (#290): one line under the bar, the details in its tooltip */
 .se-publish { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: -6px; padding: 6px 14px; border-left: 3px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12.5px; }
 .se-publish-text { flex: 1 1 200px; min-width: 0; cursor: help; }
@@ -27,34 +33,42 @@
 .se-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 
-/* a group card and the bench share one look */
-.se-group, .se-bench { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
-.se-group.se-target, .se-bench.se-target { border-style: dashed; border-color: var(--accent); }
-.se-group.se-over, .se-bench.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* a group card, and every bench chunk (#354), share one look */
+.se-group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
+.se-group.se-target { border-style: dashed; border-color: var(--accent); }
+.se-group.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-/* the bench: below the setup, set apart by a divider, its raiders in columns like the groups */
+/* the bench: below the setup, set apart by a divider — its own header, then chunk cards the width of a group */
 .se-bench { position: relative; margin-top: 14px; }
 .se-bench::before { content: ""; position: absolute; left: 0; right: 0; top: -16px; border-top: 2px solid var(--line); }
-.se-bench-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 40px; border-bottom: 1px solid var(--line-soft); }
-.se-bench .se-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.se-bench-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-height: 40px; }
+.se-bench-chunks { margin-top: 4px; }
 
 /* a free place: an empty box as high as a raider line */
 .se-ph { box-sizing: border-box; min-height: 48px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
 .se-ph-take { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-family: inherit; font-size: 13px; opacity: 1; cursor: pointer; }
 .se-ph-take:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .se-group.se-over .se-ph { border-color: var(--accent); }
-.se-group-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft); min-height: 40px; }
-.se-group-title { font-weight: 800; font-size: 14px; white-space: nowrap; }
-.se-group-buffs { display: flex; gap: 3px; flex-wrap: wrap; min-width: 0; }
+/* #358: header is two rows so a group's buff count never affects the title row's height —
+   row 1 (title, centered and a bit bigger, count badge to the side) is the same in every
+   card; row 2 (buffs, full width, free to wrap within itself) is only as tall as it needs
+   to be, or omitted entirely for a BenchChunk (no buffs prop passed at all). */
+.se-group-head { display: flex; flex-direction: column; border-bottom: 1px solid var(--line-soft); }
+.se-group-head-top { position: relative; display: flex; align-items: center; justify-content: center; min-height: 34px; padding: 8px 46px; }
+.se-group-title { font-weight: 800; font-size: 15px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-group-buffs-row { display: flex; padding: 0 10px 8px; min-height: 24px; }
+.se-group-buffs { display: flex; gap: 3px; flex-wrap: wrap; align-content: flex-start; min-width: 0; }
 .se-buff { display: inline-flex; }
 .se-buff .wi { border-radius: 4px; }
 .se-count { margin-left: auto; font: 700 12px var(--mono); color: var(--muted); }
 .se-count.se-full { color: var(--text); }
+/* the per-group/per-chunk "5/5" badge, styled like the summary's big-number stats (.se-stat-v)
+   instead of .se-stat-v itself — that class carries padding/layout assumptions (and an
+   ok/off color tied to fairness) built for the summary column, not a card header. */
+.se-group-head-top .se-count.se-num { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: inherit; font-size: 18px; font-weight: 800; line-height: 1.1; }
+.se-group-head-top .se-count.se-num small { font-size: 11px; font-weight: 700; color: var(--muted); margin-left: 1px; }
 
 .se-slots { display: flex; flex-direction: column; gap: 4px; padding: 6px; min-height: 48px; }
-.se-empty { color: var(--muted); font-size: 12.5px; padding: 8px 6px; }
-.se-here { border: 1px dashed var(--accent); background: var(--accent-soft); color: var(--accent); border-radius: 8px; min-height: 36px; font-weight: 700; font-size: 13px; cursor: pointer; }
-.se-here:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* one raider */
 .se-slot { display: flex; align-items: center; gap: 9px; padding: 5px 6px 5px 6px; border-radius: 8px; border: 1px solid transparent; background: var(--panel2); cursor: grab; min-width: 0; }
