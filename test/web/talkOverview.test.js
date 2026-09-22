@@ -61,12 +61,17 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         const embed = payload.embeds[0];
         expect(embed.title).toBe("Upcoming raids");
         expect(embed.description).toContain("**Pulse Events**");
-        expect(embed.fields.map((f) => f.name)).toEqual(["Donnerstag-Raid", "PuG"]);
-        expect(embed.fields[0].value.split("\n")).toEqual([
-            "**SSC + TK** · <t:1789666200:F> · 👥 9 · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
-            "**Hyjal + BT** · <t:1790271000:F> · 👥 15/25 · [#do-hyjal](https://discord.com/channels/111/c2)",
-        ]);
-        expect(embed.fields[1].value).toContain("Karazhan");
+        expect(embed.fields.map((f) => f.name)).toEqual(["Donnerstag-Raid", "​", "PuG"]);
+        expect(embed.fields[0].value).toBe([
+            "**SSC + TK**",
+            "🗓️ <t:1789666200:F>",
+            "-# 👥 9 · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
+            "",
+            "**[Hyjal + BT](https://eh.example/e/e2)**",
+            "🗓️ <t:1790271000:F>",
+            "-# 👥 15/25 · [#do-hyjal](https://discord.com/channels/111/c2)",
+        ].join("\n"));
+        expect(embed.fields[2].value).toContain("Karazhan");
         expect(JSON.stringify(payload)).not.toContain("Vorbei");
     });
 
