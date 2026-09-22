@@ -500,6 +500,23 @@ describe("web/eventMessage", () => {
         expect(JSON.stringify(draft)).not.toContain("Setup");
     });
 
+    it("links the comp sheet and the softres list when either is on record (#357)", () => {
+        const links = (opts) => {
+            const fields = buildEventMessage(event(), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics", ...opts }).embeds[0].fields;
+            return fields[fields.length - 1].value;
+        };
+        expect(links({})).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
+        expect(links({ srUrl: "https://softres.it/raid/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
+        expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc", srUrl: "https://softres.it/raid/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
+    });
+
     it("posts the message with the application emojis and remembers where it sits and what it shows", async () => {
         getEvent.mockReturnValue(event());
         const { channel } = fakeDiscord();
