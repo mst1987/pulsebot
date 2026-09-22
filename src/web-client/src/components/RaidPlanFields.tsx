@@ -151,8 +151,9 @@ export function RoleRanges({ melee, ranged, onChange, idPrefix }: {
  * Banner, and a small preview of the embed's left edge so the choice is visible
  * instead of a hex code nobody can picture.
  *
- * Both fields may stay empty: then the leading instance of the night decides
- * (its colour and its boss icon), which the preview says in as many words.
+ * Colour may stay empty: then the leading instance of the night decides,
+ * which the preview says in as many words. The picture has no such fallback
+ * (#353) — a thumbnail narrows the message, so it only shows up when chosen.
  */
 export function AppearanceFields({ version, instanceIds, color, image, emojiStyle, onChange, idPrefix }: {
     version: GameVersion | null;
@@ -174,7 +175,7 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
         : (lead && lead.color ? t("raidPlan.fields.colorOf", { name: lead.short }) : t("raidPlan.fields.defaultColor"));
     const picture = url
         ? (banner ? t("raidPlan.fields.ownImageBanner") : t("raidPlan.fields.ownImageThumb"))
-        : (lead ? t("raidPlan.fields.bossIconOf", { name: lead.short }) : t("raidPlan.fields.noImage"));
+        : t("raidPlan.fields.noImage");
 
     return (
         <div className="rt-field">
@@ -182,9 +183,7 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
             <div className="rt-look">
                 <div className="rt-look-prev" aria-hidden="true">
                     <span className="rt-look-bar" style={{ background: shown }} />
-                    {url
-                        ? <img className={banner ? "rt-look-banner" : "rt-look-thumb"} src={url} alt="" />
-                        : (lead ? <WowIcon name={lead.icon} size={40} /> : null)}
+                    {url && <img className={banner ? "rt-look-banner" : "rt-look-thumb"} src={url} alt="" />}
                 </div>
                 <div className="rt-look-fields">
                     <div className="rt-look-row">

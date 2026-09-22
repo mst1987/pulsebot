@@ -342,10 +342,10 @@ describe("web/eventMessage", () => {
     });
 
     describe("Farbe und Bild (#307)", () => {
-        it("nimmt ohne eigene Werte Farbe und Boss-Icon der führenden Instanz", () => {
+        it("nimmt ohne eigene Werte nur die Farbe der führenden Instanz, kein automatisches Boss-Icon (#353)", () => {
             const embed = buildEventMessage(event({ instanceIds: ["ssc", "tk"] }), signups, { emojis, now: NOW }).embeds[0];
             expect(embed.color).toBe(0x1f8ba5);
-            expect(embed.thumbnail).toEqual({ url: "https://wow.zamimg.com/images/wow/icons/large/achievement_boss_ladyvashj.jpg" });
+            expect(embed.thumbnail).toBeUndefined();
             expect(embed.image).toBeUndefined();
         });
 
@@ -359,10 +359,10 @@ describe("web/eventMessage", () => {
             expect(embed.thumbnail).toBeUndefined();
         });
 
-        it("setzt mit raidArt das Raid-Bild der führenden Instanz unter die Nachricht, neben dem Boss-Icon", () => {
+        it("setzt mit raidArt das Raid-Bild der führenden Instanz unter die Nachricht, ohne Boss-Icon daneben", () => {
             const embed = buildEventMessage(event({ instanceIds: ["hyjal", "bt", "gruul"] }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
             expect(embed.image).toEqual({ url: "https://render.worldofwarcraft.com/eu/zones/the-battle-for-mount-hyjal-small.jpg" });
-            expect(embed.thumbnail).toEqual({ url: expect.stringContaining("achievement_boss_archimonde-") });
+            expect(embed.thumbnail).toBeUndefined();
             // an own banner stays in its place; without raidArt nothing changes
             const own = buildEventMessage(event({ instanceIds: ["bt"], image: { mode: "banner", url: "https://cdn.example/raid.png" } }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
             expect(own.image).toEqual({ url: "https://cdn.example/raid.png" });

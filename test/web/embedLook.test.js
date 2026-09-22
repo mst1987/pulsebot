@@ -143,13 +143,12 @@ describe("web/embedLook", () => {
     });
 
     describe("lookOf", () => {
-        it("ohne eigene Werte: Farbe und Icon des Regelsatzes", () => {
+        it("ohne eigene Werte: nur die Farbe des Regelsatzes, kein automatisches Bild (#353)", () => {
             const look = lookOf({ id: "eh-1", instanceIds: ["ssc", "tk"] });
             expect(look.color).toBe(colorValue(instanceById("ssc").color));
             expect(look.colorSource).toBe("ruleset");
-            expect(look.url).toContain("ladyvashj");
-            expect(look.mode).toBe("thumbnail");
-            expect(look.imageSource).toBe("ruleset");
+            expect(look.url).toBe("");
+            expect(look.imageSource).toBe("default");
         });
 
         it("ohne Instanzen: die Akzentfarbe und kein Bild", () => {
@@ -161,10 +160,10 @@ describe("web/embedLook", () => {
         it("eigene Werte gewinnen, jedes für sich", () => {
             const both = lookOf({ id: "eh-1", instanceIds: ["ssc"], color: "#ff0000", image: { mode: "banner", url: "https://cdn.example/a.png" } });
             expect(both).toEqual({ color: 0xff0000, colorSource: "event", mode: "banner", url: "https://cdn.example/a.png", imageSource: "event" });
-            // nur eine eigene Farbe: das Boss-Icon bleibt
+            // nur eine eigene Farbe: kein Bild, ohne eigenes gibt es keins mehr
             const colorOnly = lookOf({ id: "eh-1", instanceIds: ["ssc"], color: "#ff0000" });
             expect(colorOnly.color).toBe(0xff0000);
-            expect(colorOnly.imageSource).toBe("ruleset");
+            expect(colorOnly.imageSource).toBe("default");
             // nur ein eigenes Bild: die Farbe bleibt die der Instanz
             const imageOnly = lookOf({ id: "eh-1", instanceIds: ["ssc"], image: { mode: "banner", url: "https://cdn.example/a.png" } });
             expect(imageOnly.colorSource).toBe("ruleset");
@@ -174,8 +173,8 @@ describe("web/embedLook", () => {
         it("eine unbrauchbare Adresse wird weggelassen und geloggt, nie geworfen", () => {
             const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
             const look = lookOf({ id: "eh-9", instanceIds: ["bt"], image: { mode: "banner", url: "http://x/y.png" } });
-            expect(look.url).toContain("illidan");
-            expect(look.imageSource).toBe("ruleset");
+            expect(look.url).toBe("");
+            expect(look.imageSource).toBe("default");
             expect(warn).toHaveBeenCalledWith(expect.stringContaining("eh-9"));
             warn.mockRestore();
         });
@@ -189,7 +188,7 @@ describe("web/embedLook", () => {
     describe("embedColor / embedImageFields", () => {
         it("gibt die Felder so, wie Discord sie will", () => {
             expect(embedColor({ instanceIds: ["hyjal"] })).toBe(colorValue(instanceById("hyjal").color));
-            expect(embedImageFields({ instanceIds: ["hyjal"] })).toEqual({ thumbnail: { url: expect.stringContaining("archimonde") } });
+            expect(embedImageFields({ instanceIds: ["hyjal"] })).toEqual({});
             expect(embedImageFields({ instanceIds: [], image: { mode: "banner", url: "https://cdn.example/a.png" } }))
                 .toEqual({ image: { url: "https://cdn.example/a.png" } });
             expect(embedImageFields({ instanceIds: [] })).toEqual({});

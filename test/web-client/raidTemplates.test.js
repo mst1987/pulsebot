@@ -183,16 +183,16 @@ describe("Aussehen-Zeile (#307)", () => {
 
     it("zeigt Farbe und Bild mit kleiner Vorschau statt nur als Hex-Feld", () => {
         expect(fields).toContain("export function AppearanceFields(");
-        // eine sichtbare Vorschau: der Farbbalken und das Bild bzw. das Boss-Icon
+        // eine sichtbare Vorschau: der Farbbalken und das eigene Bild, kein Boss-Icon-Fallback (#353)
         expect(fields).toContain("className=\"rt-look-bar\" style={{ background: shown }}");
         expect(fields).toMatch(/rt-look-banner" : "rt-look-thumb/);
-        expect(fields).toContain("<WowIcon name={lead.icon} size={40} />");
+        expect(fields).not.toContain("<WowIcon name={lead.icon} size={40} />");
         // Farbfeld, Hex-Feld und das Segment Thumbnail/Banner
         expect(fields).toContain("type=\"color\"");
         expect(fields).toMatch(/\{ value: "thumbnail", label: t\("raidPlan\.fields\.thumbnail"\)[\s\S]*?\{ value: "banner", label: t\("raidPlan\.fields\.banner"\)/);
         // die Regel steht im Tooltip, nicht als Absatz auf der Seite
         expect(fields).toContain("<FieldLabel text={t(\"raidPlan.fields.look\")} tip={t(\"raidPlan.fields.lookTip\")} />");
-        expect(makeT("de")("raidPlan.fields.lookTip")).toContain("Boss-Icon");
+        expect(makeT("de")("raidPlan.fields.lookTip")).not.toContain("Boss-Icon");
         expect(fields).not.toMatch(/<p className="note"/);
     });
 

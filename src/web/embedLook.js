@@ -9,12 +9,16 @@
 // copy on creation (eventCreate.templateDefaults) that the create dialog can
 // still change for that one night.
 //
-// Three levels, in this order (`lookOf`):
-//   1. the event's own `color` / `image`,
-//   2. the rule set of its instances — every instance carries a `color` and its
-//      boss `icon` (config/gameVersions), so SSC, BT and Hyjal tell themselves
-//      apart with nothing configured at all,
-//   3. `embedAccentColor` and no picture.
+// Two levels for the colour, in this order (`lookOf`):
+//   1. the event's own `color`,
+//   2. the rule set of its instances — every instance carries a `color`
+//      (config/gameVersions), so SSC, BT and Hyjal tell themselves apart with
+//      nothing configured at all,
+//   3. `embedAccentColor`.
+// The picture has no rule-set fallback (#353): only the event's own `image`
+// shows, or none at all. A rule set's boss icon used to fill in automatically,
+// but a thumbnail narrows Discord's field grid next to it — every message
+// without a deliberately chosen picture paid that width for an icon nobody asked for.
 //
 // Where several instances make one evening (SSC + TK) the *leading* one decides:
 // the biggest of the night, ties going to the one named first — the same rule
@@ -188,9 +192,8 @@ function messageLookOf(config, categoryId) {
 }
 
 /**
- * The look an event's message gets. Colour and picture fall back **on their
- * own**: an event that only sets a colour still gets the rule set's boss icon,
- * and one that only sets a picture keeps the rule set's colour.
+ * The look an event's message gets. Only the colour falls back to the rule
+ * set on its own; the picture is the event's own or none at all (#353).
  *
  * A stored URL that is not usable (a file edited by hand, a rule tightened
  * later) is dropped with a warning: a picture is never worth a message that
@@ -215,8 +218,8 @@ function lookOf(event) {
         color: colorValue(color) ?? embedAccentColor,
         colorSource: own ? "event" : (rules.color ? "ruleset" : "default"),
         mode: url ? (IMAGE_MODES.includes(image.mode) ? image.mode : DEFAULT_IMAGE_MODE) : "thumbnail",
-        url: url || rules.thumbnail,
-        imageSource: url ? "event" : (rules.thumbnail ? "ruleset" : "default"),
+        url,
+        imageSource: url ? "event" : "default",
     };
 }
 
