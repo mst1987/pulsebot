@@ -344,12 +344,13 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     const other = [];
     for (const [status, label] of OTHER_LINES) {
         // One entry per raider: several characters on the same status share one
-        // number and count once ("`3` Darkdisi / Lakunoc").
+        // number and count once ("`3` <spec icon> Darkdisi / <spec icon> Lakunoc").
         const people = new Map();
         for (const e of entries.filter((x) => x.status === status).sort(byNumber)) {
             const key = String(e.userId);
             if (!people.has(key)) people.set(key, { entry: e, names: [] });
-            people.get(key).names.push(nameOf(e));
+            const icon = emojiText(emojis, specEmojiName(e.spec));
+            people.get(key).names.push(icon ? `${icon} ${nameOf(e)}` : nameOf(e));
         }
         const list = [...people.values()];
         if (!list.length) continue;
@@ -448,11 +449,14 @@ function messageComponents(event, { emojis = {}, now = Date.now(), phase = messa
  * The message payload for an event and its signups — pure, plain API JSON.
  * @param {object} event   an eventStore event (`status` "cancelled" / "closed" is honoured, #288)
  * @param {object[]} signups signupStore signups
- * @param {{ emojis?: object, now?: number, icsUrl?: string }} opts
+ * @param {{ emojis?: object, now?: number, icsUrl?: string, compUrl?: string, srUrl?: string }} opts
  *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = labels only
  *   `icsUrl`: the calendar link; empty = the event's own `/r/cal/<id>.ics` (#308)
+ *   `compUrl`/`srUrl`: the comp sheet and softres.it links (#357); empty = no such link on record, left out
  */
-function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal" } = {}) {
+function buildEventMessage(event, signups, {
+    emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "",
+} = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
     const phase = messagePhase(event, now);
@@ -534,6 +538,11 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (base) links.push(`[Event](${base}/e/${id})`);
     if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
+    // The raid's comp sheet (an own copy, else the category's fixed one — see
+    // settingsStore.resolveEventSheetLink) and its softres.it reservation list
+    // (eventSoftresStore), when either is on record (#357).
+    if (compUrl) links.push(`[Comp](${compUrl})`);
+    if (srUrl) links.push(`[SR](${srUrl})`);
     const cal = icsUrl || icsUrlFor(event.id);
     if (cal) links.push(`[Calendar](${cal})`);
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
@@ -580,9 +589,19 @@ async function textChannel(channelId) {
 async function payloadFor(event) {
     await loadAppEmojis(discord.getClient());
     // The category's look (Einstellungen › Kategorien): raid picture and title size.
-    const { getConfig } = require("./settingsStore");
+    const { getConfig, resolveEventSheetLink } = require("./settingsStore");
+    const { getEventSheet } = require("./eventSheetStore");
+    const { getEventSoftres } = require("./eventSoftresStore");
     const look = messageLookOf(getConfig(), event.categoryId);
-    return buildEventMessage(event, listSignups(event.id), { emojis: appEmojiMap(), raidArt: look.raidArt, titleSize: look.titleSize });
+    const sheetLink = resolveEventSheetLink(getEventSheet(event.id), event.categoryId);
+    const softres = getEventSoftres(event.id);
+    return buildEventMessage(event, listSignups(event.id), {
+        emojis: appEmojiMap(),
+        raidArt: look.raidArt,
+        titleSize: look.titleSize,
+        compUrl: (sheetLink && sheetLink.url) || "",
+        srUrl: (softres && softres.url) || "",
+    });
 }
 
 async function postPayload(event, payload) {
