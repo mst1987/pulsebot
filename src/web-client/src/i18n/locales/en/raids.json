@@ -95,10 +95,11 @@
         "unknownSub": "Neither title nor category names a known raid."
     },
     "time": {
-        "thisWeek": "This week",
-        "nextWeek": "Next week",
-        "lastWeek": "Last week",
-        "week": "Week {week}"
+        "thisWeek": "This ID",
+        "nextWeek": "Next ID",
+        "lastWeek": "Last ID",
+        "inWeeks": "In {count} IDs",
+        "weeksAgo": "{count} IDs ago"
     },
     "source": {
         "event": "event",

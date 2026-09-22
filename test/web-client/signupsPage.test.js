@@ -89,12 +89,28 @@ describe("SignupsPage", () => {
     });
 
     it("links a Raid-Helper event to Discord instead of offering the dialog", () => {
-        expect(page).toMatch(/\{own \? <OwnAction row=\{row\} onOpen=\{onOpen\} \/> : \(/);
+        expect(page).toContain("{own ? <OwnAction row={row} onOpen={onOpen} /> : row.discordUrl && (");
         expect(page).toContain("t(\"signups.row.inDiscord\")");
         expect(de("signups.row.inDiscord")).toBe("In Discord");
         expect(page).toContain("href={row.discordUrl}");
         // the dialog only ever opens for an own event
         expect(page).toMatch(/e\.id === openId && e\.source === "eventhelper"/);
+    });
+
+    it("keeps status and action in columns of their own, shared by every row", () => {
+        // a row as its own flex line put the bar wherever badge and button left room
+        expect(page).toContain("<div className=\"an-state\">");
+        expect(page).toContain("<div className=\"an-act\">");
+        expect(page).toContain("<span className=\"an-bar\"");
+        expect(css).toMatch(/\.an-list \{[^}]*grid-template-columns: 18px auto minmax\(0, 1fr\) auto auto auto;/);
+        expect(css).toMatch(/\.an-group \{[^}]*grid-template-columns: subgrid;/);
+        expect(css).toMatch(/\.an-row \{[^}]*grid-template-columns: subgrid;/);
+    });
+
+    it("groups the raids by raid ID, Wednesday to Tuesday", () => {
+        expect(page).toContain("import { weekBands } from \"../lib/raidTime\";");
+        expect(page).toContain("{weekBands(data.events).map((band) => (");
+        expect(page).toContain("<b>{band.label}</b>");
     });
 
     it("keeps the open dialog in the url so the Discord dialog's web button can link to it", () => {
@@ -108,7 +124,8 @@ describe("SignupDialog", () => {
     it("offers every status the backend knows, in the member's words", () => {
         for (const status of SIGNUP_STATUSES) expect(lib).toContain(`get label() { return t("signups.status.${status}"); }`);
         expect(["signed", "tentative", "late", "bench", "absence"].map((s) => de(`signups.status.${s}`)))
-            .toEqual(["Dabei", "Vielleicht", "Spät", "Bank", "Abmelden"]);
+            .toEqual(["Angemeldet", "Vielleicht", "Spät", "Bank", "Abmelden"]);
+        expect(makeT("en")("signups.status.signed")).toBe("Signed up");
         expect(lib).toMatch(/SIGNUP_STATUS_ORDER: SignupStatus\[\] = \["signed", "tentative", "late", "bench", "absence"\]/);
     });
 

@@ -1,34 +1,15 @@
-// Time bands of the Raid-Events list: coming raids by calendar week (Monday to
-// Sunday), past raids by month — both in the guild's time zone, so a raid on
-// Sunday 23:30 does not slip into the next week for a viewer elsewhere.
+// Time bands of the lists of raids: coming raids by raid ID (Wednesday to
+// Tuesday, lib/raidId.ts), past raids by month — both in the guild's time zone.
 import { locale, t } from "../i18n";
+import { idsFromNow, raidIdOf } from "./raidId";
 
 const TZ = "Europe/Berlin";
 const DAY_MS = 86400000;
-
-/** The calendar day (UTC midnight of that date) an epoch-seconds time falls on in TZ. */
-function dayOf(ms: number): number {
-    return Date.parse(new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ }));
-}
-
-/** Monday of the week the day lies in, as a UTC-midnight timestamp. */
-function mondayOf(day: number): number {
-    const weekday = (new Date(day).getUTCDay() + 6) % 7; // 0 = Monday
-    return day - weekday * DAY_MS;
-}
 
 const ddmm = (day: number) => {
     const d = new Date(day);
     return `${String(d.getUTCDate()).padStart(2, "0")}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.`;
 };
-
-/** ISO week number of a UTC-midnight day. */
-function isoWeek(day: number): number {
-    const d = new Date(day);
-    const thursday = day + (3 - ((d.getUTCDay() + 6) % 7)) * DAY_MS;
-    const yearStart = Date.UTC(new Date(thursday).getUTCFullYear(), 0, 1);
-    return Math.floor((thursday - yearStart) / DAY_MS / 7) + 1;
-}
 
 export type TimeBand<T> = { key: string; label: string; range: string; rows: T[] };
 
@@ -52,22 +33,21 @@ function bandsBy<T>(rows: T[], band: (row: T) => { key: string; label: string; r
     return out;
 }
 
-/** "Diese Woche 14.–20.09.", "Nächste Woche 21.–27.09.", "KW 40 28.09.–04.10.". */
+/** "Diese ID 16.–22.09.", "Nächste ID 23.–29.09.", "In 2 IDs 30.09.–06.10." — Wednesday to Tuesday. */
 export function weekBands<T extends { startTime: number }>(rows: T[], now: number = Date.now()): TimeBand<T>[] {
-    const thisMonday = mondayOf(dayOf(now));
     return bandsBy(rows, (row) => {
-        const monday = mondayOf(dayOf((row.startTime || 0) * 1000));
-        const weeks = Math.round((monday - thisMonday) / (7 * DAY_MS));
+        const wednesday = raidIdOf((row.startTime || 0) * 1000);
+        const weeks = idsFromNow((row.startTime || 0) * 1000, now);
         const label = weeks === 0 ? t("raids.time.thisWeek")
             : weeks === 1 ? t("raids.time.nextWeek")
                 : weeks === -1 ? t("raids.time.lastWeek")
-                    : t("raids.time.week", { week: isoWeek(monday) });
-        const sunday = monday + 6 * DAY_MS;
-        const from = ddmm(monday);
-        const range = new Date(monday).getUTCMonth() === new Date(sunday).getUTCMonth()
-            ? `${from.slice(0, 3)}–${ddmm(sunday)}`
-            : `${from}–${ddmm(sunday)}`;
-        return { key: `w${monday}`, label, range };
+                    : weeks > 1 ? t("raids.time.inWeeks", { count: weeks }) : t("raids.time.weeksAgo", { count: -weeks });
+        const tuesday = wednesday + 6 * DAY_MS;
+        const from = ddmm(wednesday);
+        const range = new Date(wednesday).getUTCMonth() === new Date(tuesday).getUTCMonth()
+            ? `${from.slice(0, 3)}–${ddmm(tuesday)}`
+            : `${from}–${ddmm(tuesday)}`;
+        return { key: `w${wednesday}`, label, range };
     });
 }
 

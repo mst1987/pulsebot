@@ -63,11 +63,13 @@ describe("raids namespace", () => {
         // the wiring is checked in the source and the texts in the dictionaries.
         const time = read("lib/raidTime.ts");
         for (const key of ["thisWeek", "nextWeek", "lastWeek"]) expect(time).toContain(`t("raids.time.${key}")`);
-        expect(time).toContain("t(\"raids.time.week\", { week: isoWeek(monday) })");
+        expect(time).toContain("t(\"raids.time.inWeeks\", { count: weeks })");
+        expect(time).toContain("t(\"raids.time.weeksAgo\", { count: -weeks })");
         expect((time.match(/toLocale(Date|Time)String\(locale\(\)/g) || []).length).toBe(4);
         const de = makeT("de");
         const en = makeT("en");
-        expect([de("raids.time.thisWeek"), de("raids.time.nextWeek"), de("raids.time.week", { week: 40 })]).toEqual(["Diese Woche", "Nächste Woche", "KW 40"]);
-        expect([en("raids.time.thisWeek"), en("raids.time.nextWeek"), en("raids.time.week", { week: 40 })]).toEqual(["This week", "Next week", "Week 40"]);
+        // the bands are raid IDs (Wednesday to Tuesday), not calendar weeks
+        expect([de("raids.time.thisWeek"), de("raids.time.nextWeek"), de("raids.time.inWeeks", { count: 2 })]).toEqual(["Diese ID", "Nächste ID", "In 2 IDs"]);
+        expect([en("raids.time.thisWeek"), en("raids.time.nextWeek"), en("raids.time.weeksAgo", { count: 3 })]).toEqual(["This ID", "Next ID", "3 IDs ago"]);
     });
 });

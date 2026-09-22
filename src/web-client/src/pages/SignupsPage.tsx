@@ -12,6 +12,7 @@ import BulkSignupDialog from "../components/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
+import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
 import "../styles/anmeldung.css";
 
@@ -20,6 +21,8 @@ import "../styles/anmeldung.css";
 // on the right either the own status (click = change it) or the one action.
 // A Raid-Helper event is signed up for in Discord, so its row links there.
 // Role counts, comments and the rest live in the dialog and in tooltips.
+// The rows are grouped by raid ID (Wednesday to Tuesday) and share one column
+// grid, so bar, status and action line up from row to row.
 
 export default function SignupsPage() {
     const t = useT();
@@ -97,13 +100,22 @@ export default function SignupsPage() {
                 ? <p className="an-empty">{t("signups.page.empty")}</p>
                 : (
                     <div className="an-list">
-                        {data.events.map((row) => (
-                            <SignupRow
-                                key={row.id} row={row} onOpen={() => open(row.id)}
-                                selectable={selectable.some((e) => e.id === row.id)}
-                                selected={selected.includes(row.id)}
-                                onToggle={() => toggle(row.id)}
-                            />
+                        {weekBands(data.events).map((band) => (
+                            <div key={band.key} className="an-group" role="group" aria-label={`${band.label} ${band.range}`}>
+                                <div className="an-band">
+                                    <b>{band.label}</b>
+                                    <span>{band.range}</span>
+                                    <Badge count>{band.rows.length}</Badge>
+                                </div>
+                                {band.rows.map((row) => (
+                                    <SignupRow
+                                        key={row.id} row={row} onOpen={() => open(row.id)}
+                                        selectable={selectable.some((e) => e.id === row.id)}
+                                        selected={selected.includes(row.id)}
+                                        onToggle={() => toggle(row.id)}
+                                    />
+                                ))}
+                            </div>
                         ))}
                     </div>
                 )}
@@ -178,27 +190,27 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 <div className="an-title">{row.title}</div>
                 <div className="an-sub">{rowSubline(row)}</div>
             </div>
-            <span data-tip={barTip} data-tip-sub={barSub}>
+            <span className="an-bar" data-tip={barTip} data-tip-sub={barSub}>
                 <Bar value={row.attending} max={size || Math.max(row.attending, 1)} tone={fillTone(row.attending, size)} label={size ? `${row.attending}/${size}` : String(row.attending)} />
             </span>
+            {/* status and action are two columns, so each stays under its kind in every row */}
+            <div className="an-state">
+                {own ? <OwnStatus row={row} onOpen={onOpen} /> : mine && <Badge tone={SIGNUP_STATUS[mine.status].tone}>{statusBadgeLabel(mine.status)}</Badge>}
+            </div>
             <div className="an-act">
-                {own ? <OwnAction row={row} onOpen={onOpen} /> : (
-                    <>
-                        {mine && <Badge tone={SIGNUP_STATUS[mine.status].tone}>{statusBadgeLabel(mine.status)}</Badge>}
-                        {row.discordUrl && (
-                            <a className="btn btn-ghost btn-sm has-icon" href={row.discordUrl} target="_blank" rel="noreferrer"
-                                data-tip={t("signups.row.discordTip")} data-tip-sub={t("signups.row.discordTipSub")}>
-                                <ExternalIcon /> {t("signups.row.inDiscord")}
-                            </a>
-                        )}
-                    </>
+                {own ? <OwnAction row={row} onOpen={onOpen} /> : row.discordUrl && (
+                    <a className="btn btn-ghost btn-sm has-icon" href={row.discordUrl} target="_blank" rel="noreferrer"
+                        data-tip={t("signups.row.discordTip")} data-tip-sub={t("signups.row.discordTipSub")}>
+                        <ExternalIcon /> {t("signups.row.inDiscord")}
+                    </a>
                 )}
             </div>
         </div>
     );
 }
 
-function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
+/** The own status as a badge — a click changes it. Empty while not signed up. */
+function OwnStatus({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     const t = useT();
     const mine = row.mine;
     if (mine) {
@@ -225,6 +237,13 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
             </button>
         );
     }
+    return null;
+}
+
+/** The one action of a raid not signed up for yet: sign up, or only sign off / late after the deadline. */
+function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
+    const t = useT();
+    if (row.mine) return null;
     if (row.started) return <Badge>{t("signups.row.started")}</Badge>;
     if (row.deadlinePassed) {
         return <Button variant="ghost" size="sm" onClick={onOpen} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
