@@ -231,7 +231,9 @@ describe("web/eventMessage", () => {
         ]);
         // a character without its own status has the signup's (late); one raider counts once
         const other = fields.find((f) => !f.inline && f.value.includes("Late"));
-        expect(other.value.split("\n")[0]).toMatch(/Late \(2\): `2` Ysolde, `8` Zibbo \/ Zibbomage$/);
+        expect(emojiless(other.value.split("\n")[0])).toBe(
+            "<:eh_ui_late> Late (2): `2` <:eh_priest_holy> Ysolde, `8` <:eh_priest_holy> Zibbo / <:eh_mage_fire> Zibbomage",
+        );
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
         expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
@@ -241,14 +243,15 @@ describe("web/eventMessage", () => {
         ]);
     });
 
-    it("lists late, tentative, bench and absence as lines with icon, count and number boxes", () => {
+    it("lists late, tentative, bench and absence as lines with icon, count, number box and spec icon (#355)", () => {
         const payload = buildEventMessage(event(), [...signups, su("8", "Bänki", "Mage-Frost", "ranged", "bench")], { emojis, now: NOW });
         const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Late"));
         expect(other.name).toBe(ZWS);
         expect(other.value.split("\n").map(emojiless)).toEqual([
-            "<:eh_ui_late> Late (1): `2` Ysolde",
-            "<:eh_ui_tentative> Tentative (1): `4` Kael",
-            "<:eh_ui_bench> Bench (1): `8` Bänki",
+            "<:eh_ui_late> Late (1): `2` <:eh_priest_holy> Ysolde",
+            "<:eh_ui_tentative> Tentative (1): `4` <:eh_rogue_combat> Kael",
+            "<:eh_ui_bench> Bench (1): `8` <:eh_mage_frost> Bänki",
+            // no spec on this absence (no character was chosen) — the raw mention stays plain
             "<:eh_ui_absence> Absence (1): `5` <@5>",
         ]);
     });
@@ -342,10 +345,10 @@ describe("web/eventMessage", () => {
     });
 
     describe("Farbe und Bild (#307)", () => {
-        it("nimmt ohne eigene Werte Farbe und Boss-Icon der führenden Instanz", () => {
+        it("nimmt ohne eigene Werte nur die Farbe der führenden Instanz, kein automatisches Boss-Icon (#353)", () => {
             const embed = buildEventMessage(event({ instanceIds: ["ssc", "tk"] }), signups, { emojis, now: NOW }).embeds[0];
             expect(embed.color).toBe(0x1f8ba5);
-            expect(embed.thumbnail).toEqual({ url: "https://wow.zamimg.com/images/wow/icons/large/achievement_boss_ladyvashj.jpg" });
+            expect(embed.thumbnail).toBeUndefined();
             expect(embed.image).toBeUndefined();
         });
 
@@ -359,10 +362,10 @@ describe("web/eventMessage", () => {
             expect(embed.thumbnail).toBeUndefined();
         });
 
-        it("setzt mit raidArt das Raid-Bild der führenden Instanz unter die Nachricht, neben dem Boss-Icon", () => {
+        it("setzt mit raidArt das Raid-Bild der führenden Instanz unter die Nachricht, ohne Boss-Icon daneben", () => {
             const embed = buildEventMessage(event({ instanceIds: ["hyjal", "bt", "gruul"] }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
             expect(embed.image).toEqual({ url: "https://render.worldofwarcraft.com/eu/zones/the-battle-for-mount-hyjal-small.jpg" });
-            expect(embed.thumbnail).toEqual({ url: expect.stringContaining("achievement_boss_archimonde-") });
+            expect(embed.thumbnail).toBeUndefined();
             // an own banner stays in its place; without raidArt nothing changes
             const own = buildEventMessage(event({ instanceIds: ["bt"], image: { mode: "banner", url: "https://cdn.example/raid.png" } }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
             expect(own.image).toEqual({ url: "https://cdn.example/raid.png" });
@@ -498,6 +501,23 @@ describe("web/eventMessage", () => {
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");
+    });
+
+    it("links the comp sheet and the softres list when either is on record (#357)", () => {
+        const links = (opts) => {
+            const fields = buildEventMessage(event(), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics", ...opts }).embeds[0].fields;
+            return fields[fields.length - 1].value;
+        };
+        expect(links({})).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
+        expect(links({ srUrl: "https://softres.it/raid/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
+        expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc", srUrl: "https://softres.it/raid/abc" })).toBe(
+            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+        );
     });
 
     it("posts the message with the application emojis and remembers where it sits and what it shows", async () => {

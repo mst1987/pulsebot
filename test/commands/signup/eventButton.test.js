@@ -117,7 +117,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(i);
             const payload = replyOf(i);
             expect(payload.flags).toBe(MessageFlags.Ephemeral);
-            expect(payload.content).toContain("up to 2 characters");
+            expect(payload.embeds[0].description).toContain("up to 2 characters");
             const select = selectOf(payload);
             expect(select).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", min_values: 1, max_values: 2 });
             expect(select.options.map((o) => o.value)).toEqual(["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"]);
@@ -140,7 +140,7 @@ describe("commands/signup/eventButton", () => {
             const again = click("join");
             await command.execute(again);
             const next = replyOf(again);
-            expect(next.content).toContain("So far: Zibbo · Holy (Late), Zibbowar · Protection (Signed up)");
+            expect(next.embeds[0].description).toContain("So far: Zibbo · Holy (Late), Zibbowar · Protection (Signed up)");
             expect(selectOf(next).options.some((o) => o.default)).toBe(false);
             const same = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), selectOf(next));
             await command.execute(same);
@@ -151,7 +151,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             const payload = replyOf(i);
-            expect(payload.content).toContain("No character in your profile yet");
+            expect(payload.embeds[0].description).toContain("No character in your profile yet");
             expect(selectOf(payload).custom_id).toBe("event-btn:eh-kara:cls:s");
             expect(selectOf(payload).options.map((o) => o.value)).toContain("Priest");
         });
@@ -166,7 +166,7 @@ describe("commands/signup/eventButton", () => {
             const cls = mockInteraction({ customId: "event-btn:eh-kara:cls:b", userId: ANNA, values: ["Priest"] });
             await command.execute(cls);
             const specs = updateOf(cls);
-            expect(specs.content).toContain("**Priest** – which spec?");
+            expect(specs.embeds[0].description).toContain("**Priest** – which spec?");
             expect(selectOf(specs)).toMatchObject({ custom_id: "event-btn:eh-kara:spec:b" });
             expect(selectOf(specs).options.map((o) => o.value)).toContain("Priest-Holy");
 
@@ -272,7 +272,7 @@ describe("commands/signup/eventButton", () => {
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { reason: "  maybe   work " } });
             await command.execute(submit);
             const payload = replyOf(submit);
-            expect(payload.content).toContain("as **Tentative**");
+            expect(payload.embeds[0].description).toContain("as **Tentative**");
             const select = selectOf(payload);
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:t");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: select.options.map((o) => o.value) }), select);
