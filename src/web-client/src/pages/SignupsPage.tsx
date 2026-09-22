@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import {
@@ -171,13 +171,29 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
             row.counts.absence ? t("signups.row.absence", { count: row.counts.absence }) : "",
         ].filter(Boolean).join(" · ") || undefined
         : t("signups.row.raidHelperState");
+    // The whole row is the event's own doorway: an own event opens its public page,
+    // a Raid-Helper one opens the post in Discord — same place the "In Discord"
+    // button already goes to. Interactive children (checkbox, status/action button,
+    // the Discord link itself) stop the click from also firing this.
+    const href = own ? `/e/${encodeURIComponent(row.id)}` : row.discordUrl;
+    const openRow = () => href && window.open(href, "_blank", "noopener,noreferrer");
+    const rowTip = own ? t("signups.dialog.publicPage") : t("signups.row.discordTip");
+    const rowTipSub = own ? undefined : t("signups.row.discordTipSub");
 
     return (
-        <div className={`an-row${mine && mine.status !== "absence" ? " is-mine" : ""}${selected ? " an-row-selected" : ""}`}>
+        <div
+            className={`an-row${mine && mine.status !== "absence" ? " is-mine" : ""}${selected ? " an-row-selected" : ""}${href ? " an-row-link" : ""}`}
+            onClick={href ? openRow : undefined}
+            onKeyDown={href ? (e) => { if (e.key === "Enter") openRow(); } : undefined}
+            role={href ? "link" : undefined}
+            tabIndex={href ? 0 : undefined}
+            data-tip={href ? rowTip : undefined}
+            data-tip-sub={rowTipSub}
+        >
             <span className="an-check">
                 {selectable && (
                     <input
-                        type="checkbox" checked={selected} onChange={onToggle}
+                        type="checkbox" checked={selected} onChange={onToggle} onClick={(e) => e.stopPropagation()}
                         aria-label={t("signups.row.selectAria", { title: row.title })}
                         data-tip={t("signups.row.selectTip")} data-tip-sub={t("signups.row.selectTipSub")}
                     />
@@ -199,7 +215,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
             </div>
             <div className="an-act">
                 {own ? <OwnAction row={row} onOpen={onOpen} /> : row.discordUrl && (
-                    <a className="btn btn-ghost btn-sm has-icon" href={row.discordUrl} target="_blank" rel="noreferrer"
+                    <a className="btn btn-ghost btn-sm has-icon" href={row.discordUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
                         data-tip={t("signups.row.discordTip")} data-tip-sub={t("signups.row.discordTipSub")}>
                         <ExternalIcon /> {t("signups.row.inDiscord")}
                     </a>
@@ -231,7 +247,10 @@ function OwnStatus({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
             : mine.character;
         const sub = [who, mine.comment ? t("signups.quoted", { text: mine.comment }) : "", row.started ? "" : t("signups.row.clickToChange")].filter(Boolean).join(" · ");
         return (
-            <button type="button" className={`badge an-status-badge${meta.tone ? ` ${meta.tone}` : ""}`} disabled={row.started} onClick={onOpen} data-tip={label} data-tip-sub={sub || undefined}>
+            <button
+                type="button" className={`badge an-status-badge${meta.tone ? ` ${meta.tone}` : ""}`} disabled={row.started}
+                onClick={(e) => { e.stopPropagation(); onOpen(); }} data-tip={label} data-tip-sub={sub || undefined}
+            >
                 <i className="an-dot" style={{ background: meta.color }} />
                 {label}
             </button>
@@ -245,8 +264,9 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     const t = useT();
     if (row.mine) return null;
     if (row.started) return <Badge>{t("signups.row.started")}</Badge>;
+    const open = (e: MouseEvent) => { e.stopPropagation(); onOpen(); };
     if (row.deadlinePassed) {
-        return <Button variant="ghost" size="sm" onClick={onOpen} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
+        return <Button variant="ghost" size="sm" onClick={open} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
     }
-    return <Button size="sm" onClick={onOpen}>{t("signups.signUp")}</Button>;
+    return <Button size="sm" onClick={open}>{t("signups.signUp")}</Button>;
 }

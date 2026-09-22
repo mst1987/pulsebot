@@ -30,6 +30,9 @@
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .an-row.is-mine { border-color: var(--area-signups); }
+.an-row-link { cursor: pointer; }
+.an-row-link:hover { border-color: var(--accent); }
+.an-row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .an-ic { display: inline-flex; }
 .an-ic > .wi { width: 44px; height: 44px; border-radius: 9px; border: 1px solid var(--line); }
 .an-text { min-width: 0; line-height: 1.25; }
