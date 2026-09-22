@@ -288,8 +288,8 @@ describe("ping text (Ping-Nachricht) inline field", () => {
         expect(editor).toContain("saveSetupPingText(ctx.csrfToken, ctx.eventId, text)");
     });
 
-    it("labels it in German and English", () => {
-        expect(de("setup.pingText.label")).toBe("Ping-Nachricht");
-        expect(en("setup.pingText.label")).toBe("Ping message");
+    it("labels it in German and English, making clear that this is what gets posted", () => {
+        expect(de("setup.pingText.label")).toMatch(/Ping-Nachricht.*Ping everyone/);
+        expect(en("setup.pingText.label")).toMatch(/Ping message.*Ping everyone/);
     });
 });

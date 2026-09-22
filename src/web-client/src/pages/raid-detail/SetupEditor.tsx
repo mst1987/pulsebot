@@ -495,8 +495,8 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
     };
     return (
         <div className="se-pingtext">
-            <span className="se-pingtext-label kicker" data-tip={t("setup.pingText.label")} data-tip-sub={t("setup.pingText.tip")}>
-                {t("setup.pingText.label")}
+            <span className="se-pingtext-label" data-tip={t("setup.pingText.tip")}>
+                📢 {t("setup.pingText.label")}
             </span>
             <input
                 type="text"
