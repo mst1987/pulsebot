@@ -113,6 +113,19 @@ describe("SignupsPage", () => {
         expect(page).toContain("<b>{band.label}</b>");
     });
 
+    it("makes the whole row open the event — an own raid's public page, a Raid-Helper raid's Discord post", () => {
+        expect(page).toContain("const href = own ? `/e/${encodeURIComponent(row.id)}` : row.discordUrl;");
+        expect(page).toContain('const openRow = () => href && window.open(href, "_blank", "noopener,noreferrer");');
+        expect(page).toMatch(/onClick=\{href \? openRow : undefined\}/);
+        expect(page).toMatch(/role=\{href \? "link" : undefined\}/);
+        expect(page).toMatch(/tabIndex=\{href \? 0 : undefined\}/);
+        // interactive children stop the click from also firing the row's own
+        expect(page).toContain("onChange={onToggle} onClick={(e) => e.stopPropagation()}");
+        expect(page).toContain('rel="noreferrer" onClick={(e) => e.stopPropagation()}');
+        expect(page).toContain("onClick={(e) => { e.stopPropagation(); onOpen(); }}");
+        expect(page).toContain("const open = (e: MouseEvent) => { e.stopPropagation(); onOpen(); };");
+    });
+
     it("keeps the open dialog in the url so the Discord dialog's web button can link to it", () => {
         expect(page).toContain("params.get(\"event\")");
         const button = fs.readFileSync(path.join(__dirname, "..", "..", "src", "utils", "signupDialog.js"), "utf8");
