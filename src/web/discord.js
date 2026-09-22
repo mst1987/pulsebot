@@ -239,15 +239,21 @@ async function postMissingPing(channelId, userIds = [], text = "") {
 const MESSAGE_LIMIT = 2000;
 
 /**
- * A plain message that pings nobody: a `<@id>` in it shows the name without a
- * notification (allowedMentions parses nothing). Cut to Discord's 2000.
+ * A message that pings nobody: a `<@id>` in it shows the name without a
+ * notification (allowedMentions parses nothing). `payload` is either plain
+ * text, or `{ content?, embeds? }` (a raw embed object works, as elsewhere in
+ * this file). Text content is cut to Discord's 2000.
  * @returns {Promise<{ channelId, messageId, url }>}
  */
-async function postNotice(channelId, content) {
+async function postNotice(channelId, payload) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await client.channels.fetch(String(channelId || ""));
     if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
-    const posted = await channel.send({ content: String(content || "").slice(0, MESSAGE_LIMIT), allowedMentions: { parse: [] } });
+    const data = typeof payload === "string" ? { content: payload } : (payload || {});
+    const send = { allowedMentions: { parse: [] } };
+    if (data.content) send.content = String(data.content).slice(0, MESSAGE_LIMIT);
+    if (data.embeds) send.embeds = data.embeds;
+    const posted = await channel.send(send);
     return { channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 

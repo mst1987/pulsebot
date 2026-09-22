@@ -20,6 +20,7 @@ const { getConfig } = require("./settingsStore");
 const profiles = require("./raiderProfileStore");
 const { appEmojiMap, emojiText, statusEmojiName } = require("./appEmojis");
 const { messageUrl } = require("./eventAnnounce");
+const { embedAccentColor } = require("../config/variables");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];
@@ -87,18 +88,29 @@ function plainText(text) {
 }
 
 /**
- * The post: who, which status, which raid (linked to its signup message) and
- * the note as a quote. `<@id>` shows the name; discord.postNotice pings nobody.
+ * The post: one embed shaped like Raid-Helper's own signup notification (title
+ * bar "Notification received!", who signed up as what with their reason, and
+ * a closing line with the raid). `<@id>` shows the name; discord.postNotice
+ * pings nobody. Returned as `{ embeds: [...] }`, ready for `discord.postNotice`.
  */
 function buildNotePost(event, signup, { emojis = {} } = {}) {
     const title = plainText((event && event.title) || "Raid") || "Raid";
     const url = messageUrl(event);
     const start = Number(event && event.startTime) || 0;
     const icon = emojiText(emojis, statusEmojiName(signup.status));
-    const who = [`<@${signup.userId}>`, characterName(signup) ? `(${plainText(characterName(signup))})` : ""].filter(Boolean).join(" ");
-    const raid = [url ? `[${title}](${url})` : `**${title}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · ");
-    const head = [icon, who, "·", `**${STATUS_TEXT[signup.status] || signup.status}**`, "·", raid].filter(Boolean).join(" ");
-    return `${head}\n> ${plainText(signup.comment).slice(0, MAX_NOTE * 3)}`;
+    const mention = `<@${signup.userId}>`;
+    const who = [mention, characterName(signup) ? `(${plainText(characterName(signup))})` : ""].filter(Boolean).join(" ");
+    const raidLink = url ? `[${title}](${url})` : title;
+    const footer = [mention, "|", `**${raidLink}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" ");
+    const headline = [`**${who}**`, "signed up as", icon, `**${STATUS_TEXT[signup.status] || signup.status}**`, "with the following reason:"].filter(Boolean).join(" ");
+    const description = [
+        headline,
+        "",
+        plainText(signup.comment).slice(0, MAX_NOTE * 3),
+        "",
+        footer,
+    ].join("\n");
+    return { embeds: [{ color: embedAccentColor, title: "Notification received!", description }] };
 }
 
 /**

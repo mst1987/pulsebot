@@ -429,11 +429,12 @@ describe("commands/signup/eventButton", () => {
             expect(mocks.postNotice).not.toHaveBeenCalled();
             await command.execute(mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } }));
             expect(mocks.postNotice).toHaveBeenCalledTimes(1);
-            const [channelId, content] = mocks.postNotice.mock.calls[0];
+            const [channelId, payload] = mocks.postNotice.mock.calls[0];
             expect(channelId).toBe("777777");
-            expect(content).toContain(`<@${ANNA}> (Zibbo)`);
-            expect(content).toContain("**Absent**");
-            expect(content).toContain("> Arbeit");
+            const description = payload.embeds[0].description;
+            expect(description).toContain(`<@${ANNA}> (Zibbo)`);
+            expect(description).toContain("**Absent**");
+            expect(description).toContain("Arbeit");
         });
     });
 
