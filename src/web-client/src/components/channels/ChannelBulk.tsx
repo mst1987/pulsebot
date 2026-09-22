@@ -12,7 +12,7 @@ import { bulkChanges, KEEP, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/ch
 // soon as something is selected, the "only what you change" edit dialog behind
 // its "Kategorie …" / "Thema …" buttons, and "Umbenennen nach Schema …".
 
-export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onArchive, onClear }: {
+export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onArchive, onDelete, onClear }: {
     count: number;
     guildName: string;
     /** "Archivieren" in the tree, "Löschen …" in the archive tab. */
@@ -20,6 +20,8 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
     onEdit?: (focus: "category" | "topic") => void;
     onRename?: () => void;
     onArchive: () => void;
+    /** The tree's "Löschen …" beside "Archivieren" — deleting for good, asked for by name. */
+    onDelete?: () => void;
     onClear: () => void;
 }) {
     if (!count) return null;
@@ -33,6 +35,7 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
             {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>Kategorie …</Button>}
             {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("topic")}>Thema …</Button>}
             {onRename && <Button size="sm" variant="ghost" onClick={onRename}>Umbenennen nach Schema …</Button>}
+            {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>Löschen …</Button>}
             <Button size="sm" variant={deleting ? "danger" : "primary"} onClick={onArchive}>{archiveLabel || "Archivieren"}</Button>
             <IconButton size="sm" icon={<XIcon />} tip="Auswahl aufheben" onClick={onClear} />
         </div>

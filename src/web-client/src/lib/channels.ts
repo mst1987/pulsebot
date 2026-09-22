@@ -86,6 +86,22 @@ export function channelTip(channel: Channel, data: ChannelsData): { head: string
     return { head: `#${channel.name}`, sub: parts.join(" ") || "Kein Thema, kein Zweck, kein Event." };
 }
 
+/**
+ * What deleting these channels from the list takes along, one line each: a
+ * channel whose event is still ahead loses its signup message with it. Asked
+ * before the name is typed; a past event's channel says nothing (its raid is over).
+ */
+export function deleteWarnings(ids: string[], data: ChannelsData): string[] {
+    const out: string[] = [];
+    for (const id of ids) {
+        const channel = data.channels.find((c) => c.id === id);
+        const ev = data.events?.[id];
+        if (!channel || !ev || ev.status === "past") continue;
+        out.push(`#${channel.name} gehört zum anstehenden Event „${ev.title}“ (${eventDateLabel(ev.startTime)}) — die Anmelde-Nachricht geht mit verloren.`);
+    }
+    return out;
+}
+
 /** The channels of past events that are not archived yet — "alle vergangenen archivieren". */
 export function pastEventChannels(data: ChannelsData): Channel[] {
     const archiveId = data.archive?.categoryId || "";

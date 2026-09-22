@@ -123,17 +123,20 @@ async function archiveChannel(channelId, archiveCategoryId) {
 }
 
 /**
- * Delete a channel — only one that sits in the archive category. This is the
- * one irreversible action of the page, so the rule lives here, below every
- * caller, and not just in the dialog that asks for the name.
+ * Delete a channel. This is the one irreversible action of the page, so the
+ * rules live here, below every caller, and not just in the dialog that asks
+ * for the name:
+ *   * from the archive tab (default) only a channel in the archive category;
+ *   * with `anywhere` (the channel list) any channel — but never a category:
+ *     fetchChannel() does not hand one out, it would strand every channel inside.
  */
-async function deleteChannel(channelId, archiveCategoryId) {
+async function deleteChannel(channelId, archiveCategoryId, { anywhere = false } = {}) {
     const archiveId = String(archiveCategoryId || "").trim();
-    if (!archiveId) throw new Error("Keine Archiv-Kategorie festgelegt.");
+    if (!anywhere && !archiveId) throw new Error("Keine Archiv-Kategorie festgelegt.");
     const channel = await fetchChannel(channelId);
-    if ((channel.parentId || "") !== archiveId) throw new Error("Nur Kanäle im Archiv können gelöscht werden.");
+    if (!anywhere && (channel.parentId || "") !== archiveId) throw new Error("Nur Kanäle im Archiv können gelöscht werden.");
     const { id, name } = channel;
-    await channel.delete("EventHelper: aus dem Archiv gelöscht");
+    await channel.delete(anywhere ? "EventHelper: in der Kanalübersicht gelöscht" : "EventHelper: aus dem Archiv gelöscht");
     return { id, name };
 }
 

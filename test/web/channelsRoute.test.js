@@ -167,6 +167,28 @@ describe("POST /api/channels/delete", () => {
         expect(data.results[1].error).toContain("Nur Kanäle im Archiv");
         expect(archiveStore.forgetArchived).toHaveBeenCalledWith(["a1"]);
     });
+
+    it("from the channel list (anywhere) deletes outside the archive too, and needs no archive category", async () => {
+        archiveStore.getChannelConfig.mockReturnValueOnce({ archiveCategoryId: "", schemas: {}, archiveDeleteHintDays: 14 });
+        dc.deleteChannel.mockImplementation(async (id) => ({ id, name: CHANNELS.find((c) => c.id === id).name }));
+        const name = CHANNELS.find((c) => c.id === "c1").name;
+        readJsonBody.mockResolvedValue({ ids: ["c1"], confirm: name, anywhere: true });
+        const res = mockRes();
+        await routes.deleteChannels({}, res);
+        expect(dc.deleteChannel).toHaveBeenCalledWith("c1", "", { anywhere: true });
+        expect(body(res).data.results).toEqual([expect.objectContaining({ id: "c1", ok: true })]);
+    });
+
+    it("keeps the archive rule without anywhere — and only a literal true counts", async () => {
+        readJsonBody.mockResolvedValue({ ids: ["a1"], confirm: CHANNELS.find((c) => c.id === "a1").name, anywhere: "yes" });
+        dc.deleteChannel.mockResolvedValue({ id: "a1", name: "x" });
+        await routes.deleteChannels({}, mockRes());
+        expect(dc.deleteChannel).toHaveBeenCalledWith("a1", "arch", { anywhere: false });
+        archiveStore.getChannelConfig.mockReturnValueOnce({ archiveCategoryId: "", schemas: {}, archiveDeleteHintDays: 14 });
+        const res = mockRes();
+        await routes.deleteChannels({}, res);
+        expect(body(res).error.code).toBe("no_archive");
+    });
 });
 
 describe("POST /api/channels/batch", () => {

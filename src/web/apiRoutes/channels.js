@@ -234,10 +234,11 @@ async function archiveChannels(req, res) {
 }
 
 /**
- * POST /api/channels/delete — delete channels from the archive. Body:
- * `{ ids, confirm }`: one channel wants its own name typed, several the word
- * LÖSCHEN. A channel outside the archive category is refused per channel
- * (discordChannels.deleteChannel), whatever the page sent.
+ * POST /api/channels/delete — delete channels. Body: `{ ids, confirm, anywhere }`:
+ * one channel wants its own name typed, several the word LÖSCHEN. Without
+ * `anywhere` (the archive tab) a channel outside the archive category is
+ * refused per channel; with it (the channel list) any channel may go, a
+ * category never (discordChannels.deleteChannel, whatever the page sent).
  */
 async function deleteChannels(req, res) {
     const user = requireAdmin(req, res);
@@ -246,8 +247,9 @@ async function deleteChannels(req, res) {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
     const { archiveCategoryId } = archiveStore.getChannelConfig(guildId);
-    if (!archiveCategoryId) return error(res, 400, "no_archive", "Keine Archiv-Kategorie festgelegt.");
     const body = await readJsonBody(req);
+    const anywhere = body.anywhere === true;
+    if (!anywhere && !archiveCategoryId) return error(res, 400, "no_archive", "Keine Archiv-Kategorie festgelegt.");
     const { ids, unknown, known } = idsOfGuild(body, guildId);
     if (!ids.length && !unknown.length) return error(res, 400, "no_channel", "Kein Kanal gewählt.");
     const confirm = String(body.confirm || "").trim();
@@ -258,7 +260,7 @@ async function deleteChannels(req, res) {
     }
     const results = [
         ...await runSerial(ids, async (id) => {
-            const deleted = await discordChannels.deleteChannel(id, archiveCategoryId);
+            const deleted = await discordChannels.deleteChannel(id, archiveCategoryId, { anywhere });
             archiveStore.forgetArchived([id]);
             return { name: deleted.name };
         }),

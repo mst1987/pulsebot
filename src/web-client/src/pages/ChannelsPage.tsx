@@ -19,7 +19,7 @@ import { QuickCreateDialog } from "../components/channels/QuickCreateDialog";
 import { CategorySchemaDialog } from "../components/channels/CategorySchemaDialog";
 import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
-import { BULK_DELETE_WORD, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
+import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
 import "../styles/kanaele.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
@@ -42,7 +42,8 @@ type Dialog =
     | { kind: "edit"; channel: Channel }
     | { kind: "bulk"; focus: "category" | "topic" }
     | { kind: "rename" }
-    | { kind: "delete"; ids: string[] }
+    // `anywhere`: from the channel list, not the archive — any channel, never a category.
+    | { kind: "delete"; ids: string[]; anywhere?: boolean }
     | { kind: "archive-settings"; then?: string[] }
     | null;
 
@@ -163,12 +164,12 @@ export default function ChannelsPage() {
         if (await askArchive(ids, category?.name || "Archiv")) await archiveNow(ids);
     };
 
-    const remove = async (ids: string[], confirm: string) => {
+    const remove = async (ids: string[], confirm: string, anywhere = false) => {
         setDialog(null);
-        await run({ label: "Aus dem Archiv löschen", detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
+        await run({ label: anywhere ? "Kanäle löschen" : "Aus dem Archiv löschen", detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
             // One request: the server checks the confirmation for the whole set and
             // deletes one channel after another with a pause.
-            const result = await deleteChannels(csrfToken, ids, confirm);
+            const result = await deleteChannels(csrfToken, ids, confirm, anywhere);
             if (result.failed) throw new Error(result.message);
             return result.message;
         });
@@ -269,6 +270,7 @@ export default function ChannelsPage() {
                             onRename={(channel, name) => applyChanges([channel.id], { name }, `#${channel.name} umbenennen`)}
                             onEdit={(channel) => setDialog({ kind: "edit", channel })}
                             onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
+                            onDelete={(channel) => setDialog({ kind: "delete", ids: [channel.id], anywhere: true })}
                             onSchema={(categoryId) => setDialog({ kind: "schema", categoryId })}
                         />
                     )
@@ -328,6 +330,7 @@ export default function ChannelsPage() {
                     onEdit={(focus) => setDialog({ kind: "bulk", focus })}
                     onRename={() => setDialog({ kind: "rename" })}
                     onArchive={() => archive(selectedChannels.map((c) => c.id))}
+                    onDelete={() => setDialog({ kind: "delete", ids: selectedChannels.map((c) => c.id), anywhere: true })}
                     onClear={() => setSelected(new Set())}
                 />
             )}
@@ -392,8 +395,10 @@ export default function ChannelsPage() {
             {dialog?.kind === "delete" && (
                 <DeleteChannelsDialog
                     names={deleteNames}
+                    kicker={dialog.anywhere ? "Kanäle" : "Archiv"}
+                    warnings={dialog.anywhere ? deleteWarnings(dialog.ids, data) : []}
                     onClose={() => setDialog(null)}
-                    onConfirm={(confirm) => remove(dialog.ids, deleteNames.length === 1 ? confirm : BULK_DELETE_WORD)}
+                    onConfirm={(confirm) => remove(dialog.ids, deleteNames.length === 1 ? confirm : BULK_DELETE_WORD, !!dialog.anywhere)}
                 />
             )}
             {dialog?.kind === "archive-settings" && (

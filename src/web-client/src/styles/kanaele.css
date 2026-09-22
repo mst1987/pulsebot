@@ -149,6 +149,8 @@ button.kn-figure:hover .kn-figure-val { color: var(--accent); }
 .kn-dlg-toolbar { display: flex; gap: 10px; align-items: center; }
 .kn-dlg-toolbar .kn-search { flex: 1; min-height: var(--ctl-h); }
 .kn-dlg-note { font-size: 12.5px; color: var(--muted); }
+/* What a delete from the channel list takes along (an upcoming event's signup message). */
+.kn-dlg-warn { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--high); border-radius: 8px; color: var(--text); }
 
 .kn-pick { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 50vh; background: var(--panel); }
 .kn-pick-cat {
