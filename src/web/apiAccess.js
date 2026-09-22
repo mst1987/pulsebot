@@ -218,7 +218,7 @@ const ANY_AREA = new Set(["/api/session/guild", "/api/session/lang"]);
 // no session user to check, never the auth itself: the handler rejects anything
 // without a valid bearer token before it does any work. Deliberately a tiny,
 // explicit set — an endpoint listed here is reachable by whoever holds a token.
-const TOKEN_AUTH = new Set(["/api/ingest/loot"]);
+const TOKEN_AUTH = new Set(["/api/ingest/loot", "/api/ingest/raids"]);
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 

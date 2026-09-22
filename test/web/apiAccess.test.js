@@ -169,14 +169,15 @@ describe("web/apiAccess", () => {
         // The loot-sync uploader has no Discord session at all, so the session
         // gate has to let it past — apiRoutes/ingest.js checks the bearer token
         // itself before doing anything.
-        it("lets the token-authenticated ingest endpoint past the session gate", () => {
+        it("lets the token-authenticated ingest endpoints past the session gate", () => {
             expect(checkAccess("/api/ingest/loot", "POST", null)).toBeNull();
+            expect(checkAccess("/api/ingest/raids", "POST", null)).toBeNull();
         });
 
-        // That exemption must stay a one-off, not a hole a future route slips
-        // into by accident.
-        it("exempts nothing but the ingest endpoint from the session gate", () => {
-            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot"]);
+        // That exemption must stay this deliberate, tiny set, not a hole a
+        // future route slips into by accident.
+        it("exempts nothing but the loot-sync ingest endpoints from the session gate", () => {
+            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot", "/api/ingest/raids"]);
         });
 
         // Anmeldungen (#256): a member with "signup" reads and writes their own

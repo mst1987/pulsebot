@@ -13,12 +13,12 @@ const { ok, error } = require("../apiResponse");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { addImport: addLootImport } = require("../lootStore");
+const { addImport: addLootImport, eventsWithLoot } = require("../lootStore");
 const { rememberFromLoot } = require("../characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch } = require("../lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../ingestTokenStore");
-const { upsertPending, resolutionFor, noteAppended } = require("../lootInboxStore");
+const { upsertPending, resolutionFor, noteAppended, listPending } = require("../lootInboxStore");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -150,4 +150,105 @@ async function ingestLoot(req, res) {
     ok(res, { received: sessions.length, results }, 201);
 }
 
-module.exports = { ingestLoot };
+/**
+ * Status of each recent raid event for the loot-sync tool's raid list: whether
+ * loot is already in the history for it ("done"), whether one of the tool's
+ * local sessions falls on its day and could be uploaded for it ("ready"), or
+ * neither ("empty"). Pure and side-effect-free — the caller supplies
+ * everything read from disk/the Raid-Helper API, so this is unit-testable with
+ * plain object literals, no mocking needed.
+ *
+ * A session already sitting in the inbox (pending or resolved) is never
+ * offered as "ready" again — re-clicking upload for a raid that was already
+ * sent would just look like nothing happened. Its event still counts as
+ * "done" once resolved, or once the suggested match from its (possibly still
+ * unconfirmed) inbox entry names an event, so the desktop tool doesn't ask
+ * for a raid the raidleader already uploaded, just because an admin hasn't
+ * confirmed it yet.
+ *
+ * @param {object[]} events    recent events (both sources), as loadEventGroups() gives them,
+ *                             each already carrying its own `categoryId`/`categoryName`
+ * @param {object[]} sessions  the sync tool's local sessions:
+ *                             { sessionId, startedAt, items, gargul, rclc, excluded }
+ * @param {{ lootedEventIds: Set<string>, pending: object[], resolutionFor: (id: string) => object|null }} known
+ */
+function computeRaidStatus(events, sessions, { lootedEventIds, pending, resolutionFor: resolveSession }) {
+    const pendingBySession = new Map(pending.map((p) => [p.sessionId, p]));
+    const alreadySent = (sessionId) => pendingBySession.has(sessionId) || Boolean(resolveSession(sessionId));
+
+    const doneEventIds = new Set(lootedEventIds);
+    for (const session of sessions) {
+        const sessionId = String(session.sessionId || "");
+        if (!sessionId) continue;
+        const resolved = resolveSession(sessionId);
+        if (resolved && resolved.eventId) doneEventIds.add(resolved.eventId);
+        const suggested = pendingBySession.get(sessionId)?.match?.suggested;
+        if (suggested && suggested.eventId) doneEventIds.add(suggested.eventId);
+    }
+
+    const readyByEventId = new Map();
+    for (const session of sessions) {
+        if (session.excluded) continue;
+        const sessionId = String(session.sessionId || "");
+        if (!sessionId || alreadySent(sessionId)) continue;
+        const at = Number(session.startedAt) || 0;
+        if (!at) continue;
+        const { match } = bestDayMatch(at, events);
+        if (match && !readyByEventId.has(match.id)) readyByEventId.set(match.id, session);
+    }
+
+    return events
+        .map((ev) => {
+            const done = doneEventIds.has(ev.id);
+            const session = done ? null : readyByEventId.get(ev.id) || null;
+            return {
+                eventId: ev.id,
+                title: ev.title || ev.id,
+                startTime: Number(ev.startTime) || 0,
+                categoryId: ev.categoryId || "",
+                categoryName: ev.categoryName || "",
+                source: ev.source || "",
+                status: done ? "done" : session ? "ready" : "empty",
+                matchedSessionId: session ? session.sessionId : null,
+                itemCount: session ? Number(session.items) || 0 : null,
+                gargul: session ? Number(session.gargul) || 0 : null,
+                rclc: session ? Number(session.rclc) || 0 : null,
+            };
+        })
+        .sort((a, b) => b.startTime - a.startTime);
+}
+
+/**
+ * POST /api/ingest/raids — same bearer-token auth as ingestLoot above. The
+ * loot-sync tool sends its local sessions' aggregate fields (no item detail
+ * needed) and gets back the recent raids with their status, so its raid list
+ * can show "done"/"ready"/"empty" without re-implementing the Europe/Berlin
+ * day-match this project already trusts for the real upload (see
+ * computeRaidStatus() and lootEventMatch.js's bestDayMatch()).
+ */
+async function ingestRaidStatus(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+
+    const body = await readJsonBody(req);
+    const sessions = Array.isArray(body.sessions) ? body.sessions : [];
+
+    const guildId = activeGuildFor(req);
+    const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    const events = groups.flatMap((g) => g.events.map((ev) => ({
+        ...ev,
+        categoryId: g.categoryId || "",
+        categoryName: g.categoryName || "",
+    })));
+
+    const raids = computeRaidStatus(events, sessions, {
+        lootedEventIds: new Set(eventsWithLoot().map((e) => e.eventId)),
+        pending: listPending(),
+        resolutionFor,
+    });
+
+    ok(res, { raids });
+}
+
+module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus };

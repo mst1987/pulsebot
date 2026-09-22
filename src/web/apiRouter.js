@@ -18,7 +18,7 @@ const {
 } = require("./apiRoutes/settings");
 const { getTalkOverview, postTalkOverview } = require("./apiRoutes/talkOverview");
 const { getRetirement, postRetirement, postHistoryImport } = require("./apiRoutes/raidhelperRetirement");
-const { ingestLoot } = require("./apiRoutes/ingest");
+const { ingestLoot, ingestRaidStatus } = require("./apiRoutes/ingest");
 const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
@@ -260,6 +260,10 @@ async function route(pathname, req, res, url) {
     // Token-authenticated, not session-authenticated — see apiRoutes/ingest.js.
     if (pathname === "/api/ingest/loot" && req.method === "POST") {
         await ingestLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/ingest/raids" && req.method === "POST") {
+        await ingestRaidStatus(req, res);
         return true;
     }
     if (pathname === "/api/raider-characters" && req.method === "GET") {
