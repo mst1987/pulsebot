@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Channel, ChannelsData } from "../../api";
 import { Badge, IconButton } from "../ui";
-import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon } from "../icons";
+import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon, TrashIcon } from "../icons";
 import { ChannelTypeIcon, PencilIcon } from "./channelBits";
 import { channelTip, eventDateLabel, groupByCategory, ownSchemaOf } from "../../lib/channels";
 import { normalizeForType } from "../../lib/channelNames";
@@ -85,7 +85,7 @@ function InlineName({ channel, onSave, onCancel }: {
     );
 }
 
-export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate, onSchema }: {
+export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEdit, onDuplicate, onDelete, onSchema }: {
     data: ChannelsData;
     selected: Set<string>;
     /** Select (true) or deselect (false) these channel ids. */
@@ -94,6 +94,8 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
     onRename: (channel: Channel, name: string) => void;
     onEdit: (channel: Channel) => void;
     onDuplicate: (channel: Channel) => void;
+    /** Delete this channel for good (asks for its name first). */
+    onDelete: (channel: Channel) => void;
     /** Open the naming schema of this category. */
     onSchema: (categoryId: string) => void;
 }) {
@@ -221,6 +223,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                                             <IconButton size="sm" icon={<PencilIcon />} tip="Umbenennen" tipSub="Oder Doppelklick auf den Namen. Enter speichert, Esc verwirft." onClick={() => setEditing(c.id)} />
                                             <IconButton size="sm" icon={<SettingsIcon />} tip="Bearbeiten" tipSub="Name, Thema, Kategorie, Slowmode, Rechte, archivieren." onClick={() => onEdit(c)} />
                                             <IconButton size="sm" icon={<CopyIcon />} tip="Duplizieren" tipSub="Klon mit Rechten, Thema und Slowmode in derselben Kategorie." onClick={() => onDuplicate(c)} />
+                                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" tipSub="Endgültig aus Discord löschen — mit Namen bestätigen. Zum Aufheben lieber archivieren." onClick={() => onDelete(c)} />
                                         </span>
                                     )}
                                 </div>

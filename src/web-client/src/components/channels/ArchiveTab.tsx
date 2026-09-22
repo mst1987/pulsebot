@@ -73,10 +73,14 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
     );
 }
 
-export function DeleteChannelsDialog({ names, onClose, onConfirm }: {
+export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker = "Archiv", warnings = [] }: {
     names: string[];
     onClose: () => void;
     onConfirm: (confirm: string) => void;
+    /** "Archiv" from the archive tab, "Kanäle" from the channel list. */
+    kicker?: string;
+    /** Channels that still carry something (an upcoming event) — named before the name is typed. */
+    warnings?: string[];
 }) {
     const single = names.length === 1;
     const expected = single ? names[0] : BULK_DELETE_WORD;
@@ -94,7 +98,7 @@ export function DeleteChannelsDialog({ names, onClose, onConfirm }: {
             onClose={onClose}
             icon={<TrashIcon />}
             tone="bad"
-            kicker="Archiv"
+            kicker={kicker}
             title={single ? `#${names[0]} löschen` : `${names.length} Kanäle löschen`}
             width={540}
             initialFocus="#kn-del-confirm"
@@ -109,6 +113,11 @@ export function DeleteChannelsDialog({ names, onClose, onConfirm }: {
                 <div className="kn-dlg-note">
                     Der Kanal und alle Nachrichten darin sind danach weg — auch in Discord lässt sich das nicht rückgängig machen.
                 </div>
+                {warnings.length > 0 && (
+                    <div className="kn-dlg-note kn-dlg-warn">
+                        {warnings.map((w) => <div key={w}>{w}</div>)}
+                    </div>
+                )}
                 {!single && (
                     <div className="kn-chips">{names.slice(0, 10).map((n) => <Badge key={n}>#{n}</Badge>)}{names.length > 10 && <Badge count>+{names.length - 10}</Badge>}</div>
                 )}

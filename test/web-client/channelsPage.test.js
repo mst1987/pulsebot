@@ -147,14 +147,22 @@ describe("ChannelsPage", () => {
         expect(page).toContain("\"Kanäle und Events anlegen\"");
     });
 
-    it("deletes only from the archive tab, with the name typed", () => {
-        expect(tree).not.toContain("TrashIcon");
+    it("deletes from the archive tab and from the channel list, always with the name typed", () => {
         expect(archive).toContain("TrashIcon");
         const del = component(archive, "DeleteChannelsDialog");
         expect(del).toContain("const expected = single ? names[0] : BULK_DELETE_WORD;");
         expect(del).toContain("disabled={!matches}");
         expect(lib).toContain("export const BULK_DELETE_WORD = \"LÖSCHEN\";");
         expect(routes).toContain("const BULK_DELETE_WORD = \"LÖSCHEN\";");
+        // the channel list: a trash icon per row and "Löschen …" in the bulk bar, both through the same dialog
+        expect(tree).toMatch(/tone="danger" icon=\{<TrashIcon \/>\} tip="Löschen"[^>]*onClick=\{\(\) => onDelete\(c\)\}/);
+        expect(bulk).toContain("{onDelete && <Button size=\"sm\" variant=\"danger\" onClick={onDelete}>Löschen …</Button>}");
+        expect(page).toContain("onDelete={(channel) => setDialog({ kind: \"delete\", ids: [channel.id], anywhere: true })}");
+        expect(page).toContain("deleteChannels(csrfToken, ids, confirm, anywhere)");
+        expect(api).toContain("anywhere ? { ids, confirm, anywhere: true } : { ids, confirm }");
+        // an upcoming event's channel is named before the name is typed
+        expect(page).toContain("warnings={dialog.anywhere ? deleteWarnings(dialog.ids, data) : []}");
+        expect(lib).toMatch(/export function deleteWarnings[\s\S]*ev\.status === "past"\) continue;[\s\S]*Anmelde-Nachricht geht mit verloren/);
     });
 
     it("asks before archiving and leads to the archive settings when there is no archive", () => {

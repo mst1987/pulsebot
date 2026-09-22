@@ -100,6 +100,18 @@ describe("web/discordChannels", () => {
             await expect(dc.deleteChannel("c1", "arch")).resolves.toEqual({ id: "c1", name: "mi-kara" });
             expect(channel.delete).toHaveBeenCalled();
         });
+
+        it("from the channel list (anywhere) deletes any channel, also without an archive — never a category", async () => {
+            const channel = makeChannel({ parentId: "cat1" });
+            withChannels(channel);
+            await expect(dc.deleteChannel("c1", "", { anywhere: true })).resolves.toEqual({ id: "c1", name: "mi-kara" });
+            expect(channel.delete).toHaveBeenCalledWith("EventHelper: in der Kanalübersicht gelöscht");
+            const category = makeChannel({ id: "cat1", type: ChannelType.GuildCategory, parentId: "" });
+            withChannels(category);
+            // a category is no channel to fetchChannel(): refused before anything is deleted
+            await expect(dc.deleteChannel("cat1", "arch", { anywhere: true })).rejects.toThrow("Kanal nicht gefunden");
+            expect(category.delete).not.toHaveBeenCalled();
+        });
     });
 
     describe("createCategory / createFromTemplate", () => {

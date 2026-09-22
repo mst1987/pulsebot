@@ -298,9 +298,12 @@ export function archiveChannels(csrfToken: string | null, ids: string[]): Promis
     return send("POST", "/api/channels/archive", csrfToken, { ids });
 }
 
-/** Delete from the archive; `confirm` is the channel's name, or LÖSCHEN for several. */
-export function deleteChannels(csrfToken: string | null, ids: string[], confirm: string): Promise<ChannelBulkResult> {
-    return send("POST", "/api/channels/delete", csrfToken, { ids, confirm });
+/**
+ * Delete channels; `confirm` is the channel's name, or LÖSCHEN for several.
+ * Without `anywhere` only from the archive; with it (the channel list) any channel, never a category.
+ */
+export function deleteChannels(csrfToken: string | null, ids: string[], confirm: string, anywhere = false): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/delete", csrfToken, anywhere ? { ids, confirm, anywhere: true } : { ids, confirm });
 }
 
 /**
