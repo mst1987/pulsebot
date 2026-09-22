@@ -74,11 +74,18 @@ function refusal(event, status, now = Date.now()) {
     return "The signup deadline has passed – only “Late” or Absence now.";
 }
 
-/** "Zibbo · Holy" for a character entry. */
-function characterText(profile, entry) {
+/**
+ * "<spec icon> Zibbo" with the application emojis, else "Zibbo · Holy" as
+ * plain text. `emojis` is opt-in (default none) so existing callers that
+ * build their own icon alongside it (savedText) keep their exact old text.
+ */
+function characterText(profile, entry, emojis = {}) {
     const ch = ((profile && profile.characters) || []).find((c) => c.key === profiles.characterKey(entry.character));
+    const name = ch ? ch.name : entry.character;
+    const icon = emojiText(emojis, specEmojiName(entry.spec));
+    if (icon) return `${icon} ${name}`;
     const info = profiles.specInfo(entry.spec) || {};
-    return [ch ? ch.name : entry.character, en(info)].filter(Boolean).join(" · ");
+    return [name, en(info)].filter(Boolean).join(" · ");
 }
 
 /**
@@ -216,8 +223,9 @@ function classSelect(event, status, emojis, placeholder = "Pick a class …") {
 
 /**
  * Step: pick own characters (up to MAX_CHARACTERS), the classes below them for
- * a new character (#303). Only the member sees it.
- * @returns {{ content: string, components: object[] }}
+ * a new character (#303). Only the member sees it — an embed reads clearer
+ * than plain content here (#356), so the lines go into its description.
+ * @returns {{ embeds: object[], components: object[] }}
  */
 function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" } = {}) {
     const profile = profiles.getProfile(userId) || { characters: [] };
@@ -226,21 +234,21 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
     const lines = [headLine(event, status)];
     const mine = migrateSignup(getSignup(event.id, userId));
     if (mine && mine.status !== "absence" && (mine.characters || []).length) {
-        lines.push(`So far: ${mine.characters.map((c) => `${characterText(profile, c)} (${STATUS_WORD[c.status] || c.status})`).join(", ")}`);
+        lines.push(`So far: ${mine.characters.map((c) => `${characterText(profile, c, emojis)} (${STATUS_WORD[c.status] || c.status})`).join(", ")}`);
     }
     lines.push(max > 1
         ? `Pick up to ${max} characters – the topmost in the list is your 1st choice.`
         : "Pick your character.");
     if (notice) lines.push("", notice);
     return {
-        content: lines.join("\n"),
+        embeds: [{ description: lines.join("\n") }],
         components: [
             {
                 type: 1,
                 components: [{
                     type: 3,
                     custom_id: btnId(event.id, "pick", codeOf(status)),
-                    placeholder: "Pick a character …",
+                    placeholder: "Choose all Characters to sign up with",
                     min_values: 1,
                     max_values: Math.max(1, max),
                     options,
@@ -256,7 +264,7 @@ function buildClassPicker(event, status, { emojis = {}, notice = "" } = {}) {
     const lines = [headLine(event, status), "Which class?"];
     if (notice) lines.push("", notice);
     return {
-        content: lines.join("\n"),
+        embeds: [{ description: lines.join("\n") }],
         components: [{ type: 1, components: [classSelect(event, status, emojis)] }],
     };
 }
@@ -266,7 +274,7 @@ function buildSpecPicker(event, status, classId, { emojis = {} } = {}) {
     const cls = classesFor(event).find((c) => c.id === classId);
     if (!cls) return null;
     return {
-        content: `${headLine(event, status)}\n**${en(cls)}** – which spec?`,
+        embeds: [{ description: `${headLine(event, status)}\n**${en(cls)}** – which spec?` }],
         components: [
             {
                 type: 1,
