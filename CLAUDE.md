@@ -152,6 +152,8 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
 | [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
+| [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
+| [docs/guide-web-admin.md](docs/guide-web-admin.md) | Endnutzer-Guide für die Orga: alle Bereiche des Web-Admin-Panels und was man dort tun kann |
 
 ## Environment Variables
 
