@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 import GuildSwitcher from "./GuildSwitcher";
+import { ViewAsBanner, ViewAsButton } from "./ViewAs";
 import { CrestIcon, BurgerIcon, LogoutIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
@@ -184,11 +185,14 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     </div>
                     <div className="top-actions">
                         <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
+                        <ViewAsButton user={user} csrfToken={csrfToken} />
                         <LangToggle csrfToken={csrfToken} />
                         <ThemeToggle />
                     </div>
                 </header>
                 <div className="content" key={lang}>
+                    {/* While an admin looks at the menu as a role: which one, and the way back. */}
+                    <ViewAsBanner user={user} csrfToken={csrfToken} />
                     <Outlet context={{ user, csrfToken } satisfies ShellContext} />
                 </div>
             </div>

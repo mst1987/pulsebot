@@ -2,6 +2,9 @@ const { EventEmitter } = require("events");
 
 jest.mock("../../src/web/auth", () => ({
     getUser: jest.fn(),
+    // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
+    getRealUser: jest.fn(),
+    setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
@@ -434,6 +437,7 @@ describe("web/apiRouter", () => {
     describe("GET /api/session", () => {
         it("returns user + csrfToken + guilds + activeGuildId for a logged-in admin", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            auth.getRealUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
             auth.csrfToken.mockReturnValue("csrf-abc");
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             activeGuildFor.mockReturnValue("g1");
@@ -442,7 +446,8 @@ describe("web/apiRouter", () => {
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = body(res).data;
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess() });
+            // a full admin may look at the menu as a role ("Ansicht als Rolle")
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess(), canViewAs: true });
             expect(data.csrfToken).toBe("csrf-abc");
             expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "" }]);
             expect(data.activeGuildId).toBe("g1");
@@ -471,12 +476,13 @@ describe("web/apiRouter", () => {
 
         it("returns no guilds for a logged-in caller with no area at all", async () => {
             auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
+            auth.getRealUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
             auth.csrfToken.mockReturnValue("csrf-bob");
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = body(res).data;
-            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess() });
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess(), canViewAs: false });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
         });
@@ -535,6 +541,80 @@ describe("web/apiRouter", () => {
             const res = await post("/api/session/guild", { guildId: "" });
             expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "");
             expect(body(res)).toEqual({ data: { activeGuildId: "" } });
+        });
+    });
+
+    describe("Ansicht als Rolle — /api/session/view-as", () => {
+        const RAIDER = "111111111111111111";
+        const admin = { id: "42", name: "Anna", isAdmin: true, access: fullAccess() };
+        // While the view runs, the gate only sees the role's rights — here: nothing at all.
+        const viewed = { ...admin, isAdmin: false, access: emptyAccess(), viewAs: { roleIds: [RAIDER], at: 1 } };
+
+        beforeEach(() => {
+            auth.setViewAs.mockClear();
+            discord.listRoles.mockReturnValue([{ id: RAIDER, name: "Raider", color: "#aabbcc" }, { id: "999999999999999999", name: "Gast", color: "" }]);
+            settingsStore.getConfig.mockReturnValue({ ...settingsStore.getConfig(), guildId: "g1", adminRoleIds: [], rolePermissions: { [RAIDER]: { signup: { read: true, write: true } } } });
+        });
+
+        it("lists the roles for a real full admin, marked with what is configured", async () => {
+            auth.getUser.mockReturnValue(admin);
+            auth.getRealUser.mockReturnValue(admin);
+            const res = mockRes();
+            await handle("/api/session/view-as", { method: "GET" }, res);
+            expect(body(res).data.roles).toEqual([
+                { id: RAIDER, name: "Raider", color: "#aabbcc", admin: false, configured: true },
+                { id: "999999999999999999", name: "Gast", color: "", admin: false, configured: false },
+            ]);
+        });
+
+        it("refuses anyone who is not a full admin by their own rights", async () => {
+            const member = { id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), signup: { read: true, write: true } } };
+            auth.getUser.mockReturnValue(member);
+            auth.getRealUser.mockReturnValue(member);
+            auth.checkCsrf.mockReturnValue(true);
+            const list = mockRes();
+            await handle("/api/session/view-as", { method: "GET" }, list);
+            expect(list.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            const start = await post("/api/session/view-as", { roleIds: [RAIDER] });
+            expect(start.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(auth.setViewAs).not.toHaveBeenCalled();
+        });
+
+        it("starts the view with known roles only", async () => {
+            auth.getUser.mockReturnValue(admin);
+            auth.getRealUser.mockReturnValue(admin);
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/session/view-as", { roleIds: [RAIDER, "123456789012345678"] });
+            expect(auth.setViewAs).toHaveBeenCalledWith(expect.anything(), [RAIDER]);
+            expect(body(res)).toEqual({ data: { viewAs: { roleIds: [RAIDER] } } });
+        });
+
+        it("stops the view even though the viewed role may open nothing — and needs the CSRF token", async () => {
+            auth.getUser.mockReturnValue(viewed);
+            auth.getRealUser.mockReturnValue(admin);
+            auth.checkCsrf.mockReturnValue(false);
+            const refused = await post("/api/session/view-as", { stop: true });
+            expect(refused.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(auth.setViewAs).not.toHaveBeenCalled();
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/session/view-as", { stop: true });
+            expect(auth.setViewAs).toHaveBeenCalledWith(expect.anything(), null);
+            expect(body(res)).toEqual({ data: { viewAs: null } });
+        });
+
+        it("reports the running view with role names in the session, while the rest of the menu is gated by the role", async () => {
+            auth.getUser.mockReturnValue(viewed);
+            auth.getRealUser.mockReturnValue(admin);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            const user = body(res).data.user;
+            expect(user.isAdmin).toBe(false);
+            expect(user.canViewAs).toBe(true);
+            expect(user.viewAs).toEqual({ roleIds: [RAIDER], roleNames: ["Raider"], at: 1 });
+            // any other endpoint follows the role's (empty) rights
+            const dash = mockRes();
+            await handle("/api/dashboard", { method: "GET" }, dash);
+            expect(dash.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
         });
     });
 
