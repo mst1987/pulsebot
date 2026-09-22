@@ -229,6 +229,9 @@ function complete(e) {
             : null,
         // The approved setup posted into the channel and its DMs (#290, setupMessage.js).
         setupPost: e.setupPost && typeof e.setupPost === "object" ? e.setupPost : null,
+        // The text "Ping everyone" sends, and what the first post of the setup
+        // pings with by itself (#354's follow-up); "" = setupPing.js's default.
+        setupPingText: String(e.setupPingText || ""),
         // The Discord event (guild scheduled event) that belongs to this one
         // (#305, discordEvent.js): `{ id, guildId, at, error }`, null for none.
         discordEvent: e.discordEvent && typeof e.discordEvent === "object" ? e.discordEvent : null,
@@ -409,6 +412,16 @@ function setEventSetupPost(id, patch) {
     return complete(events[idx]);
 }
 
+/** The text "Ping everyone" (setupPingBot.js) and the first post's own ping use, "" = the default. */
+function setEventSetupPingText(id, text) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    events[idx] = { ...events[idx], setupPingText: String(text || "").trim().slice(0, 300) };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /**
  * Merge into the record of the Discord event (#305, discordEvent.js):
  * `{ id, guildId, at, error }`. Only the keys present change; `null` clears the
@@ -556,7 +569,7 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventDiscordEvent, setEventAnnounced,
+    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventDiscordEvent, setEventAnnounced,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
     eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
 };

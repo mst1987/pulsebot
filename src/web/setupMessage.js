@@ -406,12 +406,22 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() }
 
 /**
  * After an approval (or the editor's "Setup posten"): the message first, so the
- * DMs can link to it, then the DMs in the background. Returns once the message
- * is done; `dms` is the running promise (null when there is nothing to send).
+ * DMs (and the ping) can link to it/follow it, then the DMs in the background.
+ * Returns once the message is done; `dms` is the running promise (null when
+ * there is nothing to send).
  */
 async function publishSetup(eventId, { userId = "", now = Date.now(), config = getConfig(), delayMs } = {}) {
     const post = await postOrEditSetupMessage(eventId, { userId, now });
     const event = eventStore.getEvent(eventId);
+    // The very first post pings everyone placed — same as a manual "Ping
+    // everyone" click, with whatever text the orga set (setupPing.js). Never
+    // on a later edit: re-approving a small tweak must not ping the raid
+    // again. Best-effort, like the DMs below — a failed ping never fails the
+    // approval, it is simply not logged.
+    if (event && post.action === "posted") {
+        const { callSetupPing } = require("./setupPing");
+        await callSetupPing({ guildId: event.guildId, eventId, userId }).catch(() => {});
+    }
     let dms = null;
     if (event && !post.code && dmsEnabled(event, config)) {
         dms = sendSetupDms(eventId, { config, ...(delayMs !== undefined ? { delayMs } : {}) })

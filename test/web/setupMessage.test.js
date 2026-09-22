@@ -11,10 +11,17 @@ jest.mock("../../src/web/eventStore", () => ({
         e.setupPost = patch ? { ...(e.setupPost || {}), ...JSON.parse(JSON.stringify(patch)) } : null;
         return JSON.parse(JSON.stringify(e));
     }),
+    appendEventLog: jest.fn(),
+    setEventSetupPingText: jest.fn((id, text) => {
+        const e = mockEvents.get(id);
+        if (!e) return null;
+        e.setupPingText = String(text || "");
+        return JSON.parse(JSON.stringify(e));
+    }),
 }));
 let mockConfig = {};
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
+jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 jest.mock("../../src/web/setupEditor", () => ({
     approvedSetupOf: (e) => (e && e.setup && e.setup.approved && Array.isArray(e.setup.approved.groups) ? e.setup.approved : null),
@@ -117,7 +124,7 @@ describe("buildSetupMessage", () => {
                 { type: 2, style: 3, custom_id: "setup-confirm:y:eh-1", label: "Confirm" },
                 { type: 2, style: 4, custom_id: "setup-confirm:n:eh-1", label: "Cancel" },
                 { type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } },
-                { type: 2, style: 2, custom_id: "setup-ping:p:eh-1", label: "Ping everyone" },
+                { type: 2, style: 2, custom_id: "setup-ping:eh-1", label: "Ping everyone" },
             ],
         }]);
     });
@@ -354,6 +361,28 @@ describe("DMs", () => {
         expect(await on.dms).toMatchObject({ sent: 5 });
         // the DMs link the posted message
         expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("https://discord.com/channels/g1/c1/m-new");
+    });
+
+    it("pings everyone placed on the first post, never on a later edit (#354's follow-up)", async () => {
+        const { PING_TEXT } = require("../../src/web/setupPing");
+        seed();
+        fakeChannel();
+        await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
+        expect(discord.postMissingPing).toHaveBeenCalledTimes(1);
+        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["1", "2", "3", "4"], PING_TEXT);
+
+        discord.postMissingPing.mockClear();
+        await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+    });
+
+    it("uses the event's own ping text once one is set", async () => {
+        const { saveSetupPingText } = require("../../src/web/setupPing");
+        seed();
+        fakeChannel();
+        saveSetupPingText("eh-1", "Los geht's!");
+        await sm.publishSetup("eh-1", { config: {}, delayMs: 0 });
+        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["1", "2", "3", "4"], "Los geht's!");
     });
 });
 

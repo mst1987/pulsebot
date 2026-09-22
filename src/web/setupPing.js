@@ -12,15 +12,29 @@ const { approvedSetupOf } = require("./setupEditor");
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
 
-/** The line everyone reads — raider-facing, so English like the rest of the setup message. */
+/** The line everyone reads without the orga ever setting their own — raider-facing, so English. */
 const PING_TEXT = "📋 The setup is up — you're in!";
+// Kept in sync with eventStore.js's setEventSetupPingText.
+const PING_TEXT_MAX = 300;
+
+/** The orga's own text if they set one (web or the Discord modal), else the default. */
+function pingTextOf(event) {
+    return (event && event.setupPingText) || PING_TEXT;
+}
+
+/** `event.setupPingText`, "" (clear) accepted, trimmed to the same length the store enforces. */
+function saveSetupPingText(eventId, text) {
+    return eventStore.setEventSetupPingText(eventId, String(text || "").trim().slice(0, PING_TEXT_MAX));
+}
 
 /**
- * Who would be pinged — pure, nothing is posted. Every group, deduplicated;
- * the caller is never pinged themselves (they just clicked the button).
+ * Who would be pinged, and with what — pure, nothing is posted. Every group,
+ * deduplicated; the caller is never pinged themselves (they just clicked the
+ * button, or the setup was just posted on their approval).
+ * @param {{ text?: string }} opts an explicit text overrides the stored/default one
  * @returns {{ userIds: string[], text: string } | { error: object }}
  */
-function setupPingPlan(event, userId) {
+function setupPingPlan(event, userId, { text } = {}) {
     if (!event) return fail(404, "not_found", "Event nicht gefunden.");
     if (event.status === "cancelled") return fail(400, "cancelled", "Das Event ist abgesagt — da wird niemand mehr gepingt.");
     const approved = approvedSetupOf(event);
@@ -28,20 +42,20 @@ function setupPingPlan(event, userId) {
     const userIds = [...new Set((approved.groups || []).flatMap((g) => (g.slots || []).map((s) => String(s.userId || ""))))]
         .filter((id) => id && id !== String(userId));
     if (!userIds.length) return fail(400, "nobody", "Im Setup steht niemand außer dir.");
-    return { userIds, text: PING_TEXT };
+    return { userIds, text: String(text || "").trim() || pingTextOf(event) };
 }
 
 /**
  * Post the ping into the event channel and log it on the event.
- * @param {{ guildId: string, eventId: string, userId: string, byName?: string }} p
+ * @param {{ guildId: string, eventId: string, userId: string, byName?: string, text?: string }} p
  * @returns {Promise<{ message: string, count: number, url?: string } | { error: object }>}
  */
-async function callSetupPing({ guildId, eventId, userId, byName = "" }) {
+async function callSetupPing({ guildId, eventId, userId, byName = "", text } = {}) {
     const event = eventStore.getEvent(eventId);
     if (!event || (guildId && event.guildId && event.guildId !== String(guildId))) {
         return fail(404, "not_found", "Event nicht gefunden.");
     }
-    const plan = setupPingPlan(event, userId);
+    const plan = setupPingPlan(event, userId, { text });
     if (plan.error) return plan;
     if (!event.channelId) return fail(400, "no_channel", "Das Event hat keinen Kanal.");
     let posted;
@@ -55,4 +69,4 @@ async function callSetupPing({ guildId, eventId, userId, byName = "" }) {
     return { message: `${count} Raider aus dem Setup gepingt.`, count, url: posted && posted.url };
 }
 
-module.exports = { PING_TEXT, setupPingPlan, callSetupPing };
+module.exports = { PING_TEXT, PING_TEXT_MAX, pingTextOf, saveSetupPingText, setupPingPlan, callSetupPing };

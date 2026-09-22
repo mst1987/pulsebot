@@ -19,7 +19,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
-    setEventDiscordEvent, eventEndTime,
+    setEventSetupPingText, setEventDiscordEvent, eventEndTime,
 } = require("../../src/web/eventStore");
 
 const base = (over = {}) => ({
@@ -53,6 +53,15 @@ describe("web/eventStore", () => {
         expect(getEvent(event.id).setupPost.messageId).toBe("m1");
         expect(setEventSetupPost(event.id, null).setupPost).toBeNull();
         expect(setEventSetupPost("eh-nope", { version: 1 })).toBeNull();
+    });
+
+    it("stores the ping text, empty by default, trimmed to 300 characters (#354's follow-up)", () => {
+        const { event } = createEvent(base());
+        expect(event.setupPingText).toBe("");
+        expect(setEventSetupPingText(event.id, "  Kommt alle!  ").setupPingText).toBe("Kommt alle!");
+        expect(getEvent(event.id).setupPingText).toBe("Kommt alle!");
+        expect(setEventSetupPingText(event.id, "x".repeat(400)).setupPingText).toHaveLength(300);
+        expect(setEventSetupPingText("eh-nope", "x")).toBeNull();
     });
 
     it("fills size and tanks/healers from the rule set", () => {

@@ -26,6 +26,7 @@ const setupEditor = require("../setupEditor");
 const profiles = require("../raiderProfileStore");
 const { refreshEventMessage } = require("../eventMessage");
 const setupMessage = require("../setupMessage");
+const { saveSetupPingText } = require("../setupPing");
 const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
@@ -177,6 +178,18 @@ async function postPublish(req, res) {
     await answer(res, { event }, user, { message: text });
 }
 
+/** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
+async function postPingText(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user || !requireWrite(res, user)) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    saveSetupPingText(event.id, body.text);
+    await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
+}
+
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
 async function postExplain(req, res) {
     const user = requireAdmin(req, res);
@@ -214,4 +227,4 @@ async function getExplain(req, res, url) {
     });
 }
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postExplain, getExplain, EXPLAIN_SECTION };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExplain, getExplain, EXPLAIN_SECTION };

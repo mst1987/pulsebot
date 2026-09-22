@@ -21,6 +21,13 @@
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
 
+/* the ping text sent with the posted setup: low-key, a supplementary line under the publish status */
+.se-pingtext { display: flex; align-items: center; gap: 10px; margin-top: -6px; padding: 2px 14px; }
+.se-pingtext-label { flex: 0 0 auto; cursor: help; }
+.se-pingtext-input { flex: 1 1 auto; min-width: 0; max-width: 420px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; color: var(--text); }
+.se-pingtext-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.se-pingtext-input:disabled { opacity: .6; }
+
 /* the setup (groups, bench under a divider) on the left, the summary on the right */
 .se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
 .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }

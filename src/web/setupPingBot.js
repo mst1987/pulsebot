@@ -1,72 +1,78 @@
-// "Alle pingen" in Discord: a button under the setup message (setupMessage.js)
-// beside "Call invites". The click answers privately with a preview — how
-// many raiders across the whole setup, and the line that would go out — and
-// only "Jetzt pingen" posts it, so a stray click never pings the whole raid.
+// "Ping everyone" under the setup message: a click opens a modal with the
+// ping text — pre-filled with the orga's own text if they set one (web or a
+// previous use of this modal, setupPing.js's `pingTextOf`), else the default —
+// editable right there. Submitting it saves that text on the event and posts
+// the ping at once: one step instead of a separate preview, since the modal's
+// own submit already is the confirmation (the way a typed "LÖSCHEN" is
+// elsewhere in the bot).
 //
-//   setup-ping:p:<eventId>   the public button → private preview
-//   setup-ping:c:<eventId>   "Jetzt pingen" in the preview → post (setupPing.js)
+//   setup-ping:<eventId>   the button click -> opens the modal
+//   setup-ping:<eventId>   the modal submit -> saves the text, posts
 //
 // Access is `/event`'s (accessOf in the command file): the orga, checked by
 // the router on every click. Everyone else sees the button and gets told no.
-const { MessageFlags } = require("discord.js");
+const {
+    MessageFlags, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
+} = require("discord.js");
 const eventStore = require("./eventStore");
-const { setupPingPlan, callSetupPing } = require("./setupPing");
+const { setupPingPlan, callSetupPing, saveSetupPingText, pingTextOf, PING_TEXT_MAX } = require("./setupPing");
 
 const PING_PREFIX = "setup-ping";
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
+const FIELD_ID = "text";
 
-const COLOR = 0x38bdf8;
 const COLOR_OK = 0x57a55a;
 const COLOR_ERR = 0xe5534b;
 
-const pingId = (field, eventId) => `${PING_PREFIX}:${field}:${eventId}`;
+const pingId = (eventId) => `${PING_PREFIX}:${eventId}`;
 
-/** `{ field, eventId }`; eventId "" when it is no own id. */
+/** `{ eventId }`; "" when the customId names no own event. */
 function parsePingId(customId) {
-    const [, field = "", eventId = ""] = String(customId || "").split(":");
-    return { field, eventId: EVENT_ID.test(eventId) ? eventId : "" };
+    const [, eventId = ""] = String(customId || "").split(":");
+    return { eventId: EVENT_ID.test(eventId) ? eventId : "" };
 }
 
 /** The button row under the setup message, beside "Call invites". */
 function pingButtonRow(eventId) {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId("p", eventId), label: "Ping everyone" }] };
+    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: "Ping everyone" }] };
 }
 
-const notice = (text, tone) => ({ content: "", embeds: [{ description: text, color: tone === "ok" ? COLOR_OK : COLOR_ERR }], components: [] });
-
-/** The private preview: who, what, and the one button that posts it. */
-function previewMessage(event, plan) {
-    return {
-        content: "",
-        embeds: [{
-            title: `Alle pingen · ${event.title || "Raid"}`,
-            color: COLOR,
-            description: [
-                `Pingt **${plan.userIds.length} Raider** aus dem Setup im Event-Kanal mit:`,
-                `\`${plan.text}\``,
-            ].join("\n"),
-        }],
-        components: [{ type: 1, components: [{ type: 2, style: 1, custom_id: pingId("c", event.id), label: "Jetzt pingen" }] }],
-    };
+/** The modal: one field, the ping text, pre-filled with the event's own or the default. */
+function pingModal(event) {
+    const field = new TextInputBuilder()
+        .setCustomId(FIELD_ID).setLabel("Nachricht").setStyle(TextInputStyle.Paragraph)
+        .setRequired(true).setMaxLength(PING_TEXT_MAX).setValue(pingTextOf(event));
+    return new ModalBuilder().setCustomId(pingId(event.id)).setTitle("Alle pingen").addComponents(new ActionRowBuilder().addComponents(field));
 }
 
-/** Handle both buttons; `guildId` is the server the click came from. */
+const notice = (text, tone) => ({ content: "", embeds: [{ description: text, color: tone === "ok" ? COLOR_OK : COLOR_ERR }] });
+
+/** Handle the button (opens the modal) and its submit (saves the text, posts); `guildId` is the server the click came from. */
 async function handlePingComponent(interaction, guildId) {
-    const { field, eventId } = parsePingId(interaction.customId);
+    const { eventId } = parsePingId(interaction.customId);
     const event = eventId ? eventStore.getEvent(eventId) : null;
     const userId = String((interaction.user && interaction.user.id) || "");
-    if (field === "p") {
-        const plan = event && event.guildId === guildId ? setupPingPlan(event, userId) : { error: { message: "Event nicht gefunden." } };
-        const payload = plan.error ? notice(`⚠️ ${plan.error.message}`, "err") : previewMessage(event, plan);
-        return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+
+    if (!interaction.isModalSubmit()) {
+        if (!event || event.guildId !== guildId) {
+            return interaction.reply({ content: "⚠️ Event nicht gefunden.", flags: MessageFlags.Ephemeral });
+        }
+        const plan = setupPingPlan(event, userId);
+        if (plan.error) return interaction.reply({ content: `⚠️ ${plan.error.message}`, flags: MessageFlags.Ephemeral });
+        return interaction.showModal(pingModal(event));
     }
-    if (field === "c") {
-        const member = interaction.member || {};
-        const user = interaction.user || {};
-        const result = await callSetupPing({ guildId, eventId, userId, byName: member.displayName || user.globalName || user.username || "" });
-        return interaction.update(result.error ? notice(`⚠️ ${result.error.message}`, "err") : notice(`✅ ${result.message}`, "ok"));
-    }
-    return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
+
+    const text = interaction.fields.getTextInputValue(FIELD_ID);
+    if (eventId) saveSetupPingText(eventId, text);
+    const member = interaction.member || {};
+    const user = interaction.user || {};
+    const result = await callSetupPing({
+        guildId, eventId, userId, text, byName: member.displayName || user.globalName || user.username || "",
+    });
+    return interaction.reply({
+        ...notice(result.error ? `⚠️ ${result.error.message}` : `✅ ${result.message}`, result.error ? "err" : "ok"),
+        flags: MessageFlags.Ephemeral,
+    });
 }
 
-module.exports = { PING_PREFIX, pingId, parsePingId, pingButtonRow, previewMessage, handlePingComponent };
+module.exports = { PING_PREFIX, pingId, parsePingId, pingButtonRow, pingModal, handlePingComponent };

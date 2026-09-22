@@ -13,11 +13,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText,
     type ApiError, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, dpsCheck, moveRaider, peopleOf, publishHint, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -480,6 +480,39 @@ function PublishLine({ data, setup, busy, posting, onPost }: {
     );
 }
 
+/**
+ * The text everyone placed gets pinged with when the setup is posted (matches
+ * the "Ping everyone" modal on the Discord side) — a minor, always-visible
+ * supplementary control. Commits on blur or Enter, never per keystroke.
+ */
+function PingTextField({ value, disabled, onSave }: { value: string; disabled: boolean; onSave: (text: string) => void }) {
+    const t = useT();
+    const [draft, setDraft] = useState(value);
+    useEffect(() => setDraft(value), [value]);
+    const commit = () => {
+        const next = pingTextToSave(draft, value);
+        if (next !== null) onSave(next);
+    };
+    return (
+        <div className="se-pingtext">
+            <span className="se-pingtext-label kicker" data-tip={t("setup.pingText.label")} data-tip-sub={t("setup.pingText.tip")}>
+                {t("setup.pingText.label")}
+            </span>
+            <input
+                type="text"
+                className="se-pingtext-input"
+                value={draft}
+                maxLength={300}
+                disabled={disabled}
+                aria-label={t("setup.pingText.label")}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
+            />
+        </div>
+    );
+}
+
 /** The approved lineup, read-only — what someone without write access sees. */
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
@@ -672,6 +705,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    const savePingText = async (text: string) => {
+        try {
+            const next = await saveSetupPingText(ctx.csrfToken, ctx.eventId, text);
+            setData((prev) => (prev ? { ...prev, pingText: next.pingText } : prev));
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
+        }
+    };
+
     if (error) return <div className="empty">{t("setup.editor.loadFailed", { message: error.message })}</div>;
     if (!data) return <RaidLoader text={t("setup.editor.loading")} compact />;
     if (!data.canWrite) return <ReadOnly data={data} />;
@@ -728,6 +770,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
+            <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
 
             <div className="se-layout">
                 {/* the setup on top, the bench under a divider */}
