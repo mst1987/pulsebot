@@ -464,7 +464,7 @@ describe("web/eventMessage", () => {
         expect(warriors.value).toMatch(/\+\d+ more\n​$/);
     });
 
-    it("fits 40 signups over every class, a setup and all links into 25 fields — the spacers go first", () => {
+    it("fits 40 signups over every class and all links (setup included) into 25 fields — the spacers go first", () => {
         const specs = [
             ["Warrior-Protection", "tank"], ["Warrior-Fury", "melee"], ["Paladin-Holy", "healer"], ["Hunter-BeastMastery", "ranged"],
             ["Rogue-Combat", "melee"], ["Priest-Shadow", "ranged"], ["Shaman-Restoration", "healer"], ["Mage-Fire", "ranged"],
@@ -484,16 +484,16 @@ describe("web/eventMessage", () => {
         }
         expect(names.some((n) => n.includes("__Tanks__"))).toBe(true);
         expect(embed.fields.some((f) => f.value.includes("Absence ("))).toBe(true);
-        expect(names.some((n) => n.includes("Setup"))).toBe(true);
+        expect(embed.fields[embed.fields.length - 1].value).toContain("[Setup]");
         expect(embed.fields[embed.fields.length - 1].value).toContain("[Calendar]");
         expect(embed.fields.every((f) => Object.keys(f).sort().join() === "inline,name,value")).toBe(true);
     });
 
-    it("shows and links the approved setup, never a draft", () => {
+    it("links the approved setup instead of repeating its groups — that's the setup message's own job (#352)", () => {
         const approved = { groups: [{ index: 1, slots: [{ character: "Brokk" }] }], bench: [{ character: "Kael" }] };
         const payload = buildEventMessage(event({ setup: { status: "approved", approved } }), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics" });
         const fields = payload.embeds[0].fields;
-        expect(field(payload, "Setup").value).toBe("**Grp 1** Brokk\n**Bench** Kael");
+        expect(field(payload, "Setup")).toBeUndefined();
         const links = fields[fields.length - 1].value;
         expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 

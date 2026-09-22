@@ -520,8 +520,11 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     ];
 
     const tail = [];
+    // The approved setup already has its own message in the channel
+    // (setupMessage.js) — repeating every group's names here just duplicated
+    // it and added height on top of an already tall embed (#352). The Setup
+    // link below still points at it.
     const setupText = approvedSetupText(event);
-    if (setupText) tail.push({ name: head("signed", "Setup"), value: setupText, inline: false });
     const base = baseUrl();
     const id = encodeURIComponent(event.id);
     const links = [];
