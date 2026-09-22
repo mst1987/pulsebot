@@ -38,7 +38,6 @@ const signups = [
     su("7", "Gemli", "Druid-Guardian", "tank"),
 ];
 const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name, { id: String(1000 + i), name: e.name, animated: false }]));
-const field = (payload, name) => payload.embeds[0].fields.find((f) => f.name.includes(name));
 
 function fakeDiscord({ fetchError } = {}) {
     const message = { id: "m1", edit: jest.fn() };
@@ -478,7 +477,7 @@ describe("web/eventMessage", () => {
         expect(embed.fields.length).toBeLessThanOrEqual(LIMITS.fields);
         expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
         const names = embed.fields.map((f) => emojiless(f.name));
-        // every class block, the status lines, the setup and the links are all there
+        // every class block, the status lines and the links (incl. the Setup link) are all there
         for (const cls of ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]) {
             expect(names.some((n) => n.includes(`__${cls}__`))).toBe(true);
         }
@@ -493,7 +492,7 @@ describe("web/eventMessage", () => {
         const approved = { groups: [{ index: 1, slots: [{ character: "Brokk" }] }], bench: [{ character: "Kael" }] };
         const payload = buildEventMessage(event({ setup: { status: "approved", approved } }), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics" });
         const fields = payload.embeds[0].fields;
-        expect(field(payload, "Setup")).toBeUndefined();
+        expect(fields.some((f) => emojiless(f.name) === "Setup")).toBe(false);
         const links = fields[fields.length - 1].value;
         expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 

@@ -85,7 +85,9 @@ describe("buildSetupMessage", () => {
         const msg = sm.buildSetupMessage(event, event.setup.approved, { emojis });
         const embed = msg.embeds[0];
         expect(embed.title).toBe("Setup · Kara Donnerstag");
-        expect(embed.description).toContain("<t:2000000000:F>");
+        expect(embed.description).toContain("<t:2000000000:D>");
+        expect(embed.description).toContain("<t:2000000000:t>");
+        expect(embed.description).toContain("<t:2000000000:R>");
         // the role icons of the signup message in the event's emoji style (arcane by default), not the WoW ones (#320)
         expect(embed.description).toContain(`<:eh_ra_tank:${emojis.eh_ra_tank.id}> 1`);
         expect(embed.description).not.toContain("eh_role_");
@@ -94,7 +96,11 @@ describe("buildSetupMessage", () => {
         expect(plain.description).toContain(`<:eh_ui_tank:${emojis.eh_ui_tank.id}> 1`);
         const g1 = embed.fields.find((f) => f.name === "Group 1");
         expect(g1.inline).toBe(true);
-        expect(g1.value).toBe(`<:eh_priest_holy:${emojis.eh_priest_holy.id}> **Zibbo**`.replace(/^/, `<:eh_warrior_protection:${emojis.eh_warrior_protection.id}> **Brokk**\n`));
+        // every line carries the (fully transparent) "pending" mark — nobody answered yet
+        expect(g1.value).toBe([
+            `<:eh_ui_pending:${emojis.eh_ui_pending.id}> <:eh_warrior_protection:${emojis.eh_warrior_protection.id}> **Brokk**`,
+            `<:eh_ui_pending:${emojis.eh_ui_pending.id}> <:eh_priest_holy:${emojis.eh_priest_holy.id}> **Zibbo**`,
+        ].join("\n"));
         // an empty group is not drawn
         expect(embed.fields.some((f) => f.name === "Group 3")).toBe(false);
         const bench = embed.fields.find((f) => f.name.includes("Bench"));
@@ -103,11 +109,32 @@ describe("buildSetupMessage", () => {
         expect(bench.value).toContain("Thalia");
         expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
         expect(embed.footer.text).toContain("version 2");
-        // one button for the orga: "Call invites" (inviteCallBot.js)
+        // one row: Confirm/Cancel for every placed raider (setupConfirmBot.js),
+        // then Call invites for the orga alone (inviteCallBot.js)
         expect(msg.components).toEqual([{
             type: 1,
-            components: [{ type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } }],
+            components: [
+                { type: 2, style: 3, custom_id: "setup-confirm:y:eh-1", label: "Confirm" },
+                { type: 2, style: 4, custom_id: "setup-confirm:n:eh-1", label: "Cancel" },
+                { type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } },
+            ],
         }]);
+    });
+
+    it("marks a raider's own confirmation, keeping every line the same width (#setup-confirm)", () => {
+        const event = seed();
+        const confirmations = { 1: "confirmed", 4: "declined" };
+        const value = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+            .fields.find((f) => f.name === "Group 1").value;
+        // "1" (Brokk) confirmed, "2" (Zibbo) has not answered yet — plain-text fallback (no app emojis)
+        expect(value).toBe("✔ **Brokk** · Protection\n**Zibbo** · Holy");
+        const g2 = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+            .fields.find((f) => f.name === "Group 2").value;
+        expect(g2).toContain("✖ **Kael**");
+        // the bench never carries a mark — it is not part of the confirm flow
+        const bench = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+            .fields.find((f) => f.name.includes("Bench")).value;
+        expect(bench).not.toMatch(/[✔✖]/);
     });
 
     it("reads the same without app emojis (text fallbacks)", () => {

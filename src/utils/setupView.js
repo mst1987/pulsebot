@@ -48,12 +48,12 @@ const SPEC_ICON = {
     retribution: "spell_holy_auraoflight", paladin: "spell_holy_holybolt",
     // Hunter
     beastmaster: "ability_hunter_beasttaming", marksman: "ability_hunter_focusedaim",
-    survival: "ability_hunter_swiftstrike", hunter: "inv_weapon_bow_07",
+    survival: "ability_hunter_camouflage", hunter: "inv_weapon_bow_07",
     // Rogue
     assassination: "ability_rogue_eviscerate", combat: "ability_backstab",
     sublety: "ability_stealth", rogue: "inv_throwingknife_04",
     // Priest
-    discipline: "spell_holy_powerwordshield", holypriest: "spell_holy_holynova",
+    discipline: "spell_holy_powerwordshield", holypriest: "spell_holy_guardianspirit",
     shadow: "spell_shadow_shadowwordpain", priest: "inv_staff_30",
     // Shaman
     elemental: "spell_nature_lightning", enhancement: "spell_nature_lightningshield",

@@ -39,7 +39,7 @@ const CLASSES = [
         specs: [
             { id: "BeastMastery", label: "Tierherrschaft", labelEn: "Beast Mastery", role: "ranged", buffRole: "melee", icon: "ability_hunter_beasttaming" },
             { id: "Marksmanship", label: "Treffsicherheit", labelEn: "Marksmanship", role: "ranged", buffRole: "melee", icon: "ability_hunter_focusedaim" },
-            { id: "Survival", label: "Überleben", labelEn: "Survival", role: "ranged", buffRole: "melee", icon: "ability_hunter_swiftstrike" },
+            { id: "Survival", label: "Überleben", labelEn: "Survival", role: "ranged", buffRole: "melee", icon: "ability_hunter_camouflage" },
         ],
     },
     {
@@ -54,7 +54,7 @@ const CLASSES = [
         id: "Priest", label: "Priester", labelEn: "Priest", color: "#FFFFFF", icon: "classicon_priest",
         specs: [
             { id: "Discipline", label: "Disziplin", labelEn: "Discipline", role: "healer", buffRole: "healer", icon: "spell_holy_powerwordshield", canHeal: true },
-            { id: "Holy", label: "Heilig", labelEn: "Holy", role: "healer", buffRole: "healer", icon: "spell_holy_holynova", canHeal: true },
+            { id: "Holy", label: "Heilig", labelEn: "Holy", role: "healer", buffRole: "healer", icon: "spell_holy_guardianspirit", canHeal: true },
             { id: "Shadow", label: "Schatten", labelEn: "Shadow", role: "ranged", buffRole: "caster", icon: "spell_shadow_shadowwordpain" },
         ],
     },
