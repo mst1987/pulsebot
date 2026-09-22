@@ -184,7 +184,7 @@ describe("web/eventMessage", () => {
 
     it("puts tanks in their own block first, then one block per class in fixed order, with an empty line under each", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
-        const blocks = payload.embeds[0].fields.slice(7).filter((f) => f.inline);
+        const blocks = payload.embeds[0].fields.slice(7).filter((f) => f.inline && f.name !== ZWS);
         // the Tanks block wears the Protection Warrior's icon
         expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_warrior_protection> __Tanks__ (2)", "<:eh_class_priest> __Priest__ (1)", "<:eh_class_mage> __Mage__ (1)"]);
         expect(blocks[0].value.split("\n")).toEqual([
@@ -195,21 +195,23 @@ describe("web/eventMessage", () => {
         expect(blocks[1].value).toMatch(/<:eh_priest_shadow:\d+> `6` \*\*Thalia\*\*/);
     });
 
-    it("fills the last row of blocks up to three columns, so it stays aligned with the rows above", () => {
+    it("fills the last row of blocks up to two columns, so it stays aligned with the rows above (#351)", () => {
         const blocksOf = (list) => {
             const fields = buildEventMessage(event(), list, { emojis, now: NOW }).embeds[0].fields;
             return fields.slice(fields.findIndex((f) => f.name.includes("__Tanks__"))).filter((f) => f.inline);
         };
-        // Tanks · Priest · Mage: one full row, nothing added
-        expect(blocksOf(signups).length).toBe(3);
-        // plus Rogue and Warlock: five blocks, one empty column at the end
+        // Tanks · Priest · Mage: an odd block count, one empty column added
+        const three = blocksOf(signups);
+        expect(three.length).toBe(4);
+        expect(three[3]).toEqual({ name: ZWS, value: ZWS, inline: true });
+        // plus Rogue: four blocks, a full second row already
+        const four = blocksOf([...signups, su("8", "Dvra", "Rogue-Combat", "melee")]);
+        expect(four.length).toBe(4);
+        expect(four.every((f) => f.name !== ZWS)).toBe(true);
+        // plus Warlock as well: five blocks, one empty column at the end again
         const five = blocksOf([...signups, su("8", "Dvra", "Rogue-Combat", "melee"), su("9", "Hypnos", "Warlock-Destruction", "ranged")]);
         expect(five.length).toBe(6);
         expect(five[5]).toEqual({ name: ZWS, value: ZWS, inline: true });
-        // plus Druid as well: six blocks, a full second row again
-        const six = blocksOf([...signups, su("8", "Dvra", "Rogue-Combat", "melee"), su("9", "Hypnos", "Warlock-Destruction", "ranged"), su("10", "Ganjey", "Druid-Feral", "melee")]);
-        expect(six.length).toBe(6);
-        expect(six.every((f) => f.name !== ZWS)).toBe(true);
     });
 
     it("lists every character of a signup in the block of its own status, under one number — only the first one counts", () => {
