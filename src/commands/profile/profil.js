@@ -5,9 +5,10 @@
 //
 // The buttons carry the switch in their customId ("profil:tank"), so the same
 // file answers the slash command and the clicks (see bot.js' customId routing).
+// The switches belong to a character; the buttons act on the main — the other
+// characters are switched on the web page.
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
 const profiles = require("../../web/raiderProfileStore");
-const { effectiveRoles } = require("../../web/profileView");
 const { publicBaseUrl } = require("../../config/variables");
 
 const GEAR_LABELS = { none: "no gear", usable: "usable", ready: "raid ready" };
@@ -31,28 +32,34 @@ function summaryLines(profile) {
                 return `${(info && (info.labelEn || info.label)) || s.key} (${GEAR_LABELS[s.gear] || s.gear})`;
             })
             .join(", ");
-        lines.push(`**${c.name}**${c.main ? " · Main" : ""} — ${specs || "no specs"}`);
+        const roles = profiles.characterRoles(profile, c);
+        const also = [roles.canOfftank ? "off-tank" : "", roles.canHeal ? "heal" : ""].filter(Boolean).join(", ");
+        lines.push(`**${c.name}**${c.main ? " · Main" : ""} — ${specs || "no specs"}${also ? ` · can ${also}` : ""}`);
     }
-    const roles = effectiveRoles(profile);
     lines.push("");
-    lines.push(`Off-tank: ${roles.canOfftank ? "yes" : "no"} · Heal: ${roles.canHeal ? "yes" : "no"}`);
     lines.push(`Available: ${profile.availability.length ? profile.availability.map((d) => DAY_LABELS[d]).join(" · ") : "not given"}`);
     return lines;
 }
 
 function buttons(profile) {
-    const roles = effectiveRoles(profile);
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
+    const main = profiles.mainCharacter(profile);
+    const roles = profiles.characterRoles(profile, main);
+    const link = new ButtonBuilder().setLabel("Open profile").setStyle(ButtonStyle.Link).setURL(profileUrl());
+    const row = new ActionRowBuilder();
+    // only the switches the main's class can use at all (a mage gets neither)
+    if (main && roles.possible.canOfftank) {
+        row.addComponents(new ButtonBuilder()
             .setCustomId("profil:tank")
-            .setLabel(roles.canOfftank ? "No off-tank" : "Can off-tank")
-            .setStyle(roles.canOfftank ? ButtonStyle.Secondary : ButtonStyle.Primary),
-        new ButtonBuilder()
+            .setLabel(`${main.name}: ${roles.canOfftank ? "no off-tank" : "can off-tank"}`)
+            .setStyle(roles.canOfftank ? ButtonStyle.Secondary : ButtonStyle.Primary));
+    }
+    if (main && roles.possible.canHeal) {
+        row.addComponents(new ButtonBuilder()
             .setCustomId("profil:heal")
-            .setLabel(roles.canHeal ? "No healing" : "Can heal")
-            .setStyle(roles.canHeal ? ButtonStyle.Secondary : ButtonStyle.Primary),
-        new ButtonBuilder().setLabel("Open profile").setStyle(ButtonStyle.Link).setURL(profileUrl()),
-    );
+            .setLabel(`${main.name}: ${roles.canHeal ? "no healing" : "can heal"}`)
+            .setStyle(roles.canHeal ? ButtonStyle.Secondary : ButtonStyle.Primary));
+    }
+    return row.addComponents(link);
 }
 
 function message(profile) {
@@ -77,8 +84,12 @@ module.exports = {
         const toggle = TOGGLES[String(interaction.customId || "").split(":")[1] || ""];
 
         if (toggle && typeof interaction.isButton === "function" && interaction.isButton()) {
-            const current = effectiveRoles(profiles.getProfile(userId));
-            const saved = profiles.saveProfile(userId, { [toggle]: !current[toggle] }, { name });
+            const profile = profiles.getProfile(userId);
+            const main = profiles.mainCharacter(profile);
+            if (!main) return interaction.update(message(profile));
+            const current = profiles.characterRoles(profile, main);
+            if (!current.possible[toggle]) return interaction.update(message(profile));
+            const saved = profiles.saveProfile(userId, { characters: [{ key: main.key, [toggle]: !current[toggle] }] }, { name });
             return interaction.update(message(saved));
         }
 

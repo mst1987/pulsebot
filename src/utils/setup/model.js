@@ -84,6 +84,19 @@ function profileCharacter(profile, character, classId) {
 }
 
 /**
+ * "Kann offtanken / heilen" as the raider *said* it for this character: its own
+ * switch, else the old profile-wide one; `null` when nobody said anything.
+ */
+function characterFlags(profile, character) {
+    const said = (v) => (v === true || v === false ? v : null);
+    const pick = (field) => {
+        const own = said(character && character[field]);
+        return own !== null ? own : said(profile && profile[field]);
+    };
+    return { canOfftank: pick("canOfftank"), canHeal: pick("canHeal") };
+}
+
+/**
  * The characters of a signup in priority order (#293): `characters` when the
  * signup has them, else its single character/spec.
  */
@@ -252,6 +265,8 @@ function buildModel(input = {}, weights) {
             fairness: fairness.get(userId) || { priority: 0, last: "", benchCount: 0, nights: 0 },
             attendance: attendanceOf(input.attendance, userId),
             wishes: profile && Array.isArray(profile.wishes) ? profile.wishes.map(str) : [],
+            // "Nicht mit X raiden" — only while the raider has it switched on
+            avoid: profile && profile.avoidEnabled === true && Array.isArray(profile.avoid) ? profile.avoid.map(str) : [],
             fixed: null,
             noGear: [],
             // eventIdx → the first choice of a raider who named alternates
@@ -286,8 +301,10 @@ function buildModel(input = {}, weights) {
                 else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
                 if (priority > 0) return;
                 const extra = new Set((Array.isArray(s.canAlso) ? s.canAlso : []).map(str));
-                if (profile && profile.canOfftank === true) extra.add("tank");
-                if (profile && profile.canHeal === true) extra.add("healer");
+                // only a stated word — this character's switch, else the old profile-wide one
+                const said = characterFlags(profile, pChar);
+                if (said.canOfftank === true) extra.add("tank");
+                if (said.canHeal === true) extra.add("healer");
                 for (const role of ROLES) {
                     if (!extra.has(role) || role === main.role) continue;
                     const pick = specForRole(cls, role, pChar);
@@ -401,6 +418,18 @@ function buildModel(input = {}, weights) {
         }
     }
 
+    // "nicht zusammen": unordered pairs, one entry even when both named each other
+    const avoidPairs = [];
+    for (const a of cands) {
+        for (const bId of a.avoid) {
+            const b = candByUser.get(bId);
+            if (!b || b === a) continue;
+            const mutual = b.avoid.includes(a.userId);
+            if (mutual && b.idx < a.idx) continue;
+            avoidPairs.push({ a: a.idx, b: b.idx, mutual });
+        }
+    }
+
     for (const c of cands) {
         c.options.forEach((o, i) => {
             o.idx = i;
@@ -417,6 +446,7 @@ function buildModel(input = {}, weights) {
         cands,
         pairs,
         wishOn,
+        avoidPairs,
         partyBuffs,
         raidBuffs,
         warnings,
@@ -425,4 +455,4 @@ function buildModel(input = {}, weights) {
     };
 }
 
-module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };
+module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, characterFlags, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };

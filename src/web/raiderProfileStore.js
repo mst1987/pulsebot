@@ -1,7 +1,8 @@
 // The raider's own profile ("Mein Profil", #255): which characters they play,
-// which specs on each with how far the gear is, whether they step in as off-tank
-// or healer, when they can raid, which raids they like, whom they would like to
-// raid with, and a note for the orga.
+// which specs on each with how far the gear is, whether each character steps in
+// as off-tank or healer, when they can raid, which raids they like, whom they
+// would like to raid with (and, switched on deliberately, whom not), and a note
+// for the orga.
 //
 // Keyed by Discord user id — the account is the raider, the characters are
 // theirs to add. There is no confirmation step: a raider claims a character by
@@ -39,13 +40,17 @@ const CHARACTER_SOURCES = ["log", "armory", "manual"];
 
 const MAX_CHARACTERS = 12;
 const MAX_WISHES = 10;
+const MAX_AVOID = 10;
 const MAX_NOTE = 500;
 // Forever's "Vorname Nachname": 12 + 1 + 12 (utils/characterNames.js).
 const MAX_NAME = NAME_MAX;
 
 const SPEC_BY_KEY = new Map();
+// What a class can step in as at all — a mage never tanks nor heals, whatever a switch says.
+const CLASS_CAN = new Map();
 for (const c of buildClasses(CLASSES)) {
     for (const s of c.specs) SPEC_BY_KEY.set(s.key, s);
+    CLASS_CAN.set(c.id, { canOfftank: c.specs.some((s) => s.canTank), canHeal: c.specs.some((s) => s.canHeal) });
 }
 const CLASS_IDS = CLASSES.map((c) => c.id);
 
@@ -122,6 +127,9 @@ function normalizeCharacter(raw) {
         main: !!raw.main,
         source: CHARACTER_SOURCES.includes(raw.source) ? raw.source : "manual",
         specs: normalizeSpecs(raw.specs, className),
+        // Per character: a druid main may tank while the priest twink never does.
+        canOfftank: tristate(raw.canOfftank),
+        canHeal: tristate(raw.canHeal),
         armory,
         addedAt: Number(raw.addedAt) || Date.now(),
     };
@@ -149,18 +157,27 @@ function normalizeProfile(raw, userId = "") {
     const preferredRaids = [...new Set((Array.isArray(src.preferredRaids) ? src.preferredRaids : [])
         .map((id) => String(id || "").trim())
         .filter((id) => instanceById(id)))];
-    const wishes = [...new Set((Array.isArray(src.wishes) ? src.wishes : [])
+    const userIds = (list, max) => [...new Set((Array.isArray(list) ? list : [])
         .map((id) => String(id || "").trim())
-        .filter((id) => /^\d{5,25}$/.test(id) && id !== uid))].slice(0, MAX_WISHES);
+        .filter((id) => /^\d{5,25}$/.test(id) && id !== uid))].slice(0, max);
+    const wishes = userIds(src.wishes, MAX_WISHES);
+    // "Nicht mit X raiden" is off until the raider switches it on (past a
+    // warning) — and switching it off forgets the names, so nothing lingers.
+    const avoidEnabled = src.avoidEnabled === true;
+    const avoid = avoidEnabled ? userIds(src.avoid, MAX_AVOID).filter((id) => !wishes.includes(id)) : [];
     return {
         userId: uid,
         name: cleanText(src.name, 64),
         characters: withOneMain(characters),
+        // The profile-wide switches from before they moved to the characters —
+        // only the fallback of a character without a word of its own.
         canOfftank: tristate(src.canOfftank),
         canHeal: tristate(src.canHeal),
         availability,
         preferredRaids,
         wishes,
+        avoidEnabled,
+        avoid,
         note: String(src.note || "").trim().slice(0, MAX_NOTE),
         updatedAt: Number(src.updatedAt) || 0,
     };
@@ -194,10 +211,12 @@ function store(userId, profile) {
 // The fields a raider edits with one save. Characters are added and removed on
 // their own (addCharacter/removeCharacter); a save only changes what is known
 // about the ones already there — specs, gear, which one is the main.
-const EDITABLE = ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "note"];
+const EDITABLE = ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note"];
+// What a save may change about a character that is already there, besides specs and main.
+const CHARACTER_EDITABLE = ["canOfftank", "canHeal"];
 
 /**
- * Save the raider's own edits. `patch.characters` may carry `{ key, main, specs }`
+ * Save the raider's own edits. `patch.characters` may carry `{ key, main, specs, canOfftank, canHeal }`
  * per existing character; a key that is not in the profile is ignored, so this
  * path can never add or take over a character. Returns the saved profile.
  */
@@ -213,11 +232,16 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
         const mainKey = patch.characters.find((c) => c && c.main) ? String(patch.characters.find((c) => c && c.main).key) : "";
         next.characters = current.characters.map((c) => {
             const edit = edits.get(c.key);
-            return {
+            const next = {
                 ...c,
                 main: mainKey ? c.key === mainKey : c.main,
                 specs: edit && Array.isArray(edit.specs) ? edit.specs : c.specs,
             };
+            for (const field of CHARACTER_EDITABLE) {
+                // a class that cannot never stores a "yes"
+                if (edit && edit[field] !== undefined) next[field] = edit[field] === true && !classCan(c.className)[field] ? null : edit[field];
+            }
+            return next;
         });
     }
     return store(userId, next);
@@ -303,6 +327,37 @@ function characterClaims() {
     return [...byKey.values()].filter((e) => e.claims.length > 1).sort((a, b) => a.key.localeCompare(b.key));
 }
 
+/** What the specs of these characters allow — the default of the two switches. */
+function specRoles(characters) {
+    const specs = (characters || []).flatMap((c) => (c.specs || []).map((s) => specInfo(s.key) || {}));
+    return { canOfftank: specs.some((s) => s.canTank), canHeal: specs.some((s) => s.canHeal) };
+}
+
+/** Whether a class has any spec that can tank / heal: `{ canOfftank, canHeal }`. Unknown class → both true. */
+function classCan(className) {
+    return CLASS_CAN.get(normalizeClass(className)) || { canOfftank: true, canHeal: true };
+}
+
+/**
+ * "Kann offtanken / heilen" of one character: its own switch, else the old
+ * profile-wide one, else what its specs allow — and never for a class that
+ * cannot (`possible`), so an old "kann heilen" on the profile does not make a
+ * mage a healer. `explicit` is the stated word alone (`null` = nobody said
+ * anything) — the setup proposal only acts on that.
+ */
+function characterRoles(profile, character) {
+    const suggested = specRoles(character ? [character] : []);
+    const possible = character ? classCan(character.className) : { canOfftank: true, canHeal: true };
+    const explicit = {};
+    const out = { suggested, explicit, possible };
+    for (const field of CHARACTER_EDITABLE) {
+        const own = character ? tristate(character[field]) : null;
+        explicit[field] = !possible[field] ? false : (own !== null ? own : tristate(profile && profile[field]));
+        out[field] = explicit[field] !== null ? explicit[field] : suggested[field];
+    }
+    return out;
+}
+
 /** The main character of a profile, or null. */
 function mainCharacter(profile) {
     return (profile && profile.characters.find((c) => c.main)) || null;
@@ -346,8 +401,8 @@ function reset() {
 }
 
 module.exports = {
-    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_NOTE,
-    characterKey, normalizeClass, specInfo, normalizeProfile,
+    GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
+    characterKey, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
     claimsFor, characterClaims, mainCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,

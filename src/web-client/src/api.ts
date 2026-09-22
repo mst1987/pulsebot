@@ -3544,6 +3544,12 @@ export type ProfileCharacter = {
     armory: { level: number | null; guild: string; fetchedAt: number } | null;
     armoryUrl: string;
     specs: ProfileSpec[];
+    /** "Kann offtanken / heilen" of this character — its own word, else what its specs allow. */
+    canOfftank: boolean;
+    canHeal: boolean;
+    suggested: { canOfftank: boolean; canHeal: boolean };
+    /** Whether the class can step in as that at all — false: the switch is off and disabled. */
+    possible: { canOfftank: boolean; canHeal: boolean };
     /** Other accounts that added the same character. */
     claimedBy: { userId: string; name: string }[];
 };
@@ -3552,6 +3558,7 @@ export type RaiderProfile = {
     userId: string;
     name: string;
     characters: ProfileCharacter[];
+    /** Summary: whether any character may step in. The switches live on the characters. */
     canOfftank: boolean;
     canHeal: boolean;
     suggested: { canOfftank: boolean; canHeal: boolean };
@@ -3559,6 +3566,9 @@ export type RaiderProfile = {
     preferredRaids: string[];
     /** For the owner: whom they wished for — never whether it is mutual. */
     wishes: (RaiderRef & { mutual?: boolean })[];
+    /** "Nicht mit X raiden" — off until switched on past a warning; only the orga's setup reads it. */
+    avoidEnabled: boolean;
+    avoid: RaiderRef[];
     note: string;
     updatedAt: number;
     /** Only in the orga's view. */
@@ -3581,17 +3591,17 @@ export type ProfileData = {
     raidGroups: ProfileRaidGroup[];
     weekdays: { id: string; label: string }[];
     gearLevels: { id: GearLevel; label: string }[];
-    limits: { characters: number; wishes: number; note: number };
+    limits: { characters: number; wishes: number; avoid: number; note: number };
 };
 
 export type ProfilePatch = {
-    canOfftank?: boolean | null;
-    canHeal?: boolean | null;
     availability?: string[];
     preferredRaids?: string[];
     wishes?: string[];
+    avoidEnabled?: boolean;
+    avoid?: string[];
     note?: string;
-    characters?: { key: string; main?: boolean; specs?: { key: string; gear: GearLevel }[] }[];
+    characters?: { key: string; main?: boolean; specs?: { key: string; gear: GearLevel }[]; canOfftank?: boolean; canHeal?: boolean }[];
 };
 
 export type LogCharacterSuggestion = {
@@ -3802,6 +3812,8 @@ export type SetupChecks = {
         party: { key: string; label: string; icon: string; groups: number[] }[];
     };
     wishes: { met: number; total: number };
+    /** "Nicht zusammen" pairs among the signups — counts only, never names. */
+    avoid?: { on: boolean; together: number; total: number };
 };
 
 export type SetupWeights = Record<string, number>;
@@ -3818,7 +3830,8 @@ export type StoredSetup = {
     score: { total: number };
     warnings: string[];
     historySource: string;
-    options: { weights: SetupWeights; fairness: boolean | null; wishes: boolean | null };
+    /** `avoid`: null/missing = the orga was never asked about "nicht zusammen". */
+    options: { weights: SetupWeights; fairness: boolean | null; wishes: boolean | null; avoid?: boolean | null };
     updatedAt: number;
     approvedAt: number;
     approvedBy: string;
@@ -3841,6 +3854,8 @@ export type SetupEditorData = {
     groupCount?: number;
     signupCount?: number;
     absent?: number;
+    /** How many "nicht zusammen" pairs stand among the signups — what the editor asks about. */
+    avoidPairs?: number;
     defaults?: { weights: SetupWeights; maxWeight: number };
     hasApiKey?: boolean;
     explainJob?: SetupJob;
@@ -3884,6 +3899,7 @@ export type SetupPlacementInput = {
     bench: { userId: string; locked: boolean }[];
     fairness?: boolean;
     wishes?: boolean;
+    avoid?: boolean;
     weights?: SetupWeights;
 };
 
@@ -3891,7 +3907,7 @@ export function getRaidSetup(eventId: string): Promise<SetupEditorData> {
     return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}`);
 }
 
-export function proposeRaidSetup(csrfToken: string | null, eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean } = {}): Promise<SetupEditorData> {
+export function proposeRaidSetup(csrfToken: string | null, eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/propose", csrfToken, { event: eventId, ...options });
 }
 
@@ -3912,7 +3928,11 @@ export function getRaidSetupExplain(eventId: string): Promise<{ eventId: string;
 }
 
 export type SignupProfileSpec = { key: string; label: string; icon: string; role: GameRole | ""; gear: GearLevel };
-export type SignupProfileCharacter = { key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[] };
+export type SignupProfileCharacter = {
+    key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[];
+    /** This character's "kann offtanken / heilen" (signupView.profileForSignup). */
+    canOfftank: boolean; canHeal: boolean;
+};
 export type SignupProfile = { characters: SignupProfileCharacter[]; canOfftank: boolean; canHeal: boolean };
 export type SignupClass = { id: string; label: string; color: string; icon: string };
 

@@ -41,6 +41,9 @@
         "orgaOnly": "nur Orga",
         "orgaOnlyTip": "Nur die Orga sieht das",
         "orgaOnlySub": "Andere Raider sehen deine Wünsche nicht – auch nicht, ob jemand dich eingetragen hat.",
+        "avoid": "Nicht zusammen raiden mit",
+        "avoidOff": "aus",
+        "avoidNone": "an – niemand eingetragen",
         "note": "Notiz für die Orga",
         "noteNone": "keine Notiz",
         "calendar": "Kalender-Abo",
@@ -91,9 +94,23 @@
     "roles": {
         "offtank": "Kann Offtank",
         "heal": "Kann heilen",
-        "suggested": "Vorgeschlagen aus deinen Specs: {answer}. Du kannst es jederzeit umstellen.",
+        "suggested": "Vorgeschlagen aus den Specs dieses Charakters: {answer}. Du kannst es jederzeit umstellen.",
+        "forChar": "{label} – {name}",
+        "impossible": {
+            "canOfftank": "Die Klasse {cls} hat keine Tank-Spec – das lässt sich nicht einschalten.",
+            "canHeal": "Die Klasse {cls} hat keine Heil-Spec – das lässt sich nicht einschalten."
+        },
         "yes": "ja",
         "no": "nein"
+    },
+    "avoid": {
+        "switch": "Einschalten",
+        "offText": "Aus. Wir raiden als Community – eigentlich soll jeder eine Chance bekommen. Wenn es mit jemandem wirklich nicht geht, kannst du es hier einschalten.",
+        "hint": "Die Orga fragt beim Setup, ob sie das berücksichtigen soll – dann kommt ihr in verschiedene Gruppen (bei parallelen Raids in verschiedene Raids). Eine Garantie ist es nicht.",
+        "orgaOnlySub": "Nur die Orga sieht das – und nur beim Setup, wenn sie es ausdrücklich einbezieht. Die Genannten erfahren nie davon.",
+        "confirmTitle": "Wirklich einschalten?",
+        "confirmText": "In der Community sollte jeder eine Chance bekommen. Schalte das nur ein, wenn es mit jemandem wirklich nicht geht. Nur die Orga sieht deine Angaben, und sie entscheidet bei jedem Setup, ob sie sie berücksichtigt.",
+        "confirmAction": "Trotzdem einschalten"
     },
     "cal": {
         "loading": "Kalender-Links werden geladen",

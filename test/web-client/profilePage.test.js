@@ -47,11 +47,58 @@ describe("ProfilePage", () => {
         }
     });
 
-    it("folds availability, raids, wishes, note and the calendar so only one part is open at a time", () => {
+    it("folds availability, raids, wishes, avoid, note and the calendar so only one part is open at a time", () => {
         const folds = [...page.matchAll(/<FoldPart\s+id="(\w+)"/g)].map((m) => m[1]);
-        expect(folds).toEqual(["days", "raids", "wishes", "note", "calendar"]);
+        expect(folds).toEqual(["days", "raids", "wishes", "avoid", "note", "calendar"]);
         expect(page).toMatch(/const isOpen = open === id;/);
         expect(page).toMatch(/\{isOpen && <div className="pf-fold-body">/);
+    });
+
+    it("keeps „kann offtanken / heilen“ on the selected character, saved per character", () => {
+        const card = page.slice(page.indexOf("function CharacterCard"), page.indexOf("type RoleField"));
+        expect(card).toContain("<RolesRow character={character} onChange={onRoles} />");
+        expect(page).toMatch(/onRoles=\{\(field, value\) => patch\(\s*\{ characters: \[\{ key: selected\.key, \[field\]: value \}\] \}/);
+        // no profile-wide switch any more
+        expect(page).not.toMatch(/patch\(\{ \[field\]: value \}/);
+        expect(page).toContain("checked={possible && character[r.field]} disabled={!possible}");
+    });
+
+    it("disables a switch the character's class cannot use, with the reason in the tooltip", () => {
+        expect(page).toContain("const possible = character.possible[r.field];");
+        expect(page).toMatch(/t\(`profile\.roles\.impossible\.\$\{r\.field\}`/);
+        expect(css).toMatch(/\.pf-role\.pf-role-off \{ cursor: not-allowed;/);
+        expect(de("profile.roles.impossible.canHeal", { cls: "Magier" })).toBe("Die Klasse Magier hat keine Heil-Spec – das lässt sich nicht einschalten.");
+        expect(en("profile.roles.impossible.canOfftank", { cls: "Mage" })).toMatch(/no tank spec/);
+    });
+
+    it("gives every weekday its own colour, in the buttons and in the folded summary, readable in light and dark", () => {
+        for (const day of ["mo", "di", "mi", "do", "fr", "sa", "so"]) {
+            expect(css).toMatch(new RegExp(`\\[data-day="${day}"\\] \\{ --day: #[0-9a-f]{6}; --day-dark: #[0-9a-f]{6}; \\}`));
+        }
+        expect(page).toMatch(/className="pf-day-tag" data-day=\{d\.id\}/);
+        expect(page).toMatch(/data-day=\{d\.id\} className=\{`pf-day/);
+        expect(css).toMatch(/:root\[data-theme="light"\] \.pf-day, :root\[data-theme="light"\] \.pf-day-tag \{ --day-ink: var\(--day-dark\); \}/);
+    });
+
+    describe("Nicht mit X raiden", () => {
+        const fold = page.slice(page.indexOf("id=\"avoid\""), page.indexOf("id=\"note\""));
+
+        it("is off at first and asks before it is switched on, reminding that everyone deserves a chance", () => {
+            expect(fold).toMatch(/if \(on && !\(await ask\(\{\s*title: t\("profile\.avoid\.confirmTitle"\)/);
+            expect(de("profile.avoid.confirmText")).toMatch(/jeder eine Chance/);
+            expect(en("profile.avoid.confirmText")).toMatch(/everyone should get a chance/);
+            expect(de("profile.fold.avoidOff")).toBe("aus");
+            // the list appears only once it is on
+            expect(page).toMatch(/\{profile\.avoidEnabled\s*\? \(\s*<WishPicker/);
+        });
+
+        it("is marked orga-only and never offers somebody who is already a wish", () => {
+            expect(fold).toContain("badge={<Badge icon={<EyeOffIcon />}");
+            expect(fold).toContain("tipSub={t(\"profile.avoid.orgaOnlySub\")}");
+            expect(de("profile.avoid.orgaOnlySub")).toMatch(/Nur die Orga/);
+            expect(page).toContain("exclude={profile.wishes}");
+            expect(page).toContain("exclude={profile.avoid}");
+        });
     });
 
     // Kalender-Abo (#312): one calm folded line, not a second page and not a

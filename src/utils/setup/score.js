@@ -41,6 +41,9 @@ const UNIVERSAL_FACTOR = 0.5;
  *   fairness       who sat on the bench last time / often (event flag `fairness`)
  *   attendance     attendance in the category, 0–100 %
  *   wishes         a wish pair in the same group (mutual 1, one-sided ½; event flag `wishes`)
+ *   avoid          a penalty for an "nicht zusammen" pair in the same group (one raid)
+ *                  or the same raid (parallel raids). Off unless the orga asks for it
+ *                  (`options.avoid`) — it separates, it never benches anybody on its own
  */
 const DEFAULT_WEIGHTS = {
     partyBuffs: 60,
@@ -53,6 +56,7 @@ const DEFAULT_WEIGHTS = {
     fairness: 150,
     attendance: 40,
     wishes: 60,
+    avoid: 100,
 };
 
 /** Defaults overridden by whatever numbers `given` carries, each clamped to 0…MAX_WEIGHT. */
@@ -171,9 +175,10 @@ function makeScorer(model) {
         }
     }
     const wishOn = events.map((e) => (model.wishesOverride === undefined ? e.wishes : model.wishesOverride));
+    const avoidPairs = model.avoidOverride === true ? model.avoidPairs || [] : [];
 
     function run(opt, grp, detail) {
-        const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0 } : null;
+        const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0, avoid: 0 } : null;
         let total = 0;
         const ev = events.map((e) => ({
             count: 0,
@@ -235,6 +240,16 @@ function makeScorer(model) {
             if (grp[p.a] === grp[p.b]) v = 1;
             total += weights.wishes * p.factor * v;
             if (detail) parts.wishes += weights.wishes * p.factor * v;
+        }
+        for (const p of avoidPairs) {
+            const oa = opt[p.a];
+            const ob = opt[p.b];
+            if (oa < 0 || ob < 0) continue;
+            if (cands[p.a].options[oa].eventIdx !== cands[p.b].options[ob].eventIdx) continue;
+            // one raid: another group is enough; parallel raids: another raid
+            if (events.length === 1 && grp[p.a] !== grp[p.b]) continue;
+            total -= weights.avoid;
+            if (detail) parts.avoid -= weights.avoid;
         }
         if (!detail) return total;
         return { total, parts, events: ev };

@@ -65,10 +65,10 @@ describe("buildSignupDialog", () => {
         const statuses = byPrefix(payload, "signup-status:");
         expect(statuses.map((b) => b.label)).toEqual(["Sign up", "Tentative", "Late", "Bench", "Absence"]);
         expect(statuses.every((b) => !b.disabled)).toBe(true);
-        // Mage-Arcane is ranged; the priest's healing is prefilled as "kann auch".
+        // Mage-Arcane is ranged; the priest's healing belongs to the priest, not to the mage.
         const [also] = byPrefix(payload, "signup-pick:eh-kara:a");
         expect(also.options.map((o) => o.value)).toEqual(["tank", "healer", "melee"]);
-        expect(also.options.find((o) => o.value === "healer").default).toBe(true);
+        expect(also.options.some((o) => o.default)).toBe(false);
         expect(byPrefix(payload, "signup-comment:")[0].disabled).toBe(true);
         expect(flat(payload).find((c) => c.label === "Open on the web").url).toBe("https://eh.example/signups?event=eh-kara");
     });

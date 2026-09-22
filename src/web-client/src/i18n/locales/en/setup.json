@@ -15,6 +15,7 @@
         "status": { "label": "Signup status", "tip": "\"In\" before \"Coming late\" before \"Tentative\"." },
         "partyBuffs": { "label": "Party buffs", "tip": "Totems, auras and shouts in the group that need them." },
         "wishes": { "label": "Wishes", "tip": "\"Happy to be with\" in one group. Only when wishes are on." },
+        "avoid": { "label": "Not together", "tip": "Penalty when a \"not together\" pair stands in the same group (parallel raids: in the same raid). Only when \"not together\" is on." },
         "raidBuffs": { "label": "Raid buffs", "tip": "Every raid buff somebody in the raid brings." },
         "attendance": { "label": "Attendance", "tip": "Attendance in this category." },
         "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." }
@@ -76,10 +77,28 @@
         "wishesMetSub": "\"Happy to be with\" pairs in the same group. Only visible to the organisers.",
         "wishesOff": "Wishes off",
         "wishesOffSub": "Wishes are not considered for this event.",
+        "avoid": "Not together",
+        "avoidSub": {
+            "one": "{count} pair of raiders would rather not raid together, per their profiles. On: separate groups (separate raids when raids run in parallel). Nobody sees who named whom.",
+            "other": "{count} pairs of raiders would rather not raid together, per their profiles. On: separate groups (separate raids when raids run in parallel). Nobody sees who named whom."
+        },
+        "avoidAria": "Consider \"not together\" in the proposal",
+        "avoidTogetherTip": "Still together",
+        "avoidTogetherSub": "This many pairs still stand in the same group. \"Propose again\" separates them as far as it can.",
+        "avoidTogether": { "one": "{count} together", "other": "{count} together" },
         "off": "off",
         "weights": "Weights…",
         "hintsTip": "Notes",
         "hints": { "one": "{count} note", "other": "{count} notes" }
+    },
+    "avoid": {
+        "askTitle": "Consider \"not together\"?",
+        "askText": {
+            "one": "{count} pair of raiders would rather not raid together, per their profiles. Should the proposal put them into separate groups? Who named whom stays hidden – you can switch it any time in the side column.",
+            "other": "{count} pairs of raiders would rather not raid together, per their profiles. Should the proposal put them into separate groups? Who named whom stays hidden – you can switch it any time in the side column."
+        },
+        "askYes": "Consider",
+        "askNo": "Don't consider"
     },
     "weightsModal": {
         "kicker": "Setup proposal",

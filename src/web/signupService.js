@@ -133,25 +133,31 @@ function findCharacter(profile, ref) {
     return profile.characters.find((c) => c.key === key) || null;
 }
 
-/** The effective "kann Offtank / heilen" of a profile — the raider's word, else what the specs allow. */
-function profileRoles(profile) {
-    const specs = ((profile && profile.characters) || []).flatMap((c) => c.specs.map((s) => profiles.specInfo(s.key) || {}));
-    const pick = (own, fallback) => (own === true || own === false ? own : fallback);
-    return {
-        canOfftank: pick(profile && profile.canOfftank, specs.some((s) => s.canTank)),
-        canHeal: pick(profile && profile.canHeal, specs.some((s) => s.canHeal)),
-    };
+/**
+ * The effective "kann Offtank / heilen" of one character (raiderProfileStore's
+ * characterRoles: its own word, else the old profile-wide one, else its specs).
+ * Without a character reference: true when any character may.
+ */
+function profileRoles(profile, characterRef) {
+    const characters = (profile && profile.characters) || [];
+    if (characterRef !== undefined) {
+        const r = profiles.characterRoles(profile, findCharacter(profile, characterRef));
+        return { canOfftank: r.canOfftank, canHeal: r.canHeal };
+    }
+    const per = characters.map((c) => profiles.characterRoles(profile, c));
+    const any = (field) => (per.length ? per.some((r) => r[field]) : !!(profile && profile[field] === true));
+    return { canOfftank: any("canOfftank"), canHeal: any("canHeal") };
 }
 
 /**
  * "Ich kann auch", prefilled from the profile: off-tank and healing as the
- * raider set them, plus the roles of the character's other specs. Never the
- * role of the spec they sign up with.
+ * raider set them for this character, plus the roles of its other specs.
+ * Never the role of the spec they sign up with.
  */
 function defaultCanAlso(profile, characterRef, specKey) {
     const own = (profiles.specInfo(specKey) || {}).role || "";
     const roles = new Set();
-    const eff = profileRoles(profile);
+    const eff = profileRoles(profile, characterRef);
     if (eff.canOfftank) roles.add("tank");
     if (eff.canHeal) roles.add("healer");
     const character = findCharacter(profile, characterRef);

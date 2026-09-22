@@ -35,7 +35,7 @@ function pageContext() {
         })),
         weekdays: profiles.WEEKDAYS.map((id) => ({ id, label: WEEKDAY_LABELS[id] })),
         gearLevels: profiles.GEAR_LEVELS.map((id) => ({ id, label: GEAR_LABELS[id] })),
-        limits: { characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, note: profiles.MAX_NOTE },
+        limits: { characters: profiles.MAX_CHARACTERS, wishes: profiles.MAX_WISHES, avoid: profiles.MAX_AVOID, note: profiles.MAX_NOTE },
     };
 }
 
@@ -59,8 +59,9 @@ async function getProfile(req, res) {
 }
 
 /**
- * PUT /api/profile — save the caller's own edits (switches, availability,
- * raids, wishes, note, specs/gear/main of existing characters). The body never
+ * PUT /api/profile — save the caller's own edits (availability, raids, wishes,
+ * avoid list, note; specs/gear/main/off-tank/heal of existing characters). The
+ * profile-wide switches are not taken any more — they live on the characters. The body never
  * names an account: whatever `userId` it carries is ignored.
  */
 async function putProfile(req, res) {
@@ -69,13 +70,13 @@ async function putProfile(req, res) {
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
     const patch = {};
-    for (const key of ["canOfftank", "canHeal", "availability", "preferredRaids", "wishes", "note", "characters"]) {
+    for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters"]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
-    // A wish only for someone who has a profile — an id nobody can resolve is a typo.
-    if (Array.isArray(patch.wishes)) {
-        const known = new Set(profiles.listProfiles().map((p) => p.userId));
-        patch.wishes = patch.wishes.map(String).filter((id) => known.has(id));
+    // A wish (or an avoid) only for someone who has a profile — an id nobody can resolve is a typo.
+    const known = new Set(profiles.listProfiles().map((p) => p.userId));
+    for (const key of ["wishes", "avoid"]) {
+        if (Array.isArray(patch[key])) patch[key] = patch[key].map(String).filter((id) => known.has(id));
     }
     profiles.saveProfile(user.id, patch, { name: user.name });
     ok(res, { profile: ownView(user) });

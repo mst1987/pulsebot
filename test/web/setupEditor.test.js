@@ -92,14 +92,36 @@ describe("proposeEventSetup", () => {
 
     it("remembers the weights and switches it was run with", () => {
         const { setup } = editor.proposeEventSetup(ID, { weights: { fairness: 999, bogus: 3, gear: "12" }, fairness: true });
-        expect(setup.options).toEqual({ weights: { fairness: 500, gear: 12 }, fairness: true, wishes: null });
+        expect(setup.options).toEqual({ weights: { fairness: 500, gear: 12 }, fairness: true, wishes: null, avoid: null });
         const again = editor.proposeEventSetup(ID, {}).setup;
         expect(again.options).toEqual(setup.options);
+    });
+
+    it("keeps „nicht zusammen“ off (undecided) until the orga says yes, then remembers it", () => {
+        const first = editor.proposeEventSetup(ID, {}).setup;
+        expect(first.options.avoid).toBeNull();
+        expect(first.checks.avoid.on).toBe(false);
+        const { setup } = editor.proposeEventSetup(ID, { avoid: true });
+        expect(setup.options.avoid).toBe(true);
+        expect(setup.checks.avoid).toEqual({ on: true, together: 0, total: 0 });
+        expect(editor.proposeEventSetup(ID, {}).setup.options.avoid).toBe(true);
+        expect(editor.proposeEventSetup(ID, { avoid: false }).setup.options.avoid).toBe(false);
     });
 
     it("refuses a Raid-Helper id and an unknown event", () => {
         expect(editor.proposeEventSetup("12345")).toMatchObject({ code: "raidhelper" });
         expect(editor.proposeEventSetup("eh-nope")).toMatchObject({ code: "not_found" });
+    });
+});
+
+describe("avoidPairCount", () => {
+    const P = (userId, avoid, avoidEnabled = true) => ({ userId, avoid, avoidEnabled });
+    it("counts each pair among the signups once, only with the list switched on", () => {
+        const signups = [su("a", "Mage-Fire"), su("b", "Mage-Frost"), su("c", "Rogue-Combat"), su("d", "Rogue-Combat", { status: "absence" })];
+        const list = [P("a", ["b", "d", "x"]), P("b", ["a"]), P("c", ["a"], false)];
+        // a↔b once (both ways), d is absent, x not signed up, c has it off
+        expect(editor.avoidPairCount(signups, list)).toBe(1);
+        expect(editor.avoidPairCount([], list)).toBe(0);
     });
 });
 

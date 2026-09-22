@@ -23,6 +23,7 @@ const { getEvent, isOwnEventId } = require("../eventStore");
 const { listSignups } = require("../signupStore");
 const discord = require("../discord");
 const setupEditor = require("../setupEditor");
+const profiles = require("../raiderProfileStore");
 const { refreshEventMessage } = require("../eventMessage");
 const setupMessage = require("../setupMessage");
 const { startJob, getJob } = require("../evalJobs");
@@ -63,6 +64,7 @@ async function view(event, user, { names = true } = {}) {
         signups,
         hasApiKey: write && !!((getConfig().anthropic || {}).apiKey),
         job: write ? getJob(fresh.id, EXPLAIN_SECTION) : null,
+        avoidPairs: write ? setupEditor.avoidPairCount(signups, profiles.listProfiles()) : 0,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
     return out;

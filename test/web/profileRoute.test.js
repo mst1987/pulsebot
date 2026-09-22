@@ -104,12 +104,59 @@ describe("GET/PUT /api/profile", () => {
         expect(body(res).data.profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
     });
 
-    it("schlägt Offtank/Heilen aus den Specs vor, bis der Raider selbst schaltet", async () => {
+    it("schlägt Offtank/Heilen je Charakter aus dessen Specs vor, bis der Raider selbst schaltet", async () => {
         store.addCharacter(ANNA.id, { name: "Bärbel", className: "Druid", specs: ["Druid-Balance", "Druid-Guardian"] });
+        store.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
+        const char = (p, key) => p.characters.find((c) => c.key === key);
         let profile = body(await call(route.getProfile, ANNA)).data.profile;
-        expect(profile).toMatchObject({ canOfftank: true, canHeal: false, suggested: { canOfftank: true, canHeal: false } });
-        profile = body(await call(route.putProfile, ANNA, { json: { canOfftank: false, canHeal: true } })).data.profile;
-        expect(profile).toMatchObject({ canOfftank: false, canHeal: true });
+        expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: false, suggested: { canOfftank: true, canHeal: false } });
+        expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false, possible: { canOfftank: false, canHeal: false } });
+        expect(char(profile, "bärbel").possible).toEqual({ canOfftank: true, canHeal: true });
+        profile = body(await call(route.putProfile, ANNA, { json: { characters: [{ key: "bärbel", canHeal: true }, { key: "nerathil", canHeal: true }] } })).data.profile;
+        expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: true });
+        // ein Magier kann nicht heilen, egal was der Body sagt
+        expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false });
+        // die Zusammenfassung: kann es irgendein Charakter?
+        expect(profile).toMatchObject({ canOfftank: true, canHeal: true });
+        // das alte profilweite Feld nimmt die Route nicht mehr an
+        await call(route.putProfile, ANNA, { json: { canOfftank: false } });
+        expect(store.getProfile(ANNA.id).canOfftank).toBeNull();
+    });
+});
+
+describe("Nicht mit X raiden", () => {
+    beforeEach(() => {
+        store.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage" }, { name: "Anna" });
+        store.addCharacter(BERT.id, { name: "Ysolde", className: "Mage" }, { name: "Bert" });
+    });
+
+    it("ist aus, bis der Raider es einschaltet, und vergisst die Namen beim Ausschalten", async () => {
+        let profile = body(await call(route.getProfile, ANNA)).data.profile;
+        expect(profile).toMatchObject({ avoidEnabled: false, avoid: [] });
+        // ausgeschaltet nimmt es keine Namen an
+        profile = body(await call(route.putProfile, ANNA, { json: { avoid: [BERT.id] } })).data.profile;
+        expect(profile.avoid).toEqual([]);
+        profile = body(await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id, "200000000000000077"] } })).data.profile;
+        expect(profile).toMatchObject({ avoidEnabled: true, avoid: [{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }] });
+        profile = body(await call(route.putProfile, ANNA, { json: { avoidEnabled: false } })).data.profile;
+        expect(profile).toMatchObject({ avoidEnabled: false, avoid: [] });
+        expect(store.getProfile(ANNA.id).avoid).toEqual([]);
+    });
+
+    it("kommt beim Genannten nie an — auch nicht in der Orga-Ansicht", async () => {
+        await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id] } });
+        const own = JSON.stringify(body(await call(route.getProfile, BERT)).data);
+        expect(own).not.toContain(ANNA.id);
+        const orga = body(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data.profile;
+        expect(JSON.stringify(orga)).not.toContain(ANNA.id);
+        const search = JSON.stringify(body(await call(route.getRaiderSearch, BERT, { query: "q=ner" })).data);
+        expect(search).not.toContain("avoid");
+    });
+
+    it("streicht einen Namen, der zugleich ein Wunsch ist", async () => {
+        const profile = body(await call(route.putProfile, ANNA, { json: { wishes: [BERT.id], avoidEnabled: true, avoid: [BERT.id] } })).data.profile;
+        expect(profile.wishes.map((w) => w.userId)).toEqual([BERT.id]);
+        expect(profile.avoid).toEqual([]);
     });
 });
 

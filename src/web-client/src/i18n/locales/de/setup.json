@@ -15,6 +15,7 @@
         "status": { "label": "Anmeldestatus", "tip": "„Dabei“ vor „Kommt später“ vor „Vielleicht“." },
         "partyBuffs": { "label": "Gruppen-Buffs", "tip": "Totems, Auren, Schreie in der Gruppe, die sie brauchen." },
         "wishes": { "label": "Wünsche", "tip": "„Gerne zusammen mit“ in einer Gruppe. Nur wenn Wünsche an sind." },
+        "avoid": { "label": "Nicht zusammen", "tip": "Abzug, wenn ein „nicht zusammen“-Paar in derselben Gruppe steht (bei parallelen Raids: im selben Raid). Nur wenn „nicht zusammen“ an ist." },
         "raidBuffs": { "label": "Raid-Buffs", "tip": "Jeder Raid-Buff, den jemand im Raid mitbringt." },
         "attendance": { "label": "Anwesenheit", "tip": "Anwesenheit in dieser Kategorie." },
         "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." }
@@ -76,10 +77,28 @@
         "wishesMetSub": "„Gerne zusammen mit“-Paare in derselben Gruppe. Nur für die Orga sichtbar.",
         "wishesOff": "Wünsche aus",
         "wishesOffSub": "Für dieses Event werden Wünsche nicht berücksichtigt.",
+        "avoid": "Nicht zusammen",
+        "avoidSub": {
+            "one": "{count} Raider-Paar soll laut Profil nicht zusammen raiden. An: getrennte Gruppen (bei parallelen Raids getrennte Raids). Wer wen genannt hat, sieht niemand.",
+            "other": "{count} Raider-Paare sollen laut Profil nicht zusammen raiden. An: getrennte Gruppen (bei parallelen Raids getrennte Raids). Wer wen genannt hat, sieht niemand."
+        },
+        "avoidAria": "„Nicht zusammen“ beim Vorschlag berücksichtigen",
+        "avoidTogetherTip": "Noch zusammen",
+        "avoidTogetherSub": "So viele Paare stehen noch in derselben Gruppe. „Neu vorschlagen“ trennt sie, soweit es geht.",
+        "avoidTogether": { "one": "{count} zusammen", "other": "{count} zusammen" },
         "off": "aus",
         "weights": "Gewichte…",
         "hintsTip": "Hinweise",
         "hints": { "one": "{count} Hinweis", "other": "{count} Hinweise" }
+    },
+    "avoid": {
+        "askTitle": "„Nicht zusammen“ berücksichtigen?",
+        "askText": {
+            "one": "{count} Raider-Paar soll laut Profil nicht zusammen raiden. Soll der Vorschlag die beiden in getrennte Gruppen setzen? Wer wen genannt hat, bleibt verborgen – du kannst es in der Seitenleiste jederzeit umschalten.",
+            "other": "{count} Raider-Paare sollen laut Profil nicht zusammen raiden. Soll der Vorschlag sie in getrennte Gruppen setzen? Wer wen genannt hat, bleibt verborgen – du kannst es in der Seitenleiste jederzeit umschalten."
+        },
+        "askYes": "Berücksichtigen",
+        "askNo": "Nicht berücksichtigen"
     },
     "weightsModal": {
         "kicker": "Setup-Vorschlag",
