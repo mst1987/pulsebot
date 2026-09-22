@@ -28,6 +28,15 @@ const { getConfig } = require("./settingsStore");
 const { onSignupsChanged } = require("./signupStore");
 const { getOverviewState, setOverviewState } = require("./talkOverviewStore");
 const { signupStatus } = require("../utils/attendance");
+const { appEmojiMap, emojiText, uiEmojiName } = require("./appEmojis");
+
+// Between two raid stanzas (each three lines) — a blank line for breathing room.
+const RAID_SEP = "\n\n";
+// An empty field between two categories: Discord gives every field the same
+// tight spacing, so a real gap needs a field of its own — zero-width space in
+// both name and value keeps it invisible.
+const SPACER = "​";
+const spacerField = () => ({ name: SPACER, value: SPACER, inline: false });
 
 const SELECT_ID = "talk-signup";
 // "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
@@ -58,6 +67,12 @@ function channelUrl(guildId, channelId) {
     return guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "";
 }
 
+/** The public event page ("/e/<id>") on `baseUrl` — only own events have one, "" without a base url. */
+function eventUrl(eventId, baseUrl) {
+    const base = String(baseUrl || "").replace(/\/+$/, "");
+    return base && eventId ? `${base}/e/${encodeURIComponent(eventId)}` : "";
+}
+
 /**
  * "Wed 17 Sep 19:30" in server time (Berlin); start is unix seconds (or ms).
  * For the select options, which cannot render a Discord timestamp — the embed
@@ -83,20 +98,28 @@ function fillText(event) {
     return Number(event.size) > 0 ? `${n}/${event.size}` : String(n);
 }
 
-/** One raid as one line: title · date · fill · channel link (· Raid-Helper). */
-function raidLine(event, eventGuildId) {
+/**
+ * One raid as three lines — title (linked to its public web page for an own
+ * event), date, and a small ("-#", subtext) meta line with the fill and the
+ * channel link. Discord's header markdown (`#`/`##`/`###`) does not render
+ * bigger inside an embed, so the title only gets emphasis through bold + the
+ * link; the meta line is the one that shrinks.
+ */
+function raidLine(event, eventGuildId, { emojis = {}, baseUrl = "" } = {}) {
+    const title = plain(event.title) || "Raid";
     // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
     if (event.status === "cancelled") {
-        return [`~~${plain(event.title) || "Raid"}~~`, "**CANCELLED**", discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
+        return [`~~${title}~~`, "**CANCELLED**", discordTimestamp(event.startTime, "F")].filter(Boolean).join(" · ");
     }
-    const parts = [`**${plain(event.title) || "Raid"}**`];
+    const link = event.source === "eventhelper" ? eventUrl(event.id, baseUrl) : "";
+    const titleLine = `**${link ? `[${title}](${link})` : title}**`;
     const when = discordTimestamp(event.startTime, "F");
-    if (when) parts.push(when);
-    parts.push(`👥 ${fillText(event)}`);
+    const dateLine = when ? `${emojiText(emojis, uiEmojiName("date"), "🗓️")} ${when}` : "";
+    const metaParts = [`${emojiText(emojis, uiEmojiName("signups"), "👥")} ${fillText(event)}`];
     const url = channelUrl(eventGuildId, event.channelId);
-    if (url) parts.push(`[#${plain(event.channelName) || "event"}](${url})`);
-    if (event.source !== "eventhelper") parts.push("Raid-Helper");
-    return parts.join(" · ");
+    if (url) metaParts.push(`[#${plain(event.channelName) || "event"}](${url})`);
+    if (event.source !== "eventhelper") metaParts.push("Raid-Helper");
+    return [titleLine, dateLine, `-# ${metaParts.join(" · ")}`].filter(Boolean).join("\n");
 }
 
 /**
@@ -123,11 +146,11 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [] } = {}) {
 /**
  * The message payload (pure — no Discord call).
  * @param {object[]} groups loadEventGroups()'s groups
- * @param {{ eventGuildId?: string, eventGuildName?: string, baseUrl?: string, now?: number, categoryIds?: string[] }} opts
+ * @param {{ eventGuildId?: string, eventGuildName?: string, baseUrl?: string, now?: number, categoryIds?: string[], emojis?: object }} opts
  * @returns {{ content: string, embeds: object[], components: object[] }} plain API JSON
  */
 function buildOverviewMessage(groups, opts = {}) {
-    const { eventGuildId = "", eventGuildName = "", baseUrl = publicBaseUrl } = opts;
+    const { eventGuildId = "", eventGuildName = "", baseUrl = publicBaseUrl, emojis = {} } = opts;
     const list = upcomingGroups(groups, opts);
     const all = list.flatMap((g) => g.events.map((e) => ({ ...e, categoryName: g.categoryName })));
     // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
@@ -142,16 +165,19 @@ function buildOverviewMessage(groups, opts = {}) {
     let shown = 0;
 
     for (const group of list) {
-        if (fields.length >= MAX_FIELDS) break;
+        // A spacer precedes every category but the first, so it needs its own
+        // slot in the 25-field budget too.
+        const withSpacer = fields.length > 0;
+        if (fields.length + (withSpacer ? 2 : 1) > MAX_FIELDS) break;
         const name = plain(group.categoryName).slice(0, 256) || "No category";
         const lines = [];
         let length = 0;
         for (let i = 0; i < group.events.length; i++) {
-            const line = raidLine(group.events[i], eventGuildId);
+            const line = raidLine(group.events[i], eventGuildId, { emojis, baseUrl });
             const rest = group.events.length - i - 1;
             // Room for this line, plus a "+N more" line if more follow.
             const reserve = rest ? 24 : 0;
-            const next = length + (lines.length ? 1 : 0) + line.length;
+            const next = length + (lines.length ? RAID_SEP.length : 0) + line.length;
             if (next + reserve > MAX_FIELD_VALUE || used + name.length + next + reserve > MAX_EMBED_CHARS - 80) break;
             lines.push(line);
             length = next;
@@ -159,9 +185,10 @@ function buildOverviewMessage(groups, opts = {}) {
         if (!lines.length) break;
         const hidden = group.events.length - lines.length;
         if (hidden) lines.push(`+${hidden} more`);
-        const value = lines.join("\n");
+        const value = lines.join(RAID_SEP);
+        if (withSpacer) fields.push(spacerField());
         fields.push({ name, value, inline: false });
-        used += name.length + value.length;
+        used += name.length + value.length + (withSpacer ? SPACER.length * 2 : 0);
         shown += group.events.length - hidden;
     }
 
@@ -238,6 +265,7 @@ async function currentPayload({ config = getConfig(), now = Date.now() } = {}) {
         eventGuildName: guild ? guild.name : "",
         now,
         categoryIds: config.categoryIds || [],
+        emojis: appEmojiMap(),
     });
     return { payload, error };
 }
@@ -369,6 +397,6 @@ function startTalkOverview({ intervalMs = SWEEP_MS, debounceMs = DEBOUNCE_MS, fi
 
 module.exports = {
     SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, MAX_OPTIONS, RAIDHELPER_CREATE_DELAY_MS,
-    overviewLinks, channelUrl, formatStart, raidLine, upcomingGroups, buildOverviewMessage, payloadHash,
+    overviewLinks, channelUrl, eventUrl, formatStart, raidLine, upcomingGroups, buildOverviewMessage, payloadHash,
     overviewTarget, currentPayload, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview,
 };

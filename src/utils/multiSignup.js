@@ -3,8 +3,8 @@
 // wählen …") or from an event's character select ("Mehrere Charaktere …"):
 //
 //   Schritt 1  (only "Mehrere Raids"): an ephemeral message with a multi-select
-//              of the coming raids (all preselected), the status for all of them
-//              and "Weiter: Charaktere".
+//              of the coming raids (nothing preselected — the member picks),
+//              the status for all of them and "Weiter: Charaktere".
 //   Schritt 2  a modal: per raid a multi-select of the member's characters ·
 //              specs — the topmost picked entry is the first choice, the others
 //              "kann auch mit"; nothing picked skips the raid. At most five raids
@@ -57,7 +57,10 @@ function createSession(userId, { mode, eventIds, status = "signed" }, now = Date
     let token;
     do token = crypto.randomBytes(4).toString("hex"); while (sessions.has(token));
     sessions.set(token, {
-        userId: String(userId), mode, eventIds: [...eventIds], selected: [...eventIds],
+        // "all" (Sign up for all raids) starts with everything picked; "multi"
+        // (Pick several raids …) starts empty — the member chooses, nothing is
+        // assumed on their behalf.
+        userId: String(userId), mode, eventIds: [...eventIds], selected: mode === "multi" ? [] : [...eventIds],
         status: STATUS_CODES[status] ? status : "signed", results: [], at: now,
     });
     return token;
@@ -187,7 +190,9 @@ function buildRaidPicker(token, session, events, { emojis = {}, notice = "" } = 
     const raids = session.eventIds.map((id) => byId.get(id)).filter(Boolean);
     const lines = [
         "Step 1 of 2 · only visible to you",
-        "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid.",
+        session.mode === "multi"
+            ? "Pick the raids you want to join. Next you pick your characters per raid."
+            : "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid.",
     ];
     if (session.selected.length > PER_MODAL) {
         lines.push(`${PER_MODAL} raids per window – after submitting, “Next” takes you to the following ones.`);

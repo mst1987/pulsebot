@@ -138,15 +138,15 @@ describe("Mehrere Raids wählen … (#293)", () => {
         return { payload, token };
     }
 
-    it("shows step 1 only to the member: every raid preselected, status, Weiter", async () => {
+    it("shows step 1 only to the member: nothing preselected, status, Weiter disabled until a raid is picked", async () => {
         const { payload, token } = await startStep1();
         expect(payload.flags).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Which raids?");
         const [raidRow, statusRow, goRow] = payload.components;
         expect(raidRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:r`, min_values: 1, max_values: 7 });
-        expect(raidRow.components[0].options.every((o) => o.default)).toBe(true);
+        expect(raidRow.components[0].options.every((o) => o.default)).toBe(false);
         expect(statusRow.components[0].options.map((o) => o.label)).toEqual(["Sign up", "Tentative", "Late", "Bench", "Absence"]);
-        expect(goRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:0`, label: "Next: characters (Raids 1–5)" });
+        expect(goRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:0`, label: "Next: characters", disabled: true });
     });
 
     it("keeps the picked raids and status, then pages the modal in fives with Weiter", async () => {
