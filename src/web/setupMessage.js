@@ -204,14 +204,19 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } 
         if (embedLength(embed) <= LIMITS.total) break;
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    // Confirm, Cancel, Call invites — one row (Discord's limit is 5 buttons),
-    // in that order. Loaded here, like setupEditor above, to keep the requires
-    // acyclic. Access is per button: Confirm/Cancel are every raider's own
-    // (accessOf "event-signup" in the command file), Call invites the orga's
-    // alone (accessOf "event") — merging the row changes nothing about that.
+    // Confirm, Cancel, Call invites, Ping everyone — one row (Discord's limit
+    // is 5 buttons), in that order. Loaded here, like setupEditor above, to
+    // keep the requires acyclic. Access is per button: Confirm/Cancel are
+    // every raider's own (accessOf "event-signup" in the command file), Call
+    // invites and Ping everyone the orga's alone (accessOf "event") — merging
+    // the row changes nothing about that.
     const { inviteButtonRow } = require("./inviteCallBot");
     const { confirmButtonRow } = require("./setupConfirmBot");
-    const buttons = { type: 1, components: [...confirmButtonRow(event.id).components, ...inviteButtonRow(event.id).components] };
+    const { pingButtonRow } = require("./setupPingBot");
+    const buttons = {
+        type: 1,
+        components: [...confirmButtonRow(event.id).components, ...inviteButtonRow(event.id).components, ...pingButtonRow(event.id).components],
+    };
     return { content: "", embeds: [embed], components: [buttons] };
 }
 

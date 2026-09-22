@@ -110,13 +110,14 @@ describe("buildSetupMessage", () => {
         expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
         expect(embed.footer.text).toContain("version 2");
         // one row: Confirm/Cancel for every placed raider (setupConfirmBot.js),
-        // then Call invites for the orga alone (inviteCallBot.js)
+        // then Call invites and Ping everyone for the orga alone (inviteCallBot.js, setupPingBot.js)
         expect(msg.components).toEqual([{
             type: 1,
             components: [
                 { type: 2, style: 3, custom_id: "setup-confirm:y:eh-1", label: "Confirm" },
                 { type: 2, style: 4, custom_id: "setup-confirm:n:eh-1", label: "Cancel" },
                 { type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } },
+                { type: 2, style: 2, custom_id: "setup-ping:p:eh-1", label: "Ping everyone" },
             ],
         }]);
     });
