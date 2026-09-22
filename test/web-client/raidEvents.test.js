@@ -44,11 +44,12 @@ describe("Raid-Events list", () => {
         expect(read("api.ts")).toContain("get<PastRaidsData>(\"/api/raids/past\")");
     });
 
-    it("groups coming raids by week and past raids by month, after sorting by date", () => {
+    it("groups coming raids by raid ID and past raids by month, after sorting by date", () => {
         expect(list).toContain("weekBands(apply(events, (ev) => ev.startTime || 0))");
         expect(list).toContain("monthBands(apply(events, (ev) => ev.startTime || 0))");
-        // the week starts on Monday, in the guild's time zone
-        expect(time).toContain("(new Date(day).getUTCDay() + 6) % 7");
+        // the band is the raid ID from Wednesday to Tuesday (test/web-client/raidId.test.js)
+        expect(time).toContain("import { idsFromNow, raidIdOf } from \"./raidId\";");
+        expect(time).toContain("const tuesday = wednesday + 6 * DAY_MS;");
         expect(time).toContain("const TZ = \"Europe/Berlin\";");
     });
 

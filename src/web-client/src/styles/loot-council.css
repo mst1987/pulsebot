@@ -14,6 +14,8 @@
 .lc-unit { color: var(--muted); font-weight: 500; font-size: 12px; }
 .lc-th { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .lc-hints { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+/* a long hint ("Liste: Warlock-Destruction") stays in its column, the tooltip has the rest */
+.lc-hints .badge { max-width: 100%; overflow: hidden; }
 .lc-empty { padding: 28px; }
 .lc-note { font-size: 12.5px; margin-top: 8px; }
 
@@ -74,11 +76,19 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-rtip i + i { margin-top: 4px; }
 
 /* ---- the roster list ---- */
-.lc-list { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; margin-bottom: 16px; }
-.lc-lrow {
-    display: grid; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+/* The columns live on the list and every row takes them as a subgrid: a row
+   that is its own grid sizes its auto/fr columns from its own content, so the
+   header (empty action cell) came out ~50px wider than the rows below it. */
+.lc-list {
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; margin-bottom: 16px;
+    display: grid; column-gap: 12px;
     grid-template-columns: 28px minmax(170px, 1.2fr) 150px 52px 44px 120px 52px minmax(120px, 1fr) auto;
 }
+.lc-lrow {
+    display: grid; grid-column: 1 / -1; grid-template-columns: subgrid;
+    align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+}
+.lc-lrow > * { min-width: 0; }
 .lc-lrow:last-child { border-bottom: 0; }
 .lc-lrow:not(.lc-lhead):hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
 .lc-lrow.open { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
@@ -191,7 +201,7 @@ dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
 .lc-bisspecs .badge .class-colored { color: var(--cc); }
 
 @media (max-width: 900px) {
-    .lc-lrow { grid-template-columns: 28px minmax(140px, 1fr) 150px auto; }
+    .lc-list { grid-template-columns: 28px minmax(140px, 1fr) 150px auto; }
     .lc-lhead > :nth-child(n+4):not(:last-child), .lc-lrow > :nth-child(n+4):not(:nth-child(3)):not(:last-child) { display: none; }
     .lc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .lc-sheet { grid-template-columns: 1fr; }

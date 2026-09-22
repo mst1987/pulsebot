@@ -8,27 +8,45 @@
 .an-page { display: flex; flex-direction: column; gap: 18px; }
 .an-empty { color: var(--muted); margin: 0; }
 
-.an-list { display: flex; flex-direction: column; gap: 10px; }
+/* One column grid for the whole list; the ID groups and their rows take it as
+   a subgrid. Rows that were each their own flex line put the bar wherever the
+   badge and button on their right left room — now every kind of information
+   stands under the same kind in the row above:
+   check | icon | title | bar | status | action. */
+.an-list {
+    display: grid; row-gap: 22px; column-gap: 14px;
+    grid-template-columns: 18px auto minmax(0, 1fr) auto auto auto;
+}
+.an-group { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; row-gap: 10px; }
+.an-band {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 2px;
+    font: 700 11px/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+}
+.an-band b { color: var(--text); }
 .an-row {
-    display: flex; align-items: center; gap: 14px; padding: 12px 16px; position: relative;
+    display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center;
+    padding: 12px 16px; position: relative;
     background: var(--panel); border: 1px solid var(--line);
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 .an-row.is-mine { border-color: var(--area-signups); }
-.an-ic { flex: 0 0 auto; display: inline-flex; }
+.an-ic { display: inline-flex; }
 .an-ic > .wi { width: 44px; height: 44px; border-radius: 9px; border: 1px solid var(--line); }
-.an-text { flex: 1; min-width: 0; line-height: 1.25; }
+.an-text { min-width: 0; line-height: 1.25; }
 .an-title { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .an-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
-.an-act { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 150px; }
+.an-bar { display: inline-flex; }
+.an-state, .an-act { display: flex; align-items: center; justify-content: flex-end; }
 .an-status-badge { cursor: pointer; font-size: 12.5px; }
 .an-status-badge:disabled { cursor: default; }
 .an-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
 
 @media (max-width: 720px) {
-    .an-row { flex-wrap: wrap; }
-    .an-text { flex-basis: calc(100% - 60px); }
-    .an-act { min-width: 0; margin-left: auto; }
+    /* narrow: title across, bar and status/action on the line below */
+    .an-list { grid-template-columns: 18px auto minmax(0, 1fr) auto; }
+    .an-text { grid-column: 3 / -1; }
+    .an-bar { grid-column: 2 / 4; }
+    .an-state:empty, .an-act:empty { display: none; }
 }
 
 /* ---- dialog ---- */

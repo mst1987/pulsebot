@@ -81,6 +81,14 @@ describe("loot council — the raider list", () => {
         expect(roster).not.toMatch(/WornIcon|GearBand|lc-gear-band/);
     });
 
+    it("gives the head and every row the same columns (one grid, rows as subgrid)", () => {
+        // each row as its own grid sized its auto/fr columns from its own content:
+        // the head with its empty action cell stood ~50px right of the rows
+        expect(rule(css, ".lc-list")).toMatch(/grid-template-columns: 28px minmax\(170px, 1\.2fr\)/);
+        expect(rule(css, ".lc-lrow")).toMatch(/grid-template-columns: subgrid;/);
+        expect(rule(css, ".lc-lrow")).not.toMatch(/grid-template-columns: 28px/);
+    });
+
     it("keeps every column sortable, with its meaning as a tooltip", () => {
         for (const key of ["character", "need", "last", "loot", "bis", "dps"]) {
             expect(roster).toContain(`<Head sortKey="${key}"`);
