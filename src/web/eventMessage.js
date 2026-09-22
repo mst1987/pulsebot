@@ -344,12 +344,13 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     const other = [];
     for (const [status, label] of OTHER_LINES) {
         // One entry per raider: several characters on the same status share one
-        // number and count once ("`3` Darkdisi / Lakunoc").
+        // number and count once ("`3` <spec icon> Darkdisi / <spec icon> Lakunoc").
         const people = new Map();
         for (const e of entries.filter((x) => x.status === status).sort(byNumber)) {
             const key = String(e.userId);
             if (!people.has(key)) people.set(key, { entry: e, names: [] });
-            people.get(key).names.push(nameOf(e));
+            const icon = emojiText(emojis, specEmojiName(e.spec));
+            people.get(key).names.push(icon ? `${icon} ${nameOf(e)}` : nameOf(e));
         }
         const list = [...people.values()];
         if (!list.length) continue;

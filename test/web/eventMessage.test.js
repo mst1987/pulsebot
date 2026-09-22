@@ -231,7 +231,9 @@ describe("web/eventMessage", () => {
         ]);
         // a character without its own status has the signup's (late); one raider counts once
         const other = fields.find((f) => !f.inline && f.value.includes("Late"));
-        expect(other.value.split("\n")[0]).toMatch(/Late \(2\): `2` Ysolde, `8` Zibbo \/ Zibbomage$/);
+        expect(emojiless(other.value.split("\n")[0])).toBe(
+            "<:eh_ui_late> Late (2): `2` <:eh_priest_holy> Ysolde, `8` <:eh_priest_holy> Zibbo / <:eh_mage_fire> Zibbomage",
+        );
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
         expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
@@ -241,14 +243,15 @@ describe("web/eventMessage", () => {
         ]);
     });
 
-    it("lists late, tentative, bench and absence as lines with icon, count and number boxes", () => {
+    it("lists late, tentative, bench and absence as lines with icon, count, number box and spec icon (#355)", () => {
         const payload = buildEventMessage(event(), [...signups, su("8", "Bänki", "Mage-Frost", "ranged", "bench")], { emojis, now: NOW });
         const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Late"));
         expect(other.name).toBe(ZWS);
         expect(other.value.split("\n").map(emojiless)).toEqual([
-            "<:eh_ui_late> Late (1): `2` Ysolde",
-            "<:eh_ui_tentative> Tentative (1): `4` Kael",
-            "<:eh_ui_bench> Bench (1): `8` Bänki",
+            "<:eh_ui_late> Late (1): `2` <:eh_priest_holy> Ysolde",
+            "<:eh_ui_tentative> Tentative (1): `4` <:eh_rogue_combat> Kael",
+            "<:eh_ui_bench> Bench (1): `8` <:eh_mage_frost> Bänki",
+            // no spec on this absence (no character was chosen) — the raw mention stays plain
             "<:eh_ui_absence> Absence (1): `5` <@5>",
         ]);
     });
