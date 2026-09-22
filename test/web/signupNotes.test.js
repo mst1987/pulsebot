@@ -9,6 +9,7 @@ const notes = require("../../src/web/signupNotes");
 const EVENT = { id: "eh-1", title: "SSC + TK", categoryId: "cat-1", startTime: 1760000000, guildId: "10000", channelId: "20000", message: { messageId: "30000" } };
 const CHANNEL = { discordServers: { signupNoteChannelId: "777777" } };
 const signup = (over = {}) => ({ userId: "123456", character: "zibbo", status: "absence", comment: "Arbeit", ...over });
+const notePayload = (text) => expect.objectContaining({ embeds: [expect.objectContaining({ description: expect.stringContaining(text) })] });
 
 beforeEach(() => discord.postNotice.mockClear());
 
@@ -32,18 +33,29 @@ describe("web/signupNotes", () => {
         expect(notes.hasNewNote(null, null)).toBe(false);
     });
 
-    it("builds one line with raider, status and raid link, the note quoted and defused", () => {
-        const text = notes.buildNotePost(EVENT, signup({ comment: "**krank** @everyone\n> x" }));
-        const [head, quote] = text.split("\n");
-        expect(head).toBe("<@123456> (zibbo) · **Absent** · [SSC + TK](https://discord.com/channels/10000/20000/30000) · <t:1760000000:f>");
-        expect(quote).toBe("> \\*\\*krank\\*\\* @​everyone \\> x");
-        expect(notes.buildNotePost({ title: "Kara" }, signup({ status: "tentative", character: "" })).split("\n")[0]).toBe("<@123456> · **Tentative** · **Kara**");
+    it("builds an embed like Raid-Helper's: title bar, who/status/reason, and a closing raid line", () => {
+        const post = notes.buildNotePost(EVENT, signup({ comment: "**krank** @everyone\n> x" }));
+        expect(post.embeds).toHaveLength(1);
+        const embed = post.embeds[0];
+        expect(embed.title).toBe("Notification received!");
+        expect(typeof embed.color).toBe("number");
+        const lines = embed.description.split("\n");
+        expect(lines[0]).toBe("**<@123456> (zibbo)** signed up as **Absent** with the following reason:");
+        expect(lines[1]).toBe("");
+        expect(lines[2]).toBe("\\*\\*krank\\*\\* @​everyone \\> x");
+        expect(lines[3]).toBe("");
+        expect(lines[4]).toBe("<@123456> | **[SSC + TK](https://discord.com/channels/10000/20000/30000)** <t:1760000000:f>");
+
+        const noCharacter = notes.buildNotePost({ title: "Kara" }, signup({ status: "tentative", character: "" }));
+        const noCharacterLines = noCharacter.embeds[0].description.split("\n");
+        expect(noCharacterLines[0]).toBe("**<@123456>** signed up as **Tentative** with the following reason:");
+        expect(noCharacterLines[4]).toBe("<@123456> | **Kara**");
     });
 
     it("posts to the configured channel", async () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: CHANNEL })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.stringContaining("> Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
     });
 
     it("skips without a note, for the orga, a category without messages or without a channel", async () => {
@@ -90,14 +102,14 @@ describe("web/signupNotes — Kanal je Kategorie (#335)", () => {
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "888888" });
         expect(discord.channelVisible).toHaveBeenCalledWith("888888");
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("888888", expect.stringContaining("> Arbeit"));
+        expect(discord.postNotice).toHaveBeenCalledWith("888888", notePayload("Arbeit"));
     });
 
     it("posts into the default channel when the own one is out of reach", async () => {
         discord.channelVisible.mockReturnValue(false);
         await expect(notes.postSignupNote(EVENT, signup(), null, { config: OWN })).resolves.toEqual({ posted: true, channelId: "777777" });
         expect(discord.postNotice).toHaveBeenCalledTimes(1);
-        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.any(String));
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", notePayload("Arbeit"));
     });
 
     it("tries the default channel when the own one refuses the post, and never throws", async () => {
