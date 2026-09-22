@@ -210,6 +210,16 @@ export function LinkIcon() {
     );
 }
 
+/** Documentation — an open book. */
+export function BookIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5.5c2.2-1 4.8-1 7 0v13c-2.2-1-4.8-1-7 0z" />
+            <path d="M20 5.5c-2.2-1-4.8-1-7 0v13c2.2-1 4.8-1 7 0z" />
+        </svg>
+    );
+}
+
 export function TrashIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">

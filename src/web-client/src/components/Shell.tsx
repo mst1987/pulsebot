@@ -4,7 +4,7 @@ import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 import GuildSwitcher from "./GuildSwitcher";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
-import { CrestIcon, BurgerIcon, LogoutIcon } from "./icons";
+import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
@@ -186,6 +186,11 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     <div className="top-actions">
                         <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
                         <ViewAsButton user={user} csrfToken={csrfToken} />
+                        {/* A real link, not a button: it leaves the SPA for the
+                            server-rendered docs page (src/web/docsPage.js). */}
+                        <a className="ibtn" href="/docs" aria-label={t("shell.docs")} data-tip={t("shell.docs")}>
+                            <BookIcon />
+                        </a>
                         <LangToggle csrfToken={csrfToken} />
                         <ThemeToggle />
                     </div>
