@@ -520,8 +520,10 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     ];
 
     const tail = [];
+    // The approved setup now lives in its own message (setupMessage.js) beside
+    // this one — an inline preview here only duplicated it and wrapped badly
+    // for a full roster. Only the link below stays.
     const setupText = approvedSetupText(event);
-    if (setupText) tail.push({ name: head("signed", "Setup"), value: setupText, inline: false });
     const base = baseUrl();
     const id = encodeURIComponent(event.id);
     const links = [];

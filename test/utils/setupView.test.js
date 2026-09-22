@@ -100,7 +100,7 @@ describe("utils/setupView", () => {
 
         it("tells apart spec names that exist for two classes", () => {
             expect(file(classSpecIconUrl("Paladin", "Holy"))).toBe("spell_holy_holybolt.jpg");
-            expect(file(classSpecIconUrl("Priest", "Holy"))).toBe("spell_holy_holynova.jpg");
+            expect(file(classSpecIconUrl("Priest", "Holy"))).toBe("spell_holy_guardianspirit.jpg");
             expect(file(classSpecIconUrl("Druid", "Restoration"))).toBe("spell_nature_healingtouch.jpg");
             expect(file(classSpecIconUrl("Shaman", "Restoration"))).toBe("spell_nature_magicimmunity.jpg");
             expect(file(classSpecIconUrl("Warrior", "Protection"))).toBe("ability_warrior_defensivestance.jpg");

@@ -45,6 +45,12 @@ const RETRY_MS = 10 * 60 * 1000;
 const UI_ICONS = [
     "leader", "signups", "date", "time", "deadline", "start",
     "signed", "late", "tentative", "bench", "absence", "closed", "class",
+    // a raider's own confirmation of their setup placement (#setup-confirm) —
+    // green/red, unlike every other UI icon's shared grey (COLOR_OVERRIDES).
+    // "pending" is fully transparent — an emoji-sized blank, so a name never
+    // shifts once somebody confirms: plain whitespace does not hold, Discord
+    // trims a leading run of it wherever a line starts (checked live).
+    "confirmed", "declined", "pending",
     // the role totals and the Tank block of the event message (#303); melee is
     // drawn as two crossed swords ("swords") — the single sword ("melee") read
     // as an exclamation mark and stays only for the emojis already uploaded

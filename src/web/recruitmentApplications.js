@@ -14,7 +14,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const SPEC_ICONS = {
     warrior: { Arms: "ability_warrior_savageblow", Fury: "ability_warrior_innerrage", Protection: "ability_warrior_defensivestance" },
     paladin: { Holy: "spell_holy_holybolt", Protection: "spell_holy_devotionaura", Retribution: "spell_holy_auraoflight" },
-    hunter: { "Beast Mastery": "ability_hunter_beasttaming", Marksmanship: "ability_marksmanship", Survival: "ability_hunter_swiftstrike" },
+    hunter: { "Beast Mastery": "ability_hunter_beasttaming", Marksmanship: "ability_marksmanship", Survival: "ability_hunter_camouflage" },
     rogue: { Assassination: "ability_rogue_eviscerate", Combat: "ability_backstab", Subtlety: "ability_stealth" },
     priest: { Discipline: "spell_holy_wordfortitude", Holy: "spell_holy_guardianspirit", Shadow: "spell_shadow_shadowwordpain" },
     shaman: { Elemental: "spell_nature_lightning", Enhancement: "spell_nature_lightningshield", Restoration: "spell_nature_magicimmunity" },

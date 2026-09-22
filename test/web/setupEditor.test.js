@@ -245,15 +245,16 @@ describe("what raiders see", () => {
         expect(slots).toHaveLength(10);
         expect(slots[0]).toMatchObject({ id: first.userId, name: first.character, groupNumber: 1, slotNumber: 1 });
         expect(slots.every((s) => s.specName)).toBe(true);
-        const field = msg(event);
-        expect(field.value).toMatch(/^\*\*Grp 1\*\* /);
-        expect(field.value).toContain("**Bench**");
+        // no more inline "Grp 1 …" field on the event message — the setup lives in
+        // its own message (setupMessage.js) now, this one only links to it
+        expect(msg(event)).toContain("[Setup]");
         const reader = editor.editorView(event, { canWrite: false });
         expect(reader.approved.groups[0].slots[0]).toMatchObject({ classColor: expect.stringMatching(/^#/), specLabel: expect.any(String) });
     });
 
     function msg(event) {
-        return buildEventMessage(event, []).embeds[0].fields.find((f) => f.name.includes("Setup"));
+        const fields = buildEventMessage(event, []).embeds[0].fields;
+        return fields[fields.length - 1].value;
     }
 
     it("gives the orga the draft with names, defaults and the key flag", () => {

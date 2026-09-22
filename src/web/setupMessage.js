@@ -88,6 +88,22 @@ function personText(p, emojis, { icons = true, bold = true } = {}) {
     return `${name}${label ? ` · ${label}` : ""}`;
 }
 
+// The confirm mark's own column: green eh_ui_confirmed, red eh_ui_declined,
+// or the fully transparent eh_ui_pending while a raider has not answered yet
+// — always an emoji, so a name never shifts sideways once somebody clicks.
+// Plain whitespace does not hold: Discord trims a leading run of it wherever
+// a line starts (checked live), which is why "pending" has to be an image,
+// not a character. Without app emojis at all (rare) the columns just do not
+// line up, same as before this mark existed.
+function markedPersonText(p, emojis, opts, confirmations) {
+    const text = personText(p, emojis, opts);
+    const status = confirmations[String(p.userId)] || "pending";
+    const icon = emojiText(emojis, uiEmojiName(status));
+    if (icon) return `${icon} ${text}`;
+    const fallback = status === "confirmed" ? "✔ " : status === "declined" ? "✖ " : "";
+    return `${fallback}${text}`;
+}
+
 /** Items joined into one field value of at most 1024 characters, "+N more" for the rest. */
 function joinClipped(items, sep) {
     let out = "";
@@ -115,9 +131,11 @@ function roleCounts(approved) {
  * a draft is never turned into a message.
  * @param {object} event     an eventStore event (a cancelled one is marked)
  * @param {object|null} approved the approved snapshot (setupEditor.approvedSetupOf)
- * @param {{ emojis?: object }} opts `emojis`: name → { id, name, animated }; none = text
+ * @param {{ emojis?: object, confirmations?: object }} opts `emojis`: name → { id, name,
+ *   animated }; none = text. `confirmations`: userId → "confirmed" | "declined" (of the
+ *   current version only — setupConfirmBot.confirmationsFor drops stale ones).
  */
-function buildSetupMessage(event, approved, { emojis = {} } = {}) {
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } = {}) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
     const title = clip(`${cancelled ? "Cancelled: " : ""}Setup · ${event.title || "Raid"}`, LIMITS.title);
@@ -142,8 +160,17 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         // the role icons of the signup message in the event's emoji style, else
         // the flat ones (#303/#320); without them the role's name: "Tank 1"
         .map((r) => `${emojiText(emojis, roleEmojiName(r, emojiStyleOf(event.emojiStyle))) || emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
-        .join("  ·  ");
-    const description = [start ? `<t:${start}:F>` : "", totals].filter(Boolean).join("\n");
+        .join("     ·     ");
+    // Short date + time + a relative countdown ("in 5 days"), like the signup
+    // message's own date/time/start lines — the full weekday-and-all format
+    // only bloated the header.
+    const when = start ? `<t:${start}:D>     ·     <t:${start}:t>     ·     <t:${start}:R>` : "";
+    // A blank line before the groups, so the header does not run straight into
+    // "Group 1" — a bare empty line is trimmed off by Discord same as leading
+    // whitespace, so it needs the same zero-width-space anchor.
+    const descLines = [when, totals].filter(Boolean);
+    if (descLines.length) descLines.push("\u200b");
+    const description = descLines.join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
     const bench = approved.bench || [];
     const base = baseUrl();
@@ -155,7 +182,7 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
     for (const v of variants) {
         const fields = groups.map((g) => ({
             name: `Group ${g.index}`,
-            value: clip(g.slots.map((s) => personText(s, emojis, { icons: v.groupIcons })).join("\n"), LIMITS.fieldValue),
+            value: clip(g.slots.map((s) => markedPersonText(s, emojis, { icons: v.groupIcons }, confirmations)).join("\n"), LIMITS.fieldValue),
             inline: true,
         }));
         if (bench.length) {
@@ -177,9 +204,15 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         if (embedLength(embed) <= LIMITS.total) break;
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    // "Invite callen" for the orga (inviteCallBot.js) — loaded here, like setupEditor above, to keep the requires acyclic.
+    // Confirm, Cancel, Call invites — one row (Discord's limit is 5 buttons),
+    // in that order. Loaded here, like setupEditor above, to keep the requires
+    // acyclic. Access is per button: Confirm/Cancel are every raider's own
+    // (accessOf "event-signup" in the command file), Call invites the orga's
+    // alone (accessOf "event") — merging the row changes nothing about that.
     const { inviteButtonRow } = require("./inviteCallBot");
-    return { content: "", embeds: [embed], components: [inviteButtonRow(event.id)] };
+    const { confirmButtonRow } = require("./setupConfirmBot");
+    const buttons = { type: 1, components: [...confirmButtonRow(event.id).components, ...inviteButtonRow(event.id).components] };
+    return { content: "", embeds: [embed], components: [buttons] };
 }
 
 // ---- DMs --------------------------------------------------------------------
@@ -317,7 +350,9 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
-    return buildSetupMessage(event, approved, { emojis: appEmojiMap() });
+    // Lazy: setupConfirmBot requires this module back for postOrEditSetupMessage.
+    const { confirmationsFor } = require("./setupConfirmBot");
+    return buildSetupMessage(event, approved, { emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved) });
 }
 
 /**
