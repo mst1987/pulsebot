@@ -54,4 +54,15 @@ describe("commands/profile/profil", () => {
         await command.execute(mockInteraction({ userId: USER, customId: "profil:heal" }));
         expect(store.getProfile(USER).characters[0].canHeal).toBe(true);
     });
+
+    it("zeigt nur die Schalter, die die Klasse des Mains überhaupt kann", async () => {
+        store.addCharacter(USER, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
+        const interaction = mockInteraction({ userId: USER, commandName: "profil" });
+        await command.execute(interaction);
+        const ids = interaction.reply.mock.calls[0][0].components[0].components.map((c) => c.data.custom_id);
+        expect(ids).toEqual([undefined]); // nur der Link
+        // ein alter Button-Klick ändert nichts
+        await command.execute(mockInteraction({ userId: USER, customId: "profil:heal" }));
+        expect(store.getProfile(USER).characters[0].canHeal).toBeNull();
+    });
 });

@@ -45,18 +45,21 @@ function buttons(profile) {
     const main = profiles.mainCharacter(profile);
     const roles = profiles.characterRoles(profile, main);
     const link = new ButtonBuilder().setLabel("Open profile").setStyle(ButtonStyle.Link).setURL(profileUrl());
-    if (!main) return new ActionRowBuilder().addComponents(link);
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
+    const row = new ActionRowBuilder();
+    // only the switches the main's class can use at all (a mage gets neither)
+    if (main && roles.possible.canOfftank) {
+        row.addComponents(new ButtonBuilder()
             .setCustomId("profil:tank")
             .setLabel(`${main.name}: ${roles.canOfftank ? "no off-tank" : "can off-tank"}`)
-            .setStyle(roles.canOfftank ? ButtonStyle.Secondary : ButtonStyle.Primary),
-        new ButtonBuilder()
+            .setStyle(roles.canOfftank ? ButtonStyle.Secondary : ButtonStyle.Primary));
+    }
+    if (main && roles.possible.canHeal) {
+        row.addComponents(new ButtonBuilder()
             .setCustomId("profil:heal")
             .setLabel(`${main.name}: ${roles.canHeal ? "no healing" : "can heal"}`)
-            .setStyle(roles.canHeal ? ButtonStyle.Secondary : ButtonStyle.Primary),
-        link,
-    );
+            .setStyle(roles.canHeal ? ButtonStyle.Secondary : ButtonStyle.Primary));
+    }
+    return row.addComponents(link);
 }
 
 function message(profile) {
@@ -85,6 +88,7 @@ module.exports = {
             const main = profiles.mainCharacter(profile);
             if (!main) return interaction.update(message(profile));
             const current = profiles.characterRoles(profile, main);
+            if (!current.possible[toggle]) return interaction.update(message(profile));
             const saved = profiles.saveProfile(userId, { characters: [{ key: main.key, [toggle]: !current[toggle] }] }, { name });
             return interaction.update(message(saved));
         }

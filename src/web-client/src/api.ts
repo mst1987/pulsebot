@@ -3548,6 +3548,8 @@ export type ProfileCharacter = {
     canOfftank: boolean;
     canHeal: boolean;
     suggested: { canOfftank: boolean; canHeal: boolean };
+    /** Whether the class can step in as that at all — false: the switch is off and disabled. */
+    possible: { canOfftank: boolean; canHeal: boolean };
     /** Other accounts that added the same character. */
     claimedBy: { userId: string; name: string }[];
 };

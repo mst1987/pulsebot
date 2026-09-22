@@ -96,6 +96,10 @@
         "heal": "Can heal",
         "suggested": "Suggested from this character's specs: {answer}. You can change it any time.",
         "forChar": "{label} – {name}",
+        "impossible": {
+            "canOfftank": "The {cls} class has no tank spec – this cannot be switched on.",
+            "canHeal": "The {cls} class has no healing spec – this cannot be switched on."
+        },
         "yes": "yes",
         "no": "no"
     },

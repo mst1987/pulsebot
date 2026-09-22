@@ -60,7 +60,15 @@ describe("ProfilePage", () => {
         expect(page).toMatch(/onRoles=\{\(field, value\) => patch\(\s*\{ characters: \[\{ key: selected\.key, \[field\]: value \}\] \}/);
         // no profile-wide switch any more
         expect(page).not.toMatch(/patch\(\{ \[field\]: value \}/);
-        expect(page).toContain("checked={character[r.field]}");
+        expect(page).toContain("checked={possible && character[r.field]} disabled={!possible}");
+    });
+
+    it("disables a switch the character's class cannot use, with the reason in the tooltip", () => {
+        expect(page).toContain("const possible = character.possible[r.field];");
+        expect(page).toMatch(/t\(`profile\.roles\.impossible\.\$\{r\.field\}`/);
+        expect(css).toMatch(/\.pf-role\.pf-role-off \{ cursor: not-allowed;/);
+        expect(de("profile.roles.impossible.canHeal", { cls: "Magier" })).toBe("Die Klasse Magier hat keine Heil-Spec – das lässt sich nicht einschalten.");
+        expect(en("profile.roles.impossible.canOfftank", { cls: "Mage" })).toMatch(/no tank spec/);
     });
 
     it("gives every weekday its own colour, in the buttons and in the folded summary, readable in light and dark", () => {

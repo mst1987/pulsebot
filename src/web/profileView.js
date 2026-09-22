@@ -71,6 +71,7 @@ function profileView(profile, { forOrga = false, index = logIndex(), all = profi
             canOfftank: roles.canOfftank,
             canHeal: roles.canHeal,
             suggested: roles.suggested,
+            possible: roles.possible,
             claimedBy: all
                 .filter((p) => p.userId !== profile.userId && p.characters.some((o) => o.key === c.key))
                 .map((p) => ({ userId: p.userId, name: p.name })),

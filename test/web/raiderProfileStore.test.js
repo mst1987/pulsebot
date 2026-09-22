@@ -80,22 +80,37 @@ describe("web/raiderProfileStore", () => {
 
     it("führt „kann offtanken / heilen“ je Charakter: eigenes Wort, sonst das alte profilweite, sonst die Specs", () => {
         store.addCharacter(A, { name: "Bärbel", className: "Druid", specs: ["Druid-Guardian"] });
-        store.addCharacter(A, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", specs: ["Priest-Shadow"] });
         let p = store.getProfile(A);
         const roles = (key) => store.characterRoles(p, p.characters.find((c) => c.key === key));
         expect(roles("bärbel")).toMatchObject({ canOfftank: true, canHeal: false, explicit: { canOfftank: null, canHeal: null } });
-        expect(roles("nerathil")).toMatchObject({ canOfftank: false, canHeal: false });
+        expect(roles("nerasol")).toMatchObject({ canOfftank: false, canHeal: false });
 
         // ein altes Profil mit profilweitem Schalter: gilt für jeden Charakter ohne eigenes Wort
         p = store.saveProfile(A, { canHeal: true });
-        expect(roles("nerathil")).toMatchObject({ canHeal: true, explicit: { canHeal: true } });
+        expect(roles("nerasol")).toMatchObject({ canHeal: true, explicit: { canHeal: true } });
 
-        p = store.saveProfile(A, { characters: [{ key: "nerathil", canHeal: false }, { key: "bärbel", canOfftank: "ja" }] });
-        expect(p.characters.find((c) => c.key === "nerathil").canHeal).toBe(false);
+        p = store.saveProfile(A, { characters: [{ key: "nerasol", canHeal: false }, { key: "bärbel", canOfftank: "ja" }] });
+        expect(p.characters.find((c) => c.key === "nerasol").canHeal).toBe(false);
         expect(p.characters.find((c) => c.key === "bärbel").canOfftank).toBeNull();
-        expect(roles("nerathil")).toMatchObject({ canHeal: false });
+        expect(roles("nerasol")).toMatchObject({ canHeal: false });
         expect(roles("bärbel")).toMatchObject({ canHeal: true });
         expect(store.characterRoles(p, null)).toMatchObject({ canOfftank: false, canHeal: true });
+    });
+
+    it("lässt eine Klasse ohne Tank-/Heil-Spec nie „ja“ sagen – auch nicht über das alte profilweite Feld", () => {
+        store.addCharacter(A, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
+        store.addCharacter(A, { name: "Nerasol", className: "Priest", specs: ["Priest-Holy"] });
+        let p = store.saveProfile(A, { canOfftank: true, canHeal: true, characters: [{ key: "nerathil", canOfftank: true, canHeal: true }, { key: "nerasol", canOfftank: true }] });
+        // gespeichert wird das „ja“ gar nicht erst
+        expect(p.characters.find((c) => c.key === "nerathil")).toMatchObject({ canOfftank: null, canHeal: null });
+        expect(p.characters.find((c) => c.key === "nerasol").canOfftank).toBeNull();
+        const mage = store.characterRoles(p, p.characters.find((c) => c.key === "nerathil"));
+        expect(mage).toMatchObject({ canOfftank: false, canHeal: false, possible: { canOfftank: false, canHeal: false }, explicit: { canOfftank: false, canHeal: false } });
+        p = store.getProfile(A);
+        expect(store.characterRoles(p, p.characters[1])).toMatchObject({ canOfftank: false, canHeal: true, possible: { canOfftank: false, canHeal: true } });
+        expect(store.classCan("Druid")).toEqual({ canOfftank: true, canHeal: true });
+        expect(store.classCan("Rogue")).toEqual({ canOfftank: false, canHeal: false });
     });
 
     it("hält „nicht mit X raiden“ aus, bis es eingeschaltet ist, und vergisst die Namen beim Ausschalten", () => {

@@ -110,10 +110,12 @@ describe("GET/PUT /api/profile", () => {
         const char = (p, key) => p.characters.find((c) => c.key === key);
         let profile = body(await call(route.getProfile, ANNA)).data.profile;
         expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: false, suggested: { canOfftank: true, canHeal: false } });
+        expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false, possible: { canOfftank: false, canHeal: false } });
+        expect(char(profile, "bärbel").possible).toEqual({ canOfftank: true, canHeal: true });
+        profile = body(await call(route.putProfile, ANNA, { json: { characters: [{ key: "bärbel", canHeal: true }, { key: "nerathil", canHeal: true }] } })).data.profile;
+        expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: true });
+        // ein Magier kann nicht heilen, egal was der Body sagt
         expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false });
-        profile = body(await call(route.putProfile, ANNA, { json: { characters: [{ key: "nerathil", canHeal: true }] } })).data.profile;
-        expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: true });
-        expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: false });
         // die Zusammenfassung: kann es irgendein Charakter?
         expect(profile).toMatchObject({ canOfftank: true, canHeal: true });
         // das alte profilweite Feld nimmt die Route nicht mehr an

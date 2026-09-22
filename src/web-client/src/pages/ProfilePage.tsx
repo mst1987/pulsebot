@@ -392,18 +392,24 @@ function RolesRow({ character, onChange }: { character: ProfileCharacter; onChan
     ];
     return (
         <div className="pf-roles">
-            {rows.map((r) => (
-                <label key={r.field} className="pf-role"
-                    data-tip={t("profile.roles.forChar", { label: r.label, name: character.name })}
-                    data-tip-sub={t("profile.roles.suggested", { answer: character.suggested[r.field] ? t("profile.roles.yes") : t("profile.roles.no") })}>
-                    <WowIcon name={r.icon} size={26} />
-                    <span className="pf-role-label">{r.label}</span>
-                    <span className="switch">
-                        <input type="checkbox" checked={character[r.field]} onChange={(e) => onChange(r.field, e.target.checked)} />
-                        <span className="switch-track"><span className="switch-thumb" /></span>
-                    </span>
-                </label>
-            ))}
+            {rows.map((r) => {
+                // a class without a tank / healing spec: off and not switchable
+                const possible = character.possible[r.field];
+                return (
+                    <label key={r.field} className={`pf-role${possible ? "" : " pf-role-off"}`}
+                        data-tip={t("profile.roles.forChar", { label: r.label, name: character.name })}
+                        data-tip-sub={possible
+                            ? t("profile.roles.suggested", { answer: character.suggested[r.field] ? t("profile.roles.yes") : t("profile.roles.no") })
+                            : t(`profile.roles.impossible.${r.field}`, { cls: classLabel(character.className, character.className) })}>
+                        <WowIcon name={r.icon} size={26} />
+                        <span className="pf-role-label">{r.label}</span>
+                        <span className="switch">
+                            <input type="checkbox" checked={possible && character[r.field]} disabled={!possible} onChange={(e) => onChange(r.field, e.target.checked)} />
+                            <span className="switch-track"><span className="switch-thumb" /></span>
+                        </span>
+                    </label>
+                );
+            })}
         </div>
     );
 }

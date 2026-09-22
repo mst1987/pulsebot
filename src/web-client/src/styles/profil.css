@@ -64,6 +64,8 @@
 }
 .pf-role .wi { border-radius: 5px; }
 .pf-role-label { flex: 1; font-weight: 700; font-size: 15px; }
+.pf-role.pf-role-off { cursor: not-allowed; opacity: .5; }
+.pf-role.pf-role-off .wi { filter: grayscale(1); }
 @media (max-width: 520px) { .pf-roles { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- side column: folded parts ---- */

@@ -46,8 +46,11 @@ const MAX_NOTE = 500;
 const MAX_NAME = NAME_MAX;
 
 const SPEC_BY_KEY = new Map();
+// What a class can step in as at all — a mage never tanks nor heals, whatever a switch says.
+const CLASS_CAN = new Map();
 for (const c of buildClasses(CLASSES)) {
     for (const s of c.specs) SPEC_BY_KEY.set(s.key, s);
+    CLASS_CAN.set(c.id, { canOfftank: c.specs.some((s) => s.canTank), canHeal: c.specs.some((s) => s.canHeal) });
 }
 const CLASS_IDS = CLASSES.map((c) => c.id);
 
@@ -235,7 +238,8 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
                 specs: edit && Array.isArray(edit.specs) ? edit.specs : c.specs,
             };
             for (const field of CHARACTER_EDITABLE) {
-                if (edit && edit[field] !== undefined) next[field] = edit[field];
+                // a class that cannot never stores a "yes"
+                if (edit && edit[field] !== undefined) next[field] = edit[field] === true && !classCan(c.className)[field] ? null : edit[field];
             }
             return next;
         });
@@ -329,18 +333,26 @@ function specRoles(characters) {
     return { canOfftank: specs.some((s) => s.canTank), canHeal: specs.some((s) => s.canHeal) };
 }
 
+/** Whether a class has any spec that can tank / heal: `{ canOfftank, canHeal }`. Unknown class → both true. */
+function classCan(className) {
+    return CLASS_CAN.get(normalizeClass(className)) || { canOfftank: true, canHeal: true };
+}
+
 /**
  * "Kann offtanken / heilen" of one character: its own switch, else the old
- * profile-wide one, else what its specs allow. `explicit` is the stated word
- * alone (`null` = nobody said anything) — the setup proposal only acts on that.
+ * profile-wide one, else what its specs allow — and never for a class that
+ * cannot (`possible`), so an old "kann heilen" on the profile does not make a
+ * mage a healer. `explicit` is the stated word alone (`null` = nobody said
+ * anything) — the setup proposal only acts on that.
  */
 function characterRoles(profile, character) {
     const suggested = specRoles(character ? [character] : []);
+    const possible = character ? classCan(character.className) : { canOfftank: true, canHeal: true };
     const explicit = {};
-    const out = { suggested, explicit };
+    const out = { suggested, explicit, possible };
     for (const field of CHARACTER_EDITABLE) {
         const own = character ? tristate(character[field]) : null;
-        explicit[field] = own !== null ? own : tristate(profile && profile[field]);
+        explicit[field] = !possible[field] ? false : (own !== null ? own : tristate(profile && profile[field]));
         out[field] = explicit[field] !== null ? explicit[field] : suggested[field];
     }
     return out;
@@ -390,7 +402,7 @@ function reset() {
 
 module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
-    characterKey, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles,
+    characterKey, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
     claimsFor, characterClaims, mainCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,
