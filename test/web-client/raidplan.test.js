@@ -1100,3 +1100,68 @@ describe("template overview", () => {
         }
     });
 });
+
+describe("facing and board labels", () => {
+    const withIcon = (extra = {}) => lib.insertObject(board(), { type: "icon", iconKey: "boss:602", label: "" }, { x: 0.5, y: 0.5 });
+    it("angle maths: 0 = up, clockwise, normalised", () => {
+        expect(lib.normAngle(-90)).toBe(270);
+        expect(lib.normAngle(360)).toBe(0);
+        expect(lib.normAngle(725.6)).toBe(6);
+        expect(lib.normAngle(NaN)).toBe(0);
+        expect(lib.angleTo(0, 0, 0, -10)).toBe(0);
+        expect(lib.angleTo(0, 0, 10, 0)).toBe(90);
+        expect(lib.angleTo(0, 0, 0, 10)).toBe(180);
+        expect(lib.angleTo(0, 0, -10, 0)).toBe(270);
+        expect(lib.snapAngle(52, 15)).toBe(45);
+        expect(lib.snapAngle(358, 15)).toBe(0);
+        expect(lib.compassName(92)).toBe("E");
+        expect(lib.compassName(350)).toBe("N");
+        expect(lib.COMPASS).toHaveLength(8);
+    });
+    it("only boss, enemy and position icons face somewhere", () => {
+        expect(lib.canFace("boss:602")).toBe(true);
+        expect(lib.canFace("enemy")).toBe(true);
+        expect(lib.canFace("wow:spell_fire_fireball")).toBe(false);
+    });
+    it("turns an icon, and the compass entries of the menu set the angle", () => {
+        const r = withIcon();
+        const id = r.sel.id;
+        expect(r.board.icons[0]).toMatchObject({ rotation: 0, showLabel: false });
+        expect(lib.turnIcon(r.board, id, -15).icons[0].rotation).toBe(345);
+        const items = lib.contextMenuItems("icon", { locked: false, hasPlayer: false, isEvent: false, kind: "", faces: true }).map((m) => m.id);
+        expect(items.filter((x) => x.startsWith("face:"))).toHaveLength(8);
+        expect(lib.contextMenuItems("icon", { locked: false, hasPlayer: false, isEvent: false, kind: "" }).some((m) => m.id.startsWith("face:"))).toBe(false);
+        expect(lib.applyMenuAction(r.board, "face:225", "icon", id, null).board.icons[0].rotation).toBe(225);
+    });
+    it("draws only labels that were typed (no fallback names on the board)", () => {
+        const tank = lib.insertObject(board(), { type: "slot", kind: "tank", label: "" }, null).board.slots[0];
+        expect(lib.slotBoardLabel(tank)).toBe("");
+        expect(lib.slotTitle(tank)).not.toBe("");
+        expect(lib.zoneBoardLabel({ label: "  ", type: "danger" })).toBe("");
+        expect(lib.zoneBoardLabel({ label: "Feuer", type: "danger" })).toBe("Feuer");
+        expect(lib.iconBoardLabel({ label: "Boss", showLabel: false })).toBe("");
+        expect(lib.iconBoardLabel({ label: "Boss", showLabel: true })).toBe("Boss");
+        expect(lib.iconBoardLabel({ label: "", showLabel: true })).toBe("");
+        expect(lib.textShown({ text: "" }, false)).toBe(false);
+        expect(lib.textShown({ text: "" }, true)).toBe(true);
+        expect(lib.textShown({ text: "Go" }, false)).toBe(true);
+    });
+    it("a new group marker starts with an editable label 'Gruppe n'", () => {
+        const g = lib.insertObject(board(), { type: "slot", kind: "group", label: "" }, null).board.slots[0];
+        expect(g.label).toBe("Gruppe 1");
+    });
+    it("has the facing UI and its texts", () => {
+        const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
+        expect(insp).toContain("rp-compass");
+        const ws = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
+        expect(ws).toContain("angleTo(");
+        expect(ws).toContain("snapAngle(a, 15)");
+        expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-h-rot");
+        for (const lang of ["de", "en"]) {
+            const d = JSON.parse(fs.readFileSync(path.join(__dirname, "../../src/web-client/src/i18n/locales", lang, "raidBoard.json"), "utf8"));
+            for (const n of lib.COMPASS_NAMES) expect(typeof d.compass[n]).toBe("string");
+            expect(d.ctx.face).toContain("{dir}");
+            expect(typeof d.icon.showLabel).toBe("string");
+        }
+    });
+});

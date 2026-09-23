@@ -337,13 +337,28 @@
         "members_show": "Show raiders",
         "split_on": "Split up",
         "split_off": "Merge",
-        "resetpos": "Reset position"
+        "resetpos": "Reset position",
+        "face": "Face {dir}"
     },
     "icon": {
         "boss": "Boss",
         "wow": "Icon",
         "enemy": "Enemy / add",
         "bosspos": "Boss position",
-        "label": "Label"
+        "label": "Label",
+        "showLabel": "Show label",
+        "facing": "Facing (°)",
+        "compass": "Compass direction",
+        "facingHint": "Drag the handle above the icon to turn it (Shift = 15° steps), Q / E turn by 15°."
+    },
+    "compass": {
+        "N": "north",
+        "NE": "north-east",
+        "E": "east",
+        "SE": "south-east",
+        "S": "south",
+        "SW": "south-west",
+        "W": "west",
+        "NW": "north-west"
     }
 }

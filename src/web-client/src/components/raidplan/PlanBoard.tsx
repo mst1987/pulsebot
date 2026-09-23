@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
-import { Crosshair, Swords } from "lucide-react";
+import { Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, groupMembers, iconKeyType, memberId, ringOffsets, roleTone, slotTitle, splitMembers, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupMembers, iconBoardLabel, iconKeyType, memberId, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import "../../styles/raidplan.css";
 
@@ -48,7 +48,7 @@ export function playerLabel(player: RaidplanPlayer): string {
 }
 
 /** What a drag can grab on an object: a zone's corner, or one end of a line. */
-export type Handle = Corner | "end1" | "end2" | "size";
+export type Handle = Corner | "end1" | "end2" | "size" | "rot";
 /** How the board reports a pointer or key event on one of its objects. */
 export type ObjectDown = (e: PointerEvent<HTMLElement | SVGElement>, kind: ObjectKind, id: string, handle?: Handle) => void;
 export type ObjectKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => void;
@@ -184,6 +184,7 @@ export default function PlanBoard({
             {zones.filter((z) => !z.hidden).map((z) => {
                 const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity } as CSSProperties;
                 const name = z.label || t(`raidBoard.zone.${z.type}`);
+                const zoneLabel = zoneBoardLabel(z);
                 return (
                     <div
                         key={z.id} style={zs} data-zone={z.id} data-obj={`zone:${z.id}`} tabIndex={editable ? 0 : undefined}
@@ -191,7 +192,7 @@ export default function PlanBoard({
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
-                        <span className="rp-zone-label"><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span> {name}</span>
+                        <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>
                         {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
                         ))}
@@ -251,19 +252,28 @@ export default function PlanBoard({
                 const type = iconKeyType(i.iconKey);
                 const px = scaled(i.size, SIZE_RANGES.icon.def);
                 const name = i.label || t(`raidBoard.icon.${type}`);
+                const face = canFace(i.iconKey);
                 const src = type === "boss" ? `/bosses/${i.iconKey.slice(5)}.jpg` : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
                 return (
                     <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, "", i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
                         <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={name} data-tip={name} {...handlers("icon", i.id)}>
-                            <span className="rp-icon-face" style={{ transform: `rotate(${i.rotation || 0}deg)` }}>
+                            <span className={`rp-icon-face${face ? " is-round" : ""}`}>
                                 {src ? <img src={src} alt="" draggable={false} /> : (
                                     <span className={`rp-icon-builtin rp-icon-${type}`} aria-hidden="true">
                                         {type === "bosspos" ? <Crosshair size={Math.round(px * 0.62)} /> : <Swords size={Math.round(px * 0.62)} />}
                                     </span>
                                 )}
+                                {face && (
+                                    <span className="rp-facing" style={{ transform: `rotate(${i.rotation || 0}deg)` }} aria-hidden="true">
+                                        <span className="rp-wedge" />
+                                        {editable && !i.lock && isSel("icon", i.id) && (
+                                            <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />
+                                        )}
+                                    </span>
+                                )}
                             </span>
                         </button>
-                        {i.label && <span className="rp-token-name">{i.label}</span>}
+                        {iconBoardLabel(i) && <span className="rp-token-name">{iconBoardLabel(i)}</span>}
                         {sizeHandle("icon", i.id, i.lock)}
                     </div>
                 );
@@ -274,6 +284,7 @@ export default function PlanBoard({
                 const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps" ? s.kind : "";
                 const mine = !!me && s.userId === me;
                 const title = slotTitle(s);
+                const boardLabel = slotBoardLabel(s);
                 const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) };
                 if (s.kind === "group") {
                     const members = groupMembers(s, roster);
@@ -286,7 +297,7 @@ export default function PlanBoard({
                         <div key={s.id} className="rp-groupwrap">
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
                                 <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
-                                    <span className="rp-groupchip-title">{title}</span>
+                                    {boardLabel ? <span className="rp-groupchip-title">{boardLabel}</span> : !(showList && members.length > 0) && <Users size={16} aria-hidden="true" />}
                                     {showList && members.length > 0 && (
                                         <span className="rp-groupchip-names">
                                             {members.map((p) => <PlayerName key={p.userId} player={p} className={p.userId === me ? "is-me" : ""} />)}
@@ -336,23 +347,25 @@ export default function PlanBoard({
                                 </span>
                             )}
                         </button>
-                        <span className="rp-token-name rp-slot-name">
-                            <span className="rp-slot-title">{title}</span>
-                            {player && <PlayerName player={player} />}
-                        </span>
+                        {(boardLabel || player) && (
+                            <span className="rp-token-name rp-slot-name">
+                                {boardLabel && <span className="rp-slot-title">{boardLabel}</span>}
+                                {player && <PlayerName player={player} />}
+                            </span>
+                        )}
                         {sizeHandle("slot", s.id, s.lock)}
                     </div>
                 );
             })}
 
-            {texts.filter((x) => !x.hidden).map((x) => (
+            {texts.filter((x) => !x.hidden && textShown(x, isSel("text", x.id))).map((x) => (
                 <div
                     key={x.id} data-obj={`text:${x.id}`} tabIndex={editable ? 0 : undefined}
                     className={cls("rp-text", "text", x.id, "", x.lock)}
                     style={{ left: `${x.x * 100}%`, top: `${x.y * 100}%`, color: x.color, fontSize: x.size, opacity: x.opacity }}
                     {...handlers("text", x.id)}
                 >
-                    {x.text}
+                    {x.text || "\u2026"}
                     {sizeHandle("text", x.id, x.lock)}
                 </div>
             ))}

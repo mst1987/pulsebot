@@ -337,13 +337,28 @@
         "members_show": "Raider anzeigen",
         "split_on": "Aufsplitten",
         "split_off": "Zusammenfassen",
-        "resetpos": "Position zurücksetzen"
+        "resetpos": "Position zurücksetzen",
+        "face": "Blick nach {dir}"
     },
     "icon": {
         "boss": "Boss",
         "wow": "Icon",
         "enemy": "Gegner / Add",
         "bosspos": "Boss-Position",
-        "label": "Beschriftung"
+        "label": "Beschriftung",
+        "showLabel": "Beschriftung anzeigen",
+        "facing": "Blickrichtung (°)",
+        "compass": "Himmelsrichtung",
+        "facingHint": "Ziehen am Griff über dem Icon dreht (Umschalt = 15°-Schritte), Q / E drehen um 15°."
+    },
+    "compass": {
+        "N": "Norden",
+        "NE": "Nordosten",
+        "E": "Osten",
+        "SE": "Südosten",
+        "S": "Süden",
+        "SW": "Südwesten",
+        "W": "Westen",
+        "NW": "Nordwesten"
     }
 }

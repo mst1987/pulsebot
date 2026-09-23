@@ -4084,8 +4084,8 @@ export type RaidplanOffset = { dx: number; dy: number; size: number };
 export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset> } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
-/** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation in degrees. */
-export type RaidplanIcon = { id: string; iconKey: string; label: string; x: number; y: number; size: number; rotation: number } & RaidplanLook;
+/** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */
+export type RaidplanIcon = { id: string; iconKey: string; label: string; showLabel: boolean; x: number; y: number; size: number; rotation: number } & RaidplanLook;
 export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
 export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number } & RaidplanLook;

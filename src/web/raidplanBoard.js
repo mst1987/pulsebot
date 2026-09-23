@@ -12,7 +12,7 @@
 //                                          shown), split (its raiders stand around the tag as
 //                                          tokens) and offsets { [userId]: { dx, dy, size } } (a
 //                                          raider moved or scaled on his own, relative to the tag).
-//   icons    [{ id, iconKey, label, x, y, size, rotation, ... }]  boss / enemy / spell icons
+//   icons    [{ id, iconKey, label, showLabel, x, y, size, rotation, ... }]  boss / enemy / spell icons
 //   marks    [{ id, mark, x, y }]         the eight raid target marks
 //   zones    [{ id, shape, type, label, color, opacity, x, y, w, h }]
 //                                          rectangle / ellipse areas: danger, healthy,
@@ -80,6 +80,13 @@ function common(o, defaultOpacity = 1) {
 }
 
 /** A size in px inside the range of its kind, the default for anything that is no number. */
+/** An angle in degrees as a whole number 0..359 (0 = up / north, clockwise); anything else = 0. */
+function normAngle(v) {
+    const n = Math.round(Number(v));
+    if (!Number.isFinite(n)) return 0;
+    return ((n % 360) + 360) % 360;
+}
+
 function cleanSize(v, kind) {
     const [def, min, max] = SIZES[kind];
     const n = Math.round(Number(v));
@@ -167,7 +174,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         icons.push({
             id: cleanId(o.id, iconIds), iconKey: str(o.iconKey), label: str(o.label).slice(0, LIMITS.label),
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "icon"),
-            rotation: Math.max(-180, Math.min(180, Math.round(Number(o.rotation)) || 0)), ...common(o),
+            rotation: normAngle(o.rotation), showLabel: o.showLabel === true, ...common(o),
         });
     }
 

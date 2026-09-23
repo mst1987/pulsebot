@@ -2,10 +2,12 @@ import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } fro
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import {
-    SCALE_MAX, SCALE_MIN, SIZE_RANGES, ZONE_COLORS, ZONE_TYPES, assignSlot, clampOpacity, duplicateObject, lookOf, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, SIZE_RANGES, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, setObjectSize, sizeOf, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
+
+const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
 
 /** A slider and a number field for an opacity in percent, 10..100. */
@@ -198,9 +200,24 @@ export default function Inspector({ board, selection, players, roster, isEvent, 
                 <>
                     <label className="rp-field">
                         <span className="rp-kicker">{t("raidBoard.icon.label")}</span>
-                        <input value={icon.label} maxLength={40} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { label: e.target.value }), true)} />
+                        <input value={icon.label} maxLength={40} disabled={dis} placeholder={t(`raidBoard.icon.${iconKeyType(icon.iconKey)}`)} onChange={(e) => edit((b) => updateIcon(b, id, { label: e.target.value }), true)} />
                     </label>
-                    <SizeField label={t("raidBoard.insp.rotation")} value={icon.rotation} min={-180} max={180} step={5} onChange={(v) => !dis && edit((b) => updateIcon(b, id, { rotation: Math.max(-180, Math.min(180, Math.round(v))) }), true)} />
+                    <label className="rp-check"><input type="checkbox" checked={icon.showLabel} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { showLabel: e.target.checked }))} /> {t("raidBoard.icon.showLabel")}</label>
+                    {canFace(icon.iconKey) && (
+                        <>
+                            <SizeField label={t("raidBoard.icon.facing")} value={icon.rotation} min={0} max={359} step={1} onChange={(v) => !dis && edit((b) => updateIcon(b, id, { rotation: normAngle(v) }), true)} />
+                            <div className="rp-compass" role="group" aria-label={t("raidBoard.icon.compass")}>
+                                {COMPASS.map((a, n) => (
+                                    <button
+                                        key={a} type="button" className={`rp-compass-btn${icon.rotation === a ? " is-on" : ""}`} disabled={dis} aria-pressed={icon.rotation === a}
+                                        aria-label={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)} data-tip={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)}
+                                        onClick={() => edit((b) => updateIcon(b, id, { rotation: a }))}
+                                    >{COMPASS_ARROWS[n]}</button>
+                                ))}
+                            </div>
+                            <span className="rp-muted">{t("raidBoard.icon.facingHint")}</span>
+                        </>
+                    )}
                 </>
             )}
 

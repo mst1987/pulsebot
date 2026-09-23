@@ -276,15 +276,15 @@ describe("sizes and icons", () => {
 
     it("keeps icons of the three sources and drops anything else", () => {
         const r = clean({ icons: [
-            { iconKey: "boss:609", label: "Illidan", size: 999, rotation: 400 },
+            { iconKey: "boss:609", label: "Illidan", size: 999, rotation: 400, showLabel: true },
             { iconKey: "wow:spell_fire_fireball", size: 1 },
             { iconKey: "enemy" }, { iconKey: "bosspos" },
             { iconKey: "http://evil/x.png" }, { iconKey: "wow:../x" }, { iconKey: "" },
         ] });
         expect(r.board.icons.map((i) => i.iconKey)).toEqual(["boss:609", "wow:spell_fire_fireball", "enemy", "bosspos"]);
-        expect(r.board.icons[0]).toMatchObject({ label: "Illidan", size: 200, rotation: 180, opacity: 1, lock: false, hidden: false });
+        expect(r.board.icons[0]).toMatchObject({ label: "Illidan", size: 200, rotation: 40, showLabel: true, opacity: 1, lock: false, hidden: false });
         expect(r.board.icons[1].size).toBe(20);
-        expect(r.board.icons[2]).toMatchObject({ size: 48, rotation: 0 });
+        expect(r.board.icons[2]).toMatchObject({ size: 48, rotation: 0, showLabel: false });
         expect(r.dropped).toBe(3);
         expect(clean({ icons: Array.from({ length: 61 }, () => ({ iconKey: "enemy" })) }).code).toBe("invalid");
     });
@@ -297,5 +297,16 @@ describe("sizes and icons", () => {
         expect(board.boardHasContent(clean({ objectScale: 1.2 }).board)).toBe(true);
         expect(board.boardHasContent(clean({ icons: [{ iconKey: "enemy" }] }).board)).toBe(true);
         expect(board.reidBoard({ icons: [{ id: "i" }] }).icons[0].id).not.toBe("i");
+    });
+});
+
+describe("icon facing", () => {
+    it("normalises the angle to 0..359 and keeps the label switch", () => {
+        const r = clean({ icons: [
+            { iconKey: "boss:1", rotation: -90 }, { iconKey: "boss:2", rotation: 360 }, { iconKey: "boss:3", rotation: 725.6 },
+            { iconKey: "boss:4", rotation: "x" }, { iconKey: "enemy", rotation: 359, showLabel: "yes" },
+        ] });
+        expect(r.board.icons.map((i) => i.rotation)).toEqual([270, 0, 6, 0, 359]);
+        expect(r.board.icons.map((i) => i.showLabel)).toEqual([false, false, false, false, false]);
     });
 });

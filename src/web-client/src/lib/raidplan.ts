@@ -209,7 +209,7 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
     const id = newRowId();
     if (spec.type === "slot") {
         const slot = {
-            id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label, x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
+            id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label || (spec.kind === "group" ? t("raidBoard.slot.group", { n: nextSlotNumber(board, spec.kind) }) : ""), x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
             hideMembers: false, split: false, offsets: {}, ...newLook(1),
         };
         return { board: { ...board, slots: [...board.slots, slot] }, sel: { kind: "slot", id } };
@@ -218,7 +218,7 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
         return { board: { ...board, marks: [...board.marks, { id, mark: spec.mark as RaidplanMarkName, x: p.x, y: p.y, size: SIZE_RANGES.mark.def, ...newLook(1) }] }, sel: { kind: "mark", id } };
     }
     if (spec.type === "icon") {
-        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, ...newLook(1) };
+        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, showLabel: false, ...newLook(1) };
         return { board: { ...board, icons: [...board.icons, icon] }, sel: { kind: "icon", id } };
     }
     if (spec.type === "zone") {
@@ -575,6 +575,29 @@ export function slotTitle(slot: RaidplanSlot): string {
     return t(`raidBoard.slot.${slot.kind}`, { n: slot.n });
 }
 
+/**
+ * What a board object prints next to itself. Only what was typed is drawn: no
+ * fallback such as "Tank 1" or the zone's type (those names belong to the layer list,
+ * the tooltips and the screen readers, see slotTitle / objectName).
+ */
+export function slotBoardLabel(slot: RaidplanSlot): string {
+    return (slot.label || "").trim();
+}
+
+export function zoneBoardLabel(zone: RaidplanZone): string {
+    return (zone.label || "").trim();
+}
+
+/** An icon's label is drawn only when it was switched on (inspector) and has words. */
+export function iconBoardLabel(icon: RaidplanIcon): string {
+    return icon.showLabel ? (icon.label || "").trim() : "";
+}
+
+/** A text object with no words is not drawn (only while it is selected, so it can be filled in). */
+export function textShown(text: RaidplanText, selected: boolean): boolean {
+    return (text.text || "").trim() !== "" || selected;
+}
+
 /** The players of the setup group a group marker stands for. */
 export function groupMembers(slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
     return roster.filter((p) => p.group === slot.n);
@@ -635,6 +658,43 @@ export function layerList(board: RaidplanBoard, players: Map<string, RaidplanPla
 // ---- the right-click menu ----------------------------------------------------------------
 
 /** Which source an icon key names: a boss icon of the encounter list, a spell / ability icon of the icon CDN, or one of the two built in symbols. */
+// ---- facing (boss / enemy icons): 0 = up / north, clockwise -----------------------------
+
+export const COMPASS = [0, 45, 90, 135, 180, 225, 270, 315];
+export const COMPASS_NAMES = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+
+/** An angle as whole degrees 0..359; anything that is not a number is 0. */
+export function normAngle(deg: number): number {
+    const n = Math.round(Number(deg));
+    return Number.isFinite(n) ? ((n % 360) + 360) % 360 : 0;
+}
+
+/** The angle of the pointer (px, py) around the centre (cx, cy): 0 = straight up, clockwise. */
+export function angleTo(cx: number, cy: number, px: number, py: number): number {
+    return normAngle((Math.atan2(px - cx, cy - py) * 180) / Math.PI);
+}
+
+/** The angle rounded to a step (Shift while turning: 15). */
+export function snapAngle(deg: number, step: number): number {
+    return normAngle(Math.round(deg / step) * step);
+}
+
+/** The compass point (N, NE, ...) an angle is closest to. */
+export function compassName(deg: number): string {
+    return COMPASS_NAMES[Math.round(normAngle(deg) / 45) % 8];
+}
+
+/** Whether an icon shows which way it faces: bosses, enemies and positions do, spell icons do not. */
+export function canFace(key: string): boolean {
+    return key.slice(0, 4) !== "wow:";
+}
+
+/** Turns an icon by delta degrees. */
+export function turnIcon(board: RaidplanBoard, id: string, delta: number): RaidplanBoard {
+    const i = board.icons.find((k) => k.id === id);
+    return i ? updateIcon(board, id, { rotation: normAngle(i.rotation + delta) }) : board;
+}
+
 export function iconKeyType(key: string): string {
     if (key.startsWith("boss:")) return "boss";
     if (key.startsWith("wow:")) return "wow";
@@ -664,7 +724,7 @@ function item(id: string, section: string, disabled: boolean, danger: boolean): 
  * empty board (`"board"`), in order. `id`s are what applyMenuAction() and the page
  * understand; `section` groups them (a separator between sections).
  */
-export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean }): MenuItem[] {
+export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; faces?: boolean }): MenuItem[] {
     if (target === "board") {
         const out = [];
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
@@ -678,6 +738,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
     if (target === "member") return [item("properties", "main", false, false), item("resetpos", "end", false, false)];
     const out = [item("properties", "main", false, false)];
     if (target !== "token") out.push(item("duplicate", "main", false, false));
+    if (target === "icon" && opts.faces) for (const a of COMPASS) out.push(item("face:" + a, "face", false, false));
     out.push(item("front", "order", false, false), item("back", "order", false, false));
     out.push(item(opts.locked ? "unlock" : "lock", "order", false, false));
     if (target === "slot" && opts.isEvent && opts.kind !== "group") {
@@ -718,6 +779,7 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     const sel = kind ? { kind, id: objId } : null;
     if (!kind) return { board, sel: null };
     if (id === "duplicate") return duplicateObject(board, kind, objId);
+    if (id.startsWith("face:")) return { board: updateIcon(board, objId, { rotation: normAngle(Number(id.slice(5))) }), sel };
     if (id === "members:hide") return { board: updateSlot(board, objId, { hideMembers: true }), sel };
     if (id === "members:show") return { board: updateSlot(board, objId, { hideMembers: false }), sel };
     if (id === "split:on") return { board: updateSlot(board, objId, { split: true }), sel };

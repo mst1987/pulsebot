@@ -6,7 +6,7 @@ import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useT } from "../../../i18n";
 import {
-    applyMenuAction, assignSlot, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
+    angleTo, applyMenuAction, assignSlot, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
@@ -154,7 +154,10 @@ export default function BoardWorkspace({
             if (d.kind === "tray" || d.kind === "palette" || !moved) return;
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
-            if (d.handle === "size" && d.size0 && d.center && d.d0) {
+            if (d.handle === "rot" && d.center) {
+                const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
+                edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a }), true);
+            } else if (d.handle === "size" && d.size0 && d.center && d.d0) {
                 const dist = Math.hypot(e.clientX - d.center.x, e.clientY - d.center.y);
                 const next2 = d.size0 * (dist / d.d0);
                 edit((b) => setObjectSize(b, d.kind as ObjectKind, d.id, next2), true);
@@ -243,7 +246,7 @@ export default function BoardWorkspace({
         let size0: number | undefined;
         let center: { x: number; y: number } | undefined;
         let d0: number | undefined;
-        if (handle === "size") {
+        if (handle === "size" || handle === "rot") {
             const wrap = target.closest(".rp-token, .rp-text");
             const cr = wrap ? wrap.getBoundingClientRect() : null;
             const cur = sizeOf(board, kind as ObjectKind, id);
@@ -294,6 +297,13 @@ export default function BoardWorkspace({
         } else if (e.key === "-") {
             e.preventDefault();
             edit((b) => scaleObject(b, kind, id, 1 / 1.1), true);
+        } else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && kind === "icon") {
+            const ic = boardNow.current.icons.find((k) => k.id === id);
+            if (ic && canFace(ic.iconKey)) {
+                e.preventDefault();
+                const dir = e.key === "q" || e.key === "Q" ? -1 : 1;
+                edit((b) => turnIcon(b, id, dir * (e.shiftKey ? 45 : 15)), true);
+            }
         } else if (e.key === "Enter") {
             setSelected({ kind, id });
             focusProperties();
@@ -346,10 +356,12 @@ export default function BoardWorkspace({
         if (!sel) return [];
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
-        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split });
+        const ic = sel.kind === "icon" ? board.icons.find((s) => s.id === sel.id) : undefined;
+        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, faces: !!ic && canFace(ic.iconKey) });
     };
     const menuLabel = (item: MenuItem): string => {
         const parts = item.id.split(":");
+        if (parts[0] === "face") return t("raidBoard.ctx.face", { dir: t(`raidBoard.compass.${compassName(Number(parts[1]))}`) });
         if (parts[0] === "insert") {
             if (parts[1] === "mark") return t(`raidBoard.mark.${parts[2]}`);
             const what = parts[1] === "slot" ? t(`raidBoard.slot.kind.${parts[2]}`) : parts[1] === "zone" ? t(`raidBoard.zone.${parts[2]}`) : parts[1] === "line" ? t(`raidBoard.line.${parts[2]}`) : parts[1] === "icon" ? t(`raidBoard.icon.${parts[2]}`) : t("raidBoard.tool.text");
@@ -402,7 +414,7 @@ export default function BoardWorkspace({
     };
 
     const dragPlayer = drag && drag.kind === "tray" ? players.get(drag.id) || null : null;
-    const dragKey = drag && drag.moved && drag.handle !== "size" && drag.kind !== "tray" && drag.kind !== "palette" ? `${drag.kind}:${drag.id}` : "";
+    const dragKey = drag && drag.moved && drag.handle !== "size" && drag.handle !== "rot" && drag.kind !== "tray" && drag.kind !== "palette" ? `${drag.kind}:${drag.id}` : "";
     const quick = (spec: InsertSpec, label: string, icon: ReactNode) => (
         <IconButton size="sm" icon={icon} tip={label} disabled={!canWrite} onClick={() => insert(spec, null)} />
     );
