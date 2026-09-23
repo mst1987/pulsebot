@@ -119,15 +119,24 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .dlg-field .note { margin-top: 6px; }
 .fresh-token { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 
-/* Discord-Server (#251): the event and the talk server card */
+/* Discord-Server (#251, #361): one card per event server plus the talk server card */
 .srv-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .srv-title .kicker { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; white-space: nowrap; cursor: help; }
+.srv-label { font-weight: 600; opacity: .8; }
 .srv-name { font-size: 17px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .srv-state { display: flex; margin-top: 6px; }
 .srv-empty { color: var(--muted); font-size: 13px; line-height: 1.4; }
 .srv-icon { width: 22px; height: 22px; border-radius: 6px; display: block; }
 .srv-initials { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
 .srv-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.srv-add-row { margin-top: 12px; }
+/* The edit dialog's list of event-server rows (#361): one small panel per row. */
+.srv-guild-rows { display: flex; flex-direction: column; gap: 12px; margin-top: -4px; }
+.srv-guild-row { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+.srv-guild-row-head { display: flex; align-items: flex-end; gap: 10px; }
+.srv-guild-row-head > .dlg-field { flex: 1 1 auto; min-width: 0; }
+.srv-guild-row-head > .ibtn { flex: 0 0 auto; }
+.srv-guild-row-target { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
 /* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
 .sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
@@ -178,6 +187,8 @@ button.badge.chip.accent:hover { color: var(--accent); }
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
     .srv-channels { grid-template-columns: 1fr; }
+    .srv-guild-row-head { flex-wrap: wrap; }
+    .srv-guild-row-target { grid-template-columns: 1fr; }
     .rhr-item { grid-template-columns: auto minmax(0, 1fr); }
     .rhr-value, .rhr-act { justify-self: start; }
     .rhr-foot > .badge { display: none; }

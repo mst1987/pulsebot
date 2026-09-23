@@ -5,7 +5,7 @@
 // every function is `export function name(params): Result {` on one line, and
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
-import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../api";
+import type { AreaAccess, EventGuildEntry, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../api";
 import { t } from "../i18n";
 
 export type Level = "none" | "read" | "write";
@@ -366,10 +366,10 @@ export function missingConnections(data: SettingsLike, tokens: unknown[] | null,
     return visibleConnections(canManageAccess).filter((id) => connectionState(id, inputs).missing).length;
 }
 
-// ---- Discord-Server: the event and the talk server (#251) ----
+// ---- Discord-Server: several event servers, each with its own overview target, plus the talk server (#251, #361) ----
 
 export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
-export type ServerFields = { eventGuildId: string; talkGuildId: string; talkOverviewChannelId: string; talkPingChannelId: string; signupNoteChannelId: string };
+export type ServerFields = { eventGuilds: EventGuildEntry[]; talkGuildId: string; talkPingChannelId: string; signupNoteChannelId: string };
 export type OverlapLike = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
 
 /**
@@ -386,29 +386,49 @@ export function serverCardState(card: ServerCardLike | null, optional: boolean):
     return { tone: "ok", label: "Verbunden", missing: false };
 }
 
-/** The sidebar badge of "Discord-Server": how many of the two cards need attention. */
-export function serverIssues(servers: { event: ServerCardLike | null; talk: ServerCardLike | null } | null | undefined): number {
+/**
+ * The sidebar badge of "Discord-Server": how many cards need attention. An
+ * empty event-server list is not itself an issue (nothing configured yet is
+ * not the same as a broken connection) — only entries that exist are scored.
+ */
+export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCardLike | null } | null | undefined): number {
     if (!servers) return 0;
-    return [serverCardState(servers.event, false), serverCardState(servers.talk, true)].filter((s) => s.missing).length;
+    const eventIssues = servers.events.filter((card) => serverCardState(card, false).missing).length;
+    return eventIssues + (serverCardState(servers.talk, true).missing ? 1 : 0);
 }
 
 /**
- * The PATCH body of the edit dialog. A talk server equal to the event server is
- * no second server, and without a talk server its channels mean nothing — both
- * are cleared, the same rule the server's normaliser applies. The note channel
- * may sit on either server and is kept as it is.
+ * The PATCH body of the edit dialog. Mirrors the server's normaliser
+ * (settingsStore.js's normalizeEventGuildEntry/normalizeDiscordServers) so the
+ * body sent is already clean: every event-server entry's fields trimmed, a
+ * half-set overview target (guild without channel or the reverse) cleared to
+ * "", and a talk server equal to one of the event servers cleared to "" (it is
+ * no second server). Blank rows (no guild picked yet) are dropped. The note
+ * channel may sit on any server and is kept as it is.
  */
 export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
-    const v = (key) => String(fields[key] || "").trim();
-    const eventGuildId = v("eventGuildId");
-    const talkGuildId = v("talkGuildId") === eventGuildId ? "" : v("talkGuildId");
+    const v = (value) => String(value || "").trim();
+    const eventGuilds = fields.eventGuilds
+        .map((entry) => {
+            const overviewGuildId = v(entry.overviewGuildId);
+            const overviewChannelId = v(entry.overviewChannelId);
+            const hasTarget = !!overviewGuildId && !!overviewChannelId;
+            return {
+                guildId: v(entry.guildId),
+                label: v(entry.label),
+                overviewGuildId: hasTarget ? overviewGuildId : "",
+                overviewChannelId: hasTarget ? overviewChannelId : "",
+            };
+        })
+        .filter((entry) => entry.guildId);
+    const talkGuildIdRaw = v(fields.talkGuildId);
+    const talkGuildId = eventGuilds.some((e) => e.guildId === talkGuildIdRaw) ? "" : talkGuildIdRaw;
     return {
         discordServers: {
-            eventGuildId,
+            eventGuilds,
             talkGuildId,
-            talkOverviewChannelId: talkGuildId ? v("talkOverviewChannelId") : "",
-            talkPingChannelId: talkGuildId ? v("talkPingChannelId") : "",
-            signupNoteChannelId: v("signupNoteChannelId"),
+            talkPingChannelId: v(fields.talkPingChannelId),
+            signupNoteChannelId: v(fields.signupNoteChannelId),
         },
     };
 }

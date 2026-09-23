@@ -11,9 +11,16 @@ jest.mock("../../src/config/variables", () => ({
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({ adminRoleIds: [] })),
 }));
+// The real guildRoles.js falls back to config.guildId, which in production
+// already carries the env GUILD_ID default (baked in by the real
+// settingsStore.getConfig()) — the mocked getConfig() above does not
+// replicate that, so this file mocks guildRoles directly instead, matching
+// every other test's single configured event server ("guild-1").
+jest.mock("../../src/web/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
 
 const axios = require("axios");
 const { getConfig } = require("../../src/web/settingsStore");
+const guildRoles = require("../../src/web/guildRoles");
 const auth = require("../../src/web/auth.js");
 
 // Flush the background admin re-check kicked off by sessionFor().
@@ -25,6 +32,23 @@ function fakeClient(memberFetch) {
     return {
         guild,
         client: { guilds: { cache: { get: () => guild }, fetch: jest.fn() } },
+    };
+}
+
+const NOT_A_MEMBER = Object.assign(new Error("Unknown Member"), { code: 10007 });
+const NOT_ON_GUILD = Object.assign(new Error("Unknown Guild"), { code: 10004 });
+
+/** A fake bot client on several guilds at once, `{ [guildId]: memberFetch | "offline" }`. */
+function fakeMultiGuildClient(byGuild) {
+    const guilds = {};
+    for (const [guildId, memberFetch] of Object.entries(byGuild)) {
+        if (memberFetch !== "offline") guilds[guildId] = { members: { fetch: memberFetch } };
+    }
+    return {
+        guilds: {
+            cache: { get: (id) => guilds[id] },
+            fetch: jest.fn(async (id) => guilds[id] || Promise.reject(NOT_ON_GUILD)),
+        },
     };
 }
 
@@ -520,6 +544,80 @@ describe("web/auth", () => {
             await flush();
 
             expect(auth.getUser(req).access.history).toEqual({ read: true, write: true });
+        });
+    });
+
+    // Several event servers can be configured at once (#361) — role-based
+    // access is granted from ANY of them, not just the first.
+    describe("several event servers", () => {
+        let nowSpy;
+
+        beforeEach(() => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok" } });
+            const now = Date.now();
+            nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
+            guildRoles.eventGuildIds.mockReturnValue(["guild-1", "guild-2"]);
+        });
+
+        afterEach(() => {
+            nowSpy.mockRestore();
+            auth.setClient(null);
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
+        });
+
+        async function loginAs(id) {
+            axios.get.mockResolvedValue({ data: { id, username: `user-${id}` } });
+            const sid = await auth.completeLogin(`code-${id}`);
+            return { sid, req: { headers: { cookie: `sid=${sid}` } } };
+        }
+
+        it("grants access via a role on a secondary event server when not even a member of the first", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            auth.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
+                "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-1")),
+            }));
+            const { req } = await loginAs("701");
+            expect(auth.getUser(req).isAdmin).toBe(true);
+        });
+
+        it("unions role permissions across every event server the member belongs to", async () => {
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: [],
+                rolePermissions: {
+                    "role-a": { raids: { read: true, write: false } },
+                    "role-b": { cla: { read: true, write: true } },
+                },
+            }));
+            auth.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockResolvedValue(memberWithRoles("role-a")),
+                "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-b")),
+            }));
+            const { req } = await loginAs("702");
+            const user = auth.getUser(req);
+            expect(user.isAdmin).toBe(false);
+            expect(user.access.raids).toEqual({ read: true, write: false });
+            expect(user.access.cla).toEqual({ read: true, write: true });
+        });
+
+        it("keeps only the base access without a throw when a member of no configured event server", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            auth.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
+                "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER),
+            }));
+            const { req } = await loginAs("703");
+            expect(auth.getUser(req).isAdmin).toBe(false);
+        });
+
+        it("falls back to base access, not a crash, when no configured event server can be reached at all", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
+            auth.setClient(fakeMultiGuildClient({ "guild-1": "offline", "guild-2": "offline" }));
+            const { req } = await loginAs("704");
+            // resolveAccess() swallows the "no guild reachable" throw at login time,
+            // same as an outage on the single-server setup — never a crash.
+            expect(auth.getUser(req).isAdmin).toBe(false);
         });
     });
 

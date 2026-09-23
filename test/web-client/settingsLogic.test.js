@@ -296,7 +296,7 @@ describe("connection cards", () => {
     });
 });
 
-describe("Discord-Server cards (#251)", () => {
+describe("Discord-Server cards (#251, #361)", () => {
     const card = (over = {}) => ({ connected: true, permissions: [{ label: "Rollen verwalten", ok: true }], missing: [], ...over });
 
     it("says what a server card needs, without counting unknown rights", () => {
@@ -309,17 +309,42 @@ describe("Discord-Server cards (#251)", () => {
         expect(logic.serverCardState(card(), false)).toEqual({ tone: "ok", label: "Verbunden", missing: false });
     });
 
-    it("counts the cards that need attention for the sidebar badge", () => {
+    it("counts the cards that need attention for the sidebar badge, an empty event-server list scoring 0", () => {
         expect(logic.serverIssues(null)).toBe(0);
-        expect(logic.serverIssues({ event: card(), talk: null })).toBe(0);
-        expect(logic.serverIssues({ event: card({ missing: ["x"] }), talk: card({ connected: false }) })).toBe(2);
+        expect(logic.serverIssues({ events: [], talk: null })).toBe(0);
+        expect(logic.serverIssues({ events: [card()], talk: null })).toBe(0);
+        expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card()], talk: card({ connected: false }) })).toBe(2);
     });
 
-    it("clears a talk server equal to the event server, and its channels without one — never the note channel", () => {
-        expect(logic.discordServersPatch({ eventGuildId: " 1 ", talkGuildId: "1", talkOverviewChannelId: "5", talkPingChannelId: "6", signupNoteChannelId: " 7 " }))
-            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "7" } });
-        expect(logic.discordServersPatch({ eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "", signupNoteChannelId: "" }))
-            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "", signupNoteChannelId: "" } });
+    it("cleans an event-server list: trims fields, drops a blank row, clears a half-set overview target", () => {
+        expect(logic.discordServersPatch({
+            eventGuilds: [
+                { guildId: " 1 ", label: " PvE ", overviewGuildId: "9", overviewChannelId: "" },
+                { guildId: "", label: "leer", overviewGuildId: "", overviewChannelId: "" },
+                { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
+            ],
+            talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: " 7 ",
+        })).toEqual({
+            discordServers: {
+                eventGuilds: [
+                    { guildId: "1", label: "PvE", overviewGuildId: "", overviewChannelId: "" },
+                    { guildId: "2", label: "", overviewGuildId: "9", overviewChannelId: "91" },
+                ],
+                talkGuildId: "9", talkPingChannelId: "92", signupNoteChannelId: "7",
+            },
+        });
+    });
+
+    it("clears a talk server equal to one of the event servers — never the note channel", () => {
+        expect(logic.discordServersPatch({
+            eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
+            talkGuildId: "1", talkPingChannelId: "6", signupNoteChannelId: "7",
+        })).toEqual({
+            discordServers: {
+                eventGuilds: [{ guildId: "1", label: "", overviewGuildId: "", overviewChannelId: "" }],
+                talkGuildId: "", talkPingChannelId: "6", signupNoteChannelId: "7",
+            },
+        });
     });
 
     it("words the member overlap and flags a large gap", () => {

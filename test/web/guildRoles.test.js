@@ -10,8 +10,9 @@ const { getConfig } = require("../../src/web/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 
 const servers = (over = {}) => ({
-    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", ...over,
+    eventGuilds: [], talkGuildId: "", talkPingChannelId: "", ...over,
 });
+const eventGuild = (guildId, extra = {}) => ({ guildId, label: "", overviewGuildId: "", overviewChannelId: "", ...extra });
 const member = (id, bot = false) => ({ id, user: { bot } });
 
 beforeEach(() => {
@@ -28,7 +29,7 @@ describe("web/guildRoles ids", () => {
     });
 
     it("prefers the event server over guildId and adds the talk server", () => {
-        const config = { guildId: "100", discordServers: servers({ eventGuildId: "200", talkGuildId: "300" }) };
+        const config = { guildId: "100", discordServers: servers({ eventGuilds: [eventGuild("200")], talkGuildId: "300" }) };
         expect(guildRoles.eventGuildId(config)).toBe("200");
         expect(guildRoles.talkGuildId(config)).toBe("300");
         expect(guildRoles.configuredGuildIds(config)).toEqual(["200", "300"]);
@@ -42,7 +43,7 @@ describe("web/guildRoles ids", () => {
     });
 
     it("tells the role of a server", () => {
-        getConfig.mockReturnValue({ guildId: "", discordServers: servers({ eventGuildId: "200", talkGuildId: "300" }) });
+        getConfig.mockReturnValue({ guildId: "", discordServers: servers({ eventGuilds: [eventGuild("200")], talkGuildId: "300" }) });
         expect(guildRoles.guildRole("200")).toBe("event");
         expect(guildRoles.guildRole("300")).toBe("talk");
         expect(guildRoles.guildRole("400")).toBe("");
@@ -56,6 +57,21 @@ describe("web/guildRoles ids", () => {
         expect(guildRoles.eventGuild({})).toBeNull();
         expect(guildRoles.talkGuild({})).toBeNull();
     });
+
+    it("lists every configured event server, deduped, in order", () => {
+        const config = { discordServers: servers({ eventGuilds: [eventGuild("200"), eventGuild("300"), eventGuild("200")] }) };
+        expect(guildRoles.eventGuildIds(config)).toEqual(["200", "300"]);
+        expect(guildRoles.eventGuildId(config)).toBe("200");
+        expect(guildRoles.isEventGuild("300", config)).toBe(true);
+        expect(guildRoles.isEventGuild("400", config)).toBe(false);
+        expect(guildRoles.guildRole("300", config)).toBe("event");
+    });
+
+    it("clears a talk server that collides with any configured event server, not just the first", () => {
+        const config = { discordServers: servers({ eventGuilds: [eventGuild("200"), eventGuild("300")], talkGuildId: "300" }) };
+        expect(guildRoles.talkGuildId(config)).toBe("");
+        expect(guildRoles.configuredGuildIds(config)).toEqual(["200", "300"]);
+    });
 });
 
 describe("web/guildRoles cards", () => {
@@ -65,7 +81,7 @@ describe("web/guildRoles cards", () => {
             { key: "SendMessages", label: "Nachrichten senden", ok: true },
             { key: "ManageRoles", label: "Rollen verwalten", ok: false },
         ]);
-        const card = guildRoles.eventGuild({ discordServers: servers({ eventGuildId: "200" }) });
+        const card = guildRoles.eventGuild({ discordServers: servers({ eventGuilds: [eventGuild("200")] }) });
         expect(card).toMatchObject({
             role: "event", id: "200", name: "Pulse Events", connected: true, memberCount: 212,
             iconUrl: "https://cdn/icon.png", missing: ["Rollen verwalten"],
@@ -76,16 +92,38 @@ describe("web/guildRoles cards", () => {
     // A server the bot is not on: nothing is known, so nothing reads as missing.
     it("describes a server the bot is not on as not connected, rights unknown", () => {
         discord.getGuild.mockReturnValue(null);
-        const card = guildRoles.talkGuild({ discordServers: servers({ eventGuildId: "200", talkGuildId: "300" }) });
+        const card = guildRoles.talkGuild({ discordServers: servers({ eventGuilds: [eventGuild("200")], talkGuildId: "300" }) });
         expect(card).toEqual({
             role: "talk", id: "300", name: "", connected: false, memberCount: null, iconUrl: "", permissions: null, missing: [],
         });
         expect(discord.botPermissionsIn).not.toHaveBeenCalled();
     });
+
+    it("lists a card per event server, with its overview target", () => {
+        discord.getGuild.mockImplementation((id) => ({ id, name: id === "200" ? "PvE" : id === "300" ? "PvP" : "Talk", memberCount: 1, iconURL: () => "" }));
+        discord.botPermissionsIn.mockReturnValue([]);
+        const config = {
+            discordServers: servers({
+                eventGuilds: [
+                    eventGuild("200", { label: "PvE", overviewGuildId: "900", overviewChannelId: "901" }),
+                    eventGuild("300", { label: "PvP" }),
+                ],
+            }),
+        };
+        const cards = guildRoles.eventGuildCards(config);
+        expect(cards).toEqual([
+            expect.objectContaining({ id: "200", label: "PvE", overviewGuildId: "900", overviewChannelId: "901", overviewGuildName: "Talk" }),
+            expect.objectContaining({ id: "300", label: "PvP", overviewGuildId: "", overviewChannelId: "", overviewGuildName: "" }),
+        ]);
+    });
+
+    it("drops a card for an event server the bot has no id for", () => {
+        expect(guildRoles.eventGuildCards({ discordServers: servers({ eventGuilds: [{ guildId: "" }] }) })).toEqual([]);
+    });
 });
 
 describe("web/guildRoles memberOverlap", () => {
-    const two = { discordServers: servers({ eventGuildId: "200", talkGuildId: "300" }) };
+    const two = { discordServers: servers({ eventGuilds: [eventGuild("200")], talkGuildId: "300" }) };
 
     it("is null without a second server", async () => {
         expect(await guildRoles.memberOverlap({ guildId: "200", discordServers: servers() })).toBeNull();
