@@ -403,6 +403,44 @@ function decoratePerson(x, table, names) {
     };
 }
 
+/**
+ * A stored setup with everything the editor reads, whatever was stored: a setup
+ * written by hand, by an older version or by a script may lack checks, options,
+ * weights, warnings or score. Missing parts get neutral defaults (checks say "not
+ * ok", nothing is invented) so the page never meets an undefined.
+ */
+function withSetupDefaults(setup, size) {
+    if (!setup) return setup;
+    const groups = Array.isArray(setup.groups) ? setup.groups : [];
+    const bench = Array.isArray(setup.bench) ? setup.bench : [];
+    const c = setup.checks && typeof setup.checks === "object" ? setup.checks : {};
+    const b = c.buffs && typeof c.buffs === "object" ? c.buffs : {};
+    const placed = groups.reduce((n, g) => n + ((g && g.slots) || []).length, 0);
+    const checks = {
+        ...c,
+        ok: !!c.ok,
+        size: c.size && typeof c.size === "object" ? c.size : { count: placed, size: Number(size) || 0, ok: false },
+        roles: c.roles && typeof c.roles === "object" ? c.roles : {},
+        buffs: { ...b, ok: !!b.ok, required: Array.isArray(b.required) ? b.required : [], raid: Array.isArray(b.raid) ? b.raid : [], party: Array.isArray(b.party) ? b.party : [] },
+        wishes: c.wishes && typeof c.wishes === "object" ? c.wishes : { met: 0, total: 0 },
+    };
+    return {
+        ...setup,
+        status: setup.status === "approved" ? "approved" : "draft",
+        version: Number(setup.version) || 0,
+        origin: setup.origin || "manual",
+        groups: groups.map((g) => ({ ...g, slots: Array.isArray(g && g.slots) ? g.slots : [] })),
+        bench,
+        checks,
+        weights: setup.weights && typeof setup.weights === "object" ? setup.weights : {},
+        score: setup.score && typeof setup.score === "object" ? setup.score : { total: 0 },
+        warnings: Array.isArray(setup.warnings) ? setup.warnings : [],
+        historySource: setup.historySource || "",
+        options: setup.options && typeof setup.options === "object" ? setup.options : { weights: {}, fairness: null, wishes: null },
+        explanation: setup.explanation || null,
+    };
+}
+
 function decorateLineup(setup, table, names) {
     if (!setup) return null;
     return {
@@ -461,7 +499,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     const { pingTextOf } = require("./setupPing");
     return {
         ...head,
-        setup: setup ? withBuffInfoAll(addUnplacedSignups(decorateLineup(setup, table, names), signups, table, names), table) : null,
+        setup: setup ? withBuffInfoAll(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), table) : null,
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves
         ...(attendance ? { attendance } : {}),
         groupCount,
@@ -478,5 +516,5 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
 module.exports = {
     proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation,
     approvedSetupOf, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
-    lineupSignature, mergeOptions, cleanWeights, snapshotOf, avoidPairCount, addUnplacedSignups,
+    lineupSignature, mergeOptions, withSetupDefaults, cleanWeights, snapshotOf, avoidPairCount, addUnplacedSignups,
 };

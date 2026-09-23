@@ -60,6 +60,7 @@ There are **no maps in the repo** and nothing is fetched from anywhere; the orga
 - The server recognises PNG, JPG and WebP **by the first bytes** (`sniffImage`), never by the claimed type; SVG and everything else is refused. Stored in `data/raidplan-maps/<key with / as __>.<ext>`, one file per key (a new upload replaces the old one, whatever its type).
 - Delivered at `/rp-map/<key>` without a login (the public page shows them too), `Cache-Control: public, max-age=86400`, `X-Content-Type-Options: nosniff`. The url the API hands out carries `?v=<mtime>`, so a new upload is never hidden by the cache.
 - Without a map the board shows a neutral grid with the boss icon.
+- **Big pictures are shrunk in the browser before the upload** (`MapPanel` -> `mapUpload.ts`, numbers in `lib/mapImage.ts`): a file over 2.8 MB or longer than 2560 px is drawn on a canvas at most 2560 px on the long edge and written as WebP (transparency stays; JPEG with the board's dark background when the browser cannot write WebP) with a falling quality (0.92 to 0.6), then a smaller picture (85 / 70 / 55 / 40 %) as the last resort, until it is under 2.8 MB. A small file is sent untouched. The toast shows before and after ("Verkleinert: 6,3 MB -> 2,6 MB, 2560x1600"); if nothing fits there is a readable error. Only PNG, JPG and WebP are taken (GIF, SVG, other files are refused). The server's 3 MB limit and its magic-byte check stay as the safety net.
 
 ## Raid plan templates
 
@@ -120,6 +121,12 @@ The "Sheet-Ansicht": per boss the board — map at the full page width, with its
 ## Permissions
 
 All `/api/raidplan…` paths are area **`raids`** (read = GET, write = everything else), listed in `apiAccess.js` (fail-closed) except `/api/raidplan/public`. Mutating calls use `requireAdmin` + `requireCsrf`. Deleting an event deletes its plan (`eventManage.deleteEvent`).
+
+## Test raid (dev)
+
+`node scripts/seed-test-raid.js` builds a complete test raid through the production code: an own event "BT Vollraid Test" (Black Temple, 25 places) with **25 real signups** (`signupStore.saveSignup`, user ids 201-225: 3 tanks, 7 healers, 8 melee, 7 ranged, many classes), a proposed and **approved** setup (`setupEditor.proposeEventSetup` / `approveEventSetup`, five groups), so the Setup tab, the Raidplan tab and a template with tank/healer/melee/ranged/group slots can be tried at once. `--event <id>` rebuilds an existing own event instead, `--guild <id>` sets the Discord server of a new one. Idempotent (old signups and setup of that event are replaced), refuses to run with `NODE_ENV=production`, writes only the local JSON stores, calls no Discord. Run it in the worktree whose test instance you look at.
+
+**A setup missing parts never crashes the editor:** `setupEditor.withSetupDefaults` (server, in `editorView`) and `lib/setupEditor.ts`'s `withSetupDefaults` (client, on every answer) give a stored setup without `checks`, `options`, `warnings` and so on neutral defaults ("not ok"). A hand-written setup without `checks.buffs` once turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs')`).
 
 ## Tests
 

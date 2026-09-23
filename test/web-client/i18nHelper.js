@@ -84,8 +84,8 @@ function loadTs(rel, inject = {}) {
             out.push(`function ${fn[2]}(${params.join(", ")}) {`);
             continue;
         }
-        // lib/raidplan.ts uses type assertions (`x as Foo`), which are only types: drop them there (no other lib is touched)
-        out.push(line.replace(/^export (default )?/, "").replace(rel === "lib/raidplan.ts" ? / as [A-Za-z_]\w*(\["\w+"\])?/g : /(?!)/g, ""));
+        // lib/raidplan.ts uses type assertions (`x as Foo`) and lib/setupEditor.ts typed locals, which are only types: drop them there (no other lib is touched)
+        out.push(line.replace(rel === "lib/setupEditor.ts" ? /^(\s*const \w+): Partial<.*?> = / : /(?!)/, "$1 = ").replace(/^export (default )?/, "").replace(rel === "lib/raidplan.ts" ? / as [A-Za-z_]\w*(\["\w+"\])?/g : /(?!)/g, ""));
     }
     const js = out.join("\n");
     const names = [...js.matchAll(/^(?:function|const|let) (\w+)/gm)].map((m) => m[1]);

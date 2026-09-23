@@ -3,8 +3,7 @@ import { deleteRaidplanMap, uploadRaidplanMap, type ApiError } from "../../../ap
 import { Button, useConfirm } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
 import { useT } from "../../../i18n";
-
-const MAX_BYTES = 3 * 1024 * 1024;
+import { prepareMapFile } from "./mapUpload";
 
 /** One map a boss can have: `override` = it hides the defaults below it, so removing it is "back to the default". */
 export type MapRow = { key: string; label: string; has: boolean; override: boolean };
@@ -31,14 +30,15 @@ export default function MapPanel({ csrfToken, rows, canWrite, onChanged }: {
 
     const upload = async (key: string, file: File | undefined) => {
         if (!file) return;
-        if (file.size > MAX_BYTES) { toast(t("raidBoard.board.mapTooBig"), "err"); return; }
         setBusy(true);
         try {
-            await uploadRaidplanMap(csrfToken, key, file);
-            toast(t("raidBoard.board.mapUploaded"));
+            // a big picture is shrunk here first instead of being turned away
+            const prepared = await prepareMapFile(file);
+            await uploadRaidplanMap(csrfToken, key, prepared.file);
+            toast(prepared.note ? `${t("raidBoard.board.mapUploaded")} ${prepared.note}` : t("raidBoard.board.mapUploaded"));
             onChanged();
         } catch (err) {
-            toast((err as ApiError).message, "err");
+            toast((err as ApiError | Error).message, "err");
         } finally {
             setBusy(false);
         }
