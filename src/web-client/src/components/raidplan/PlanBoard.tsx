@@ -1,5 +1,5 @@
-import type { CSSProperties, KeyboardEvent, PointerEvent, RefObject } from "react";
-import type { RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanToken, RaidplanZone } from "../../api";
+import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
+import type { RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
@@ -43,8 +43,10 @@ export function playerLabel(player: RaidplanPlayer): string {
     return [player.character, [player.specLabel, player.className].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 }
 
+/** What a drag can grab on an object: a zone's corner, or one end of a line. */
+export type Handle = Corner | "end1" | "end2";
 /** How the board reports a pointer or key event on one of its objects. */
-export type ObjectDown = (e: PointerEvent<HTMLElement>, kind: ObjectKind, id: string, corner?: Corner) => void;
+export type ObjectDown = (e: PointerEvent<HTMLElement | SVGElement>, kind: ObjectKind, id: string, handle?: Handle) => void;
 export type ObjectKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => void;
 
 type BoardProps = {
@@ -52,10 +54,14 @@ type BoardProps = {
     bossName: string;
     bossIcon: string;
     mapUrl: string;
+    /** how strongly the map shows, 0.1..1 */
+    mapOpacity?: number;
     tokens: RaidplanToken[];
     slots?: RaidplanSlot[];
     marks?: RaidplanMark[];
     zones?: RaidplanZone[];
+    lines?: RaidplanLine[];
+    texts?: RaidplanText[];
     players: Map<string, RaidplanPlayer>;
     /** Everyone of the setup, for what a group marker names. */
     roster?: RaidplanPlayer[];
@@ -67,36 +73,92 @@ type BoardProps = {
     onObjectDown?: ObjectDown;
     onObjectKey?: ObjectKey;
     onObjectOpen?: (kind: ObjectKind, id: string) => void;
+    /** Right click on an object (target) or on the empty board (null). */
+    onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
     /** Shown on the grid when there is no map. */
     emptyText?: string;
 };
 
+/** The pixel size of an element, kept up to date (the lines are drawn in pixels so an arrow head never stretches). */
+function useElementSize(): [(el: HTMLDivElement | null) => void, { w: number; h: number }] {
+    const [el, setEl] = useState<HTMLDivElement | null>(null);
+    const [size, setSize] = useState({ w: 0, h: 0 });
+    useEffect(() => {
+        if (!el) return undefined;
+        const read = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+        read();
+        const ro = new ResizeObserver(read);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [el]);
+    return [setEl, size];
+}
+
+/** The head of an arrow at (x2, y2), for a line of a width, as an SVG polygon `points` string. */
+function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number): string {
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const len = Math.max(12, width * 4);
+    const half = Math.max(6, width * 2);
+    const bx = x2 - Math.cos(angle) * len;
+    const by = y2 - Math.sin(angle) * len;
+    const px = -Math.sin(angle) * half;
+    const py = Math.cos(angle) * half;
+    return `${x2},${y2} ${bx + px},${by + py} ${bx - px},${by - py}`;
+}
+
 /**
  * The board of one boss: the room map (or a neutral grid with the boss icon) and
- * on it, back to front, the zones, the raid marks, the slots and the player
- * tokens at their relative positions. Presentational and shared by the event
- * editor, the template editor and the read view — the editors own the drag
- * (Pointer Events, no HTML5 drag and drop, so it works with a finger too) and
- * pass the handlers; the read view passes none.
+ * on it, back to front, the zones, the lines and arrows, the raid marks, the slots,
+ * the texts and the player tokens at their relative positions. Presentational and
+ * shared by the event editor, the template editor and the read view — the editors
+ * own the drag (Pointer Events, no HTML5 drag and drop, so it works with a finger
+ * too) and pass the handlers; the read view passes none.
+ *
+ * The board takes the aspect of its map (a nearly square room fills a nearly
+ * square board; without a map it is 16:10), so any map fits as a whole.
  */
 export default function PlanBoard({
-    boardRef, bossName, bossIcon, mapUrl, tokens, slots = [], marks = [], zones = [], players, roster = [], me = "", selected = null,
-    dragKey = "", onObjectDown, onObjectKey, onObjectOpen, emptyText,
+    boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], zones = [], lines = [], texts = [], players, roster = [],
+    me = "", selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, emptyText,
 }: BoardProps) {
     const t = useT();
+    const [aspect, setAspect] = useState(0);
+    const [setEl, size] = useElementSize();
+    const attach = useCallback((el: HTMLDivElement | null) => {
+        setEl(el);
+        if (boardRef) (boardRef as MutableRefObject<HTMLDivElement | null>).current = el;
+    }, [boardRef, setEl]);
+    useEffect(() => { setAspect(0); }, [mapUrl]);
+
     const editable = !!onObjectDown;
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
-    const cls = (base: string, kind: ObjectKind, id: string, extra = "") => [base, editable ? "is-editable" : "", isSel(kind, id) ? "is-selected" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", extra].filter(Boolean).join(" ");
+    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) ? "is-selected" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
     const handlers = (kind: ObjectKind, id: string) => (editable ? {
         onPointerDown: (e: PointerEvent<HTMLElement>) => onObjectDown!(e, kind, id),
         onKeyDown: onObjectKey ? (e: KeyboardEvent<HTMLElement>) => onObjectKey(e, kind, id) : undefined,
         onDoubleClick: onObjectOpen ? () => onObjectOpen(kind, id) : undefined,
     } : {});
+    const ar = aspect || 16 / 10;
+    const style = { aspectRatio: String(ar), maxWidth: `calc(88vh * ${ar})` } as CSSProperties;
+    const px = (v: number, of: number) => v * of;
 
     return (
-        <div className={`rp-board${mapUrl ? " has-map" : ""}`} ref={boardRef} data-rp-board>
+        <div
+            className={`rp-board${mapUrl ? " has-map" : ""}`} ref={attach} style={style} data-rp-board
+            onContextMenu={onContext ? (e) => {
+                e.preventDefault();
+                const el = (e.target as HTMLElement).closest("[data-obj]");
+                const raw = el ? el.getAttribute("data-obj") || "" : "";
+                const at = raw.indexOf(":");
+                onContext(e, at > 0 ? { kind: raw.slice(0, at) as ObjectKind, id: raw.slice(at + 1) } : null);
+            } : undefined}
+        >
             {mapUrl ? (
-                <img className="rp-map" src={mapUrl} alt={t("raidBoard.board.mapAlt", { boss: bossName })} draggable={false} />
+                <img
+                    className="rp-map" src={mapUrl} alt={t("raidBoard.board.mapAlt", { boss: bossName })} draggable={false}
+                    style={{ opacity: mapOpacity }}
+                    onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth && i.naturalHeight) setAspect(i.naturalWidth / i.naturalHeight); }}
+                />
             ) : (
                 <div className="rp-grid" aria-hidden="true">
                     <img className="rp-grid-icon" src={bossIcon} alt="" draggable={false} />
@@ -104,46 +166,81 @@ export default function PlanBoard({
                 </div>
             )}
 
-            {zones.map((z) => {
-                const style = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity } as CSSProperties;
+            {zones.filter((z) => !z.hidden).map((z) => {
+                const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity } as CSSProperties;
                 const name = z.label || t(`raidBoard.zone.${z.type}`);
                 return (
                     <div
-                        key={z.id} style={style} data-zone={z.id} tabIndex={editable ? 0 : undefined}
-                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}`, "zone", z.id)}
+                        key={z.id} style={zs} data-zone={z.id} data-obj={`zone:${z.id}`} tabIndex={editable ? 0 : undefined}
+                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}`, "zone", z.id, "", z.lock)}
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
                         <span className="rp-zone-label"><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span> {name}</span>
-                        {editable && isSel("zone", z.id) && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
+                        {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
                         ))}
                     </div>
                 );
             })}
 
-            {marks.map((m) => (
-                <div key={m.id} className={cls("rp-token rp-markobj", "mark", m.id)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%` }}>
+            {size.w > 0 && lines.some((l) => !l.hidden) && (
+                <svg className="rp-lines" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
+                    {lines.filter((l) => !l.hidden).map((l) => {
+                        const x1 = px(l.x1, size.w);
+                        const y1 = px(l.y1, size.h);
+                        const x2 = px(l.x2, size.w);
+                        const y2 = px(l.y2, size.h);
+                        return (
+                            <g key={l.id} className={cls("rp-line", "line", l.id, "", l.lock)} style={{ opacity: l.opacity }}>
+                                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0f1115" strokeWidth={l.width + 2.5} strokeLinecap="round" />
+                                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={l.color} strokeWidth={l.width} strokeLinecap="round" />
+                                {l.kind === "arrow" && <polygon points={arrowHead(x1, y1, x2, y2, l.width)} fill={l.color} stroke="#0f1115" strokeWidth={1.2} strokeLinejoin="round" />}
+                                {editable && (
+                                    <line
+                                        className="rp-line-hit" x1={x1} y1={y1} x2={x2} y2={y2} data-obj={`line:${l.id}`}
+                                        stroke="transparent" strokeWidth={Math.max(16, l.width + 10)} strokeLinecap="round"
+                                        onPointerDown={(e) => onObjectDown!(e, "line", l.id)}
+                                        onDoubleClick={onObjectOpen ? () => onObjectOpen("line", l.id) : undefined}
+                                    />
+                                )}
+                            </g>
+                        );
+                    })}
+                </svg>
+            )}
+            {editable && lines.filter((l) => !l.hidden && !l.lock && isSel("line", l.id)).map((l) => (
+                ["end1", "end2"].map((end) => (
+                    <span
+                        key={`${l.id}-${end}`} className="rp-handle rp-h-end" data-handle={end}
+                        style={{ left: `${(end === "end1" ? l.x1 : l.x2) * 100}%`, top: `${(end === "end1" ? l.y1 : l.y2) * 100}%` }}
+                        onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "line", l.id, end as Handle); }}
+                    />
+                ))
+            ))}
+
+            {marks.filter((m) => !m.hidden).map((m) => (
+                <div key={m.id} data-obj={`mark:${m.id}`} className={cls("rp-token rp-markobj", "mark", m.id, "", m.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: m.opacity }}>
                     <button
                         type="button" className="rp-token-btn rp-mark-btn" tabIndex={editable ? 0 : -1}
                         aria-label={t(`raidBoard.mark.${m.mark}`)} data-tip={t(`raidBoard.mark.${m.mark}`)}
                         {...handlers("mark", m.id)}
                     >
-                        <MarkIcon mark={m.mark} size={30} />
+                        <MarkIcon mark={m.mark} size={34} />
                     </button>
                 </div>
             ))}
 
-            {slots.map((s) => {
+            {slots.filter((s) => !s.hidden).map((s) => {
                 const player = s.userId ? players.get(s.userId) || null : null;
                 const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "dps" ? s.kind : "";
                 const mine = !!me && s.userId === me;
                 const title = slotTitle(s);
-                const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%` };
+                const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity };
                 if (s.kind === "group") {
                     const members = groupMembers(s, roster);
                     return (
-                        <div key={s.id} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "")} style={anchor} data-slot={s.id}>
+                        <div key={s.id} data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
                             <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
                                 <span className="rp-groupchip-title">{title}</span>
                                 {members.length > 0 && (
@@ -156,7 +253,7 @@ export default function PlanBoard({
                     );
                 }
                 return (
-                    <div key={s.id} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? "" : " is-open"}`)} style={anchor} data-slot={s.id}>
+                    <div key={s.id} data-obj={`slot:${s.id}`} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? "" : " is-open"}`, s.lock)} style={anchor} data-slot={s.id}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={player ? `${title}: ${playerLabel(player)}` : `${title} (${t("raidBoard.slot.open")})`}
@@ -177,12 +274,23 @@ export default function PlanBoard({
                 );
             })}
 
-            {tokens.map((tok) => {
+            {texts.filter((x) => !x.hidden).map((x) => (
+                <div
+                    key={x.id} data-obj={`text:${x.id}`} tabIndex={editable ? 0 : undefined}
+                    className={cls("rp-text", "text", x.id, "", x.lock)}
+                    style={{ left: `${x.x * 100}%`, top: `${x.y * 100}%`, color: x.color, fontSize: x.size, opacity: x.opacity }}
+                    {...handlers("text", x.id)}
+                >
+                    {x.text}
+                </div>
+            ))}
+
+            {tokens.filter((k) => !k.hidden).map((tok) => {
                 const p = players.get(tok.userId);
                 if (!p) return null;
                 const mine = !!me && tok.userId === me;
                 return (
-                    <div key={tok.userId} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "")} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%` }}>
+                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "", tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity }}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}

@@ -8,7 +8,8 @@
         "saved": "Raidplan gespeichert.",
         "savedDropped": "Raidplan gespeichert. {count} Zuordnung(en) zu Spielern, die nicht mehr im Setup stehen, wurden entfernt.",
         "share": "Freigeben & teilen",
-        "readOnly": "Nur lesen"
+        "readOnly": "Nur lesen",
+        "savedState": "Gespeichert"
     },
     "conflict": {
         "text": "Jemand hat den Raidplan inzwischen geändert. Deine Änderungen sind noch hier, aber speichern geht erst nach dem Neuladen.",
@@ -43,10 +44,10 @@
         "mapTooBig": "Das Bild ist größer als 3 MB.",
         "mapRemoveTitle": "Karte entfernen?",
         "mapRemoveText": "Die Karte wird gelöscht. Pläne bleiben, sie zeigen dann das Raster.",
-        "hint": "Spieler aus der Liste aufs Board ziehen, dort verschieben. Auf die Liste zurückziehen oder Entf drücken entfernt sie.",
+        "hint": "Elemente aus der Palette und Spieler aus der Liste aufs Board oder auf einen Slot ziehen. Rechtsklick (Touch: lang drücken) öffnet das Menü, Doppelklick die Eigenschaften, Entf löscht, Strg+Z macht rückgängig.",
         "tokenLabel": "{name}, {spec}",
         "you": "Du",
-        "hintTemplate": "Objekte über „Objekt hinzufügen“ auf das Board setzen, verschieben, Zonen an den Ecken skalieren. Doppelklick öffnet die Details.",
+        "hintTemplate": "Elemente aus der Palette aufs Board ziehen oder anklicken. Rechtsklick (Touch: lang drücken) öffnet das Menü, Doppelklick die Eigenschaften, Entf löscht, Strg+Z macht rückgängig.",
         "mapTitle": "Karten",
         "mapForPlan": "Nur dieser Raidplan",
         "mapHas": "hinterlegt",
@@ -234,6 +235,81 @@
         "applyTitle": "Vorlage „{name}“ anwenden?",
         "applyText": "Die Bosse der Vorlage ersetzen die Boards in diesem Plan, ungespeicherte Änderungen daran gehen verloren. Bosse, die die Vorlage nicht hat, bleiben.",
         "applyAction": "Anwenden",
-        "applied": "Vorlage „{name}“ angewendet. Offene Slots siehst du im Board."
+        "applied": "Vorlage „{name}“ angewendet. Offene Slots siehst du im Board.",
+        "hintEmpty": "Tipp: Mit „Vorlage wählen“ startest du von einer Vorlage."
+    },
+    "tool": {
+        "label": "Werkzeuge",
+        "undo": "Rückgängig",
+        "redo": "Wiederholen",
+        "text": "Text",
+        "palette": "Elemente ein-/ausblenden",
+        "panel": "Eigenschaften ein-/ausblenden"
+    },
+    "palette": {
+        "title": "Elemente",
+        "marks": "Raid-Marker",
+        "slots": "Slots",
+        "zones": "Zonen",
+        "shapes": "Formen",
+        "hint": "Auf das Board ziehen oder anklicken."
+    },
+    "line": {
+        "arrow": "Pfeil",
+        "line": "Linie"
+    },
+    "text": {
+        "default": "Text"
+    },
+    "obj": {
+        "token": "Spieler",
+        "slot": "Slot",
+        "mark": "Marker",
+        "zone": "Zone",
+        "line": "Linie",
+        "text": "Text"
+    },
+    "insp": {
+        "none": "Nichts ausgewählt. Klick ein Objekt auf dem Board oder in der Ebenenliste an, oder ziehe etwas aus den Elementen aufs Board.",
+        "width": "Breite",
+        "height": "Höhe",
+        "opacity": "Deckkraft",
+        "lock": "Sperren",
+        "unlock": "Entsperren",
+        "duplicate": "Duplizieren",
+        "front": "In den Vordergrund",
+        "back": "In den Hintergrund",
+        "lineKind": "Art",
+        "thickness": "Stärke (px)",
+        "fontSize": "Schriftgröße (px)"
+    },
+    "panel": {
+        "props": "Eigenschaften",
+        "background": "Hintergrund",
+        "layers": "Ebenen"
+    },
+    "layers": {
+        "empty": "Noch nichts auf dem Board.",
+        "show": "Einblenden",
+        "hide": "Ausblenden",
+        "up": "Eine Ebene nach vorn",
+        "down": "Eine Ebene nach hinten"
+    },
+    "bg": {
+        "mapOpacity": "Karte: Deckkraft (abdunkeln)"
+    },
+    "ctx": {
+        "board": "Board",
+        "properties": "Eigenschaften",
+        "duplicate": "Duplizieren",
+        "front": "In den Vordergrund",
+        "back": "In den Hintergrund",
+        "lock": "Sperren",
+        "unlock": "Entsperren",
+        "assign": "Spieler zuweisen …",
+        "unassign": "Spieler lösen",
+        "delete": "Löschen",
+        "deselect": "Alles abwählen",
+        "insertHere": "Hier einfügen: {what}"
     }
 }

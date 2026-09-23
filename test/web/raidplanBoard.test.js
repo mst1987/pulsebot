@@ -64,9 +64,9 @@ describe("zones", () => {
         ]);
     });
 
-    it("keeps a valid colour, cuts the opacity into 0.1..0.6 and rejects junk colours", () => {
+    it("keeps a valid colour, cuts the opacity into 0.1..1 and rejects junk colours", () => {
         const r = clean({ zones: [{ type: "custom", color: "#ABCDEF", opacity: 0.9 }, { type: "custom", color: "red", opacity: 0 }, { type: "custom", color: "#12345", opacity: "x" }] });
-        expect(r.board.zones.map((z) => [z.color, z.opacity])).toEqual([["#abcdef", 0.6], ["#a78bfa", 0.1], ["#a78bfa", 0.3]]);
+        expect(r.board.zones.map((z) => [z.color, z.opacity])).toEqual([["#abcdef", 0.9], ["#a78bfa", 0.1], ["#a78bfa", 0.3]]);
     });
 
     it("keeps a zone inside the board with a minimum size", () => {
@@ -85,7 +85,7 @@ describe("zones", () => {
 describe("the rest of a board", () => {
     it("has every field even for nothing and reports no content", () => {
         const r = clean(undefined);
-        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], targets: [], notes: "", profileId: "" });
+        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1 });
         expect(board.boardHasContent(r.board)).toBe(false);
         expect(board.boardHasContent(clean({ zones: [{}] }).board)).toBe(true);
         expect(board.boardHasContent(clean({ notes: "x" }).board)).toBe(true);
@@ -139,5 +139,72 @@ describe("reidBoard", () => {
         expect(r.targets[0]).toMatchObject({ title: "MT", userIds: [] });
         expect(r.targets[0].id).not.toBe("t");
         expect(r.notes).toBe("n");
+    });
+});
+
+describe("opacity, lock and hidden on every object", () => {
+    const OBJ = { x: 0.5, y: 0.5 };
+
+    it("defaults to fully visible (zones to 0.3), unlocked and shown", () => {
+        const r = clean({
+            tokens: [{ userId: "u1", ...OBJ }], slots: [{ kind: "tank", ...OBJ }], marks: [{ mark: "star", ...OBJ }],
+            zones: [{ type: "danger", ...OBJ, w: 0.2, h: 0.2 }], lines: [{ x2: 1 }], texts: [{ text: "Hi" }],
+        }).board;
+        for (const list of [r.tokens, r.slots, r.marks, r.lines, r.texts]) expect(list[0]).toMatchObject({ opacity: 1, lock: false, hidden: false });
+        expect(r.zones[0]).toMatchObject({ opacity: 0.3, lock: false, hidden: false });
+    });
+
+    it("clamps the opacity to 0.1..1 and keeps colour and opacity separate", () => {
+        const r = clean({
+            marks: [{ mark: "star", opacity: 0 }, { mark: "star", opacity: 7 }, { mark: "star", opacity: "abc" }, { mark: "star", opacity: 0.456 }],
+            zones: [{ color: "#ff0000", opacity: 0.55 }],
+        }).board;
+        expect(r.marks.map((m) => m.opacity)).toEqual([0.1, 1, 1, 0.46]);
+        expect(r.zones[0]).toMatchObject({ color: "#ff0000", opacity: 0.55 });
+    });
+
+    it("keeps lock and hidden only when they are exactly true", () => {
+        const r = clean({ marks: [{ mark: "star", lock: true, hidden: true }, { mark: "star", lock: "yes", hidden: 1 }] }).board;
+        expect(r.marks.map((m) => [m.lock, m.hidden])).toEqual([[true, true], [false, false]]);
+    });
+
+    it("clamps the map's opacity and counts a dimmed map as content", () => {
+        expect(clean({ mapOpacity: 0.4 }).board.mapOpacity).toBe(0.4);
+        expect(clean({ mapOpacity: 5 }).board.mapOpacity).toBe(1);
+        expect(clean({ mapOpacity: 0 }).board.mapOpacity).toBe(0.1);
+        expect(clean({}).board.mapOpacity).toBe(1);
+        expect(board.boardHasContent(clean({ mapOpacity: 0.5 }).board)).toBe(true);
+        expect(board.boardHasContent(clean({ mapOpacity: 1 }).board)).toBe(false);
+    });
+});
+
+describe("lines and texts", () => {
+    it("keeps arrows and lines on the board with a colour and a width", () => {
+        const r = clean({ lines: [
+            { kind: "arrow", x1: -1, y1: 0.2, x2: 3, y2: 0.8, color: "#FF0000", width: 20 },
+            { kind: "weird", width: 0, color: "red" },
+        ] }).board;
+        expect(r.lines[0]).toMatchObject({ kind: "arrow", x1: 0, y1: 0.2, x2: 1, y2: 0.8, color: "#ff0000", width: 12 });
+        expect(r.lines[1]).toMatchObject({ kind: "line", color: "#f8fafc", width: 4 });
+    });
+
+    it("keeps texts with a size between 10 and 48, drops empty ones and cuts long ones", () => {
+        const r = clean({ texts: [{ text: "  Hallo ", size: 99, color: "#00ff00" }, { text: "   " }, { text: "x".repeat(200), size: 1 }] });
+        expect(r.board.texts).toHaveLength(2);
+        expect(r.board.texts[0]).toMatchObject({ text: "Hallo", size: 48, color: "#00ff00" });
+        expect(r.board.texts[1].text).toHaveLength(board.LIMITS.text);
+        expect(r.board.texts[1].size).toBe(10);
+        expect(r.dropped).toBe(1);
+    });
+
+    it("refuses more than 40 of either", () => {
+        expect(clean({ lines: Array.from({ length: 41 }, () => ({})) }).code).toBe("invalid");
+        expect(clean({ texts: Array.from({ length: 41 }, () => ({ text: "a" })) }).code).toBe("invalid");
+    });
+
+    it("gives copied lines and texts new ids", () => {
+        const r = board.reidBoard({ lines: [{ id: "l" }], texts: [{ id: "t" }] });
+        expect(r.lines[0].id).not.toBe("l");
+        expect(r.texts[0].id).not.toBe("t");
     });
 });

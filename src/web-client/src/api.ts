@@ -4072,20 +4072,28 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
-export type RaidplanToken = { userId: string; x: number; y: number };
+/** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
+export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean };
+export type RaidplanToken = { userId: string; x: number; y: number } & RaidplanLook;
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
 export type RaidplanSlotKind = "tank" | "healer" | "dps" | "group" | "label";
 /** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
-export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string };
+export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
-export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number };
+export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number } & RaidplanLook;
 export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
-export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; opacity: number; x: number; y: number; w: number; h: number };
+export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number } & RaidplanLook;
+/** An arrow or a plain line from (x1, y1) to (x2, y2), relative to the board; `width` in px. */
+export type RaidplanLine = { id: string; kind: "arrow" | "line"; x1: number; y1: number; x2: number; y2: number; color: string; width: number } & RaidplanLook;
+/** Free text on the board; `size` is the font size in px. */
+export type RaidplanText = { id: string; text: string; x: number; y: number; color: string; size: number } & RaidplanLook;
 /** One boss's board: free player tokens, slots, marks, zones, target rows, a note, the profile the rows came from. */
 export type RaidplanBoard = {
-    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[];
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
     targets: RaidplanTarget[]; notes: string; profileId: string;
+    /** how strongly the map shows, 0.1..1 (dim it so the objects stand out) */
+    mapOpacity: number;
 };
 /** A player as the setup names them — never stored in the plan, only referenced by userId. */
 export type RaidplanPlayer = {
@@ -4141,8 +4149,8 @@ export type RaidplanView = {
 };
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string;
-    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[];
-    targets: RaidplanTarget[]; notes: string; profileName: string;
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
+    targets: RaidplanTarget[]; notes: string; profileName: string; mapOpacity: number;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

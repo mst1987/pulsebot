@@ -152,10 +152,14 @@ function publicView(plan, event, { me = "" } = {}) {
             const board = plan.bosses[b.key];
             return {
                 key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: b.mapUrl,
-                tokens: board.tokens.filter((t) => known.has(t.userId)),
-                slots: (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })),
-                marks: board.marks || [],
-                zones: board.zones || [],
+                // objects switched off in the editor's layer list are not drawn here either
+                tokens: board.tokens.filter((t) => known.has(t.userId) && !t.hidden),
+                slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })),
+                marks: (board.marks || []).filter((m) => !m.hidden),
+                zones: (board.zones || []).filter((z) => !z.hidden),
+                lines: (board.lines || []).filter((l) => !l.hidden),
+                texts: (board.texts || []).filter((x) => !x.hidden),
+                mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
                 targets: board.targets.map((t) => ({ ...t, userIds: t.userIds.filter((u) => known.has(u)) })),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",

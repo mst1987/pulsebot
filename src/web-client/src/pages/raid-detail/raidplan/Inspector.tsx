@@ -1,0 +1,193 @@
+import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } from "lucide-react";
+import type { RaidplanBoard, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
+import { IconButton } from "../../../components/ui";
+import {
+    ZONE_COLORS, ZONE_TYPES, assignSlot, clampOpacity, duplicateObject, lookOf, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    slotTitle, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
+} from "../../../lib/raidplan";
+import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
+import { useT } from "../../../i18n";
+
+/** A slider and a number field for an opacity in percent, 10..100. */
+export function OpacityField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+    const pct = Math.round(value * 100);
+    const set = (raw: string) => onChange(clampOpacity(Number(raw) / 100, value));
+    return (
+        <div className="rp-field">
+            <span className="rp-kicker">{label}</span>
+            <div className="rp-opacity">
+                <input type="range" min={10} max={100} step={5} value={pct} aria-label={label} onChange={(e) => set(e.target.value)} />
+                <input type="number" min={10} max={100} value={pct} aria-label={`${label} %`} onChange={(e) => set(e.target.value)} />
+                <span className="rp-muted">%</span>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * The properties of the selected object, always in view next to the board: name,
+ * the fields of its kind (a zone's label, type, shape, colour, opacity and size; a
+ * line's kind, colour, width; a text's words, colour, size; a slot's title, number
+ * and player), opacity for every kind, and the actions — lock, duplicate, front /
+ * back, delete — as icon buttons. Nothing selected: a hint.
+ */
+export default function Inspector({ board, selection, players, roster, isEvent, canWrite, edit, onSelect }: {
+    board: RaidplanBoard;
+    selection: Selection;
+    players: Map<string, RaidplanPlayer>;
+    roster: RaidplanPlayer[];
+    isEvent: boolean;
+    canWrite: boolean;
+    edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
+    onSelect: (sel: Selection) => void;
+}) {
+    const t = useT();
+    if (!selection) return <p className="rp-muted rp-insp-empty">{t("raidBoard.insp.none")}</p>;
+    const { kind, id } = selection;
+    const look = lookOf(board, kind, id);
+    if (!look) return <p className="rp-muted rp-insp-empty">{t("raidBoard.insp.none")}</p>;
+    const dis = !canWrite;
+    const zone: RaidplanZone | undefined = kind === "zone" ? board.zones.find((z) => z.id === id) : undefined;
+    const line: RaidplanLine | undefined = kind === "line" ? board.lines.find((l) => l.id === id) : undefined;
+    const text: RaidplanText | undefined = kind === "text" ? board.texts.find((x) => x.id === id) : undefined;
+    const slot = kind === "slot" ? board.slots.find((s) => s.id === id) : undefined;
+    const name = objectName(board, kind, id, players);
+    const opacity = (v: number, merge = false) => edit((b) => patchLook(b, kind as ObjectKind, id, { opacity: v }), merge);
+
+    return (
+        <div className="rp-insp">
+            <div className="rp-insp-head">
+                <strong className="rp-insp-name">{name}</strong>
+                <span className="rp-muted">{t(`raidBoard.obj.${kind}`)}</span>
+            </div>
+
+            {zone && (
+                <>
+                    <label className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.zone.label")}</span>
+                        <input value={zone.label} maxLength={40} disabled={dis} placeholder={t(`raidBoard.zone.${zone.type}`)} onChange={(e) => edit((b) => updateZone(b, id, { label: e.target.value }), true)} />
+                    </label>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.zone.type")}</span>
+                            <select value={zone.type} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { type: e.target.value as RaidplanZoneType, color: ZONE_COLORS[e.target.value as RaidplanZoneType] }))}>
+                                {ZONE_TYPES.map((z) => <option key={z} value={z}>{ZONE_GLYPHS[z]} {t(`raidBoard.zone.${z}`)}</option>)}
+                            </select>
+                        </label>
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.zone.shape")}</span>
+                            <select value={zone.shape} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { shape: e.target.value as "rect" | "ellipse" }))}>
+                                <option value="rect">{t("raidBoard.zone.rect")}</option>
+                                <option value="ellipse">{t("raidBoard.zone.ellipse")}</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
+                            <input type="color" className="rp-color" value={zone.color} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { color: e.target.value }), true)} />
+                        </label>
+                        <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { color: ZONE_COLORS[zone.type] }))}>{t("raidBoard.zone.presetColor")}</button>
+                    </div>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.width")} %</span>
+                            <input type="number" min={3} max={100} value={Math.round(zone.w * 100)} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { w: Math.max(0.03, Math.min(1 - zone.x, Number(e.target.value) / 100 || 0.03)) }), true)} />
+                        </label>
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.height")} %</span>
+                            <input type="number" min={3} max={100} value={Math.round(zone.h * 100)} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { h: Math.max(0.03, Math.min(1 - zone.y, Number(e.target.value) / 100 || 0.03)) }), true)} />
+                        </label>
+                    </div>
+                </>
+            )}
+
+            {line && (
+                <>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.lineKind")}</span>
+                            <select value={line.kind} disabled={dis} onChange={(e) => edit((b) => updateLine(b, id, { kind: e.target.value as "arrow" | "line" }))}>
+                                <option value="arrow">{t("raidBoard.line.arrow")}</option>
+                                <option value="line">{t("raidBoard.line.line")}</option>
+                            </select>
+                        </label>
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.thickness")}</span>
+                            <input type="number" min={1} max={12} value={line.width} disabled={dis} onChange={(e) => edit((b) => updateLine(b, id, { width: Math.max(1, Math.min(12, Math.round(Number(e.target.value)) || 4)) }), true)} />
+                        </label>
+                    </div>
+                    <label className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
+                        <input type="color" className="rp-color" value={line.color} disabled={dis} onChange={(e) => edit((b) => updateLine(b, id, { color: e.target.value }), true)} />
+                    </label>
+                </>
+            )}
+
+            {text && (
+                <>
+                    <label className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.slot.text")}</span>
+                        <input value={text.text} maxLength={60} disabled={dis} onChange={(e) => edit((b) => updateText(b, id, { text: e.target.value }), true)} />
+                    </label>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
+                            <input type="color" className="rp-color" value={text.color} disabled={dis} onChange={(e) => edit((b) => updateText(b, id, { color: e.target.value }), true)} />
+                        </label>
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.fontSize")}</span>
+                            <input type="number" min={10} max={48} value={text.size} disabled={dis} onChange={(e) => edit((b) => updateText(b, id, { size: Math.max(10, Math.min(48, Math.round(Number(e.target.value)) || 16)) }), true)} />
+                        </label>
+                    </div>
+                </>
+            )}
+
+            {slot && (
+                <>
+                    {slot.kind !== "label" && (
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.slot.number")}</span>
+                            <input type="number" min={1} max={99} value={slot.n} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { n: Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1)) }), true)} />
+                        </label>
+                    )}
+                    <label className="rp-field">
+                        <span className="rp-kicker">{slot.kind === "label" ? t("raidBoard.slot.text") : t("raidBoard.slot.customTitle")}</span>
+                        <input value={slot.label} maxLength={40} disabled={dis} placeholder={slot.kind === "label" ? "" : slotTitle({ ...slot, label: "" })} onChange={(e) => edit((b) => updateSlot(b, id, { label: e.target.value }), true)} />
+                    </label>
+                    {isEvent && slot.kind !== "group" && (
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.slot.player")}</span>
+                            <select value={slot.userId} disabled={dis} data-insp-player onChange={(e) => edit((b) => assignSlot(b, id, e.target.value))}>
+                                <option value="">{t("raidBoard.slot.open")}</option>
+                                {roster.map((p) => <option key={p.userId} value={p.userId}>{p.character} — {[p.specLabel, p.className].filter(Boolean).join(" ")}</option>)}
+                            </select>
+                        </label>
+                    )}
+                    {slot.kind === "group" && <p className="rp-muted">{t("raidBoard.slot.groupHint")}</p>}
+                </>
+            )}
+
+            <OpacityField label={t("raidBoard.insp.opacity")} value={look.opacity} onChange={(v) => opacity(v, true)} />
+
+            <div className="rp-insp-actions">
+                <IconButton size="sm" icon={look.lock ? <LockOpen size={16} /> : <Lock size={16} />} tip={look.lock ? t("raidBoard.insp.unlock") : t("raidBoard.insp.lock")} disabled={dis} onClick={() => edit((b) => patchLook(b, kind, id, { lock: !look.lock }))} />
+                {kind !== "token" && <IconButton size="sm" icon={<Copy size={16} />} tip={t("raidBoard.insp.duplicate")} disabled={dis} onClick={() => { const r = duplicateObject(board, kind, id); edit(() => r.board); onSelect(r.sel); }} />}
+                <IconButton size="sm" icon={<BringToFront size={16} />} tip={t("raidBoard.insp.front")} disabled={dis} onClick={() => edit((b) => reorderObject(b, kind, id, "front"))} />
+                <IconButton size="sm" icon={<SendToBack size={16} />} tip={t("raidBoard.insp.back")} disabled={dis} onClick={() => edit((b) => reorderObject(b, kind, id, "back"))} />
+                {slot && isEvent && slot.userId && <IconButton size="sm" icon={<UserMinus size={16} />} tip={t("raidBoard.ctx.unassign")} disabled={dis} onClick={() => edit((b) => assignSlot(b, id, ""))} />}
+                <IconButton size="sm" tone="danger" icon={<Trash2 size={16} />} tip={t("raidBoard.selection.delete")} disabled={dis} onClick={() => { edit((b) => removeObject(b, kind, id)); onSelect(null); }} />
+            </div>
+        </div>
+    );
+}
+
+/** How strongly the map shows: dim it so the objects stand out. Shown when nothing is selected, and always on the background tab. */
+export function MapOpacityField({ board, canWrite, edit }: { board: RaidplanBoard; canWrite: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void }) {
+    const t = useT();
+    return (
+        <div className={canWrite ? "" : "rp-disabled"}>
+            <OpacityField label={t("raidBoard.bg.mapOpacity")} value={board.mapOpacity} onChange={(v) => canWrite && edit((b) => setMapOpacity(b, v), true)} />
+        </div>
+    );
+}

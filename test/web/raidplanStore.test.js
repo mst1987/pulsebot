@@ -44,7 +44,7 @@ describe("saving a plan", () => {
         expect(store.emptyPlan("e1")).toMatchObject({ version: 0, status: "draft", publicToken: "", bosses: {} });
         const r = store.savePlan("e1", { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0.25, y: 0.5 }], targets: [], notes: "" } } }, CTX);
         expect(r.plan.version).toBe(1);
-        expect(store.getPlan("e1").bosses[BOSS].tokens).toEqual([{ userId: "u1", x: 0.25, y: 0.5 }]);
+        expect(store.getPlan("e1").bosses[BOSS].tokens).toMatchObject([{ userId: "u1", x: 0.25, y: 0.5, opacity: 1 }]);
         expect(store.getPlan("e1")).toMatchObject({ updatedBy: "orga" });
     });
 
@@ -75,7 +75,7 @@ describe("saving a plan", () => {
             },
         }, CTX);
         const board = r.plan.bosses[BOSS];
-        expect(board.tokens).toEqual([{ userId: "u1", x: 0, y: 1 }, { userId: "u2", x: 0, y: 0 }]);
+        expect(board.tokens).toMatchObject([{ userId: "u1", x: 0, y: 1 }, { userId: "u2", x: 0, y: 0 }]);
         expect(board.targets).toEqual([{ id: "ab", title: "Main-Tank", userIds: ["u1", "u3"] }]);
         expect(board.notes).toBe("  hi ");
         expect(r.plan.bosses["bt/does-not-exist"]).toBeUndefined();

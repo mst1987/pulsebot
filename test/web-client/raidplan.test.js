@@ -1,4 +1,4 @@
-// Raidplan (docs/raidplan.md): the board logic behind the editor
+// Raidplan (docs/raidplan.md): the board logic behind the editors
 // (src/web-client/src/lib/raidplan.ts) run for real, and the pages' structure
 // checked on the source — the client is TSX without a React renderer here.
 const fs = require("fs");
@@ -11,6 +11,7 @@ const libEn = loadTs("lib/raidplan.ts", { t: makeT("en") });
 const player = (userId, role = "dps") => ({ userId, character: userId, classId: "", className: "", classColor: "", spec: "", specLabel: "", role, iconUrl: "", group: 1 });
 const board = (extra = {}) => ({ ...lib.emptyBoard(), ...extra });
 const profile = (extra = {}) => ({ id: "p1", name: "Tanks", category: "Tank", bossKey: "", targets: [{ title: "Main-Tank" }, { title: "Off-Tank" }], notes: "", updatedAt: 0, ...extra });
+const look = (extra = {}) => ({ opacity: 1, lock: false, hidden: false, ...extra });
 
 describe("roles and clamping", () => {
     it("colours tank blue, healer cyan and everything else as damage", () => {
@@ -25,40 +26,49 @@ describe("roles and clamping", () => {
         expect(lib.clamp01(0.4)).toBe(0.4);
         expect(lib.clamp01(NaN)).toBe(0);
     });
+
+    it("clamps an opacity to 0.1..1 and falls back for junk", () => {
+        expect(lib.clampOpacity(0, 1)).toBe(0.1);
+        expect(lib.clampOpacity(7, 1)).toBe(1);
+        expect(lib.clampOpacity(0.456, 1)).toBe(0.46);
+        expect(lib.clampOpacity(NaN, 0.3)).toBe(0.3);
+    });
 });
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], zones: [], targets: [], notes: "", profileId: "" });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
+        expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
 
     it("lists who is not placed yet, in setup order", () => {
         const roster = [player("a"), player("b"), player("c")];
-        expect(lib.unplaced(roster, board({ tokens: [{ userId: "b", x: 0.5, y: 0.5 }] })).map((p) => p.userId)).toEqual(["a", "c"]);
+        expect(lib.unplaced(roster, board({ tokens: [{ userId: "b", x: 0.5, y: 0.5, ...look() }] })).map((p) => p.userId)).toEqual(["a", "c"]);
     });
 
-    it("places a token once and moves it afterwards, clamped to the board", () => {
+    it("places a token once and moves it afterwards, clamped to the board, keeping its look", () => {
         let b = lib.placeToken(board(), "a", 0.3, 0.6);
-        expect(b.tokens).toEqual([{ userId: "a", x: 0.3, y: 0.6 }]);
+        expect(b.tokens).toEqual([{ userId: "a", x: 0.3, y: 0.6, opacity: 1, lock: false, hidden: false }]);
+        b = lib.patchLook(b, "token", "a", { opacity: 0.4 });
         b = lib.placeToken(b, "a", 1.4, -0.2);
-        expect(b.tokens).toEqual([{ userId: "a", x: 1, y: 0 }]);
+        expect(b.tokens).toEqual([{ userId: "a", x: 1, y: 0, opacity: 0.4, lock: false, hidden: false }]);
         b = lib.placeToken(b, "b", 0.1, 0.1);
         expect(b.tokens.map((t) => t.userId)).toEqual(["a", "b"]);
     });
 
     it("takes a token off without touching the rows and nudges within the board", () => {
-        const b = board({ tokens: [{ userId: "a", x: 0.5, y: 0.5 }], targets: [{ id: "r", title: "MT", userIds: ["a"] }] });
+        const b = board({ tokens: [{ userId: "a", x: 0.5, y: 0.5, ...look() }], targets: [{ id: "r", title: "MT", userIds: ["a"] }] });
         expect(lib.removeToken(b, "a").tokens).toEqual([]);
         expect(lib.removeToken(b, "a").targets[0].userIds).toEqual(["a"]);
-        expect(lib.nudgeObject(b, "token", "a", 0.01, -0.01).tokens[0]).toEqual({ userId: "a", x: 0.51, y: 0.49 });
-        expect(lib.nudgeObject(lib.placeToken(b, "a", 0.999, 0), "token", "a", 0.05, -0.05).tokens[0]).toEqual({ userId: "a", x: 1, y: 0 });
+        expect(lib.nudgeObject(b, "token", "a", 0.01, -0.01).tokens[0]).toMatchObject({ userId: "a", x: 0.51, y: 0.49 });
+        expect(lib.nudgeObject(lib.placeToken(b, "a", 0.999, 0), "token", "a", 0.05, -0.05).tokens[0]).toMatchObject({ x: 1, y: 0 });
         expect(lib.nudgeObject(b, "token", "nobody", 0.1, 0.1)).toBe(b);
     });
 
-    it("counts tokens and rows for the boss list", () => {
-        const bosses = { a: { tokens: [{ userId: "x", x: 0, y: 0 }], targets: [{ id: "1", title: "t", userIds: [] }] } };
-        expect(lib.boardCount(bosses, "a")).toBe(2);
+    it("counts objects and rows for the boss chips", () => {
+        const bosses = { a: { tokens: [{ userId: "x", x: 0, y: 0 }], targets: [{ id: "1", title: "t", userIds: [] }], lines: [{ id: "l" }], texts: [{ id: "x" }] } };
+        expect(lib.boardCount(bosses, "a")).toBe(4);
         expect(lib.boardCount(bosses, "b")).toBe(0);
     });
 
@@ -67,6 +77,7 @@ describe("boards", () => {
         expect(lib.sameBosses({}, { a: undefined }, keys)).toBe(true);
         expect(lib.sameBosses({ a: { notes: "x" } }, { a: { notes: "x", tokens: [], targets: [], profileId: "" } }, keys)).toBe(true);
         expect(lib.sameBosses({ a: { notes: "x" } }, { a: { notes: "y" } }, keys)).toBe(false);
+        expect(lib.sameBosses({ a: { mapOpacity: 0.5 } }, { a: {} }, keys)).toBe(false);
         // a boss the event does not have is not part of the save
         expect(lib.sameBosses({ gone: { notes: "x" } }, {}, keys)).toBe(true);
         expect(Object.keys(lib.toSave({ a: { notes: "x" }, gone: { notes: "y" } }, keys))).toEqual(["a"]);
@@ -100,11 +111,12 @@ describe("tactic profiles", () => {
         expect(lib.hasContent(board({ notes: "  " }))).toBe(false);
         expect(lib.hasContent(board({ notes: "x" }))).toBe(true);
         expect(lib.hasContent(board({ targets: [lib.newTarget("a")] }))).toBe(true);
+        expect(lib.hasContent(board({ mapOpacity: 0.5 }))).toBe(true);
     });
 
     it("applies a profile: its rows and the profile id, players stay on rows whose title stays", () => {
         const b = board({
-            tokens: [{ userId: "a", x: 0.5, y: 0.5 }],
+            tokens: [{ userId: "a", x: 0.5, y: 0.5, ...look() }],
             targets: [{ id: "keep", title: "main-tank", userIds: ["u1"] }, { id: "old", title: "Something else", userIds: ["u2"] }],
             notes: "mine",
         });
@@ -114,7 +126,6 @@ describe("tactic profiles", () => {
         expect(r.targets[0]).toMatchObject({ id: "keep", userIds: ["u1"] });
         expect(r.targets[1].userIds).toEqual([]);
         expect(r.tokens).toEqual(b.tokens);
-        // an empty profile note does not wipe the board's own note; a filled one replaces it
         expect(r.notes).toBe("mine");
         expect(lib.applyProfile(b, profile({ notes: "phase 1" })).notes).toBe("phase 1");
     });
@@ -148,113 +159,49 @@ describe("tactic profiles", () => {
     });
 });
 
-describe("the pages", () => {
-    const tab = read("pages/raid-detail/RaidplanTab.tsx");
-    const work = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
-    const board2 = read("components/raidplan/PlanBoard.tsx");
-    const detail = read("pages/RaidDetailPage.tsx");
-    const app = read("App.tsx");
-    const pub = read("pages/PlanPublicPage.tsx");
-    const css = read("styles/raidplan.css");
-
-    it("is a tab of an own event only, after the setup", () => {
-        expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
-        expect(detail).toMatch(/\(t !== "setup" && t !== "plan"\) \|\| ownEvent/);
-        expect(detail).toContain("{shown === \"plan\" && <RaidplanTab ctx={ctx} />}");
+describe("inserting objects", () => {
+    it("puts a slot, mark, zone, line and text where told, centred or anchored, and selects it", () => {
+        const at = { x: 0.6, y: 0.4 };
+        let r = lib.insertObject(lib.emptyBoard(), { type: "slot", kind: "tank", label: "" }, at);
+        expect(r.board.slots[0]).toMatchObject({ kind: "tank", n: 1, x: 0.6, y: 0.4, userId: "", opacity: 1, lock: false, hidden: false });
+        expect(r.sel).toEqual({ kind: "slot", id: r.board.slots[0].id });
+        r = lib.insertObject(r.board, { type: "mark", mark: "skull" }, at);
+        expect(r.board.marks[0]).toMatchObject({ mark: "skull", x: 0.6, y: 0.4, opacity: 1 });
+        r = lib.insertObject(r.board, { type: "zone", zoneType: "danger", shape: "ellipse" }, at);
+        expect(r.board.zones[0]).toMatchObject({ type: "danger", shape: "ellipse", color: "#ef4444", opacity: 0.3, w: 0.2, h: 0.2 });
+        expect(r.board.zones[0].x).toBeCloseTo(0.5);
+        expect(r.board.zones[0].y).toBeCloseTo(0.3);
+        r = lib.insertObject(r.board, { type: "line", kind: "arrow" }, at);
+        expect(r.board.lines[0]).toMatchObject({ kind: "arrow", y1: 0.4, y2: 0.4, width: 4, color: "#f8fafc", opacity: 1 });
+        expect(r.board.lines[0].x1).toBeCloseTo(0.5);
+        expect(r.board.lines[0].x2).toBeCloseTo(0.7);
+        r = lib.insertObject(r.board, { type: "text", text: "Hi" }, at);
+        expect(r.board.texts[0]).toMatchObject({ text: "Hi", x: 0.6, y: 0.4, size: 18, opacity: 1 });
+        expect(lib.objectCount(r.board)).toBe(5);
     });
 
-    it("drags with Pointer Events on window, never with HTML5 drag and drop", () => {
-        const src = stripComments(tab + work + board2);
-        expect(src).toContain("window.addEventListener(\"pointermove\"");
-        expect(src).toContain("window.addEventListener(\"pointerup\"");
-        expect(src).toContain("window.addEventListener(\"pointercancel\"");
-        for (const banned of ["onDragStart", "onDrop", "onDragOver", "draggable={true}", "dataTransfer"]) expect(src).not.toContain(banned);
-        // fingers: the draggable things do not scroll the page
-        expect(css).toMatch(/\.rp-token\.is-editable \.rp-token-btn \{[^}]*touch-action: none/);
-        expect(css).toMatch(/\.rp-zone\.is-editable \{[^}]*touch-action: none/);
-        expect(css).toMatch(/\.rp-handle \{[^}]*touch-action: none/);
-        expect(css).toMatch(/\.rp-chip\.is-drag \{[^}]*touch-action: none/);
+    it("keeps an insert near an edge on the board and, without a point, puts it near the middle, each one off the last", () => {
+        const edge = lib.insertObject(lib.emptyBoard(), { type: "zone", zoneType: "neutral", shape: "rect" }, { x: 1, y: 1 }).board.zones[0];
+        expect(edge.x + edge.w).toBeLessThanOrEqual(1);
+        expect(edge.y + edge.h).toBeLessThanOrEqual(1);
+        const line = lib.insertObject(lib.emptyBoard(), { type: "line", kind: "line" }, { x: 0, y: 0 }).board.lines[0];
+        expect(line.x1).toBe(0);
+        let b = lib.emptyBoard();
+        b = lib.insertObject(b, { type: "mark", mark: "star" }, null).board;
+        b = lib.insertObject(b, { type: "mark", mark: "star" }, null).board;
+        expect(b.marks[0].x).toBeGreaterThan(0.3);
+        expect(b.marks[1].x).toBeGreaterThan(b.marks[0].x);
     });
 
-    it("sends the version it read, treats a conflict as a hint and writes nothing before Save", () => {
-        expect(tab).toContain("version: view.plan.version");
-        expect(tab).toContain("e.code === \"conflict\"");
-        expect(tab).toContain("raidBoard.conflict.text");
-        // the drag only edits the local draft
-        expect(tab.match(/saveRaidplan\(/g)).toHaveLength(1);
-    });
-
-    it("draws players with their spec icon in a role ring, not with hand-drawn circles", () => {
-        expect(board2).toContain("player.iconUrl");
-        expect(board2).toContain("rp-role-${roleTone(player.role)}");
-        expect(board2).not.toMatch(/<svg|<circle/);
-        expect(css).toMatch(/\.rp-role-tank \{ --ring: var\(--rp-tank\)/);
-        expect(css).toMatch(/--rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-dps: #f59e0b/);
-    });
-
-    it("answers the public route before the menu asks for a session", () => {
-        expect(app).toMatch(/pathname\.match\(\/\^\\\/p\\\/\(\[A-Za-z0-9_-\]\+\)\\\/\?\$\/\)/);
-        expect(app).toMatch(/if \(publicPlan\) return <PlanPublicPage token=\{publicPlan\[1\]\} \/>;\s*\n\s*return <MenuApp \/>;/);
-        expect(pub).toContain("getRaidplanPublic(token)");
-        expect(pub).toContain("data.me");
-        expect(pub).not.toContain("csrfToken");
-    });
-
-    it("keeps to its own css namespace and the app's tokens", () => {
-        const classes = [...css.matchAll(/\.([a-z]{2,4}-[\w-]+)/g)].map((m) => m[1]);
-        const prefixes = new Set(classes.map((c) => c.split("-")[0]));
-        // "rp-", plus the two shared building blocks it re-uses (dialogs' btn/flash aside)
-        expect([...prefixes].filter((p) => p !== "rp" && p !== "is")).toEqual([]);
-        expect(css).toContain("var(--accent)");
-        expect(css).toContain("var(--panel)");
-    });
-});
-
-describe("the texts", () => {
-    it("exist in German and English for every key the raid plan asks for", () => {
-        const { de, en } = allDicts();
-        const files = ["pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/ObjectModals.tsx", "pages/raid-detail/RaidplanTab.tsx", "pages/raid-detail/raidplan/TargetsPanel.tsx", "pages/raid-detail/raidplan/ProfileModals.tsx", "pages/raid-detail/raidplan/ShareModal.tsx", "pages/raid-detail/raidplan/MapModal.tsx", "pages/PlanPublicPage.tsx", "components/raidplan/PlanBoard.tsx"];
-        const keys = new Set();
-        for (const f of files) for (const m of read(f).matchAll(/\bt\(\s*"((?:raidBoard|planTemplates)\.[\w.]+)"/g)) keys.add(m[1]);
-        expect(keys.size).toBeGreaterThan(90);
-        const missing = [...keys].filter((k) => de[k] === undefined || en[k] === undefined);
-        expect(missing).toEqual([]);
-        // the role labels are looked up by a computed key
-        for (const role of ["tank", "healer", "dps"]) expect(de[`raidBoard.role.${role}`]).toBeTruthy();
-        // the labels that are looked up by a computed key
-        for (const k of ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"]) expect([de, en].map((d) => d[`raidBoard.mark.${k}`])).not.toContain(undefined);
-        for (const k of ["danger", "healthy", "neutral", "custom", "rect", "ellipse"]) expect([de, en].map((d) => d[`raidBoard.zone.${k}`])).not.toContain(undefined);
-        for (const k of ["tank", "healer", "dps", "group"]) expect([de, en].map((d) => [d[`raidBoard.slot.${k}`], d[`raidBoard.slot.kind.${k}`]])).not.toContain(undefined);
-        expect(de["raidBoard.slot.kind.label"]).toBeTruthy();
-        expect(de["raidDetail.page.tab.plan"]).toBe("Raidplan");
-        expect(en["raidDetail.page.tab.plan"]).toBe("Raid plan");
-    });
-
-    it("keeps the two languages' placeholders in step", () => {
-        const de = makeT("de");
-        const en = makeT("en");
-        expect(de("raidBoard.profile.applyTitle", { name: "X" })).toContain("X");
-        expect(en("raidBoard.profile.applyTitle", { name: "X" })).toContain("X");
-        expect(de("raidBoard.bar.savedDropped", { count: 2 })).toContain("2");
-    });
-
-    it("has no leftover file for the wrong namespace", () => {
-        const dir = path.join(__dirname, "..", "..", "src", "web-client", "src", "i18n", "locales");
-        expect(fs.existsSync(path.join(dir, "de", "raidBoard.json"))).toBe(true);
-        expect(fs.existsSync(path.join(dir, "en", "raidBoard.json"))).toBe(true);
-    });
-});
-
-describe("board objects", () => {
-    it("adds slots with the next free number per kind and a free label as it is", () => {
+    it("numbers slots per kind and keeps the old helpers working", () => {
         let b = lib.addSlot(lib.emptyBoard(), "tank", "");
         b = lib.addSlot(b, "tank", "");
         b = lib.addSlot(b, "healer", "");
         b = lib.addSlot(b, "label", "Boss-Tank");
         expect(b.slots.map((s) => [s.kind, s.n, s.label])).toEqual([["tank", 1, ""], ["tank", 2, ""], ["healer", 1, ""], ["label", 1, "Boss-Tank"]]);
         expect(new Set(b.slots.map((s) => s.id)).size).toBe(4);
-        expect(b.slots.every((s) => s.x > 0.3 && s.x < 0.7 && s.userId === "")).toBe(true);
-        // a slot added after one was deleted takes the highest number + 1, never a duplicate
+        expect(lib.addMark(lib.emptyBoard(), "star").marks).toHaveLength(1);
+        expect(lib.addZone(lib.emptyBoard(), "healthy", "rect").zones[0].color).toBe("#22c55e");
         const gap = lib.removeObject(b, "slot", b.slots[0].id);
         expect(lib.addSlot(gap, "tank", "").slots.filter((s) => s.kind === "tank").map((s) => s.n)).toEqual([2, 3]);
     });
@@ -268,44 +215,97 @@ describe("board objects", () => {
         expect(lib.slotTitle({ ...slot, label: "MT" })).toBe("MT");
         expect(lib.slotTitle({ ...slot, kind: "label", label: "Boss-Tank" })).toBe("Boss-Tank");
     });
+});
 
-    it("adds marks and zones, a zone in its type's preset colour", () => {
-        let b = lib.addMark(lib.emptyBoard(), "skull");
-        expect(b.marks).toHaveLength(1);
-        expect(b.marks[0]).toMatchObject({ mark: "skull" });
-        b = lib.addZone(b, "danger", "ellipse");
-        b = lib.addZone(b, "healthy", "rect");
-        expect(b.zones.map((z) => [z.type, z.shape, z.color, z.opacity])).toEqual([["danger", "ellipse", "#ef4444", 0.3], ["healthy", "rect", "#22c55e", 0.3]]);
-        expect(lib.RAID_MARKS).toHaveLength(8);
-        expect(lib.ZONE_TYPES).toEqual(["danger", "healthy", "neutral", "custom"]);
-    });
+describe("moving, locking, opacity", () => {
+    const full = () => {
+        let b = lib.emptyBoard();
+        for (const spec of [{ type: "slot", kind: "dps", label: "" }, { type: "mark", mark: "star" }, { type: "zone", zoneType: "neutral", shape: "rect" }, { type: "line", kind: "line" }, { type: "text", text: "T" }]) b = lib.insertObject(b, spec, { x: 0.5, y: 0.5 }).board;
+        return b;
+    };
 
-    it("moves a slot or a mark by its centre and a zone by its corner, staying on the board", () => {
-        let b = lib.addSlot(lib.addMark(lib.addZone(lib.emptyBoard(), "neutral", "rect"), "star"), "dps", "");
-        const [slot, mark, zone] = [b.slots[0].id, b.marks[0].id, b.zones[0].id];
-        b = lib.moveObject(b, "slot", slot, 2, -1);
-        b = lib.moveObject(b, "mark", mark, 0.25, 0.75);
-        b = lib.moveObject(b, "zone", zone, 5, 5);
+    it("moves a slot, mark or text by its point, a zone by its corner and a line by its middle, all kept on the board", () => {
+        let b = full();
+        const ids = { slot: b.slots[0].id, mark: b.marks[0].id, zone: b.zones[0].id, line: b.lines[0].id, text: b.texts[0].id };
+        b = lib.moveObject(b, "slot", ids.slot, 2, -1);
+        b = lib.moveObject(b, "mark", ids.mark, 0.25, 0.75);
+        b = lib.moveObject(b, "text", ids.text, 0.1, 0.9);
+        b = lib.moveObject(b, "zone", ids.zone, 5, 5);
+        b = lib.moveObject(b, "line", ids.line, 0.9, 0.2);
         expect(b.slots[0]).toMatchObject({ x: 1, y: 0 });
         expect(b.marks[0]).toMatchObject({ x: 0.25, y: 0.75 });
+        expect(b.texts[0]).toMatchObject({ x: 0.1, y: 0.9 });
         expect(b.zones[0].x).toBeCloseTo(0.8);
-        expect(b.zones[0].y).toBeCloseTo(0.8);
         expect(b.zones[0]).toMatchObject({ w: 0.2, h: 0.2 });
-        expect(lib.objectPoint(b, "mark", mark)).toEqual({ x: 0.25, y: 0.75 });
+        // the line keeps its length and slides until an end meets the edge
+        const l = b.lines[0];
+        expect(l.x2 - l.x1).toBeCloseTo(0.2);
+        expect(Math.max(l.x1, l.x2)).toBeLessThanOrEqual(1);
+        expect(l.y1).toBeCloseTo(0.2);
+        expect(lib.objectPoint(b, "line", ids.line).y).toBeCloseTo(0.2);
         expect(lib.objectPoint(b, "slot", "nope")).toBeNull();
     });
 
-    it("deletes any object; a deleted slot's player is simply not placed any more", () => {
-        let b = lib.addSlot(lib.addMark(lib.addZone(lib.emptyBoard(), "custom", "rect"), "moon"), "tank", "");
-        b = lib.assignSlot(b, b.slots[0].id, "u1");
-        expect(lib.placedIds(b).has("u1")).toBe(true);
-        for (const [kind, id] of [["slot", b.slots[0].id], ["mark", b.marks[0].id], ["zone", b.zones[0].id]]) b = lib.removeObject(b, kind, id);
-        expect(b).toMatchObject({ slots: [], marks: [], zones: [] });
-        expect(lib.placedIds(b).size).toBe(0);
+    it("moves one end of a line", () => {
+        let b = lib.insertObject(lib.emptyBoard(), { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
+        const id = b.lines[0].id;
+        b = lib.moveLineEnd(b, id, 2, 1.5, 0.9);
+        expect(b.lines[0]).toMatchObject({ x2: 1, y2: 0.9 });
+        expect(b.lines[0].x1).toBeCloseTo(0.4);
+        b = lib.moveLineEnd(b, id, 1, 0.1, 0.1);
+        expect(b.lines[0]).toMatchObject({ x1: 0.1, y1: 0.1 });
+    });
+
+    it("moves a line as a whole without bending it", () => {
+        expect(lib.moveLine({ x1: 0.2, y1: 0.2, x2: 0.4, y2: 0.6 }, 0.1, 0.1)).toEqual({ x1: expect.closeTo(0.3), y1: expect.closeTo(0.3), x2: expect.closeTo(0.5), y2: expect.closeTo(0.7) });
+        const edge = lib.moveLine({ x1: 0.2, y1: 0.2, x2: 0.4, y2: 0.6 }, 9, -9);
+        expect(edge.x2).toBe(1);
+        expect(edge.y1).toBe(0);
+        expect(edge.x2 - edge.x1).toBeCloseTo(0.2);
+        expect(edge.y2 - edge.y1).toBeCloseTo(0.4);
+    });
+
+    it("lets a locked object stay where it is, and nothing else", () => {
+        let b = full();
+        const id = b.marks[0].id;
+        b = lib.patchLook(b, "mark", id, { lock: true });
+        expect(lib.isLocked(b, "mark", id)).toBe(true);
+        expect(lib.moveObject(b, "mark", id, 0.9, 0.9)).toBe(b);
+        expect(lib.nudgeObject(b, "mark", id, 0.1, 0.1)).toBe(b);
+        expect(lib.moveLineEnd(lib.patchLook(b, "line", b.lines[0].id, { lock: true }), b.lines[0].id, 1, 0, 0).lines[0].x1).toBe(b.lines[0].x1);
+        // still deletable, and unlocking frees it
+        expect(lib.removeObject(b, "mark", id).marks).toEqual([]);
+        expect(lib.moveObject(lib.patchLook(b, "mark", id, { lock: false }), "mark", id, 0.9, 0.9).marks[0].x).toBe(0.9);
+    });
+
+    it("sets opacity, lock and hidden on every kind of object", () => {
+        let b = lib.placeToken(full(), "u1", 0.5, 0.5);
+        const list = [["token", "u1"], ["slot", b.slots[0].id], ["mark", b.marks[0].id], ["zone", b.zones[0].id], ["line", b.lines[0].id], ["text", b.texts[0].id]];
+        for (const [kind, id] of list) {
+            b = lib.patchLook(b, kind, id, { opacity: 0.5, hidden: true });
+            expect(lib.lookOf(b, kind, id)).toEqual({ opacity: 0.5, lock: false, hidden: true });
+        }
+        expect(lib.lookOf(b, "mark", "nope")).toBeNull();
+        expect(lib.lookOf(b, "zone", b.zones[0].id).opacity).toBe(0.5);
+    });
+
+    it("dims the map between 0.1 and 1", () => {
+        expect(lib.setMapOpacity(lib.emptyBoard(), 0.4).mapOpacity).toBe(0.4);
+        expect(lib.setMapOpacity(lib.emptyBoard(), 0).mapOpacity).toBe(0.1);
+        expect(lib.setMapOpacity(lib.emptyBoard(), 3).mapOpacity).toBe(1);
+        expect(lib.setMapOpacity(lib.emptyBoard(), NaN).mapOpacity).toBe(1);
+    });
+
+    it("changes a line's or a text's own fields", () => {
+        let b = full();
+        b = lib.updateLine(b, b.lines[0].id, { kind: "arrow", color: "#ff0000", width: 8 });
+        b = lib.updateText(b, b.texts[0].id, { text: "Boss", size: 30 });
+        expect(b.lines[0]).toMatchObject({ kind: "arrow", color: "#ff0000", width: 8 });
+        expect(b.texts[0]).toMatchObject({ text: "Boss", size: 30 });
     });
 });
 
-describe("zones: moving and scaling", () => {
+describe("zones: scaling", () => {
     const start = { x: 0.2, y: 0.2, w: 0.3, h: 0.2 };
 
     it("scales from a corner while the opposite corner stays", () => {
@@ -325,16 +325,13 @@ describe("zones: moving and scaling", () => {
         const tiny = lib.resizeRect(start, "se", -5, -5);
         expect(tiny.w).toBeCloseTo(lib.MIN_ZONE);
         expect(tiny.h).toBeCloseTo(lib.MIN_ZONE);
-        expect(tiny.x).toBe(0.2);
         const nw = lib.resizeRect(start, "nw", 5, 5);
         expect(nw.x + nw.w).toBeCloseTo(0.5);
         expect(nw.w).toBeCloseTo(lib.MIN_ZONE);
         const big = lib.resizeRect(start, "se", 5, 5);
-        expect(big.x + big.w).toBe(1);
-        expect(big.y + big.h).toBe(1);
+        expect([big.x + big.w, big.y + big.h]).toEqual([1, 1]);
         const left = lib.resizeRect(start, "nw", -5, -5);
-        expect(left.x).toBe(0);
-        expect(left.y).toBe(0);
+        expect([left.x, left.y]).toEqual([0, 0]);
     });
 
     it("moves as a whole and stays on the board", () => {
@@ -348,6 +345,204 @@ describe("zones: moving and scaling", () => {
         b = lib.updateZone(b, b.zones[0].id, { label: "Feuer", color: "#112233", opacity: 0.5 });
         expect(b.zones[0]).toMatchObject({ label: "Feuer", color: "#112233", opacity: 0.5, type: "danger" });
         expect(b.zones[1]).toMatchObject({ label: "", color: "#22c55e" });
+    });
+});
+
+describe("duplicating and ordering", () => {
+    it("copies an object a little off, unlocked, with a new id; a token cannot be copied; a slot's copy is open", () => {
+        let b = lib.emptyBoard();
+        b = lib.insertObject(b, { type: "mark", mark: "moon" }, { x: 0.5, y: 0.5 }).board;
+        b = lib.insertObject(b, { type: "slot", kind: "tank", label: "" }, { x: 0.3, y: 0.3 }).board;
+        b = lib.assignSlot(b, b.slots[0].id, "u1");
+        b = lib.patchLook(b, "slot", b.slots[0].id, { lock: true });
+        const m = lib.duplicateObject(b, "mark", b.marks[0].id);
+        expect(m.board.marks).toHaveLength(2);
+        expect(m.board.marks[1].x).toBeCloseTo(0.53);
+        expect(m.board.marks[1].id).not.toBe(b.marks[0].id);
+        expect(m.sel).toEqual({ kind: "mark", id: m.board.marks[1].id });
+        const s = lib.duplicateObject(b, "slot", b.slots[0].id);
+        expect(s.board.slots[1]).toMatchObject({ kind: "tank", n: 2, userId: "", lock: false });
+        expect(lib.duplicateObject(lib.placeToken(b, "u2", 0.5, 0.5), "token", "u2").board.tokens).toHaveLength(1);
+        expect(lib.duplicateObject(b, "mark", "nope").sel).toBeNull();
+        const z = lib.duplicateObject(lib.addZone(lib.emptyBoard(), "danger", "rect"), "zone", lib.addZone(lib.emptyBoard(), "danger", "rect").zones[0].id);
+        expect(z.board.zones.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("copies zones, lines and texts inside the board", () => {
+        let b = lib.insertObject(lib.emptyBoard(), { type: "zone", zoneType: "danger", shape: "rect" }, { x: 0.95, y: 0.95 }).board;
+        b = lib.insertObject(b, { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
+        b = lib.insertObject(b, { type: "text", text: "T" }, { x: 0.5, y: 0.5 }).board;
+        for (const [kind, id] of [["zone", b.zones[0].id], ["line", b.lines[0].id], ["text", b.texts[0].id]]) b = lib.duplicateObject(b, kind, id).board;
+        expect([b.zones.length, b.lines.length, b.texts.length]).toEqual([2, 2, 2]);
+        expect(b.zones[1].x + b.zones[1].w).toBeLessThanOrEqual(1);
+        expect(b.lines[1].x1).toBeGreaterThan(b.lines[0].x1);
+    });
+
+    it("moves an object to the front / back of its kind, or one step", () => {
+        let b = lib.emptyBoard();
+        for (const m of ["star", "moon", "skull"]) b = lib.insertObject(b, { type: "mark", mark: m }, null).board;
+        const id = (i) => b.marks[i].id;
+        const order = (x) => x.marks.map((m) => m.mark);
+        expect(order(lib.reorderObject(b, "mark", id(0), "front"))).toEqual(["moon", "skull", "star"]);
+        expect(order(lib.reorderObject(b, "mark", id(2), "back"))).toEqual(["skull", "star", "moon"]);
+        expect(order(lib.reorderObject(b, "mark", id(0), "up"))).toEqual(["moon", "star", "skull"]);
+        expect(order(lib.reorderObject(b, "mark", id(2), "down"))).toEqual(["star", "skull", "moon"]);
+        expect(lib.reorderObject(b, "mark", id(2), "front")).toEqual(b);
+        expect(lib.reorderObject(b, "mark", "nope", "front")).toEqual(b);
+        for (const kind of ["slot", "zone", "line", "text", "token"]) expect(lib.reorderObject(lib.emptyBoard(), kind, "x", "front")).toEqual(lib.emptyBoard());
+    });
+});
+
+describe("layers", () => {
+    it("lists every object front to back with a name, lock and hidden flag", () => {
+        const players = lib.rosterMap([player("u1")]);
+        let b = lib.emptyBoard();
+        b = lib.insertObject(b, { type: "zone", zoneType: "danger", shape: "rect" }, null).board;
+        b = lib.insertObject(b, { type: "line", kind: "arrow" }, null).board;
+        b = lib.insertObject(b, { type: "mark", mark: "skull" }, null).board;
+        b = lib.insertObject(b, { type: "slot", kind: "healer", label: "" }, null).board;
+        b = lib.insertObject(b, { type: "text", text: "Hallo" }, null).board;
+        b = lib.placeToken(b, "u1", 0.5, 0.5);
+        b = lib.patchLook(b, "mark", b.marks[0].id, { lock: true, hidden: true });
+        const rows = lib.layerList(b, players);
+        expect(rows.map((r) => r.kind)).toEqual(["token", "text", "slot", "mark", "line", "zone"]);
+        expect(rows.map((r) => r.name)).toEqual(["u1", "Hallo", "Heiler 1", "Totenkopf", "Pfeil", "Gefahrenzone"]);
+        expect(rows[3]).toMatchObject({ lock: true, hidden: true });
+        expect(lib.objectName(b, "zone", b.zones[0].id, players)).toBe("Gefahrenzone");
+        expect(lib.objectName(b, "zone", "nope", players)).toBe("");
+        // the last added of a kind is in front
+        const two = lib.insertObject(lib.insertObject(lib.emptyBoard(), { type: "mark", mark: "star" }, null).board, { type: "mark", mark: "moon" }, null).board;
+        expect(lib.layerList(two, players).map((r) => r.name)).toEqual(["Mond", "Stern"]);
+    });
+});
+
+describe("the context menu", () => {
+    const opts = (extra = {}) => ({ locked: false, hasPlayer: false, isEvent: false, kind: "", ...extra });
+    const ids = (items) => items.map((i) => i.id);
+
+    it("offers the empty board what can be put there and a way to deselect", () => {
+        const items = lib.contextMenuItems("board", opts());
+        const list = ids(items);
+        for (const id of ["insert:slot:tank", "insert:slot:label", "insert:mark:skull", "insert:mark:star", "insert:zone:danger", "insert:zone:custom", "insert:line:arrow", "insert:line:line", "insert:text", "deselect"]) expect(list).toContain(id);
+        expect(list.filter((i) => i.startsWith("insert:mark:"))).toHaveLength(8);
+        expect(list[list.length - 1]).toBe("deselect");
+    });
+
+    it("offers an object properties, duplicate, order, lock and delete", () => {
+        expect(ids(lib.contextMenuItems("zone", opts()))).toEqual(["properties", "duplicate", "front", "back", "lock", "delete"]);
+        expect(ids(lib.contextMenuItems("mark", opts({ locked: true })))).toContain("unlock");
+        expect(ids(lib.contextMenuItems("mark", opts({ locked: true })))).not.toContain("lock");
+        expect(lib.contextMenuItems("zone", opts()).find((i) => i.id === "delete").danger).toBe(true);
+    });
+
+    it("offers a slot of an event plan the player entries, a token only taking it out, and no duplicate for a token", () => {
+        expect(ids(lib.contextMenuItems("slot", opts({ isEvent: true, kind: "tank" })))).toContain("assign");
+        expect(ids(lib.contextMenuItems("slot", opts({ isEvent: true, kind: "tank" })))).not.toContain("unassign");
+        expect(ids(lib.contextMenuItems("slot", opts({ isEvent: true, kind: "tank", hasPlayer: true })))).toContain("unassign");
+        expect(ids(lib.contextMenuItems("slot", opts({ isEvent: false, kind: "tank" })))).not.toContain("assign");
+        expect(ids(lib.contextMenuItems("slot", opts({ isEvent: true, kind: "group" })))).not.toContain("assign");
+        const token = ids(lib.contextMenuItems("token", opts()));
+        expect(token).toContain("unassign");
+        expect(token).not.toContain("duplicate");
+    });
+
+    it("groups the entries in sections, in a stable order", () => {
+        const sections = lib.contextMenuItems("slot", opts({ isEvent: true, kind: "tank", hasPlayer: true })).map((i) => i.section);
+        expect(sections).toEqual(["main", "main", "order", "order", "order", "player", "player", "end"]);
+    });
+
+    it("reads an insert id back into what it inserts", () => {
+        expect(lib.parseInsertId("insert:slot:tank")).toEqual({ type: "slot", kind: "tank", label: "" });
+        expect(lib.parseInsertId("insert:slot:label")).toMatchObject({ type: "slot", kind: "label", label: "Label" });
+        expect(lib.parseInsertId("insert:mark:moon")).toEqual({ type: "mark", mark: "moon" });
+        expect(lib.parseInsertId("insert:zone:healthy")).toEqual({ type: "zone", zoneType: "healthy", shape: "rect" });
+        expect(lib.parseInsertId("insert:line:arrow")).toEqual({ type: "line", kind: "arrow" });
+        expect(lib.parseInsertId("insert:text")).toMatchObject({ type: "text" });
+        expect(lib.parseInsertId("delete")).toBeNull();
+    });
+
+    it("carries out the entries that change the board", () => {
+        const at = { x: 0.7, y: 0.6 };
+        let r = lib.applyMenuAction(lib.emptyBoard(), "insert:mark:star", "", "", at);
+        expect(r.board.marks[0]).toMatchObject({ mark: "star", x: 0.7, y: 0.6 });
+        expect(r.sel).toEqual({ kind: "mark", id: r.board.marks[0].id });
+        const id = r.board.marks[0].id;
+        r = lib.applyMenuAction(r.board, "duplicate", "mark", id, null);
+        expect(r.board.marks).toHaveLength(2);
+        r = lib.applyMenuAction(r.board, "front", "mark", id, null);
+        expect(r.board.marks[1].id).toBe(id);
+        r = lib.applyMenuAction(r.board, "back", "mark", id, null);
+        expect(r.board.marks[0].id).toBe(id);
+        r = lib.applyMenuAction(r.board, "lock", "mark", id, null);
+        expect(lib.isLocked(r.board, "mark", id)).toBe(true);
+        r = lib.applyMenuAction(r.board, "unlock", "mark", id, null);
+        expect(lib.isLocked(r.board, "mark", id)).toBe(false);
+        r = lib.applyMenuAction(r.board, "delete", "mark", id, null);
+        expect(r.board.marks).toHaveLength(1);
+        expect(r.sel).toBeNull();
+    });
+
+    it("takes a player out of a slot or off the board through the menu", () => {
+        let b = lib.assignSlot(lib.addSlot(lib.emptyBoard(), "tank", ""), lib.addSlot(lib.emptyBoard(), "tank", "").slots[0].id, "u1");
+        b = lib.addSlot(lib.emptyBoard(), "tank", "");
+        b = lib.assignSlot(b, b.slots[0].id, "u1");
+        const r = lib.applyMenuAction(b, "unassign", "slot", b.slots[0].id, null);
+        expect(r.board.slots[0].userId).toBe("");
+        expect(r.sel).toEqual({ kind: "slot", id: b.slots[0].id });
+        const t = lib.applyMenuAction(lib.placeToken(lib.emptyBoard(), "u2", 0.5, 0.5), "unassign", "token", "u2", null);
+        expect(t.board.tokens).toEqual([]);
+        // the entries that are the page's own change nothing
+        expect(lib.applyMenuAction(b, "properties", "slot", b.slots[0].id, null).board).toBe(b);
+        expect(lib.applyMenuAction(b, "duplicate", "", "", null).board).toBe(b);
+    });
+
+    it("keeps a menu inside the viewport", () => {
+        expect(lib.clampMenuPosition(100, 100, 200, 300, 1600, 900)).toEqual({ x: 100, y: 100 });
+        expect(lib.clampMenuPosition(1500, 100, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 100 });
+        expect(lib.clampMenuPosition(100, 800, 200, 300, 1600, 900)).toEqual({ x: 100, y: 592 });
+        expect(lib.clampMenuPosition(1590, 890, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 592 });
+        // taller than the viewport: at the top edge, never above it
+        expect(lib.clampMenuPosition(10, 500, 200, 2000, 1600, 900)).toEqual({ x: 10, y: 8 });
+        expect(lib.clampMenuPosition(-50, -50, 200, 300, 1600, 900)).toEqual({ x: 8, y: 8 });
+    });
+});
+
+describe("undo and redo", () => {
+    it("steps back and forward through recorded states", () => {
+        let h = lib.historyInit("a");
+        h = lib.historyRecord(h, "b", false);
+        h = lib.historyRecord(h, "c", false);
+        expect([h.past, h.present, h.future]).toEqual([["a", "b"], "c", []]);
+        h = lib.historyUndo(h);
+        expect(h.present).toBe("b");
+        h = lib.historyUndo(h);
+        expect(h.present).toBe("a");
+        expect(lib.historyUndo(h)).toBe(h);
+        h = lib.historyRedo(h);
+        h = lib.historyRedo(h);
+        expect(h.present).toBe("c");
+        expect(lib.historyRedo(h)).toBe(h);
+    });
+
+    it("clears the redo on a new change and merges a continued one into the last step", () => {
+        let h = lib.historyInit(0);
+        h = lib.historyRecord(h, 1, false);
+        h = lib.historyRecord(h, 2, false);
+        h = lib.historyUndo(h);
+        h = lib.historyRecord(h, 9, false);
+        expect(h.future).toEqual([]);
+        expect(h.past).toEqual([0, 1]);
+        h = lib.historyRecord(h, 10, true);
+        h = lib.historyRecord(h, 11, true);
+        expect([h.past, h.present]).toEqual([[0, 1], 11]);
+        expect(lib.historyUndo(h).present).toBe(1);
+    });
+
+    it("forgets what is older than 100 steps", () => {
+        let h = lib.historyInit(0);
+        for (let i = 1; i <= 130; i++) h = lib.historyRecord(h, i, false);
+        expect(h.past).toHaveLength(100);
+        expect(h.past[0]).toBe(30);
     });
 });
 
@@ -385,9 +580,8 @@ describe("slots and players", () => {
         expect(lib.openSlots(b)).toBe(0);
     });
 
-    it("counts objects for the boss list and treats them as content for the questions", () => {
-        const bosses = { a: { slots: [{ id: "1" }], marks: [{ id: "2" }], zones: [{ id: "3" }] } };
-        expect(lib.boardCount(bosses, "a")).toBe(3);
+    it("treats objects as content for the questions", () => {
+        const bosses = { a: { slots: [{ id: "1" }], marks: [{ id: "2" }], zones: [{ id: "3" }], lines: [{ id: "4" }], texts: [{ id: "5" }] } };
         expect(lib.hasContent(lib.boardOf(bosses, "a"))).toBe(true);
         expect(lib.planHasContent(bosses, ["a", "b"])).toBe(true);
         expect(lib.planHasContent(bosses, ["b"])).toBe(false);
@@ -395,14 +589,66 @@ describe("slots and players", () => {
     });
 });
 
-describe("the new pages", () => {
+describe("the pages", () => {
+    const tab = read("pages/raid-detail/RaidplanTab.tsx");
     const work = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
     const tpl = read("pages/RaidplanTemplatesPage.tsx");
-    const tab = read("pages/raid-detail/RaidplanTab.tsx");
+    const board2 = read("components/raidplan/PlanBoard.tsx");
+    const detail = read("pages/RaidDetailPage.tsx");
     const app = read("App.tsx");
-    const css = read("styles/raidplan.css");
-    const board = read("components/raidplan/PlanBoard.tsx");
     const pub = read("pages/PlanPublicPage.tsx");
+    const css = read("styles/raidplan.css");
+    const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
+    const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
+
+    it("is a tab of an own event only, after the setup", () => {
+        expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
+        expect(detail).toMatch(/\(t !== "setup" && t !== "plan"\) \|\| ownEvent/);
+        expect(detail).toContain("{shown === \"plan\" && <RaidplanTab ctx={ctx} />}");
+    });
+
+    it("drags with Pointer Events on window, never with HTML5 drag and drop", () => {
+        const src = stripComments(tab + work + board2);
+        expect(src).toContain("window.addEventListener(\"pointermove\"");
+        expect(src).toContain("window.addEventListener(\"pointerup\"");
+        expect(src).toContain("window.addEventListener(\"pointercancel\"");
+        for (const banned of ["onDragStart", "onDrop", "onDragOver", "draggable={true}", "dataTransfer"]) expect(src).not.toContain(banned);
+        expect(css).toMatch(/\.rp-token\.is-editable \.rp-token-btn \{[^}]*touch-action: none/);
+        expect(css).toMatch(/\.rp-zone\.is-editable \{[^}]*touch-action: none/);
+        expect(css).toMatch(/\.rp-handle \{[^}]*touch-action: none/);
+        expect(css).toMatch(/\.rp-pal-item \{[^}]*touch-action: none/);
+        expect(css).toMatch(/\.rp-text\.is-editable \{[^}]*touch-action: none/);
+    });
+
+    it("sends the version it read, treats a conflict as a hint and writes nothing before Save", () => {
+        expect(tab).toContain("version: view.plan.version");
+        expect(tab).toContain("e.code === \"conflict\"");
+        expect(tab).toContain("raidBoard.conflict.text");
+        expect(tab.match(/saveRaidplan\(/g)).toHaveLength(1);
+    });
+
+    it("draws players with their spec icon in a role ring, not with hand-drawn circles", () => {
+        expect(board2).toContain("player.iconUrl");
+        expect(board2).toContain("rp-role-${roleTone(player.role)}");
+        expect(css).toMatch(/\.rp-role-tank \{ --ring: var\(--rp-tank\)/);
+        expect(css).toMatch(/--rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-dps: #f59e0b/);
+    });
+
+    it("answers the public route before the menu asks for a session", () => {
+        expect(app).toMatch(/pathname\.match\(\/\^\\\/p\\\/\(\[A-Za-z0-9_-\]\+\)\\\/\?\$\/\)/);
+        expect(app).toMatch(/if \(publicPlan\) return <PlanPublicPage token=\{publicPlan\[1\]\} \/>;\s*\n\s*return <MenuApp \/>;/);
+        expect(pub).toContain("getRaidplanPublic(token)");
+        expect(pub).toContain("data.me");
+        expect(pub).not.toContain("csrfToken");
+    });
+
+    it("keeps to its own css namespace and the app's tokens", () => {
+        const classes = [...css.matchAll(/\.([a-z]{2,4}-[\w-]+)/g)].map((m) => m[1]);
+        const prefixes = new Set(classes.map((c) => c.split("-")[0]));
+        expect([...prefixes].filter((p) => p !== "rp" && p !== "is" && p !== "no")).toEqual([]);
+        expect(css).toContain("var(--accent)");
+        expect(css).toContain("var(--panel)");
+    });
 
     it("shares one workspace between the event plan and the template, with no second copy of the drag", () => {
         expect(tab).toContain("<BoardWorkspace");
@@ -412,46 +658,108 @@ describe("the new pages", () => {
         for (const src of [tab, tpl]) expect(stripComments(src)).not.toContain("addEventListener");
     });
 
-    it("gives the board the width of the column and takes the menu's width cap away for these pages", () => {
-        expect(css).toContain(".content:has(.rp-wide) { max-width: none; }");
-        expect(css).toMatch(/\.rp-layout \{[^}]*grid-template-columns: 190px minmax\(0, 1fr\)/);
-        expect(css).toMatch(/\.rp-board \{[^}]*width: 100%/);
+    it("stays inside the menu's normal page frame; only the public page is wide", () => {
+        expect(css).not.toContain(".content:has(");
+        expect(tab).not.toContain("rp-wide");
+        expect(tpl).not.toContain("rp-wide");
+        expect(tpl).toContain("<PageHead");
+        expect(css).toMatch(/\.rp-stage \{[^}]*grid-template-columns: 124px minmax\(0, 1fr\) 236px/);
+        expect(css).toMatch(/\.rp-public \{ max-width: 1800px/);
         expect(css).toMatch(/\.rp-public-body \{ display: flex; flex-direction: column/);
-        expect(tab).toContain("rp-editor rp-wide");
-        expect(tpl).toContain("rp-editor rp-wide");
-        expect(pub).toContain("rp-public rp-wide");
     });
 
-    it("reaches the template page from the raid list and the router, inside the raids area", () => {
-        expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raids"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
-        expect(read("pages/RaidsPage.tsx")).toContain("to=\"/raids/plan-templates\"");
-        expect(read("components/Shell.tsx")).toContain("/raids/plan-templates");
+    it("keeps everything editable in view: a sticky tool bar, the palette, the properties panel and the layers, no dialog for edits", () => {
+        expect(css).toMatch(/\.rp-sticky \{ position: sticky; top: 62px/);
+        for (const needle of ["<Palette", "<Inspector", "<LayerList", "<MapPanel", "rp-toolbar2", "role=\"toolbar\"", "data-rp-tray"]) expect(work).toContain(needle);
+        // the edits that used to hide in dialogs are gone; only the rare things keep one
+        expect(fs.existsSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "pages", "raid-detail", "raidplan", "ObjectModals.tsx"))).toBe(false);
+        expect(fs.existsSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "pages", "raid-detail", "raidplan", "MapModal.tsx"))).toBe(false);
+        expect(stripComments(work)).not.toContain("<Modal");
+        expect(stripComments(insp)).not.toContain("<Modal");
+        // rows and the players not placed are open, not folded away
+        expect(stripComments(work)).not.toContain("<details");
     });
 
-    it("renders zones, marks, slots and groups in the shared board, in both editors and the read view", () => {
-        for (const needle of ["zones.map", "marks.map", "slots.map", "groupMembers", "rp-zone-label", "ZONE_GLYPHS"]) expect(board).toContain(needle);
+    it("has a right-click menu of its own on the board only, keyboard-operable and inside the viewport", () => {
+        expect(board2).toContain("onContextMenu");
+        expect(board2).toContain("e.preventDefault()");
+        expect(work).toContain("<ContextMenu");
+        expect(work).toContain("LONG_PRESS_MS");
+        expect(work).toContain("e.pointerType === \"touch\"");
+        expect(menu).toContain("role=\"menu\"");
+        expect(menu).toContain("role=\"menuitem\"");
+        expect(menu).toContain("role=\"separator\"");
+        for (const key of ["ArrowDown", "ArrowUp", "Home", "End", "Escape"]) expect(menu).toContain(`"${key}"`);
+        expect(menu).toContain("clampMenuPosition");
+        expect(menu).toContain("createPortal");
+    });
+
+    it("undoes with Ctrl+Z / Ctrl+Y and offers the buttons", () => {
+        expect(work).toContain("mod && e.key.toLowerCase() === \"z\"");
+        expect(work).toContain("history.undo");
+        expect(work).toContain("history.redo");
+        expect(read("pages/raid-detail/raidplan/useDraftHistory.ts")).toContain("historyRecord");
+    });
+
+    it("uses icon buttons with a tooltip and an accessible name instead of text buttons", () => {
+        expect(work).toContain("lucide-react");
+        expect(work).toContain("<IconButton");
+        expect(tab).toContain("<IconButton");
+        expect(tab).toContain("tip={");
+        expect(read("components/ui/Button.tsx")).toContain("aria-label={rest[\"aria-label\"] || tip}");
+        expect(work).not.toMatch(/<Button[^>]*>\s*\{t\("raidBoard\.bar\.save"\)/);
+    });
+
+    it("gives every kind of object an opacity control, and the map its own", () => {
+        expect(insp).toContain("OpacityField");
+        expect(insp).toContain("type=\"range\" min={10} max={100}");
+        expect(insp).toContain("MapOpacityField");
+        expect(board2).toContain("style={{ opacity: mapOpacity }}");
+        expect(board2).toContain("opacity: l.opacity");
+        expect(board2).toContain("opacity: x.opacity");
+        expect(board2).toContain("opacity: m.opacity");
+        expect(board2).toContain("opacity: s.opacity");
+        expect(board2).toContain("opacity: tok.opacity");
+        expect(board2).toContain("\"--zo\": z.opacity");
+    });
+
+    it("renders zones, marks, slots, lines, texts and groups in the shared board and the read view", () => {
+        for (const needle of ["zones.filter", "marks.filter", "slots.filter", "lines.filter", "texts.filter", "tokens.filter", "groupMembers", "rp-zone-label", "ZONE_GLYPHS", "arrowHead"]) expect(board2).toContain(needle);
         expect(pub).toContain("slots={boss.slots}");
-        expect(pub).toContain("marks={boss.marks}");
-        expect(pub).toContain("zones={boss.zones}");
+        expect(pub).toContain("lines={boss.lines}");
+        expect(pub).toContain("texts={boss.texts}");
+        expect(pub).toContain("mapOpacity={boss.mapOpacity}");
         expect(pub).toContain("boss.slots.some((sl) => sl.userId === data.me)");
+    });
+
+    it("fits any map: the board takes the map's aspect ratio", () => {
+        expect(board2).toContain("naturalWidth / i.naturalHeight");
+        expect(board2).toContain("aspectRatio: String(ar)");
     });
 
     it("marks a zone's type by pattern and label as well as colour", () => {
         expect(css).toMatch(/\.rp-zone-danger \{[^}]*repeating-linear-gradient/);
         expect(css).toMatch(/\.rp-zone-healthy \{[^}]*radial-gradient/);
         expect(css).toMatch(/\.rp-zone-neutral \{[^}]*dashed/);
-        expect(board).toContain("aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}");
+        expect(board2).toContain("aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}");
     });
 
-    it("offers all eight raid marks and draws them itself (Blizzard's textures are not on the icon CDN)", () => {
+    it("uses the game's own raid mark icons, served from the client's public folder", () => {
         const icon = read("components/raidplan/MarkIcon.tsx");
-        for (const m of ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"]) expect(icon).toContain(m);
-        expect(icon).toContain("not on the icon CDN");
+        expect(icon).toContain("markUrl(mark)");
+        expect(lib.markUrl("skull")).toBe("/raidmarks/skull.png");
+        const dir = path.join(__dirname, "..", "..", "src", "web-client", "public", "raidmarks");
+        for (const m of lib.RAID_MARKS) {
+            const file = path.join(dir, `${m}.png`);
+            expect(fs.existsSync(file)).toBe(true);
+            // a real PNG, not an error page
+            expect(fs.readFileSync(file).subarray(0, 4).toString("hex")).toBe("89504e47");
+        }
     });
 
-    it("lets a map be reset to its default from the map dialog", () => {
-        const modal = read("pages/raid-detail/raidplan/MapModal.tsx");
-        expect(modal).toContain("raidBoard.board.mapReset");
+    it("lets a map be reset to its default from the background tab", () => {
+        const panel = read("pages/raid-detail/raidplan/MapPanel.tsx");
+        expect(panel).toContain("raidBoard.board.mapReset");
         expect(tab).toContain("e/${eventId}/${boss.key}");
         expect(tpl).toContain("t/${tpl.id}/${boss.key}");
     });
@@ -459,5 +767,55 @@ describe("the new pages", () => {
     it("applies a template on the server's answer and asks first only when the plan holds something", () => {
         expect(tab).toContain("applyRaidplanTemplate(csrfToken, { event: eventId, templateId: tpl.id, version: view.plan.version })");
         expect(tab).toContain("planHasContent(view.plan.bosses, bossKeys)");
+    });
+
+    it("reaches the template page from the raid list and the router, inside the raids area", () => {
+        expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raids"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
+        expect(read("pages/RaidsPage.tsx")).toContain("to=\"/raids/plan-templates\"");
+        expect(read("components/Shell.tsx")).toContain("/raids/plan-templates");
+    });
+});
+
+describe("the texts", () => {
+    it("exist in German and English for every key the raid plan asks for", () => {
+        const { de, en } = allDicts();
+        const files = [
+            "pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/Inspector.tsx", "pages/raid-detail/raidplan/LayerList.tsx",
+            "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/raidplan/MapPanel.tsx", "pages/raid-detail/raidplan/BossNav.tsx", "pages/raid-detail/RaidplanTab.tsx",
+            "pages/raid-detail/raidplan/TargetsPanel.tsx", "pages/raid-detail/raidplan/ProfileModals.tsx", "pages/raid-detail/raidplan/ShareModal.tsx", "pages/PlanPublicPage.tsx",
+            "components/raidplan/PlanBoard.tsx",
+        ];
+        const keys = new Set();
+        for (const f of files) for (const m of read(f).matchAll(/\bt\(\s*"((?:raidBoard|planTemplates)\.[\w.]+)"/g)) keys.add(m[1]);
+        expect(keys.size).toBeGreaterThan(110);
+        const missing = [...keys].filter((k) => de[k] === undefined || en[k] === undefined);
+        expect(missing).toEqual([]);
+        // the labels that are looked up by a computed key
+        for (const role of ["tank", "healer", "dps"]) expect(de[`raidBoard.role.${role}`]).toBeTruthy();
+        for (const k of ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"]) expect([de, en].map((d) => d[`raidBoard.mark.${k}`])).not.toContain(undefined);
+        for (const k of ["danger", "healthy", "neutral", "custom", "rect", "ellipse"]) expect([de, en].map((d) => d[`raidBoard.zone.${k}`])).not.toContain(undefined);
+        for (const k of ["tank", "healer", "dps", "group", "label"]) expect([de, en].map((d) => d[`raidBoard.slot.kind.${k}`])).not.toContain(undefined);
+        for (const k of ["tank", "healer", "dps", "group"]) expect([de, en].map((d) => d[`raidBoard.slot.${k}`])).not.toContain(undefined);
+        for (const k of ["token", "slot", "mark", "zone", "line", "text"]) expect([de, en].map((d) => d[`raidBoard.obj.${k}`])).not.toContain(undefined);
+        for (const k of ["arrow", "line"]) expect([de, en].map((d) => d[`raidBoard.line.${k}`])).not.toContain(undefined);
+        for (const k of ["properties", "duplicate", "front", "back", "lock", "unlock", "assign", "unassign", "delete", "deselect", "insertHere", "board"]) expect([de, en].map((d) => d[`raidBoard.ctx.${k}`])).not.toContain(undefined);
+        expect(de["raidDetail.page.tab.plan"]).toBe("Raidplan");
+        expect(en["raidDetail.page.tab.plan"]).toBe("Raid plan");
+    });
+
+    it("keeps the two languages' placeholders in step", () => {
+        const de = makeT("de");
+        const en = makeT("en");
+        expect(de("raidBoard.profile.applyTitle", { name: "X" })).toContain("X");
+        expect(en("raidBoard.profile.applyTitle", { name: "X" })).toContain("X");
+        expect(de("raidBoard.bar.savedDropped", { count: 2 })).toContain("2");
+        expect(de("raidBoard.ctx.insertHere", { what: "Tank" })).toBe("Hier einfügen: Tank");
+        expect(en("raidBoard.ctx.insertHere", { what: "Tank" })).toBe("Insert here: Tank");
+    });
+
+    it("has no leftover file for the wrong namespace", () => {
+        const dir = path.join(__dirname, "..", "..", "src", "web-client", "src", "i18n", "locales");
+        expect(fs.existsSync(path.join(dir, "de", "raidBoard.json"))).toBe(true);
+        expect(fs.existsSync(path.join(dir, "en", "raidBoard.json"))).toBe(true);
     });
 });

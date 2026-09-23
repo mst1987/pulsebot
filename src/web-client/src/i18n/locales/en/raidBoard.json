@@ -8,7 +8,8 @@
         "saved": "Raid plan saved.",
         "savedDropped": "Raid plan saved. {count} assignment(s) to players no longer in the setup were removed.",
         "share": "Publish & share",
-        "readOnly": "Read only"
+        "readOnly": "Read only",
+        "savedState": "Saved"
     },
     "conflict": {
         "text": "Someone changed the raid plan in the meantime. Your changes are still here, but you can only save after reloading.",
@@ -43,10 +44,10 @@
         "mapTooBig": "The image is larger than 3 MB.",
         "mapRemoveTitle": "Remove the map?",
         "mapRemoveText": "The map is deleted. Plans stay, they show the grid instead.",
-        "hint": "Drag players from the list onto the board and move them there. Drag them back to the list or press Delete to remove them.",
+        "hint": "Drag elements from the palette and players from the list onto the board or onto a slot. Right click (touch: long press) opens the menu, a double click the properties, Delete removes, Ctrl+Z undoes.",
         "tokenLabel": "{name}, {spec}",
         "you": "You",
-        "hintTemplate": "Put objects on the board with \"Add object\", move them, scale zones at their corners. A double click opens the details.",
+        "hintTemplate": "Drag elements from the palette onto the board, or click them. Right click (touch: long press) opens the menu, a double click the properties, Delete removes, Ctrl+Z undoes.",
         "mapTitle": "Maps",
         "mapForPlan": "This raid plan only",
         "mapHas": "set",
@@ -234,6 +235,81 @@
         "applyTitle": "Apply template \"{name}\"?",
         "applyText": "The template's bosses replace the boards in this plan, unsaved changes to them are lost. Bosses the template does not have stay.",
         "applyAction": "Apply",
-        "applied": "Template \"{name}\" applied. Open slots are marked on the board."
+        "applied": "Template \"{name}\" applied. Open slots are marked on the board.",
+        "hintEmpty": "Tip: \"Pick a template\" starts you from a template."
+    },
+    "tool": {
+        "label": "Tools",
+        "undo": "Undo",
+        "redo": "Redo",
+        "text": "Text",
+        "palette": "Show / hide elements",
+        "panel": "Show / hide properties"
+    },
+    "palette": {
+        "title": "Elements",
+        "marks": "Raid marks",
+        "slots": "Slots",
+        "zones": "Zones",
+        "shapes": "Shapes",
+        "hint": "Drag onto the board or click."
+    },
+    "line": {
+        "arrow": "Arrow",
+        "line": "Line"
+    },
+    "text": {
+        "default": "Text"
+    },
+    "obj": {
+        "token": "Player",
+        "slot": "Slot",
+        "mark": "Mark",
+        "zone": "Zone",
+        "line": "Line",
+        "text": "Text"
+    },
+    "insp": {
+        "none": "Nothing selected. Click an object on the board or in the layer list, or drag something from the elements onto the board.",
+        "width": "Width",
+        "height": "Height",
+        "opacity": "Opacity",
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "duplicate": "Duplicate",
+        "front": "Bring to front",
+        "back": "Send to back",
+        "lineKind": "Kind",
+        "thickness": "Thickness (px)",
+        "fontSize": "Font size (px)"
+    },
+    "panel": {
+        "props": "Properties",
+        "background": "Background",
+        "layers": "Layers"
+    },
+    "layers": {
+        "empty": "Nothing on the board yet.",
+        "show": "Show",
+        "hide": "Hide",
+        "up": "One layer forward",
+        "down": "One layer back"
+    },
+    "bg": {
+        "mapOpacity": "Map: opacity (dim)"
+    },
+    "ctx": {
+        "board": "Board",
+        "properties": "Properties",
+        "duplicate": "Duplicate",
+        "front": "Bring to front",
+        "back": "Send to back",
+        "lock": "Lock",
+        "unlock": "Unlock",
+        "assign": "Assign player …",
+        "unassign": "Take player out",
+        "delete": "Delete",
+        "deselect": "Deselect all",
+        "insertHere": "Insert here: {what}"
     }
 }

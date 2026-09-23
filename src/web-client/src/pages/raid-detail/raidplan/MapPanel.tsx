@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { deleteRaidplanMap, uploadRaidplanMap, type ApiError } from "../../../api";
-import { Button, Modal, useConfirm } from "../../../components/ui";
+import { Button, useConfirm } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
 import { useT } from "../../../i18n";
 
@@ -14,13 +14,12 @@ export type MapRow = { key: string; label: string; has: boolean; override: boole
  * own map, then the boss's default, then the instance's default. Every row can be
  * uploaded, replaced or removed; the board shows the first one that exists. An
  * override's "remove" reads "Auf Standard zurücksetzen". The server checks the
- * file's real type and size again.
+ * file's real type and size again. Lives on the "Hintergrund" tab, always in view.
  */
-export default function MapModal({ open, onClose, csrfToken, rows, onChanged }: {
-    open: boolean;
-    onClose: () => void;
+export default function MapPanel({ csrfToken, rows, canWrite, onChanged }: {
     csrfToken: string | null;
     rows: MapRow[];
+    canWrite: boolean;
     onChanged: () => void;
 }) {
     const t = useT();
@@ -63,7 +62,7 @@ export default function MapModal({ open, onClose, csrfToken, rows, onChanged }: 
     };
 
     return (
-        <Modal open={open} onClose={onClose} icon="inv_misc_map02" title={t("raidBoard.board.mapTitle")} width={560} hint={t("raidBoard.board.mapHelp")}>
+        <div className="rp-mappanel">
             <input
                 ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden
                 onChange={(e) => { upload(target, e.target.files?.[0]); e.target.value = ""; }}
@@ -74,16 +73,21 @@ export default function MapModal({ open, onClose, csrfToken, rows, onChanged }: 
                         <strong>{row.label}</strong>
                         <span className="rp-muted">{row.has ? t("raidBoard.board.mapHas") : t("raidBoard.board.mapNone")}</span>
                     </div>
-                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setTarget(row.key); input.current?.click(); }}>
-                        {row.has ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
-                    </Button>
-                    {row.has && (
-                        <Button variant="danger" size="sm" disabled={busy} onClick={() => remove(row)}>
-                            {row.override ? t("raidBoard.board.mapReset") : t("raidBoard.board.mapRemove")}
-                        </Button>
+                    {canWrite && (
+                        <div className="rp-map-btns">
+                            <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setTarget(row.key); input.current?.click(); }}>
+                                {row.has ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
+                            </Button>
+                            {row.has && (
+                                <Button variant="danger" size="sm" disabled={busy} onClick={() => remove(row)}>
+                                    {row.override ? t("raidBoard.board.mapReset") : t("raidBoard.board.mapRemove")}
+                                </Button>
+                            )}
+                        </div>
                     )}
                 </div>
             ))}
-        </Modal>
+            <p className="rp-muted">{t("raidBoard.board.mapHelp")}</p>
+        </div>
     );
 }

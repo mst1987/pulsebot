@@ -12,8 +12,15 @@
 //   zones    [{ id, shape, type, label, color, opacity, x, y, w, h }]
 //                                          rectangle / ellipse areas: danger, healthy,
 //                                          neutral or a custom one
+//   lines    [{ id, kind, x1, y1, x2, y2, color, width, ... }]   arrows and plain lines
+//   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
-//   notes, profileId
+//   notes, profileId, mapOpacity          (mapOpacity 0.1..1: how strongly the map shows)
+//
+// Every object (token, slot, mark, zone, line, text) also carries `opacity`
+// (0.1..1; zones start at 0.3, everything else at 1), `lock` (it cannot be moved
+// or scaled) and `hidden` (it is not drawn — in the editor's layer list it can be
+// switched back on). Colour and opacity are separate fields.
 //
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
 const crypto = require("crypto");
@@ -23,6 +30,9 @@ const LIMITS = {
     slotsPerBoss: 60,
     marksPerBoss: 40,
     zonesPerBoss: 30,
+    linesPerBoss: 40,
+    textsPerBoss: 40,
+    text: 60,
     targetsPerBoss: 30,
     usersPerTarget: 25,
     title: 80,
@@ -37,11 +47,27 @@ const ZONE_SHAPES = ["rect", "ellipse"];
 // Preset colours per zone type: what a new zone starts with, free to be overridden.
 const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa" };
 const MIN_ZONE = 0.03;
+const LINE_KINDS = ["arrow", "line"];
+const DEFAULT_LINE_COLOR = "#f8fafc";
+const DEFAULT_TEXT_COLOR = "#f8fafc";
 
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const clamp01 = (n) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 const round4 = (n) => Math.round(n * 10000) / 10000;
 const newId = () => crypto.randomBytes(5).toString("hex");
+
+/** 0.1..1 in steps of 0.01; `fallback` for anything that is no number. */
+function cleanOpacity(v, fallback) {
+    if (v === "" || v === null || v === undefined || !Number.isFinite(Number(v))) return fallback;
+    return Math.max(0.1, Math.min(1, Math.round(Number(v) * 100) / 100));
+}
+
+/** What every board object shares: its opacity, whether it is locked and whether it is hidden. */
+function common(o, defaultOpacity = 1) {
+    return { opacity: cleanOpacity(o.opacity, defaultOpacity), lock: o.lock === true, hidden: o.hidden === true };
+}
+
+const cleanColor = (v, fallback) => (/^#[0-9a-fA-F]{6}$/.test(str(v)) ? str(v).toLowerCase() : fallback);
 
 /** A usable id: what the client sent when it is clean and not yet used, else a new one. */
 function cleanId(raw, seen) {
@@ -69,7 +95,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         if (!userId || seenTokens.has(userId) || !allowed.has(userId)) { dropped += 1; continue; }
         if (tokens.length >= LIMITS.tokensPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.tokensPerBoss} Spieler je Boss.` };
         seenTokens.add(userId);
-        tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))) });
+        tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))), ...common(t) });
     }
 
     const rawSlots = Array.isArray(input.slots) ? input.slots : [];
@@ -90,7 +116,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         const n = Math.max(1, Math.min(99, Math.floor(Number(o.n)) || 1));
         slots.push({
             id: cleanId(o.id, slotIds), kind: o.kind, n, label,
-            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId,
+            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, ...common(o),
         });
     }
 
@@ -101,7 +127,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     for (const m of rawMarks) {
         const o = m && typeof m === "object" ? m : {};
         if (!MARKS.includes(o.mark)) { dropped += 1; continue; }
-        marks.push({ id: cleanId(o.id, markIds), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))) });
+        marks.push({ id: cleanId(o.id, markIds), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), ...common(o) });
     }
 
     const rawZones = Array.isArray(input.zones) ? input.zones : [];
@@ -112,20 +138,51 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         const type = ZONE_TYPES.includes(o.type) ? o.type : "neutral";
         const w = Math.max(MIN_ZONE, Math.min(1, Number(o.w) || MIN_ZONE));
         const h = Math.max(MIN_ZONE, Math.min(1, Number(o.h) || MIN_ZONE));
-        const opacity = Number.isFinite(Number(o.opacity)) && o.opacity !== "" && o.opacity !== null
-            ? Math.max(0.1, Math.min(0.6, Math.round(Number(o.opacity) * 100) / 100)) : 0.3;
         return {
             id: cleanId(o.id, zoneIds),
             shape: ZONE_SHAPES.includes(o.shape) ? o.shape : "rect",
             type,
             label: str(o.label).slice(0, LIMITS.label),
-            color: /^#[0-9a-fA-F]{6}$/.test(str(o.color)) ? str(o.color).toLowerCase() : ZONE_COLORS[type],
-            opacity,
+            color: cleanColor(o.color, ZONE_COLORS[type]),
+            ...common(o, 0.3),
             w: round4(w), h: round4(h),
             x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),
             y: round4(Math.min(clamp01(Number(o.y)), 1 - h)),
         };
     });
+
+    const rawLines = Array.isArray(input.lines) ? input.lines : [];
+    if (rawLines.length > LIMITS.linesPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.linesPerBoss} Linien je Boss.` };
+    const lineIds = new Set();
+    const lines = rawLines.map((l) => {
+        const o = l && typeof l === "object" ? l : {};
+        return {
+            id: cleanId(o.id, lineIds),
+            kind: LINE_KINDS.includes(o.kind) ? o.kind : "line",
+            x1: round4(clamp01(Number(o.x1))), y1: round4(clamp01(Number(o.y1))),
+            x2: round4(clamp01(Number(o.x2))), y2: round4(clamp01(Number(o.y2))),
+            color: cleanColor(o.color, DEFAULT_LINE_COLOR),
+            width: Math.max(1, Math.min(12, Math.round(Number(o.width)) || 4)),
+            ...common(o),
+        };
+    });
+
+    const rawTexts = Array.isArray(input.texts) ? input.texts : [];
+    if (rawTexts.length > LIMITS.textsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.textsPerBoss} Texte je Boss.` };
+    const textIds = new Set();
+    const texts = [];
+    for (const tx of rawTexts) {
+        const o = tx && typeof tx === "object" ? tx : {};
+        const text = str(o.text).slice(0, LIMITS.text);
+        if (!text) { dropped += 1; continue; }
+        texts.push({
+            id: cleanId(o.id, textIds), text,
+            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))),
+            color: cleanColor(o.color, DEFAULT_TEXT_COLOR),
+            size: Math.max(10, Math.min(48, Math.round(Number(o.size)) || 16)),
+            ...common(o),
+        });
+    }
 
     const rawTargets = Array.isArray(input.targets) ? input.targets : [];
     if (rawTargets.length > LIMITS.targetsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.targetsPerBoss} Aufgabenzeilen je Boss.` };
@@ -145,12 +202,14 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const notes = String(input.notes === undefined || input.notes === null ? "" : input.notes).slice(0, LIMITS.notes);
     // The tactic profile the rows were taken from; one that was deleted since is forgotten.
     const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
-    return { board: { tokens, slots, marks, zones, targets, notes, profileId }, dropped };
+    const mapOpacity = cleanOpacity(input.mapOpacity, 1);
+    return { board: { tokens, slots, marks, zones, lines, texts, targets, notes, profileId, mapOpacity }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
-    return !!(b.tokens.length || b.slots.length || b.marks.length || b.zones.length || b.targets.length || b.notes.trim() || b.profileId);
+    return !!(b.tokens.length || b.slots.length || b.marks.length || b.zones.length || b.lines.length || b.texts.length
+        || b.targets.length || b.notes.trim() || b.profileId || b.mapOpacity < 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -162,6 +221,8 @@ function reidBoard(board) {
         slots: (board.slots || []).map(fresh),
         marks: (board.marks || []).map(fresh),
         zones: (board.zones || []).map(fresh),
+        lines: (board.lines || []).map(fresh),
+        texts: (board.texts || []).map(fresh),
         targets: (board.targets || []).map((t) => ({ ...fresh(t), userIds: [] })),
     };
 }
@@ -194,6 +255,6 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
-    LIMITS, SLOT_KINDS, MARKS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
+    LIMITS, SLOT_KINDS, MARKS, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
 };

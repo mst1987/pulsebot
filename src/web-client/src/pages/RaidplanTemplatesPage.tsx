@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RotateCw, Save, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     canAccess, createRaidplanTemplate, deleteRaidplanTemplate, getGameVersions, getRaidplanProfiles, getRaidplanTemplates, getSession,
@@ -7,12 +8,12 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    applyProfile, boardCount, boardOf, hasContent, profileRows, sameBosses, toSave, withBoard,
+    applyProfile, boardOf, hasContent, profileRows, sameBosses, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -21,10 +22,11 @@ import { InstancePicker } from "../components/RaidPlanFields";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { ProfilePickerModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
-import MapModal, { type MapRow } from "./raid-detail/raidplan/MapModal";
+import BossNav from "./raid-detail/raidplan/BossNav";
+import type { MapRow } from "./raid-detail/raidplan/MapPanel";
+import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan.css";
 
-type Bosses = Record<string, Partial<RaidplanBoard>>;
 type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[] };
 
 const blankFields = (): Fields => ({ name: "", category: "", description: "", guildId: "", instanceIds: [] });
@@ -80,7 +82,7 @@ export default function RaidplanTemplatesPage() {
     }
 
     return (
-        <div className="rp-wide rp-templates">
+        <div className="rp-templates">
             <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
@@ -183,7 +185,7 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
     );
 }
 
-/** The editor of one template: boss list on the left, the shared board workspace filling the rest. */
+/** The editor of one template: the shared board workspace (sticky tool bar, boss chips, palette, board, properties / background / layers panel). */
 function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profiles, onProfiles, onSaved, onBack }: {
     template: RaidplanTemplate;
     csrfToken: string | null;
@@ -199,30 +201,31 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const toast = useToast();
     const ask = useConfirm();
     const [tpl, setTpl] = useState(template);
-    const [draft, setDraft] = useState<Bosses>(template.bosses);
+    const { draft, edit: histEdit, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
     const [selected, setSelected] = useState((template.bossList[0] && template.bossList[0].key) || "");
-    const [modal, setModal] = useState<"" | "fields" | "pick" | "profiles" | "save" | "map" | "delete">("");
+    const [modal, setModal] = useState<"" | "fields" | "pick" | "profiles" | "save">("");
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);
     const selectedRef = useRef(selected);
     selectedRef.current = selected;
+    useEffect(() => { reset(template.bosses); }, [reset, template.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const bossKeys = useMemo(() => tpl.bossList.map((b) => b.key), [tpl]);
     const boss = tpl.bossList.find((b) => b.key === selected) || null;
     const board = boardOf(draft, selected);
     const dirty = !sameBosses(draft, tpl.bosses, bossKeys);
-    const edit = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard) => {
-        setDraft((prev) => withBoard(prev, selectedRef.current, fn(boardOf(prev, selectedRef.current))));
-    }, []);
+    const edit = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
+        histEdit(selectedRef.current, fn, coalesce);
+    }, [histEdit]);
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
 
-    /** A change that comes back as the fresh template (fields, maps): keep the unsaved draft. */
+    /** A change that comes back as the fresh template (fields, maps): keep the unsaved draft unless told otherwise. */
     const adopt = (r: { templates: RaidplanTemplate[]; template?: RaidplanTemplate }, keepDraft: boolean) => {
         onSaved(r.templates);
         if (r.template) {
             setTpl(r.template);
-            if (!keepDraft) setDraft(r.template.bosses);
+            if (!keepDraft) reset(r.template.bosses);
         }
     };
 
@@ -245,7 +248,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
         const r = await getRaidplanTemplates();
         onSaved(r.templates);
         const fresh = r.templates.find((x) => x.id === tpl.id);
-        if (fresh) { setTpl(fresh); setDraft(fresh.bosses); setConflict(false); }
+        if (fresh) { setTpl(fresh); reset(fresh.bosses); setConflict(false); }
     };
 
     const reloadMaps = async () => {
@@ -268,7 +271,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     };
 
     const pickProfile = async (p: RaidplanProfile) => {
-        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [] }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         edit((b) => applyProfile(b, p));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: p.name }));
@@ -282,50 +285,37 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const limits = { targetsPerBoss: 30, title: 80, notes: 1000, profileName: 40, profileCategory: 30 };
 
     return (
-        <div className="rp-editor rp-wide">
+        <div className="rp-editor">
             <p className="note"><button type="button" className="mlink rp-linkbtn" onClick={onBack}>{t("planTemplates.backToList")}</button></p>
-            <div className="rp-bar">
-                <strong className="rp-tcard-name">{tpl.name}</strong>
-                {tpl.category && <Badge>{tpl.category}</Badge>}
-                {dirty && <Badge tone="mid">{t("raidBoard.bar.dirty")}</Badge>}
-                {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
-                <div className="rp-bar-act">
-                    {canWrite && <Button variant="ghost" onClick={() => setModal("fields")}>{t("planTemplates.details")}</Button>}
-                    {canWrite && <Button variant="danger" onClick={remove}>{t("raidBoard.profile.delete")}</Button>}
-                    {canWrite && <Button onClick={save} disabled={!dirty || conflict} running={saving}>{t("raidBoard.bar.save")}</Button>}
-                </div>
-            </div>
+            <PageHead
+                icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={tpl.name}
+                meta={<>{tpl.category && <Badge>{tpl.category}</Badge>}{!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}</>}
+            />
             {conflict && (
                 <div className="flash flash-err rp-conflict">
                     <span>{t("planTemplates.conflict")}</span>
-                    <Button variant="ghost" size="sm" onClick={reload}>{t("raidBoard.conflict.reload")}</Button>
+                    <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={reload} />
                 </div>
             )}
             <p className="rp-muted">{t("planTemplates.editorHint")}</p>
 
-            <div className="rp-layout">
-                <nav className="rp-bosses" aria-label={t("raidBoard.bosses.title")}>
-                    <h3 className="rp-kicker">{t("raidBoard.bosses.title")}</h3>
-                    {tpl.bossList.map((b, i) => (
-                        <button key={b.key} type="button" className={`rp-boss${b.key === selected ? " is-on" : ""}`} aria-current={b.key === selected ? "true" : undefined} onClick={() => setSelected(b.key)}>
-                            <img src={b.iconUrl} alt="" width={26} height={26} loading="lazy" />
-                            <span className="rp-boss-name">{i + 1} · {b.name}</span>
-                            {boardCount(draft, b.key) > 0 && <span className="rp-boss-dot" aria-hidden="true" />}
-                        </button>
-                    ))}
-                </nav>
-                {boss && (
-                    <BoardWorkspace
-                        mode="template" boss={boss} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
-                        profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
-                        toolbar={canWrite ? (
-                            <Button variant="ghost" size="sm" icon="inv_misc_map02" onClick={() => setModal("map")}>
-                                {boss.mapUrl ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
-                            </Button>
-                        ) : undefined}
-                    />
-                )}
-            </div>
+            {boss && (
+                <BoardWorkspace
+                    mode="template" boss={boss} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
+                    history={{ undo, redo, canUndo, canRedo }}
+                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
+                    bossNav={<BossNav bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} />}
+                    status={<Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>}
+                    actions={canWrite ? (
+                        <>
+                            <IconButton size="sm" icon={<Settings2 size={17} />} tip={t("planTemplates.details")} onClick={() => setModal("fields")} />
+                            <IconButton size="sm" tone="danger" icon={<Trash2 size={17} />} tip={t("raidBoard.profile.delete")} onClick={remove} />
+                            <IconButton size="sm" className="rp-save" icon={<Save size={17} />} tip={saving ? t("raidBoard.bar.saving") : t("raidBoard.bar.save")} disabled={!dirty || conflict || saving} onClick={save} />
+                        </>
+                    ) : undefined}
+                />
+            )}
 
             {modal === "fields" && (
                 <FieldsModal
@@ -356,7 +346,6 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     if (saved && modal === "save") edit((b) => ({ ...b, profileId: saved.id }));
                 }}
             />
-            <MapModal open={modal === "map"} onClose={() => setModal("")} csrfToken={csrfToken} rows={mapRows} onChanged={reloadMaps} />
         </div>
     );
 }

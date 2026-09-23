@@ -1,0 +1,47 @@
+import { ChevronDown, ChevronUp, Eye, EyeOff, Lock, LockOpen, Trash2 } from "lucide-react";
+import type { RaidplanBoard, RaidplanPlayer } from "../../../api";
+import { layerList, patchLook, removeObject, reorderObject, type ObjectKind, type Selection } from "../../../lib/raidplan";
+import { useT } from "../../../i18n";
+
+/**
+ * The layers of the board, front to back: every object — tokens, texts, slots,
+ * marks, lines, zones — as one row. Click a row to select it; per row show / hide,
+ * lock, one step forward / back within its kind, delete. It is the always-visible
+ * list of everything on the board, including what is hidden or hard to hit.
+ */
+export default function LayerList({ board, players, selection, canWrite, edit, onSelect }: {
+    board: RaidplanBoard;
+    players: Map<string, RaidplanPlayer>;
+    selection: Selection;
+    canWrite: boolean;
+    edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
+    onSelect: (sel: Selection) => void;
+}) {
+    const t = useT();
+    const rows = layerList(board, players);
+    if (!rows.length) return <p className="rp-muted">{t("raidBoard.layers.empty")}</p>;
+    const btn = (label: string, icon: JSX.Element, onClick: () => void, extra = "") => (
+        <button type="button" className={`rp-layer-btn ${extra}`} aria-label={label} data-tip={label} disabled={!canWrite} onClick={(e) => { e.stopPropagation(); onClick(); }}>{icon}</button>
+    );
+    return (
+        <ul className="rp-layers" aria-label={t("raidBoard.panel.layers")}>
+            {rows.map((r) => {
+                const on = !!selection && selection.kind === r.kind && selection.id === r.id;
+                const kind = r.kind as ObjectKind;
+                return (
+                    <li key={`${r.kind}:${r.id}`} className={`rp-layer${on ? " is-on" : ""}${r.hidden ? " is-hidden" : ""}`} onClick={() => onSelect({ kind, id: r.id })}>
+                        <button type="button" className="rp-layer-name" aria-pressed={on} onClick={() => onSelect({ kind, id: r.id })}>
+                            <span className="rp-layer-kind">{t(`raidBoard.obj.${r.kind}`)}</span>
+                            <span className="rp-layer-text">{r.name}</span>
+                        </button>
+                        {btn(r.hidden ? t("raidBoard.layers.show") : t("raidBoard.layers.hide"), r.hidden ? <EyeOff size={14} /> : <Eye size={14} />, () => edit((b) => patchLook(b, kind, r.id, { hidden: !r.hidden })))}
+                        {btn(r.lock ? t("raidBoard.insp.unlock") : t("raidBoard.insp.lock"), r.lock ? <Lock size={14} /> : <LockOpen size={14} />, () => edit((b) => patchLook(b, kind, r.id, { lock: !r.lock })))}
+                        {btn(t("raidBoard.layers.up"), <ChevronUp size={14} />, () => edit((b) => reorderObject(b, kind, r.id, "up")))}
+                        {btn(t("raidBoard.layers.down"), <ChevronDown size={14} />, () => edit((b) => reorderObject(b, kind, r.id, "down")))}
+                        {btn(t("raidBoard.selection.delete"), <Trash2 size={14} />, () => { edit((b) => removeObject(b, kind, r.id)); if (on) onSelect(null); }, "is-danger")}
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}

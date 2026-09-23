@@ -205,3 +205,31 @@ describe("the public view", () => {
         expect(body(r).bosses[0].slots.map((s) => s.userId)).toEqual(["", "u2", "", ""]);
     });
 });
+
+describe("the public view of the newer objects", () => {
+    it("carries lines, texts and the map's opacity, and leaves out what is hidden in the editor", async () => {
+        await call(route.putPlan, ORGA, {
+            event: "eh-1", version: 0,
+            bosses: {
+                [BOSS]: {
+                    mapOpacity: 0.4,
+                    lines: [{ kind: "arrow", x1: 0.1, y1: 0.1, x2: 0.5, y2: 0.5, opacity: 0.6 }, { kind: "line", hidden: true }],
+                    texts: [{ text: "Boss", x: 0.5, y: 0.5, size: 24 }, { text: "versteckt", hidden: true }],
+                    marks: [{ mark: "skull", x: 0.2, y: 0.2, opacity: 0.5 }, { mark: "star", hidden: true }],
+                    zones: [{ type: "danger", x: 0.1, y: 0.1, w: 0.2, h: 0.2, opacity: 0.8 }, { type: "healthy", hidden: true }],
+                },
+            },
+        });
+        const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
+        const r = res();
+        route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
+        const b = body(r).bosses[0];
+        expect(b.mapOpacity).toBe(0.4);
+        expect(b.lines).toHaveLength(1);
+        expect(b.lines[0]).toMatchObject({ kind: "arrow", opacity: 0.6 });
+        expect(b.texts.map((x) => x.text)).toEqual(["Boss"]);
+        expect(b.marks.map((m) => [m.mark, m.opacity])).toEqual([["skull", 0.5]]);
+        expect(b.zones).toHaveLength(1);
+        expect(b.zones[0].opacity).toBe(0.8);
+    });
+});
