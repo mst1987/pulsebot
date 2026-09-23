@@ -184,25 +184,29 @@ function TipEmpty() {
  */
 function SizeControl({ size, disabled, onCommit }: { size: number; disabled: boolean; onCommit: (size: number) => void }) {
     const t = useT();
-    const [text, setText] = useState(String(size));
-    useEffect(() => setText(String(size)), [size]);
+    // the size is entered as a number of groups; the total (groups times 5) is calculated
+    const groups = Math.max(1, Math.ceil(size / GROUP_SIZE));
+    const maxGroups = Math.floor(MAX_RAID_SIZE / GROUP_SIZE);
+    const [text, setText] = useState(String(groups));
+    useEffect(() => setText(String(groups)), [groups]);
     const parsed = Math.round(Number(text));
-    const valid = text.trim() !== "" && Number.isFinite(parsed) && parsed >= 1 && parsed <= MAX_RAID_SIZE;
-    const dirty = valid && parsed !== size;
+    const valid = text.trim() !== "" && Number.isFinite(parsed) && parsed >= 1 && parsed <= maxGroups;
+    const dirty = valid && parsed !== groups;
     const commit = () => {
-        if (valid && parsed !== size) onCommit(parsed);
-        else setText(String(size));
+        if (valid && parsed !== groups) onCommit(parsed * GROUP_SIZE);
+        else setText(String(groups));
     };
     return (
         <label className="se-size" data-tip={t("setup.editor.sizeTip")} data-tip-sub={t("setup.editor.sizeSub")}>
             <span className="kicker">{t("setup.editor.sizeLabel")}</span>
             <input
-                type="number" min={1} max={MAX_RAID_SIZE} step={1} value={text} disabled={disabled}
+                type="number" min={1} max={maxGroups} step={1} value={text} disabled={disabled}
                 onChange={(e) => setText(e.target.value)}
                 onBlur={commit}
                 onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                 aria-label={t("setup.editor.sizeLabel")}
             />
+            <span className="se-size-total">{t("setup.editor.sizeTotal", { size: (valid ? parsed : groups) * GROUP_SIZE, perGroup: GROUP_SIZE })}</span>
             {dirty && <span className="se-size-dirty" data-tip={t("setup.editor.sizeUnsavedTip")}>{t("setup.editor.sizeUnsaved")}</span>}
         </label>
     );
@@ -709,6 +713,24 @@ function ReadOnly({ data }: { data: SetupEditorData }) {
     );
 }
 
+// The compact view (one-line raiders, narrow cards — up to five groups in a row) is the default;
+// the choice is a per-viewer convenience, so it lives in the browser only.
+const COMPACT_KEY = "eh-setup-compact";
+function readCompact(): boolean {
+    try {
+        return localStorage.getItem(COMPACT_KEY) !== "0";
+    } catch {
+        return true;
+    }
+}
+function storeCompact(on: boolean) {
+    try {
+        localStorage.setItem(COMPACT_KEY, on ? "1" : "0");
+    } catch {
+        // private window or blocked storage — the choice just is not remembered
+    }
+}
+
 export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const jobs = useJobs();
@@ -722,6 +744,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [inspected, setInspected] = useState<string | null>(null);
     const [dialog, setDialog] = useState<"weights" | "explain" | null>(null);
     const [posting, setPosting] = useState(false);
+    const [compact, setCompact] = useState(readCompact);
+    const toggleCompact = () => setCompact((on) => {
+        storeCompact(!on);
+        return !on;
+    });
     const saving = useRef(0);
 
     const load = useCallback(() => {
@@ -960,7 +987,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const size = setup.checks.size;
 
     return (
-        <div className="se-editor">
+        <div className={`se-editor${compact ? " se-compact" : ""}`}>
             <div className="se-bar">
                 <StatusBadge setup={setup} />
                 <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
@@ -979,6 +1006,13 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     {selected ? t("setup.editor.pickTarget") : t("setup.editor.dragHint")}
                 </span>
                 <div className="se-bar-act">
+                    <Button
+                        variant="ghost" size="sm" icon="inv_misc_book_09" aria-pressed={compact}
+                        data-tip={t("setup.editor.compact")} data-tip-sub={t("setup.editor.compactSub")}
+                        onClick={toggleCompact}
+                    >
+                        {t("setup.editor.compact")}
+                    </Button>
                     <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
                     <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
                     <Button size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy || setup.status === "approved"} onClick={approve}>
@@ -987,7 +1021,16 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
-            <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
+            {/* the ping message and the evening's numbers side by side, one small row */}
+            <div className="se-topline">
+                <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
+                <Summary
+                    data={data} setup={setup} busy={busy}
+                    onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                    onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
+                    onWeights={() => setDialog("weights")}
+                />
+            </div>
 
             <div className="se-layout">
                 {/* the setup on top, the bench under a divider */}
@@ -1000,12 +1043,6 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     <BenchCard bench={setup.bench} ui={ui} />
                 </div>
                 <div className="se-sidecol">
-                    <Summary
-                        data={data} setup={setup} busy={busy}
-                        onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
-                        onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                        onWeights={() => setDialog("weights")}
-                    />
                     {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
                 </div>
             </div>

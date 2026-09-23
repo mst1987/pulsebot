@@ -13,6 +13,7 @@
 .se-size { display: flex; align-items: center; gap: 6px; cursor: help; }
 .se-size input { width: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: 700 13px var(--mono); padding: 3px 6px; text-align: center; }
 .se-size input:disabled { opacity: .6; }
+.se-size-total { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 .se-size-dirty { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
 
 /* the setup in the channel (#290): one line under the bar, the details in its tooltip */
@@ -26,6 +27,17 @@
 .se-publish-bad .se-publish-text { color: var(--high); }
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
+
+/* one small row: the ping message beside the evening's numbers (roles, buffs, fairness, wishes) */
+.se-topline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin-top: 8px; }
+.se-topline .se-pingtext { flex: 1 1 340px; min-width: 0; margin-top: 0; padding: 6px 12px; gap: 4px; }
+.se-topline .se-pingtext-input { max-width: none; padding: 4px 9px; }
+.se-topline .se-side { flex: 0 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 6px 14px; }
+.se-topline .se-stats { display: flex; gap: 14px; padding: 0; border: 0; }
+.se-topline .se-stat { flex-direction: row; align-items: baseline; gap: 5px; }
+.se-topline .se-stat-v { font-size: 17px; }
+.se-topline .se-stat-v small { font-size: 11px; }
+.se-topline .se-side-row { min-height: 0; gap: 7px; }
 
 /* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
@@ -180,4 +192,21 @@
 @media (max-width: 760px) {
     .se-layout, .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }
     .se-bar-act { margin-left: 0; }
+}
+
+/* compact view (the default, a switch in the bar): one-line raiders, narrow cards, so up to five groups fit in a row and the bench sits close beneath.
+   Only above the width where the layout collapses to one column anyway. The spec line is in the raider panel. */
+@media (min-width: 1281px) {
+    .se-compact .se-layout { grid-template-columns: minmax(0, 1fr) 330px; }
+    .se-compact .se-groups { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+    .se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
+    .se-compact .se-slot { gap: 6px; padding: 2px 5px 2px 3px; }
+    .se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
+    .se-compact .se-sub { display: none; }
+    .se-compact .se-name { font-size: 13.5px; }
+    .se-compact .se-lock { width: 20px; height: 20px; }
+    .se-compact .se-ph { min-height: 30px; }
+    .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
+    .se-compact .se-group-title { font-size: 13.5px; }
+    .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
 }

@@ -171,11 +171,14 @@
         "dragHint": "Ziehen oder anklicken zum Umstellen",
         "explain": "KI-Begründung",
         "repropose": "Neu vorschlagen",
-        "sizeLabel": "Größe",
-        "sizeTip": "Raidgröße",
-        "sizeSub": "Ändert Gruppen und Bank sofort im Browser, übernommen wird es beim Verlassen des Felds oder mit Enter.",
+        "sizeLabel": "Gruppen",
+        "sizeTotal": "× {perGroup} = {size} Spieler",
+        "sizeTip": "Anzahl der Gruppen",
+        "sizeSub": "Jede Gruppe hat 5 Plätze, die Spielerzahl des Raids ergibt sich daraus. Gruppen und Bank ändern sich sofort im Browser, übernommen wird es beim Verlassen des Felds oder mit Enter.",
         "sizeUnsaved": "ungespeichert",
-        "sizeUnsavedTip": "Diese Größe ist noch nicht übernommen.",
+        "sizeUnsavedTip": "Diese Gruppenzahl ist noch nicht übernommen.",
+        "compact": "Kompakt",
+        "compactSub": "Schmale Karten mit einzeiligen Raidern – bis zu 5 Gruppen nebeneinander. Die Wahl wird in diesem Browser gemerkt.",
         "sizeFailed": "Größe konnte nicht geändert werden."
     },
     "moves": {
