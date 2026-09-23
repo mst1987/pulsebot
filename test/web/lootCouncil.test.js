@@ -1145,6 +1145,15 @@ describe("web/lootCouncil — wer das Item überhaupt tragen kann", () => {
         expect(unwearable).toEqual([]);
     });
 
+    it("trägt das volle Gear des Roster-Eintrags mit — der Drop-Check zeigt es ohne den Raider-Dialog zu öffnen", () => {
+        const roster = mixedRoster();
+        const { candidates } = candidateSplit(ZHARDOOM, roster);
+        const hexer = candidates.find((c) => c.key === "hexer");
+        const row = roster.find((r) => r.key === "hexer");
+        expect(hexer.gear).toBe(row.gear);
+        expect(hexer.gear.items.map((i) => i.itemId).sort()).toEqual(row.gear.items.map((i) => i.itemId).sort());
+    });
+
     it("trägt die Identität für die Seite mit, nicht nur den Schlüssel", () => {
         const { unwearable } = candidateSplit(CORRUPTOR_HOOD, mixedRoster());
         expect(unwearable[0]).toEqual(expect.objectContaining({

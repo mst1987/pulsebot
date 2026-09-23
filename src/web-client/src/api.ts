@@ -3086,6 +3086,8 @@ export type CouncilCandidate = {
     bisTotal: number;
     hasGear: boolean;
     simSupported: boolean;
+    /** The full worn set and where it comes from — same shape as CouncilRaider's, so the drop check can show it inline. */
+    gear: CouncilRaider["gear"];
 };
 
 /**
@@ -3327,7 +3329,7 @@ export type SimResult = Record<string, {
     baseline: number | null;
     hasGear: boolean;
     error?: string;
-    items: Record<string, { dps: number | null; delta: number | null; slot: number; cached: boolean }>;
+    items: Record<string, { dps: number | null; delta: number | null; slot: number; cached: boolean; error?: string }>;
 }>;
 
 export type SimJob = {

@@ -154,7 +154,7 @@ describe("loot council — the raider dialog", () => {
     });
 
     it("says what is wrong with the set as badges — the stamp and the legend are gone", () => {
-        const b = fn(dialog, "GearBadges");
+        const b = fn(parts, "GearBadges");
         for (const text of ["Hit {g.spellHit}/{g.hitCap}", "ohne VZ", "Sockel leer", "PvP-Gear", "Armory: PvP-Gear", "Log: PvP-Gear"]) {
             expect(b).toContain(text);
         }
