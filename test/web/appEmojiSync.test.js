@@ -19,11 +19,6 @@ function fakeClient(existing) {
             stored.push(e);
             return e;
         }),
-        delete: jest.fn(async (route) => {
-            const id = String(route).split("/").pop();
-            const idx = stored.findIndex((e) => e.id === id);
-            if (idx !== -1) stored.splice(idx, 1);
-        }),
     };
     const fetchEmojis = jest.fn(async () => stored.slice());
     return { rest, application: { id: "app", emojis: { fetch: fetchEmojis } }, fetchEmojis };
@@ -49,25 +44,13 @@ describe("web/appEmojiSync ensureAppEmojis", () => {
         expect(Object.keys(appEmojiMap())).toHaveLength(total);
     });
 
-    // "eh_hunter_survival" and "eh_priest_holy" are excluded here on purpose —
-    // the RECREATE list below always deletes and recreates them, see the next test.
-    it("creates nothing when all (other) emojis exist and still fills the cache", async () => {
-        const names = emojiCatalog().map((e) => e.name).filter((n) => n !== "eh_hunter_survival" && n !== "eh_priest_holy");
-        const client = fakeClient(names);
-        const out = await ensureAppEmojis(client, { fetchImpl: okFetch, readFile: async () => Buffer.from("89504e470d0a1a0a", "hex"), log: () => {} });
-        expect(out.created.sort()).toEqual(["eh_hunter_survival", "eh_priest_holy"]);
-        expect(client.rest.delete).not.toHaveBeenCalled();
-        expect(appEmojiMap().eh_ui_tank).toBeTruthy();
-    });
-
-    it("deletes and recreates the two known-stale spec icons even though they already exist (2bbb7a58)", async () => {
+    it("creates nothing when all exist and still fills the cache", async () => {
         const client = fakeClient(emojiCatalog().map((e) => e.name));
-        const readFile = jest.fn(async () => Buffer.from("89504e470d0a1a0a", "hex"));
-        const out = await ensureAppEmojis(client, { fetchImpl: okFetch, readFile, log: () => {} });
-        expect(client.rest.delete).toHaveBeenCalledTimes(2);
-        expect(out.created.sort()).toEqual(["eh_hunter_survival", "eh_priest_holy"]);
-        expect(appEmojiMap().eh_hunter_survival).toBeTruthy();
-        expect(appEmojiMap().eh_priest_holy).toBeTruthy();
+        const out = await ensureAppEmojis(client, { fetchImpl: okFetch, log: () => {} });
+        expect(out.created).toEqual([]);
+        expect(client.rest.post).not.toHaveBeenCalled();
+        expect(okFetch).not.toHaveBeenCalled();
+        expect(appEmojiMap().eh_ui_tank).toBeTruthy();
     });
 
     it("never throws when Discord refuses, and keeps the text fallback", async () => {
