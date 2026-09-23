@@ -31,6 +31,7 @@ const store = require("../raidplanStore");
 const profileStore = require("../raidplanProfileStore");
 const templateStore = require("../raidplanTemplateStore");
 const raidplan = require("../raidplan");
+const assign = require("../raidplanAssign");
 
 const HTTP = { not_found: 404, conflict: 409, invalid: 400, too_large: 413 };
 
@@ -94,6 +95,21 @@ async function putPlan(req, res) {
     });
     if (result.error) return sendFailure(res, result);
     ok(res, { ...raidplan.editorView(event, { canWrite: true }), dropped: result.dropped });
+}
+
+/**
+ * POST /api/raidplan/suggest — body `{ event?, type, slots }`: suggested assignments of one
+ * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
+ * the editor shows them marked as a suggestion. An unknown type answers an empty list.
+ */
+async function postSuggest(req, res) {
+    const user = writer(req, res);
+    if (!user) return;
+    const body = await readJsonBody(req);
+    let event = null;
+    if (body.event) { event = eventOf(res, body.event); if (!event) return; }
+    const type = String(body.type || "");
+    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots }) : [] });
 }
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
@@ -255,7 +271,7 @@ function getPublic(req, res, url) {
 }
 
 module.exports = {
-    getPlan, putPlan, postPublish, postMap, postMapDelete,
+    getPlan, putPlan, postSuggest, postPublish, postMap, postMapDelete,
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
     postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate, postTemplateDuplicate,
 };

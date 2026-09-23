@@ -14,6 +14,7 @@ const templateStore = require("./raidplanTemplateStore");
 const { approvedSetupOf } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
+const assign = require("./raidplanAssign");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 
@@ -178,6 +179,12 @@ function publicView(plan, event, { me = "" } = {}) {
                 texts: (board.texts || []).filter((x) => !x.hidden),
                 mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
                 targets: board.targets.map((t) => ({ ...t, userIds: t.userIds.filter((u) => known.has(u)) })),
+                // assignments: a raider who is not in the approved setup is left out, a slot reference stays (it resolves to nobody = open)
+                assignments: (board.assignments || []).map((a) => ({
+                    ...a,
+                    assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
+                    targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
+                })),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };
@@ -188,6 +195,10 @@ function publicView(plan, event, { me = "" } = {}) {
         for (const sl of b.slots) if (sl.userId) used.add(sl.userId);
         for (const tg of b.targets) for (const u of tg.userIds) used.add(u);
         // a group marker names the players of that setup group
+        for (const a of b.assignments) {
+            for (const r of a.assignees) if (r.startsWith("user:")) used.add(r.slice(5));
+            for (const t of a.targets) if (t.kind === "player") used.add(t.ref);
+        }
         for (const sl of b.slots) if (sl.kind === "group") for (const r of roster) if (r.group === sl.n) used.add(r.userId);
     }
     return {
@@ -199,4 +210,17 @@ function publicView(plan, event, { me = "" } = {}) {
     };
 }
 
-module.exports = { editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+/**
+ * Suggested assignments of one type for a board (POST /api/raidplan/suggest): the board's
+ * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
+ * in a template) and the raid's group numbers.
+ */
+function suggestFor(type, { event = null, slots = [] } = {}) {
+    const roster = event ? editorRoster(event) : [];
+    const size = event ? Number(event.size) || 25 : 25;
+    const groups = Array.from({ length: Math.max(1, Math.ceil(size / 5)) }, (_, i) => i + 1);
+    const clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
+    return assign.suggest(type, { slots: clean, roster, groups });
+}
+
+module.exports = { suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

@@ -20,6 +20,7 @@
 //   lines    [{ id, kind, x1, y1, x2, y2, color, width, ... }]   arrows and plain lines
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
+//   assignments [{ id, type, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
 //   notes, profileId, mapOpacity          (mapOpacity 0.1..1: how strongly the map shows)
 //   objectScale                           (0.5..2: the default size of tokens, slots, marks and icons)
 //
@@ -30,6 +31,7 @@
 //
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
 const crypto = require("crypto");
+const assign = require("./raidplanAssign");
 
 const LIMITS = {
     tokensPerBoss: 60,
@@ -247,18 +249,22 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         return { id: cleanId(t.id, targetIds), title: str(t.title).slice(0, LIMITS.title), userIds: users };
     });
 
+    const cleanedAssign = assign.cleanAssignments(input.assignments, allowed);
+    if (cleanedAssign.error) return cleanedAssign;
+    dropped += cleanedAssign.dropped;
+
     const notes = String(input.notes === undefined || input.notes === null ? "" : input.notes).slice(0, LIMITS.notes);
     // The tactic profile the rows were taken from; one that was deleted since is forgotten.
     const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
     const mapOpacity = cleanOpacity(input.mapOpacity, 1);
     const objectScale = Number.isFinite(Number(input.objectScale)) && input.objectScale !== "" && input.objectScale !== null ? Math.max(0.5, Math.min(2, Math.round(Number(input.objectScale) * 100) / 100)) : 1;
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -274,6 +280,7 @@ function reidBoard(board) {
         lines: (board.lines || []).map(fresh),
         texts: (board.texts || []).map(fresh),
         targets: (board.targets || []).map((t) => ({ ...fresh(t), userIds: [] })),
+        assignments: assign.reidAssignments(board.assignments),
     };
 }
 

@@ -448,6 +448,10 @@ async function route(pathname, req, res, url) {
         await raidplanRoutes.putPlan(req, res);
         return true;
     }
+    if (pathname === "/api/raidplan/suggest" && req.method === "POST") {
+        await raidplanRoutes.postSuggest(req, res);
+        return true;
+    }
     if (pathname === "/api/raidplan/publish" && req.method === "POST") {
         await raidplanRoutes.postPublish(req, res);
         return true;

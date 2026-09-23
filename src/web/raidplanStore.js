@@ -68,7 +68,10 @@ function bossKeyOf(instanceId, name) {
 
 /**
  * The bosses of the instances an event is set to, in raid order:
- * `{ key, instanceId, instanceName, name, iconUrl, instanceIcon }`.
+ * `{ key, instanceId, instanceName, name, iconUrl, instanceIcon }`. Two entries that are
+ * no boss come with them: "Trash" (`trash: true`, key `<instance>/trash`) after the bosses of
+ * each instance — a board of its own for the pulls — and "Allgemein" (`general: true`, key
+ * `general`) once at the end: the assignments of the whole raid.
  */
 function bossesForInstances(instanceIds) {
     const out = [];
@@ -85,17 +88,27 @@ function bossesForInstances(instanceIds) {
                 iconUrl: bossIconByName(name) || wowIconUrl(inst.icon, 56),
             });
         }
+        if (!seen.has(`${inst.id}/trash`)) seen.add(`${inst.id}/trash`);
+        else continue;
+        out.push({
+            key: `${inst.id}/trash`, instanceId: inst.id, instanceName: inst.name, name: "Trash", trash: true,
+            iconUrl: wowIconUrl("inv_misc_bone_humanskull_01", 56),
+        });
+    }
+    if (out.length) {
+        out.push({ key: GENERAL_KEY, instanceId: "", instanceName: "", name: "Allgemein", general: true, iconUrl: wowIconUrl("inv_misc_note_01", 56) });
     }
     return out;
 }
 
+const GENERAL_KEY = "general";
 const BOSS_KEY = /^([a-z0-9]+)\/([a-z0-9-]+)$/;
 
 function isBossKey(k) {
     const m = k.match(BOSS_KEY);
     if (!m) return false;
     const inst = instanceById(m[1]);
-    return !!inst && (inst.bosses || []).some((b) => slug(b) === m[2]);
+    return !!inst && (m[2] === "trash" || (inst.bosses || []).some((b) => slug(b) === m[2]));
 }
 
 /**
@@ -378,6 +391,6 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 
 module.exports = {
     useFile, LIMITS, slug, bossKeyOf, bossesForInstances, isMapKey,
-    getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
+    GENERAL_KEY, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
     sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
 };

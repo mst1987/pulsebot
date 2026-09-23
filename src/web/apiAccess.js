@@ -159,6 +159,7 @@ const AREA_BY_PATH = {
     // (/api/raidplan/public) is UNGATED below and authenticated by its token.
     "/api/raidplan": "raids",
     "/api/raidplan/publish": "raids",
+    "/api/raidplan/suggest": "raids",
     "/api/raidplan/map": "raids",
     "/api/raidplan/map/delete": "raids",
     "/api/raidplan/profiles": "raids",
