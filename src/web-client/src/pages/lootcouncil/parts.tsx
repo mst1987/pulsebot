@@ -7,15 +7,18 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import type { BisSpec, CouncilCandidate, CouncilLootItem, SimResult, WornItem } from "../../api";
-import { Badge, Bar, Expand, WowIcon } from "../../components/ui";
+import { Badge, Bar, Button, Expand, IconButton, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
-import { EmptySlotIcon } from "../../components/icons";
+import { AlertIcon, EmptySlotIcon, ExternalIcon, RefreshIcon } from "../../components/icons";
 import { ReasonBadge } from "../../components/LootBadges";
 import { SortTh } from "../../components/SortTh";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import type { TableSort } from "../../lib/tableSort";
-import { WOWHEAD, deltaFor, gainFor, raiderHref, waitedTip, wornWowheadUrl, type CandidateSortKey } from "./council";
+import { WOWHEAD, deltaFor, gainFor, gearCounts, raiderHref, simErrorFor, waitedTip, wornWowheadUrl, type CandidateSortKey } from "./council";
+
+/** The shape `CouncilCandidate.gear` and `CouncilRaider.gear` share. */
+type CouncilGear = NonNullable<CouncilCandidate["gear"]>;
 
 /**
  * A tooltip with more than a head and a sentence — the need bar's three parts,
@@ -366,14 +369,109 @@ export function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
 }
 
 /**
+ * What the set is and what is wrong with it, as badges: the source with its
+ * date, the hit cap, BiS pieces, missing enchants and sockets, and every reason
+ * the set on screen is not simply the raider's normal kit. Shared by the raider
+ * dialog and the drop check's gear panel — both show the same `gear` shape.
+ */
+export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }: {
+    gear: CouncilGear | null;
+    bisOwned: number;
+    bisTotal: number;
+    /** For the "Log abgelehnt"/"Set der anderen Rolle"-Badges' tooltip. */
+    character: string;
+    /** "DPS-Gear"/"Heilgear" for a role mismatch — omitted where the role is not known here. */
+    roleLabel?: string;
+}) {
+    if (!g) return null;
+    const { noench, sockets } = gearCounts(g.items);
+    const out: ReactNode[] = [];
+    if (g.source === "armory") {
+        out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip="Aus der Armory" tipSub={`Aktuelles Gear, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
+    } else if (g.source === "wcl") {
+        out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={`Aus dem Log „${g.reportTitle}“`} tipSub={`Geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.`}>Log · {fmtMs(g.seenAt, false)}</Badge>);
+    } else {
+        out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={`Aus der Auswertung „${g.reportTitle}“`} tipSub={g.skippedReports ? `${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt oder PvP-Gear getragen wurde.` : "Das Set der letzten Auswertung, in der dieser Raider in seiner Rolle stand."}>Auswertung · {fmtMs(g.seenAt, false)}</Badge>);
+    }
+    if (g.hitCap > 0) {
+        out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip="Zaubertrefferwertung" tipSub="Getragen / Obergrenze gegen Bosse. Über der Grenze zählt Hit im Vergleich nicht mehr.">Hit {g.spellHit}/{g.hitCap}</Badge>);
+    }
+    if (bisTotal) out.push(<Badge key="bis" tone="ok" tip="BiS-Teile" tipSub="Getragene Teile der BiS-Liste dieses Raiders.">BiS {bisOwned}/{bisTotal}</Badge>);
+    if (noench) out.push(<Badge key="noench" tone="bad" tip="Ohne Verzauberung" tipSub="Teile ohne Verzauberung — am Icon mit ! markiert.">{noench} ohne VZ</Badge>);
+    if (sockets) out.push(<Badge key="sock" tone="mid" tip="Leere Sockel" tipSub="Am Icon oben rechts markiert.">{sockets} Sockel leer</Badge>);
+    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip="Verzauberung unbekannt" tipSub="Seit der letzten Auswertung dazugekommen: Blizzards Verzauberungs-IDs sind nicht die, die WoWSims erwartet, die Simulation rechnet sie unverzaubert.">{g.unverifiedEnchants} ohne VZ-Info</Badge>);
+    if (g.pvpGear) out.push(<Badge key="pvp" tone="bad" tip="PvP-Gear" tipSub="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind mit Vorsicht zu lesen.">PvP-Gear</Badge>);
+    if (g.roleMismatch) out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip="Andere Rolle" tipSub={`Aus „${g.reportTitle}“ — dort wurde die andere Rolle gespielt. Ein Set der eingeplanten Rolle ist nicht geloggt.`}>{roleLabel || "andere Rolle"}</Badge>);
+    if (g.logRejected) out.push(<Badge key="logrej" tone={g.logRejected === "pvp" ? "bad" : "mid"} tip={g.logRejected === "pvp" ? "Log: PvP-Gear" : "Log: andere Rolle"} tipSub="Das geladene Log wurde nicht übernommen — bewertet wird weiter das Set aus der Auswertung.">Log abgelehnt</Badge>);
+    if (g.armoryRejected) out.push(<Badge key="armrej" tone={g.armoryRejected === "pvp" ? "bad" : "mid"} tip={g.armoryRejected === "pvp" ? "Armory: PvP-Gear" : "Armory: andere Rolle"} tipSub="Die Armory-Antwort wurde nicht übernommen — gegen einen Boss zählt sie nicht, bewertet wird weiter das Set aus dem letzten Raid.">Armory abgelehnt</Badge>);
+    if (g.situational) out.push(<Badge key="sit" tone="mid" tip="Situativ" tipSub={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer.`}>{g.situational} situativ</Badge>);
+    if (g.substituted) out.push(<Badge key="sub" tip="Ersetzt" tipSub={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>{g.substituted}× ersetzt</Badge>);
+    for (const d of g.dropped) {
+        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={`${d.slotName} leer`} tipSub={`„${d.itemName}“ ${d.note}. Der Slot zählt als leer, weil keine andere Quelle sagt, was ${character} dort sonst trägt.`}>{d.slotName} leer</Badge>);
+    }
+    return <>{out}</>;
+}
+
+/**
+ * A raider's gear, folded out under their candidate row: the source badges,
+ * every worn piece, a PvP-gear callout when that is why nothing can be
+ * simulated, and the two quick reloads (a full picker lives in the raider's
+ * own dialog, linked at the bottom). No estimates here either — this is the
+ * same `gear` the simulation itself reads, just shown rather than run.
+ */
+export function CandidateGearPanel({ candidate, busy, onLoadLog, onLoadArmory }: {
+    candidate: CouncilCandidate;
+    /** A log/armory reload is running for this candidate right now. */
+    busy: boolean;
+    onLoadLog?: (character: string) => void;
+    onLoadArmory?: (character: string) => void;
+}) {
+    const g = candidate.gear;
+    return (
+        <div className="lc-gearpanel">
+            {g && g.pvpGear ? (
+                <div className="lc-pvphint">
+                    <AlertIcon />
+                    <span><b>PvP-Gear — kein Boss-Set bekannt.</b> Jede der letzten Auswertungen zeigt {candidate.character} im Arena-Set; Resilienz zählt gegen einen Boss nichts. Gear aus der Armory oder einem Log laden, um zu simulieren.</span>
+                </div>
+            ) : null}
+            <div className="lc-hints">
+                <GearBadges gear={g} bisOwned={candidate.bisOwned} bisTotal={candidate.bisTotal} character={candidate.character} />
+            </div>
+            {g && g.items.length ? (
+                <div className="lc-gearstrip">
+                    {g.items.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
+                </div>
+            ) : (
+                <div className="lc-muted">Kein Gear bekannt — in keiner Auswertung gesehen.</div>
+            )}
+            <div className="lc-gearpanel-act">
+                {onLoadLog ? <Button variant="ghost" size="sm" icon="inv_scroll_03" running={busy} onClick={() => onLoadLog(candidate.character)}>Log laden</Button> : null}
+                {onLoadArmory ? (
+                    <Button variant={g && g.pvpGear ? "primary" : "ghost"} size="sm" icon="inv_shield_06" running={busy} onClick={() => onLoadArmory(candidate.character)}>
+                        {g && g.pvpGear ? "Gear jetzt aus Armory holen" : "Gear aus Armory holen"}
+                    </Button>
+                ) : null}
+                <Link className="lc-extlink" to={raiderHref(candidate.character)}>Vollständige Details<ExternalIcon /></Link>
+            </div>
+        </div>
+    );
+}
+
+/**
  * What an item would do for one raider — measured, or nothing. A bar relative
  * to the best candidate; a raider the item is not BiS for counts half and the
- * bar is hatched. Until the drop is simulated the cell says "nicht simuliert".
+ * bar is hatched. Until the drop is simulated the cell says "nicht simuliert" —
+ * a real, failed attempt says "Fehler" instead, with the reason in the tooltip
+ * and (when `onRetry` is wired) a button that simulates just this candidate.
  */
-export function GainCell({ candidate, simDelta, gainMax }: {
+export function GainCell({ candidate, simDelta, simError, gainMax, onRetry, retrying }: {
     candidate: CouncilCandidate;
     simDelta: number | null | undefined;
+    simError?: string;
     gainMax: number;
+    onRetry?: () => void;
+    retrying?: boolean;
 }) {
     if (typeof simDelta !== "number") {
         if (!candidate.simSupported) {
@@ -382,7 +480,28 @@ export function GainCell({ candidate, simDelta, gainMax }: {
         if (!candidate.hasGear) {
             return <span className="lc-muted" data-tip="Kein Gear bekannt" data-tip-sub="Der Raider taucht in keiner der letzten Auswertungen auf.">kein Gear</span>;
         }
-        return <span className="lc-muted">nicht simuliert</span>;
+        return (
+            <span className="lc-gain-pending">
+                <span
+                    className={simError ? "lc-muted lc-gain-err" : "lc-muted"}
+                    data-tip={simError ? "Simulation fehlgeschlagen" : "Noch nicht simuliert"}
+                    data-tip-sub={simError || "Wird bei „Erneut simulieren“ automatisch mit einbezogen — oder einzeln über den Knopf rechts."}
+                >
+                    {simError ? "Fehler" : "nicht simuliert"}
+                </span>
+                {onRetry ? (
+                    <IconButton
+                        icon={<RefreshIcon />}
+                        tip={simError ? "Erneut simulieren" : "Simulieren"}
+                        tipSub={`Nur ${candidate.character} für dieses Item.`}
+                        size="sm"
+                        tone={simError ? "danger" : undefined}
+                        disabled={retrying}
+                        onClick={onRetry}
+                    />
+                ) : null}
+            </span>
+        );
     }
     const gain = simDelta;
     const half = candidate.bisWeight < 1;
@@ -419,41 +538,85 @@ export function ListBadge({ candidate }: { candidate: CouncilCandidate }) {
  * item would *do* (simulated, nothing until then) and what the raider has
  * *coming to them*. Multiplying them into one number would hide the judgement a
  * council is there to make.
+ *
+ * `expandable` adds a fold-out chevron that opens `CandidateGearPanel` in a
+ * row of its own beneath — optional, so the BiS-gap table (which wires none of
+ * the reload/retry callbacks) keeps its plain look.
  */
-export function CandidateRow({ candidate, simDelta, gainMax }: {
+export function CandidateRow({
+    candidate, simDelta, simError, gainMax, expandable, open, onToggleOpen, onRetry, retrying, gearBusy, onLoadLog, onLoadArmory,
+}: {
     candidate: CouncilCandidate;
     simDelta: number | null | undefined;
+    simError?: string;
     gainMax: number;
+    expandable?: boolean;
+    open?: boolean;
+    onToggleOpen?: () => void;
+    onRetry?: () => void;
+    retrying?: boolean;
+    gearBusy?: boolean;
+    onLoadLog?: (character: string) => void;
+    onLoadArmory?: (character: string) => void;
 }) {
     return (
-        <tr>
-            <td>
-                <RaiderIdent
-                    name={candidate.character}
-                    classColor={candidate.classColor}
-                    specIconUrl={candidate.specIconUrl}
-                    sub={candidate.specLabel}
-                    size={30}
-                    to={raiderHref(candidate.character)}
-                />
-            </td>
-            <td><ListBadge candidate={candidate} /></td>
-            <td><SlotOptions candidate={candidate} /></td>
-            <td><GainCell candidate={candidate} simDelta={simDelta} gainMax={gainMax} /></td>
-            <td><NeedBar subject={candidate} width={140} /></td>
-            <td><span className="lc-num" data-tip={waitedTip(candidate.daysSinceLoot)}>{candidate.daysSinceLoot === null ? "∞" : candidate.daysSinceLoot}</span></td>
-            <td><LootCount items={candidate.recentItems} total={candidate.lootCount} other={candidate.otherCount} /></td>
-        </tr>
+        <>
+            <tr className={open ? "lc-crow-open" : undefined}>
+                {expandable ? (
+                    <td className="lc-crow-exp">
+                        <Expand open={!!open} onToggle={onToggleOpen || (() => {})} showLabel={false} label={`Gear von ${candidate.character}`} />
+                    </td>
+                ) : null}
+                <td>
+                    <RaiderIdent
+                        name={candidate.character}
+                        classColor={candidate.classColor}
+                        specIconUrl={candidate.specIconUrl}
+                        sub={candidate.specLabel}
+                        size={30}
+                        to={raiderHref(candidate.character)}
+                    />
+                </td>
+                <td><ListBadge candidate={candidate} /></td>
+                <td><SlotOptions candidate={candidate} /></td>
+                <td><GainCell candidate={candidate} simDelta={simDelta} simError={simError} gainMax={gainMax} onRetry={onRetry} retrying={retrying} /></td>
+                <td><NeedBar subject={candidate} width={140} /></td>
+                <td><span className="lc-num" data-tip={waitedTip(candidate.daysSinceLoot)}>{candidate.daysSinceLoot === null ? "∞" : candidate.daysSinceLoot}</span></td>
+                <td><LootCount items={candidate.recentItems} total={candidate.lootCount} other={candidate.otherCount} /></td>
+            </tr>
+            {expandable && open ? (
+                <tr className="lc-crow-panel">
+                    <td colSpan={7}>
+                        <CandidateGearPanel candidate={candidate} busy={!!gearBusy} onLoadLog={onLoadLog} onLoadArmory={onLoadArmory} />
+                    </td>
+                </tr>
+            ) : null}
+        </>
     );
 }
 
-/** The "who should get this" table — shared by the BiS cards and the drop check. */
-export function CandidateTable({ itemId, candidates, sim, sortState }: {
+/**
+ * The "who should get this" table — shared by the BiS cards and the drop
+ * check. The drop check wires `expandable` plus the reload/retry callbacks;
+ * without them the table looks exactly as it did before.
+ */
+export function CandidateTable({
+    itemId, candidates, sim, sortState, expandable, retrying, gearBusyChar, onRetry, onLoadLog, onLoadArmory,
+}: {
     itemId: number;
     candidates: CouncilCandidate[];
     sim: SimResult | null;
     sortState: TableSort<CandidateSortKey>;
+    expandable?: boolean;
+    /** A simulation is running — every retry button shows busy while it does. */
+    retrying?: boolean;
+    /** The character a log/armory reload is currently running for, if any. */
+    gearBusyChar?: string | null;
+    onRetry?: (candidate: CouncilCandidate) => void;
+    onLoadLog?: (character: string) => void;
+    onLoadArmory?: (character: string) => void;
 }) {
+    const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
     const rows = sortState.apply(candidates, (c, key) => {
         switch (key) {
             case "character": return c.character.toLowerCase();
@@ -472,11 +635,17 @@ export function CandidateTable({ itemId, candidates, sim, sortState }: {
         const delta = deltaFor(sim, c, itemId);
         return typeof delta === "number" ? delta : 0;
     }));
+    const toggle = (key: string) => setOpenKeys((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
     return (
         <div className="lc-tablewrap">
             <table className="idx lc-candidates">
                 <thead>
                     <tr>
+                        {expandable ? <th aria-hidden="true" /> : null}
                         <SortTh sortKey="character" label="Raider" {...sortState} />
                         <SortTh sortKey="bis" label="Liste" tip="BiS-Liste" tipSub="Steht das Item auf der Liste des Raiders? Wenn nicht, zählen Zugewinn und Bedarf halb." {...sortState} />
                         <SortTh sortKey="slot" label="Ersetzt" tip="Ersetzt" tipSub="Was dafür abgelegt würde — alle Slots, in die es passt; sortiert nach Itemlevel, ein freier Slot zuerst." {...sortState} />
@@ -488,7 +657,21 @@ export function CandidateTable({ itemId, candidates, sim, sortState }: {
                 </thead>
                 <tbody>
                     {rows.map((c) => (
-                        <CandidateRow key={c.key} candidate={c} simDelta={deltaFor(sim, c, itemId)} gainMax={gainMax} />
+                        <CandidateRow
+                            key={c.key}
+                            candidate={c}
+                            simDelta={deltaFor(sim, c, itemId)}
+                            simError={simErrorFor(sim, c, itemId)}
+                            gainMax={gainMax}
+                            expandable={expandable}
+                            open={openKeys.has(c.key)}
+                            onToggleOpen={() => toggle(c.key)}
+                            onRetry={onRetry ? () => onRetry(c) : undefined}
+                            retrying={retrying}
+                            gearBusy={gearBusyChar === c.character}
+                            onLoadLog={onLoadLog}
+                            onLoadArmory={onLoadArmory}
+                        />
                     ))}
                 </tbody>
             </table>

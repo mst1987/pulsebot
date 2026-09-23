@@ -847,6 +847,10 @@ function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
             bisTotal: row.bis.total,
             hasGear: !!gear,
             simSupported: row.simSupported,
+            // The full worn set and where it comes from (Auswertung/Log/Armory,
+            // PvP-Gear, rejected reload) — already built for the roster row, so
+            // the drop check can show it without opening the raider's dialog.
+            gear: row.gear,
         });
     }
     // Biggest weighted gear gain first (a non-BiS candidate's value counts

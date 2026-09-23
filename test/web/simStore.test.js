@@ -146,6 +146,27 @@ describe("web/simStore", () => {
             expect(job.result.devihra.items[OTHER_HEAD]).toMatchObject({ dps: 1950, delta: 150 });
         });
 
+        it("carries the run's own error when a swap comes back without a number — never the same as 'not attempted'", async () => {
+            // The baseline succeeds but the swap itself fails (an unknown gem,
+            // say): the page must be able to tell this apart from an item that
+            // was never simulated at all, which leaves no entry whatsoever.
+            mockSimulate
+                .mockResolvedValueOnce({ dps: 1800, available: true, supported: true, error: "", warnings: [] })
+                .mockResolvedValueOnce({ dps: null, available: true, supported: true, error: "unbekanntes Gem", warnings: [] });
+            simStore.startCouncilSim("job2c", subjects, [OTHER_HEAD]);
+            const job = await settle("job2c");
+            expect(job.result.devihra.items[OTHER_HEAD]).toMatchObject({ dps: null, delta: null, error: "unbekanntes Gem" });
+        });
+
+        it("leaves a successful swap without an error", async () => {
+            mockSimulate
+                .mockResolvedValueOnce({ dps: 1800, available: true, supported: true, error: "", warnings: [] })
+                .mockResolvedValueOnce({ dps: 1950, available: true, supported: true, error: "", warnings: [] });
+            simStore.startCouncilSim("job2d", subjects, [OTHER_HEAD]);
+            const job = await settle("job2d");
+            expect(job.result.devihra.items[OTHER_HEAD].error).toBe("");
+        });
+
         it("answers 'the item you already wear' from the cache, as a zero delta", async () => {
             // The swapped loadout is byte-identical to the baseline, so the
             // cache key matches and no second sim runs — which is also the only

@@ -172,6 +172,25 @@ dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
 .lc-tablepanel { padding: 0; overflow: hidden; margin-bottom: 16px; }
 .lc-tablepanel table.idx tr:last-child td { border-bottom: 0; }
 
+/* A candidate with no measured number: "nicht simuliert" (grey) or "Fehler"
+   (red) plus the per-candidate retry button — see GainCell/parts.tsx. */
+.lc-gain-pending { display: inline-flex; align-items: center; gap: 8px; }
+.lc-gain-err { color: var(--high); }
+
+/* The fold-out chevron column and its gear panel row — CandidateRow/parts.tsx. */
+.lc-candidates .lc-crow-exp { width: 36px; }
+tr.lc-crow-open > td { background: var(--accent-soft); }
+tr.lc-crow-panel > td { padding: 0 14px 16px 50px; border-bottom: 1px solid var(--line-soft); background: var(--accent-soft); }
+.lc-gearpanel { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+.lc-gearstrip { display: flex; gap: 6px; flex-wrap: wrap; }
+.lc-gearpanel-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lc-pvphint {
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 9px;
+    background: var(--high-bg); border: 1px solid color-mix(in srgb, var(--high) 40%, transparent); font-size: 12.5px;
+}
+.lc-pvphint svg { width: 16px; height: 16px; color: var(--high); flex: none; margin-top: 1px; }
+.lc-pvphint b { color: var(--text); }
+
 /* ---- the drop check page ---- */
 .lc-drophead .ph-text { flex: 1; }
 .lc-dropsearch .hr-picker { width: min(380px, 100%); max-width: none; }
