@@ -139,6 +139,14 @@ describe("character page", () => {
         expect(charPage).toContain('const canEdit = canAccess(user, "history", "write");');
         expect(charPage).toContain("onDelete={canEdit ? removeItem : undefined}");
     });
+
+    // rosterAttendance.js hands out startTime in unix seconds like every other
+    // event startTime; nightLabel() takes ms. Passing the raw value put every
+    // raid night on 21.01.1970 (#roster-attendance-date).
+    it("converts the attendance API's unix-second startTime to ms before formatting a night's date", () => {
+        expect(charPage).toContain("nightLabel(r.startTime * 1000)");
+        expect(common).toContain("nightLabel(m.startTime * 1000)");
+    });
 });
 
 describe("rosterView helpers (mirrored logic)", () => {
@@ -146,5 +154,16 @@ describe("rosterView helpers (mirrored logic)", () => {
         const fn = view.match(/export function findingsForSlot[\s\S]*?\n}\n/)[0];
         expect(fn).toContain("if (itemId && i.itemId) return i.itemId === itemId;");
         expect(fn).toContain("return !!i.slotKey && i.slotKey === slot;");
+    });
+
+    it("nightLabel takes ms — unix seconds passed unconverted lands in January 1970", () => {
+        const src = view.match(/export function nightLabel[\s\S]*?\n}\n/)[0]
+            .replace(/^export function nightLabel\(ms: number\): string \{/, "function nightLabel(ms) {")
+            .replace(/\(type: string\) =>/, "(type) =>");
+        // eslint-disable-next-line no-new-func
+        const nightLabel = new Function(`${src}\nreturn nightLabel;`)();
+        const seconds = Math.floor(Date.UTC(2026, 5, 15, 20, 0, 0) / 1000);
+        expect(nightLabel(seconds)).toMatch(/^..\ 2[01]\.01\.$/);
+        expect(nightLabel(seconds * 1000)).toBe("Mo 15.06.");
     });
 });

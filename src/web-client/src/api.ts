@@ -915,6 +915,7 @@ export type RosterChar = {
 
 export type RosterRole = "tank" | "healer" | "dps" | "";
 
+/** startTime: unix seconds, like every other event startTime — multiply by 1000 before formatting. */
 export type RosterNight = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
 
 export type RosterAttendance = {

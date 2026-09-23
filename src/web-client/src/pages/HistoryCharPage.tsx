@@ -459,7 +459,7 @@ function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
                                 <div className="ros-nights">
                                     {raids.map((r) => (
                                         <div key={r.eventId} className="ros-night">
-                                            <span className="ros-night-date">{nightLabel(r.startTime)}</span>
+                                            <span className="ros-night-date">{nightLabel(r.startTime * 1000)}</span>
                                             <span className="ros-night-title">{r.title || "Raid"}</span>
                                             <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
                                                 {r.attended ? "da" : "gefehlt"}

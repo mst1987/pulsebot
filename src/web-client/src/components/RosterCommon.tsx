@@ -38,7 +38,7 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     }
     const { attended, total, pct, missed } = attendance;
     const lines = [`${categoryName || "Kategorie"}, gezählt aus Anmeldungen und Logs der letzten ${total} Raids.`];
-    if (missed.length) lines.push(`Gefehlt: ${missed.map((m) => `${nightLabel(m.startTime)} (${m.reason})`).join(", ")}.`);
+    if (missed.length) lines.push(`Gefehlt: ${missed.map((m) => `${nightLabel(m.startTime * 1000)} (${m.reason})`).join(", ")}.`);
     else lines.push("Keinen gezählten Raid verpasst.");
     return (
         <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={`${attended} von ${total} Raids · ${pct} %`} data-tip-sub={lines.join("\n")}>
