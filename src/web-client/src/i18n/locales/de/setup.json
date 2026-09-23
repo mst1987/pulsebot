@@ -124,6 +124,10 @@
         "post": "Setup posten",
         "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
     },
+    "pingText": {
+        "label": "Ping-Nachricht – wird beim Klick auf „Ping everyone“ gepostet",
+        "tip": "Der Text, mit dem alle platzierten Raider gepingt werden – sowohl beim Klick auf „Ping everyone“ im Kanal als auch automatisch beim ersten Posten des freigegebenen Setups. Leer lassen für den Standardtext."
+    },
     "readOnly": {
         "notApproved": "Das Setup ist noch nicht freigegeben."
     },

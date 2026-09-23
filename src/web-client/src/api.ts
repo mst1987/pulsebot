@@ -3889,6 +3889,8 @@ export type SetupEditorData = {
     avoidPairs?: number;
     defaults?: { weights: SetupWeights; maxWeight: number };
     hasApiKey?: boolean;
+    /** The ping text sent with the posted setup — orga only, always the effective text (own or default, never empty). */
+    pingText?: string;
     explainJob?: SetupJob;
     /** Only for the orga: where the approved setup goes and what came of it (#290). */
     publish?: SetupPublish;
@@ -3920,6 +3922,11 @@ export type SetupPublish = {
 
 export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+}
+
+/** Save the ping text sent when the setup is posted; "" clears it back to the default. */
+export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/ping-text", csrfToken, { event: eventId, text });
 }
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */

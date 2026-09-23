@@ -399,6 +399,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     if (!canWrite) return head;
     const setup = event.setup;
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
+    // Lazy: setupPing.js reads approvedSetupOf from this module.
+    const { pingTextOf } = require("./setupPing");
     return {
         ...head,
         setup: setup ? addUnplacedSignups(decorateLineup(setup, table, names), signups, table, names) : null,
@@ -406,6 +408,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
+        pingText: pingTextOf(event),
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },
         hasApiKey,
         explainJob: job,

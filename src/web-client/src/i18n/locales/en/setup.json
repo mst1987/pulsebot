@@ -124,6 +124,10 @@
         "post": "Post setup",
         "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted."
     },
+    "pingText": {
+        "label": "Ping message — posted when you click \"Ping everyone\"",
+        "tip": "The text every placed raider gets pinged with — both on \"Ping everyone\" in the channel and automatically on the first post of the approved setup. Leave empty for the default text."
+    },
     "readOnly": {
         "notApproved": "The setup has not been approved yet."
     },

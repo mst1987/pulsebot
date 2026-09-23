@@ -330,3 +330,40 @@ describe("„nicht zusammen“ in the editor", () => {
         expect(de("setup.summary.avoidSub", { count: 1 })).toMatch(/Wer wen genannt hat, sieht niemand/);
     });
 });
+
+describe("ping text (Ping-Nachricht) inline field", () => {
+    const editor = read("pages", "raid-detail", "SetupEditor.tsx");
+    const api = read("api.ts");
+    const de = makeT("de");
+    const en = makeT("en");
+
+    it("decides what to send on commit: the trimmed draft, or nothing when unchanged", () => {
+        expect(lib.pingTextToSave("  Los geht's, Raid!  ", "Hallo Welt")).toBe("Los geht's, Raid!");
+        expect(lib.pingTextToSave("Hallo Welt", "Hallo Welt")).toBeNull();
+        expect(lib.pingTextToSave("  Hallo Welt  ", "Hallo Welt")).toBeNull();
+        // an emptied field is a real change (clears back to the server default)
+        expect(lib.pingTextToSave("", "Hallo Welt")).toBe("");
+        expect(lib.pingTextToSave("", "")).toBeNull();
+    });
+
+    it("the API layer carries the effective ping text and saves it to the dedicated endpoint", () => {
+        expect(api).toContain("pingText?: string;");
+        expect(api).toContain("export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {");
+        expect(api).toContain("send(\"POST\", \"/api/raids/setup/ping-text\", csrfToken, { event: eventId, text })");
+    });
+
+    it("shows an editable field beside the publish status, committing on blur or Enter — never per keystroke", () => {
+        expect(editor).toContain("<PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />");
+        expect(editor).toContain("<PingTextField value={data.pingText || \"\"} disabled={busy} onSave={savePingText} />");
+        // local draft state, committed via the pure helper on blur, Enter just blurs
+        expect(editor).toMatch(/const \[draft, setDraft\] = useState\(value\);[\s\S]*?pingTextToSave\(draft, value\)/);
+        expect(editor).toContain("onBlur={commit}");
+        expect(editor).toMatch(/e\.key === "Enter"/);
+        expect(editor).toContain("saveSetupPingText(ctx.csrfToken, ctx.eventId, text)");
+    });
+
+    it("labels it in German and English, making clear that this is what gets posted", () => {
+        expect(de("setup.pingText.label")).toMatch(/Ping-Nachricht.*Ping everyone/);
+        expect(en("setup.pingText.label")).toMatch(/Ping message.*Ping everyone/);
+    });
+});

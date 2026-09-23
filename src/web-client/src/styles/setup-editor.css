@@ -27,6 +27,13 @@
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
 
+/* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
+.se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
+.se-pingtext-label { cursor: help; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.se-pingtext-input { width: 100%; max-width: 520px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--text); }
+.se-pingtext-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.se-pingtext-input:disabled { opacity: .6; }
+
 /* the setup (groups, bench under a divider) on the left, the summary on the right */
 .se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
 .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }
