@@ -10,7 +10,9 @@
             "brings": "Bringt",
             "bringsGroup": "für die Gruppe ({count} profitieren)",
             "bringsRaid": "für den Raid",
-            "why": "Warum hier"
+            "why": "Warum hier",
+            "aria": "Details zum Raider",
+            "empty": "Raider berühren, um Details zu sehen"
         },
         "offSpec": "Zweitspec",
         "status": {
