@@ -50,8 +50,7 @@
     "bench": {
         "aria": "Bench",
         "title": "Bench",
-        "here": "To the bench",
-        "empty": "nobody"
+        "chunkTitle": "Bench {index}"
     },
     "summary": {
         "aria": "Summary",
@@ -157,7 +156,13 @@
         "pickTarget": "Pick a target — group, bench or raider · Esc",
         "dragHint": "Drag or click to rearrange",
         "explain": "AI explanation",
-        "repropose": "Propose again"
+        "repropose": "Propose again",
+        "sizeLabel": "Size",
+        "sizeTip": "Raid size",
+        "sizeSub": "Changes groups and bench right away in the browser, applied when you leave the field or press Enter.",
+        "sizeUnsaved": "unsaved",
+        "sizeUnsavedTip": "This size has not been applied yet.",
+        "sizeFailed": "Could not change the size."
     },
     "moves": {
         "notInSetup": "Raider not in the setup.",

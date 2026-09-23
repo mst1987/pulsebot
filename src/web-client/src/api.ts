@@ -1679,6 +1679,15 @@ export function updateRaid(csrfToken: string | null, input: UpdateRaidInput): Pr
     return send("PATCH", "/api/raids", csrfToken, input);
 }
 
+/**
+ * Change only an own event's raid size (#354, the Setup Editor's live resize)
+ * — the same PATCH /api/raids `updateEvent` already takes as a partial edit,
+ * just without the rest of UpdateRaidInput's fields.
+ */
+export function updateRaidSize(csrfToken: string | null, eventId: string, size: number): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", csrfToken, { id: eventId, size });
+}
+
 // Rule sets per game version (src/config/gameVersions, GET /api/game-versions).
 export type GameRole = "tank" | "healer" | "melee" | "ranged";
 

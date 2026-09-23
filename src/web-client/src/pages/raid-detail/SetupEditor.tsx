@@ -13,11 +13,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
     type ApiError, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -63,6 +63,9 @@ function weightLabels(): { key: string; label: string; tip: string }[] {
     ];
 }
 
+// the raid size an own event allows (eventStore.js's MAX_SIZE) — the server checks it again
+const MAX_RAID_SIZE = 40;
+
 const dateTime = (ms: number) => (ms
     ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
@@ -79,6 +82,38 @@ function personTip(p: SetupPerson): string {
     ].filter(Boolean);
     // a status the proposal also names as a reason ("Als Ersatz angemeldet") only once
     return [...new Set(lines)].join("\n");
+}
+
+/**
+ * The raid size, editable right in the bar (#354): a change reshuffles groups
+ * and bench live in the browser (`resizeLineup`), then commits — on blur or
+ * Enter, not per keystroke, so a half-typed number never triggers a reshuffle.
+ * "Unsaved" shows for the moment the typed value differs from what is stored.
+ */
+function SizeControl({ size, disabled, onCommit }: { size: number; disabled: boolean; onCommit: (size: number) => void }) {
+    const t = useT();
+    const [text, setText] = useState(String(size));
+    useEffect(() => setText(String(size)), [size]);
+    const parsed = Math.round(Number(text));
+    const valid = text.trim() !== "" && Number.isFinite(parsed) && parsed >= 1 && parsed <= MAX_RAID_SIZE;
+    const dirty = valid && parsed !== size;
+    const commit = () => {
+        if (valid && parsed !== size) onCommit(parsed);
+        else setText(String(size));
+    };
+    return (
+        <label className="se-size" data-tip={t("setup.editor.sizeTip")} data-tip-sub={t("setup.editor.sizeSub")}>
+            <span className="kicker">{t("setup.editor.sizeLabel")}</span>
+            <input
+                type="number" min={1} max={MAX_RAID_SIZE} step={1} value={text} disabled={disabled}
+                onChange={(e) => setText(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                aria-label={t("setup.editor.sizeLabel")}
+            />
+            {dirty && <span className="se-size-dirty" data-tip={t("setup.editor.sizeUnsavedTip")}>{t("setup.editor.sizeUnsaved")}</span>}
+        </label>
+    );
 }
 
 function StatusBadge({ setup }: { setup: StoredSetup }) {
@@ -195,6 +230,39 @@ function useZone(target: SetupTarget, ui: Interaction) {
     };
 }
 
+/**
+ * Shared header for GroupCard and BenchChunk (#358 feedback): title centered and a bit
+ * bigger on its own row (with the count badge to the side, styled like the summary's
+ * big-number stats), party buffs — if any were passed at all — on a second row below,
+ * full width. That second row can wrap within itself without ever pushing the title
+ * off-center or making one card's title row taller than its neighbors'. Passing `buffs`
+ * as `undefined` (BenchChunk) omits the row entirely; passing `[]` (an empty real group)
+ * still reserves it, so every real group card's header is the same height regardless of
+ * how many buffs that particular group happens to have.
+ */
+function GroupHeader({ title, count, full, buffs }: { title: string; count: number; full: boolean; buffs?: { key: string; label: string; icon: string }[] }) {
+    const t = useT();
+    return (
+        <header className="se-group-head">
+            <div className="se-group-head-top">
+                <span className="se-group-title">{title}</span>
+                <span className={`se-count se-num${full ? " se-full" : ""}`}>{count}<small>/{GROUP_SIZE}</small></span>
+            </div>
+            {buffs && (
+                <div className="se-group-buffs-row">
+                    <span className="se-group-buffs">
+                        {buffs.map((b) => (
+                            <span key={b.key} className="se-buff" data-tip={b.label} data-tip-sub={t("setup.group.buffSub")}>
+                                <WowIcon name={b.icon} size={18} />
+                            </span>
+                        ))}
+                    </span>
+                </div>
+            )}
+        </header>
+    );
+}
+
 function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key: string; label: string; icon: string }[]; ui: Interaction }) {
     const t = useT();
     const zone = useZone({ group: group.index }, ui);
@@ -202,17 +270,7 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
     const canTake = ui.editable && !!ui.selected && !group.slots.some((s) => s.userId === ui.selected);
     return (
         <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
-            <header className="se-group-head">
-                <span className="se-group-title">{t("setup.group.title", { index: group.index })}</span>
-                <span className="se-group-buffs">
-                    {buffs.map((b) => (
-                        <span key={b.key} className="se-buff" data-tip={b.label} data-tip-sub={t("setup.group.buffSub")}>
-                            <WowIcon name={b.icon} size={18} />
-                        </span>
-                    ))}
-                </span>
-                <span className={`se-count${full ? " se-full" : ""}`}>{group.slots.length}/{GROUP_SIZE}</span>
-            </header>
+            <GroupHeader title={t("setup.group.title", { index: group.index })} count={group.slots.length} full={full} buffs={buffs} />
             {/* always five places: the raiders in their order, then an empty box per free place */}
             <div className="se-slots">
                 {group.slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
@@ -228,20 +286,40 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
     );
 }
 
-function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
+/** One 5-slot card of the bench (#354) — a group card's exact look, never a real group: no roles, no buffs, and dropping onto it always just means "onto the bench", wherever inside it lands. */
+function BenchChunk({ index, slots, ui }: { index: number; slots: SetupPerson[]; ui: Interaction }) {
     const t = useT();
     const zone = useZone({ bench: true }, ui);
-    const canTake = ui.editable && !!ui.selected && !bench.some((b) => b.userId === ui.selected);
+    const full = slots.length >= GROUP_SIZE;
+    const canTake = ui.editable && !!ui.selected && !slots.some((s) => s.userId === ui.selected);
+    const title = t("setup.bench.chunkTitle", { index });
     return (
-        <section className={`se-bench${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
+        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={title}>
+            <GroupHeader title={title} count={slots.length} full={full} />
+            <div className="se-slots">
+                {slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
+                {Array.from({ length: Math.max(0, GROUP_SIZE - slots.length) }, (_, i) => (canTake
+                    ? (
+                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ bench: true })}>
+                            {i === 0 ? t("setup.group.here") : ""}
+                        </button>
+                    )
+                    : <span key={`free-${i}`} className="se-ph" aria-hidden="true">{slots.length + i + 1}</span>))}
+            </div>
+        </section>
+    );
+}
+
+function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
+    const t = useT();
+    return (
+        <section className="se-bench" aria-label={t("setup.bench.aria")}>
             <header className="se-bench-head">
                 <span className="se-group-title">{t("setup.bench.title")}</span>
                 <span className="se-count">{bench.length}</span>
             </header>
-            <div className="se-slots">
-                {bench.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
-                {canTake && <button type="button" className="se-here" onClick={() => ui.onDrop({ bench: true })}>{t("setup.bench.here")}</button>}
-                {!bench.length && !canTake && <span className="se-empty">{t("setup.bench.empty")}</span>}
+            <div className="se-groups se-bench-chunks">
+                {benchChunks(bench).map((slots, i) => <BenchChunk key={i} index={i + 1} slots={slots} ui={ui} />)}
             </div>
         </section>
     );
@@ -597,11 +675,14 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         ctx.onChanged(message || "");
     };
 
-    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; avoid?: boolean } = {}) => {
+    // `patch`: other top-level fields to redraw at once alongside the lineup —
+    // only the resize uses it, to show the new size/group count instantly
+    // instead of waiting for the server's answer.
+    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; avoid?: boolean } = {}, patch: Partial<SetupEditorData> = {}) => {
         const shown = current.current;
         if (!shown?.setup) return chain.current;
         const ticket = ++saving.current;
-        setData({ ...shown, setup: applyLocal(shown.setup, input) });
+        setData({ ...shown, ...patch, setup: applyLocal(shown.setup, input) });
         chain.current = chain.current.then(async () => {
             try {
                 const next = await saveRaidSetup(ctx.csrfToken, ctx.eventId, { ...input, ...extra, version: confirmedVersion.current });
@@ -635,6 +716,33 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         if (!selected) return setSelected(userId);
         if (selected === userId) return setSelected(null);
         move({ userId });
+    };
+
+    /**
+     * Resize the raid (#354): reshuffled locally at once (resizeLineup), then
+     * persisted — the size itself through the event's own PATCH (the create
+     * dialog's endpoint, `updateRaidSize`), the resulting lineup through the
+     * usual setup save, so both land together.
+     */
+    const resize = async (newSize: number) => {
+        const shown = current.current;
+        if (!shown?.setup || newSize === shown.event.size) return;
+        const groupCount = Math.max(1, Math.ceil(newSize / GROUP_SIZE));
+        const resized = resizeLineup(toInput(shown.setup), newSize);
+        // reshuffled at once, in the browser — no server round trip needed to see it
+        setData({ ...shown, event: { ...shown.event, size: newSize }, groupCount, setup: applyLocal(shown.setup, resized) });
+        setBusy(true);
+        try {
+            await chain.current;
+            // the size itself first, so the lineup save below already reads it back applied
+            await updateRaidSize(ctx.csrfToken, ctx.eventId, newSize);
+            await save(resized, {}, { event: { ...shown.event, size: newSize }, groupCount });
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.editor.sizeFailed"), "err");
+            load();
+        } finally {
+            setBusy(false);
+        }
     };
 
     /**
@@ -747,6 +855,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         <div className="se-editor">
             <div className="se-bar">
                 <StatusBadge setup={setup} />
+                <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
                 <Badge
                     tone={size.ok ? undefined : "mid"} tip={t("setup.editor.placesTip")}
                     tipSub={t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length })}

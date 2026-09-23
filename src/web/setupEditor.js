@@ -355,6 +355,31 @@ function decorateLineup(setup, table, names) {
 }
 
 /**
+ * Signups nobody placed yet — someone who signed up after the last proposal
+ * or save, so the orga's draft never falls behind (#354): they land on the
+ * bench, so they can be dragged into a group by hand like anyone else there.
+ * Represented by their first signed character (priority 0) — the full
+ * off-spec/`canAlso` option logic of setupInput.js is out of scope for a
+ * manually-added bench entry. Only the draft gains them; `approved` is never
+ * touched (docs/setup.md, "Change after approval").
+ */
+function addUnplacedSignups(decorated, signups, table, names) {
+    if (!decorated) return decorated;
+    const placed = new Set();
+    for (const g of decorated.groups || []) for (const s of g.slots || []) placed.add(String(s.userId));
+    for (const b of decorated.bench || []) placed.add(String(b.userId));
+    const extra = (signups || [])
+        .filter((s) => s && s.userId && s.status !== "absence" && !placed.has(String(s.userId)))
+        .map((s) => decoratePerson({
+            userId: String(s.userId), character: s.character || "", spec: s.spec || "",
+            // the signup's own role, else the spec's (a fixture/import may skip it — the spec always knows)
+            role: s.role || (table.specs.get(s.spec) || {}).role || "",
+            status: s.status || "", locked: false,
+        }, table, names));
+    return extra.length ? { ...decorated, bench: [...decorated.bench, ...extra] } : decorated;
+}
+
+/**
  * GET /api/raids/setup's answer. The orga (`canWrite`) gets the draft with
  * reasons, checks and options; anyone else only the approved lineup — the
  * draft is not in the payload at all.
@@ -378,7 +403,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     const { pingTextOf } = require("./setupPing");
     return {
         ...head,
-        setup: setup ? decorateLineup(setup, table, names) : null,
+        setup: setup ? addUnplacedSignups(decorateLineup(setup, table, names), signups, table, names) : null,
         groupCount,
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,
@@ -393,5 +418,5 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
 module.exports = {
     proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation,
     approvedSetupOf, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
-    lineupSignature, mergeOptions, cleanWeights, snapshotOf, avoidPairCount,
+    lineupSignature, mergeOptions, cleanWeights, snapshotOf, avoidPairCount, addUnplacedSignups,
 };
