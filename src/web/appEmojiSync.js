@@ -7,7 +7,7 @@
 // manual step; `scripts/sync-app-emojis.js` runs the same sync by hand
 // (`--dry-run` lists only). Idempotent: it reads the application's emojis first
 // and creates only names that do not exist yet — an existing emoji is never
-// replaced or deleted, except the short-lived RECREATE list below.
+// replaced or deleted.
 const fs = require("fs");
 const path = require("path");
 const { Routes } = require("discord.js");
@@ -15,25 +15,11 @@ const { emojiCatalog, validEmojiName, loadAppEmojis } = require("./appEmojis");
 
 const MAX_BYTES = 256 * 1024;
 
-// classes.js corrected these two spec icons (2bbb7a58: Priest-Holy and
-// Hunter-Survival) after the app emoji had already been uploaded with the old
-// picture — the sync above only ever fills in a *missing* name, so the stale
-// image stuck around on every application that had synced before that fix.
-// Deleting them once here makes the next bot start (the next deploy) recreate
-// them with the corrected icon, without a manual step. Remove this list once
-// production has restarted with it.
-const RECREATE = ["eh_hunter_survival", "eh_priest_holy"];
-
-/** The application's emojis as `{ id, name }` (`GET /applications/{id}/emojis` answers `{ items }`). */
-async function existingItems({ rest, routes = Routes, clientId }) {
+/** The names of the application's emojis (`GET /applications/{id}/emojis` answers `{ items }`). */
+async function existingNames({ rest, routes = Routes, clientId }) {
     const res = await rest.get(routes.applicationEmojis(clientId));
     const items = Array.isArray(res) ? res : (res && res.items) || [];
-    return items.filter((e) => e && e.name && e.id);
-}
-
-/** The names of the application's emojis. */
-async function existingNames(opts) {
-    return new Set((await existingItems(opts)).map((e) => e.name));
+    return new Set(items.map((e) => e && e.name).filter(Boolean));
 }
 
 /** An icon as a data URI, refused above Discord's size limit. */
@@ -69,29 +55,14 @@ function iconImage(entry, { fetchImpl = fetch, readFile } = {}) {
 async function syncAppEmojis({
     rest, routes = Routes, clientId, catalog = emojiCatalog(), dryRun = false, fetchImpl = fetch, readFile, log = console.log,
 }) {
-    const items = await existingItems({ rest, routes, clientId });
-    const have = new Set(items.map((e) => e.name));
-    const stale = items.filter((e) => RECREATE.includes(e.name));
+    const have = await existingNames({ rest, routes, clientId });
     const wanted = catalog.filter((e) => validEmojiName(e.name));
     const missing = wanted.filter((e) => !have.has(e.name));
     const out = { existing: wanted.length - missing.length, missing: missing.map((e) => e.name), created: [], failed: [] };
     log(`${wanted.length} Emojis im Katalog, ${out.existing} vorhanden, ${missing.length} fehlen.`);
     if (dryRun) {
         for (const e of missing) log(`  fehlt: ${e.name} (${e.icon || e.tile})`);
-        for (const e of stale) log(`  veraltet, wird beim naechsten echten Lauf neu angelegt: ${e.name}`);
         return out;
-    }
-    for (const e of stale) {
-        const target = wanted.find((w) => w.name === e.name);
-        if (!target) continue;
-        try {
-            await rest.delete(routes.applicationEmoji(clientId, e.id));
-            have.delete(e.name);
-            missing.push(target);
-            log(`  veraltet geloescht: ${e.name}`);
-        } catch (err) {
-            log(`  FEHLER beim Loeschen von ${e.name}: ${err.message}`);
-        }
     }
     for (const e of missing) {
         try {
