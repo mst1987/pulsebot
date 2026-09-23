@@ -139,7 +139,7 @@ export default function PlanBoard({
         onDoubleClick: onObjectOpen ? () => onObjectOpen(kind, id) : undefined,
     } : {});
     const ar = aspect || 16 / 10;
-    const style = { aspectRatio: String(ar), maxWidth: `calc(88vh * ${ar})` } as CSSProperties;
+    const style = { aspectRatio: String(ar), maxWidth: `calc((100vh - 250px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
 
     return (

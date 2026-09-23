@@ -167,7 +167,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const empty = objectCount(board) === 0;
 
     return (
-        <div className="rp-editor">
+        <div className="rp-editor" data-rp-editor>
             {conflict && (
                 <div className="flash flash-err rp-conflict">
                     <span>{t("raidBoard.conflict.text")}</span>

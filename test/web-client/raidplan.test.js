@@ -658,8 +658,8 @@ describe("the pages", () => {
         for (const src of [tab, tpl]) expect(stripComments(src)).not.toContain("addEventListener");
     });
 
-    it("stays inside the menu's normal page frame; only the public page is wide", () => {
-        expect(css).not.toContain(".content:has(");
+    it("keeps the head and tabs in the normal frame and lifts the width cap only where an editor is", () => {
+        expect(css).toContain(".content:has([data-rp-editor]) { max-width: none; }");
         expect(tab).not.toContain("rp-wide");
         expect(tpl).not.toContain("rp-wide");
         expect(tpl).toContain("<PageHead");
@@ -735,6 +735,7 @@ describe("the pages", () => {
     it("fits any map: the board takes the map's aspect ratio", () => {
         expect(board2).toContain("naturalWidth / i.naturalHeight");
         expect(board2).toContain("aspectRatio: String(ar)");
+        expect(board2).toContain("100vh - 250px");
     });
 
     it("marks a zone's type by pattern and label as well as colour", () => {

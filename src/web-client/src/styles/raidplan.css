@@ -339,3 +339,9 @@
     .rp-pal-grid { grid-template-columns: repeat(8, 1fr); }
     .rp-sticky { position: static; }
 }
+
+/* ==== the editor uses the full width next to the main navigation ====
+   Only where an editor is on the page (.rp-editor): the menu's 1080 px content cap is lifted for
+   that page, and the head, tabs and notes above the editor keep the normal width. */
+.content:has([data-rp-editor]) { max-width: none; }
+.rp-editor > :not(.rp-work) { max-width: 1032px; }

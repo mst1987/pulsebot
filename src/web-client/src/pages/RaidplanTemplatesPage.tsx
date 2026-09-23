@@ -285,7 +285,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const limits = { targetsPerBoss: 30, title: 80, notes: 1000, profileName: 40, profileCategory: 30 };
 
     return (
-        <div className="rp-editor">
+        <div className="rp-editor" data-rp-editor>
             <p className="note"><button type="button" className="mlink rp-linkbtn" onClick={onBack}>{t("planTemplates.backToList")}</button></p>
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={tpl.name}
