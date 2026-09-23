@@ -184,7 +184,7 @@ describe("setup editor page", () => {
         expect(editor).toContain("className=\"se-ph se-ph-take\"");
         expect(editor).not.toContain(">leer<");
         // groups and bench share one column; the summary stays beside them
-        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<Summary/);
+        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<div className="se-sidecol">\s*<Summary/);
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
@@ -210,8 +210,9 @@ describe("setup editor page", () => {
     });
 
     it("keeps one line per raider — reasons only in the tooltip", () => {
-        expect(editor).toContain("data-tip-sub={personTip(p)}");
-        expect(editor).toContain("...(p.reasons || []),");
+        // the reasons live in the raider panel docked in the right column (SlotTip), not in the line
+        expect(editor).toContain("<SlotTip p={inspectedPerson}");
+        expect(editor).toContain("tipReasons(p.reasons)");
         // the reasons are never rendered as text of their own
         expect(editor).not.toMatch(/\.reasons\.map\(/);
         expect(editor).toContain("<span className={`se-name ${color.className || \"\"}`} style={color.style}>{p.character}</span>");
@@ -365,5 +366,59 @@ describe("ping text (Ping-Nachricht) inline field", () => {
     it("labels it in German and English, making clear that this is what gets posted", () => {
         expect(de("setup.pingText.label")).toMatch(/Ping-Nachricht.*Ping everyone/);
         expect(en("setup.pingText.label")).toMatch(/Ping message.*Ping everyone/);
+    });
+});
+
+describe("the raider tooltip and the drag glow", () => {
+    const de = makeT("de");
+    const en = makeT("en");
+    const groups = () => [
+        { index: 1, slots: [person("a", "Warrior-Arms", "melee"), person("b", "Warrior-Fury", "melee")] },
+        { index: 2, slots: ["c", "d", "e", "f", "g"].map((id) => person(id, "Mage-Fire", "ranged")) },
+        { index: 3, slots: [] },
+    ];
+
+    it("glows the free group where the dragged raider helps most, never a full or their own group", () => {
+        const sham = person("sham", "Shaman-Enhancement", "melee", { fit: { 1: 2, 2: 9, 3: 1 } });
+        // group 2 would help most but is full
+        expect(lib.suggestGroup(sham, groups())).toBe(1);
+        const inOne = person("a", "Warrior-Arms", "melee", { fit: { 1: 5, 3: 2 } });
+        expect(lib.suggestGroup(inOne, groups())).toBe(3);
+    });
+
+    it("suggests nothing when the raider's buffs help nowhere", () => {
+        expect(lib.suggestGroup(person("x", "Mage-Fire", "ranged"), groups())).toBeNull();
+        expect(lib.suggestGroup(person("x", "Mage-Fire", "ranged", { fit: {} }), groups())).toBeNull();
+    });
+
+    it("drops the proposal's attendance reason — the tooltip has its own attendance row for everyone", () => {
+        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Kommt später"])).toEqual(["Von der Orga fixiert", "Kommt später"]);
+        expect(lib.tipReasons(undefined)).toEqual([]);
+    });
+
+    it("draws the tooltip itself (icons, attendance with check or auto badge, brings) instead of a text block", () => {
+        const src = read("pages", "raid-detail", "SetupEditor.tsx");
+        expect(src).toContain("function SlotTip");
+        // docked under the summary — never a floating layer that could cover a group
+        expect(src).not.toContain("createPortal");
+        expect(src).toMatch(/className="se-sidecol">[\s\S]*?<Summary[\s\S]*?<SlotTip/);
+        // the old text tooltip is gone from the line
+        expect(src).not.toContain("data-tip-sub={personTip(p)}");
+        expect(src).toMatch(/a\.link === "manual"[\s\S]*?<CheckIcon \/>[\s\S]*?setup\.person\.tip\.autoBadge/);
+        // it shows the raider touched last (pointer or focus), and the read-only lineup has no panel at all
+        expect(src).toContain("onMouseEnter={inspect}");
+        expect(src).toContain("onFocus={inspect}");
+        const css = read("styles", "setup-editor.css");
+        expect(css).toMatch(/\.se-sidecol \{[^}]*position: sticky/);
+        expect(css).toMatch(/\.se-layout \{[^}]*380px/);
+        // the glow rides on the group card
+        expect(src).toContain("se-suggest");
+    });
+
+    it("has the tooltip's texts in German and English", () => {
+        for (const key of ["attendance", "attendanceNone", "attendanceCount", "linkManual", "linkAuto", "autoBadge", "brings", "bringsGroup", "bringsRaid", "why"]) {
+            expect(de(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
+            expect(en(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
+        }
     });
 });

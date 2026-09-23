@@ -214,6 +214,26 @@ export function peopleOf(setup: StoredSetup): Map<string, SetupPerson> {
     return map;
 }
 
+/** The group with a free place where what the raider brings helps most (`fit`, from the server), or null when nowhere does — the drag glow. */
+export function suggestGroup(person: SetupPerson, groups: SetupEditorGroup[]): number | null {
+    let best = null;
+    let bestFit = 0;
+    for (const g of groups) {
+        if (g.slots.length >= GROUP_SIZE || g.slots.some((s) => s.userId === person.userId)) continue;
+        const fit = (person.fit || {})[String(g.index)] || 0;
+        if (fit > bestFit) {
+            best = g.index;
+            bestFit = fit;
+        }
+    }
+    return best;
+}
+
+/** The reasons the tooltip lists: the attendance line is drawn on its own row for everyone, so the reason of the same name is dropped. */
+export function tipReasons(reasons: string[] | undefined): string[] {
+    return (reasons || []).filter((r) => !r.startsWith("Anwesenheit "));
+}
+
 function personFrom(people: Map<string, SetupPerson>, userId: string, locked: boolean): SetupPerson {
     const known = people.get(userId);
     const base = known || { userId, character: userId, classId: "", spec: "", role: "", name: "", classColor: "", classLabel: "", specLabel: "", specIcon: "" };

@@ -1,5 +1,19 @@
 {
     "person": {
+        "tip": {
+            "attendance": "Attendance",
+            "attendanceNone": "no raids counted yet",
+            "attendanceCount": "{attended} of {total} raids",
+            "linkManual": "Character link confirmed (officers or the raider's profile)",
+            "linkAuto": "Assigned automatically – not confirmed by the raider or the officers",
+            "autoBadge": "auto",
+            "brings": "Brings",
+            "bringsGroup": "to the group ({count} profit)",
+            "bringsRaid": "to the raid",
+            "why": "Why here",
+            "aria": "Raider details",
+            "empty": "Hover a raider to see details"
+        },
         "offSpec": "Off-spec",
         "status": {
             "late": "Coming late",

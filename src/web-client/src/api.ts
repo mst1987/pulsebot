@@ -3835,6 +3835,19 @@ export type SetupPlacement =
     | { group: number; character: string; spec: string; role: GameRole | "" }
     | { bench: true; character: string; spec: string; role: GameRole | "" };
 
+/** A buff a raider brings: a party buff to their group (`count` = how many profit) or a raid buff to everyone. */
+export type SetupBuff = { key: string; label: string; icon: string; scope: "party" | "raid"; count: number };
+
+/** Attendance of one raider, counted per Discord account; `link` = how sure the character link is (manual = orga assignment or own profile, auto = guessed). */
+export type SetupAttendance = {
+    pct: number | null;
+    attended: number;
+    total: number;
+    link: "manual" | "auto";
+    inferred: number;
+    missed: { eventId: string; title: string; startTime: number; reason: string }[];
+};
+
 /** A raider in a group or on the bench, decorated for the page. */
 export type SetupPerson = {
     userId: string;
@@ -3848,6 +3861,9 @@ export type SetupPerson = {
     locked?: boolean;
     /** Why they are where they are — shown in the tooltip only. */
     reasons?: string[];
+    brings?: SetupBuff[];
+    /** Per other group index: how many would profit from what they bring there — drives the drag glow. */
+    fit?: Record<string, number>;
     name: string;
     classColor: string;
     classLabel: string;
@@ -3910,6 +3926,8 @@ export type SetupEditorData = {
     /** Only for the orga (raids write) — a reader never receives the draft. */
     setup?: StoredSetup | null;
     groupCount?: number;
+    /** By user id; only on the page load — the page keeps it across moves. */
+    attendance?: Record<string, SetupAttendance>;
     signupCount?: number;
     absent?: number;
     /** How many "nicht zusammen" pairs stand among the signups — what the editor asks about. */

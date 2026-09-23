@@ -328,7 +328,65 @@ function specTable(versionId) {
         classes.set(c.id, c);
         for (const s of c.specs) specs.set(s.key, s);
     }
-    return { specs, classes };
+    return { specs, classes, partyBuffs: rules.partyBuffs || [], raidBuffs: rules.raidBuffs || [] };
+}
+
+/**
+ * The party buffs one spec would bring into a group with these members (spec
+ * keys, the spec's own place excluded): each buff with how many of them it
+ * helps. A buff everybody wants is left out (it decides nothing), and a slotted
+ * one (a totem element, a shout) counts once per provider — the most useful.
+ */
+function partyBenefits(table, specKey, memberSpecs) {
+    const bySlot = new Map();
+    const out = [];
+    for (const b of table.partyBuffs) {
+        if (!b.providers.includes(specKey) || b.beneficiaries.length >= table.specs.size) continue;
+        const count = memberSpecs.filter((s) => b.beneficiaries.includes(s)).length;
+        if (!count) continue;
+        const hit = { key: b.key, label: b.label, icon: b.icon, count };
+        if (!b.slot) {
+            out.push(hit);
+        } else if (!bySlot.has(b.slot) || bySlot.get(b.slot).count < count) {
+            bySlot.set(b.slot, hit);
+        }
+    }
+    return [...out, ...bySlot.values()].sort((a, b) => b.count - a.count);
+}
+
+/**
+ * What a raider brings to the group they stand in (party buffs, with how many
+ * profit) and to the raid (raid buffs) — the tooltip draws these as icons — and
+ * `fit`: for every *other* group how many would profit if they stood there, so
+ * the editor can glow the sensible place while somebody is dragged.
+ */
+function withBuffInfo(person, group, groups, table) {
+    const spec = person.spec;
+    const brings = [];
+    if (group) {
+        const mates = group.slots.filter((s) => s.userId !== person.userId).map((s) => s.spec);
+        for (const b of partyBenefits(table, spec, mates)) brings.push({ ...b, scope: "party" });
+    }
+    for (const b of table.raidBuffs) {
+        if (b.providers.includes(spec)) brings.push({ key: b.key, label: b.label, icon: b.icon, scope: "raid", count: 0 });
+    }
+    const fit = {};
+    for (const g of groups) {
+        if (group && g.index === group.index) continue;
+        const total = partyBenefits(table, spec, g.slots.map((s) => s.spec)).reduce((n, b) => n + b.count, 0);
+        if (total) fit[g.index] = total;
+    }
+    return { ...person, brings, fit };
+}
+
+/** The editor's lineup with `brings` and `fit` on every raider (draft only — the approved copy stays plain). */
+function withBuffInfoAll(lineup, table) {
+    if (!lineup) return lineup;
+    return {
+        ...lineup,
+        groups: lineup.groups.map((g) => ({ ...g, slots: g.slots.map((s) => withBuffInfo(s, g, lineup.groups, table)) })),
+        bench: lineup.bench.map((b) => withBuffInfo(b, null, lineup.groups, table)),
+    };
 }
 
 /** A slot/bench entry with what the page draws: class colour, spec label and icon, Discord name. */
@@ -384,7 +442,7 @@ function addUnplacedSignups(decorated, signups, table, names) {
  * reasons, checks and options; anyone else only the approved lineup — the
  * draft is not in the payload at all.
  */
-function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null, avoidPairs = 0 } = {}) {
+function editorView(event, { canWrite = false, names = {}, signups = [], hasApiKey = false, job = null, avoidPairs = 0, attendance = null } = {}) {
     const table = specTable(event.versionId);
     const approved = decorateLineup(approvedSetupOf(event), table, names);
     const head = {
@@ -403,7 +461,9 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     const { pingTextOf } = require("./setupPing");
     return {
         ...head,
-        setup: setup ? addUnplacedSignups(decorateLineup(setup, table, names), signups, table, names) : null,
+        setup: setup ? withBuffInfoAll(addUnplacedSignups(decorateLineup(setup, table, names), signups, table, names), table) : null,
+        // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves
+        ...(attendance ? { attendance } : {}),
         groupCount,
         signupCount: signups.filter((s) => s.status !== "absence").length,
         absent: signups.filter((s) => s.status === "absence").length,

@@ -1,5 +1,19 @@
 {
     "person": {
+        "tip": {
+            "attendance": "Anwesenheit",
+            "attendanceNone": "noch keine Raids gezählt",
+            "attendanceCount": "{attended} von {total} Raids",
+            "linkManual": "Char-Zuordnung bestätigt (Orga oder Profil des Raiders)",
+            "linkAuto": "Automatisch zugeordnet – nicht vom Raider oder der Orga bestätigt",
+            "autoBadge": "auto",
+            "brings": "Bringt",
+            "bringsGroup": "für die Gruppe ({count} profitieren)",
+            "bringsRaid": "für den Raid",
+            "why": "Warum hier",
+            "aria": "Details zum Raider",
+            "empty": "Raider berühren, um Details zu sehen"
+        },
         "offSpec": "Zweitspec",
         "status": {
             "late": "Kommt später",
