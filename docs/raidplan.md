@@ -7,12 +7,16 @@ The raid plan of an own event: **one plan per event, one board per boss** — th
 | Piece | File |
 |---|---|
 | Plan store, validation, room maps | `src/web/raidplanStore.js` |
+| The board of one boss (validation, slot auto-fill), shared by plans and templates | `src/web/raidplanBoard.js` |
 | Tactic profiles (collection store) | `src/web/raidplanProfileStore.js` |
+| Raid plan templates (collection store) | `src/web/raidplanTemplateStore.js` |
 | What the editor and the public page are shown | `src/web/raidplan.js` |
 | API | `src/web/apiRoutes/raidplan.js` (routes in `apiRouter.js`, areas in `apiAccess.js`) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
 | Editor (tab of the raid detail) | `src/web-client/src/pages/raid-detail/RaidplanTab.tsx` and `raidplan/` |
-| Board, token, player icon (editor and read view) | `src/web-client/src/components/raidplan/PlanBoard.tsx` |
+| The working area of a boss, shared by the event editor and the template editor | `raidplan/BoardWorkspace.tsx` (+ `ObjectModals.tsx`, `MapModal.tsx`) |
+| Template admin page (`/raids/plan-templates`) | `src/web-client/src/pages/RaidplanTemplatesPage.tsx` |
+| Board, token, slot, zone, player icon (both editors and the read view) | `src/web-client/src/components/raidplan/PlanBoard.tsx`, `MarkIcon.tsx` |
 | Read view | `src/web-client/src/pages/PlanPublicPage.tsx`, route `/p/<token>` |
 | Pure board logic | `src/web-client/src/lib/raidplan.ts` |
 | Styles (prefix `rp-`) / texts | `styles/raidplan.css` / `i18n/locales/{de,en}/raidBoard.json` |
@@ -21,11 +25,17 @@ Only an **own event** has a raid plan (the tab is hidden for a Raid-Helper event
 
 ## Data model
 
-`data/settings/raidplans.json`: `{ plans: [{ eventId, version, status: "draft" | "published", publicToken, bosses, updatedAt, updatedBy }] }`, `bosses[bossKey] = { tokens: [{ userId, x, y }], targets: [{ id, title, userIds }], notes, profileId }`.
+`data/settings/raidplans.json`: `{ plans: [{ eventId, version, status: "draft" | "published", publicToken, templateId, bosses, updatedAt, updatedBy }] }`, `bosses[bossKey]` = a **board** (`raidplanBoard.js`, one shape for plans and templates):
+
+- `tokens` `[{ userId, x, y }]` — free player tokens (plans only);
+- `slots` `[{ id, kind, n, label, x, y, userId }]` — placeholders: `tank`/`healer` 1..n, `dps`, `group` (a marker for setup group `n`, it names that group's players) and `label` (free text). `userId` is who stands in it (`""` = open); a template's slots never have one;
+- `marks` `[{ id, mark, x, y }]` — the eight raid target marks (`skull cross square moon triangle diamond circle star`);
+- `zones` `[{ id, shape: rect|ellipse, type: danger|healthy|neutral|custom, label, color, opacity, x, y, w, h }]` — x/y is the top-left corner; a new zone gets its type's preset colour (`ZONE_COLORS`), any `#rrggbb` is accepted, opacity 0.1..0.6 (default 0.3);
+- `targets` `[{ id, title, userIds }]`, `notes`, `profileId`.
 
 - **Players are only a `userId`.** Name, class, spec, role and icon are looked up in the event's setup on every read (`raidplan.js`'s `rosterFrom`), never copied into the plan — so a changed spec follows on its own. `x`/`y` are relative to the board (0..1).
 - **Boss key** = `<instanceId>/<slug of the boss name>` (`bt/gurtogg-bloodboil`), from the instances of the event (`event.instanceIds` → `config/gameVersions`, `bosses`). Stable across renames of the display label; an event without an instance has no bosses (the tab says so).
-- **Strict validation on every save** (`raidplanStore.cleanBosses`): coordinates clamped, at most 60 tokens / 30 rows / 25 players per row per boss, titles 80 and notes 1000 characters, a `userId` that is not in the event's current lineup is **dropped** (counted in the answer's `dropped`, the editor says so) instead of blocking every later save, a boss the event no longer has is dropped, a row id that is unusable is replaced, an untouched boss is not stored, a `profileId` that no longer exists is forgotten.
+- **Strict validation on every save** (`raidplanStore.cleanBosses`): coordinates clamped, at most 60 tokens, 60 slots, 40 marks, 30 zones, 30 rows and 25 players per row per boss, titles 80, labels 40 and notes 1000 characters, an unknown slot kind or mark is dropped, a zone keeps a minimum size and stays on the board, a player takes one slot per board (a second one is left open), a `userId` that is not in the event's current lineup is **dropped** (counted in the answer's `dropped`, the editor says so) instead of blocking every later save, a boss the event no longer has is dropped, a row id that is unusable is replaced, an untouched boss is not stored, a `profileId` that no longer exists is forgotten.
 - **Version check:** `PUT` carries the `version` it read; a stale one answers `409 conflict`, the editor keeps the unsaved draft and offers "Neu laden". Nothing is written before "Speichern".
 - **Who is offered:** the editor (raids) sees the current lineup — the draft when there is one, else the approved one. The **read view names only players of the *approved* setup** (a raider never sees a setup draft, see docs/setup.md); a token of somebody who is only in the draft is left out there, and the share dialog says so.
 
@@ -33,10 +43,24 @@ Only an **own event** has a raid plan (the tab is hidden for a Raid-Helper event
 
 There are **no maps in the repo** and nothing is fetched from anywhere; the orga uploads them.
 
-- Per boss and per instance (the fallback of every boss without its own): `POST /api/raidplan/map?key=<bossKey|instanceId>` with the **file as the request body** (`readRawBody`, cut off at 3 MB), `POST /api/raidplan/map/delete { key }`. Area `raids` write. The key must be a known instance id or boss key, so no path can be built from it.
+- **Which map a board shows**, most specific first (`raidplanStore.mapForBoss`): this plan's own map (`e/<eventId>/<boss>`) > the template's map (`t/<templateId>/<boss>`) > the boss's default map (`<instance>/<boss>`) > the instance's default map (`<instance>`) > the grid placeholder. The map dialog lists each level that applies; removing an override reads "Auf Standard zurücksetzen". The template's map is looked up live (deleting the template deletes its maps).
+- Per boss and per instance (the defaults; the fallback of every boss without its own): `POST /api/raidplan/map?key=<key>` with the **file as the request body** (`readRawBody`, cut off at 3 MB), `POST /api/raidplan/map/delete { key }`. Area `raids` write. The key must be a known instance id or boss key, optionally scoped with `t/<templateId>/` or `e/<eventId>/`; a scoped key is only written for a template that exists or an own event, so no path can be built from it.
 - The server recognises PNG, JPG and WebP **by the first bytes** (`sniffImage`), never by the claimed type; SVG and everything else is refused. Stored in `data/raidplan-maps/<key with / as __>.<ext>`, one file per key (a new upload replaces the old one, whatever its type).
 - Delivered at `/rp-map/<key>` without a login (the public page shows them too), `Cache-Control: public, max-age=86400`, `X-Content-Type-Options: nosniff`. The url the API hands out carries `?v=<mtime>`, so a new upload is never hidden by the cache.
 - Without a map the board shows a neutral grid with the boss icon.
+
+## Raid plan templates
+
+Admin page **Raid-Events → Raidplan-Vorlagen** (`/raids/plan-templates`, area `raids`; list first, `?edit=<id>` is the editor, `?edit=new` the create dialog). A template is a named layout — "Montags-Raid" — that lays out the coarse plan **without players**: per boss placeholder slots, raid marks, zones, target rows and a note. `data/settings/raidplan-templates.json`: `{ id, name, category, description, guildId, instanceIds, bosses, version, updatedAt }`.
+
+- `guildId` is optional (the Discord event server it is for; "" = every server). A template made for another server is not offered for an event on this one and cannot be applied to it. `instanceIds` (at least one) decide which bosses can have a board; changing them drops the boards of bosses no longer covered.
+- **No players in a template:** `cleanBoard` runs with an empty set of allowed players and no free tokens, so a slot's `userId`, tokens and row assignments are always emptied. Its own room map per boss is uploaded in the editor (`t/<id>/<boss>`).
+- Saving the boards needs the `version` that was read (409 `conflict` otherwise); renaming and the other fields do not.
+- **Applying** (`POST /api/raidplan/apply { event, templateId, version }`, or "Vorlage wählen" in the event's Raidplan tab; the default is "Leer" = no template): `raidplanStore.applyTemplate` copies the template into the plan **as a snapshot** — every boss the template and the event both have gets the template's board (new ids, no tokens), other bosses are left alone, `templateId` is remembered for the display, the plan's version bumps. **There is no live link:** changing or deleting the template afterwards never reaches a plan that already exists (only the template's map is looked up live). The editor asks first when the plan already holds something or has unsaved edits.
+- **Slots are filled from the setup** (`raidplanBoard.fillSlots`, from the editor's roster in setup order): `tank n` gets the tanks in order, `healer n` the healers, `dps` the remaining damage dealers (melee, ranged, dps); a slot nobody fits stays **open** and is marked on the board (dashed role icon, "N Slots offen" in the tool bar). A `group n` marker needs no filling: it names the players of setup group `n`. A label slot is filled by hand.
+- After applying, everything is adjusted one by one in the event plan: reassign a slot (dialog, or drop a player from the list onto it), move or delete slots, marks and zones, add new ones, edit the rows.
+
+**Templates and tactic profiles complement each other, and are kept simple:** a template is the *layout of the board* (where things stand), a tactic profile is a *snippet of target rows* (titles + note, by category) that can be picked on any board — in a template as well as in an event plan. Applying a template copies its rows (and its `profileId`); picking a profile afterwards replaces the rows as before.
 
 ## Tactic profiles
 
@@ -51,7 +75,10 @@ A named, categorised set of target rows the orga picks for a boss instead of typ
 
 Raid-Detail › tab **Raidplan** (own event, order Roster, Setup, Raidplan, Loot, Logs). Left the bosses, in the middle the board of the chosen boss, on the right the target rows (with the tactic button and the note) and the players **not placed yet**.
 
-- **Pointer Events on `window`, no HTML5 drag and drop**, so a finger works like a mouse: a player from the list onto the board, a token around the board (it follows the pointer live, grip kept), a token onto the list to take it off. `touch-action: none` on the draggable things. A focused token moves with the arrow keys (Shift = bigger steps), Delete removes it.
+- **Layout:** the board is the page. The boss list sits on the left (190 px), everything else — tool bar, **the players not placed yet** (a fold-away section *above* the board: under a full-width board the list would be a screen away from where a player is dropped), the board at the **full width of the rest** (aspect 16:10 kept, at most 150 vh wide) and the target rows and note in a fold-away section under it — stands in one column; details are in dialogs. The pages that use it carry `rp-wide`, which lifts the menu's 1080 px content cap (`.content:has(.rp-wide)`); the read view has the same order (board full width, table below).
+- **One component for both editors:** `BoardWorkspace` (tool bar, selection, drag, object dialogs, fold-aways) is used by the event tab and the template editor, `PlanBoard` renders it in the read view too — there is no second copy of the drag.
+- **Pointer Events on `window`, no HTML5 drag and drop**, so a finger works like a mouse: a player from the list onto the board or **onto a slot**, tokens / slots / marks / zones around the board (they follow the pointer live, grip kept), a zone's four **corner handles** to scale it (the opposite corner stays, minimum size, stays on the board), a token or a slot's player onto the list to take it off (the slot goes back where it was). `touch-action: none` on the draggable things. Click selects; a selected or focused object moves with the arrow keys (Shift = bigger steps), Delete removes it, Enter or a double click opens its dialog (slot: number, own title, player; zone: label, type, shape, colour picker with the type's preset one click away, opacity).
+- **Objects** ("Objekt hinzufügen"): slots (tank, healer, dps, group, free label), the eight raid marks and zones (rectangle or ellipse; danger, healthy, neutral, own). **Marks are drawn as inline SVG** in the game's colours: Blizzard's raid-target textures are not on the icon CDN `lib/wowIcon.ts` uses and nothing is taken from other sites' guide images. **A zone's type is a pattern and a label as well as a colour** (danger: diagonal stripes and ⚠, healthy: dots and ✚, neutral: dashed border, own: solid), so it does not rest on colour alone. Open slots show the role's WoW icon on a dashed ring; a filled slot shows the player's spec icon like a token.
 - Tokens show the **real spec icon** (`iconUrl` from the rule set) on a tile tinted in the class colour, ringed in the **role colour** (tank blue, healer cyan, everything else orange) — no hand-drawn circles with letters; the name below in the class colour.
 - Rows: free title, players from the roster (a picker dialog), delete. "Zeile hinzufügen" starts empty.
 - **Freigeben & teilen** (dialog): publish / withdraw, the link, a new link (the old one stops working). Publishing changes only the state, not the unsaved draft; what is *saved* is what is published.
@@ -59,7 +86,7 @@ Raid-Detail › tab **Raidplan** (own event, order Roster, Setup, Raidplan, Loot
 
 ## Read view (`/p/<token>`)
 
-The "Sheet-Ansicht": per boss the board with its map and the table of rows, the note and the tactic name. **No login, no menu**: `App.tsx` answers `/p/<token>` before it asks for a session; the data comes from `GET /api/raidplan/public?token=…`, which is in `UNGATED` (`apiAccess.js`, see docs/permissions.md) and answers **one and the same 404** for an unknown token, a withdrawn plan and a plan whose event is gone. The token is minted on the first publish (18 random bytes, url-safe), kept while the plan is withdrawn, and rotated on request. The page carries nothing personal beyond the character names of the approved setup.
+The "Sheet-Ansicht": per boss the board — map at the full page width, with its **zones, raid marks, slots (resolved players, open ones dimmed) and group markers** — and under it the table of rows, the note and the tactic name. A slot whose player is not in the approved setup shows as open. **No login, no menu**: `App.tsx` answers `/p/<token>` before it asks for a session; the data comes from `GET /api/raidplan/public?token=…`, which is in `UNGATED` (`apiAccess.js`, see docs/permissions.md) and answers **one and the same 404** for an unknown token, a withdrawn plan and a plan whose event is gone. The token is minted on the first publish (18 random bytes, url-safe), kept while the plan is withdrawn, and rotated on request. The page carries nothing personal beyond the character names of the approved setup.
 
 **Own token highlighted:** the endpoint reads the visitor's session if there is one (`auth.getUser`) and answers `me` = their Discord id when they stand in the plan; the page then rings their token, marks their rows and says so. A visitor without a login gets a "log in" link (the login returns to the menu start, not to the plan — a follow-up). It grants nothing: the highlight is the only thing a session changes.
 
@@ -69,4 +96,4 @@ All `/api/raidplan…` paths are area **`raids`** (read = GET, write = everythin
 
 ## Tests
 
-`test/web/raidplanStore.test.js`, `raidplanProfileStore.test.js`, `raidplanRoute.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the routing in `test/web/server.test.js`, `readRawBody` in `apiBody.test.js`, and `test/web-client/raidplan.test.js` (board logic run for real, structure of the pages, texts in both languages).
+`test/web/raidplanBoard.test.js` (slots, marks, zones, auto-fill), `raidplanTemplateStore.test.js` (templates, apply, map order), `raidplanTemplateRoute.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`, `raidplanRoute.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the routing in `test/web/server.test.js`, `readRawBody` in `apiBody.test.js`, and `test/web-client/raidplan.test.js` (board logic run for real, structure of the pages, texts in both languages).

@@ -4,7 +4,7 @@ import PlanBoard, { PlayerName, TokenIcon } from "../../../components/raidplan/P
 import { Button } from "../../../components/ui";
 import { useT } from "../../../i18n";
 import {
-    addMark, addSlot, addZone, assignSlot, moveObject, moveRect, nudgeObject, placeToken, removeObject, removeToken, resizeRect, rosterMap,
+    addMark, addSlot, addZone, assignSlot, moveObject, moveRect, nudgeObject, objectPoint, placeToken, removeObject, removeToken, resizeRect, rosterMap,
     slotTitle, unplaced, updateSlot, updateZone, type Corner, type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -23,14 +23,17 @@ type Drag = {
     /** where a zone and the pointer were when the drag began */
     rect0?: Rect;
     p0?: { x: number; y: number };
+    /** where a slot stood when it was picked up: it goes back there when it is dropped on the list */
+    origin?: { x: number; y: number };
     overTray: boolean;
 };
 
 /**
  * The working area of one boss, shared by the event plan and the raid plan
  * template (one component, so both behave the same): a tool bar over the board, the
- * board at the full width of the column, and under it the players not placed yet
- * (an event plan) and the target rows, each in a fold-away section.
+ * board at the full width of the column, the players not placed yet above it (an
+ * event plan: a list under a full-width board is a screen away from where a player
+ * is dropped) and the target rows under it, each in a fold-away section.
  *
  * Everything on the board is dragged with Pointer Events on window (no HTML5 drag
  * and drop, so a finger works like a mouse): a player from the list onto the
@@ -118,8 +121,8 @@ export default function BoardWorkspace({
                 if (overTray) edit((b) => removeToken(b, d.id));
                 else if (slotId) edit((b) => (b.slots.some((s) => s.id === slotId && s.kind !== "group") ? assignSlot(b, slotId, d.id) : b));
             } else if (d.kind === "slot" && overTray) {
-                // a slot dragged onto the list gives up its player; the slot itself stays
-                edit((b) => assignSlot(b, d.id, ""));
+                // a slot dragged onto the list gives up its player; the slot itself goes back where it was
+                edit((b) => assignSlot(d.origin ? moveObject(b, "slot", d.id, d.origin.x, d.origin.y) : b, d.id, ""));
             }
         };
         window.addEventListener("pointermove", move);
@@ -130,7 +133,6 @@ export default function BoardWorkspace({
             window.removeEventListener("pointerup", up);
             window.removeEventListener("pointercancel", up);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dragging, edit]);
 
     const startDrag = (e: PointerEvent<HTMLElement>, kind: ObjectKind | "tray", id: string, corner?: Corner) => {
@@ -142,6 +144,7 @@ export default function BoardWorkspace({
         let oy = 0;
         let rect0: Rect | undefined;
         let p0: { x: number; y: number } | undefined;
+        const origin = kind === "tray" ? undefined : objectPoint(board, kind, id) || undefined;
         const p = toBoard(e.clientX, e.clientY);
         if (kind === "zone") {
             const z = board.zones.find((k) => k.id === id);
@@ -152,7 +155,7 @@ export default function BoardWorkspace({
             ox = r.left + r.width / 2 - e.clientX;
             oy = r.top + r.height / 2 - e.clientY;
         }
-        const d = { kind, id, corner, x: e.clientX, y: e.clientY, ox, oy, rect0, p0, overTray: false };
+        const d = { kind, id, corner, x: e.clientX, y: e.clientY, ox, oy, rect0, p0, origin, overTray: false };
         dragRef.current = d;
         setDrag(d);
     };
@@ -215,6 +218,29 @@ export default function BoardWorkspace({
                 </div>
             </div>
 
+            {isEvent && (
+                <details className="rp-fold rp-tray-fold" open>
+                    <summary className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</summary>
+                    <section className={`rp-side-block rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray>
+                        {roster.length === 0 && <p className="rp-muted">{t("raidBoard.tray.none")}</p>}
+                        {roster.length > 0 && missing.length === 0 && <p className="rp-muted">{t("raidBoard.tray.empty")}</p>}
+                        <div className="rp-tray-list">
+                            {missing.map((p) => (
+                                <span
+                                    key={p.userId}
+                                    className={`rp-chip${canWrite ? " is-drag" : ""}`}
+                                    data-tip={`${p.specLabel} ${p.className}`.trim()}
+                                    onPointerDown={canWrite ? (e) => startDrag(e, "tray", p.userId) : undefined}
+                                >
+                                    <TokenIcon player={p} size="sm" />
+                                    <PlayerName player={p} />
+                                </span>
+                            ))}
+                        </div>
+                    </section>
+                </details>
+            )}
+
             <div
                 className="rp-board-wrap"
                 onPointerDown={(e) => { if (!(e.target as HTMLElement).closest(".rp-token, .rp-zone")) setSelected(null); }}
@@ -240,29 +266,8 @@ export default function BoardWorkspace({
             </div>
             {canWrite && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
+            {/* The players sit above the board, not below it: on a full-width board a list under it is a screen away from where a player is dropped. */}
             <div className="rp-below">
-                {isEvent && (
-                    <details className="rp-fold rp-tray-fold" open>
-                        <summary className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</summary>
-                        <section className={`rp-side-block rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray>
-                            {roster.length === 0 && <p className="rp-muted">{t("raidBoard.tray.none")}</p>}
-                            {roster.length > 0 && missing.length === 0 && <p className="rp-muted">{t("raidBoard.tray.empty")}</p>}
-                            <div className="rp-tray-list">
-                                {missing.map((p) => (
-                                    <span
-                                        key={p.userId}
-                                        className={`rp-chip${canWrite ? " is-drag" : ""}`}
-                                        data-tip={`${p.specLabel} ${p.className}`.trim()}
-                                        onPointerDown={canWrite ? (e) => startDrag(e, "tray", p.userId) : undefined}
-                                    >
-                                        <TokenIcon player={p} size="sm" />
-                                        <PlayerName player={p} />
-                                    </span>
-                                ))}
-                            </div>
-                        </section>
-                    </details>
-                )}
                 <details className="rp-fold" open>
                     <summary className="rp-kicker">{t("raidBoard.targets.title")} · {board.targets.length}</summary>
                     <TargetsPanel

@@ -28,10 +28,20 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 *Tab der Raid-Detailseite eines eigenen Events, Bereich "Raids" (lesen/schreiben)*
 
 - Je Boss der gewählten Instanz ein **Board**: Bossraum-Karte als Hintergrund, Spieler aus dem Setup frei darauf verschieben (mit Maus oder Finger; Pfeiltasten und Entf gehen auch), rechts die **Aufgabenzeilen** mit zugewiesenen Spielern und eine Notiz. Wer noch nicht platziert ist, steht in der Liste "Nicht platziert".
-- **Karten** lädst du selbst hoch (PNG/JPG/WebP, bis 3 MB), je Boss oder für die ganze Instanz. Ohne Karte zeigt das Board ein Raster.
+- Über dem Board: **Nicht platziert** (Spieler von dort aufs Board oder auf einen Slot ziehen), **Objekt hinzufügen** (Slots für Tank/Heiler/DPS/Gruppe/Label, die acht Raid-Marker, Zonen als Rechteck oder Ellipse in Gefahren-/Sicher-/Neutral-/Eigener-Zone-Farbe mit frei wählbarer Farbe und Deckkraft). Zonen skalierst du an den Ecken, Doppelklick öffnet die Details, Entf löscht.
+- **Vorlage wählen**: kopiert eine Raidplan-Vorlage (siehe unten) als Momentaufnahme in den Plan und füllt Tank-, Heiler- und DPS-Slots aus dem freigegebenen Setup; was sich nicht füllen lässt, bleibt als "offen" sichtbar. Danach lässt sich alles einzeln anpassen; spätere Änderungen an der Vorlage wirken hier nicht.
+- **Karten** lädst du selbst hoch (PNG/JPG/WebP, bis 3 MB): für diesen Plan, je Boss oder für die ganze Instanz. Es gilt die genaueste: Plan > Vorlage > Boss > Instanz > Raster. "Auf Standard zurücksetzen" entfernt die Karte des Plans.
 - **Taktik wählen**: Aufgabenzeilen als benannte, nach Kategorie sortierte Profile speichern und auf einem Boss wieder übernehmen; die Spieler-Zuweisung bleibt pro Plan.
 - **Speichern** schreibt den Plan; hat jemand anderes inzwischen gespeichert, meldet der Editor einen Konflikt und lädt erst nach deiner Bestätigung neu.
 - **Freigeben & teilen** erzeugt einen Link (`/p/<token>`), den jeder ohne Anmeldung lesen kann (Karte + Aufgabentabelle je Boss). Angemeldete Raider sehen ihren eigenen Token hervorgehoben. Spieler nennt die Lese-Ansicht erst, wenn das Setup freigegeben ist. Die Freigabe lässt sich zurücknehmen oder der Link erneuern.
+
+## Raidplan-Vorlagen
+
+*Raid-Events → "Raidplan-Vorlagen", Bereich "Raids"*
+
+- Benannte Vorlagen (z. B. "Montags-Raid") mit Name, Kategorie, Beschreibung, optional einem Server und den Instanzen. Je Boss ein Board **ohne Spieler**: Slots, Raid-Marker, Zonen, Aufgabenzeilen, Notiz; je Boss lässt sich eine eigene Karte hinterlegen.
+- Die **Taktik-Profile** bleiben als Zeilen-Bibliothek nutzbar ("Taktik wählen"), auch in einer Vorlage: die Vorlage legt fest, wo etwas steht, ein Profil liefert nur Aufgabenzeilen.
+- Anwenden geschieht im Raidplan des Events ("Vorlage wählen").
 
 ## Serien (wiederkehrende Events)
 
