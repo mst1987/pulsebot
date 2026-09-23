@@ -66,8 +66,24 @@ describe("web/discord channel management", () => {
             setClientWithGuild(guild);
             const result = discord.listAllChannels("g1");
             expect(result).toEqual([
-                { id: "t1", name: "kara-signup", type: ChannelType.GuildText, typeLabel: "Text", category: "Raids", parentId: "cat", botCanView: true, botCanSend: true },
-                { id: "v1", name: "voice", type: ChannelType.GuildVoice, typeLabel: "Voice", category: "", parentId: "", botCanView: true, botCanSend: true },
+                { id: "t1", name: "kara-signup", type: ChannelType.GuildText, typeLabel: "Text", category: "Raids", parentId: "cat", isThread: false, botCanView: true, botCanSend: true },
+                { id: "v1", name: "voice", type: ChannelType.GuildVoice, typeLabel: "Voice", category: "", parentId: "", isThread: false, botCanView: true, botCanSend: true },
+            ]);
+        });
+
+        it("marks threads and keeps their parent channel (not a category) as parentId, #361", () => {
+            const appChannel = chan("app", "bewerbungen", ChannelType.GuildText, { rawPosition: 1 });
+            const guild = makeGuild([
+                appChannel,
+                chan("th1", "Bewerbung Fatigatus", ChannelType.PublicThread, { parent: appChannel, parentId: "app", rawPosition: 2 }),
+                chan("th2", "geheimer Thread", ChannelType.PrivateThread, { parent: appChannel, parentId: "app", rawPosition: 3 }),
+            ]);
+            setClientWithGuild(guild);
+            const result = discord.listAllChannels("g1");
+            expect(result).toEqual([
+                { id: "app", name: "bewerbungen", type: ChannelType.GuildText, typeLabel: "Text", category: "", parentId: "", isThread: false, botCanView: true, botCanSend: true },
+                { id: "th1", name: "Bewerbung Fatigatus", type: ChannelType.PublicThread, typeLabel: "Thread", category: "bewerbungen", parentId: "app", isThread: true, botCanView: true, botCanSend: true },
+                { id: "th2", name: "geheimer Thread", type: ChannelType.PrivateThread, typeLabel: "Privater Thread", category: "bewerbungen", parentId: "app", isThread: true, botCanView: true, botCanSend: true },
             ]);
         });
 

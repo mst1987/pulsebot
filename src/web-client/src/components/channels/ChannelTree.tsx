@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Channel, ChannelsData } from "../../api";
 import { Badge, IconButton } from "../ui";
 import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon, TrashIcon } from "../icons";
@@ -11,6 +11,11 @@ import { normalizeForType } from "../../lib/channelNames";
 // as a badge. Everything else about a channel (event, topic, purposes, rights)
 // is its tooltip. A double click on the name (or the pencil) renames in place:
 // Enter saves, Esc discards, Discord's naming rules apply while typing.
+//
+// A channel's threads nest as a third level under it (#361): a small fold
+// toggle and a count badge appear only on a channel that has any, its threads
+// render right below, indented, with their own row (rename + delete only —
+// moving into another category or cloning does not apply to a thread).
 
 /** A check box that can show "some of them" (the category head). */
 function TriCheck({ checked, partial, onChange, label, disabled }: {
@@ -101,21 +106,107 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
 }) {
     const [query, setQuery] = useState("");
     const [closed, setClosed] = useState<Record<string, boolean>>({});
+    const [closedThreads, setClosedThreads] = useState<Record<string, boolean>>({});
     const [editing, setEditing] = useState("");
     const q = query.trim().toLowerCase();
     const archiveId = data.archive?.categoryId || "";
 
-    // The archive has its own tab; the tree is what is in use.
-    const groups = useMemo(() => groupByCategory(
-        { categories: data.categories.filter((c) => c.id !== archiveId) },
-        data.channels.filter((c) => !archiveId || c.parentId !== archiveId),
-    )
-        .map((g) => ({
-            ...g,
-            // A search hit on the category name shows all of its channels.
-            visible: !q || g.name.toLowerCase().includes(q) ? g.channels : g.channels.filter((c) => c.name.toLowerCase().includes(q)),
-        }))
-        .filter((g) => !q || g.visible.length), [data, archiveId, q]);
+    // The archive has its own tab; the tree is what is in use. A thread whose
+    // channel sits in the archive has no home left in the tree either.
+    const groups = useMemo(() => {
+        const archived = new Set(archiveId ? data.channels.filter((c) => c.parentId === archiveId).map((c) => c.id) : []);
+        const visibleChannels = data.channels.filter((c) => (!archiveId || c.parentId !== archiveId) && !archived.has(c.parentId));
+        return groupByCategory(
+            { categories: data.categories.filter((c) => c.id !== archiveId) },
+            visibleChannels,
+        )
+            .map((g) => ({
+                ...g,
+                // A search hit on the category name shows all of its channels; otherwise a
+                // channel stays visible when it matches or one of its threads does.
+                visible: !q || g.name.toLowerCase().includes(q)
+                    ? g.channels
+                    : g.channels
+                        .map((c) => ({ ...c, threads: c.threads.filter((t) => t.name.toLowerCase().includes(q)) }))
+                        .filter((c) => c.name.toLowerCase().includes(q) || c.threads.length),
+            }))
+            .filter((g) => !q || g.visible.length);
+    }, [data, archiveId, q]);
+
+    /** A channel row — checkbox, type, name (inline-editable), badges, actions. */
+    function renderRow(c: Channel, { nested = false, threadCount = 0, threadsOpen = false, onToggleThreads }: {
+        nested?: boolean;
+        threadCount?: number;
+        threadsOpen?: boolean;
+        onToggleThreads?: () => void;
+    } = {}) {
+        const tip = channelTip(c, data);
+        const isSelected = selected.has(c.id);
+        return (
+            <div key={c.id} className={`kn-row${isSelected ? " sel" : ""}${nested ? " kn-row-thread" : ""}`} data-channel={c.id}>
+                {canWrite && (
+                    <input
+                        type="checkbox"
+                        className="kn-cb"
+                        checked={isSelected}
+                        aria-label={`#${c.name} wählen`}
+                        onChange={(e) => onSelect([c.id], e.target.checked)}
+                    />
+                )}
+                {!nested && (threadCount > 0
+                    ? (
+                        <button
+                            type="button"
+                            className={`kn-fold-sm${threadsOpen ? " open" : ""}`}
+                            aria-expanded={threadsOpen}
+                            aria-label={`Threads von #${c.name} ${threadsOpen ? "zuklappen" : "aufklappen"}`}
+                            onClick={onToggleThreads}
+                        >
+                            <ChevronDownIcon />
+                        </button>
+                    )
+                    : <span className="kn-fold-slot" />)}
+                <span className="kn-type"><ChannelTypeIcon type={c.type} /></span>
+                {editing === c.id
+                    ? (
+                        <InlineName
+                            channel={c}
+                            onCancel={() => setEditing("")}
+                            onSave={(name) => {
+                                setEditing("");
+                                onRename(c, name);
+                            }}
+                        />
+                    )
+                    : (
+                        <span
+                            className="kn-name"
+                            tabIndex={0}
+                            data-tip={tip.head}
+                            data-tip-sub={tip.sub}
+                            onDoubleClick={() => canWrite && setEditing(c.id)}
+                            onKeyDown={(e) => {
+                                if (canWrite && e.key === "F2") setEditing(c.id);
+                            }}
+                        >
+                            {c.name}
+                        </span>
+                    )}
+                {threadCount > 0 && (
+                    <Badge count tip="Threads" tipSub={`${threadCount} ${threadCount === 1 ? "Thread" : "Threads"} in diesem Kanal.`}>{threadCount}</Badge>
+                )}
+                <ChannelStatusBadges channel={c} data={data} />
+                {canWrite && editing !== c.id && (
+                    <span className="kn-row-icons">
+                        <IconButton size="sm" icon={<PencilIcon />} tip="Umbenennen" tipSub="Oder Doppelklick auf den Namen. Enter speichert, Esc verwirft." onClick={() => setEditing(c.id)} />
+                        {!nested && <IconButton size="sm" icon={<SettingsIcon />} tip="Bearbeiten" tipSub="Name, Thema, Kategorie, Slowmode, Rechte, archivieren." onClick={() => onEdit(c)} />}
+                        {!nested && <IconButton size="sm" icon={<CopyIcon />} tip="Duplizieren" tipSub="Klon mit Rechten, Thema und Slowmode in derselben Kategorie." onClick={() => onDuplicate(c)} />}
+                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" tipSub="Endgültig aus Discord löschen — mit Namen bestätigen. Zum Aufheben lieber archivieren." onClick={() => onDelete(c)} />
+                    </span>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="kn-tree">
@@ -129,7 +220,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
             {!groups.length && <div className="kn-empty">{q ? "Kein Kanal passt zur Suche." : "Keine Kanäle gefunden — ist der Bot verbunden?"}</div>}
             {groups.map((g) => {
                 const open = q ? true : !closed[g.id];
-                const ids = g.visible.map((c) => c.id);
+                const ids = g.visible.flatMap((c) => [c.id, ...c.threads.map((t) => t.id)]);
                 const picked = ids.filter((id) => selected.has(id)).length;
                 const categoryPurposes = data.purposes.filter((p) => p.kind === "category" && g.id && p.ids.includes(g.id)).map((p) => p.label);
                 return (
@@ -178,55 +269,16 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                             )}
                         </div>
                         {open && g.visible.map((c) => {
-                            const tip = channelTip(c, data);
-                            const isSelected = selected.has(c.id);
+                            const threadsOpen = q ? true : !closedThreads[c.id];
                             return (
-                                <div key={c.id} className={`kn-row${isSelected ? " sel" : ""}`} data-channel={c.id}>
-                                    {canWrite && (
-                                        <input
-                                            type="checkbox"
-                                            className="kn-cb"
-                                            checked={isSelected}
-                                            aria-label={`#${c.name} wählen`}
-                                            onChange={(e) => onSelect([c.id], e.target.checked)}
-                                        />
-                                    )}
-                                    <span className="kn-type"><ChannelTypeIcon type={c.type} /></span>
-                                    {editing === c.id
-                                        ? (
-                                            <InlineName
-                                                channel={c}
-                                                onCancel={() => setEditing("")}
-                                                onSave={(name) => {
-                                                    setEditing("");
-                                                    onRename(c, name);
-                                                }}
-                                            />
-                                        )
-                                        : (
-                                            <span
-                                                className="kn-name"
-                                                tabIndex={0}
-                                                data-tip={tip.head}
-                                                data-tip-sub={tip.sub}
-                                                onDoubleClick={() => canWrite && setEditing(c.id)}
-                                                onKeyDown={(e) => {
-                                                    if (canWrite && e.key === "F2") setEditing(c.id);
-                                                }}
-                                            >
-                                                {c.name}
-                                            </span>
-                                        )}
-                                    <ChannelStatusBadges channel={c} data={data} />
-                                    {canWrite && editing !== c.id && (
-                                        <span className="kn-row-icons">
-                                            <IconButton size="sm" icon={<PencilIcon />} tip="Umbenennen" tipSub="Oder Doppelklick auf den Namen. Enter speichert, Esc verwirft." onClick={() => setEditing(c.id)} />
-                                            <IconButton size="sm" icon={<SettingsIcon />} tip="Bearbeiten" tipSub="Name, Thema, Kategorie, Slowmode, Rechte, archivieren." onClick={() => onEdit(c)} />
-                                            <IconButton size="sm" icon={<CopyIcon />} tip="Duplizieren" tipSub="Klon mit Rechten, Thema und Slowmode in derselben Kategorie." onClick={() => onDuplicate(c)} />
-                                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" tipSub="Endgültig aus Discord löschen — mit Namen bestätigen. Zum Aufheben lieber archivieren." onClick={() => onDelete(c)} />
-                                        </span>
-                                    )}
-                                </div>
+                                <Fragment key={c.id}>
+                                    {renderRow(c, {
+                                        threadCount: c.threads.length,
+                                        threadsOpen,
+                                        onToggleThreads: () => setClosedThreads((s) => ({ ...s, [c.id]: threadsOpen })),
+                                    })}
+                                    {threadsOpen && c.threads.map((t) => renderRow(t, { nested: true }))}
+                                </Fragment>
                             );
                         })}
                     </div>

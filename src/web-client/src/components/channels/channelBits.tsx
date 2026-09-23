@@ -1,7 +1,9 @@
 import type { ChannelPurpose, PurposeStatus } from "../../api";
 import { Badge, WowIcon } from "../ui";
 import { ChannelsIcon } from "../icons";
-import { TYPE_ANNOUNCEMENT, TYPE_FORUM, TYPE_STAGE, TYPE_VOICE } from "../../lib/channels";
+import {
+    TYPE_ANNOUNCEMENT, TYPE_ANNOUNCEMENT_THREAD, TYPE_FORUM, TYPE_PRIVATE_THREAD, TYPE_PUBLIC_THREAD, TYPE_STAGE, TYPE_VOICE,
+} from "../../lib/channels";
 
 // Small pieces the Kanäle page and its dialogs share (design issue #216):
 // line icons for the channel types and the two row actions, the mono channel
@@ -42,6 +44,15 @@ export function StageIcon() {
     );
 }
 
+export function ThreadIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 4v9a3 3 0 0 0 3 3h5" />
+            <path d="m13 13 3 3-3 3" />
+        </svg>
+    );
+}
+
 export function TagIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -67,6 +78,10 @@ export function ChannelTypeIcon({ type }: { type: number }) {
         case TYPE_ANNOUNCEMENT: return <AnnouncementIcon />;
         case TYPE_FORUM: return <ForumIcon />;
         case TYPE_STAGE: return <StageIcon />;
+        case TYPE_ANNOUNCEMENT_THREAD:
+        case TYPE_PUBLIC_THREAD:
+        case TYPE_PRIVATE_THREAD:
+            return <ThreadIcon />;
         default: return <ChannelsIcon />;
     }
 }

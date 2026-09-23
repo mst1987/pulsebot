@@ -79,6 +79,16 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent; }
 .kn-row:hover { background: var(--panel2); }
 .kn-row.sel { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+/* a thread nests under its text channel (#361): indented, a touch quieter */
+.kn-row-thread { padding-left: 34px; }
+.kn-row-thread .kn-name { color: var(--muted); }
+.kn-fold-slot { width: 14px; flex: 0 0 auto; }
+.kn-fold-sm {
+    display: inline-flex; align-items: center; width: 14px; flex: 0 0 auto; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer;
+}
+.kn-fold-sm svg { width: 14px; height: 14px; transform: rotate(-90deg); transition: transform .15s; }
+.kn-fold-sm.open svg { transform: none; }
+.kn-fold-sm:hover { color: var(--text); }
 .kn-name {
     font-family: var(--font-mono); font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; cursor: default;
