@@ -188,6 +188,12 @@ export function applyLocal(setup: StoredSetup, input: SetupPlacementInput): Stor
     };
 }
 
+/** What the ping-text field sends on commit: the trimmed draft, or null when it did not change. */
+export function pingTextToSave(draft: string, current: string): string | null {
+    const next = draft.trim();
+    return next === (current || "").trim() ? null : next;
+}
+
 /** "3" for an exact target, "≥ 2" for a minimum, "2–4" for a range, "" without one. */
 export function roleTarget(check: { min: number; max: number | null }): string {
     if (!check) return "";

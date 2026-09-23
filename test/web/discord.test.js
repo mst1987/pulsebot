@@ -292,6 +292,63 @@ describe("web/discord channel management", () => {
         });
     });
 
+    describe("resolveUserNames", () => {
+        // A fake member as it appears in guild.members.cache / a fetch() result.
+        function fakeMember(id, displayName) {
+            return { id, displayName, user: { username: displayName } };
+        }
+        function guildWithCacheAndFetch(cached, fetchResult) {
+            return {
+                members: {
+                    cache: new Map(cached.map((m) => [m.id, m])),
+                    fetch: jest.fn(async () => new Map(fetchResult.map((m) => [m.id, m]))),
+                },
+            };
+        }
+
+        it("resolves a cache hit without any fetch", async () => {
+            const guild = guildWithCacheAndFetch([fakeMember("1", "Bob")], []);
+            setClientWithGuild(guild);
+            const names = await discord.resolveUserNames("g1", ["1"]);
+            expect(names).toEqual({ 1: "Bob" });
+            expect(guild.members.fetch).not.toHaveBeenCalled();
+        });
+
+        it("bulk-fetches every id missing from the cache in one call, not one per id", async () => {
+            const guild = guildWithCacheAndFetch(
+                [fakeMember("1", "Bob")],
+                [fakeMember("2", "Alice"), fakeMember("3", "Cara")],
+            );
+            setClientWithGuild(guild);
+            const names = await discord.resolveUserNames("g1", ["1", "2", "3", "2"]);
+            expect(names).toEqual({ 1: "Bob", 2: "Alice", 3: "Cara" });
+            expect(guild.members.fetch).toHaveBeenCalledTimes(1);
+            expect(guild.members.fetch).toHaveBeenCalledWith({ user: ["2", "3"] });
+        });
+
+        it("skips ids that Discord cannot resolve, without throwing", async () => {
+            const guild = guildWithCacheAndFetch([], [fakeMember("1", "Bob")]);
+            setClientWithGuild(guild);
+            const names = await discord.resolveUserNames("g1", ["1", "2"]);
+            expect(names).toEqual({ 1: "Bob" });
+        });
+
+        it("degrades to an empty map when the bulk fetch fails, never throws", async () => {
+            const guild = { members: { cache: new Map(), fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            setClientWithGuild(guild);
+            await expect(discord.resolveUserNames("g1", ["1"])).resolves.toEqual({});
+        });
+
+        it("returns {} without a guild or without any ids", async () => {
+            setClientWithGuild(null);
+            expect(await discord.resolveUserNames("nope", ["1"])).toEqual({});
+            const guild = guildWithCacheAndFetch([], []);
+            setClientWithGuild(guild);
+            expect(await discord.resolveUserNames("g1", [])).toEqual({});
+            expect(guild.members.fetch).not.toHaveBeenCalled();
+        });
+    });
+
     describe("postMissingPing", () => {
         it("pings exactly the given users with scoped allowedMentions", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "https://d/m1" }));

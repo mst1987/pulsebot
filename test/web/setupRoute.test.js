@@ -18,6 +18,11 @@ jest.mock("../../src/web/eventStore", () => ({
         mockEvents.set(id, { ...mockEvents.get(id), setup: JSON.parse(JSON.stringify(setup)) });
         return JSON.parse(JSON.stringify(mockEvents.get(id)));
     },
+    setEventSetupPingText: jest.fn((id, text) => {
+        if (!mockEvents.has(id)) return null;
+        mockEvents.set(id, { ...mockEvents.get(id), setupPingText: String(text || "") });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    }),
 }));
 let mockSignups = [];
 jest.mock("../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
@@ -85,7 +90,7 @@ beforeEach(() => {
 
 describe("access", () => {
     it("lists every setup path under raids — reading is GET, everything else a write", () => {
-        for (const path of ["/api/raids/setup", "/api/raids/setup/propose", "/api/raids/setup/approve", "/api/raids/setup/post", "/api/raids/setup/explain"]) {
+        for (const path of ["/api/raids/setup", "/api/raids/setup/propose", "/api/raids/setup/approve", "/api/raids/setup/post", "/api/raids/setup/ping-text", "/api/raids/setup/explain"]) {
             expect(checkAccess(path, "POST", READER)).toMatchObject({ status: 403 });
             expect(checkAccess(path, "POST", ORGA)).toBeNull();
         }
@@ -96,7 +101,7 @@ describe("access", () => {
     });
 
     it("refuses writes of a reader in the handler as well", async () => {
-        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish, route.postExplain]) {
+        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish, route.postPingText, route.postExplain]) {
             const r = await call(handler, READER, { event: ID });
             expect(status(r)).toBe(403);
         }
@@ -140,6 +145,21 @@ describe("posting the approved setup (#290)", () => {
         const refused = await call(route.postPublish, ORGA, { event: ID });
         expect(status(refused)).toBe(400);
         expect(body(refused).error.code).toBe("no_approved_setup");
+    });
+});
+
+describe("the ping text (#354's follow-up)", () => {
+    it("saves it on the event and shows it in the editor's payload", async () => {
+        const saved = await call(route.postPingText, ORGA, { event: ID, text: "  Kommt alle!  " });
+        expect(status(saved)).toBe(200);
+        expect(mockEvents.get(ID).setupPingText).toBe("Kommt alle!");
+        const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(view).pingText).toBe("Kommt alle!");
+    });
+
+    it("reads the default once none was set", async () => {
+        const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(view).pingText).toMatch(/setup is up/i);
     });
 });
 
