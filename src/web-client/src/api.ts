@@ -211,6 +211,8 @@ export type Channel = {
     typeLabel: string;
     category: string;
     parentId: string;
+    // A thread's parentId names the text channel it hangs off, not a category (#361).
+    isThread: boolean;
     // Whether the bot may see / post in the channel (true while unknown).
     botCanView?: boolean;
     botCanSend?: boolean;

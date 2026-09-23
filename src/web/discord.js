@@ -19,6 +19,9 @@ const RECRUIT_BUTTON_ID = "apply";
 // Button under a detected log; customId carries the tracked log id after the ":".
 const LOG_EVAL_PREFIX = "logcheck-eval";
 const TEXT_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
+// A thread's parentId points at the text channel it hangs off, not a category —
+// the Kanäle page needs this to nest it under that channel instead of "Ohne Kategorie".
+const THREAD_TYPES = [ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread];
 
 // Channel types the admin menu can create, keyed by the value the form sends.
 const CREATABLE_CHANNEL_TYPES = {
@@ -37,6 +40,9 @@ const CHANNEL_TYPE_LABELS = {
     [ChannelType.GuildForum]: "Forum",
     [ChannelType.GuildStageVoice]: "Stage",
     [ChannelType.GuildCategory]: "Kategorie",
+    [ChannelType.AnnouncementThread]: "Thread",
+    [ChannelType.PublicThread]: "Thread",
+    [ChannelType.PrivateThread]: "Privater Thread",
 };
 
 /** Servers (guilds) the bot is a member of, for the server selector. */
@@ -372,8 +378,10 @@ function botRights(channel, me) {
 
 /**
  * All non-category channels of a guild, for the Kanäle page. Each carries its
- * type label, its parent category, and whether the bot may see and post there
- * (botCanView / botCanSend), so the page can warn before something fails to arrive.
+ * type label, its parent category, whether it is a thread (its parentId then
+ * names the text channel it hangs off, not a category — #361), and whether the
+ * bot may see and post there (botCanView / botCanSend), so the page can warn
+ * before something fails to arrive.
  */
 function listAllChannels(guildId) {
     const guild = getGuild(guildId);
@@ -389,6 +397,7 @@ function listAllChannels(guildId) {
             typeLabel: CHANNEL_TYPE_LABELS[c.type] || "Kanal",
             category: c.parent ? c.parent.name : "",
             parentId: c.parentId || "",
+            isThread: THREAD_TYPES.includes(c.type),
             ...botRights(c, me),
         }));
 }
