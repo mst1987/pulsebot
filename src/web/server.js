@@ -14,6 +14,7 @@ const { renderEventPage } = require("./eventPublicPage");
 const { renderDocsPage } = require("./docsPage");
 const { buildIcs, icsFileName } = require("./icsFeed");
 const calendarFeed = require("./calendarFeed");
+const raidplanStore = require("./raidplanStore");
 const { getEvent } = require("./eventStore");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const { versionInfo } = require("./version");
@@ -159,6 +160,22 @@ async function handle(req, res) {
     if (ep) {
         const html = renderEventPage(ep[1]);
         return send(res, html ? 200 : 404, html || renderNotFound());
+    }
+    // Room maps of the raid plan (docs/raidplan.md): /rp-map/<instance>[/<boss>], no
+    // login — the public plan page shows them too, and a map is a picture the orga
+    // uploaded, nothing personal. The key is checked against the known instances
+    // and bosses before any file is touched; the url carries ?v=<mtime>, so the
+    // long cache never hides a new upload.
+    const rpMap = pathname.match(/^\/rp-map\/([a-z0-9]+(?:\/[a-z0-9-]+)?)$/);
+    if (rpMap) {
+        const map = raidplanStore.readMap(rpMap[1]);
+        if (!map) return send(res, 404, renderNotFound());
+        res.writeHead(200, {
+            "Content-Type": map.mime,
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        });
+        return res.end(map.buffer);
     }
     // The in-app documentation (#349): /docs, no login needed — the "Dokumentation"
     // icon in the web menu's topbar (Shell.tsx) points here too. See docsPage.js.

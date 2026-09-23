@@ -22,4 +22,30 @@ function readJsonBody(req) {
     });
 }
 
-module.exports = { readJsonBody };
+/**
+ * Reads a raw request body up to `maxBytes`. Resolves `null` when it is bigger
+ * (the connection is cut, nothing more is buffered), else a Buffer (empty on error).
+ */
+function readRawBody(req, maxBytes) {
+    return new Promise((resolve) => {
+        const declared = Number(req.headers && req.headers["content-length"]);
+        if (Number.isFinite(declared) && declared > maxBytes) {
+            req.destroy();
+            return resolve(null);
+        }
+        const chunks = [];
+        let size = 0;
+        let tooBig = false;
+        req.on("data", (chunk) => {
+            if (tooBig) return;
+            size += chunk.length;
+            if (size > maxBytes) { tooBig = true; req.destroy(); return; }
+            chunks.push(chunk);
+        });
+        req.on("end", () => resolve(tooBig ? null : Buffer.concat(chunks)));
+        req.on("close", () => { if (tooBig) resolve(null); });
+        req.on("error", () => resolve(tooBig ? null : Buffer.alloc(0)));
+    });
+}
+
+module.exports = { readJsonBody, readRawBody };

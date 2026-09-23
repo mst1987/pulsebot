@@ -43,6 +43,7 @@ const {
     postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain, postPublish: postSetupPublish,
     postPingText: postSetupPingText,
 } = require("./apiRoutes/setup");
+const raidplanRoutes = require("./apiRoutes/raidplan");
 const eventManageRoutes = require("./apiRoutes/eventManage");
 const eventSeriesRoutes = require("./apiRoutes/eventSeries");
 
@@ -437,6 +438,46 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/explain" && req.method === "GET") {
         await getSetupExplain(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan" && req.method === "GET") {
+        raidplanRoutes.getPlan(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan" && req.method === "PUT") {
+        await raidplanRoutes.putPlan(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/publish" && req.method === "POST") {
+        await raidplanRoutes.postPublish(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/map" && req.method === "POST") {
+        await raidplanRoutes.postMap(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan/map/delete" && req.method === "POST") {
+        await raidplanRoutes.postMapDelete(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "GET") {
+        raidplanRoutes.getProfiles(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "POST") {
+        await raidplanRoutes.postProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "PATCH") {
+        await raidplanRoutes.patchProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "DELETE") {
+        await raidplanRoutes.deleteProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/public" && req.method === "GET") {
+        raidplanRoutes.getPublic(req, res, url);
         return true;
     }
     const manageHandler = eventManageHandler(pathname, req.method);
