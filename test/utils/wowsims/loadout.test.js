@@ -51,6 +51,24 @@ describe("utils/wowsims/loadout", () => {
             expect(equipmentFor(null).items).toEqual([]);
         });
 
+        describe("a re-issued Brewfest trinket (TBC Anniversary)", () => {
+            // 281893 is the Anniversary reissue of Balebrew Charm (37128) —
+            // WoWSims' pinned binary only knows the original id. Sending the
+            // reissue straight through aborted the whole sim for that raider
+            // (#brewfest-item-alias); it now resolves through wowheadItemAliases
+            // before it ever reaches the request, same as config/wowsims's own lookups.
+            it("resolves the reissue id to the one WoWSims knows, for worn gear", () => {
+                const g = { items: [{ slot: 13, itemId: 281893, itemLevel: 141, gems: [], enchantId: 0 }] };
+                expect(equipmentFor(g).items).toEqual([{ id: 37128 }]);
+            });
+
+            it("resolves the reissue id for a swapped-in drop too", () => {
+                const { items } = equipmentFor(gear, { slot: 13, itemId: 281893 });
+                expect(items.map((i) => i.id)).toContain(37128);
+                expect(items.map((i) => i.id)).not.toContain(281893);
+            });
+        });
+
         describe("swapping an item in", () => {
             it("replaces what sits in that slot", () => {
                 const { items } = equipmentFor(gear, { slot: 0, itemId: 32478 });

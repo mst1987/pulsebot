@@ -20,6 +20,12 @@ const { bisForSpec } = require("../../config/casterSpecs");
 const { bisTiers } = require("../../config/bisSets");
 const { metaGemActive } = require("../logcheck/gearIssues");
 const claData = require("../../config/claData");
+// The pinned WoWSims binary has its own item database and does not know TBC
+// Anniversary's re-issued Brewfest ids either — an unknown item aborts the
+// whole sim (unlike an unknown gem, which is stripped and retried), costing
+// the raider their entire baseline. Resolved to the id WoWSims does know
+// before it ever reaches the request, same as config/wowsims's own lookups.
+const { wowheadItemId } = require("../../config/wowheadItemAliases");
 
 const META_GEMS = new Set(claData.META_GEM_IDS.map(String));
 const RED_GEMS = new Set(claData.RED_GEM_IDS.map(String));
@@ -202,7 +208,7 @@ function equipmentFor(gear, swap = null) {
     for (const slot of SLOT_ORDER) {
         const it = bySlot.get(slot);
         if (!it) continue;
-        const spec = { id: Number(it.itemId) };
+        const spec = { id: Number(wowheadItemId(it.itemId)) };
         const enchant = Number(it.enchantId || 0);
         if (enchant > 0) spec.enchant = enchant;
         // Gems are positional; 0 is an empty socket and trailing empties are

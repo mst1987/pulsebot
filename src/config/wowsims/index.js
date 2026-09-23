@@ -11,12 +11,17 @@ const path = require("path");
 
 const itemData = require("./items.json");
 const bisData = require("./bisSets.json");
+// TBC Anniversary's re-issued Brewfest loot carries new ids this generated
+// table does not know (it is pulled from the same wowsims/tbc-new version
+// that has not caught up either) — resolved to the original id it does know,
+// same as Wowhead lookups.
+const { wowheadItemId } = require("../wowheadItemAliases");
 
 const APL_DIR = path.join(__dirname, "apls");
 
 /** Item id (as a number) -> the generated entry, or null. */
 function item(itemId) {
-    const id = Number(itemId);
+    const id = Number(wowheadItemId(itemId));
     if (!Number.isFinite(id) || id <= 0) return null;
     return itemData.items[String(id)] || null;
 }

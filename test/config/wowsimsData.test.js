@@ -56,6 +56,25 @@ describe("config/wowsims — die erzeugten Daten", () => {
             expect(all.filter((it) => it.weaponType).length).toBeGreaterThan(500);
         });
 
+        it("kennt TBC Anniversarys neu ausgegebene Braufest-Items unter ihrer alten Id (wowheadItemAliases)", () => {
+            // 281893 etc. sind die Reissue-Ids, die weder Wowhead noch diese
+            // generierte Tabelle kennen — item()/slotsFor() lösen sie auf die
+            // Original-Id auf, dieselbe, die wowsimcli in der Sim-Anfrage sehen
+            // muss (sonst bricht die ganze Simulation des Raiders ab).
+            const RESOLVED_ALIASES = { 281893: 37128, 281903: 37597, 281739: 38287, 281748: 38288, 281743: 38289, 281735: 38290 };
+            for (const [reissued, original] of Object.entries(RESOLVED_ALIASES)) {
+                expect(wowsims.item(reissued)).not.toBeNull();
+                expect(wowsims.item(reissued)).toEqual(wowsims.item(original));
+                expect(wowsims.slotsFor(reissued)).toEqual(wowsims.slotsFor(original));
+            }
+            // 281895 (Brightbrew Charm) bleibt eine bekannte Lücke: schon die
+            // alte Id 37127 fehlt in dieser Tabelle — ein Gap in wowsims/tbc-new
+            // selbst, kein Alias-Fehler. Callers behandeln das wie jede andere
+            // unbekannte Id (null / "kann nicht sagen").
+            expect(wowsims.item(37127)).toBeNull();
+            expect(wowsims.item(281895)).toBeNull();
+        });
+
         it("führt Relikte, obwohl sie keine Werte tragen", () => {
             // Ihr ganzer Wert ist ein Effekt — der Stat-Filter würde sie alle
             // verwerfen, und ein Council könnte kein Totem vergeben.
