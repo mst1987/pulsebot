@@ -35,7 +35,7 @@
 .se-pingtext-input:disabled { opacity: .6; }
 
 /* the setup (groups, bench under a divider) on the left, the summary on the right */
-.se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 14px; align-items: start; }
+.se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; align-items: start; }
 .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }
 .se-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
@@ -54,8 +54,11 @@
     .se-group.se-suggest:not(.se-over) { animation: none; box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px 1px var(--accent-soft); }
 }
 
-/* the raider's tooltip (portalled to <body>): icon rows instead of a text block */
-.se-tip { position: fixed; z-index: 70; box-sizing: border-box; overflow-y: auto; pointer-events: none; display: flex; flex-direction: column; gap: 2px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px rgb(0 0 0 / .32); }
+/* the right column: the summary, and under it the raider panel — docked, so it never covers a group and is always complete */
+.se-sidecol { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; min-width: 0; }
+/* the raider panel: icon rows instead of a text block */
+.se-tip { box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; padding: 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 0 0 3px var(--accent-soft); }
+.se-tip-empty { border-color: var(--line); box-shadow: none; color: var(--muted); font-size: 13px; text-align: center; padding: 22px 14px; }
 .se-tip-head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 8px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
 .se-tip-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 2px; font-size: 13px; }
 .se-tip-row > .wi { margin-top: 1px; border-radius: 5px; flex: 0 0 auto; }
@@ -170,7 +173,8 @@
 
 @media (max-width: 1280px) {
     .se-layout { grid-template-columns: minmax(0, 1fr); }
-    .se-side { grid-column: 1 / -1; order: -1; flex-direction: row; flex-wrap: wrap; align-items: center; }
+    .se-sidecol { grid-column: 1 / -1; order: -1; position: static; max-height: none; overflow: visible; }
+    .se-side { flex-direction: row; flex-wrap: wrap; align-items: center; }
     .se-stats { border-bottom: 0; padding-bottom: 0; min-width: 220px; }
 }
 @media (max-width: 760px) {

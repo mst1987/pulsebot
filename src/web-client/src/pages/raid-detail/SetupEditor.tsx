@@ -11,7 +11,6 @@
 // places). Without a mouse: activate a raider (click, Enter), then the target.
 // Every move is saved at once and comes back valued by the server.
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
     approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
@@ -21,7 +20,6 @@ import {
     applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
-import { popoverStyle } from "../../components/HoverPanel";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { roleLabel, rolePluralLabel, specLabel } from "../../lib/wowNames";
 import { locale, t, useT } from "../../i18n";
@@ -110,19 +108,20 @@ function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
 }
 
 /**
- * Tooltip of a raider, drawn beside the line while the pointer rests on it: spec
- * and role with icons, Discord name, signup status, attendance (for everybody,
- * badged by how sure the character link is), the buffs they bring as icons, and
- * the reasons of the proposal. Portalled, so the cards' clip-path never cuts it.
+ * The raider panel, docked under the summary in the right column (never over a
+ * group, always complete): spec and role with icons, Discord name, signup
+ * status, attendance (for everybody, badged by how sure the character link
+ * is), the buffs they bring as icons, and the reasons of the proposal. It shows
+ * the raider the pointer touched last.
  */
-function SlotTip({ p, rect, attendance }: { p: SetupPerson; rect: DOMRect; attendance: SetupAttendance | undefined | null }) {
+function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendance | undefined | null }) {
     const t = useT();
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
     const brings = p.brings || [];
     const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
-    return createPortal(
-        <div className="se-tip" role="tooltip" style={popoverStyle(rect, 300)}>
+    return (
+        <aside className="se-tip" aria-label={t("setup.person.tip.aria")} aria-live="polite">
             <div className="se-tip-head">
                 <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
                 <div className="se-tip-body">
@@ -167,9 +166,14 @@ function SlotTip({ p, rect, attendance }: { p: SetupPerson; rect: DOMRect; atten
                     </div>
                 </div>
             )}
-        </div>,
-        document.body,
+        </aside>
     );
+}
+
+/** What the docked panel shows before any raider was touched. */
+function TipEmpty() {
+    const t = useT();
+    return <aside className="se-tip se-tip-empty" aria-label={t("setup.person.tip.aria")}>{t("setup.person.tip.empty")}</aside>;
 }
 
 /**
@@ -243,6 +247,8 @@ type Interaction = {
     attendance: Record<string, SetupAttendance>;
     /** The group that suits the raider being dragged or picked — glows softly. */
     suggest: number | null;
+    /** The pointer or focus reached a raider — the docked panel shows them. */
+    onInspect: (userId: string) => void;
     onPick: (userId: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
     onDrag: (userId: string | null) => void;
@@ -254,11 +260,7 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
-    // the tooltip follows the pointer's rest on the line — never while somebody is moved
-    const [tipRect, setTipRect] = useState<DOMRect | null>(null);
-    const showTip = (e: { currentTarget: HTMLElement }) => setTipRect(e.currentTarget.getBoundingClientRect());
-    const hideTip = () => setTipRect(null);
-    const moving = !!ui.dragging || !!ui.selected;
+    const inspect = () => ui.onInspect(p.userId);
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -278,14 +280,12 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
             aria-pressed={ui.editable ? selected : undefined}
             draggable={ui.editable}
             data-user={p.userId}
-            onMouseEnter={showTip}
-            onMouseLeave={hideTip}
-            onFocus={showTip}
-            onBlur={hideTip}
+            onMouseEnter={inspect}
+            onFocus={inspect}
             onClick={ui.editable ? () => ui.onPick(p.userId) : undefined}
             onKeyDown={ui.editable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={ui.editable ? (e) => { hideTip(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
+            onDragStart={ui.editable ? (e) => { inspect(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -312,7 +312,6 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
                     onKeyDown={(e) => e.stopPropagation()}
                 />
             )}
-            {tipRect && !moving && <SlotTip p={p} rect={tipRect} attendance={ui.editable ? ui.attendance[p.userId] : null} />}
         </div>
     );
 }
@@ -695,7 +694,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, suggest: null, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
@@ -719,6 +718,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
+    // the raider the docked panel shows: the one the pointer touched last
+    const [inspected, setInspected] = useState<string | null>(null);
     const [dialog, setDialog] = useState<"weights" | "explain" | null>(null);
     const [posting, setPosting] = useState(false);
     const saving = useRef(0);
@@ -950,7 +951,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const moving = dragging || selected;
     const movingPerson = moving ? peopleOf(setup).get(moving) : undefined;
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
+    // looked up fresh every render, so a move redraws the panel's group and buffs
+    const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -996,12 +999,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </div>
                     <BenchCard bench={setup.bench} ui={ui} />
                 </div>
-                <Summary
-                    data={data} setup={setup} busy={busy}
-                    onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
-                    onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                    onWeights={() => setDialog("weights")}
-                />
+                <div className="se-sidecol">
+                    <Summary
+                        data={data} setup={setup} busy={busy}
+                        onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                        onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
+                        onWeights={() => setDialog("weights")}
+                    />
+                    {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
+                </div>
             </div>
 
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />

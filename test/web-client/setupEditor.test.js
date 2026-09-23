@@ -184,7 +184,7 @@ describe("setup editor page", () => {
         expect(editor).toContain("className=\"se-ph se-ph-take\"");
         expect(editor).not.toContain(">leer<");
         // groups and bench share one column; the summary stays beside them
-        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<Summary/);
+        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<div className="se-sidecol">\s*<Summary/);
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
@@ -210,8 +210,8 @@ describe("setup editor page", () => {
     });
 
     it("keeps one line per raider — reasons only in the tooltip", () => {
-        // the reasons live in the line's own tooltip (SlotTip), not in the line
-        expect(editor).toContain("<SlotTip p={p} rect={tipRect}");
+        // the reasons live in the raider panel docked in the right column (SlotTip), not in the line
+        expect(editor).toContain("<SlotTip p={inspectedPerson}");
         expect(editor).toContain("tipReasons(p.reasons)");
         // the reasons are never rendered as text of their own
         expect(editor).not.toMatch(/\.reasons\.map\(/);
@@ -399,13 +399,18 @@ describe("the raider tooltip and the drag glow", () => {
     it("draws the tooltip itself (icons, attendance with check or auto badge, brings) instead of a text block", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).toContain("function SlotTip");
-        expect(src).toContain("createPortal(");
+        // docked under the summary — never a floating layer that could cover a group
+        expect(src).not.toContain("createPortal");
+        expect(src).toMatch(/className="se-sidecol">[\s\S]*?<Summary[\s\S]*?<SlotTip/);
         // the old text tooltip is gone from the line
         expect(src).not.toContain("data-tip-sub={personTip(p)}");
         expect(src).toMatch(/a\.link === "manual"[\s\S]*?<CheckIcon \/>[\s\S]*?setup\.person\.tip\.autoBadge/);
-        // never while somebody is moved, and no attendance for a reader of the approved lineup
-        expect(src).toMatch(/tipRect && !moving/);
-        expect(src).toContain("ui.editable ? ui.attendance[p.userId] : null");
+        // it shows the raider touched last (pointer or focus), and the read-only lineup has no panel at all
+        expect(src).toContain("onMouseEnter={inspect}");
+        expect(src).toContain("onFocus={inspect}");
+        const css = read("styles", "setup-editor.css");
+        expect(css).toMatch(/\.se-sidecol \{[^}]*position: sticky/);
+        expect(css).toMatch(/\.se-layout \{[^}]*380px/);
         // the glow rides on the group card
         expect(src).toContain("se-suggest");
     });
