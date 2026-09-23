@@ -69,7 +69,8 @@ function bossList(event) {
             ...b,
             mapUrl: map ? `/rp-map/${map.key}?v=${map.version}` : "",
             ownMap: !!(map && map.own),
-            instanceMap: !!(map && !map.own),
+            // whether the instance itself has a map (a boss without its own one shows it)
+            instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import Shell, { firstAllowedTab } from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
 import ChannelsPage from "./pages/ChannelsPage";
@@ -27,6 +27,7 @@ import { canAccess, canAccessAny, getSession, type ApiError, type Session, type 
 import { getLang, setLang, useT } from "./i18n";
 import RaidLoader from "./components/ui/RaidLoader";
 import LangToggle from "./components/LangToggle";
+import PlanPublicPage from "./pages/PlanPublicPage";
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -97,7 +98,19 @@ function useSession(): LoadState {
     return state;
 }
 
+/**
+ * The public read view of a raid plan, /p/<token>, needs no login and no menu:
+ * it is answered before the session is even asked for (the token in the address
+ * is its authentication, see PlanPublicPage). Everything else is the menu.
+ */
 export default function App() {
+    const { pathname } = useLocation();
+    const publicPlan = pathname.match(/^\/p\/([A-Za-z0-9_-]+)\/?$/);
+    if (publicPlan) return <PlanPublicPage token={publicPlan[1]} />;
+    return <MenuApp />;
+}
+
+function MenuApp() {
     const state = useSession();
     const t = useT();
 

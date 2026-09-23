@@ -28,3 +28,7 @@ A full admin can look at the whole menu **with the rights of one or more Discord
 - **Safety:** only a real full admin can start a view (`auth.getRealUser`, re-checked when the 5-minute refresh demotes the account — the view is then ignored); `/api/session/view-as` is in `UNGATED` and checks the caller's **own** rights in its handler, so *Beenden* works even from a role that may open nothing (CSRF still required); a view older than 12 h (`MAX_AGE_MS`) ends by itself. Starting and stopping reload the menu from `/`.
 - **API:** `GET /api/session/view-as` (roles), `POST /api/session/view-as { roleIds }` / `{ stop: true }`; `GET /api/session` carries `user.canViewAs` and, while a view runs, `user.viewAs { roleIds, roleNames, at }`. Bot commands in Discord are not affected.
 - **Tests:** `test/web/viewAs.test.js`, the flow in `test/web/auth.test.js`, the routes in `test/web/apiRouter.test.js`, the client in `test/web-client/viewAs.test.js`.
+
+## Public, token-guarded read routes (`UNGATED`)
+
+Besides the session bootstrap, `UNGATED` holds `/api/raidplan/public`: the read view of a **published** raid plan (`/p/<token>`, docs/raidplan.md). It needs no session because the token in the address is the authentication; its handler answers only for the token of a published plan (unknown, withdrawn and orphaned all get the same 404), and a session, when there is one, only marks the viewer's own token. Every other `/api/raidplan…` path is area `raids`.

@@ -4069,3 +4069,107 @@ export function saveSignup(csrfToken: string | null, input: SignupInput): Promis
 export function getEventSignups(eventId: string): Promise<{ eventId: string; counts: SignupCounts; signups: EventSignupEntry[] }> {
     return get(`/api/signups/event?id=${encodeURIComponent(eventId)}`);
 }
+
+// ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
+
+export type RaidplanToken = { userId: string; x: number; y: number };
+export type RaidplanTarget = { id: string; title: string; userIds: string[] };
+/** One boss's board: tokens on the map, target rows with players, a note, the profile the rows came from. */
+export type RaidplanBoard = { tokens: RaidplanToken[]; targets: RaidplanTarget[]; notes: string; profileId: string };
+/** A player as the setup names them — never stored in the plan, only referenced by userId. */
+export type RaidplanPlayer = {
+    userId: string;
+    character: string;
+    classId: string;
+    className: string;
+    classColor: string;
+    spec: string;
+    specLabel: string;
+    role: string;
+    iconUrl: string;
+    group: number;
+};
+export type RaidplanBoss = {
+    key: string;
+    instanceId: string;
+    instanceName: string;
+    name: string;
+    iconUrl: string;
+    mapUrl: string;
+    ownMap: boolean;
+    instanceMap: boolean;
+};
+/** A named, categorised set of target rows (bossKey: "" = every boss, an instance id, or one boss). */
+export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; targets: { title: string }[]; notes: string; updatedAt: number };
+export type RaidplanProfileInput = { name?: string; category?: string; bossKey?: string; targets?: { title: string }[]; notes?: string };
+export type RaidplanProfiles = { profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
+export type RaidplanView = {
+    eventId: string;
+    event: { id: string; title: string; startTime: number };
+    canWrite: boolean;
+    plan: { version: number; status: "draft" | "published"; publicPath: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
+    bosses: RaidplanBoss[];
+    roster: RaidplanPlayer[];
+    hasApprovedSetup: boolean;
+    profiles: RaidplanProfile[];
+    limits: { tokensPerBoss: number; targetsPerBoss: number; usersPerTarget: number; title: number; notes: number; mapBytes: number; profileName: number; profileCategory: number };
+    /** Only on a save's answer: tokens or assignments the server left out (a player who is no longer in the setup). */
+    dropped?: number;
+};
+export type RaidplanPublicBoss = {
+    key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string;
+    tokens: RaidplanToken[]; targets: RaidplanTarget[]; notes: string; profileName: string;
+};
+export type RaidplanPublic = {
+    event: { title: string; startTime: number };
+    bosses: RaidplanPublicBoss[];
+    roster: RaidplanPlayer[];
+    me: string;
+    loggedIn: boolean;
+};
+
+export function getRaidplan(eventId: string): Promise<RaidplanView> {
+    return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}`);
+}
+
+export function saveRaidplan(csrfToken: string | null, input: { event: string; version: number; bosses: Record<string, RaidplanBoard> }): Promise<RaidplanView> {
+    return send("PUT", "/api/raidplan", csrfToken, input);
+}
+
+export function publishRaidplan(csrfToken: string | null, input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {
+    return send("POST", "/api/raidplan/publish", csrfToken, input);
+}
+
+/** Uploads a room map: the file itself is the request body (PNG/JPG/WebP, up to 3 MB). */
+export async function uploadRaidplanMap(csrfToken: string | null, key: string, file: File): Promise<{ key: string }> {
+    const res = await fetch(`/api/raidplan/map?key=${encodeURIComponent(key)}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": file.type || "application/octet-stream", ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) },
+        body: file,
+    });
+    const body = await parseJson(res);
+    if (!res.ok) throw errorFrom(body, res);
+    return (body?.data ?? null) as { key: string };
+}
+
+export function deleteRaidplanMap(csrfToken: string | null, key: string): Promise<{ key: string; removed: boolean }> {
+    return send("POST", "/api/raidplan/map/delete", csrfToken, { key });
+}
+
+export function createRaidplanProfile(csrfToken: string | null, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
+    return send("POST", "/api/raidplan/profiles", csrfToken, input);
+}
+
+export function updateRaidplanProfile(csrfToken: string | null, id: string, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
+    return send("PATCH", "/api/raidplan/profiles", csrfToken, { id, ...input });
+}
+
+export function deleteRaidplanProfile(csrfToken: string | null, id: string): Promise<RaidplanProfiles> {
+    return send("DELETE", "/api/raidplan/profiles", csrfToken, { id });
+}
+
+/** The read view behind /p/<token> — no login, the token is the authentication. */
+export function getRaidplanPublic(token: string): Promise<RaidplanPublic> {
+    return get<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`);
+}

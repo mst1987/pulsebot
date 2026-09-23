@@ -23,6 +23,16 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 - Vor der Freigabe für Raider unsichtbar. **"Freigeben"** postet die Setup-Nachricht im Kanal und verschickt optional DMs an die Raider.
 - Eine KI-Begründung erklärt die vorgeschlagene Aufstellung; **"Invite callen"** lässt sich direkt aus dem Editor auslösen.
 
+## Raidplan
+
+*Tab der Raid-Detailseite eines eigenen Events, Bereich "Raids" (lesen/schreiben)*
+
+- Je Boss der gewählten Instanz ein **Board**: Bossraum-Karte als Hintergrund, Spieler aus dem Setup frei darauf verschieben (mit Maus oder Finger; Pfeiltasten und Entf gehen auch), rechts die **Aufgabenzeilen** mit zugewiesenen Spielern und eine Notiz. Wer noch nicht platziert ist, steht in der Liste "Nicht platziert".
+- **Karten** lädst du selbst hoch (PNG/JPG/WebP, bis 3 MB), je Boss oder für die ganze Instanz. Ohne Karte zeigt das Board ein Raster.
+- **Taktik wählen**: Aufgabenzeilen als benannte, nach Kategorie sortierte Profile speichern und auf einem Boss wieder übernehmen; die Spieler-Zuweisung bleibt pro Plan.
+- **Speichern** schreibt den Plan; hat jemand anderes inzwischen gespeichert, meldet der Editor einen Konflikt und lädt erst nach deiner Bestätigung neu.
+- **Freigeben & teilen** erzeugt einen Link (`/p/<token>`), den jeder ohne Anmeldung lesen kann (Karte + Aufgabentabelle je Boss). Angemeldete Raider sehen ihren eigenen Token hervorgehoben. Spieler nennt die Lese-Ansicht erst, wenn das Setup freigegeben ist. Die Freigabe lässt sich zurücknehmen oder der Link erneuern.
+
 ## Serien (wiederkehrende Events)
 
 *Bereich "Raids"*

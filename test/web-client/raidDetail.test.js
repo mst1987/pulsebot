@@ -29,10 +29,10 @@ function moduleSources() {
 
 describe("raid detail layout", () => {
     it("has the tabs roster, loot, logs — plus the setup editor for an own event (#263)", () => {
-        expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"loot\", \"logs\"];");
-        expect(page).toContain("const tabs = TABS.filter((t) => t !== \"setup\" || ownEvent);");
+        expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"plan\", \"loot\", \"logs\"];");
+        expect(page).toContain("const tabs = TABS.filter((t) => (t !== \"setup\" && t !== \"plan\") || ownEvent);");
         // an old ?tab=setup of a Raid-Helper event still lands on the roster
-        expect(page).toContain("const shown: Tab = tab === \"setup\" && !ownEvent ? LEGACY_TABS.setup.tab : tab;");
+        expect(page).toContain("const shown: Tab = (tab === \"setup\" || tab === \"plan\") && !ownEvent ? LEGACY_TABS.setup.tab : tab;");
         expect(page).toContain("usePersistedSearchParam<Tab>(\"raid-detail-tab\", \"tab\", \"roster\", TABS)");
     });
 
