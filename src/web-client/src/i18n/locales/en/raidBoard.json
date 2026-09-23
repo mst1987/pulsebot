@@ -45,7 +45,16 @@
         "mapRemoveText": "The map is deleted. Plans stay, they show the grid instead.",
         "hint": "Drag players from the list onto the board and move them there. Drag them back to the list or press Delete to remove them.",
         "tokenLabel": "{name}, {spec}",
-        "you": "You"
+        "you": "You",
+        "hintTemplate": "Put objects on the board with \"Add object\", move them, scale zones at their corners. A double click opens the details.",
+        "mapTitle": "Maps",
+        "mapForPlan": "This raid plan only",
+        "mapHas": "set",
+        "mapNone": "none",
+        "mapReset": "Reset to default",
+        "mapResetTitle": "Reset to the default map?",
+        "mapResetText": "This map is deleted, the board shows the template's map or the default map again.",
+        "mapWasReset": "Reset to the default."
     },
     "tray": {
         "title": "Not placed",
@@ -149,5 +158,82 @@
         "youNot": "You are not in the plan for this boss.",
         "loginHint": "Log in and your spot is highlighted.",
         "login": "Log in with Discord"
+    },
+    "slot": {
+        "tank": "Tank {n}",
+        "healer": "Healer {n}",
+        "dps": "DPS {n}",
+        "group": "Group {n}",
+        "kind": {
+            "tank": "Tank",
+            "healer": "Healer",
+            "dps": "DPS",
+            "group": "Group",
+            "label": "Label"
+        },
+        "open": "Open",
+        "openCount": "{count} slots open",
+        "openTip": "Slots without a player: nobody in the setup had a fitting role, or you left them open.",
+        "number": "Number",
+        "text": "Text",
+        "customTitle": "Own label (optional)",
+        "player": "Player",
+        "groupHint": "A group marker names the players of the setup group with this number."
+    },
+    "mark": {
+        "skull": "Skull",
+        "cross": "Cross",
+        "square": "Square",
+        "moon": "Moon",
+        "triangle": "Triangle",
+        "diamond": "Diamond",
+        "circle": "Circle",
+        "star": "Star"
+    },
+    "zone": {
+        "danger": "Danger zone",
+        "healthy": "Safe zone",
+        "neutral": "Neutral zone",
+        "custom": "Custom zone",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse",
+        "label": "Label",
+        "type": "Type",
+        "shape": "Shape",
+        "color": "Colour",
+        "presetColor": "Colour of the type",
+        "opacity": "Opacity",
+        "patternHint": "The type is also shown as a symbol and a label inside the zone, not by colour alone."
+    },
+    "add": {
+        "button": "Add object",
+        "title": "Add object",
+        "hint": "It appears in the middle, drag it away.",
+        "slots": "Slots",
+        "marks": "Raid marks",
+        "zones": "Zones",
+        "labelPlaceholder": "Free label, e.g. Boss tank",
+        "label": "Add label"
+    },
+    "selection": {
+        "delete": "Delete",
+        "done": "Done",
+        "details": "Details",
+        "hint": "Arrow keys move, Delete removes, Enter opens the details."
+    },
+    "template": {
+        "current": "Template: {name}",
+        "none": "No template",
+        "pick": "Pick a template",
+        "pickTitle": "Apply a template",
+        "hint": "Copies the template into this plan. Later changes to the template do not reach it.",
+        "empty": "Empty",
+        "emptyText": "Start without a template (default).",
+        "bosses": "{count} bosses filled",
+        "noneYet": "There is no template yet. Make one under Raid events → Raid plan templates.",
+        "applyTitle": "Apply template \"{name}\"?",
+        "applyText": "The template's bosses replace the boards in this plan, unsaved changes to them are lost. Bosses the template does not have stay.",
+        "applyAction": "Apply",
+        "applied": "Template \"{name}\" applied. Open slots are marked on the board."
     }
 }

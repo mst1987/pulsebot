@@ -4074,8 +4074,19 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 
 export type RaidplanToken = { userId: string; x: number; y: number };
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
-/** One boss's board: tokens on the map, target rows with players, a note, the profile the rows came from. */
-export type RaidplanBoard = { tokens: RaidplanToken[]; targets: RaidplanTarget[]; notes: string; profileId: string };
+export type RaidplanSlotKind = "tank" | "healer" | "dps" | "group" | "label";
+/** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
+export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string };
+export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
+export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number };
+export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
+/** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
+export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; opacity: number; x: number; y: number; w: number; h: number };
+/** One boss's board: free player tokens, slots, marks, zones, target rows, a note, the profile the rows came from. */
+export type RaidplanBoard = {
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[];
+    targets: RaidplanTarget[]; notes: string; profileId: string;
+};
 /** A player as the setup names them — never stored in the plan, only referenced by userId. */
 export type RaidplanPlayer = {
     userId: string;
@@ -4096,8 +4107,19 @@ export type RaidplanBoss = {
     name: string;
     iconUrl: string;
     mapUrl: string;
+    /** which map the board shows: "event" plan's own, "template", "boss" default, "instance" default, "" = grid */
+    mapSource: "event" | "template" | "boss" | "instance" | "";
+    /** which of the maps exist (the map dialog offers each) */
+    eventMap?: boolean;
+    templateMap?: boolean;
     ownMap: boolean;
     instanceMap: boolean;
+};
+export type RaidplanTemplateSummary = { id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[]; bossCount: number };
+/** A raid plan template with its boards and the bosses of its instances. */
+export type RaidplanTemplate = {
+    id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[];
+    bosses: Record<string, Partial<RaidplanBoard>>; version: number; updatedAt: number; bossList: RaidplanBoss[];
 };
 /** A named, categorised set of target rows (bossKey: "" = every boss, an instance id, or one boss). */
 export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; targets: { title: string }[]; notes: string; updatedAt: number };
@@ -4107,18 +4129,20 @@ export type RaidplanView = {
     eventId: string;
     event: { id: string; title: string; startTime: number };
     canWrite: boolean;
-    plan: { version: number; status: "draft" | "published"; publicPath: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
+    plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
     bosses: RaidplanBoss[];
     roster: RaidplanPlayer[];
     hasApprovedSetup: boolean;
     profiles: RaidplanProfile[];
+    templates: RaidplanTemplateSummary[];
     limits: { tokensPerBoss: number; targetsPerBoss: number; usersPerTarget: number; title: number; notes: number; mapBytes: number; profileName: number; profileCategory: number };
     /** Only on a save's answer: tokens or assignments the server left out (a player who is no longer in the setup). */
     dropped?: number;
 };
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string;
-    tokens: RaidplanToken[]; targets: RaidplanTarget[]; notes: string; profileName: string;
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[];
+    targets: RaidplanTarget[]; notes: string; profileName: string;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
@@ -4172,4 +4196,32 @@ export function deleteRaidplanProfile(csrfToken: string | null, id: string): Pro
 /** The read view behind /p/<token> — no login, the token is the authentication. */
 export function getRaidplanPublic(token: string): Promise<RaidplanPublic> {
     return get<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`);
+}
+
+export function applyRaidplanTemplate(csrfToken: string | null, input: { event: string; templateId: string; version: number }): Promise<RaidplanView> {
+    return send("POST", "/api/raidplan/apply", csrfToken, input);
+}
+
+export type RaidplanTemplates = { templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
+export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; instanceIds?: string[] };
+
+export function getRaidplanTemplates(): Promise<RaidplanTemplates> {
+    return get<RaidplanTemplates>("/api/raidplan/templates");
+}
+
+export function createRaidplanTemplate(csrfToken: string | null, input: RaidplanTemplateInput): Promise<RaidplanTemplates> {
+    return send("POST", "/api/raidplan/templates", csrfToken, input);
+}
+
+/** Changes fields and/or, with `bosses` + the `version` that was read, the boards. */
+export function updateRaidplanTemplate(csrfToken: string | null, id: string, input: RaidplanTemplateInput & { bosses?: Record<string, RaidplanBoard>; version?: number }): Promise<RaidplanTemplates> {
+    return send("PATCH", "/api/raidplan/templates", csrfToken, { id, ...input });
+}
+
+export function deleteRaidplanTemplate(csrfToken: string | null, id: string): Promise<RaidplanTemplates> {
+    return send("DELETE", "/api/raidplan/templates", csrfToken, { id });
+}
+
+export function getRaidplanProfiles(): Promise<RaidplanProfiles> {
+    return get<RaidplanProfiles>("/api/raidplan/profiles");
 }

@@ -45,7 +45,16 @@
         "mapRemoveText": "Die Karte wird gelöscht. Pläne bleiben, sie zeigen dann das Raster.",
         "hint": "Spieler aus der Liste aufs Board ziehen, dort verschieben. Auf die Liste zurückziehen oder Entf drücken entfernt sie.",
         "tokenLabel": "{name}, {spec}",
-        "you": "Du"
+        "you": "Du",
+        "hintTemplate": "Objekte über „Objekt hinzufügen“ auf das Board setzen, verschieben, Zonen an den Ecken skalieren. Doppelklick öffnet die Details.",
+        "mapTitle": "Karten",
+        "mapForPlan": "Nur dieser Raidplan",
+        "mapHas": "hinterlegt",
+        "mapNone": "keine",
+        "mapReset": "Auf Standard zurücksetzen",
+        "mapResetTitle": "Auf die Standard-Karte zurücksetzen?",
+        "mapResetText": "Diese Karte wird gelöscht, das Board zeigt wieder die Karte der Vorlage oder die Standard-Karte.",
+        "mapWasReset": "Auf Standard zurückgesetzt."
     },
     "tray": {
         "title": "Nicht platziert",
@@ -149,5 +158,82 @@
         "youNot": "Du stehst auf diesem Boss nicht im Plan.",
         "loginHint": "Melde dich an, dann wird dein Platz hervorgehoben.",
         "login": "Mit Discord anmelden"
+    },
+    "slot": {
+        "tank": "Tank {n}",
+        "healer": "Heiler {n}",
+        "dps": "DPS {n}",
+        "group": "Gruppe {n}",
+        "kind": {
+            "tank": "Tank",
+            "healer": "Heiler",
+            "dps": "DPS",
+            "group": "Gruppe",
+            "label": "Label"
+        },
+        "open": "Offen",
+        "openCount": "{count} Slots offen",
+        "openTip": "Slots ohne Spieler: Es gab niemanden mit passender Rolle im Setup oder du hast sie frei gelassen.",
+        "number": "Nummer",
+        "text": "Text",
+        "customTitle": "Eigene Beschriftung (optional)",
+        "player": "Spieler",
+        "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer."
+    },
+    "mark": {
+        "skull": "Totenkopf",
+        "cross": "X",
+        "square": "Quadrat",
+        "moon": "Mond",
+        "triangle": "Dreieck",
+        "diamond": "Diamant",
+        "circle": "Kreis",
+        "star": "Stern"
+    },
+    "zone": {
+        "danger": "Gefahrenzone",
+        "healthy": "Sichere Zone",
+        "neutral": "Neutrale Zone",
+        "custom": "Eigene Zone",
+        "rect": "Rechteck",
+        "ellipse": "Ellipse",
+        "label": "Beschriftung",
+        "type": "Typ",
+        "shape": "Form",
+        "color": "Farbe",
+        "presetColor": "Farbe des Typs",
+        "opacity": "Deckkraft",
+        "patternHint": "Der Typ steht auch als Symbol und Beschriftung in der Zone, nicht nur in der Farbe."
+    },
+    "add": {
+        "button": "Objekt hinzufügen",
+        "title": "Objekt hinzufügen",
+        "hint": "Erscheint in der Mitte, dort wegziehen.",
+        "slots": "Slots",
+        "marks": "Raid-Marker",
+        "zones": "Zonen",
+        "labelPlaceholder": "Freies Label, z. B. Boss-Tank",
+        "label": "Label hinzufügen"
+    },
+    "selection": {
+        "delete": "Löschen",
+        "done": "Fertig",
+        "details": "Details",
+        "hint": "Pfeiltasten verschieben, Entf löscht, Enter öffnet die Details."
+    },
+    "template": {
+        "current": "Vorlage: {name}",
+        "none": "Keine Vorlage",
+        "pick": "Vorlage wählen",
+        "pickTitle": "Vorlage anwenden",
+        "hint": "Kopiert die Vorlage in diesen Plan. Spätere Änderungen der Vorlage wirken hier nicht.",
+        "empty": "Leer",
+        "emptyText": "Ohne Vorlage anfangen (Standard).",
+        "bosses": "{count} Bosse befüllt",
+        "noneYet": "Es gibt noch keine Vorlage. Lege sie unter Raid-Events → Raidplan-Vorlagen an.",
+        "applyTitle": "Vorlage „{name}“ anwenden?",
+        "applyText": "Die Bosse der Vorlage ersetzen die Boards in diesem Plan, ungespeicherte Änderungen daran gehen verloren. Bosse, die die Vorlage nicht hat, bleiben.",
+        "applyAction": "Anwenden",
+        "applied": "Vorlage „{name}“ angewendet. Offene Slots siehst du im Board."
     }
 }

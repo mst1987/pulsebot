@@ -6,6 +6,12 @@
 //   POST   /api/raidplan/publish              raids write: publish / withdraw / new link
 //   POST   /api/raidplan/map?key=<key>        raids write: upload a room map (raw PNG/JPG/WebP body)
 //   POST   /api/raidplan/map/delete           raids write: remove a room map
+//   POST   /api/raidplan/apply                raids write: copy a template into the plan (snapshot,
+//                                              open slots filled from the approved setup)
+//   GET    /api/raidplan/templates            raids read: all raid plan templates with their boards
+//   POST   /api/raidplan/templates            raids write: create a template
+//   PATCH  /api/raidplan/templates            raids write: change fields and/or boards (version-checked)
+//   DELETE /api/raidplan/templates            raids write: delete a template and its maps
 //   GET    /api/raidplan/profiles             raids read: all tactic profiles
 //   POST   /api/raidplan/profiles             raids write: create a profile
 //   PATCH  /api/raidplan/profiles             raids write: change / rename a profile
@@ -22,6 +28,7 @@ const auth = require("../auth");
 const { getEvent, isOwnEventId } = require("../eventStore");
 const store = require("../raidplanStore");
 const profileStore = require("../raidplanProfileStore");
+const templateStore = require("../raidplanTemplateStore");
 const raidplan = require("../raidplan");
 
 const HTTP = { not_found: 404, conflict: 409, invalid: 400, too_large: 413 };
@@ -99,12 +106,25 @@ async function postPublish(req, res) {
     ok(res, raidplan.editorView(event, { canWrite: true }));
 }
 
+/**
+ * Whether a map key may be written: a default map always, a template's map only for
+ * a template that exists, an event plan's map only for an own event. Sends the error.
+ */
+function mapKeyOk(res, key) {
+    if (!store.isMapKey(key)) { error(res, 400, "invalid", "Unbekannter Boss oder Instanz."); return false; }
+    const scope = store.mapScope(key);
+    if (!scope) return true;
+    const found = scope.scope === "t" ? templateStore.getTemplate(scope.id) : isOwnEventId(scope.id) && getEvent(scope.id);
+    if (!found) { error(res, 404, "not_found", scope.scope === "t" ? "Vorlage nicht gefunden." : "Event nicht gefunden."); return false; }
+    return true;
+}
+
 /** POST /api/raidplan/map?key=<key> — the body is the image itself. */
 async function postMap(req, res, url) {
     const user = writer(req, res);
     if (!user) return;
     const key = String(url.searchParams.get("key") || "").trim();
-    if (!store.isMapKey(key)) return error(res, 400, "invalid", "Unbekannter Boss oder Instanz.");
+    if (!mapKeyOk(res, key)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
     if (buffer === null) return error(res, 413, "too_large", "Das Bild ist größer als 3 MB.");
     const result = store.saveMap(key, buffer);
@@ -118,8 +138,62 @@ async function postMapDelete(req, res) {
     if (!user) return;
     const body = await readJsonBody(req);
     const key = String(body.key || "").trim();
-    if (!store.isMapKey(key)) return error(res, 400, "invalid", "Unbekannter Boss oder Instanz.");
+    if (!mapKeyOk(res, key)) return;
     ok(res, { key, removed: store.deleteMap(key) });
+}
+
+/** POST /api/raidplan/apply — body `{ event, templateId, version }` */
+async function postApply(req, res) {
+    const user = writer(req, res);
+    if (!user) return;
+    const body = await readJsonBody(req);
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const template = templateStore.getTemplate(body.templateId);
+    if (!template || !raidplan.templatesFor(event).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
+    const result = store.applyTemplate(event.id, template, {
+        version: body.version,
+        bossKeys: raidplan.bossList(event).map((b) => b.key),
+        roster: raidplan.editorRoster(event),
+        userId: user.id,
+    });
+    if (result.error) return sendFailure(res, result);
+    ok(res, raidplan.editorView(event, { canWrite: true }));
+}
+
+function templateList() {
+    return { templates: templateStore.listTemplates().map(raidplan.templateView) };
+}
+
+/** GET /api/raidplan/templates */
+function getTemplates(req, res) {
+    if (!requireAdmin(req, res)) return;
+    ok(res, templateList());
+}
+
+/** POST /api/raidplan/templates — body `{ name, category?, description?, guildId?, instanceIds }` */
+async function postTemplate(req, res) {
+    if (!writer(req, res)) return;
+    const result = templateStore.createTemplate(await readJsonBody(req));
+    if (result.error) return sendFailure(res, result);
+    ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
+}
+
+/** PATCH /api/raidplan/templates — body `{ id, name?, category?, description?, guildId?, instanceIds?, bosses?, version? }` */
+async function patchTemplate(req, res) {
+    if (!writer(req, res)) return;
+    const body = await readJsonBody(req);
+    const result = templateStore.updateTemplate(body.id, body);
+    if (result.error) return sendFailure(res, result);
+    ok(res, { ...templateList(), template: raidplan.templateView(result.template), dropped: result.dropped });
+}
+
+/** DELETE /api/raidplan/templates — body `{ id }` */
+async function deleteTemplate(req, res) {
+    if (!writer(req, res)) return;
+    const body = await readJsonBody(req);
+    if (!templateStore.deleteTemplate(body.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
+    ok(res, templateList());
 }
 
 function profileList() {
@@ -174,4 +248,5 @@ function getPublic(req, res, url) {
 module.exports = {
     getPlan, putPlan, postPublish, postMap, postMapDelete,
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
+    postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate,
 };

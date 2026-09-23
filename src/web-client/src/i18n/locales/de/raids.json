@@ -15,6 +15,7 @@
         "title": "Raid-Events",
         "info": "Alle Events des gewählten Servers aus Raid-Helper, kommende und vergangene. Anmelde-Aufruf, Raidsheet, Logs und Loot findest du im Event selbst.",
         "series": "Serien",
+        "planTemplates": "Raidplan-Vorlagen",
         "raidTemplates": "Raid-Vorlagen",
         "notifyTemplates": "Aufruf-Vorlagen",
         "newEvent": "Neues Event",

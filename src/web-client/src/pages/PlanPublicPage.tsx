@@ -42,10 +42,10 @@ export default function PlanPublicPage({ token }: { token: string }) {
     if (!data) return <RaidLoader text={t("raidBoard.public.loading")} />;
 
     const boss: RaidplanPublicBoss | null = data.bosses.find((b) => b.key === selected) || data.bosses[0] || null;
-    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.targets.some((r) => r.userIds.includes(data.me)));
+    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.targets.some((r) => r.userIds.includes(data.me)));
 
     return (
-        <div className="rp-public">
+        <div className="rp-public rp-wide">
             <header className="rp-public-head">
                 <div>
                     <div className="rp-kicker">{t("raidBoard.public.kicker")}</div>
@@ -75,7 +75,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
                         <div className="rp-public-body">
                             <PlanBoard
                                 bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl}
-                                tokens={boss.tokens} players={players} me={data.me}
+                                tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones}
+                                players={players} roster={data.roster} me={data.me}
                             />
                             <div className="rp-public-side">
                                 {boss.profileName && <p className="rp-muted">{t("raidBoard.public.tactic", { name: boss.profileName })}</p>}

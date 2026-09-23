@@ -201,9 +201,9 @@ describe("room maps", () => {
         const boss = store.bossesForInstances(["bt"]).find((b) => b.key === BOSS);
         expect(store.mapForBoss(boss)).toBeNull();
         store.saveMap("bt", PNG);
-        expect(store.mapForBoss(boss)).toMatchObject({ key: "bt", own: false });
+        expect(store.mapForBoss(boss)).toMatchObject({ key: "bt", source: "instance" });
         store.saveMap(BOSS, PNG);
-        expect(store.mapForBoss(boss)).toMatchObject({ key: BOSS, own: true });
+        expect(store.mapForBoss(boss)).toMatchObject({ key: BOSS, source: "boss" });
         expect(store.mapForBoss(boss).version).toBeGreaterThan(0);
     });
 

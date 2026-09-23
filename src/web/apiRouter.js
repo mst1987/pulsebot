@@ -476,6 +476,26 @@ async function route(pathname, req, res, url) {
         await raidplanRoutes.deleteProfile(req, res);
         return true;
     }
+    if (pathname === "/api/raidplan/apply" && req.method === "POST") {
+        await raidplanRoutes.postApply(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "GET") {
+        raidplanRoutes.getTemplates(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "POST") {
+        await raidplanRoutes.postTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "PATCH") {
+        await raidplanRoutes.patchTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "DELETE") {
+        await raidplanRoutes.deleteTemplate(req, res);
+        return true;
+    }
     if (pathname === "/api/raidplan/public" && req.method === "GET") {
         raidplanRoutes.getPublic(req, res, url);
         return true;

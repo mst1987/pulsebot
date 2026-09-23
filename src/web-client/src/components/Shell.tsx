@@ -50,6 +50,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/templates") return tr("shell.crumb.notifyTemplates");
     if (pathname === "/raids/raid-templates") return tr("shell.crumb.raidTemplates");
     if (pathname === "/raids/series") return tr("shell.crumb.series");
+    if (pathname === "/raids/plan-templates") return tr("shell.crumb.planTemplates");
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {

@@ -1,36 +1,35 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    getRaidplan, publishRaidplan, saveRaidplan,
-    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanView,
+    applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
+    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
 } from "../../api";
-import PlanBoard, { PlayerName, TokenIcon } from "../../components/raidplan/PlanBoard";
-import { Badge, Button, RaidLoader, useConfirm } from "../../components/ui";
+import { Badge, Button, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import {
-    applyProfile, boardCount, boardOf, hasContent, nudgeToken, placeToken, profileRows, removeToken, rosterMap, sameBosses, toSave, unplaced, withBoard,
+    applyProfile, boardCount, boardOf, hasContent, openSlots, planHasContent, profileRows, sameBosses, toSave, withBoard,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
-import TargetsPanel from "./raidplan/TargetsPanel";
+import BoardWorkspace from "./raidplan/BoardWorkspace";
 import { ProfilePickerModal, ProfilesModal } from "./raidplan/ProfileModals";
 import ShareModal from "./raidplan/ShareModal";
-import MapModal from "./raidplan/MapModal";
+import MapModal, { type MapRow } from "./raidplan/MapModal";
 import "../../styles/raidplan.css";
 
 type Bosses = Record<string, Partial<RaidplanBoard>>;
-type Drag = { userId: string; fromBoard: boolean; x: number; y: number; ox: number; oy: number; overTray: boolean };
 
 /**
  * Raid-Detail › Raidplan (an own event, docs/raidplan.md): the boss list on the
- * left, the board of the chosen boss in the middle (room map, player tokens),
- * the target rows and the players not placed yet on the right.
+ * left and, filling the rest of the width, the working area of the chosen boss
+ * (BoardWorkspace: tool bar, the board with its map, the players not placed yet
+ * and the target rows underneath).
  *
- * Tokens are dragged with Pointer Events on window (no HTML5 drag and drop), so a
- * finger works like a mouse: a player from the list onto the board, a token
- * around the board, a token back onto the list to take it off. The arrow keys move
- * a focused token, Delete removes it. Nothing is written until "Speichern", which
- * sends the version that was read — a plan somebody else saved meanwhile is a
- * conflict, never silently overwritten.
+ * A plan can start from a raid plan template ("Vorlage"): the server copies it in
+ * as a snapshot and fills its open slots from the approved setup; from then on
+ * everything is adjusted here, and a later change to the template does not reach
+ * this plan. Nothing is written until "Speichern", which sends the version that
+ * was read — a plan somebody else saved meanwhile is a conflict, never silently
+ * overwritten.
  */
 export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
@@ -44,12 +43,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const [selected, setSelected] = useState("");
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);
-    const [drag, setDrag] = useState<Drag | null>(null);
-    const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "map">("");
+    const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "map" | "template">("");
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
-
-    const boardRef = useRef<HTMLDivElement>(null);
-    const dragRef = useRef<Drag | null>(null);
     const selectedRef = useRef("");
     selectedRef.current = selected;
 
@@ -74,92 +69,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
     const roster = useMemo(() => (view ? view.roster : []), [view]);
-    const players = useMemo(() => rosterMap(roster), [roster]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
     const board = boardOf(draft, selected);
     const dirty = !!view && !sameBosses(draft, view.plan.bosses, bossKeys);
     const canWrite = !!view && view.canWrite;
-    const missing = useMemo(() => unplaced(roster, board), [roster, board]);
 
-    /** Applies a change to the selected boss's board. */
+    /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
     const editBoard = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard) => {
         setDraft((prev) => withBoard(prev, selectedRef.current, fn(boardOf(prev, selectedRef.current))));
     }, []);
-
-    // ---- dragging (Pointer Events on window) -------------------------------------------------
-    const dragging = drag !== null;
-    useEffect(() => {
-        if (!dragging) return undefined;
-        const toBoard = (x: number, y: number) => {
-            const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : null;
-            if (!rect || !rect.width || !rect.height) return null;
-            return { x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, inside: x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom };
-        };
-        const move = (e: globalThis.PointerEvent) => {
-            const d = dragRef.current;
-            if (!d) return;
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            const next = { ...d, x: e.clientX, y: e.clientY, overTray: !!(el && el.closest("[data-rp-tray]")) };
-            dragRef.current = next;
-            setDrag(next);
-            // A token already on the board follows the pointer live.
-            if (d.fromBoard) {
-                const p = toBoard(e.clientX + d.ox, e.clientY + d.oy);
-                if (p) editBoard((b) => placeToken(b, d.userId, p.x, p.y));
-            }
-        };
-        const up = (e: globalThis.PointerEvent) => {
-            const d = dragRef.current;
-            dragRef.current = null;
-            setDrag(null);
-            if (!d) return;
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            const overTray = !!(el && el.closest("[data-rp-tray]"));
-            if (d.fromBoard) {
-                if (overTray) editBoard((b) => removeToken(b, d.userId));
-                return;
-            }
-            const p = toBoard(e.clientX, e.clientY);
-            if (p && p.inside) editBoard((b) => placeToken(b, d.userId, p.x, p.y));
-        };
-        window.addEventListener("pointermove", move);
-        window.addEventListener("pointerup", up);
-        window.addEventListener("pointercancel", up);
-        return () => {
-            window.removeEventListener("pointermove", move);
-            window.removeEventListener("pointerup", up);
-            window.removeEventListener("pointercancel", up);
-        };
-    }, [dragging, editBoard]);
-
-    const startDrag = (e: PointerEvent<HTMLElement>, userId: string, fromBoard: boolean) => {
-        if (!canWrite || e.button !== 0) return;
-        e.preventDefault();
-        let ox = 0;
-        let oy = 0;
-        if (fromBoard) {
-            // keep the grip: the token does not jump so that its centre sits under the pointer
-            const ico = e.currentTarget.getBoundingClientRect();
-            ox = ico.left + ico.width / 2 - e.clientX;
-            oy = ico.top + ico.height / 2 - e.clientY;
-        }
-        const d = { userId, fromBoard, x: e.clientX, y: e.clientY, ox, oy, overTray: false };
-        dragRef.current = d;
-        setDrag(d);
-    };
-
-    const onTokenKey = (e: KeyboardEvent<HTMLButtonElement>, userId: string) => {
-        if (!canWrite) return;
-        const step = e.shiftKey ? 0.05 : 0.01;
-        const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-        if (moves[e.key]) {
-            e.preventDefault();
-            editBoard((b) => nudgeToken(b, userId, moves[e.key][0], moves[e.key][1]));
-        } else if (e.key === "Delete" || e.key === "Backspace") {
-            e.preventDefault();
-            editBoard((b) => removeToken(b, userId));
-        }
-    };
 
     // ---- save / publish -----------------------------------------------------------------------
     const save = async () => {
@@ -193,9 +111,32 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    // ---- templates ----------------------------------------------------------------------------
+    const applyTemplate = async (tpl: RaidplanTemplateSummary) => {
+        if (!view) return;
+        const needsAsk = dirty || planHasContent(view.plan.bosses, bossKeys);
+        if (needsAsk && !(await ask({ title: t("raidBoard.template.applyTitle", { name: tpl.name }), text: t("raidBoard.template.applyText"), action: t("raidBoard.template.applyAction"), tone: "primary", icon: "inv_misc_map02" }))) return;
+        setSaving(true);
+        try {
+            // The server copies the template onto the *saved* plan; unsaved edits are replaced by it (asked above).
+            const v = await applyRaidplanTemplate(csrfToken, { event: eventId, templateId: tpl.id, version: view.plan.version });
+            setView(v);
+            setDraft(v.plan.bosses);
+            setConflict(false);
+            setModal("");
+            toast(t("raidBoard.template.applied", { name: tpl.name }));
+        } catch (err) {
+            const e = err as ApiError;
+            if (e.code === "conflict") setConflict(true); else toast(e.message, "err");
+            setModal("");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // ---- tactic profiles ----------------------------------------------------------------------
     const pickProfile = async (profile: RaidplanProfile) => {
-        if (hasContent(board) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [] }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         editBoard((b) => applyProfile(b, profile));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: profile.name }));
@@ -215,15 +156,24 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     }
 
     const published = view.plan.status === "published";
-    const dragPlayer = drag ? players.get(drag.userId) || null : null;
+    const mapRows: MapRow[] = boss ? [
+        { key: `e/${eventId}/${boss.key}`, label: t("raidBoard.board.mapForPlan"), has: !!boss.eventMap, override: true },
+        { key: boss.key, label: `${t("raidBoard.board.mapForBoss")}: ${boss.name}`, has: boss.ownMap, override: false },
+        { key: boss.instanceId, label: `${t("raidBoard.board.mapForInstance")}: ${boss.instanceName}`, has: boss.instanceMap, override: false },
+    ] : [];
+    const open = openSlots(board);
 
     return (
-        <div className="rp-editor">
+        <div className="rp-editor rp-wide">
             <div className="rp-bar">
                 <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
                 {dirty && <Badge tone="mid">{t("raidBoard.bar.dirty")}</Badge>}
                 {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
+                <span className="rp-muted rp-bar-template">
+                    {view.plan.templateName ? t("raidBoard.template.current", { name: view.plan.templateName }) : t("raidBoard.template.none")}
+                </span>
                 <div className="rp-bar-act">
+                    {canWrite && <Button variant="ghost" onClick={() => setModal("template")}>{t("raidBoard.template.pick")}</Button>}
                     {canWrite && <Button variant="ghost" onClick={() => setModal("share")}>{t("raidBoard.bar.share")}</Button>}
                     {canWrite && <Button onClick={save} disabled={!dirty || conflict} running={saving}>{saving ? t("raidBoard.bar.saving") : t("raidBoard.bar.save")}</Button>}
                 </div>
@@ -243,12 +193,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     <h3 className="rp-kicker">{t("raidBoard.bosses.title")}</h3>
                     {view.bosses.map((b, i) => {
                         const n = boardCount(draft, b.key);
-                        const tokens = boardOf(draft, b.key).tokens.length;
                         return (
                             <button
                                 key={b.key} type="button" className={`rp-boss${b.key === selected ? " is-on" : ""}`}
                                 aria-current={b.key === selected ? "true" : undefined}
-                                data-tip={n ? t("raidBoard.bosses.count", { tokens, rows: n - tokens }) : undefined}
                                 onClick={() => setSelected(b.key)}
                             >
                                 <img src={b.iconUrl} alt="" width={26} height={26} loading="lazy" />
@@ -259,72 +207,43 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     })}
                 </nav>
 
-                <div className="rp-center">
-                    <div className="rp-toolbar">
-                        <h2 className="rp-title">{boss ? boss.name : ""}</h2>
-                        {boss && <span className="rp-muted">{boss.instanceName}</span>}
-                        {canWrite && boss && (
-                            <Button variant="ghost" size="sm" icon="inv_misc_map_01" onClick={() => setModal("map")}>
-                                {boss.mapUrl ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
-                            </Button>
+                {boss && (
+                    <BoardWorkspace
+                        mode="event" boss={boss} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
+                        profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
+                        toolbar={(
+                            <>
+                                {open > 0 && canWrite && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
+                                {canWrite && (
+                                    <Button variant="ghost" size="sm" icon="inv_misc_map02" onClick={() => setModal("map")}>
+                                        {boss.mapUrl ? t("raidBoard.board.mapReplace") : t("raidBoard.board.mapUpload")}
+                                    </Button>
+                                )}
+                            </>
                         )}
-                    </div>
-                    {boss && (
-                        <PlanBoard
-                            boardRef={boardRef}
-                            bossName={boss.name}
-                            bossIcon={boss.iconUrl}
-                            mapUrl={boss.mapUrl}
-                            tokens={board.tokens}
-                            players={players}
-                            dragId={drag && drag.fromBoard ? drag.userId : ""}
-                            onTokenDown={canWrite ? (e, id) => startDrag(e, id, true) : undefined}
-                            onTokenKey={canWrite ? onTokenKey : undefined}
-                            emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
-                        />
-                    )}
-                    {canWrite && <p className="rp-muted rp-hint">{t("raidBoard.board.hint")}</p>}
-                </div>
-
-                <aside className="rp-side">
-                    <TargetsPanel
-                        board={board}
-                        roster={roster}
-                        canWrite={canWrite}
-                        maxRows={view.limits.targetsPerBoss}
-                        maxTitle={view.limits.title}
-                        maxNotes={view.limits.notes}
-                        profileName={profile ? profile.name : ""}
-                        onChange={(b) => editBoard(() => b)}
-                        onPickProfile={() => setModal("pick")}
                     />
-                    <section className={`rp-side-block rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray>
-                        <h3 className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</h3>
-                        {roster.length === 0 && <p className="rp-muted">{t("raidBoard.tray.none")}</p>}
-                        {roster.length > 0 && missing.length === 0 && <p className="rp-muted">{t("raidBoard.tray.empty")}</p>}
-                        <div className="rp-tray-list">
-                            {missing.map((p) => (
-                                <span
-                                    key={p.userId}
-                                    className={`rp-chip${canWrite ? " is-drag" : ""}`}
-                                    data-tip={`${p.specLabel} ${p.className}`.trim()}
-                                    onPointerDown={canWrite ? (e) => startDrag(e, p.userId, false) : undefined}
-                                >
-                                    <TokenIcon player={p} size="sm" />
-                                    <PlayerName player={p} />
-                                </span>
-                            ))}
-                        </div>
-                    </section>
-                </aside>
+                )}
             </div>
 
-            {drag && !drag.fromBoard && dragPlayer && (
-                <div className="rp-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
-                    <TokenIcon player={dragPlayer} />
-                </div>
-            )}
-
+            <Modal open={modal === "template"} onClose={() => setModal("")} icon="inv_misc_map02" title={t("raidBoard.template.pickTitle")} width={520} hint={t("raidBoard.template.hint")}>
+                <ul className="rp-pick">
+                    <li>
+                        <div className={`rp-pick-row rp-pick-profile${view.plan.templateId ? "" : " is-on"}`}>
+                            <span className="rp-pick-name">{t("raidBoard.template.empty")}</span>
+                            <span className="rp-muted">{t("raidBoard.template.emptyText")}</span>
+                        </div>
+                    </li>
+                    {view.templates.map((tpl) => (
+                        <li key={tpl.id}>
+                            <button type="button" className={`rp-pick-row rp-pick-profile${tpl.id === view.plan.templateId ? " is-on" : ""}`} disabled={saving} onClick={() => applyTemplate(tpl)}>
+                                <span className="rp-pick-name">{tpl.name}{tpl.category ? ` · ${tpl.category}` : ""}</span>
+                                <span className="rp-muted">{tpl.description || t("raidBoard.template.bosses", { count: tpl.bossCount })}</span>
+                            </button>
+                        </li>
+                    ))}
+                    {view.templates.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneYet")}</li>}
+                </ul>
+            </Modal>
             <ProfilePickerModal
                 open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected}
                 currentId={board.profileId} onPick={pickProfile}
@@ -346,10 +265,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 dirty={dirty} hasApprovedSetup={view.hasApprovedSetup} busy={saving}
                 onPublish={(p) => publish(p)} onRotate={() => publish(true, true)}
             />
-            <MapModal
-                open={modal === "map"} onClose={() => setModal("")} csrfToken={csrfToken} boss={boss}
-                instanceHasMap={!!boss && boss.instanceMap} onChanged={reloadMaps}
-            />
+            <MapModal open={modal === "map"} onClose={() => setModal("")} csrfToken={csrfToken} rows={mapRows} onChanged={reloadMaps} />
         </div>
     );
 }

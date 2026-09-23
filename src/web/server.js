@@ -166,7 +166,7 @@ async function handle(req, res) {
     // uploaded, nothing personal. The key is checked against the known instances
     // and bosses before any file is touched; the url carries ?v=<mtime>, so the
     // long cache never hides a new upload.
-    const rpMap = pathname.match(/^\/rp-map\/([a-z0-9]+(?:\/[a-z0-9-]+)?)$/);
+    const rpMap = pathname.match(/^\/rp-map\/((?:[te]\/[a-z0-9-]{3,40}\/)?[a-z0-9]+(?:\/[a-z0-9-]+)?)$/);
     if (rpMap) {
         const map = raidplanStore.readMap(rpMap[1]);
         if (!map) return send(res, 404, renderNotFound());

@@ -13,10 +13,12 @@ import { useT } from "../../../i18n";
  * what a title means is the orga's business (nothing is pre-filled). Who may be
  * assigned comes from the roster (the setup), never typed in.
  */
-export default function TargetsPanel({ board, roster, canWrite, maxRows, maxTitle, maxNotes, profileName, onChange, onPickProfile }: {
+export default function TargetsPanel({ board, roster, canWrite, assignable = true, maxRows, maxTitle, maxNotes, profileName, onChange, onPickProfile }: {
     board: RaidplanBoard;
     roster: RaidplanPlayer[];
     canWrite: boolean;
+    /** An event plan can put players on a row; a template has none. */
+    assignable?: boolean;
     maxRows: number;
     maxTitle: number;
     maxNotes: number;
@@ -36,7 +38,6 @@ export default function TargetsPanel({ board, roster, canWrite, maxRows, maxTitl
     return (
         <section className="rp-side-block">
             <div className="rp-side-head">
-                <h3 className="rp-kicker">{t("raidBoard.targets.title")}</h3>
                 {canWrite && (
                     <Button variant="ghost" size="sm" onClick={onPickProfile} className="rp-tactic-btn">
                         {profileName ? t("raidBoard.profile.current", { name: profileName }) : t("raidBoard.profile.pick")}
@@ -85,7 +86,7 @@ export default function TargetsPanel({ board, roster, canWrite, maxRows, maxTitl
                                     </span>
                                 );
                             })}
-                            {canWrite && (
+                            {canWrite && assignable && (
                                 <button type="button" className="rp-chip rp-chip-add" onClick={() => { setQuery(""); setAssigning(r.id); }}>
                                     <PlusIcon /> {t("raidBoard.targets.assign")}
                                 </button>

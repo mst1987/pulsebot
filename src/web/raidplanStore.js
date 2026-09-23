@@ -3,7 +3,9 @@
 //
 // One plan per event, stored in data/settings/raidplans.json:
 //   { eventId, version, status: "draft" | "published", publicToken,
-//     bosses: { [bossKey]: { tokens: [{ userId, x, y }], targets: [{ id, title, userIds }], notes, profileId } } }
+//     templateId, bosses: { [bossKey]: board } }
+// A board (raidplanBoard.js) holds tokens, slots, marks, zones, target rows, a note and profileId.
+// templateId names the raid plan template that was copied in (a snapshot, no live link).
 // profileId names the tactic profile (raidplanProfileStore.js) the rows were taken
 // from; the rows themselves are copies, the assignment (userIds) lives only here.
 //
@@ -29,14 +31,9 @@ const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const DEFAULT_FILE = path.join(DATA_DIR, "settings", "raidplans.json");
 const DEFAULT_MAP_DIR = path.join(DATA_DIR, "raidplan-maps");
 
-const LIMITS = {
-    tokensPerBoss: 60,
-    targetsPerBoss: 30,
-    usersPerTarget: 25,
-    title: 80,
-    notes: 1000,
-    mapBytes: 3 * 1024 * 1024,
-};
+const board = require("./raidplanBoard");
+
+const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
 let planFile = DEFAULT_FILE;
 let mapDir = DEFAULT_MAP_DIR;
@@ -92,15 +89,39 @@ function bossesForInstances(instanceIds) {
     return out;
 }
 
-/** Whether a map key is a known instance id or a known boss key. */
-function isMapKey(key) {
-    const k = str(key);
-    if (/^[a-z0-9]+$/.test(k)) return !!instanceById(k);
-    const m = k.match(/^([a-z0-9]+)\/([a-z0-9-]+)$/);
+const BOSS_KEY = /^([a-z0-9]+)\/([a-z0-9-]+)$/;
+
+function isBossKey(k) {
+    const m = k.match(BOSS_KEY);
     if (!m) return false;
     const inst = instanceById(m[1]);
     return !!inst && (inst.bosses || []).some((b) => slug(b) === m[2]);
 }
+
+/**
+ * Whether a map key is well formed and names a real place:
+ *   <instance>                     the default map of an instance
+ *   <instance>/<boss>              the default map of a boss
+ *   t/<templateId>/<instance>/<boss>   a template's own map of that boss
+ *   e/<eventId>/<instance>/<boss>      one event plan's own map of that boss
+ * Whether the template / event exists is the caller's question (the route asks).
+ */
+function isMapKey(key) {
+    const k = str(key);
+    if (/^[a-z0-9]+$/.test(k)) return !!instanceById(k);
+    if (isBossKey(k)) return true;
+    const m = k.match(/^([te])\/([a-z0-9-]{3,40})\/(.+)$/);
+    return !!m && isBossKey(m[3]);
+}
+
+/** The template / event a scoped map key belongs to: `{ scope: "t" | "e", id }`, or null for a default map. */
+function mapScope(key) {
+    const m = str(key).match(/^([te])\/([a-z0-9-]{3,40})\//);
+    return m ? { scope: m[1], id: m[2] } : null;
+}
+
+const templateMapKey = (templateId, bossKey) => `t/${templateId}/${bossKey}`;
+const eventMapKey = (eventId, bossKey) => `e/${eventId}/${bossKey}`;
 
 // ---- persistence ---------------------------------------------------------------
 
@@ -122,13 +143,6 @@ function newToken() {
     return crypto.randomBytes(18).toString("base64url");
 }
 
-function newTargetId() {
-    return crypto.randomBytes(5).toString("hex");
-}
-
-const clamp01 = (n) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
-const round4 = (n) => Math.round(n * 10000) / 10000;
-
 /** A plan as it is stored: every field present, nothing else. */
 function normalizePlan(raw, eventId) {
     const r = raw && typeof raw === "object" ? raw : {};
@@ -137,6 +151,7 @@ function normalizePlan(raw, eventId) {
         version: Math.max(0, Math.floor(Number(r.version) || 0)),
         status: r.status === "published" ? "published" : "draft",
         publicToken: /^[A-Za-z0-9_-]{16,64}$/.test(str(r.publicToken)) ? str(r.publicToken) : "",
+        templateId: /^[a-f0-9]{6,24}$/.test(str(r.templateId)) ? str(r.templateId) : "",
         bosses: r.bosses && typeof r.bosses === "object" ? r.bosses : {},
         updatedAt: Number(r.updatedAt) || 0,
         updatedBy: str(r.updatedBy),
@@ -166,58 +181,27 @@ function emptyPlan(eventId) {
 // ---- validation ------------------------------------------------------------------
 
 /**
- * Cleans the bosses of a save. Only boss keys the event has are kept, tokens and
- * assignments only for `allowedUserIds` (a raider who left the setup drops out
- * instead of blocking every later save), coordinates are clamped, texts cut.
- * Returns `{ bosses, dropped }`, or `{ code: "invalid", error }` for a body that
- * is not a plan at all.
+ * Cleans the bosses of a save. Only boss keys the event has are kept; on each
+ * board (raidplanBoard.cleanBoard) players only for `allowedUserIds` (a raider who
+ * left the setup drops out instead of blocking every later save), coordinates
+ * clamped, texts cut. Returns `{ bosses, dropped }`, or `{ code: "invalid", error }`
+ * for a body that is not a plan at all or a board over a limit.
  */
 function cleanBosses(input, { bossKeys, allowedUserIds, profileIds = [] }) {
     if (input === undefined || input === null || typeof input !== "object" || Array.isArray(input)) {
         return { code: "invalid", error: "Der Raidplan hat ein ungültiges Format." };
     }
     const keys = new Set(bossKeys);
-    const profiles = new Set(profileIds.map(str));
-    const allowed = new Set([...allowedUserIds].map(str));
     const out = {};
     let dropped = 0;
     for (const [key, raw] of Object.entries(input)) {
         // A boss the event no longer has (its instances changed) is dropped, not an error.
         if (!keys.has(key)) { dropped += 1; continue; }
-        const board = raw && typeof raw === "object" ? raw : {};
-        const seenTokens = new Set();
-        const tokens = [];
-        for (const t of Array.isArray(board.tokens) ? board.tokens : []) {
-            const userId = str(t && t.userId);
-            if (!userId || seenTokens.has(userId)) { dropped += 1; continue; }
-            if (!allowed.has(userId)) { dropped += 1; continue; }
-            if (tokens.length >= LIMITS.tokensPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.tokensPerBoss} Spieler je Boss.` };
-            seenTokens.add(userId);
-            tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))) });
-        }
-        const rawTargets = Array.isArray(board.targets) ? board.targets : [];
-        if (rawTargets.length > LIMITS.targetsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.targetsPerBoss} Aufgabenzeilen je Boss.` };
-        const seenIds = new Set();
-        const targets = rawTargets.map((tg) => {
-            const t = tg && typeof tg === "object" ? tg : {};
-            let id = str(t.id).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
-            if (!id || seenIds.has(id)) id = newTargetId();
-            seenIds.add(id);
-            const users = [];
-            for (const u of Array.isArray(t.userIds) ? t.userIds : []) {
-                const userId = str(u);
-                if (!allowed.has(userId) || users.includes(userId)) { dropped += 1; continue; }
-                if (users.length >= LIMITS.usersPerTarget) break;
-                users.push(userId);
-            }
-            return { id, title: str(t.title).slice(0, LIMITS.title), userIds: users };
-        });
-        const notes = String(board.notes === undefined || board.notes === null ? "" : board.notes).slice(0, LIMITS.notes);
-        // The tactic profile the rows were taken from; one that was deleted since is forgotten.
-        const profileId = profiles.has(str(board.profileId)) ? str(board.profileId) : "";
+        const r = board.cleanBoard(raw, { allowedUserIds, profileIds });
+        if (r.error) return r;
+        dropped += r.dropped;
         // A boss nobody touched is not stored at all.
-        if (!tokens.length && !targets.length && !notes.trim() && !profileId) continue;
-        out[key] = { tokens, targets, notes, profileId };
+        if (board.boardHasContent(r.board)) out[key] = r.board;
     }
     return { bosses: out, dropped };
 }
@@ -241,6 +225,38 @@ function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, prof
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next, dropped: cleaned.dropped };
+}
+
+/**
+ * Copies a raid plan template into an event's plan as a snapshot: for every boss
+ * the template has and the event has, the board is replaced by the template's
+ * (new ids, no players on free tokens, the open slots filled from `roster`), and
+ * `templateId` remembers where it came from. Bosses the template does not cover
+ * are left alone. Later changes to the template do not reach the plan. `version`
+ * is checked like a save. Returns `{ plan }` or `{ code, error }`.
+ */
+function applyTemplate(eventId, template, { version, bossKeys, roster, userId, now = Date.now() }) {
+    const id = str(eventId);
+    const plans = readAll();
+    const idx = plans.findIndex((p) => p && p.eventId === id);
+    const current = idx === -1 ? emptyPlan(id) : normalizePlan(plans[idx], id);
+    if (Number(version) !== current.version) {
+        return { code: "conflict", error: "Der Raidplan wurde inzwischen geändert. Bitte neu laden." };
+    }
+    const allowed = new Set(bossKeys);
+    const bosses = { ...current.bosses };
+    for (const [key, tb] of Object.entries(template.bosses || {})) {
+        if (!allowed.has(key)) continue;
+        const copy = board.reidBoard({ ...tb, tokens: [], profileId: tb.profileId || "" });
+        copy.slots = board.fillSlots(copy.slots, roster);
+        const cleaned = board.cleanBoard(copy, { allowedUserIds: roster.map((p) => p.userId), profileIds: tb.profileId ? [tb.profileId] : [] });
+        if (cleaned.error) return cleaned;
+        if (board.boardHasContent(cleaned.board)) bosses[key] = cleaned.board; else delete bosses[key];
+    }
+    const next = { ...current, bosses, templateId: template.id, version: current.version + 1, updatedAt: now, updatedBy: str(userId) };
+    if (idx === -1) plans.push(next); else plans[idx] = next;
+    writeAll(plans);
+    return { plan: next };
 }
 
 /**
@@ -286,7 +302,7 @@ function sniffImage(buf) {
     return null;
 }
 
-const mapBase = (key) => str(key).replace("/", "__");
+const mapBase = (key) => str(key).replace(/\//g, "__");
 
 function mapFiles(key) {
     return MAP_TYPES.map((t) => ({ ...t, file: path.join(mapDir, `${mapBase(key)}.${t.ext}`) }));
@@ -343,18 +359,25 @@ function deleteMap(key) {
 }
 
 /**
- * The map a boss uses: its own, else its instance's. `{ key, version, own }` or
- * null. The version goes into the url so a new upload is not hidden by the cache.
+ * The map a boss shows, most specific first: this event plan's own map, the
+ * template's map, the boss's default map, the instance's default map. Returns
+ * `{ key, version, source }` (`source`: "event" | "template" | "boss" | "instance")
+ * or null. The version goes into the url so a new upload is not hidden by the cache.
  */
-function mapForBoss(boss) {
-    const own = mapVersion(boss.key);
-    if (own) return { key: boss.key, version: own, own: true };
-    const inst = mapVersion(boss.instanceId);
-    return inst ? { key: boss.instanceId, version: inst, own: false } : null;
+function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
+    const candidates = [];
+    if (eventId) candidates.push(["event", eventMapKey(eventId, boss.key)]);
+    if (templateId) candidates.push(["template", templateMapKey(templateId, boss.key)]);
+    candidates.push(["boss", boss.key], ["instance", boss.instanceId]);
+    for (const [source, key] of candidates) {
+        const version = mapVersion(key);
+        if (version) return { key, version, source };
+    }
+    return null;
 }
 
 module.exports = {
     useFile, LIMITS, slug, bossKeyOf, bossesForInstances, isMapKey,
-    getPlan, getPublishedByToken, emptyPlan, savePlan, setPublished, deletePlan, cleanBosses,
+    getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
     sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
 };
