@@ -4074,13 +4074,18 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
 export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean };
-export type RaidplanToken = { userId: string; x: number; y: number } & RaidplanLook;
+export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
-export type RaidplanSlotKind = "tank" | "healer" | "dps" | "group" | "label";
+export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label";
 /** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
-export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string } & RaidplanLook;
+/** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
+export type RaidplanOffset = { dx: number; dy: number; size: number };
+/** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
+export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset> } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
-export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number } & RaidplanLook;
+export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
+/** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation in degrees. */
+export type RaidplanIcon = { id: string; iconKey: string; label: string; x: number; y: number; size: number; rotation: number } & RaidplanLook;
 export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
 export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number } & RaidplanLook;
@@ -4090,8 +4095,10 @@ export type RaidplanLine = { id: string; kind: "arrow" | "line"; x1: number; y1:
 export type RaidplanText = { id: string; text: string; x: number; y: number; color: string; size: number } & RaidplanLook;
 /** One boss's board: free player tokens, slots, marks, zones, target rows, a note, the profile the rows came from. */
 export type RaidplanBoard = {
-    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
     targets: RaidplanTarget[]; notes: string; profileId: string;
+    /** the default size of tokens, slots, marks and icons, 0.5..2 */
+    objectScale: number;
     /** how strongly the map shows, 0.1..1 (dim it so the objects stand out) */
     mapOpacity: number;
 };
@@ -4149,8 +4156,8 @@ export type RaidplanView = {
 };
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string;
-    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; notes: string; profileName: string; mapOpacity: number;
+    tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
+    targets: RaidplanTarget[]; notes: string; profileName: string; mapOpacity: number; objectScale: number;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
@@ -4224,6 +4231,10 @@ export function createRaidplanTemplate(csrfToken: string | null, input: Raidplan
 /** Changes fields and/or, with `bosses` + the `version` that was read, the boards. */
 export function updateRaidplanTemplate(csrfToken: string | null, id: string, input: RaidplanTemplateInput & { bosses?: Record<string, RaidplanBoard>; version?: number }): Promise<RaidplanTemplates> {
     return send("PATCH", "/api/raidplan/templates", csrfToken, { id, ...input });
+}
+
+export function duplicateRaidplanTemplate(csrfToken: string | null, id: string): Promise<RaidplanTemplates> {
+    return send("POST", "/api/raidplan/templates/duplicate", csrfToken, { id });
 }
 
 export function deleteRaidplanTemplate(csrfToken: string | null, id: string): Promise<RaidplanTemplates> {

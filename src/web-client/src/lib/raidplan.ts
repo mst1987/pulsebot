@@ -11,7 +11,7 @@
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
     RaidplanBoard, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanTarget, RaidplanZone, RaidplanZoneType,
-    RaidplanMarkName, RaidplanLine, RaidplanText,
+    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon,
 } from "../api";
 import { t } from "../i18n";
 
@@ -20,12 +20,24 @@ export const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
 // What a new zone of a type starts with; the orga may pick any colour.
 export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa" };
 export const MIN_ZONE = 0.03;
+// The size of an object in px: what a new one starts with, and the range it can be set to.
+export const SIZE_RANGES = {
+    token: { def: 38, min: 24, max: 96 },
+    slot: { def: 38, min: 24, max: 96 },
+    mark: { def: 34, min: 16, max: 96 },
+    icon: { def: 48, min: 20, max: 200 },
+    member: { def: 38, min: 24, max: 96 },
+    text: { def: 18, min: 10, max: 48 },
+    line: { def: 4, min: 1, max: 12 },
+};
+export const SCALE_MIN = 0.5;
+export const SCALE_MAX = 2;
 export const DEFAULT_LINE_COLOR = "#f8fafc";
 export const DEFAULT_TEXT_COLOR = "#f8fafc";
 const MAX_HISTORY = 100;
 
 /** The kinds of board objects one can select, move and delete. */
-export type ObjectKind = "token" | "slot" | "mark" | "zone" | "line" | "text";
+export type ObjectKind = "token" | "slot" | "mark" | "icon" | "zone" | "line" | "text" | "member";
 export type Selection = { kind: ObjectKind; id: string } | null;
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Corner = "nw" | "ne" | "sw" | "se";
@@ -35,15 +47,18 @@ export type InsertSpec =
     | { type: "mark"; mark: string }
     | { type: "zone"; zoneType: string; shape: string }
     | { type: "line"; kind: string }
-    | { type: "text"; text: string };
+    | { type: "text"; text: string }
+    | { type: "icon"; iconKey: string; label: string };
 export type MenuItem = { id: string; section: string; disabled: boolean; danger: boolean };
 export type LayerRow = { kind: ObjectKind; id: string; name: string; lock: boolean; hidden: boolean };
 export type History<T> = { past: T[]; present: T; future: T[] };
 
-/** The role's colour family: tank blue, healer cyan, everything else (melee, ranged, dps) orange. */
-export function roleTone(role: string): "tank" | "healer" | "dps" {
+/** The role's colour family: tank blue, healer cyan, melee orange, ranged violet; "dps" (any damage) amber. */
+export function roleTone(role: string): "tank" | "healer" | "melee" | "ranged" | "dps" {
     if (role === "tank") return "tank";
     if (role === "healer") return "healer";
+    if (role === "melee") return "melee";
+    if (role === "ranged") return "ranged";
     return "dps";
 }
 
@@ -70,7 +85,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -80,6 +95,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         tokens: b.tokens || [],
         slots: b.slots || [],
         marks: b.marks || [],
+        icons: b.icons || [],
         zones: b.zones || [],
         lines: b.lines || [],
         texts: b.texts || [],
@@ -87,6 +103,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
+        objectScale: b.objectScale || 1,
     };
 }
 
@@ -112,23 +129,32 @@ export function sameBosses(a: Record<string, Partial<RaidplanBoard>>, b: Record<
 
 // ---- who stands where ------------------------------------------------------------------
 
-/** Everyone who already stands somewhere on the board: a free token or a slot. */
-export function placedIds(board: RaidplanBoard): Set<string> {
+/** The raiders of a group marker that stand around it as tokens: its setup group, minus anyone who already stands somewhere else on the board. */
+export function splitMembers(board: RaidplanBoard, slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
+    if (slot.kind !== "group" || !slot.split || slot.hideMembers) return [];
+    const elsewhere = new Set(board.tokens.map((x) => x.userId));
+    for (const s of board.slots) if (s.userId) elsewhere.add(s.userId);
+    return roster.filter((p) => p.group === slot.n && !elsewhere.has(p.userId));
+}
+
+/** Everyone who already stands somewhere on the board: a free token, a slot, or a group that is split around its marker. */
+export function placedIds(board: RaidplanBoard, roster: RaidplanPlayer[] = []): Set<string> {
     const ids = new Set(board.tokens.map((x) => x.userId));
     for (const s of board.slots) if (s.userId) ids.add(s.userId);
+    for (const s of board.slots) for (const p of splitMembers(board, s, roster)) ids.add(p.userId);
     return ids;
 }
 
 /** The players of the roster who stand nowhere on this board yet, in setup order. */
 export function unplaced(roster: RaidplanPlayer[], board: RaidplanBoard): RaidplanPlayer[] {
-    const placed = placedIds(board);
+    const placed = placedIds(board, roster);
     return roster.filter((p) => !placed.has(p.userId));
 }
 
 /** Puts a free token on the board at x/y (0..1): a new one, or the moved existing one. The player leaves any slot. */
 export function placeToken(board: RaidplanBoard, userId: string, x: number, y: number): RaidplanBoard {
     const old = board.tokens.find((k) => k.userId === userId);
-    const token = { ...(old || newLook(1)), userId, x: clamp01(x), y: clamp01(y) };
+    const token = { ...(old || { ...newLook(1), size: SIZE_RANGES.token.def }), userId, x: clamp01(x), y: clamp01(y) };
     return {
         ...board,
         slots: board.slots.map((s) => (s.userId === userId ? { ...s, userId: "" } : s)),
@@ -170,7 +196,7 @@ function spawnPoint(count: number): { x: number; y: number } {
 
 /** How many objects a board holds, tokens included. */
 export function objectCount(board: RaidplanBoard): number {
-    return board.tokens.length + board.slots.length + board.marks.length + board.zones.length + board.lines.length + board.texts.length;
+    return board.tokens.length + board.slots.length + board.marks.length + board.icons.length + board.zones.length + board.lines.length + board.texts.length;
 }
 
 /**
@@ -182,11 +208,18 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
     const p = at ? { x: clamp01(at.x), y: clamp01(at.y) } : spawnPoint(objectCount(board));
     const id = newRowId();
     if (spec.type === "slot") {
-        const slot = { id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label, x: p.x, y: p.y, userId: "", ...newLook(1) };
+        const slot = {
+            id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label, x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
+            hideMembers: false, split: false, offsets: {}, ...newLook(1),
+        };
         return { board: { ...board, slots: [...board.slots, slot] }, sel: { kind: "slot", id } };
     }
     if (spec.type === "mark") {
-        return { board: { ...board, marks: [...board.marks, { id, mark: spec.mark as RaidplanMarkName, x: p.x, y: p.y, ...newLook(1) }] }, sel: { kind: "mark", id } };
+        return { board: { ...board, marks: [...board.marks, { id, mark: spec.mark as RaidplanMarkName, x: p.x, y: p.y, size: SIZE_RANGES.mark.def, ...newLook(1) }] }, sel: { kind: "mark", id } };
+    }
+    if (spec.type === "icon") {
+        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, ...newLook(1) };
+        return { board: { ...board, icons: [...board.icons, icon] }, sel: { kind: "icon", id } };
     }
     if (spec.type === "zone") {
         const zoneType = spec.zoneType as RaidplanZoneType;
@@ -235,6 +268,10 @@ export function updateZone(board: RaidplanBoard, id: string, patch: Partial<Raid
     return { ...board, zones: patchIn(board.zones, (z) => z.id === id, patch) };
 }
 
+export function updateIcon(board: RaidplanBoard, id: string, patch: Partial<RaidplanIcon>): RaidplanBoard {
+    return { ...board, icons: patchIn(board.icons, (i) => i.id === id, patch) };
+}
+
 export function updateLine(board: RaidplanBoard, id: string, patch: Partial<RaidplanLine>): RaidplanBoard {
     return { ...board, lines: patchIn(board.lines, (l) => l.id === id, patch) };
 }
@@ -248,9 +285,27 @@ export function patchLook(board: RaidplanBoard, kind: ObjectKind, id: string, pa
     if (kind === "token") return { ...board, tokens: patchIn(board.tokens, (o) => o.userId === id, patch) };
     if (kind === "slot") return { ...board, slots: patchIn(board.slots, (o) => o.id === id, patch) };
     if (kind === "mark") return { ...board, marks: patchIn(board.marks, (o) => o.id === id, patch) };
+    if (kind === "icon") return { ...board, icons: patchIn(board.icons, (o) => o.id === id, patch) };
+    if (kind === "member") return board;
     if (kind === "zone") return { ...board, zones: patchIn(board.zones, (o) => o.id === id, patch) };
     if (kind === "line") return { ...board, lines: patchIn(board.lines, (o) => o.id === id, patch) };
     return { ...board, texts: patchIn(board.texts, (o) => o.id === id, patch) };
+}
+
+/** The id of a raider standing around a split group marker: "<slot id>~<user id>". */
+export function memberId(slotId: string, userId: string): string {
+    return `${slotId}~${userId}`;
+}
+
+export function parseMemberId(id: string): { slotId: string; userId: string } {
+    const at = id.indexOf("~");
+    return at < 0 ? { slotId: id, userId: "" } : { slotId: id.slice(0, at), userId: id.slice(at + 1) };
+}
+
+/** The default size of tokens, slots, marks and icons of a board, 0.5..2 (1 = as is). */
+export function setObjectScale(board: RaidplanBoard, value: number): RaidplanBoard {
+    if (!Number.isFinite(value)) return { ...board, objectScale: 1 };
+    return { ...board, objectScale: Math.max(SCALE_MIN, Math.min(SCALE_MAX, Math.round(value * 100) / 100)) };
 }
 
 /** How strongly the map shows (0.1..1). */
@@ -263,9 +318,11 @@ export function lookOf(board: RaidplanBoard, kind: ObjectKind, id: string): Raid
     const list = kind === "token" ? board.tokens.filter((o) => o.userId === id)
         : kind === "slot" ? board.slots.filter((o) => o.id === id)
             : kind === "mark" ? board.marks.filter((o) => o.id === id)
-                : kind === "zone" ? board.zones.filter((o) => o.id === id)
-                    : kind === "line" ? board.lines.filter((o) => o.id === id)
-                        : board.texts.filter((o) => o.id === id);
+                : kind === "icon" ? board.icons.filter((o) => o.id === id)
+                    : kind === "member" ? board.slots.filter((o) => o.id === parseMemberId(id).slotId)
+                        : kind === "zone" ? board.zones.filter((o) => o.id === id)
+                            : kind === "line" ? board.lines.filter((o) => o.id === id)
+                                : board.texts.filter((o) => o.id === id);
     return list[0] ? { opacity: list[0].opacity, lock: !!list[0].lock, hidden: !!list[0].hidden } : null;
 }
 
@@ -317,6 +374,16 @@ export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x
     if (kind === "token") return placeToken(board, id, x, y);
     if (kind === "slot") return { ...board, slots: patchIn(board.slots, (s) => s.id === id, { x: clamp01(x), y: clamp01(y) }) };
     if (kind === "mark") return { ...board, marks: patchIn(board.marks, (m) => m.id === id, { x: clamp01(x), y: clamp01(y) }) };
+    if (kind === "icon") return { ...board, icons: patchIn(board.icons, (m) => m.id === id, { x: clamp01(x), y: clamp01(y) }) };
+    if (kind === "member") {
+        // a raider of a split group moved on his own: his place is kept relative to the marker, so the group still moves along with it
+        const ref = parseMemberId(id);
+        const slot = board.slots.find((k) => k.id === ref.slotId);
+        if (!slot) return board;
+        const old = slot.offsets[ref.userId] || { dx: 0, dy: 0, size: SIZE_RANGES.member.def };
+        const offsets = { ...slot.offsets, [ref.userId]: { ...old, dx: Math.max(-1, Math.min(1, x - slot.x)), dy: Math.max(-1, Math.min(1, y - slot.y)) } };
+        return updateSlot(board, ref.slotId, { offsets });
+    }
     if (kind === "text") return { ...board, texts: patchIn(board.texts, (o) => o.id === id, { x: clamp01(x), y: clamp01(y) }) };
     if (kind === "line") {
         const l = board.lines.find((o) => o.id === id);
@@ -331,11 +398,18 @@ export function objectPoint(board: RaidplanBoard, kind: ObjectKind, id: string):
         const l = board.lines.find((o) => o.id === id);
         return l ? { x: (l.x1 + l.x2) / 2, y: (l.y1 + l.y2) / 2 } : null;
     }
+    if (kind === "member") {
+        const ref = parseMemberId(id);
+        const slot = board.slots.find((k) => k.id === ref.slotId);
+        const off = slot ? slot.offsets[ref.userId] : undefined;
+        return slot && off ? { x: slot.x + off.dx, y: slot.y + off.dy } : null;
+    }
     const list = kind === "token" ? board.tokens.filter((k) => k.userId === id)
         : kind === "slot" ? board.slots.filter((s) => s.id === id)
             : kind === "mark" ? board.marks.filter((m) => m.id === id)
-                : kind === "text" ? board.texts.filter((x) => x.id === id)
-                    : board.zones.filter((z) => z.id === id);
+                : kind === "icon" ? board.icons.filter((m) => m.id === id)
+                    : kind === "text" ? board.texts.filter((x) => x.id === id)
+                        : board.zones.filter((z) => z.id === id);
     return list[0] ? { x: list[0].x, y: list[0].y } : null;
 }
 
@@ -351,9 +425,84 @@ export function removeObject(board: RaidplanBoard, kind: ObjectKind, id: string)
     if (kind === "token") return removeToken(board, id);
     if (kind === "slot") return { ...board, slots: board.slots.filter((s) => s.id !== id) };
     if (kind === "mark") return { ...board, marks: board.marks.filter((m) => m.id !== id) };
+    if (kind === "icon") return { ...board, icons: board.icons.filter((m) => m.id !== id) };
+    if (kind === "member") {
+        // "deleting" a raider's own place puts him back into the ring
+        const ref = parseMemberId(id);
+        const slot = board.slots.find((k) => k.id === ref.slotId);
+        if (!slot) return board;
+        const offsets = { ...slot.offsets };
+        delete offsets[ref.userId];
+        return updateSlot(board, ref.slotId, { offsets });
+    }
     if (kind === "line") return { ...board, lines: board.lines.filter((l) => l.id !== id) };
     if (kind === "text") return { ...board, texts: board.texts.filter((x) => x.id !== id) };
     return { ...board, zones: board.zones.filter((z) => z.id !== id) };
+}
+
+/** How big an object is: px for a token, slot, mark, icon, the font size of a text, the thickness of a line; null for a zone (it has a width and a height). */
+export function sizeOf(board: RaidplanBoard, kind: ObjectKind, id: string): number | null {
+    if (kind === "token") { const o = board.tokens.find((k) => k.userId === id); return o ? o.size || SIZE_RANGES.token.def : null; }
+    if (kind === "slot") { const o = board.slots.find((k) => k.id === id); return o ? o.size || SIZE_RANGES.slot.def : null; }
+    if (kind === "mark") { const o = board.marks.find((k) => k.id === id); return o ? o.size || SIZE_RANGES.mark.def : null; }
+    if (kind === "icon") { const o = board.icons.find((k) => k.id === id); return o ? o.size || SIZE_RANGES.icon.def : null; }
+    if (kind === "text") { const o = board.texts.find((k) => k.id === id); return o ? o.size : null; }
+    if (kind === "line") { const o = board.lines.find((k) => k.id === id); return o ? o.width : null; }
+    if (kind === "member") {
+        const ref = parseMemberId(id);
+        const slot = board.slots.find((k) => k.id === ref.slotId);
+        const off = slot ? slot.offsets[ref.userId] : undefined;
+        return slot ? (off && off.size) || slot.size || SIZE_RANGES.member.def : null;
+    }
+    return null;
+}
+
+/** Sets an object's size, kept inside the range of its kind. A locked object keeps its size. A zone is scaled by scaleObject(). */
+export function setObjectSize(board: RaidplanBoard, kind: ObjectKind, id: string, value: number): RaidplanBoard {
+    if (!Number.isFinite(value) || kind === "zone" || isLocked(board, kind, id)) return board;
+    const r = SIZE_RANGES[kind];
+    const size = Math.max(r.min, Math.min(r.max, Math.round(value)));
+    if (kind === "token") return { ...board, tokens: patchIn(board.tokens, (o) => o.userId === id, { size }) };
+    if (kind === "slot") return updateSlot(board, id, { size });
+    if (kind === "mark") return { ...board, marks: patchIn(board.marks, (o) => o.id === id, { size }) };
+    if (kind === "icon") return updateIcon(board, id, { size });
+    if (kind === "text") return updateText(board, id, { size });
+    if (kind === "line") return updateLine(board, id, { width: size });
+    const ref = parseMemberId(id);
+    const slot = board.slots.find((k) => k.id === ref.slotId);
+    if (!slot) return board;
+    const old = slot.offsets[ref.userId] || { dx: 0, dy: 0, size: slot.size || SIZE_RANGES.member.def };
+    return updateSlot(board, ref.slotId, { offsets: { ...slot.offsets, [ref.userId]: { ...old, size } } });
+}
+
+/** Makes an object bigger (factor > 1) or smaller: a zone around its centre, everything else by its size. */
+export function scaleObject(board: RaidplanBoard, kind: ObjectKind, id: string, factor: number): RaidplanBoard {
+    if (kind === "zone") {
+        const z = board.zones.find((o) => o.id === id);
+        if (!z || z.lock || !Number.isFinite(factor)) return board;
+        const w = Math.max(MIN_ZONE, Math.min(1, z.w * factor));
+        const h = Math.max(MIN_ZONE, Math.min(1, z.h * factor));
+        return updateZone(board, id, { w, h, x: Math.max(0, Math.min(1 - w, z.x + (z.w - w) / 2)), y: Math.max(0, Math.min(1 - h, z.y + (z.h - h) / 2)) });
+    }
+    const size = sizeOf(board, kind, id);
+    return size === null ? board : setObjectSize(board, kind, id, size * factor);
+}
+
+/**
+ * Where the raiders of a split group stand around their marker: evenly on a ring
+ * whose radius grows with their number, so they never overlap. Offsets from the
+ * marker in board fractions (the ring is a circle in pixels, whatever the board's
+ * shape is), for a board of w × h px and tokens of tokenPx.
+ */
+export function ringOffsets(count: number, w: number, h: number, tokenPx: number): { dx: number; dy: number }[] {
+    const out = [];
+    if (count <= 0 || w <= 0 || h <= 0) return out;
+    const radius = Math.max(tokenPx * 1.7, (count * tokenPx * 1.3) / (2 * Math.PI));
+    for (let i = 0; i < count; i++) {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / count;
+        out.push({ dx: (Math.cos(angle) * radius) / w, dy: (Math.sin(angle) * radius) / h });
+    }
+    return out;
 }
 
 /** A copy of an object, a little off the original and unlocked, with a new id. A player is unique, so a token is not duplicated; a slot's copy is open. */
@@ -363,13 +512,18 @@ export function duplicateObject(board: RaidplanBoard, kind: ObjectKind, id: stri
     if (kind === "slot") {
         const o = board.slots.find((s) => s.id === id);
         if (!o) return { board, sel: null };
-        const copy = { ...o, id: nid, userId: "", lock: false, x: clamp01(o.x + off), y: clamp01(o.y + off), n: nextSlotNumber(board, o.kind) };
+        const copy = { ...o, id: nid, userId: "", offsets: {}, lock: false, x: clamp01(o.x + off), y: clamp01(o.y + off), n: nextSlotNumber(board, o.kind) };
         return { board: { ...board, slots: [...board.slots, copy] }, sel: { kind, id: nid } };
     }
     if (kind === "mark") {
         const o = board.marks.find((m) => m.id === id);
         if (!o) return { board, sel: null };
         return { board: { ...board, marks: [...board.marks, { ...o, id: nid, lock: false, x: clamp01(o.x + off), y: clamp01(o.y + off) }] }, sel: { kind, id: nid } };
+    }
+    if (kind === "icon") {
+        const o = board.icons.find((m) => m.id === id);
+        if (!o) return { board, sel: null };
+        return { board: { ...board, icons: [...board.icons, { ...o, id: nid, lock: false, x: clamp01(o.x + off), y: clamp01(o.y + off) }] }, sel: { kind, id: nid } };
     }
     if (kind === "zone") {
         const o = board.zones.find((z) => z.id === id);
@@ -405,6 +559,8 @@ export function reorderObject(board: RaidplanBoard, kind: ObjectKind, id: string
     if (kind === "token") return { ...board, tokens: moveInList(board.tokens, board.tokens.findIndex((o) => o.userId === id), dir) };
     if (kind === "slot") return { ...board, slots: moveInList(board.slots, board.slots.findIndex((o) => o.id === id), dir) };
     if (kind === "mark") return { ...board, marks: moveInList(board.marks, board.marks.findIndex((o) => o.id === id), dir) };
+    if (kind === "icon") return { ...board, icons: moveInList(board.icons, board.icons.findIndex((o) => o.id === id), dir) };
+    if (kind === "member") return board;
     if (kind === "zone") return { ...board, zones: moveInList(board.zones, board.zones.findIndex((o) => o.id === id), dir) };
     if (kind === "line") return { ...board, lines: moveInList(board.lines, board.lines.findIndex((o) => o.id === id), dir) };
     return { ...board, texts: moveInList(board.texts, board.texts.findIndex((o) => o.id === id), dir) };
@@ -426,7 +582,7 @@ export function groupMembers(slot: RaidplanSlot, roster: RaidplanPlayer[]): Raid
 
 /** How many slots of a board are still open (a group marker and a label are not places to fill). */
 export function openSlots(board: RaidplanBoard): number {
-    return board.slots.filter((s) => (s.kind === "tank" || s.kind === "healer" || s.kind === "dps") && !s.userId).length;
+    return board.slots.filter((s) => (s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps") && !s.userId).length;
 }
 
 /** The name an object goes by in the layer list and the inspector. */
@@ -444,6 +600,11 @@ export function objectName(board: RaidplanBoard, kind: ObjectKind, id: string, p
         const z = board.zones.find((o) => o.id === id);
         return z ? z.label || t(`raidBoard.zone.${z.type}`) : "";
     }
+    if (kind === "icon") {
+        const i = board.icons.find((o) => o.id === id);
+        return i ? i.label || t(`raidBoard.icon.${iconKeyType(i.iconKey)}`) : "";
+    }
+    if (kind === "member") return (players.get(parseMemberId(id).userId) || { character: "" }).character;
     if (kind === "line") {
         const l = board.lines.find((o) => o.id === id);
         return l ? t(`raidBoard.line.${l.kind}`) : "";
@@ -465,12 +626,29 @@ export function layerList(board: RaidplanBoard, players: Map<string, RaidplanPla
     add("text", board.texts, (o) => o.id);
     add("slot", board.slots, (o) => o.id);
     add("mark", board.marks, (o) => o.id);
+    add("icon", board.icons, (o) => o.id);
     add("line", board.lines, (o) => o.id);
     add("zone", board.zones, (o) => o.id);
     return rows;
 }
 
 // ---- the right-click menu ----------------------------------------------------------------
+
+/** Which source an icon key names: a boss icon of the encounter list, a spell / ability icon of the icon CDN, or one of the two built in symbols. */
+export function iconKeyType(key: string): string {
+    if (key.startsWith("boss:")) return "boss";
+    if (key.startsWith("wow:")) return "wow";
+    if (key === "enemy" || key === "bosspos") return key;
+    return "";
+}
+
+/** The icon key a boss list entry stands for: its WCL encounter icon, else the icon of its instance. */
+export function iconKeyForBoss(iconUrl: string): string {
+    const m = iconUrl.match(/\/bosses\/(\d+)\.jpg$/);
+    if (m) return `boss:${m[1]}`;
+    const w = iconUrl.match(/\/icons\/(?:large|medium)\/([^/]+)\.jpg$/);
+    return w ? `wow:${decodeURIComponent(w[1])}` : "enemy";
+}
 
 /** The dark-on-light image of a raid mark (public/raidmarks/<mark>.png). */
 export function markUrl(mark: string): string {
@@ -486,16 +664,18 @@ function item(id: string, section: string, disabled: boolean, danger: boolean): 
  * empty board (`"board"`), in order. `id`s are what applyMenuAction() and the page
  * understand; `section` groups them (a separator between sections).
  */
-export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string }): MenuItem[] {
+export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean }): MenuItem[] {
     if (target === "board") {
         const out = [];
-        for (const k of ["tank", "healer", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
+        for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
         for (const m of RAID_MARKS) out.push(item(`insert:mark:${m}`, "marks", false, false));
         for (const z of ZONE_TYPES) out.push(item(`insert:zone:${z}`, "zones", false, false));
+        out.push(item("insert:icon:enemy", "icons", false, false), item("insert:icon:bosspos", "icons", false, false));
         out.push(item("insert:line:arrow", "shapes", false, false), item("insert:line:line", "shapes", false, false), item("insert:text", "shapes", false, false));
         out.push(item("deselect", "end", false, false));
         return out;
     }
+    if (target === "member") return [item("properties", "main", false, false), item("resetpos", "end", false, false)];
     const out = [item("properties", "main", false, false)];
     if (target !== "token") out.push(item("duplicate", "main", false, false));
     out.push(item("front", "order", false, false), item("back", "order", false, false));
@@ -505,6 +685,10 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
         if (opts.hasPlayer) out.push(item("unassign", "player", false, false));
     }
     if (target === "token") out.push(item("unassign", "player", false, false));
+    if (target === "slot" && opts.kind === "group") {
+        out.push(item(opts.hideMembers ? "members:show" : "members:hide", "group", false, false));
+        out.push(item(opts.split ? "split:off" : "split:on", "group", false, false));
+    }
     out.push(item("delete", "end", false, true));
     return out;
 }
@@ -517,6 +701,7 @@ export function parseInsertId(id: string): InsertSpec | null {
     if (parts[1] === "mark") return { type: "mark", mark: parts[2] };
     if (parts[1] === "zone") return { type: "zone", zoneType: parts[2], shape: "rect" };
     if (parts[1] === "line") return { type: "line", kind: parts[2] };
+    if (parts[1] === "icon") return { type: "icon", iconKey: parts[2], label: "" };
     if (parts[1] === "text") return { type: "text", text: t("raidBoard.text.default") };
     return null;
 }
@@ -533,6 +718,11 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     const sel = kind ? { kind, id: objId } : null;
     if (!kind) return { board, sel: null };
     if (id === "duplicate") return duplicateObject(board, kind, objId);
+    if (id === "members:hide") return { board: updateSlot(board, objId, { hideMembers: true }), sel };
+    if (id === "members:show") return { board: updateSlot(board, objId, { hideMembers: false }), sel };
+    if (id === "split:on") return { board: updateSlot(board, objId, { split: true }), sel };
+    if (id === "split:off") return { board: updateSlot(board, objId, { split: false }), sel };
+    if (id === "resetpos") return { board: removeObject(board, kind, objId), sel };
     if (id === "front" || id === "back") return { board: reorderObject(board, kind, objId, id), sel };
     if (id === "lock") return { board: patchLook(board, kind, objId, { lock: true }), sel };
     if (id === "unlock") return { board: patchLook(board, kind, objId, { lock: false }), sel };
@@ -602,7 +792,7 @@ export function toggleAssignee(board: RaidplanBoard, id: string, userId: string)
 
 /** Whether applying a profile or a template would overwrite something the orga already made (asks first). */
 export function hasContent(board: RaidplanBoard): boolean {
-    return board.targets.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1;
+    return board.targets.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
 }
 
 /** Whether any board of a plan holds something. */

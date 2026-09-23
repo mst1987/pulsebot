@@ -81,7 +81,7 @@ async function makeTemplate(extra = {}) {
 
 describe("access", () => {
     it("puts the template paths under raids: read reads, write writes", () => {
-        for (const p of ["/api/raidplan/templates", "/api/raidplan/apply"]) {
+        for (const p of ["/api/raidplan/templates", "/api/raidplan/templates/duplicate", "/api/raidplan/apply"]) {
             expect(areasFor(p)).toEqual(["raids"]);
             expect(checkAccess(p, "GET", READER)).toBeNull();
             expect(checkAccess(p, "POST", READER)).toMatchObject({ status: 403 });
@@ -231,5 +231,41 @@ describe("the public view of the newer objects", () => {
         expect(b.marks.map((m) => [m.mark, m.opacity])).toEqual([["skull", 0.5]]);
         expect(b.zones).toHaveLength(1);
         expect(b.zones[0].opacity).toBe(0.8);
+    });
+});
+
+describe("duplicating and deleting a template", () => {
+    it("copies the boards, gives everything new ids and keeps the original", async () => {
+        const t = await makeTemplate({ name: "Montags-Raid" });
+        plans.saveMap(plans.templateMapKey(t.id, BOSS), PNG);
+        const r = body(await call(route.postTemplateDuplicate, ORGA, { id: t.id }));
+        expect(r.template.name).toBe("Montags-Raid (Kopie)");
+        expect(r.template.id).not.toBe(t.id);
+        expect(r.templates).toHaveLength(2);
+        expect(r.template.bosses[BOSS].zones[0]).toMatchObject({ label: "Feuer" });
+        expect(r.template.bosses[BOSS].zones[0].id).not.toBe(t.bosses[BOSS].zones[0].id);
+        expect(r.template.bossList.find((b) => b.key === BOSS).templateMap).toBe(true);
+        expect(templates.getTemplate(t.id).bosses[BOSS].zones).toHaveLength(1);
+    });
+
+    it("cuts a long name so the copy still fits, refuses a reader and answers 404 for a missing one", async () => {
+        const t = await makeTemplate({ name: "x".repeat(40) });
+        const r = body(await call(route.postTemplateDuplicate, ORGA, { id: t.id }));
+        expect(r.template.name).toHaveLength(40);
+        expect(r.template.name.endsWith(" (Kopie)")).toBe(true);
+        expect(status(await call(route.postTemplateDuplicate, READER, { id: t.id }))).toBe(403);
+        expect(status(await call(route.postTemplateDuplicate, ORGA, { id: "nope" }))).toBe(404);
+    });
+
+    it("deletes a template and its maps, but leaves a plan that used it as it is", async () => {
+        const t = await makeTemplate();
+        plans.saveMap(plans.templateMapKey(t.id, BOSS), PNG);
+        await call(route.postApply, ORGA, { event: "eh-1", templateId: t.id, version: 0 });
+        expect(status(await call(route.deleteTemplate, ORGA, { id: t.id }))).toBe(200);
+        expect(plans.readMap(plans.templateMapKey(t.id, BOSS))).toBeNull();
+        const plan = plans.getPlan("eh-1");
+        expect(plan.bosses[BOSS].zones).toHaveLength(1);
+        // the plan's editor no longer names the template
+        expect(body(await call(route.getPlan, ORGA, null, "event=eh-1")).plan.templateName).toBe("");
     });
 });

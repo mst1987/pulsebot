@@ -496,6 +496,10 @@ async function route(pathname, req, res, url) {
         await raidplanRoutes.deleteTemplate(req, res);
         return true;
     }
+    if (pathname === "/api/raidplan/templates/duplicate" && req.method === "POST") {
+        await raidplanRoutes.postTemplateDuplicate(req, res);
+        return true;
+    }
     if (pathname === "/api/raidplan/public" && req.method === "GET") {
         raidplanRoutes.getPublic(req, res, url);
         return true;

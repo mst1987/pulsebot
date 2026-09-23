@@ -163,14 +163,16 @@
     "slot": {
         "tank": "Tank {n}",
         "healer": "Heiler {n}",
-        "dps": "DPS {n}",
+        "dps": "DPS (egal) {n}",
         "group": "Gruppe {n}",
         "kind": {
             "tank": "Tank",
             "healer": "Heiler",
-            "dps": "DPS",
+            "dps": "DPS (egal)",
             "group": "Gruppe",
-            "label": "Label"
+            "label": "Label",
+            "melee": "Melee-DPS",
+            "ranged": "Ranged-DPS"
         },
         "open": "Offen",
         "openCount": "{count} Slots offen",
@@ -179,7 +181,9 @@
         "text": "Text",
         "customTitle": "Eigene Beschriftung (optional)",
         "player": "Spieler",
-        "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer."
+        "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer.",
+        "melee": "Melee {n}",
+        "ranged": "Ranged {n}"
     },
     "mark": {
         "skull": "Totenkopf",
@@ -230,7 +234,10 @@
         "hint": "Kopiert die Vorlage in diesen Plan. Spätere Änderungen der Vorlage wirken hier nicht.",
         "empty": "Leer",
         "emptyText": "Ohne Vorlage anfangen (Standard).",
-        "bosses": "{count} Bosse befüllt",
+        "bosses": {
+            "one": "{count} Boss befüllt",
+            "other": "{count} Bosse befüllt"
+        },
         "noneYet": "Es gibt noch keine Vorlage. Lege sie unter Raid-Events → Raidplan-Vorlagen an.",
         "applyTitle": "Vorlage „{name}“ anwenden?",
         "applyText": "Die Bosse der Vorlage ersetzen die Boards in diesem Plan, ungespeicherte Änderungen daran gehen verloren. Bosse, die die Vorlage nicht hat, bleiben.",
@@ -252,7 +259,11 @@
         "slots": "Slots",
         "zones": "Zonen",
         "shapes": "Formen",
-        "hint": "Auf das Board ziehen oder anklicken."
+        "hint": "Auf das Board ziehen oder anklicken.",
+        "encounter": "Encounter",
+        "iconByName": "Icon-Name",
+        "iconInsert": "Icon einfügen",
+        "iconUnknown": "Diesen Icon-Namen gibt es nicht."
     },
     "line": {
         "arrow": "Pfeil",
@@ -267,7 +278,9 @@
         "mark": "Marker",
         "zone": "Zone",
         "line": "Linie",
-        "text": "Text"
+        "text": "Text",
+        "member": "Raider",
+        "icon": "Icon"
     },
     "insp": {
         "none": "Nichts ausgewählt. Klick ein Objekt auf dem Board oder in der Ebenenliste an, oder ziehe etwas aus den Elementen aufs Board.",
@@ -281,7 +294,15 @@
         "back": "In den Hintergrund",
         "lineKind": "Art",
         "thickness": "Stärke (px)",
-        "fontSize": "Schriftgröße (px)"
+        "fontSize": "Schriftgröße (px)",
+        "size": "Größe (px)",
+        "memberSize": "Raider-Größe (px)",
+        "rotation": "Drehung (°)",
+        "showMembers": "Raider anzeigen",
+        "split": "Aufgesplittet (Raider als einzelne Tokens)",
+        "resetMembers": "Positionen zurücksetzen",
+        "splitHint": "Ausgeblendet zeigt der Marker nur sein Tag. Aufgesplittet stehen die Raider der Setup-Gruppe als Tokens um ihn.",
+        "memberHint": "Ein Raider einer aufgesplitteten Gruppe. Ziehen verschiebt nur ihn (die Position gilt relativ zum Marker), die Größe gilt für ihn allein."
     },
     "panel": {
         "props": "Eigenschaften",
@@ -296,7 +317,8 @@
         "down": "Eine Ebene nach hinten"
     },
     "bg": {
-        "mapOpacity": "Karte: Deckkraft (abdunkeln)"
+        "mapOpacity": "Karte: Deckkraft (abdunkeln)",
+        "objectScale": "Objektgröße (Tokens, Marker, Icons)"
     },
     "ctx": {
         "board": "Board",
@@ -310,6 +332,18 @@
         "unassign": "Spieler lösen",
         "delete": "Löschen",
         "deselect": "Alles abwählen",
-        "insertHere": "Hier einfügen: {what}"
+        "insertHere": "Hier einfügen: {what}",
+        "members_hide": "Raider ausblenden",
+        "members_show": "Raider anzeigen",
+        "split_on": "Aufsplitten",
+        "split_off": "Zusammenfassen",
+        "resetpos": "Position zurücksetzen"
+    },
+    "icon": {
+        "boss": "Boss",
+        "wow": "Icon",
+        "enemy": "Gegner / Add",
+        "bosspos": "Boss-Position",
+        "label": "Beschriftung"
     }
 }

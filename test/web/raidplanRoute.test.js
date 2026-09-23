@@ -310,3 +310,28 @@ describe("GET /api/raidplan/public", () => {
         expect(body(publicGet(token)).bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
     });
 });
+
+describe("what a raider counts as", () => {
+    const { resolveRole } = require("../../src/web/raidplan");
+    const spec = (role) => ({ role });
+
+    it("takes the placed role when it is one of the four, else the spec's, else dps", () => {
+        expect(resolveRole("melee", spec("ranged"))).toBe("melee");
+        expect(resolveRole("tank", spec("melee"))).toBe("tank");
+        expect(resolveRole("", spec("ranged"))).toBe("ranged");
+        expect(resolveRole("dps", spec("melee"))).toBe("melee");
+        expect(resolveRole("", null)).toBe("dps");
+        expect(resolveRole(undefined, spec("weird"))).toBe("dps");
+    });
+
+    it("classifies every TBC spec of the rule set as tank, healer, melee or ranged", () => {
+        const { rulesFor } = require("../../src/config/gameVersions");
+        const roles = {};
+        for (const c of rulesFor("tbc").classes) for (const sp of c.specs) roles[sp.key] = resolveRole("", sp);
+        for (const key of ["Rogue-Combat", "Warrior-Arms", "Warrior-Fury", "Paladin-Retribution", "Shaman-Enhancement", "Druid-Feral"]) expect(roles[key]).toBe("melee");
+        for (const key of ["Mage-Fire", "Warlock-Destruction", "Hunter-BeastMastery", "Priest-Shadow", "Shaman-Elemental", "Druid-Balance"]) expect(roles[key]).toBe("ranged");
+        for (const key of ["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]) expect(roles[key]).toBe("tank");
+        for (const key of ["Priest-Holy", "Priest-Discipline", "Paladin-Holy", "Shaman-Restoration", "Druid-Restoration"]) expect(roles[key]).toBe("healer");
+        expect(Object.values(roles).filter((r) => r === "dps")).toEqual([]);
+    });
+});

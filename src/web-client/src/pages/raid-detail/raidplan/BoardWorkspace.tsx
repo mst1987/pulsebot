@@ -6,13 +6,13 @@ import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useT } from "../../../i18n";
 import {
-    applyMenuAction, assignSlot, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName,
+    applyMenuAction, assignSlot, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
 import Palette from "./Palette";
-import Inspector, { MapOpacityField } from "./Inspector";
+import Inspector, { MapOpacityField, ObjectScaleField } from "./Inspector";
 import LayerList from "./LayerList";
 import MapPanel, { type MapRow } from "./MapPanel";
 import ContextMenu from "./ContextMenu";
@@ -38,6 +38,12 @@ type Drag = {
     p0?: { x: number; y: number };
     /** where a slot stood when it was picked up: it goes back there when it is dropped on the list */
     origin?: { x: number; y: number };
+    /** scaling by the grip: the size it had, the object's centre on screen and how far the pointer was from it */
+    size0?: number;
+    center?: { x: number; y: number };
+    d0?: number;
+    /** Shift was held: a zone keeps its proportions */
+    keepRatio?: boolean;
     overTray: boolean;
 };
 
@@ -65,10 +71,12 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, boss, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
+    mode, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
 }: {
     mode: "event" | "template";
     boss: RaidplanBoss;
+    /** every boss of the plan: the palette offers their icons */
+    allBosses: RaidplanBoss[];
     board: RaidplanBoard;
     /** Applies a change to this boss's board; `coalesce` = one step of undo with the change right before (a drag, a slider). */
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard, coalesce?: boolean) => void;
@@ -146,9 +154,18 @@ export default function BoardWorkspace({
             if (d.kind === "tray" || d.kind === "palette" || !moved) return;
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
-            if (d.kind === "zone" && d.rect0 && d.p0) {
+            if (d.handle === "size" && d.size0 && d.center && d.d0) {
+                const dist = Math.hypot(e.clientX - d.center.x, e.clientY - d.center.y);
+                const next2 = d.size0 * (dist / d.d0);
+                edit((b) => setObjectSize(b, d.kind as ObjectKind, d.id, next2), true);
+            } else if (d.kind === "zone" && d.rect0 && d.p0) {
                 const dx = p.x - d.p0.x;
-                const dy = p.y - d.p0.y;
+                let dy = p.y - d.p0.y;
+                if (d.keepRatio && d.handle) {
+                    // proportions kept: the height follows the width
+                    const ratio = d.rect0.h / d.rect0.w;
+                    dy = (d.handle === "nw" || d.handle === "se" ? 1 : -1) * dx * ratio;
+                }
                 const r = d.handle ? resizeRect(d.rect0, d.handle as Corner, dx, dy) : moveRect(d.rect0, dx, dy);
                 edit((b) => updateZone(b, d.id, r), true);
             } else if (d.kind === "line" && d.line0 && d.p0) {
@@ -223,8 +240,21 @@ export default function BoardWorkspace({
             ox = r.left + r.width / 2 - e.clientX;
             oy = r.top + r.height / 2 - e.clientY;
         }
+        let size0: number | undefined;
+        let center: { x: number; y: number } | undefined;
+        let d0: number | undefined;
+        if (handle === "size") {
+            const wrap = target.closest(".rp-token, .rp-text");
+            const cr = wrap ? wrap.getBoundingClientRect() : null;
+            const cur = sizeOf(board, kind as ObjectKind, id);
+            if (cr && cur) {
+                size0 = cur;
+                center = { x: cr.left + cr.width / 2, y: cr.top + cr.height / 2 };
+                d0 = Math.max(8, Math.hypot(e.clientX - center.x, e.clientY - center.y));
+            }
+        }
         const origin = kind === "slot" ? { x: (board.slots.find((s) => s.id === id) || { x: 0 }).x, y: (board.slots.find((s) => s.id === id) || { y: 0 }).y } : undefined;
-        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, overTray: false };
+        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false };
         dragRef.current = d;
         setDrag(d);
     };
@@ -258,6 +288,12 @@ export default function BoardWorkspace({
             e.preventDefault();
             edit((b) => removeObject(b, kind, id));
             setSelected(null);
+        } else if (e.key === "+" || e.key === "=") {
+            e.preventDefault();
+            edit((b) => scaleObject(b, kind, id, 1.1), true);
+        } else if (e.key === "-") {
+            e.preventDefault();
+            edit((b) => scaleObject(b, kind, id, 1 / 1.1), true);
         } else if (e.key === "Enter") {
             setSelected({ kind, id });
             focusProperties();
@@ -277,6 +313,22 @@ export default function BoardWorkspace({
         return () => window.removeEventListener("keydown", onWindowKey);
     }, [history]);
 
+    // Alt + mouse wheel scales the selected object (a native listener: a wheel handler of React's is passive and could not stop the page from scrolling)
+    const selectedNow = useRef<Selection>(null);
+    selectedNow.current = selected;
+    useEffect(() => {
+        const el = boardRef.current;
+        if (!el || !canWrite) return undefined;
+        const onWheel = (e: WheelEvent) => {
+            const sel = selectedNow.current;
+            if (!e.altKey || !sel) return;
+            e.preventDefault();
+            edit((b) => scaleObject(b, sel.kind, sel.id, e.deltaY < 0 ? 1.08 : 1 / 1.08), true);
+        };
+        el.addEventListener("wheel", onWheel, { passive: false });
+        return () => el.removeEventListener("wheel", onWheel);
+    }, [canWrite, edit, boss.key]);
+
     // ---- right click / long press ----------------------------------------------------------
     const openMenu = (x: number, y: number, target: Selection | "board") => {
         if (!canWrite) return;
@@ -294,16 +346,16 @@ export default function BoardWorkspace({
         if (!sel) return [];
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
-        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "" });
+        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split });
     };
     const menuLabel = (item: MenuItem): string => {
         const parts = item.id.split(":");
         if (parts[0] === "insert") {
             if (parts[1] === "mark") return t(`raidBoard.mark.${parts[2]}`);
-            const what = parts[1] === "slot" ? t(`raidBoard.slot.kind.${parts[2]}`) : parts[1] === "zone" ? t(`raidBoard.zone.${parts[2]}`) : parts[1] === "line" ? t(`raidBoard.line.${parts[2]}`) : t("raidBoard.tool.text");
+            const what = parts[1] === "slot" ? t(`raidBoard.slot.kind.${parts[2]}`) : parts[1] === "zone" ? t(`raidBoard.zone.${parts[2]}`) : parts[1] === "line" ? t(`raidBoard.line.${parts[2]}`) : parts[1] === "icon" ? t(`raidBoard.icon.${parts[2]}`) : t("raidBoard.tool.text");
             return t("raidBoard.ctx.insertHere", { what });
         }
-        return t(`raidBoard.ctx.${item.id}`);
+        return t(`raidBoard.ctx.${item.id.replace(":", "_")}`);
     };
     const pickMenu = (id: string) => {
         if (!menu) return;
@@ -350,7 +402,7 @@ export default function BoardWorkspace({
     };
 
     const dragPlayer = drag && drag.kind === "tray" ? players.get(drag.id) || null : null;
-    const dragKey = drag && drag.moved && drag.kind !== "tray" && drag.kind !== "palette" ? `${drag.kind}:${drag.id}` : "";
+    const dragKey = drag && drag.moved && drag.handle !== "size" && drag.kind !== "tray" && drag.kind !== "palette" ? `${drag.kind}:${drag.id}` : "";
     const quick = (spec: InsertSpec, label: string, icon: ReactNode) => (
         <IconButton size="sm" icon={icon} tip={label} disabled={!canWrite} onClick={() => insert(spec, null)} />
     );
@@ -404,7 +456,7 @@ export default function BoardWorkspace({
             )}
 
             <div className={`rp-stage${showPalette ? "" : " no-palette"}${showPanel ? "" : " no-panel"}`}>
-                {showPalette && (canWrite ? <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} /> : <div />)}
+                {showPalette && (canWrite ? <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} /> : <div />)}
                 <div
                     className="rp-board-wrap"
                     onPointerDown={boardWrapDown} onPointerMove={boardWrapMove} onPointerUp={boardWrapEnd} onPointerCancel={boardWrapEnd}
@@ -418,6 +470,8 @@ export default function BoardWorkspace({
                         tokens={board.tokens}
                         slots={board.slots}
                         marks={board.marks}
+                        icons={board.icons}
+                        objectScale={board.objectScale}
                         zones={board.zones}
                         lines={board.lines}
                         texts={board.texts}
@@ -443,6 +497,7 @@ export default function BoardWorkspace({
                         ) : (
                             <div className="rp-bg">
                                 <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
+                                <ObjectScaleField board={board} canWrite={canWrite} edit={edit} />
                                 <MapPanel csrfToken={csrfToken} rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
                             </div>
                         )}

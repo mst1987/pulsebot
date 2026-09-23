@@ -11,7 +11,8 @@
 //   GET    /api/raidplan/templates            raids read: all raid plan templates with their boards
 //   POST   /api/raidplan/templates            raids write: create a template
 //   PATCH  /api/raidplan/templates            raids write: change fields and/or boards (version-checked)
-//   DELETE /api/raidplan/templates            raids write: delete a template and its maps
+//   POST   /api/raidplan/templates/duplicate  raids write: a copy of a template (boards and maps)
+//   DELETE /api/raidplan/templates            raids write: delete a template and its maps (body { id })
 //   GET    /api/raidplan/profiles             raids read: all tactic profiles
 //   POST   /api/raidplan/profiles             raids write: create a profile
 //   PATCH  /api/raidplan/profiles             raids write: change / rename a profile
@@ -188,6 +189,14 @@ async function patchTemplate(req, res) {
     ok(res, { ...templateList(), template: raidplan.templateView(result.template), dropped: result.dropped });
 }
 
+/** POST /api/raidplan/templates/duplicate — body `{ id }` */
+async function postTemplateDuplicate(req, res) {
+    if (!writer(req, res)) return;
+    const result = templateStore.duplicateTemplate((await readJsonBody(req)).id);
+    if (result.error) return sendFailure(res, result);
+    ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
+}
+
 /** DELETE /api/raidplan/templates — body `{ id }` */
 async function deleteTemplate(req, res) {
     if (!writer(req, res)) return;
@@ -248,5 +257,5 @@ function getPublic(req, res, url) {
 module.exports = {
     getPlan, putPlan, postPublish, postMap, postMapDelete,
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
-    postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate,
+    postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate, postTemplateDuplicate,
 };

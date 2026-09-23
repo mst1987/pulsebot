@@ -5,7 +5,7 @@
    colours are local (tank blue, healer cyan, damage orange). */
 
 .rp-editor, .rp-public, .rp-ghost {
-    --rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-dps: #f59e0b;
+    --rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-melee: #f97316; --rp-ranged: #a78bfa; --rp-dps: #f5c542;
 }
 
 .rp-muted { color: var(--muted); font-size: 13px; margin: 0; }
@@ -34,15 +34,15 @@
 .rp-token { position: absolute; width: 0; height: 0; z-index: 1; }
 .rp-token.is-drag { z-index: 5; }
 .rp-token.is-me { z-index: 4; }
-.rp-token-btn { position: absolute; left: -19px; top: -19px; padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: default; }
+.rp-token-btn { position: absolute; left: calc(var(--rp-s, 38px) / -2); top: calc(var(--rp-s, 38px) / -2); padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: default; }
 .rp-token.is-editable .rp-token-btn { cursor: grab; touch-action: none; }
 .rp-token.is-drag .rp-token-btn { cursor: grabbing; }
 .rp-token-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.rp-token-name { position: absolute; top: 22px; left: 0; transform: translateX(-50%); max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: 6px; background: rgba(15, 17, 21, .78); font-size: 11.5px; font-weight: 600; pointer-events: none; }
+.rp-token-name { position: absolute; top: calc(var(--rp-s, 38px) / 2 + 3px); left: 0; transform: translateX(-50%); max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: 6px; background: rgba(15, 17, 21, .78); font-size: 11.5px; font-weight: 600; pointer-events: none; }
 /* the label sits on the board, which is dark in both themes: the raw class colour, not the light theme's darkened one */
 .rp-token-name .class-colored { color: var(--cc) !important; }
 .rp-token.is-me .rp-ico { box-shadow: 0 0 0 3px var(--accent), 0 0 18px 4px var(--accent); }
-.rp-token-me { position: absolute; top: -34px; left: 0; transform: translateX(-50%); padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; pointer-events: none; }
+.rp-token-me { position: absolute; top: calc(var(--rp-s, 38px) / -2 - 15px); left: 0; transform: translateX(-50%); padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; pointer-events: none; }
 
 .rp-token.is-selected .rp-ico, .rp-token.is-selected .rp-mark-svg { filter: drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 2px var(--accent)); }
 .rp-token-btn { color: inherit; }
@@ -52,7 +52,7 @@
 .rp-ico-open { border-style: dashed; background: rgba(15, 17, 21, .55); align-items: center; justify-content: center; opacity: .85; }
 .rp-ico-open .wi { opacity: .55; }
 .rp-slotobj.is-open .rp-token-name { background: rgba(15, 17, 21, .55); }
-.rp-mark-btn { left: -17px; top: -17px; border-radius: 6px; }
+.rp-mark-btn { left: calc(var(--rp-s, 34px) / -2); top: calc(var(--rp-s, 34px) / -2); border-radius: 6px; }
 .rp-mark-svg { display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
 .rp-groupchip { left: 0; top: 0; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px; padding: 4px 10px; border: 2px solid var(--accent); border-radius: 10px; background: rgba(19, 15, 38, .82); color: #ece9ff; font: inherit; }
 .rp-token.is-editable .rp-groupchip { cursor: grab; }
@@ -81,13 +81,17 @@
 .rp-h-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
 
 /* the spec icon on a tile tinted in the class colour, ringed in the role colour */
-.rp-ico { --ring: var(--rp-dps); position: relative; display: inline-flex; box-sizing: border-box; width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--ring); overflow: hidden; background: color-mix(in srgb, var(--cc, #4a5060) 42%, #10131a); }
+.rp-ico { --ring: var(--rp-dps); position: relative; display: inline-flex; box-sizing: border-box; width: var(--rp-s, 38px); height: var(--rp-s, 38px); border-radius: 50%; border: 3px solid var(--ring); overflow: hidden; background: color-mix(in srgb, var(--cc, #4a5060) 42%, #10131a); }
 .rp-ico img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
 .rp-ico-ph { width: 100%; height: 100%; }
 .rp-ico-sm { width: 24px; height: 24px; border-width: 2px; }
 .rp-role-tank { --ring: var(--rp-tank); }
 .rp-role-healer { --ring: var(--rp-healer); }
 .rp-role-dps { --ring: var(--rp-dps); }
+.rp-role-melee { --ring: var(--rp-melee); }
+/* ranged: violet AND a double ring, so it is told from melee by more than its colour (an open slot also shows the role's own icon) */
+.rp-role-ranged { --ring: var(--rp-ranged); border-style: double; border-width: 4px; }
+.rp-ico-sm.rp-role-ranged { border-width: 3px; }
 
 /* dragging from the list: a token following the pointer */
 .rp-ghost { position: fixed; z-index: 1000; transform: translate(-50%, -50%); pointer-events: none; opacity: .92; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .5)); }
@@ -208,12 +212,6 @@
 
 /* ---- template list ---- */
 .rp-templates { display: flex; flex-direction: column; gap: 12px; }
-.rp-tlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
-.rp-tcard { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.rp-tcard-main { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
-.rp-tcard-name { font-size: 16px; font-weight: 800; }
-.rp-tcard-insts { display: flex; flex-wrap: wrap; gap: 8px; }
-.rp-tinst { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); }
 
 @media (max-width: 900px) {
     .rp-add-marks { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -345,3 +343,47 @@
    that page, and the head, tabs and notes above the editor keep the normal width. */
 .content:has([data-rp-editor]) { max-width: none; }
 .rp-editor > :not(.rp-work) { max-width: 1032px; }
+
+/* ---- sizes, icons, split groups ---- */
+.rp-h-size { position: absolute; left: calc(var(--rp-s, 38px) / 2 - 3px); top: calc(var(--rp-s, 38px) / 2 - 3px); width: 12px; height: 12px; border-radius: 3px; cursor: nwse-resize; z-index: 6; }
+.rp-text .rp-h-size { left: auto; right: -9px; top: auto; bottom: -9px; }
+.rp-icon-btn { border-radius: 8px; }
+.rp-icon-face { display: block; width: var(--rp-s, 48px); height: var(--rp-s, 48px); }
+.rp-icon-face img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 10%; border: 2px solid #0f1115; box-sizing: border-box; pointer-events: none; }
+.rp-icon-builtin { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; border: 2px solid #0f1115; box-sizing: border-box; color: #fff; }
+.rp-icon-enemy { background: #b91c1c; }
+.rp-icon-bosspos { background: #7e22ce; }
+.rp-member .rp-token-name { font-size: 10.5px; }
+.rp-groupwrap { display: contents; }
+.rp-pal-boss { border-radius: 6px; }
+.rp-pal-name { display: flex; align-items: center; gap: 4px; }
+.rp-palette .rp-pal-name input { min-width: 0; flex: 1; padding: 4px 6px; background-color: var(--panel2); border: 1px solid var(--line); border-radius: 6px; color: var(--text); font: inherit; font-size: 11px; }
+.rp-pal-preview { flex: 0 0 34px; width: 34px; aspect-ratio: 1; }
+.rp-pal-preview:disabled { opacity: .45; cursor: default; }
+.rp-check { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.rp-check input { width: auto; }
+
+/* ---- the template overview ---- */
+.rp-tfilters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rp-tsearch { display: flex; align-items: center; gap: 6px; flex: 1 1 220px; max-width: 340px; padding: 0 10px; height: var(--ctl-h-sm, 32px); border: 1px solid var(--line); border-radius: var(--ctl-radius, 8px); background: var(--panel2); color: var(--muted); }
+.rp-tsearch input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; outline: none; }
+.rp-tsearch:focus-within { border-color: var(--accent); }
+.rp-tfilters select { height: var(--ctl-h-sm, 32px); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--ctl-radius, 8px); background-color: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; }
+.rp-tlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.rp-tcard { position: relative; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: border-color .12s ease, box-shadow .12s ease; }
+.rp-tcard:hover, .rp-tcard:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rp-tcard-body { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+.rp-thumb { position: relative; height: 150px; overflow: hidden; background: #0f1115; border-bottom: 1px solid var(--line); pointer-events: none; }
+.rp-thumb-inner { transform-origin: 0 0; }
+.rp-thumb-icon { position: absolute; inset: 0; margin: auto; width: 72px; height: 72px; border-radius: 14px; opacity: .55; }
+.rp-tcard-info { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
+.rp-tcard-title { display: flex; align-items: center; gap: 10px; padding-right: 92px; }
+.rp-tcard-title .wi { border-radius: 8px; flex: 0 0 auto; }
+.rp-tcard-name { font-size: 17px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.rp-tchips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rp-tdesc { font-size: 12.5px; }
+.rp-tprogress { display: flex; gap: 3px; }
+.rp-tprogress span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.rp-tprogress span.on { background: var(--accent-2); }
+.rp-tmeta { font-size: 12px; }
+.rp-tcard-actions { position: absolute; right: 8px; top: 158px; display: flex; gap: 2px; }

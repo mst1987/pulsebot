@@ -163,14 +163,16 @@
     "slot": {
         "tank": "Tank {n}",
         "healer": "Healer {n}",
-        "dps": "DPS {n}",
+        "dps": "DPS (any) {n}",
         "group": "Group {n}",
         "kind": {
             "tank": "Tank",
             "healer": "Healer",
-            "dps": "DPS",
+            "dps": "DPS (any)",
             "group": "Group",
-            "label": "Label"
+            "label": "Label",
+            "melee": "Melee DPS",
+            "ranged": "Ranged DPS"
         },
         "open": "Open",
         "openCount": "{count} slots open",
@@ -179,7 +181,9 @@
         "text": "Text",
         "customTitle": "Own label (optional)",
         "player": "Player",
-        "groupHint": "A group marker names the players of the setup group with this number."
+        "groupHint": "A group marker names the players of the setup group with this number.",
+        "melee": "Melee {n}",
+        "ranged": "Ranged {n}"
     },
     "mark": {
         "skull": "Skull",
@@ -230,7 +234,10 @@
         "hint": "Copies the template into this plan. Later changes to the template do not reach it.",
         "empty": "Empty",
         "emptyText": "Start without a template (default).",
-        "bosses": "{count} bosses filled",
+        "bosses": {
+            "one": "{count} boss filled",
+            "other": "{count} bosses filled"
+        },
         "noneYet": "There is no template yet. Make one under Raid events → Raid plan templates.",
         "applyTitle": "Apply template \"{name}\"?",
         "applyText": "The template's bosses replace the boards in this plan, unsaved changes to them are lost. Bosses the template does not have stay.",
@@ -252,7 +259,11 @@
         "slots": "Slots",
         "zones": "Zones",
         "shapes": "Shapes",
-        "hint": "Drag onto the board or click."
+        "hint": "Drag onto the board or click.",
+        "encounter": "Encounter",
+        "iconByName": "Icon name",
+        "iconInsert": "Insert icon",
+        "iconUnknown": "There is no icon with this name."
     },
     "line": {
         "arrow": "Arrow",
@@ -267,7 +278,9 @@
         "mark": "Mark",
         "zone": "Zone",
         "line": "Line",
-        "text": "Text"
+        "text": "Text",
+        "member": "Raider",
+        "icon": "Icon"
     },
     "insp": {
         "none": "Nothing selected. Click an object on the board or in the layer list, or drag something from the elements onto the board.",
@@ -281,7 +294,15 @@
         "back": "Send to back",
         "lineKind": "Kind",
         "thickness": "Thickness (px)",
-        "fontSize": "Font size (px)"
+        "fontSize": "Font size (px)",
+        "size": "Size (px)",
+        "memberSize": "Raider size (px)",
+        "rotation": "Rotation (°)",
+        "showMembers": "Show raiders",
+        "split": "Split (raiders as single tokens)",
+        "resetMembers": "Reset positions",
+        "splitHint": "Hidden, the marker shows only its tag. Split, the raiders of the setup group stand around it as tokens.",
+        "memberHint": "A raider of a split group. Dragging moves only him (his place is kept relative to the marker), the size is his alone."
     },
     "panel": {
         "props": "Properties",
@@ -296,7 +317,8 @@
         "down": "One layer back"
     },
     "bg": {
-        "mapOpacity": "Map: opacity (dim)"
+        "mapOpacity": "Map: opacity (dim)",
+        "objectScale": "Object size (tokens, marks, icons)"
     },
     "ctx": {
         "board": "Board",
@@ -310,6 +332,18 @@
         "unassign": "Take player out",
         "delete": "Delete",
         "deselect": "Deselect all",
-        "insertHere": "Insert here: {what}"
+        "insertHere": "Insert here: {what}",
+        "members_hide": "Hide raiders",
+        "members_show": "Show raiders",
+        "split_on": "Split up",
+        "split_off": "Merge",
+        "resetpos": "Reset position"
+    },
+    "icon": {
+        "boss": "Boss",
+        "wow": "Icon",
+        "enemy": "Enemy / add",
+        "bosspos": "Boss position",
+        "label": "Label"
     }
 }

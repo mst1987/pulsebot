@@ -85,7 +85,7 @@ describe("zones", () => {
 describe("the rest of a board", () => {
     it("has every field even for nothing and reports no content", () => {
         const r = clean(undefined);
-        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1 });
+        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(board.boardHasContent(r.board)).toBe(false);
         expect(board.boardHasContent(clean({ zones: [{}] }).board)).toBe(true);
         expect(board.boardHasContent(clean({ notes: "x" }).board)).toBe(true);
@@ -206,5 +206,96 @@ describe("lines and texts", () => {
         const r = board.reidBoard({ lines: [{ id: "l" }], texts: [{ id: "t" }] });
         expect(r.lines[0].id).not.toBe("l");
         expect(r.texts[0].id).not.toBe("t");
+    });
+});
+
+describe("melee and ranged slots", () => {
+    const at = (kind, n) => ({ id: kind + n, kind, n, userId: "" });
+    const roster = [
+        { userId: "t1", role: "tank" }, { userId: "h1", role: "healer" },
+        { userId: "m1", role: "melee" }, { userId: "r1", role: "ranged" }, { userId: "m2", role: "melee" }, { userId: "x1", role: "dps" }, { userId: "r2", role: "ranged" },
+    ];
+
+    it("keeps melee and ranged as slot kinds", () => {
+        const r = clean({ slots: [{ kind: "melee", n: 2 }, { kind: "ranged" }, { kind: "dps" }, { kind: "caster" }] });
+        expect(r.board.slots.map((x) => [x.kind, x.n])).toEqual([["melee", 2], ["ranged", 1], ["dps", 1]]);
+        expect(r.dropped).toBe(1);
+    });
+
+    it("gives melee slots the melee players, ranged slots the ranged ones, and never the wrong kind", () => {
+        const slots = [at("ranged", 1), at("melee", 1), at("melee", 2), at("ranged", 2), at("ranged", 3)];
+        const out = board.fillSlots(slots, roster);
+        expect(out.map((s) => [s.id, s.userId])).toEqual([["ranged1", "r1"], ["melee1", "m1"], ["melee2", "m2"], ["ranged2", "r2"], ["ranged3", ""]]);
+    });
+
+    it("lets a generic DPS slot take only what no exact slot wants, and the unclassified last", () => {
+        const slots = [at("dps", 1), at("dps", 2), at("melee", 1), at("ranged", 1)];
+        const out = board.fillSlots(slots, roster);
+        const by = Object.fromEntries(out.map((s) => [s.id, s.userId]));
+        expect(by.melee1).toBe("m1");
+        expect(by.ranged1).toBe("r1");
+        expect(by.dps1).toBe("m2");
+        expect(by.dps2).toBe("x1");
+    });
+
+    it("leaves a melee or ranged slot open for a player whose role is unknown", () => {
+        const out = board.fillSlots([at("melee", 1), at("ranged", 1)], [{ userId: "x1", role: "dps" }]);
+        expect(out.map((s) => s.userId)).toEqual(["", ""]);
+    });
+});
+
+describe("group markers", () => {
+    it("keeps hideMembers, split and the per-raider offsets of a group only, and only for known players", () => {
+        const r = clean({ slots: [
+            { kind: "group", n: 1, hideMembers: true, split: true, offsets: { u1: { dx: 0.1, dy: -2, size: 500 }, stranger: { dx: 0.1, dy: 0.1 }, u2: { dx: "x", dy: null } } },
+            { kind: "tank", hideMembers: true, split: true, offsets: { u1: { dx: 0.1, dy: 0.1 } } },
+        ] });
+        expect(r.board.slots[0]).toMatchObject({ hideMembers: true, split: true });
+        expect(r.board.slots[0].offsets).toEqual({ u1: { dx: 0.1, dy: -1, size: 96 }, u2: { dx: 0, dy: 0, size: 38 } });
+        expect(r.board.slots[1]).toMatchObject({ hideMembers: false, split: false, offsets: {} });
+        expect(r.dropped).toBe(1);
+    });
+
+    it("keeps the flags of a group in a template but no raiders", () => {
+        const r = clean({ slots: [{ kind: "group", n: 2, split: true, offsets: { u1: { dx: 0.1, dy: 0.1 } } }] }, { allowedUserIds: [] });
+        expect(r.board.slots[0]).toMatchObject({ split: true, offsets: {} });
+    });
+});
+
+describe("sizes and icons", () => {
+    it("clamps the size of tokens, slots and marks into their range and defaults the rest", () => {
+        const r = clean({
+            tokens: [{ userId: "u1", size: 5 }, { userId: "u2", size: 500 }, { userId: "u3" }],
+            slots: [{ kind: "tank", size: 60.4 }],
+            marks: [{ mark: "star", size: 2 }, { mark: "star", size: "abc" }],
+        }).board;
+        expect(r.tokens.map((t) => t.size)).toEqual([24, 96, 38]);
+        expect(r.slots[0].size).toBe(60);
+        expect(r.marks.map((m) => m.size)).toEqual([16, 34]);
+    });
+
+    it("keeps icons of the three sources and drops anything else", () => {
+        const r = clean({ icons: [
+            { iconKey: "boss:609", label: "Illidan", size: 999, rotation: 400 },
+            { iconKey: "wow:spell_fire_fireball", size: 1 },
+            { iconKey: "enemy" }, { iconKey: "bosspos" },
+            { iconKey: "http://evil/x.png" }, { iconKey: "wow:../x" }, { iconKey: "" },
+        ] });
+        expect(r.board.icons.map((i) => i.iconKey)).toEqual(["boss:609", "wow:spell_fire_fireball", "enemy", "bosspos"]);
+        expect(r.board.icons[0]).toMatchObject({ label: "Illidan", size: 200, rotation: 180, opacity: 1, lock: false, hidden: false });
+        expect(r.board.icons[1].size).toBe(20);
+        expect(r.board.icons[2]).toMatchObject({ size: 48, rotation: 0 });
+        expect(r.dropped).toBe(3);
+        expect(clean({ icons: Array.from({ length: 61 }, () => ({ iconKey: "enemy" })) }).code).toBe("invalid");
+    });
+
+    it("clamps the board's object scale to 0.5..2 and counts a changed one as content", () => {
+        expect(clean({ objectScale: 1.5 }).board.objectScale).toBe(1.5);
+        expect(clean({ objectScale: 9 }).board.objectScale).toBe(2);
+        expect(clean({ objectScale: 0 }).board.objectScale).toBe(0.5);
+        expect(clean({}).board.objectScale).toBe(1);
+        expect(board.boardHasContent(clean({ objectScale: 1.2 }).board)).toBe(true);
+        expect(board.boardHasContent(clean({ icons: [{ iconKey: "enemy" }] }).board)).toBe(true);
+        expect(board.reidBoard({ icons: [{ id: "i" }] }).icons[0].id).not.toBe("i");
     });
 });

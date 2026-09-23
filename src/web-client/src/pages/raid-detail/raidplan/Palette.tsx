@@ -1,18 +1,26 @@
-import type { PointerEvent, ReactNode } from "react";
-import { MoveUpRight, Minus, Type } from "lucide-react";
+import { useState, type PointerEvent, type ReactNode } from "react";
+import { Crosshair, Minus, MoveUpRight, Swords, Type } from "lucide-react";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
-import { RAID_MARKS, ZONE_COLORS, ZONE_TYPES, type InsertSpec } from "../../../lib/raidplan";
-import type { RaidplanMarkName, RaidplanZoneType } from "../../../api";
+import { RAID_MARKS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
+import { wowIconUrl } from "../../../lib/wowIcon";
+import type { RaidplanBoss, RaidplanMarkName, RaidplanZoneType } from "../../../api";
 import { useT } from "../../../i18n";
 
-const SLOT_ICONS: { kind: "tank" | "healer" | "dps" | "group" | "label"; icon: string }[] = [
+const SLOT_ICONS: { kind: "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label"; icon: string }[] = [
     { kind: "tank", icon: "ability_warrior_defensivestance" },
     { kind: "healer", icon: "spell_holy_flashheal" },
-    { kind: "dps", icon: "ability_dualwield" },
+    { kind: "melee", icon: "ability_dualwield" },
+    { kind: "ranged", icon: "inv_weapon_bow_07" },
+    { kind: "dps", icon: "inv_misc_questionmark" },
     { kind: "group", icon: "achievement_guildperk_everybodysfriend" },
 ];
+
+/** What is typed as an icon name, cleaned the way the server checks it (lower case, underscores). */
+function cleanIconName(raw: string): string {
+    return raw.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_'-]/g, "").slice(0, 64);
+}
 
 /**
  * The element palette on the left of the board: everything one can put on it
@@ -20,12 +28,23 @@ const SLOT_ICONS: { kind: "tank" | "healer" | "dps" | "group" | "label"; icon: s
  * works too), or click / press Enter to put it near the middle. What each entry
  * inserts is an InsertSpec (lib/raidplan.ts), the same thing the tool bar and the
  * context menu insert.
+ *
+ * "Encounter": the icons of the plan's bosses (this boss first; a boss the
+ * encounter list has no picture for shows its instance's icon), an enemy / add
+ * and a boss-position symbol. "Icon-Name": any spell or ability icon of the icon
+ * CDN the client already uses for its WoW icons, by its name (there is no search
+ * over the names; the preview shows whether the name exists).
  */
-export default function Palette({ onStart, onInsert }: {
+export default function Palette({ onStart, onInsert, bosses, currentBoss }: {
     onStart: (e: PointerEvent<HTMLElement>, spec: InsertSpec) => void;
     onInsert: (spec: InsertSpec) => void;
+    bosses: RaidplanBoss[];
+    currentBoss: string;
 }) {
     const t = useT();
+    const [name, setName] = useState("");
+    const [found, setFound] = useState(false);
+    const clean = cleanIconName(name);
     const entry = (key: string, spec: InsertSpec, label: string, body: ReactNode) => (
         <button
             key={key} type="button" className="rp-pal-item" data-tip={label} aria-label={label}
@@ -35,6 +54,7 @@ export default function Palette({ onStart, onInsert }: {
             {body}
         </button>
     );
+    const ordered = [...bosses.filter((b) => b.key === currentBoss), ...bosses.filter((b) => b.key !== currentBoss)];
     return (
         <aside className="rp-palette" aria-label={t("raidBoard.palette.title")}>
             <h3 className="rp-kicker">{t("raidBoard.palette.marks")}</h3>
@@ -45,6 +65,29 @@ export default function Palette({ onStart, onInsert }: {
             <div className="rp-pal-grid">
                 {SLOT_ICONS.map((s) => entry(s.kind, { type: "slot", kind: s.kind, label: "" }, t(`raidBoard.slot.kind.${s.kind}`), <WowIcon name={s.icon} size={26} />))}
                 {entry("label", { type: "slot", kind: "label", label: t("raidBoard.slot.kind.label") }, t("raidBoard.slot.kind.label"), <span className="rp-pal-text">Abc</span>)}
+            </div>
+            <h3 className="rp-kicker">{t("raidBoard.palette.encounter")}</h3>
+            <div className="rp-pal-grid">
+                {ordered.map((b) => entry(`boss-${b.key}`, { type: "icon", iconKey: iconKeyForBoss(b.iconUrl), label: b.name }, b.name, <img className="rp-pal-boss" src={b.iconUrl} alt="" width={28} height={28} draggable={false} />))}
+                {entry("enemy", { type: "icon", iconKey: "enemy", label: "" }, t("raidBoard.icon.enemy"), <Swords size={22} />)}
+                {entry("bosspos", { type: "icon", iconKey: "bosspos", label: "" }, t("raidBoard.icon.bosspos"), <Crosshair size={22} />)}
+            </div>
+            <h3 className="rp-kicker">{t("raidBoard.palette.iconByName")}</h3>
+            <div className="rp-pal-name">
+                <input
+                    value={name} placeholder="spell_fire_fireball" aria-label={t("raidBoard.palette.iconByName")}
+                    onChange={(e) => { setName(e.target.value); setFound(false); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && found) { onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
+                />
+                {clean.length >= 2 && (
+                    <button
+                        type="button" className="rp-pal-item rp-pal-preview" disabled={!found} aria-label={t("raidBoard.palette.iconInsert")} data-tip={found ? t("raidBoard.palette.iconInsert") : t("raidBoard.palette.iconUnknown")}
+                        onPointerDown={(e) => found && onStart(e, { type: "icon", iconKey: `wow:${clean}`, label: "" })}
+                        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && found) { e.preventDefault(); onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
+                    >
+                        <img key={clean} src={wowIconUrl(clean, 56)} alt="" width={28} height={28} draggable={false} onLoad={() => setFound(true)} onError={() => setFound(false)} />
+                    </button>
+                )}
             </div>
             <h3 className="rp-kicker">{t("raidBoard.palette.zones")}</h3>
             <div className="rp-pal-grid">

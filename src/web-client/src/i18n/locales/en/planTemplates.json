@@ -8,7 +8,7 @@
     "new": "New template",
     "newTitle": "New raid plan template",
     "intro": "A template lays out the coarse plan without players: slots for tanks, healers and DPS, groups, raid marks, zones and task rows per boss. When an event's raid plan is made you pick one, and its slots are filled from the approved setup.",
-    "empty": "No template yet.",
+    "empty": "Make a template, for example \"Monday raid\", lay out the slots, marks and zones per boss and apply it to an event later.",
     "otherServer": "Another server",
     "bossCount": "{count} bosses filled",
     "edit": "Edit",
@@ -22,9 +22,25 @@
     "saved": "Template saved.",
     "conflict": "The template was changed in the meantime. Your changes are still here, but you can only save after reloading.",
     "deleteTitle": "Delete template \"{name}\"?",
-    "deleteText": "Raid plans that already used it keep their copy. The template's maps are deleted.",
+    "deleteText": "Raid plans that already used it are left untouched, they have a copy of their own. The maps you uploaded for this template are deleted with it. This cannot be undone.",
     "deleted": "Template deleted.",
     "details": "Properties",
     "editorHint": "There are no players here: slots (Tank 1, Healer 1 …) are filled from the event's setup when the template is applied.",
-    "mapForTemplate": "This template only"
+    "mapForTemplate": "This template only",
+    "search": "Search templates",
+    "filterInstance": "Filter by instance",
+    "allInstances": "All instances",
+    "filterCategory": "Filter by category",
+    "allCategories": "All categories",
+    "noMatch": "No template matches the search and filters.",
+    "rename": "Properties (name, server, instances)",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "duplicated": "Copy \"{name}\" created.",
+    "emptyTitle": "No template yet",
+    "bossesFilled": {
+        "one": "{count} boss filled",
+        "other": "{count} bosses filled"
+    },
+    "updated": "changed {date}"
 }

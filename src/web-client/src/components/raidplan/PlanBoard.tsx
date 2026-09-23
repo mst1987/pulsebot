@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
-import type { RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
+import { Crosshair, Swords } from "lucide-react";
+import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
-import { groupMembers, roleTone, slotTitle, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { wowIconUrl } from "../../lib/wowIcon";
+import { SIZE_RANGES, groupMembers, iconKeyType, memberId, ringOffsets, roleTone, slotTitle, splitMembers, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import "../../styles/raidplan.css";
 
@@ -11,7 +13,9 @@ import "../../styles/raidplan.css";
 const ROLE_ICONS: Record<string, string> = {
     tank: "ability_warrior_defensivestance",
     healer: "spell_holy_flashheal",
-    dps: "ability_dualwield",
+    melee: "ability_dualwield",
+    ranged: "inv_weapon_bow_07",
+    dps: "inv_misc_questionmark",
 };
 
 /** The type of a zone as a glyph, so it reads without its colour (danger, healthy, neutral, own). */
@@ -44,7 +48,7 @@ export function playerLabel(player: RaidplanPlayer): string {
 }
 
 /** What a drag can grab on an object: a zone's corner, or one end of a line. */
-export type Handle = Corner | "end1" | "end2";
+export type Handle = Corner | "end1" | "end2" | "size";
 /** How the board reports a pointer or key event on one of its objects. */
 export type ObjectDown = (e: PointerEvent<HTMLElement | SVGElement>, kind: ObjectKind, id: string, handle?: Handle) => void;
 export type ObjectKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => void;
@@ -59,6 +63,9 @@ type BoardProps = {
     tokens: RaidplanToken[];
     slots?: RaidplanSlot[];
     marks?: RaidplanMark[];
+    icons?: RaidplanIcon[];
+    /** the default size of tokens, slots, marks and icons (1 = as they are) */
+    objectScale?: number;
     zones?: RaidplanZone[];
     lines?: RaidplanLine[];
     texts?: RaidplanText[];
@@ -118,7 +125,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  * square board; without a map it is 16:10), so any map fits as a whole.
  */
 export default function PlanBoard({
-    boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], zones = [], lines = [], texts = [], players, roster = [],
+    boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
     me = "", selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, emptyText,
 }: BoardProps) {
     const t = useT();
@@ -141,6 +148,14 @@ export default function PlanBoard({
     const ar = aspect || 16 / 10;
     const style = { aspectRatio: String(ar), maxWidth: `calc((100vh - 250px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
+    /** The size of a token-like object on screen, in px. */
+    const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
+    const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px` }) as CSSProperties;
+    /** The grip that scales a selected object (drag it away from / towards the object). */
+    const sizeHandle = (kind: ObjectKind, id: string, locked: boolean) => (editable && !locked && isSel(kind, id) ? (
+        <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
+    ) : null);
+    const boardLike = { tokens, slots } as unknown as RaidplanBoard;
 
     return (
         <div
@@ -220,35 +235,90 @@ export default function PlanBoard({
             ))}
 
             {marks.filter((m) => !m.hidden).map((m) => (
-                <div key={m.id} data-obj={`mark:${m.id}`} className={cls("rp-token rp-markobj", "mark", m.id, "", m.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: m.opacity }}>
+                <div key={m.id} data-obj={`mark:${m.id}`} className={cls("rp-token rp-markobj", "mark", m.id, "", m.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: m.opacity, ...sizeStyle(m.size, SIZE_RANGES.mark.def) }}>
                     <button
                         type="button" className="rp-token-btn rp-mark-btn" tabIndex={editable ? 0 : -1}
                         aria-label={t(`raidBoard.mark.${m.mark}`)} data-tip={t(`raidBoard.mark.${m.mark}`)}
                         {...handlers("mark", m.id)}
                     >
-                        <MarkIcon mark={m.mark} size={34} />
+                        <MarkIcon mark={m.mark} size={scaled(m.size, SIZE_RANGES.mark.def)} />
                     </button>
+                    {sizeHandle("mark", m.id, m.lock)}
                 </div>
             ))}
 
-            {slots.filter((s) => !s.hidden).map((s) => {
-                const player = s.userId ? players.get(s.userId) || null : null;
-                const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "dps" ? s.kind : "";
-                const mine = !!me && s.userId === me;
-                const title = slotTitle(s);
-                const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity };
-                if (s.kind === "group") {
-                    const members = groupMembers(s, roster);
-                    return (
-                        <div key={s.id} data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
-                            <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
-                                <span className="rp-groupchip-title">{title}</span>
-                                {members.length > 0 && (
-                                    <span className="rp-groupchip-names">
-                                        {members.map((p) => <PlayerName key={p.userId} player={p} className={p.userId === me ? "is-me" : ""} />)}
+            {icons.filter((i) => !i.hidden).map((i) => {
+                const type = iconKeyType(i.iconKey);
+                const px = scaled(i.size, SIZE_RANGES.icon.def);
+                const name = i.label || t(`raidBoard.icon.${type}`);
+                const src = type === "boss" ? `/bosses/${i.iconKey.slice(5)}.jpg` : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
+                return (
+                    <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, "", i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
+                        <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={name} data-tip={name} {...handlers("icon", i.id)}>
+                            <span className="rp-icon-face" style={{ transform: `rotate(${i.rotation || 0}deg)` }}>
+                                {src ? <img src={src} alt="" draggable={false} /> : (
+                                    <span className={`rp-icon-builtin rp-icon-${type}`} aria-hidden="true">
+                                        {type === "bosspos" ? <Crosshair size={Math.round(px * 0.62)} /> : <Swords size={Math.round(px * 0.62)} />}
                                     </span>
                                 )}
-                            </button>
+                            </span>
+                        </button>
+                        {i.label && <span className="rp-token-name">{i.label}</span>}
+                        {sizeHandle("icon", i.id, i.lock)}
+                    </div>
+                );
+            })}
+
+            {slots.filter((s) => !s.hidden).map((s) => {
+                const player = s.userId ? players.get(s.userId) || null : null;
+                const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps" ? s.kind : "";
+                const mine = !!me && s.userId === me;
+                const title = slotTitle(s);
+                const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) };
+                if (s.kind === "group") {
+                    const members = groupMembers(s, roster);
+                    const showList = !s.hideMembers && !s.split;
+                    const around = splitMembers(boardLike, s, roster);
+                    const everyone = s.split && !s.hideMembers ? roster.filter((p) => p.group === s.n) : [];
+                    const memberPx = scaled(s.size, SIZE_RANGES.member.def);
+                    const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
+                    return (
+                        <div key={s.id} className="rp-groupwrap">
+                            <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
+                                <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
+                                    <span className="rp-groupchip-title">{title}</span>
+                                    {showList && members.length > 0 && (
+                                        <span className="rp-groupchip-names">
+                                            {members.map((p) => <PlayerName key={p.userId} player={p} className={p.userId === me ? "is-me" : ""} />)}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                            {around.map((p) => {
+                                const at = everyone.findIndex((x) => x.userId === p.userId);
+                                const off = s.offsets ? s.offsets[p.userId] : undefined;
+                                const dx = off ? off.dx : ring[at] ? ring[at].dx : 0;
+                                const dy = off ? off.dy : ring[at] ? ring[at].dy : 0;
+                                const id = memberId(s.id, p.userId);
+                                const mineHere = !!me && p.userId === me;
+                                return (
+                                    <div
+                                        key={id} data-obj={`member:${id}`} className={cls("rp-token rp-member", "member", id, mineHere ? "is-me" : "", s.lock)}
+                                        style={{ left: `${(s.x + dx) * 100}%`, top: `${(s.y + dy) * 100}%`, opacity: s.opacity, ...sizeStyle(off && off.size ? off.size : s.size, SIZE_RANGES.member.def) }}
+                                    >
+                                        <button
+                                            type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
+                                            aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}
+                                            data-tip={playerLabel(p)} {...handlers("member", id)}
+                                        >
+                                            <TokenIcon player={p} />
+                                        </button>
+                                        <span className="rp-token-name"><PlayerName player={p} /></span>
+                                        {mineHere && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
+                                        {sizeHandle("member", id, s.lock)}
+                                    </div>
+                                );
+                            })}
                         </div>
                     );
                 }
@@ -262,7 +332,7 @@ export default function PlanBoard({
                         >
                             {player ? <TokenIcon player={player} /> : (
                                 <span className={`rp-ico rp-ico-open${tone ? ` rp-role-${tone}` : ""}`} aria-hidden="true">
-                                    {tone ? <WowIcon name={ROLE_ICONS[tone]} size={22} /> : <span className="rp-ico-ph" />}
+                                    {tone ? <WowIcon name={ROLE_ICONS[tone]} size={Math.max(14, Math.round(scaled(s.size, SIZE_RANGES.slot.def) * 0.58))} /> : <span className="rp-ico-ph" />}
                                 </span>
                             )}
                         </button>
@@ -270,6 +340,7 @@ export default function PlanBoard({
                             <span className="rp-slot-title">{title}</span>
                             {player && <PlayerName player={player} />}
                         </span>
+                        {sizeHandle("slot", s.id, s.lock)}
                     </div>
                 );
             })}
@@ -282,6 +353,7 @@ export default function PlanBoard({
                     {...handlers("text", x.id)}
                 >
                     {x.text}
+                    {sizeHandle("text", x.id, x.lock)}
                 </div>
             ))}
 
@@ -290,7 +362,7 @@ export default function PlanBoard({
                 if (!p) return null;
                 const mine = !!me && tok.userId === me;
                 return (
-                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "", tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity }}>
+                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "", tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) }}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}
@@ -301,6 +373,7 @@ export default function PlanBoard({
                         </button>
                         <span className="rp-token-name"><PlayerName player={p} /></span>
                         {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
+                        {sizeHandle("token", tok.userId, tok.lock)}
                     </div>
                 );
             })}

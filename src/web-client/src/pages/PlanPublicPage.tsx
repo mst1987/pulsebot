@@ -75,7 +75,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                         <div className="rp-public-body">
                             <PlanBoard
                                 bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl}
-                                tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
+                                tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
                                 players={players} roster={data.roster} me={data.me}
                             />
                             <div className="rp-public-side">

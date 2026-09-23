@@ -3,11 +3,16 @@
 // about what a board is or how it is validated.
 //
 //   tokens   [{ userId, x, y }]          free player tokens (event plans only)
-//   slots    [{ id, kind, n, label, x, y, userId }]
-//                                          placeholders: tank 1..n, healer 1..n, dps, a
-//                                          group marker (n = the setup's group), or a free
-//                                          label. `userId` is the player standing in it ("" =
-//                                          open); a template never has one.
+//   slots    [{ id, kind, n, label, x, y, userId, size, ... }]
+//                                          placeholders: tank n, healer n, melee n, ranged n,
+//                                          dps n ("DPS (egal)"), a group marker (n = the setup's
+//                                          group), or a free label. `userId` is the player
+//                                          standing in it ("" = open); a template never has one.
+//                                          A group marker also has hideMembers (only its tag is
+//                                          shown), split (its raiders stand around the tag as
+//                                          tokens) and offsets { [userId]: { dx, dy, size } } (a
+//                                          raider moved or scaled on his own, relative to the tag).
+//   icons    [{ id, iconKey, label, x, y, size, rotation, ... }]  boss / enemy / spell icons
 //   marks    [{ id, mark, x, y }]         the eight raid target marks
 //   zones    [{ id, shape, type, label, color, opacity, x, y, w, h }]
 //                                          rectangle / ellipse areas: danger, healthy,
@@ -16,6 +21,7 @@
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
 //   notes, profileId, mapOpacity          (mapOpacity 0.1..1: how strongly the map shows)
+//   objectScale                           (0.5..2: the default size of tokens, slots, marks and icons)
 //
 // Every object (token, slot, mark, zone, line, text) also carries `opacity`
 // (0.1..1; zones start at 0.3, everything else at 1), `lock` (it cannot be moved
@@ -32,6 +38,8 @@ const LIMITS = {
     zonesPerBoss: 30,
     linesPerBoss: 40,
     textsPerBoss: 40,
+    iconsPerBoss: 60,
+    offsetsPerGroup: 30,
     text: 60,
     targetsPerBoss: 30,
     usersPerTarget: 25,
@@ -40,7 +48,11 @@ const LIMITS = {
     notes: 1000,
 };
 
-const SLOT_KINDS = ["tank", "healer", "dps", "group", "label"];
+const SLOT_KINDS = ["tank", "healer", "melee", "ranged", "dps", "group", "label"];
+// sizes in px: the default and the range of what can be set
+const SIZES = { token: [38, 24, 96], mark: [34, 16, 96], icon: [48, 20, 200] };
+// an icon is the encounter's boss icon (boss:<WCL encounter id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
+const ICON_KEY = /^(boss:\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
 const ZONE_SHAPES = ["rect", "ellipse"];
@@ -65,6 +77,13 @@ function cleanOpacity(v, fallback) {
 /** What every board object shares: its opacity, whether it is locked and whether it is hidden. */
 function common(o, defaultOpacity = 1) {
     return { opacity: cleanOpacity(o.opacity, defaultOpacity), lock: o.lock === true, hidden: o.hidden === true };
+}
+
+/** A size in px inside the range of its kind, the default for anything that is no number. */
+function cleanSize(v, kind) {
+    const [def, min, max] = SIZES[kind];
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && v !== "" && v !== null && v !== undefined ? Math.max(min, Math.min(max, n)) : def;
 }
 
 const cleanColor = (v, fallback) => (/^#[0-9a-fA-F]{6}$/.test(str(v)) ? str(v).toLowerCase() : fallback);
@@ -95,7 +114,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         if (!userId || seenTokens.has(userId) || !allowed.has(userId)) { dropped += 1; continue; }
         if (tokens.length >= LIMITS.tokensPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.tokensPerBoss} Spieler je Boss.` };
         seenTokens.add(userId);
-        tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))), ...common(t) });
+        tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))), size: cleanSize(t.size, "token"), ...common(t) });
     }
 
     const rawSlots = Array.isArray(input.slots) ? input.slots : [];
@@ -111,12 +130,20 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         let userId = str(o.userId);
         // a player takes one place on a board; a stranger or a second place is an open slot instead
         if (o.kind === "group") userId = "";
+        const offsets = {};
+        if (o.kind === "group" && o.offsets && typeof o.offsets === "object") {
+            for (const [uid, off] of Object.entries(o.offsets).slice(0, LIMITS.offsetsPerGroup)) {
+                if (!allowed.has(uid) || !off || typeof off !== "object") { dropped += 1; continue; }
+                offsets[uid] = { dx: round4(Math.max(-1, Math.min(1, Number(off.dx) || 0))), dy: round4(Math.max(-1, Math.min(1, Number(off.dy) || 0))), size: cleanSize(off.size, "token") };
+            }
+        }
         if (userId && (!allowed.has(userId) || usedInSlots.has(userId))) { userId = ""; dropped += 1; }
         if (userId) usedInSlots.add(userId);
         const n = Math.max(1, Math.min(99, Math.floor(Number(o.n)) || 1));
         slots.push({
             id: cleanId(o.id, slotIds), kind: o.kind, n, label,
-            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, ...common(o),
+            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, size: cleanSize(o.size, "token"), ...common(o),
+            hideMembers: o.kind === "group" && o.hideMembers === true, split: o.kind === "group" && o.split === true, offsets,
         });
     }
 
@@ -127,7 +154,21 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     for (const m of rawMarks) {
         const o = m && typeof m === "object" ? m : {};
         if (!MARKS.includes(o.mark)) { dropped += 1; continue; }
-        marks.push({ id: cleanId(o.id, markIds), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), ...common(o) });
+        marks.push({ id: cleanId(o.id, markIds), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "mark"), ...common(o) });
+    }
+
+    const rawIcons = Array.isArray(input.icons) ? input.icons : [];
+    if (rawIcons.length > LIMITS.iconsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.iconsPerBoss} Icons je Boss.` };
+    const iconIds = new Set();
+    const icons = [];
+    for (const ic of rawIcons) {
+        const o = ic && typeof ic === "object" ? ic : {};
+        if (!ICON_KEY.test(str(o.iconKey))) { dropped += 1; continue; }
+        icons.push({
+            id: cleanId(o.id, iconIds), iconKey: str(o.iconKey), label: str(o.label).slice(0, LIMITS.label),
+            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "icon"),
+            rotation: Math.max(-180, Math.min(180, Math.round(Number(o.rotation)) || 0)), ...common(o),
+        });
     }
 
     const rawZones = Array.isArray(input.zones) ? input.zones : [];
@@ -203,13 +244,14 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     // The tactic profile the rows were taken from; one that was deleted since is forgotten.
     const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
     const mapOpacity = cleanOpacity(input.mapOpacity, 1);
-    return { board: { tokens, slots, marks, zones, lines, texts, targets, notes, profileId, mapOpacity }, dropped };
+    const objectScale = Number.isFinite(Number(input.objectScale)) && input.objectScale !== "" && input.objectScale !== null ? Math.max(0.5, Math.min(2, Math.round(Number(input.objectScale) * 100) / 100)) : 1;
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
-    return !!(b.tokens.length || b.slots.length || b.marks.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.notes.trim() || b.profileId || b.mapOpacity < 1);
+    return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
+        || b.targets.length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -220,6 +262,7 @@ function reidBoard(board) {
         tokens: [],
         slots: (board.slots || []).map(fresh),
         marks: (board.marks || []).map(fresh),
+        icons: (board.icons || []).map(fresh),
         zones: (board.zones || []).map(fresh),
         lines: (board.lines || []).map(fresh),
         texts: (board.texts || []).map(fresh),
@@ -243,7 +286,8 @@ function fillSlots(slots, roster) {
     const order = (kind) => slots.map((s, i) => ({ s, i })).filter((x) => x.s.kind === kind && !x.s.userId)
         .sort((a, b) => a.s.n - b.s.n || a.i - b.i);
     const out = slots.map((s) => ({ ...s }));
-    for (const kind of ["tank", "healer", "dps"]) {
+    // the exact roles first, so a generic "DPS (egal)" slot never takes a melee or ranged player away from a slot that asks for him
+    for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
         for (const { i } of order(kind)) {
             const p = pick(kind);
             if (!p) break;
@@ -255,6 +299,6 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
-    LIMITS, SLOT_KINDS, MARKS, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
+    LIMITS, SIZES, SLOT_KINDS, MARKS, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
 };

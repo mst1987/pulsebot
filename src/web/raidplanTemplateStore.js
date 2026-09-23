@@ -158,6 +158,31 @@ function updateTemplate(id, input, { now = Date.now() } = {}) {
     return { template: saved, dropped };
 }
 
+/**
+ * A copy of a template under a new id ("<name> (Kopie)"), with its boards (new ids on
+ * every object) and its own room maps. Returns `{ template }` or `{ code, error }`.
+ */
+function duplicateTemplate(id, { now = Date.now() } = {}) {
+    const source = getTemplate(id);
+    if (!source) return { code: "not_found", error: "Vorlage nicht gefunden." };
+    const all = readAll();
+    if (all.length >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
+    const suffix = " (Kopie)";
+    const bosses = {};
+    for (const [key, b] of Object.entries(source.bosses)) bosses[key] = board.reidBoard(b);
+    const copy = normalize({
+        ...source, id: crypto.randomBytes(6).toString("hex"), name: source.name.slice(0, LIMITS.name - suffix.length) + suffix,
+        bosses, version: 1, updatedAt: now,
+    });
+    all.push(copy);
+    writeAll(all);
+    for (const b of planStore.bossesForInstances(copy.instanceIds)) {
+        const map = planStore.readMap(planStore.templateMapKey(source.id, b.key));
+        if (map) planStore.saveMap(planStore.templateMapKey(copy.id, b.key), map.buffer);
+    }
+    return { template: copy };
+}
+
 /** Deletes a template and its own room maps. True when there was one. */
 function deleteTemplate(id) {
     const key = str(id);
@@ -169,4 +194,4 @@ function deleteTemplate(id) {
     return true;
 }
 
-module.exports = { useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, bossKeysOf };
+module.exports = { useFile, LIMITS, listTemplates, getTemplate, createTemplate, updateTemplate, deleteTemplate, duplicateTemplate, bossKeysOf };

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RotateCw, Save, Settings2, Trash2 } from "lucide-react";
+import { Copy, RotateCw, Save, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
-    canAccess, createRaidplanTemplate, deleteRaidplanTemplate, getGameVersions, getRaidplanProfiles, getRaidplanTemplates, getSession,
+    canAccess, createRaidplanTemplate, deleteRaidplanTemplate, duplicateRaidplanTemplate, getGameVersions, getRaidplanProfiles, getRaidplanTemplates, getSession,
     updateRaidplanTemplate,
     type ApiError, type GameVersion, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplate, type SessionGuild,
 } from "../api";
@@ -19,6 +19,8 @@ import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
 import { InstancePicker } from "../components/RaidPlanFields";
+import PlanBoard from "../components/raidplan/PlanBoard";
+import { formatDate } from "../lib/format";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { ProfilePickerModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
@@ -45,7 +47,6 @@ const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category:
  */
 export default function RaidplanTemplatesPage() {
     const t = useT();
-    const toast = useToast();
     const { csrfToken, user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const canWrite = canAccess(user, "raids", "write");
@@ -82,47 +83,216 @@ export default function RaidplanTemplatesPage() {
     }
 
     return (
+        <TemplateList
+            templates={templates} version={version} guilds={guilds} canWrite={canWrite} csrfToken={csrfToken}
+            isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
+        />
+    );
+}
+
+/** The instance's icon (as the raid list shows it) for a template, or "". */
+function instanceIcon(version: GameVersion | null, id: string): string {
+    const inst = version ? version.instances.find((i) => i.id === id) : null;
+    return inst ? inst.icon : "";
+}
+
+const THUMB_W = 900;
+
+/**
+ * A small preview of a template: the first boss that has a board, drawn by the
+ * board itself (the same PlanBoard as the editor, read-only) at 900 px and scaled
+ * down to the card. A template without a filled boss shows its first boss' icon.
+ */
+function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [k, setK] = useState(0.3);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return undefined;
+        const read = () => setK(el.clientWidth / THUMB_W);
+        read();
+        const ro = new ResizeObserver(read);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    const boss = tpl.bossList.find((x) => !!tpl.bosses[x.key]) || null;
+    const board = boss ? boardOf(tpl.bosses, boss.key) : null;
+    return (
+        <div className="rp-thumb" ref={ref} aria-hidden="true">
+            {boss && board ? (
+                <div className="rp-thumb-inner" style={{ width: THUMB_W, transform: `scale(${k})` }}>
+                    <PlanBoard
+                        bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} mapOpacity={board.mapOpacity} objectScale={board.objectScale}
+                        tokens={[]} slots={board.slots} marks={board.marks} icons={board.icons} zones={board.zones} lines={board.lines} texts={board.texts}
+                        players={new Map()} roster={[]}
+                    />
+                </div>
+            ) : (
+                <img className="rp-thumb-icon" src={tpl.bossList[0] ? tpl.bossList[0].iconUrl : ""} alt="" />
+            )}
+        </div>
+    );
+}
+
+/** The overview: search and filters, then one card per template — newest change first. */
+function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+    templates: RaidplanTemplate[];
+    version: GameVersion | null;
+    guilds: SessionGuild[];
+    canWrite: boolean;
+    csrfToken: string | null;
+    isNew: boolean;
+    onNew: () => void;
+    onCloseNew: () => void;
+    onOpen: (id: string) => void;
+    onTemplates: (list: RaidplanTemplate[]) => void;
+}) {
+    const t = useT();
+    const toast = useToast();
+    const ask = useConfirm();
+    const [q, setQ] = useState("");
+    const [inst, setInst] = useState("");
+    const [cat, setCat] = useState("");
+    const [renaming, setRenaming] = useState<RaidplanTemplate | null>(null);
+
+    const instances = useMemo(() => [...new Set(templates.flatMap((x) => x.instanceIds))], [templates]);
+    const categories = useMemo(() => [...new Set(templates.map((x) => x.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [templates]);
+    const shown = useMemo(() => {
+        const needle = q.trim().toLowerCase();
+        return templates
+            .filter((x) => (!inst || x.instanceIds.includes(inst)) && (!cat || x.category === cat)
+                && (!needle || `${x.name} ${x.category} ${x.description}`.toLowerCase().includes(needle)))
+            .sort((a, b) => b.updatedAt - a.updatedAt);
+    }, [templates, q, inst, cat]);
+
+    const remove = async (tpl: RaidplanTemplate) => {
+        if (!(await ask({ title: t("planTemplates.deleteTitle", { name: tpl.name }), text: t("planTemplates.deleteText"), action: t("raidBoard.profile.delete"), tone: "danger" }))) return;
+        try {
+            const r = await deleteRaidplanTemplate(csrfToken, tpl.id);
+            onTemplates(r.templates);
+            toast(t("planTemplates.deleted"));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
+    const duplicate = async (tpl: RaidplanTemplate) => {
+        try {
+            const r = await duplicateRaidplanTemplate(csrfToken, tpl.id);
+            onTemplates(r.templates);
+            toast(t("planTemplates.duplicated", { name: r.template ? r.template.name : tpl.name }));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
+
+    return (
         <div className="rp-templates">
             <p className="note"><Link className="mlink" to="/raids">{t("planTemplates.back")}</Link></p>
             <PageHead
                 icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
                 meta={<Badge count>{templates.length}</Badge>}
-                action={canWrite ? <Button onClick={editor.startNew}>{t("planTemplates.new")}</Button> : undefined}
+                action={canWrite ? <Button onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
             />
             <p className="rp-muted">{t("planTemplates.intro")}</p>
-            {templates.length === 0 && <div className="rp-empty"><p className="rp-muted">{t("planTemplates.empty")}</p></div>}
-            <ul className="rp-tlist">
-                {templates.map((tpl) => {
-                    const guild = guilds.find((g) => g.id === tpl.guildId);
-                    return (
-                        <li key={tpl.id} className="rp-tcard">
-                            <div className="rp-tcard-main">
-                                <strong className="rp-tcard-name">{tpl.name}</strong>
-                                {tpl.category && <Badge>{tpl.category}</Badge>}
-                                {tpl.guildId && <Badge tone="accent">{guild ? guild.name : t("planTemplates.otherServer")}</Badge>}
-                                <div className="rp-tcard-insts">
-                                    {tpl.instanceIds.map((id) => {
-                                        const inst = version ? version.instances.find((i) => i.id === id) : null;
-                                        return inst ? <span key={id} className="rp-tinst"><WowIcon name={inst.icon} size={18} />{inst.short}</span> : null;
-                                    })}
-                                </div>
-                                <span className="rp-muted">{tpl.description || t("planTemplates.bossCount", { count: Object.keys(tpl.bosses).length })}</span>
-                            </div>
-                            <Link className="btn btn-ghost" to={`?edit=${tpl.id}`}>{canWrite ? t("planTemplates.edit") : t("planTemplates.view")}</Link>
-                        </li>
-                    );
-                })}
-            </ul>
-            {editor.isNew && (
+
+            {templates.length === 0 ? (
+                <div className="rp-empty">
+                    <WowIcon name="inv_misc_map02" size={40} />
+                    <strong>{t("planTemplates.emptyTitle")}</strong>
+                    <p className="rp-muted">{t("planTemplates.empty")}</p>
+                    {canWrite && <Button onClick={onNew}>{t("planTemplates.new")}</Button>}
+                </div>
+            ) : (
+                <>
+                    <div className="rp-tfilters">
+                        <label className="rp-tsearch">
+                            <Search size={15} aria-hidden="true" />
+                            <input value={q} placeholder={t("planTemplates.search")} aria-label={t("planTemplates.search")} onChange={(e) => setQ(e.target.value)} />
+                        </label>
+                        {instances.length > 1 && (
+                            <select value={inst} aria-label={t("planTemplates.filterInstance")} onChange={(e) => setInst(e.target.value)}>
+                                <option value="">{t("planTemplates.allInstances")}</option>
+                                {instances.map((id) => {
+                                    const i = version ? version.instances.find((x) => x.id === id) : null;
+                                    return <option key={id} value={id}>{i ? i.name : id}</option>;
+                                })}
+                            </select>
+                        )}
+                        {categories.length > 0 && (
+                            <select value={cat} aria-label={t("planTemplates.filterCategory")} onChange={(e) => setCat(e.target.value)}>
+                                <option value="">{t("planTemplates.allCategories")}</option>
+                                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        )}
+                    </div>
+                    {shown.length === 0 && <p className="rp-muted">{t("planTemplates.noMatch")}</p>}
+                    <ul className="rp-tlist">
+                        {shown.map((tpl) => {
+                            const guild = guilds.find((g) => g.id === tpl.guildId);
+                            const filled = tpl.bossList.filter((b) => !!tpl.bosses[b.key]).length;
+                            return (
+                                <li key={tpl.id} className="rp-tcard">
+                                    <Link className="rp-tcard-body" to={`?edit=${tpl.id}`} onClick={(e) => { e.preventDefault(); onOpen(tpl.id); }}>
+                                        <TemplateThumb tpl={tpl} />
+                                        <div className="rp-tcard-info">
+                                            <div className="rp-tcard-title">
+                                                {tpl.instanceIds.slice(0, 1).map((id) => <WowIcon key={id} name={instanceIcon(version, id) || "inv_misc_map02"} size={34} />)}
+                                                <strong className="rp-tcard-name">{tpl.name}</strong>
+                                            </div>
+                                            <div className="rp-tchips">
+                                                {tpl.category && <Badge>{tpl.category}</Badge>}
+                                                {tpl.guildId && <Badge tone="accent">{guild ? guild.name : t("planTemplates.otherServer")}</Badge>}
+                                                {tpl.instanceIds.map((id) => {
+                                                    const i = version ? version.instances.find((x) => x.id === id) : null;
+                                                    return <Badge key={id}>{i ? i.short : id}</Badge>;
+                                                })}
+                                            </div>
+                                            {tpl.description && <span className="rp-muted rp-tdesc">{tpl.description}</span>}
+                                            <div className="rp-tprogress" role="img" aria-label={t("planTemplates.bossesFilled", { count: filled })} data-tip={`${t("planTemplates.bossesFilled", { count: filled })} / ${tpl.bossList.length}`}>
+                                                {tpl.bossList.map((b) => <span key={b.key} className={tpl.bosses[b.key] ? "on" : ""} />)}
+                                            </div>
+                                            <span className="rp-muted rp-tmeta">{t("planTemplates.bossesFilled", { count: filled })} · {t("planTemplates.updated", { date: formatDate(tpl.updatedAt) })}</span>
+                                        </div>
+                                    </Link>
+                                    {canWrite && (
+                                        <div className="rp-tcard-actions">
+                                            <IconButton size="sm" icon={<Settings2 size={16} />} tip={t("planTemplates.rename")} onClick={() => setRenaming(tpl)} />
+                                            <IconButton size="sm" icon={<Copy size={16} />} tip={t("planTemplates.duplicate")} onClick={() => duplicate(tpl)} />
+                                            <IconButton size="sm" tone="danger" icon={<Trash2 size={16} />} tip={t("planTemplates.delete")} onClick={() => remove(tpl)} />
+                                        </div>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </>
+            )}
+
+            {isNew && (
                 <FieldsModal
                     title={t("planTemplates.newTitle")} initial={blankFields()} version={version} guilds={guilds}
-                    onClose={editor.close}
+                    onClose={onCloseNew}
                     onSave={async (fields) => {
                         try {
                             const r = await createRaidplanTemplate(csrfToken, fields);
-                            setTemplates(r.templates);
+                            onTemplates(r.templates);
                             toast(t("planTemplates.created", { name: fields.name }));
-                            if (r.template) editor.startEdit(r.template.id);
+                            if (r.template) onOpen(r.template.id);
+                        } catch (err) {
+                            toast((err as ApiError).message, "err");
+                        }
+                    }}
+                />
+            )}
+            {renaming && (
+                <FieldsModal
+                    title={t("planTemplates.rename")} initial={fieldsOf(renaming)} version={version} guilds={guilds}
+                    onClose={() => setRenaming(null)}
+                    onSave={async (fields) => {
+                        try {
+                            const r = await updateRaidplanTemplate(csrfToken, renaming.id, fields);
+                            onTemplates(r.templates);
+                            setRenaming(null);
                         } catch (err) {
                             toast((err as ApiError).message, "err");
                         }
@@ -301,7 +471,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
 
             {boss && (
                 <BoardWorkspace
-                    mode="template" boss={boss} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

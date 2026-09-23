@@ -15,6 +15,21 @@ const { approvedSetupOf } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 
+const ROLES = ["tank", "healer", "melee", "ranged"];
+
+/**
+ * What a raider counts as: the role the setup placed him in when that is one of the four
+ * (a feral druid placed as a tank is a tank), else the role of his spec in the rule set
+ * (Rogue, Warrior, Retribution, Enhancement, Feral = melee; Mage, Warlock, Hunter, Shadow,
+ * Elemental, Balance = ranged), else "dps" — which fits the generic "DPS (egal)" slots
+ * only, never a melee or ranged one. A hunter's pet is no raider and is not in the setup.
+ */
+function resolveRole(placedRole, spec) {
+    if (ROLES.includes(placedRole)) return placedRole;
+    if (spec && ROLES.includes(spec.role)) return spec.role;
+    return "dps";
+}
+
 /** A lineup as a flat list: { userId, character, classId, className, classColor, spec, specLabel, role, iconUrl, group }. */
 function rosterFrom(lineup, versionId) {
     const rules = rulesFor(versionId || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);
@@ -40,7 +55,7 @@ function rosterFrom(lineup, versionId) {
             classColor: (cls && cls.color) || "",
             spec: p.spec || "",
             specLabel: (spec && spec.label) || "",
-            role: p.role || (spec && spec.role) || "dps",
+            role: resolveRole(p.role, spec),
             iconUrl: wowIconUrl((spec && spec.icon) || (cls && cls.icon) || "", 56),
             group,
         });
@@ -156,6 +171,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 tokens: board.tokens.filter((t) => known.has(t.userId) && !t.hidden),
                 slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })),
                 marks: (board.marks || []).filter((m) => !m.hidden),
+                icons: (board.icons || []).filter((i) => !i.hidden),
+                objectScale: board.objectScale === undefined ? 1 : board.objectScale,
                 zones: (board.zones || []).filter((z) => !z.hidden),
                 lines: (board.lines || []).filter((l) => !l.hidden),
                 texts: (board.texts || []).filter((x) => !x.hidden),
@@ -182,4 +199,4 @@ function publicView(plan, event, { me = "" } = {}) {
     };
 }
 
-module.exports = { editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, templateSummary, templatesFor, templateView };
+module.exports = { editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
