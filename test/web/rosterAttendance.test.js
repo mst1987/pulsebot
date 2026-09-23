@@ -29,7 +29,7 @@ jest.mock("../../src/web/signupStore", () => ({ listSignups: (...a) => mockListS
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
 
 const {
-    buildAttendanceContext, attendanceFor, categoryInfo, roleFor, roleFromSpec, RAID_WINDOW,
+    buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, roleFor, roleFromSpec, RAID_WINDOW,
 } = require("../../src/web/rosterAttendance");
 
 const NOW = Date.UTC(2026, 8, 14);
@@ -50,7 +50,7 @@ function withReports(reports) {
         if (!r) return null;
         return {
             zone: r.zone || "",
-            roster: (r.names || []).map((name) => ({ name })),
+            roster: (r.names || []).map((name) => ({ name, ...(r.classes && r.classes[name] ? { className: r.classes[name] } : {}) })),
             healers: { players: (r.healers || []).map((name) => ({ name })) },
             timeline: { fights: (r.tanks || []).map((name) => ({ healers: { tank: { name } } })) },
             rpb: { roles: r.rpbRoles || {} },
@@ -181,5 +181,73 @@ describe("web/rosterAttendance", () => {
             mockListOwnEvents.mockReturnValue([]);
             mockListSignups.mockReturnValue([]);
         }
+    });
+});
+
+describe("web/rosterAttendance — attendanceForAccounts (per Discord account)", () => {
+    const acc = (userId, chars) => ({ userId, chars });
+    const ch = (name, className, manual = false) => ({ name, className, manual });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockListRaidEvents.mockReturnValue([event("e1", 7), event("e2", 14)]);
+    });
+
+    it("counts a night when any character of the account stands in the log — a twink night is not an absence", () => {
+        withReports([
+            { id: "r1", eventId: "e1", names: ["Mainchar"] },
+            { id: "r2", eventId: "e2", names: ["Twink"] },
+        ]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", true), ch("Twink", "Mage", true)])]);
+        expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, link: "manual", inferred: 0, missed: [] });
+    });
+
+    it("badges the link \"auto\" while only signup characters stand behind it", () => {
+        withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Mainchar"] }]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mainchar", "Druid", false)])]);
+        expect(out.get("u1")).toMatchObject({ pct: 100, link: "auto" });
+    });
+
+    it("explains a missed night by class when an unclaimed log player of that class was there — and says so (auto)", () => {
+        withReports([
+            { id: "r1", eventId: "e1", names: ["Mainchar", "Stranger"], classes: { Mainchar: "Druid", Stranger: "Mage" } },
+            { id: "r2", eventId: "e2", names: ["Mainchar"], classes: { Mainchar: "Druid" } },
+        ]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [
+            acc("u1", [ch("Mainchar", "Druid", true)]),
+            acc("u2", [ch("Elsewhere", "Mage", true)]),
+        ]);
+        // u2 was not seen by name, but an unclaimed mage stood in the first night's log; the second night has none
+        expect(out.get("u2")).toMatchObject({ attended: 1, total: 2, pct: 50, inferred: 1, link: "auto" });
+        expect(out.get("u2").missed).toEqual([{ eventId: "e2", title: "Raid e2", startTime: NOW - 14 * DAY, reason: "nicht im Log" }]);
+        expect(out.get("u1")).toMatchObject({ pct: 100, inferred: 0, link: "manual" });
+    });
+
+    it("does not guess when more accounts of a class are missing than unclaimed players of it", () => {
+        withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }, { id: "r2", eventId: "e2", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("a", [ch("A", "Mage", true)]), acc("b", [ch("B", "Mage", true)])]);
+        expect(out.get("a")).toMatchObject({ attended: 0, inferred: 0 });
+        expect(out.get("b")).toMatchObject({ attended: 0, inferred: 0 });
+    });
+
+    it("never guesses over a signed-off night (the reason stays)", () => {
+        mockListRaidEvents.mockReturnValue([event("e1", 7, { signUps: [{ userId: "u1", status: "absence" }] })]);
+        withReports([{ id: "r1", eventId: "e1", names: ["Stranger"], classes: { Stranger: "Mage" } }]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Mage1", "Mage", true)])]);
+        expect(out.get("u1")).toMatchObject({ attended: 0, total: 1 });
+        expect(out.get("u1").missed[0].reason).toBe("abgemeldet");
+    });
+
+    it("gives null instead of a percentage while no raid is countable, and skips accounts without characters", () => {
+        mockListRaidEvents.mockReturnValue([]);
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const out = attendanceForAccounts(ctx, "cat1", [acc("u1", [ch("Anna", "Priest", true)]), acc("u2", [])]);
+        expect(out.get("u1")).toMatchObject({ total: 0, pct: null });
+        expect(out.has("u2")).toBe(false);
     });
 });

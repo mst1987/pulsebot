@@ -293,6 +293,46 @@ describe("editorView's bench pool (#354)", () => {
     });
 });
 
+describe("editorView's buff info and attendance", () => {
+    const slot = (userId, spec, role) => ({ userId, character: userId, spec, role, main: true, status: "signed", locked: false, reasons: [] });
+    const draft = () => ({
+        ...mockEvents.get(ID),
+        setup: {
+            status: "draft", version: 1, checks: {}, warnings: [],
+            groups: [
+                { index: 1, slots: [slot("sham", "Shaman-Enhancement", "melee"), slot("arms", "Warrior-Arms", "melee")] },
+                { index: 2, slots: [slot("rogue", "Rogue-Combat", "melee"), slot("fury", "Warrior-Fury", "melee")] },
+            ],
+            bench: [slot("priest", "Priest-Holy", "healer")],
+        },
+    });
+
+    it("says what a raider brings to their own group (party buffs with how many profit) and to the raid", () => {
+        const view = editor.editorView(draft(), { canWrite: true, signups: [] });
+        const sham = view.setup.groups[0].slots[0];
+        const party = sham.brings.filter((b) => b.scope === "party");
+        expect(party.length).toBeGreaterThan(0);
+        expect(party.every((b) => b.count >= 1 && typeof b.icon === "string" && b.label)).toBe(true);
+        // a priest brings a raid buff to everyone
+        expect(view.setup.bench[0].brings.some((b) => b.scope === "raid")).toBe(true);
+    });
+
+    it("gives every raider the groups where they would help more — the drag glow — but never their own", () => {
+        const view = editor.editorView(draft(), { canWrite: true, signups: [] });
+        const sham = view.setup.groups[0].slots[0];
+        // group 2 holds two melee that profit from the shaman's melee totems
+        expect(sham.fit["2"]).toBeGreaterThanOrEqual(2);
+        expect(sham.fit["1"]).toBeUndefined();
+    });
+
+    it("passes attendance through, and leaves it out when not asked", () => {
+        const attendance = { sham: { pct: 90, attended: 9, total: 10, link: "manual", inferred: 0, missed: [] } };
+        expect(editor.editorView(draft(), { canWrite: true, signups: [], attendance }).attendance).toEqual(attendance);
+        expect(editor.editorView(draft(), { canWrite: true, signups: [] })).not.toHaveProperty("attendance");
+        expect(editor.editorView(draft(), { canWrite: false })).not.toHaveProperty("setup");
+    });
+});
+
 describe("addUnplacedSignups", () => {
     const table = {
         specs: new Map([["Priest-Holy", { classId: "Priest", label: "Heilig", icon: "spell_holy_guardianspirit" }]]),

@@ -87,9 +87,14 @@ function condenseReport(meta) {
     if (cached) return cached;
     const report = getReport(meta.id) || {};
     const keys = new Set();
+    // key -> class ("druid"), for the account-based attendance's class match
+    const classes = {};
     for (const entry of report.roster || report.players || []) {
         const key = charKey(entry && entry.name);
-        if (key) keys.add(key);
+        if (!key) continue;
+        keys.add(key);
+        const cls = String((entry && (entry.className || entry.class || entry.type)) || "").trim().toLowerCase();
+        if (cls) classes[key] = cls;
     }
     // Same order as render.js's reportContext(): the healer analysis, WCL's tank
     // of any fight, then the RPB's roles for reports without the timeline.
@@ -109,7 +114,7 @@ function condenseReport(meta) {
         else if (role === "Healer") roles[key] = "healer";
     }
     for (const key of keys) if (!roles[key]) roles[key] = "dps";
-    const condensed = { id: meta.id, zone: meta.zone || report.zone || "", keys, roles };
+    const condensed = { id: meta.id, zone: meta.zone || report.zone || "", keys, classes, roles };
     condensedCache.set(cacheKey, condensed);
     return condensed;
 }
@@ -205,6 +210,71 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
 }
 
 /**
+ * Attendance per Discord account rather than per character (the setup editor):
+ * a night counts when *any* character of the account stands in the log, so a
+ * raider who switches between main and twink is not marked absent. Where none
+ * of the account's characters is in the log, a class match may still explain it
+ * — a log player nobody has claimed, of the class the account plays, and at
+ * least as many of them as accounts of that class that are missing (`inferred`).
+ * `link` says how sure the character link is: "manual" (the orga's assignment
+ * or the raider's own profile) or "auto" (from signups, or a class guess).
+ *
+ * @param {{ userId: string, chars: { name: string, className?: string, manual?: boolean }[] }[]} accounts
+ * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
+ *            inferred: number, missed: {eventId, title, startTime, reason}[]}>}
+ */
+function attendanceForAccounts(ctx, categoryId, accounts) {
+    const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
+    const claimed = new Set(list.flatMap((a) => a.chars.map((c) => charKey(c.name))));
+    const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
+    const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
+    const notInLog = (r) => r && !r.attended && r.reason === "nicht im Log";
+    for (const raid of ctx.raidsByCategory.get(categoryId) || []) {
+        const results = new Map();
+        for (const a of list) {
+            const nights = a.chars.map((c) => nightStatus(raid, charKey(c.name), [String(a.userId)])).filter(Boolean);
+            const hit = nights.find((n) => n.attended) || nights[0];
+            if (hit) results.set(String(a.userId), hit);
+        }
+        // class guess: unclaimed log players by class against the accounts still missing
+        const pool = {};
+        for (const rep of raid.logs) {
+            for (const key of rep.keys) {
+                const cls = (rep.classes || {})[key];
+                if (cls && !claimed.has(key)) (pool[cls] = pool[cls] || new Set()).add(key);
+            }
+        }
+        const missing = {};
+        for (const a of list) if (notInLog(results.get(String(a.userId))) && classOf(a)) missing[classOf(a)] = (missing[classOf(a)] || 0) + 1;
+        for (const a of list) {
+            const cls = classOf(a);
+            if (notInLog(results.get(String(a.userId))) && cls && pool[cls] && pool[cls].size >= missing[cls]) {
+                results.set(String(a.userId), { attended: true, reason: "im Log (Klasse passt)", inferred: true });
+            }
+        }
+        for (const [id, r] of results) {
+            const entry = acc.get(id);
+            entry.raids.push({ eventId: raid.id, title: raid.title, startTime: raid.startTime, attended: r.attended, reason: r.reason });
+            if (r.inferred) entry.inferred += 1;
+        }
+    }
+    const out = new Map();
+    for (const a of list) {
+        const { raids, inferred } = acc.get(String(a.userId));
+        const attended = raids.filter((r) => r.attended).length;
+        out.set(String(a.userId), {
+            attended,
+            total: raids.length,
+            pct: raids.length ? Math.round((attended / raids.length) * 100) : null,
+            link: a.chars.some((c) => c.manual) && !inferred ? "manual" : "auto",
+            inferred,
+            missed: raids.filter((r) => !r.attended).map(({ eventId, title, startTime, reason }) => ({ eventId, title, startTime, reason })),
+        });
+    }
+    return out;
+}
+
+/**
  * What a category's group head says about it: how many nights are counted and
  * which raids it runs (from the evaluated logs' zones, else the event titles),
  * with the icon of the newest raid's final boss.
@@ -232,6 +302,6 @@ function roleFor(ctx, character, className, spec) {
 }
 
 module.exports = {
-    buildAttendanceContext, attendanceFor, categoryInfo, roleFor, roleFromSpec,
+    buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, roleFor, roleFromSpec,
     RAID_WINDOW, CONTENT_ICONS,
 };

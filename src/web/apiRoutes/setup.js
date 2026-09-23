@@ -27,6 +27,7 @@ const profiles = require("../raiderProfileStore");
 const { refreshEventMessage } = require("../eventMessage");
 const setupMessage = require("../setupMessage");
 const { saveSetupPingText } = require("../setupPing");
+const { setupAttendance } = require("../setupAttendance");
 const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
@@ -49,6 +50,15 @@ async function namesFor(event) {
     }
 }
 
+/** Attendance of everybody who signed up; a failing read never costs the page. */
+function safeAttendance(event) {
+    try {
+        return setupAttendance([event]);
+    } catch {
+        return null;
+    }
+}
+
 /**
  * The editor's payload. Discord names are resolved for the page load only: a
  * member fetch per raider is slow where Discord does not know them yet, and a
@@ -66,6 +76,8 @@ async function view(event, user, { names = true } = {}) {
         hasApiKey: write && !!((getConfig().anthropic || {}).apiKey),
         job: write ? getJob(fresh.id, EXPLAIN_SECTION) : null,
         avoidPairs: write ? setupEditor.avoidPairCount(signups, profiles.listProfiles()) : 0,
+        // reads reports and logs — only on the page load, a move must answer at once
+        attendance: write && names ? safeAttendance(fresh) : null,
     });
     if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
     return out;
