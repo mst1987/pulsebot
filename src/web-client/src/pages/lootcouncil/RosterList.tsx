@@ -49,7 +49,7 @@ export function RaiderHints({ raider }: { raider: CouncilRaider }) {
             const label = raider.role === "healer" ? "DPS-Gear" : "Heilgear";
             out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip={label} tipSub={`Kein Set der eingeplanten Rolle geloggt — bewertet wird „${g.reportTitle}“, dort wurde die andere Rolle gespielt.`}>{label}</Badge>);
         }
-        const { noench } = gearCounts(raider);
+        const { noench } = gearCounts(g.items);
         if (noench) {
             out.push(<Badge key="noench" tone="mid" tip="Ohne Verzauberung" tipSub={`${noench} Teil(e) tragen keine Verzauberung.`}>{noench} ohne VZ</Badge>);
         }

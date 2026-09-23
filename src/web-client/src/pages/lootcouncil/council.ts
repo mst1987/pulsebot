@@ -3,7 +3,7 @@
 // from the components so both routes (/lootcouncil and /lootcouncil/drop/:id)
 // import the same rules instead of two copies drifting apart.
 import { useCallback, useRef, useState } from "react";
-import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type CouncilRaider, type SimResult, type WornItem } from "../../api";
+import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/Jobs";
 import type { Dir } from "../../lib/tableSort";
 import { wowheadItemUrl } from "../../lib/wowheadItems";
@@ -73,6 +73,18 @@ export function deltaFor(sim: SimResult | null, candidate: CouncilCandidate, ite
 }
 
 /**
+ * Why a candidate has no delta: a real run that came back without a number
+ * (`dps: null` — an unknown gem, a crashed binary run), or nothing at all
+ * because it was never attempted. Both render as "kein Wert" if the page does
+ * not ask this — a council cannot tell "try again" from "not tried yet".
+ */
+export function simErrorFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): string | undefined {
+    const entry = sim && sim[candidate.key];
+    const item = entry && entry.items[String(itemId)];
+    return item && item.dps === null ? (item.error || "Simulation fehlgeschlagen.") : undefined;
+}
+
+/**
  * What a row is ranked by: the measured delta, and nothing else. A candidate
  * without a simulated number sorts below every measured one — there is no
  * estimate to rank them by, and the need score breaks the tie.
@@ -115,9 +127,11 @@ export function waitedTip(daysSinceLoot: number | null): string {
     return daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${daysSinceLoot} Tagen`;
 }
 
-/** Pieces without an enchant, and empty sockets, over a raider's worn set. */
-export function gearCounts(raider: CouncilRaider): { noench: number; sockets: number } {
-    const items = raider.gear ? raider.gear.items : [];
+/**
+ * Pieces without an enchant, and empty sockets, over a worn set — a raider's
+ * or a candidate's, both carry the same `WornItem[]` shape.
+ */
+export function gearCounts(items: WornItem[]): { noench: number; sockets: number } {
     return {
         noench: items.filter((i) => i.enchantStatus === "missing").length,
         sockets: items.reduce((n, i) => n + i.emptySockets, 0),

@@ -8,8 +8,11 @@
 // simulation is through a candidate says "nicht simuliert".
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useParams } from "react-router-dom";
-import { getLootCouncil, searchCouncilItems, type ApiError, type CouncilFocus, type ItemSearchResult } from "../../api";
-import { useJobs } from "../../components/Jobs";
+import {
+    getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
+    type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult,
+} from "../../api";
+import { useJobs, useToast } from "../../components/Jobs";
 import ItemSearchPicker from "../../components/ItemSearchPicker";
 import PageLoader from "../../components/PageLoader";
 import type { ShellContext } from "../../components/Shell";
@@ -32,6 +35,7 @@ export default function DropCheckPage() {
     const itemId = Number(param) || 0;
     const navigate = useNavigate();
     const jobs = useJobs();
+    const toast = useToast();
     // The same filters the council page is set to — read, never written here.
     const [view] = usePersistedState<FilterView>(VIEW_KEY, FILTER_DEFAULT);
     const [focus, setFocus] = useState<CouncilFocus | null>(null);
@@ -39,6 +43,9 @@ export default function DropCheckPage() {
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(false);
     const [unwearableOpen, setUnwearableOpen] = useState(false);
+    // The character a "Log laden"/"Gear aus Armory holen" reload is running
+    // for, from a candidate's fold-out gear panel — one at a time.
+    const [gearBusyChar, setGearBusyChar] = useState<string | null>(null);
     const { sim, simRunning, runSim } = useCouncilSim(csrfToken);
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
@@ -49,19 +56,25 @@ export default function DropCheckPage() {
             .map((c) => ({ key: c.key, specKey: c.specKey }));
         runSim([f.item.id], subjects, `Drop prüfen: ${f.item.name || `Item ${f.item.id}`}`);
     };
+    /** Just one candidate — the ↻ button next to "nicht simuliert"/"Fehler". */
+    const simulateOne = (f: CouncilFocus, candidate: CouncilCandidate) => {
+        runSim([f.item.id], [{ key: candidate.key, specKey: candidate.specKey }], `${candidate.character}: ${f.item.name || `Item ${f.item.id}`}`);
+    };
     // What happens after a drop loaded (the simulation), as a ref: the effect
     // must not hang on the identity of runSim, or it would rerun every render.
     const autoSimRef = useRef<(f: CouncilFocus) => void>(() => {});
     autoSimRef.current = simulateDrop;
 
+    const fetchFocus = () => getLootCouncil({
+        role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, bisTier: view.bisTier,
+        item: itemId,
+    });
+
     useEffect(() => {
         if (!itemId) { setFocus(null); return undefined; }
         let alive = true;
         setLoading(true);
-        jobs.run({ label: "Drop wird geprüft", quiet: true }, () => getLootCouncil({
-            role: view.role, tiers: view.tiers, contents: view.contents, category: view.category, bisTier: view.bisTier,
-            item: itemId,
-        }))
+        jobs.run({ label: "Drop wird geprüft", quiet: true }, fetchFocus)
             .then((d) => {
                 if (!alive) return;
                 if (!d) { setError({ code: "load", message: "Der Drop konnte nicht geladen werden." } as ApiError); return; }
@@ -74,7 +87,68 @@ export default function DropCheckPage() {
             })
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [itemId, view.role, view.tiers, view.contents, view.category, view.bisTier, jobs]);
+
+    /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
+    const reloadFocus = async (): Promise<CouncilFocus | null> => {
+        const d = await jobs.run({ label: "Wird aktualisiert", quiet: true }, fetchFocus);
+        if (!d) return null;
+        setFocus(d.focus);
+        setSimAvailable(d.sim.available);
+        return d.focus;
+    };
+
+    /**
+     * Fetch one raider's current gear from the armory, then reload — and say
+     * what the reload shows: the armory regularly answers with an arena set,
+     * which the server refuses, and the button would otherwise look inert.
+     */
+    const loadArmory = async (character: string) => {
+        if (gearBusyChar) return;
+        setGearBusyChar(character);
+        const result = await jobs.run(
+            { label: "Armory wird geladen", detail: character, quiet: true },
+            () => refreshCouncilArmory(csrfToken, [character]),
+        );
+        if (result) {
+            const fresh = await reloadFocus();
+            const row = fresh?.candidates.find((c) => c.character.toLowerCase() === character.toLowerCase());
+            if (!result.answered) {
+                toast(`Die Armory kennt ${character} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`, "err");
+            } else if (row?.gear?.armoryRejected === "pvp") {
+                toast(`${character}: die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid.`, "err");
+            } else if (row?.gear?.armoryRejected === "role") {
+                toast(`${character}: die Armory zeigt ein Set der anderen Rolle — es bleibt beim Set aus dem letzten Raid.`, "err");
+            } else if (row?.gear?.source === "armory") {
+                toast(`Armory geladen: ${character} hat jetzt aktuelles Gear.`);
+            }
+        }
+        setGearBusyChar(null);
+    };
+
+    /** The newest of the bot's logs that has this raider — same as the raider dialog's default "Laden". */
+    const loadLog = async (character: string) => {
+        if (gearBusyChar) return;
+        setGearBusyChar(character);
+        const result = await jobs.run(
+            { label: "Log wird geladen", detail: character, quiet: true },
+            () => loadCouncilLogGear(csrfToken, { character }),
+        );
+        if (result) {
+            const fresh = await reloadFocus();
+            const row = fresh?.candidates.find((c) => c.character.toLowerCase() === character.toLowerCase());
+            const from = `„${result.reportTitle || result.reportId}“`;
+            if (row?.gear?.logRejected === "pvp") {
+                toast(`${character} trägt in ${from} PvP-Gear — es bleibt beim Set aus der Auswertung.`, "err");
+            } else if (row?.gear?.logRejected === "role") {
+                toast(`${character} trägt in ${from} ein Set der anderen Rolle — es bleibt beim Set aus der Auswertung.`, "err");
+            } else {
+                toast(`Gear von ${character} aus ${from} geladen: ${result.items ?? 0} Teile.`);
+            }
+        }
+        setGearBusyChar(null);
+    };
 
     useEffect(() => { refreshWowheadLinks(); }, [focus, sim]);
 
@@ -197,7 +271,18 @@ export default function DropCheckPage() {
                                 action={<Badge count>{focus.candidates.length}</Badge>}
                             />
                             <div className="lc-panel lc-tablepanel">
-                                <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={candidateSort} />
+                                <CandidateTable
+                                    itemId={focus.item.id}
+                                    candidates={focus.candidates}
+                                    sim={sim}
+                                    sortState={candidateSort}
+                                    expandable
+                                    retrying={simRunning}
+                                    gearBusyChar={gearBusyChar}
+                                    onRetry={(candidate) => simulateOne(focus, candidate)}
+                                    onLoadLog={loadLog}
+                                    onLoadArmory={loadArmory}
+                                />
                             </div>
                         </>
                     ) : null}

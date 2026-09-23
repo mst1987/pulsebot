@@ -202,6 +202,12 @@ function startCouncilSim(id, subjects, itemIds = []) {
                             cached: run.cached,
                             // where the sockets and enchant of the simulated piece came from
                             fitting: fit.source,
+                            // A run that came back without a number: the swap's own
+                            // error, or — when the swap itself worked — the reason
+                            // the baseline it would be compared against has none.
+                            // Without this the page cannot tell "never attempted"
+                            // from "attempted and failed", and shows both the same.
+                            error: run.dps === null ? (run.error || base.error || "Simulation fehlgeschlagen.") : "",
                         };
                         job.progress += 1;
                     }

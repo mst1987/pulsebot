@@ -7,7 +7,7 @@
 // A local dialog rather than the shared <Modal>: its head carries the raider's
 // name in class colour and the role switch, which the shared head (a string
 // title) has no place for. Same `.dlg` classes, same native <dialog> behaviour.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } from "../../api";
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
@@ -17,7 +17,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { ROLE_LABEL, dropHref, gearCounts, wornWowheadUrl } from "./council";
-import { ContentBadge, ItemLink, NeedBar, RaiderIdent, WornIcon } from "./parts";
+import { ContentBadge, GearBadges, ItemLink, NeedBar, RaiderIdent, WornIcon } from "./parts";
 
 type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };
@@ -56,42 +56,6 @@ function GearSheet({ items }: { items: WornItem[] }) {
             ))}
         </div>
     );
-}
-
-/**
- * What the set is and what is wrong with it, as badges: the source with its
- * date, the hit cap, BiS pieces, missing enchants and sockets, and every reason
- * the set on screen is not simply the raider's normal kit.
- */
-function GearBadges({ raider }: { raider: CouncilRaider }) {
-    const g = raider.gear;
-    if (!g) return null;
-    const { noench, sockets } = gearCounts(raider);
-    const out: ReactNode[] = [];
-    if (g.source === "armory") {
-        out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip="Aus der Armory" tipSub={`Aktuelles Gear, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
-    } else if (g.source === "wcl") {
-        out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={`Aus dem Log „${g.reportTitle}“`} tipSub={`Geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.`}>Log · {fmtMs(g.seenAt, false)}</Badge>);
-    } else {
-        out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={`Aus der Auswertung „${g.reportTitle}“`} tipSub={g.skippedReports ? `${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt oder PvP-Gear getragen wurde.` : "Das Set der letzten Auswertung, in der dieser Raider in seiner Rolle stand."}>Auswertung · {fmtMs(g.seenAt, false)}</Badge>);
-    }
-    if (g.hitCap > 0) {
-        out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip="Zaubertrefferwertung" tipSub="Getragen / Obergrenze gegen Bosse. Über der Grenze zählt Hit im Vergleich nicht mehr.">Hit {g.spellHit}/{g.hitCap}</Badge>);
-    }
-    if (raider.bis.total) out.push(<Badge key="bis" tone="ok" tip="BiS-Teile" tipSub="Getragene Teile der BiS-Liste dieses Raiders.">BiS {raider.bis.owned}/{raider.bis.total}</Badge>);
-    if (noench) out.push(<Badge key="noench" tone="bad" tip="Ohne Verzauberung" tipSub="Teile ohne Verzauberung — am Icon mit ! markiert.">{noench} ohne VZ</Badge>);
-    if (sockets) out.push(<Badge key="sock" tone="mid" tip="Leere Sockel" tipSub="Am Icon oben rechts markiert.">{sockets} Sockel leer</Badge>);
-    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip="Verzauberung unbekannt" tipSub="Seit der letzten Auswertung dazugekommen: Blizzards Verzauberungs-IDs sind nicht die, die WoWSims erwartet, die Simulation rechnet sie unverzaubert.">{g.unverifiedEnchants} ohne VZ-Info</Badge>);
-    if (g.pvpGear) out.push(<Badge key="pvp" tone="bad" tip="PvP-Gear" tipSub="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind mit Vorsicht zu lesen.">PvP-Gear</Badge>);
-    if (g.roleMismatch) out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip="Andere Rolle" tipSub={`Aus „${g.reportTitle}“ — dort wurde die andere Rolle gespielt. Ein Set der eingeplanten Rolle ist nicht geloggt.`}>{raider.role === "healer" ? "DPS-Gear" : "Heilgear"}</Badge>);
-    if (g.logRejected) out.push(<Badge key="logrej" tone={g.logRejected === "pvp" ? "bad" : "mid"} tip={g.logRejected === "pvp" ? "Log: PvP-Gear" : "Log: andere Rolle"} tipSub="Das geladene Log wurde nicht übernommen — bewertet wird weiter das Set aus der Auswertung.">Log abgelehnt</Badge>);
-    if (g.armoryRejected) out.push(<Badge key="armrej" tone={g.armoryRejected === "pvp" ? "bad" : "mid"} tip={g.armoryRejected === "pvp" ? "Armory: PvP-Gear" : "Armory: andere Rolle"} tipSub="Die Armory-Antwort wurde nicht übernommen — gegen einen Boss zählt sie nicht, bewertet wird weiter das Set aus dem letzten Raid.">Armory abgelehnt</Badge>);
-    if (g.situational) out.push(<Badge key="sit" tone="mid" tip="Situativ" tipSub={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer.`}>{g.situational} situativ</Badge>);
-    if (g.substituted) out.push(<Badge key="sub" tip="Ersetzt" tipSub={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>{g.substituted}× ersetzt</Badge>);
-    for (const d of g.dropped) {
-        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={`${d.slotName} leer`} tipSub={`„${d.itemName}“ ${d.note}. Der Slot zählt als leer, weil keine andere Quelle sagt, was ${raider.character} dort sonst trägt.`}>{d.slotName} leer</Badge>);
-    }
-    return <>{out}</>;
 }
 
 /**
@@ -236,7 +200,7 @@ export default function RaiderDialog({
     useEffect(() => { refreshWowheadLinks(); }, [r, section]);
 
     const entry = sim && sim[r.key];
-    const { noench, sockets } = gearCounts(r);
+    const { noench, sockets } = gearCounts(g ? g.items : []);
     const gearIssues = noench + sockets + (g ? g.dropped.length + g.situational : 0);
     const gaps = r.bis.items.filter((i) => !i.owned);
     const loadingLog = busy.has(`loggear:${r.character}`);
@@ -367,7 +331,7 @@ export default function RaiderDialog({
                                 ) : undefined}
                             />
                             <div className="lc-hints lc-gearbadges">
-                                <GearBadges raider={r} />
+                                <GearBadges gear={g} bisOwned={r.bis.owned} bisTotal={r.bis.total} character={r.character} roleLabel={r.role === "healer" ? "DPS-Gear" : "Heilgear"} />
                                 {r.armoryUrl ? (
                                     <a className="lc-extlink" href={r.armoryUrl} target="_blank" rel="noopener noreferrer">
                                         Armory im Browser <ExternalIcon />
