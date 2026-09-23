@@ -58,16 +58,18 @@ const CONFIG_DEFAULTS = {
     // own defaultAccess (see config/botCommands.js and web/botAccess.js).
     botCommandAccess: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
-    // With discordServers.eventGuildId set, getConfig() reports that one here —
-    // this key is only the fallback for an install that never picked the two roles.
+    // With discordServers.eventGuilds set, getConfig() reports the first one
+    // here — this key is only the fallback for an install that never picked one.
     guildId: guildId || "",
-    // The two Discord servers the bot works with (Einstellungen → Verbindungen →
-    // Discord-Server): the event server (event channels, Raid-Helper) and the
-    // talk server (overview, sign-up per bot, pings), plus the talk server's
-    // target channels. All empty = today's behaviour with a single server.
-    // `signupNoteChannelId` is where the messages of "Vielleicht" / "Absagen"
-    // land (src/web/signupNotes.js) — a channel on either server.
-    discordServers: { eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "" },
+    // The Discord servers the bot works with (Einstellungen → Verbindungen →
+    // Discord-Server): any number of event servers (event channels,
+    // Raid-Helper), each optionally posting its own raid overview to a channel
+    // on another server (the talk server or another event server), plus one
+    // talk server for pings and sign-up-per-bot. All empty = no server
+    // configured yet. `signupNoteChannelId` is where the messages of
+    // "Vielleicht" / "Absagen" land (src/web/signupNotes.js) — a channel on
+    // any server.
+    discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -518,9 +520,10 @@ function getConfig() {
         // over it: the settings form writes this field on every save, so an
         // install that never filled it in would otherwise keep a blank value —
         // no admin-role check, no preselected server in the menu.
-        // The event server, once picked, *is* the home guild; the old key stays
-        // the fallback for installs that only ever configured one server.
-        guildId: discordServers.eventGuildId || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
+        // The first event server, once picked, *is* the home guild; the old key
+        // stays the fallback for installs that never configured one.
+        guildId: (discordServers.eventGuilds[0] && discordServers.eventGuilds[0].guildId)
+            || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
         discordServers,
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
@@ -645,14 +648,78 @@ function categoryRaidTemplateOf(stored) {
 // A Discord snowflake: digits only. Anything else (a pasted link, a name) is
 // dropped rather than stored as an id no lookup can ever resolve.
 const SNOWFLAKE = /^\d{5,25}$/;
-const DISCORD_SERVER_KEYS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId", "signupNoteChannelId"];
+const DISCORD_SERVER_KEYS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
+// A sanity bound, not a real product constraint.
+const MAX_EVENT_GUILDS = 10;
+const EVENT_GUILD_LABEL_MAX = 60;
 
 /**
- * Normalise the two-server block to `{ eventGuildId, talkGuildId,
- * talkOverviewChannelId, talkPingChannelId, signupNoteChannelId }`, every field
- * a snowflake or "". The note channel may sit on either server.
- * A talk server equal to the event server is no second server: it is cleared,
- * so "one server for everything" is stored the same way however it was entered.
+ * Normalise one event-server entry: `guildId` must be a snowflake (the entry
+ * is dropped otherwise), `label` trimmed/capped. `overviewGuildId` +
+ * `overviewChannelId` name where this server's own raid overview gets posted
+ * (the talk server, another event server, or its own — any bot guild); they
+ * must both be snowflakes or both stay "" — a half-set target posts nowhere,
+ * the same contract the old talkGuildId+talkOverviewChannelId pair had.
+ */
+function normalizeEventGuildEntry(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const guildId = String(raw.guildId || "").trim();
+    if (!SNOWFLAKE.test(guildId)) return null;
+    const overviewGuildId = String(raw.overviewGuildId || "").trim();
+    const overviewChannelId = String(raw.overviewChannelId || "").trim();
+    const hasTarget = SNOWFLAKE.test(overviewGuildId) && SNOWFLAKE.test(overviewChannelId);
+    return {
+        guildId,
+        label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX),
+        overviewGuildId: hasTarget ? overviewGuildId : "",
+        overviewChannelId: hasTarget ? overviewChannelId : "",
+    };
+}
+
+/**
+ * An old-shape discordServers block (`eventGuildId` / `talkOverviewChannelId`,
+ * no `eventGuilds` array yet) synthesizes one eventGuilds entry so an existing
+ * single-server install keeps its overview exactly as before. No
+ * `eventGuildId` configured yet -> no raids configured yet -> [].
+ */
+function migrateLegacyEventGuilds(raw) {
+    const guildId = String(raw.eventGuildId || "").trim();
+    if (!SNOWFLAKE.test(guildId)) return [];
+    return [{
+        guildId,
+        label: "",
+        overviewGuildId: String(raw.talkGuildId || "").trim(),
+        overviewChannelId: String(raw.talkOverviewChannelId || "").trim(),
+    }];
+}
+
+/**
+ * Normalise the event-server list: deduped by guildId (first wins), capped at
+ * MAX_EVENT_GUILDS. `list` is `raw.eventGuilds` when present; an old config
+ * without it migrates from the legacy scalar fields on `raw` instead (read on
+ * every getConfig(), persisted for good on the next saveConfig() — same
+ * pattern as categoryRaidTemplateOf()).
+ */
+function normalizeEventGuilds(list, raw) {
+    const src = Array.isArray(list) ? list : migrateLegacyEventGuilds(raw || {});
+    const out = [];
+    const seen = new Set();
+    for (const entry of src) {
+        const normalized = normalizeEventGuildEntry(entry);
+        if (!normalized || seen.has(normalized.guildId)) continue;
+        seen.add(normalized.guildId);
+        out.push(normalized);
+        if (out.length >= MAX_EVENT_GUILDS) break;
+    }
+    return out;
+}
+
+/**
+ * Normalise the servers block to `{ eventGuilds, talkGuildId,
+ * talkPingChannelId, signupNoteChannelId }`. The three scalars stay single
+ * snowflakes or ""; `eventGuilds` is the list normalised above. A talk server
+ * equal to one of the event servers is no second server: it is cleared, so
+ * "one server for everything" is stored the same way however it was entered.
  */
 function normalizeDiscordServers(raw) {
     const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
@@ -661,7 +728,8 @@ function normalizeDiscordServers(raw) {
         const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
         out[key] = SNOWFLAKE.test(value) ? value : "";
     }
-    if (out.talkGuildId && out.talkGuildId === out.eventGuildId) out.talkGuildId = "";
+    out.eventGuilds = normalizeEventGuilds(src.eventGuilds, src);
+    if (out.talkGuildId && out.eventGuilds.some((e) => e.guildId === out.talkGuildId)) out.talkGuildId = "";
     return out;
 }
 
@@ -893,9 +961,10 @@ function saveConfig(partial) {
     if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
     if (partial.discordServers) {
         next.discordServers = normalizeDiscordServers({ ...current.discordServers, ...partial.discordServers });
-        // Keep the fallback key in step, so clearing the event server later
+        // Keep the fallback key in step, so clearing every event server later
         // falls back to the server that was last in use, not to an older one.
-        if (next.discordServers.eventGuildId) next.guildId = next.discordServers.eventGuildId;
+        const first = next.discordServers.eventGuilds[0];
+        if (first) next.guildId = first.guildId;
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
@@ -957,7 +1026,7 @@ module.exports = {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
+    getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers, normalizeEventGuilds,
     normalizeRoleSync, normalizeCategoryReminders, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
     normalizeCategorySignupSource, signupSourcesOf, normalizeRaidhelperRetirement,
     normalizeCategoryFlags, normalizeCategoryVoiceChannel,

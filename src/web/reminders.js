@@ -107,7 +107,8 @@ let running = false;
 let lastRun = null;
 
 /**
- * One sweep over the event server's upcoming events.
+ * One sweep over every configured event server's upcoming events (#361) — one
+ * server's events failing to load never stops the sweep on the others.
  * @returns {Promise<{ sent: number, failed: number, skipped: number, error: string|null }>}
  */
 async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
@@ -117,36 +118,41 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
     if (running) return { ...summary, error: "läuft bereits" };
     running = true;
     try {
-        const guildId = guildRoles.eventGuildId(config);
-        if (!guildId) return { ...summary, error: "Kein Event-Discord eingestellt." };
-        const { groups, error } = await loadEventGroups(guildId);
-        if (error && !(groups || []).length) return { ...summary, error };
-        for (const group of groups || []) {
-            const rule = rules[group.categoryId];
-            if (!rule) continue;
-            for (const event of group.events || []) {
-                // A cancelled event (#288) reminds nobody.
-                if (event.status === "cancelled") continue;
-                for (const kind of dueReminders(event, rule, reminderStore.getSent(event.id), now)) {
-                    const userIds = await recipients(kind, event, group.categoryId, guildId, config);
-                    if (userIds === null) { summary.skipped += 1; continue; }
-                    // Marked first: a second sweep running into this one sends nothing.
-                    if (!reminderStore.markSent(event.id, kind, now)) continue;
-                    if (!userIds.length) continue; // nobody to remind — done for good
-                    try {
-                        await deliverUserPing({
-                            target: rule.target, event, userIds, text: reminderText(kind, event), guildId, config,
-                        });
-                        summary.sent += 1;
-                    } catch (e) {
-                        reminderStore.clearSent(event.id, kind);
-                        summary.failed += 1;
-                        console.error(`[reminders] ${event.title || event.id} (${kind}):`, e.message);
+        const guildIds = guildRoles.eventGuildIds(config);
+        if (!guildIds.length) return { ...summary, error: "Kein Event-Discord eingestellt." };
+        const loadErrors = [];
+        for (const guildId of guildIds) {
+            const { groups, error } = await loadEventGroups(guildId);
+            if (error && !(groups || []).length) { loadErrors.push(error); continue; }
+            for (const group of groups || []) {
+                const rule = rules[group.categoryId];
+                if (!rule) continue;
+                for (const event of group.events || []) {
+                    // A cancelled event (#288) reminds nobody.
+                    if (event.status === "cancelled") continue;
+                    for (const kind of dueReminders(event, rule, reminderStore.getSent(event.id), now)) {
+                        const userIds = await recipients(kind, event, group.categoryId, guildId, config);
+                        if (userIds === null) { summary.skipped += 1; continue; }
+                        // Marked first: a second sweep running into this one sends nothing.
+                        if (!reminderStore.markSent(event.id, kind, now)) continue;
+                        if (!userIds.length) continue; // nobody to remind — done for good
+                        try {
+                            await deliverUserPing({
+                                target: rule.target, event, userIds, text: reminderText(kind, event), guildId, config,
+                            });
+                            summary.sent += 1;
+                        } catch (e) {
+                            reminderStore.clearSent(event.id, kind);
+                            summary.failed += 1;
+                            console.error(`[reminders] ${event.title || event.id} (${kind}):`, e.message);
+                        }
                     }
                 }
             }
         }
         reminderStore.prune();
+        // Only every guild's events failing to load makes the whole sweep an error.
+        if (loadErrors.length === guildIds.length) summary.error = loadErrors[0];
         return summary;
     } finally {
         running = false;

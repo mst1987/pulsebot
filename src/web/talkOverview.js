@@ -1,15 +1,18 @@
-// The raid overview on the talk server (#257): one bot message in the channel
-// `discordServers.talkOverviewChannelId` that lists the upcoming raids of the
-// event server, grouped by category, each with a link into its event channel
-// over there — plus a select "Raid wählen, um dich anzumelden" and three link
-// buttons into the web.
+// The raid overview (#257, #361): one bot message per configured event server
+// that has an overview target set (`discordServers.eventGuilds[].
+// overviewGuildId`/`overviewChannelId` — the talk server, another event
+// server, or its own), listing that server's upcoming raids, grouped by
+// category, each with a link into its event channel over there — plus a
+// select "Raid wählen, um dich anzumelden" and three link buttons into the
+// web.
 //
 // It keeps itself current: a roster change of an own event
 // (signupStore.onSignupsChanged), a newly created event (eventCreate.js) and a
 // sweep every 5 minutes (Raid-Helper signups, raids that started) all end in
-// syncOverview(), which edits the message only when its content changed and
-// posts it anew when somebody deleted it. Where it sits lives in
-// talkOverviewStore.js.
+// syncOverview(), which resyncs every configured entry — each edits its own
+// message only when its content changed and posts it anew when somebody
+// deleted it. Where each one sits lives in talkOverviewStore.js, keyed by
+// event-server guild id.
 //
 // Discord shapes the message: at most 25 embed fields (one per category), 1024
 // characters per field, 6000 per embed, 25 select options (the next 25 raids).
@@ -248,20 +251,23 @@ async function textChannel(client, channelId) {
     return channel;
 }
 
-/** Where the overview goes, or null when the talk server or its channel is not set. */
-function overviewTarget(config = getConfig()) {
-    const talkGuildId = guildRoles.talkGuildId(config);
-    const channelId = String(((config && config.discordServers) || {}).talkOverviewChannelId || "").trim();
-    return talkGuildId && channelId ? { talkGuildId, channelId } : null;
+/** Every configured event server that has an overview target set (both guild and channel). */
+function overviewEntries(config = getConfig()) {
+    const servers = (config && config.discordServers) || {};
+    const entries = Array.isArray(servers.eventGuilds) ? servers.eventGuilds : [];
+    return entries.filter((e) => e && e.guildId && e.overviewGuildId && e.overviewChannelId);
 }
 
-/** The payload as it would be posted now — for the sync and the dry run. */
-async function currentPayload({ config = getConfig(), now = Date.now() } = {}) {
-    const eventGuildId = guildRoles.eventGuildId(config);
-    const { groups, error } = await loadEventGroups(eventGuildId);
-    const guild = discord.getGuild(eventGuildId);
+/**
+ * The payload as it would be posted now, for one event server — for the sync
+ * and the dry run. `guildId` defaults to the first configured event server,
+ * for callers that only ever cared about "the" event server.
+ */
+async function currentPayload({ config = getConfig(), now = Date.now(), guildId = guildRoles.eventGuildId(config) } = {}) {
+    const { groups, error } = await loadEventGroups(guildId);
+    const guild = discord.getGuild(guildId);
     const payload = buildOverviewMessage(groups, {
-        eventGuildId,
+        eventGuildId: guildId,
         eventGuildName: guild ? guild.name : "",
         now,
         categoryIds: config.categoryIds || [],
@@ -270,35 +276,35 @@ async function currentPayload({ config = getConfig(), now = Date.now() } = {}) {
     return { payload, error };
 }
 
-async function runSync({ repost = false, now = Date.now(), config = getConfig() } = {}) {
-    const target = overviewTarget(config);
-    if (!target) return { status: "unconfigured" };
-    const state = getOverviewState();
+/** One event server's own sync: builds, then edits/reposts/posts its own message, tracked under its own guild id. */
+async function runSyncOne(entry, { repost = false, now = Date.now(), config = getConfig() } = {}) {
+    const label = entry.label || "";
+    const state = getOverviewState(entry.guildId);
     const fail = (message) => {
-        setOverviewState({ checkedAt: now, error: message });
-        return { status: "error", error: message };
+        setOverviewState(entry.guildId, { checkedAt: now, error: message });
+        return { guildId: entry.guildId, label, status: "error", error: message };
     };
     try {
         const client = discord.getClient();
         if (!client) return fail("Bot nicht verbunden.");
-        const { payload, error } = await currentPayload({ config, now });
+        const { payload, error } = await currentPayload({ config, now, guildId: entry.guildId });
         // A Raid-Helper outage would post a list without its events: leave an
         // existing message as it is and try again on the next sweep.
         if (error && state.messageId && !repost) return fail(`Events nicht vollständig ladbar: ${error}`);
         const hash = payloadHash(payload);
-        const channel = await textChannel(client, target.channelId);
+        const channel = await textChannel(client, entry.overviewChannelId);
 
-        const sameChannel = state.messageId && state.channelId === target.channelId;
+        const sameChannel = state.messageId && state.channelId === entry.overviewChannelId;
         if (sameChannel && !repost) {
             try {
                 const message = await channel.messages.fetch(state.messageId);
                 if (state.hash === hash) {
-                    setOverviewState({ checkedAt: now, error: "" });
-                    return { status: "unchanged", messageId: state.messageId };
+                    setOverviewState(entry.guildId, { checkedAt: now, error: "" });
+                    return { guildId: entry.guildId, label, status: "unchanged", messageId: state.messageId };
                 }
                 await message.edit(payload);
-                setOverviewState({ hash, editedAt: now, checkedAt: now, error: "" });
-                return { status: "edited", messageId: state.messageId };
+                setOverviewState(entry.guildId, { hash, editedAt: now, checkedAt: now, error: "" });
+                return { guildId: entry.guildId, label, status: "edited", messageId: state.messageId };
             } catch (e) {
                 if (!isUnknownMessage(e)) throw e;
                 // Deleted by hand: posted anew below.
@@ -306,7 +312,7 @@ async function runSync({ repost = false, now = Date.now(), config = getConfig() 
         } else if (state.messageId) {
             // Asked to re-post, or the channel changed: the old message goes.
             try {
-                const old = await textChannel(client, state.channelId || target.channelId);
+                const old = await textChannel(client, state.channelId || entry.overviewChannelId);
                 const message = await old.messages.fetch(state.messageId);
                 await message.delete();
             } catch (e) {
@@ -315,23 +321,46 @@ async function runSync({ repost = false, now = Date.now(), config = getConfig() 
         }
 
         const posted = await channel.send(payload);
-        setOverviewState({
-            channelId: target.channelId, messageId: posted.id, hash,
+        setOverviewState(entry.guildId, {
+            channelId: entry.overviewChannelId, messageId: posted.id, hash,
             postedAt: now, editedAt: 0, checkedAt: now, error: "",
         });
-        return { status: "posted", messageId: posted.id };
+        return { guildId: entry.guildId, label, status: "posted", messageId: posted.id };
     } catch (e) {
         return fail((e && e.message) || "Übersicht konnte nicht aktualisiert werden.");
     }
 }
 
+/**
+ * With `guildId`: syncs only that one event server's overview, returning its
+ * single result (the same shape runSync used to return before several event
+ * servers existed) — "unconfigured" when that guild has no target set.
+ * Without `guildId`: syncs every configured entry in turn (one entry's
+ * failure never blocks another's), returning `{ results: [...] }`.
+ */
+async function runSync({
+    repost = false, now = Date.now(), config = getConfig(), guildId = "",
+} = {}) {
+    const entries = overviewEntries(config);
+    if (guildId) {
+        const entry = entries.find((e) => e.guildId === String(guildId));
+        if (!entry) return { status: "unconfigured" };
+        return runSyncOne(entry, { repost, now, config });
+    }
+    const results = [];
+    for (const entry of entries) results.push(await runSyncOne(entry, { repost, now, config }));
+    return { results };
+}
+
 let queue = Promise.resolve();
 
 /**
- * Bring the overview up to date. Runs one at a time, so a sweep and a roster
- * change never post two messages.
- * @param {{ repost?: boolean }} opts repost = delete the old message and post a new one
- * @returns {Promise<{ status: "unconfigured"|"unchanged"|"edited"|"posted"|"error", messageId?: string, error?: string }>}
+ * Bring the overview (or, with `guildId`, one event server's own overview) up
+ * to date. Runs one at a time, so a sweep and a roster change never post two
+ * messages on top of each other.
+ * @param {{ repost?: boolean, guildId?: string }} opts repost = delete the old message and post a new one
+ * @returns {Promise<{ status: "unconfigured"|"unchanged"|"edited"|"posted"|"error", messageId?: string, error?: string }
+ *   | { results: object[] }>} a single result with `guildId`, or `{ results }` over every configured entry without one
  */
 function syncOverview(opts = {}) {
     const run = queue.then(() => runSync(opts));
@@ -339,31 +368,34 @@ function syncOverview(opts = {}) {
     return run;
 }
 
-/** The overview's state for the settings page. */
+/** Every configured event server's overview state, for the settings page. */
 function overviewStatus(config = getConfig()) {
-    const target = overviewTarget(config);
-    const state = getOverviewState();
-    const active = !!target && state.channelId === target.channelId && !!state.messageId;
-    return {
-        configured: !!target,
-        channelId: target ? target.channelId : "",
-        messageId: active ? state.messageId : "",
-        messageUrl: active ? `https://discord.com/channels/${target.talkGuildId}/${state.channelId}/${state.messageId}` : "",
-        postedAt: active ? state.postedAt : 0,
-        editedAt: active ? state.editedAt : 0,
-        checkedAt: state.checkedAt || 0,
-        error: state.error || "",
-    };
+    return overviewEntries(config).map((entry) => {
+        const state = getOverviewState(entry.guildId);
+        const active = state.channelId === entry.overviewChannelId && !!state.messageId;
+        return {
+            guildId: entry.guildId,
+            label: entry.label || "",
+            configured: true,
+            channelId: entry.overviewChannelId,
+            messageId: active ? state.messageId : "",
+            messageUrl: active ? `https://discord.com/channels/${entry.overviewGuildId}/${state.channelId}/${state.messageId}` : "",
+            postedAt: active ? state.postedAt : 0,
+            editedAt: active ? state.editedAt : 0,
+            checkedAt: state.checkedAt || 0,
+            error: state.error || "",
+        };
+    });
 }
 
 let debounceTimer = null;
 
 /** Sync after a short pause; a burst of triggers collapses into one run. */
-function scheduleOverviewSync({ delayMs = DEBOUNCE_MS } = {}) {
+function scheduleOverviewSync({ delayMs = DEBOUNCE_MS, ...opts } = {}) {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         debounceTimer = null;
-        syncOverview().catch((e) => console.error("[talkOverview]", e.message));
+        syncOverview(opts).catch((e) => console.error("[talkOverview]", e.message));
     }, delayMs);
     if (debounceTimer.unref) debounceTimer.unref();
     return debounceTimer;
@@ -398,5 +430,5 @@ function startTalkOverview({ intervalMs = SWEEP_MS, debounceMs = DEBOUNCE_MS, fi
 module.exports = {
     SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, MAX_OPTIONS, RAIDHELPER_CREATE_DELAY_MS,
     overviewLinks, channelUrl, eventUrl, formatStart, raidLine, upcomingGroups, buildOverviewMessage, payloadHash,
-    overviewTarget, currentPayload, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview,
+    overviewEntries, currentPayload, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview,
 };

@@ -158,7 +158,7 @@ describe("Kanal für Vielleicht/Absage je Kategorie (#335)", () => {
     });
 
     it("lists the text channels of both servers, named with their server, and the default channel", async () => {
-        settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuildId: "200", talkGuildId: "300", signupNoteChannelId: "2001" } });
+        settingsStore.getConfig.mockReturnValue({ discordServers: { eventGuilds: [{ guildId: "200" }], talkGuildId: "300", signupNoteChannelId: "2001" } });
         discord.listGuilds.mockReturnValue([{ id: "200", name: "Pulse Events" }, { id: "300", name: "Pulse Talk" }, { id: "400", name: "Andere" }]);
         discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "200" ? "Raids" : "" }]);
         requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
@@ -240,7 +240,7 @@ describe("PATCH /api/settings botCommandAccess", () => {
 describe("Discord-Server settings", () => {
     const stored = {
         guildId: "200",
-        discordServers: { eventGuildId: "200", talkGuildId: "300", talkOverviewChannelId: "301", talkPingChannelId: "" },
+        discordServers: { eventGuilds: [{ guildId: "200", label: "", overviewGuildId: "300", overviewChannelId: "301" }], talkGuildId: "300", talkPingChannelId: "" },
     };
     const guild = (id, name, memberCount) => ({ id, name, memberCount });
 
@@ -257,7 +257,7 @@ describe("Discord-Server settings", () => {
     it("refuses the block for a limited settings user", async () => {
         requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
         requireFullAdmin.mockReturnValue(null);
-        readJsonBody.mockResolvedValue({ discordServers: { eventGuildId: "999999" } });
+        readJsonBody.mockResolvedValue({ discordServers: { eventGuilds: [{ guildId: "999999" }] } });
         await updateSettings({ headers: {} }, mockRes());
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
     });
@@ -269,7 +269,7 @@ describe("Discord-Server settings", () => {
         const res = mockRes();
         await getSettings({}, res);
         const { servers, config } = body(res).data;
-        expect(servers.event).toMatchObject({ role: "event", name: "Pulse Events", connected: true, missing: ["Rollen verwalten"] });
+        expect(servers.events[0]).toMatchObject({ role: "event", name: "Pulse Events", connected: true, missing: ["Rollen verwalten"] });
         expect(servers.talk).toMatchObject({ role: "talk", id: "300", connected: false });
         expect(config.discordServers).toEqual(stored.discordServers);
 
@@ -293,7 +293,7 @@ describe("Discord-Server settings", () => {
         await getDiscordServers({}, res);
         const data = body(res).data;
         expect(data.discordServers).toEqual(stored.discordServers);
-        expect(data.event.name).toBe("Pulse Events");
+        expect(data.events[0].name).toBe("Pulse Events");
         expect(data.talk.name).toBe("Pulse Talk");
         expect(data.overlap).toEqual({ eventCount: 2, talkCount: 1, both: 1, error: null });
         expect(data.guilds.map((g) => [g.id, g.role, g.channels[0].id])).toEqual([
@@ -365,6 +365,20 @@ describe("role sync and reminder settings", () => {
         ]);
         expect(data.pingTargets.talk).toBe(false);
         expect(data.categoryReminders["910000"].missingHours).toBe(24);
+        settingsStore.getConfig.mockReturnValue({});
+    });
+
+    it("names a category that only exists on a secondary event server (#361)", async () => {
+        settingsStore.getConfig.mockReturnValue({
+            discordServers: { eventGuilds: [{ guildId: "200000" }, { guildId: "300000" }] },
+            categoryReminders: { 920000: { missingHours: 0, signedHours: 2, target: "event" } },
+        });
+        discord.listCategories.mockImplementation((id) => (id === "300000" ? [{ id: "920000", name: "PvP-Raids" }] : []));
+        const res = mockRes();
+        getReminders({}, res);
+        expect(discord.listCategories).toHaveBeenCalledWith("200000");
+        expect(discord.listCategories).toHaveBeenCalledWith("300000");
+        expect(body(res).data.categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0 }]);
         settingsStore.getConfig.mockReturnValue({});
     });
 });

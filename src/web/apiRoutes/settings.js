@@ -175,7 +175,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId", "signupNoteChannelId"];
+const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 async function getSettings(req, res) {
@@ -247,13 +247,13 @@ function noteChannels(config) {
     }
 }
 
-/** The event and talk server as status cards; a failure reads as "nothing known". */
+/** Every event server's status card plus the talk server's; a failure reads as "nothing known". */
 function serverCards(config) {
     try {
-        return { event: guildRoles.eventGuild(config), talk: guildRoles.talkGuild(config) };
+        return { events: guildRoles.eventGuildCards(config), talk: guildRoles.talkGuild(config) };
     } catch (e) {
         console.warn("server status failed:", e.message);
-        return { event: null, talk: null };
+        return { events: [], talk: null };
     }
 }
 
@@ -292,19 +292,21 @@ async function getRoleSync(req, res) {
 }
 
 /**
- * GET /api/settings/reminders — the reminder block: the stored rules, the
- * event server's configured raid categories with names, whether the talk
+ * GET /api/settings/reminders — the reminder block: the stored rules, every
+ * configured event server's raid categories with names, whether the talk
  * server's ping channel exists as a target, and the last sweep.
  */
 function getReminders(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const config = getConfig();
-    const eventGuildId = guildRoles.eventGuildId(config);
     // Names from the live list backed by earlier snapshots, so a category the
-    // bot cannot see right now still reads as a name rather than an id.
-    const known = eventGuildId ? (listKnownCategories(eventGuildId) || []) : [];
-    const names = new Map(known.map((c) => [c.id, c.name]));
+    // bot cannot see right now still reads as a name rather than an id — and a
+    // category that only exists on a secondary event server still gets one.
+    const names = new Map();
+    for (const guildId of guildRoles.eventGuildIds(config)) {
+        for (const c of listKnownCategories(guildId) || []) if (!names.has(c.id)) names.set(c.id, c.name);
+    }
     const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(config.categoryReminders || {})])];
     ok(res, {
         categoryReminders: config.categoryReminders || {},
@@ -398,6 +400,9 @@ async function updateSettings(req, res) {
         for (const k of DISCORD_SERVER_FIELDS) {
             if (body.discordServers[k] !== undefined) partial.discordServers[k] = String(body.discordServers[k] || "").trim();
         }
+        // Raw pass-through: real validation happens in settingsStore's
+        // normalizeEventGuilds() (dedup, snowflake checks, half-set target).
+        if (Array.isArray(body.discordServers.eventGuilds)) partial.discordServers.eventGuilds = body.discordServers.eventGuilds;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();

@@ -8,13 +8,18 @@ jest.mock("../../src/web/signupStore", () => ({
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     }),
 }));
-let mockState = {};
+let mockStates = {}; // { [guildId]: state }
 jest.mock("../../src/web/talkOverviewStore", () => ({
-    getOverviewState: jest.fn(() => ({
-        channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "", ...mockState,
+    getOverviewState: jest.fn((guildId) => ({
+        channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "", ...mockStates[guildId],
     })),
-    setOverviewState: jest.fn((patch) => { mockState = { ...mockState, ...patch }; return mockState; }),
+    setOverviewState: jest.fn((guildId, patch) => {
+        mockStates[guildId] = { ...mockStates[guildId], ...patch };
+        return mockStates[guildId];
+    }),
 }));
+// Most tests configure exactly one event server ("111", see `config` below).
+const stateOf = (guildId = "111") => mockStates[guildId] || {};
 
 const discord = require("../../src/web/discord");
 const { getConfig } = require("../../src/web/settingsStore");
@@ -181,91 +186,108 @@ function fakeDiscord({ fetchError, sendId = "m-new" } = {}) {
     return { channel, message };
 }
 
-const config = { guildId: "111", discordServers: { talkGuildId: "222", talkOverviewChannelId: "ov" } };
+const eventGuild = (guildId, extra = {}) => ({ guildId, label: "", overviewGuildId: "222", overviewChannelId: "ov", ...extra });
+const config = { guildId: "111", discordServers: { eventGuilds: [eventGuild("111")], talkGuildId: "222" } };
 
 describe("web/talkOverview — syncOverview", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockState = {};
+        mockStates = {};
         getConfig.mockReturnValue(config);
         loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "k", categoryName: "R", events: [ev({ startTime: Math.floor(Date.now() / 1000) + 86400 })] }], error: null });
     });
 
-    it("does nothing without a talk server and overview channel", async () => {
-        getConfig.mockReturnValue({ guildId: "111" });
-        expect(await syncOverview()).toEqual({ status: "unconfigured" });
+    it("does nothing for a guild with no overview target configured", async () => {
+        getConfig.mockReturnValue({ guildId: "111", discordServers: { eventGuilds: [] } });
+        expect(await syncOverview({ guildId: "111" })).toEqual({ status: "unconfigured" });
         expect(loadEventGroups).not.toHaveBeenCalled();
     });
 
     it("posts the overview the first time and remembers where", async () => {
         const { channel } = fakeDiscord();
-        const result = await syncOverview({ now: 5 });
-        expect(result).toEqual({ status: "posted", messageId: "m-new" });
+        const result = await syncOverview({ guildId: "111", now: 5 });
+        expect(result).toEqual({ guildId: "111", label: "", status: "posted", messageId: "m-new" });
         expect(loadEventGroups).toHaveBeenCalledWith("111");
         expect(channel.send).toHaveBeenCalledTimes(1);
-        expect(mockState).toMatchObject({ channelId: "ov", messageId: "m-new", postedAt: 5, error: "" });
-        expect(mockState.hash).toHaveLength(40);
+        expect(stateOf()).toMatchObject({ channelId: "ov", messageId: "m-new", postedAt: 5, error: "" });
+        expect(stateOf().hash).toHaveLength(40);
     });
 
     it("edits when the content changed and skips when it did not", async () => {
         const { channel, message } = fakeDiscord();
-        await syncOverview();
-        mockState.messageId = "m1";
-        expect(await syncOverview()).toEqual({ status: "unchanged", messageId: "m1" });
+        await syncOverview({ guildId: "111" });
+        mockStates["111"].messageId = "m1";
+        expect(await syncOverview({ guildId: "111" })).toEqual({ guildId: "111", label: "", status: "unchanged", messageId: "m1" });
         expect(message.edit).not.toHaveBeenCalled();
 
         loadEventGroups.mockResolvedValue({ groups: [], error: null });
-        expect(await syncOverview({ now: 9 })).toEqual({ status: "edited", messageId: "m1" });
+        expect(await syncOverview({ guildId: "111", now: 9 })).toEqual({ guildId: "111", label: "", status: "edited", messageId: "m1" });
         expect(message.edit).toHaveBeenCalledTimes(1);
         expect(channel.send).toHaveBeenCalledTimes(1);
-        expect(mockState.editedAt).toBe(9);
+        expect(stateOf().editedAt).toBe(9);
     });
 
     it("posts anew when the message was deleted in Discord", async () => {
-        mockState = { channelId: "ov", messageId: "gone", hash: "x" };
+        mockStates["111"] = { channelId: "ov", messageId: "gone", hash: "x" };
         const { channel } = fakeDiscord({ fetchError: Object.assign(new Error("Unknown Message"), { code: 10008 }) });
-        expect(await syncOverview()).toEqual({ status: "posted", messageId: "m-new" });
+        expect(await syncOverview({ guildId: "111" })).toEqual({ guildId: "111", label: "", status: "posted", messageId: "m-new" });
         expect(channel.send).toHaveBeenCalledTimes(1);
-        expect(mockState.messageId).toBe("m-new");
+        expect(stateOf().messageId).toBe("m-new");
     });
 
     it("re-posts on request: the old message goes, a new one comes", async () => {
-        mockState = { channelId: "ov", messageId: "m1", hash: "x" };
+        mockStates["111"] = { channelId: "ov", messageId: "m1", hash: "x" };
         const { channel, message } = fakeDiscord({ sendId: "m2" });
-        expect(await syncOverview({ repost: true })).toEqual({ status: "posted", messageId: "m2" });
+        expect(await syncOverview({ guildId: "111", repost: true })).toEqual({ guildId: "111", label: "", status: "posted", messageId: "m2" });
         expect(message.delete).toHaveBeenCalled();
         expect(channel.send).toHaveBeenCalledTimes(1);
     });
 
     it("leaves an existing message alone when the events cannot be loaded completely", async () => {
-        mockState = { channelId: "ov", messageId: "m1", hash: "x" };
+        mockStates["111"] = { channelId: "ov", messageId: "m1", hash: "x" };
         const { channel, message } = fakeDiscord();
         loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper down" });
-        const result = await syncOverview();
+        const result = await syncOverview({ guildId: "111" });
         expect(result.status).toBe("error");
         expect(message.edit).not.toHaveBeenCalled();
         expect(channel.send).not.toHaveBeenCalled();
-        expect(mockState.error).toContain("Raid-Helper down");
+        expect(stateOf().error).toContain("Raid-Helper down");
     });
 
     it("records other failures instead of throwing", async () => {
         discord.getClient.mockReturnValue(null);
-        expect(await syncOverview()).toEqual({ status: "error", error: "Bot nicht verbunden." });
-        expect(mockState.error).toBe("Bot nicht verbunden.");
+        expect(await syncOverview({ guildId: "111" })).toEqual({ guildId: "111", label: "", status: "error", error: "Bot nicht verbunden." });
+        expect(stateOf().error).toBe("Bot nicht verbunden.");
+    });
+
+    it("returns unconfigured for a guildId that has no entry at all", async () => {
+        expect(await syncOverview({ guildId: "999" })).toEqual({ status: "unconfigured" });
+    });
+
+    it("loops every configured entry without a guildId — one's failure never blocks another's", async () => {
+        getConfig.mockReturnValue({
+            discordServers: { eventGuilds: [eventGuild("111", { label: "PvE" }), eventGuild("112", { label: "PvP", overviewChannelId: "ov2" })] },
+        });
+        discord.getClient.mockReturnValue(null); // guild 111 fails ("Bot nicht verbunden.")
+        loadEventGroups.mockResolvedValue({ groups: [], error: null });
+        const { results } = await syncOverview({});
+        expect(results).toHaveLength(2);
+        expect(results[0]).toMatchObject({ guildId: "111", label: "PvE", status: "error" });
+        expect(results[1]).toMatchObject({ guildId: "112", label: "PvP" });
     });
 
     it("reports the status with a jump link for the settings page", () => {
-        mockState = { channelId: "ov", messageId: "m1", postedAt: 1, editedAt: 2, checkedAt: 3 };
-        expect(overviewStatus(config)).toEqual({
-            configured: true, channelId: "ov", messageId: "m1",
+        mockStates["111"] = { channelId: "ov", messageId: "m1", postedAt: 1, editedAt: 2, checkedAt: 3 };
+        expect(overviewStatus(config)).toEqual([{
+            guildId: "111", label: "", configured: true, channelId: "ov", messageId: "m1",
             messageUrl: "https://discord.com/channels/222/ov/m1", postedAt: 1, editedAt: 2, checkedAt: 3, error: "",
-        });
-        mockState.channelId = "other";
-        expect(overviewStatus(config)).toMatchObject({ messageId: "", messageUrl: "", postedAt: 0 });
+        }]);
+        mockStates["111"].channelId = "other";
+        expect(overviewStatus(config)[0]).toMatchObject({ messageId: "", messageUrl: "", postedAt: 0 });
     });
 
     it("builds the dry-run payload from the event server's groups", async () => {
-        const { payload, error } = await currentPayload({ config });
+        const { payload, error } = await currentPayload({ config, guildId: "111" });
         expect(error).toBeNull();
         expect(payload.embeds[0].description).toContain("Pulse Events");
     });
@@ -275,7 +297,7 @@ describe("web/talkOverview — triggers", () => {
     beforeEach(() => {
         jest.useFakeTimers();
         jest.clearAllMocks();
-        mockState = {};
+        mockStates = {};
         getConfig.mockReturnValue({ guildId: "111" }); // unconfigured: runs stay cheap
     });
     afterEach(() => jest.useRealTimers());
