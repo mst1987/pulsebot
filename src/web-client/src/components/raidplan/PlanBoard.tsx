@@ -265,7 +265,7 @@ export default function PlanBoard({
                                 )}
                                 {face && (
                                     <span className="rp-facing" style={{ transform: `rotate(${i.rotation || 0}deg)` }} aria-hidden="true">
-                                        <span className="rp-wedge" />
+                                        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
                                         {editable && !i.lock && isSel("icon", i.id) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />
                                         )}
@@ -296,14 +296,16 @@ export default function PlanBoard({
                     return (
                         <div key={s.id} className="rp-groupwrap">
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
+                                {(editable || boardLabel || (showList && members.length > 0)) && (
                                 <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
-                                    {boardLabel ? <span className="rp-groupchip-title">{boardLabel}</span> : !(showList && members.length > 0) && <Users size={16} aria-hidden="true" />}
+                                    {boardLabel ? <span className="rp-groupchip-title">{boardLabel}</span> : editable && !(showList && members.length > 0) && <Users size={16} aria-hidden="true" />}
                                     {showList && members.length > 0 && (
                                         <span className="rp-groupchip-names">
                                             {members.map((p) => <PlayerName key={p.userId} player={p} className={p.userId === me ? "is-me" : ""} />)}
                                         </span>
                                     )}
                                 </button>
+                                )}
                             </div>
                             {around.map((p) => {
                                 const at = everyone.findIndex((x) => x.userId === p.userId);
