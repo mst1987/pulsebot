@@ -1,9 +1,12 @@
-// Einstellungen → Verbindungen → Discord-Server and the switcher badge (#251).
+// Einstellungen → Verbindungen → Discord-Server and the switcher badge (#251,
+// #361 — several event servers, each with its own overview target).
 //
 // No React renderer in this project, so what is held here are the lines that
-// break silently: the section talks to the endpoint the server serves, the
-// rights stay in a tooltip instead of a list on the card, the dialog saves
-// only its own block, and the switcher shows the role without hiding servers.
+// break silently: the section talks to the endpoint the server serves, one
+// card per configured event server plus the talk card, the rights stay in a
+// tooltip instead of a list on the card, the dialog saves only its own block
+// through the shared patch rule, and the switcher shows the role without
+// hiding servers.
 const fs = require("fs");
 const path = require("path");
 
@@ -43,8 +46,67 @@ describe("Discord-Server section", () => {
         expect(section).toContain("<RemindersPart csrfToken={csrfToken} onConfig={onConfig} />");
     });
 
-    it("clears the talk channels when another talk server is picked", () => {
-        expect(section).toContain('talkGuildId: e.target.value, talkOverviewChannelId: "", talkPingChannelId: ""');
+    it("renders one card per configured event server, keyed by its guild id", () => {
+        expect(section).toContain("{data.events.map((card, i) => {");
+        expect(section).toContain('<ServerCard key={card.id} card={card} role="event" label={card.label}');
+    });
+
+    it("names the Vielleicht/Absage channel once (first card), not once per event server", () => {
+        expect(section).toContain("{i === 0 && (");
+    });
+
+    it("shows the empty state only when no event server is configured yet", () => {
+        expect(section).toContain('{data.events.length === 0 && <ServerCard card={null} role="event"');
+    });
+
+    it("offers to add another event server once at least one exists", () => {
+        expect(section).toContain("{data.events.length > 0 && (");
+        expect(section).toContain("Event-Server hinzufügen");
+    });
+
+    it("shows the raid-overview row per event server only once its own target is set", () => {
+        expect(section).toContain("const hasOverview = !!(card.overviewGuildId && card.overviewChannelId);");
+        expect(section).toContain("{hasOverview && (");
+        expect(section).toContain("guildId={card.id}");
+    });
+
+    it("fetches the overview statuses once for every card instead of per card", () => {
+        expect(section).toContain("getTalkOverview()");
+        expect(section).toContain("statuses.find((s) => s.guildId === card.id)");
+    });
+
+    it("clears the talk server's channels (only) when another talk server is picked", () => {
+        expect(section).toContain('talkGuildId: e.target.value, talkPingChannelId: ""');
+    });
+
+    it("generalizes the note-channel picker to every configured event server", () => {
+        expect(section).toContain("noteChannels(guilds, [...fields.eventGuilds.map((e) => e.guildId), fields.talkGuildId])");
+    });
+});
+
+describe("Discord-Server edit dialog: event-server rows (#361)", () => {
+    it("renders one row per entry with a guild picker, a label and its own overview target", () => {
+        expect(section).toContain("function EventGuildRow(");
+        expect(section).toContain('placeholder="PvE, PvP, Allianz …"');
+        expect(section).toContain("targetChannels = guilds.find((g) => g.id === entry.overviewGuildId)?.channels || []");
+        expect(section).toContain("guildSelectOptions(guilds, entry.overviewGuildId, new Set())");
+    });
+
+    it("appends a blank row and can remove one again", () => {
+        expect(section).toContain("const emptyEventGuild = ()");
+        expect(section).toContain("const addRow = () => setFields({ ...fields, eventGuilds: [...fields.eventGuilds, emptyEventGuild()] });");
+        expect(section).toContain("const removeRow = (index: number) => {");
+        expect(section).toContain("fields.eventGuilds.filter((_, i) => i !== index)");
+    });
+
+    it("excludes every other picked guild (other event servers and the talk server) from a row's own picker", () => {
+        expect(section).toContain("fields.eventGuilds.filter((_, j) => j !== i).map((e) => e.guildId)");
+        expect(section).toContain("fields.talkGuildId,");
+    });
+
+    it("no longer offers a single fixed event-server field or a talkOverviewChannelId", () => {
+        expect(section).not.toContain('guildField("eventGuildId"');
+        expect(section).not.toContain("talkOverviewChannelId");
     });
 });
 
@@ -56,21 +118,28 @@ describe("server switcher", () => {
     });
 });
 
-describe("raid overview row (#257)", () => {
+describe("raid overview row (#257, #361)", () => {
     const row = read("components", "SettingsTalkOverview.tsx");
 
-    it("talks to the endpoint the router serves and re-posts with the CSRF token", () => {
-        expect(api).toContain('get<{ status: TalkOverviewStatus }>("/api/settings/talk-overview?preview=0")');
-        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true })');
+    it("talks to the endpoint the router serves and re-posts with the CSRF token and guild id", () => {
+        expect(api).toContain('get<{ statuses: TalkOverviewStatus[] }>("/api/settings/talk-overview?preview=0")');
+        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true, guildId });');
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
-        expect(row).toContain("repostTalkOverview(csrfToken)");
+        expect(row).toContain("repostTalkOverview(csrfToken, guildId)");
     });
 
-    it("sits in the talk card once an overview channel is chosen, its details in the tooltip", () => {
-        expect(section).toContain("{data.discordServers.talkOverviewChannelId && <TalkOverviewRow csrfToken={csrfToken} />}");
+    it("is a controlled row fed from the parent, not a self-fetching one", () => {
+        expect(row).not.toContain("getTalkOverview");
+        expect(row).not.toContain("useEffect");
+        expect(row).toContain("onReposted(next)");
+    });
+
+    it("sits in an event-server card once its own overview target is chosen, its details in the tooltip", () => {
         expect(row).toContain("talkOverviewBadge(status, Date.now())");
         expect(row).toContain("tipSub={badge.tipSub}");
         expect(row).toContain("Neu posten");
+        expect(row).toContain("targetGuildName");
+        expect(row).toContain("targetChannelName");
     });
 });

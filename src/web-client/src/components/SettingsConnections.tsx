@@ -60,7 +60,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             tip: "Discord & Raid-Helper",
             tipSub: "Ob der Bot verbunden ist und welcher Raid-Helper-Server die Events liefert. Welcher Discord-Server der Event- und welcher der Kommunikations-Discord ist, steht unter Verbindungen › Discord-Server. Der Raid-Helper-API-Key selbst bleibt in der .env.",
             rows: [
-                ["Event-Server", data.servers?.event?.name || data.bot?.guildName || c.guildId || "Standard-Server des Bots"],
+                ["Event-Server", data.servers?.events?.[0]?.name || data.bot?.guildName || c.guildId || "Standard-Server des Bots"],
                 ["Raid-Helper", c.raidhelperServerId || "aus der .env"],
                 ["Bot", data.bot?.online ? `online${data.bot.readySince ? ` seit ${since(data.bot.readySince)}` : ""}` : "offline"],
             ],

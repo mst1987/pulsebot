@@ -701,16 +701,24 @@ export type SettingsData = {
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
-    servers?: { event: DiscordServerCard | null; talk: DiscordServerCard | null } | null;
+    servers?: { events: DiscordServerCard[]; talk: DiscordServerCard | null } | null;
     activeGuildId: string;
 };
 
+/** One configured event server (src/web/settingsStore.js's normalizeEventGuildEntry). */
+export type EventGuildEntry = {
+    guildId: string;
+    label: string;
+    /** Both set or both "" — where this server's own raid overview is posted (any bot guild, including itself). */
+    overviewGuildId: string;
+    overviewChannelId: string;
+};
+
 export type DiscordServers = {
-    eventGuildId: string;
+    eventGuilds: EventGuildEntry[];
     talkGuildId: string;
-    talkOverviewChannelId: string;
     talkPingChannelId: string;
-    /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on either server. */
+    /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on any server. */
     signupNoteChannelId: string;
 };
 
@@ -729,13 +737,21 @@ export type DiscordServerCard = {
     missing: string[];
 };
 
+/** One event server's card plus its overview target (src/web/guildRoles.js's eventGuildCards()). */
+export type EventServerCard = DiscordServerCard & {
+    label: string;
+    overviewGuildId: string;
+    overviewChannelId: string;
+    overviewGuildName: string;
+};
+
 export type MemberOverlap = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
 
 export type DiscordServersData = {
     discordServers: DiscordServers;
-    event: DiscordServerCard | null;
+    events: EventServerCard[];
     talk: DiscordServerCard | null;
-    /** null in the one-server setup. */
+    /** null without both an event and a talk server. */
     overlap: MemberOverlap | null;
     guilds: (SessionGuild & { channels: TextChannel[] })[];
 };
@@ -744,8 +760,10 @@ export function getDiscordServers(): Promise<DiscordServersData> {
     return get<DiscordServersData>("/api/settings/discord-servers");
 }
 
-/** The raid overview on the talk server (#257, src/web/talkOverview.js). Times are epoch ms, 0 = never. */
+/** One event server's raid overview (#257, #361, src/web/talkOverview.js). Times are epoch ms, 0 = never. */
 export type TalkOverviewStatus = {
+    guildId: string;
+    label: string;
     configured: boolean;
     channelId: string;
     messageId: string;
@@ -756,12 +774,16 @@ export type TalkOverviewStatus = {
     error: string;
 };
 
-export function getTalkOverview(): Promise<{ status: TalkOverviewStatus }> {
-    return get<{ status: TalkOverviewStatus }>("/api/settings/talk-overview?preview=0");
+/** Every configured event server's overview status, for the settings cards. */
+export function getTalkOverview(): Promise<{ statuses: TalkOverviewStatus[] }> {
+    return get<{ statuses: TalkOverviewStatus[] }>("/api/settings/talk-overview?preview=0");
 }
 
-export function repostTalkOverview(csrfToken: string | null): Promise<{ result: { status: string; error?: string }; status: TalkOverviewStatus }> {
-    return send("POST", "/api/settings/talk-overview", csrfToken, { repost: true });
+export function repostTalkOverview(
+    csrfToken: string | null,
+    guildId: string,
+): Promise<{ result: { guildId: string; label: string; status: string; error?: string; messageId?: string }; status: TalkOverviewStatus | null }> {
+    return send("POST", "/api/settings/talk-overview", csrfToken, { repost: true, guildId });
 }
 
 // ---- Umstieg von Raid-Helper (#291) ----------------------------------------
