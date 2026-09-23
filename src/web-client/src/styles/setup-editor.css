@@ -44,6 +44,46 @@
 .se-group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
 .se-group.se-target { border-style: dashed; border-color: var(--accent); }
 .se-group.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* while somebody is dragged: the group where what they bring helps most breathes softly */
+.se-group.se-suggest:not(.se-over) { border-color: var(--accent); animation: se-glow 1.6s ease-in-out infinite; }
+@keyframes se-glow {
+    0%, 100% { box-shadow: 0 0 0 0 transparent, 0 0 6px 0 var(--accent-soft); }
+    50% { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 18px 2px var(--accent-soft); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .se-group.se-suggest:not(.se-over) { animation: none; box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px 1px var(--accent-soft); }
+}
+
+/* the raider's tooltip (portalled to <body>): icon rows instead of a text block */
+.se-tip { position: fixed; z-index: 70; box-sizing: border-box; overflow-y: auto; pointer-events: none; display: flex; flex-direction: column; gap: 2px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px rgb(0 0 0 / .32); }
+.se-tip-head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 8px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
+.se-tip-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 2px; font-size: 13px; }
+.se-tip-row > .wi { margin-top: 1px; border-radius: 5px; flex: 0 0 auto; }
+.se-tip-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.se-tip-name { font-weight: 800; font-size: 15px; }
+.se-tip-k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.se-tip-sub { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.se-tip-sub .wi { border-radius: 3px; }
+.se-tip-status { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.se-st-late { color: var(--sig-late); }
+.se-st-tentative { color: var(--sig-tentative); }
+.se-st-bench { color: var(--sig-bench); }
+.se-tip-att { display: flex; align-items: center; gap: 8px; }
+.se-tip-att b { font-size: 15px; }
+.se-tip-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
+.se-tip-bar i { display: block; height: 100%; border-radius: 3px; background: currentColor; }
+.se-tip-ok { color: var(--good); }
+.se-tip-mid { color: var(--medium); }
+.se-tip-bad { color: var(--sig-absence); }
+.se-tip-link { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.se-tip-linked { width: 18px; height: 18px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
+.se-tip-linked svg { width: 11px; height: 11px; }
+.se-tip-auto { font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: .04em; padding: 2px 6px; border-radius: 999px; background: var(--medium-bg); color: var(--medium); }
+.se-tip-buff { display: flex; align-items: center; gap: 8px; }
+.se-tip-buff .wi { border-radius: 5px; }
+.se-tip-buff > span { display: flex; flex-direction: column; line-height: 1.2; }
+.se-tip-buff small { font-size: 11px; color: var(--muted); }
+.se-tip-reasons { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
 
 /* the bench: below the setup, set apart by a divider — its own header, then chunk cards the width of a group */
 .se-bench { position: relative; margin-top: 14px; }

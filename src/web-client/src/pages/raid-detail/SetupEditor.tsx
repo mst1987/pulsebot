@@ -11,15 +11,17 @@
 // places). Without a mouse: activate a raider (click, Enter), then the target.
 // Every move is saved at once and comes back valued by the server.
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
     approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
-    type ApiError, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
+    type ApiError, type SetupAttendance, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
+import { popoverStyle } from "../../components/HoverPanel";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { roleLabel, rolePluralLabel, specLabel } from "../../lib/wowNames";
 import { locale, t, useT } from "../../i18n";
@@ -29,7 +31,7 @@ import { Modal, useConfirm } from "../../components/ui/Modal";
 import RaidLoader from "../../components/ui/RaidLoader";
 import WowIcon from "../../components/ui/WowIcon";
 import { useJobs } from "../../components/Jobs";
-import { LockIcon, UnlockIcon } from "../../components/icons";
+import { CheckIcon, LockIcon, UnlockIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import SpecTile from "./SpecTile";
 import type { RaidCtx } from "./meta";
@@ -70,18 +72,104 @@ const dateTime = (ms: number) => (ms
     ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
 
-/** Tooltip body of a raider: spec and role, status, then the reasons — one per line. */
-function personTip(p: SetupPerson): string {
-    const head = [specText(p), p.role ? roleLabel(p.role) : ""].filter(Boolean).join(" · ");
-    const lines = [
-        head,
-        p.main === false ? t("setup.person.offSpec") : "",
-        statusLabel(p.status),
-        p.name ? `@${p.name}` : "",
-        ...(p.reasons || []),
-    ].filter(Boolean);
-    // a status the proposal also names as a reason ("Als Ersatz angemeldet") only once
-    return [...new Set(lines)].join("\n");
+const ROLE_ICONS: Record<string, string> = {
+    tank: "ability_warrior_defensivestance",
+    healer: "spell_holy_flashheal",
+    melee: "ability_meleedamage",
+    ranged: "ability_marksmanship",
+};
+
+/** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
+const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "mid" : "bad");
+
+/** The tooltip's attendance row: a bar, the percentage, how many raids, and how sure the character link is (check = confirmed, "auto" = guessed). */
+function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
+    const t = useT();
+    const known = !!a && a.pct !== null;
+    return (
+        <div className="se-tip-row">
+            <WowIcon name="inv_misc_note_01" size={20} />
+            <div className="se-tip-body">
+                <span className="se-tip-k">{t("setup.person.tip.attendance")}</span>
+                {known && a ? (
+                    <>
+                        <span className="se-tip-att">
+                            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
+                            <b className="se-num">{a.pct} %</b>
+                            {a.link === "manual"
+                                ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
+                                : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
+                        </span>
+                        <span className="se-tip-sub">{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>
+                        <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>
+                    </>
+                ) : <span className="se-tip-sub">{t("setup.person.tip.attendanceNone")}</span>}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Tooltip of a raider, drawn beside the line while the pointer rests on it: spec
+ * and role with icons, Discord name, signup status, attendance (for everybody,
+ * badged by how sure the character link is), the buffs they bring as icons, and
+ * the reasons of the proposal. Portalled, so the cards' clip-path never cuts it.
+ */
+function SlotTip({ p, rect, attendance }: { p: SetupPerson; rect: DOMRect; attendance: SetupAttendance | undefined | null }) {
+    const t = useT();
+    const color = classColorProps(p.classColor);
+    const status = statusLabel(p.status);
+    const brings = p.brings || [];
+    const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
+    return createPortal(
+        <div className="se-tip" role="tooltip" style={popoverStyle(rect, 300)}>
+            <div className="se-tip-head">
+                <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
+                <div className="se-tip-body">
+                    <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                    <span className="se-tip-sub">
+                        {p.role && <WowIcon name={ROLE_ICONS[p.role] || "inv_misc_questionmark"} size={14} />}
+                        {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
+                    </span>
+                </div>
+                {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+            </div>
+            {p.name && (
+                <div className="se-tip-row">
+                    <WowIcon name="inv_letter_15" size={20} />
+                    <div className="se-tip-body"><span className="se-tip-k">Discord</span><span>@{p.name}</span></div>
+                </div>
+            )}
+            {attendance !== null && <AttendanceRow a={attendance} />}
+            {brings.length > 0 && (
+                <div className="se-tip-row">
+                    <WowIcon name="spell_holy_prayerofspirit" size={20} />
+                    <div className="se-tip-body">
+                        <span className="se-tip-k">{t("setup.person.tip.brings")}</span>
+                        {brings.map((b) => (
+                            <span key={`${b.scope}-${b.key}`} className="se-tip-buff">
+                                <WowIcon name={b.icon} size={20} />
+                                <span>
+                                    {b.label}
+                                    <small>{b.scope === "party" ? t("setup.person.tip.bringsGroup", { count: b.count }) : t("setup.person.tip.bringsRaid")}</small>
+                                </span>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {reasons.length > 0 && (
+                <div className="se-tip-row">
+                    <WowIcon name="inv_scroll_03" size={20} />
+                    <div className="se-tip-body">
+                        <span className="se-tip-k">{t("setup.person.tip.why")}</span>
+                        <ul className="se-tip-reasons">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+                    </div>
+                </div>
+            )}
+        </div>,
+        document.body,
+    );
 }
 
 /**
@@ -151,6 +239,10 @@ type Interaction = {
     editable: boolean;
     selected: string | null;
     dragging: string | null;
+    /** Attendance by user id, for the tooltips. */
+    attendance: Record<string, SetupAttendance>;
+    /** The group that suits the raider being dragged or picked — glows softly. */
+    suggest: number | null;
     onPick: (userId: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
     onDrag: (userId: string | null) => void;
@@ -162,6 +254,11 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
     const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
+    // the tooltip follows the pointer's rest on the line — never while somebody is moved
+    const [tipRect, setTipRect] = useState<DOMRect | null>(null);
+    const showTip = (e: { currentTarget: HTMLElement }) => setTipRect(e.currentTarget.getBoundingClientRect());
+    const hideTip = () => setTipRect(null);
+    const moving = !!ui.dragging || !!ui.selected;
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -181,12 +278,14 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
             aria-pressed={ui.editable ? selected : undefined}
             draggable={ui.editable}
             data-user={p.userId}
-            data-tip={p.character}
-            data-tip-sub={personTip(p)}
+            onMouseEnter={showTip}
+            onMouseLeave={hideTip}
+            onFocus={showTip}
+            onBlur={hideTip}
             onClick={ui.editable ? () => ui.onPick(p.userId) : undefined}
             onKeyDown={ui.editable ? keyDown : undefined}
             // the dimmed look is set a tick later: changing the dragged element inside dragstart makes Chrome cancel the drag
-            onDragStart={ui.editable ? (e) => { e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
+            onDragStart={ui.editable ? (e) => { hideTip(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId), 0); } : undefined}
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
@@ -213,6 +312,7 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
                     onKeyDown={(e) => e.stopPropagation()}
                 />
             )}
+            {tipRect && !moving && <SlotTip p={p} rect={tipRect} attendance={ui.editable ? ui.attendance[p.userId] : null} />}
         </div>
     );
 }
@@ -269,7 +369,7 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
     const full = group.slots.length >= GROUP_SIZE;
     const canTake = ui.editable && !!ui.selected && !group.slots.some((s) => s.userId === ui.selected);
     return (
-        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
+        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}${ui.suggest === group.index ? " se-suggest" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
             <GroupHeader title={t("setup.group.title", { index: group.index })} count={group.slots.length} full={full} buffs={buffs} />
             {/* always five places: the raiders in their order, then an empty box per free place */}
             <div className="se-slots">
@@ -595,7 +695,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, suggest: null, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
@@ -671,7 +771,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     /** Answer of a mutating call: take the server's lineup, tell the parent the step changed. */
     const accept = (next: SetupEditorData, message?: string) => {
         if (next.setup) confirmedVersion.current = next.setup.version;
-        setData(withNames(next));
+        // attendance is only read on the page load — keep it across the answers of moves
+        setData({ ...withNames(next), attendance: next.attendance || current.current?.attendance });
         ctx.onChanged(message || "");
     };
 
@@ -845,7 +946,11 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         );
     }
 
-    const ui: Interaction = { editable: !busy, selected, dragging, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
+    // the glow: where the raider being dragged (or picked) helps a group most
+    const moving = dragging || selected;
+    const movingPerson = moving ? peopleOf(setup).get(moving) : undefined;
+    const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
