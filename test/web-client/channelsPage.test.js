@@ -89,6 +89,8 @@ describe("ChannelsPage", () => {
         expect(tree).toContain("aria-expanded={open}");
         // the archive is its own tab, not a category of the tree
         expect(tree).toMatch(/c\.parentId !== archiveId/);
+        // selecting a whole category also selects the threads nested under its channels (#361)
+        expect(tree).toContain("g.visible.flatMap((c) => [c.id, ...c.threads.map((t) => t.id)])");
     });
 
     it("shows the bulk bar only with a selection, with the four actions of the design", () => {
@@ -263,5 +265,51 @@ describe("Kanäle — Namensschema pro Kategorie", () => {
         expect(schemaDialog).toMatch(/quickCreateChannels\(csrfToken, \{[\s\S]*?dryRun: true, ignoreStoredSchema: true/);
         expect(schemaDialog).toContain("<PlaceholderChips");
         expect(schemaDialog).toContain("placeholder=\"leer = wie der letzte Event-Kanal\"");
+    });
+});
+
+// A thread's parentId names the text channel it hangs off, not a category, so
+// without special handling it fell into "Ohne Kategorie" as if it were a
+// top-level channel (#361 — the "Bewerbungen" application threads).
+describe("Kanäle — Threads nisten unter ihrem Kanal (#361)", () => {
+    it("marks a channel as a thread on the server, the API type carries it through", () => {
+        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "discord.js"), "utf8");
+        expect(server).toContain("const THREAD_TYPES = [ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread];");
+        expect(server).toContain("isThread: THREAD_TYPES.includes(c.type),");
+        expect(api).toContain("isThread: boolean;");
+    });
+
+    it("resolves a thread's real category through its parent channel instead of grouping it loose", () => {
+        expect(lib).toContain("export type ChannelNode = Channel & { threads: Channel[] };");
+        expect(lib).toMatch(/const top = channels\.filter\(\(c\) => !c\.isThread\);/);
+        expect(lib).toMatch(/if \(t\.parentId && topIds\.has\(t\.parentId\)\)/);
+        // a thread whose parent channel is gone (filtered out, deleted) still shows up, loose
+        expect(lib).toContain("orphanThreads.push(t);");
+    });
+
+    it("nests a thread's row under its channel, folded per channel, indented", () => {
+        expect(tree).toContain("g.visible.map((c) => {");
+        expect(tree).toMatch(/renderRow\(c, \{[\s\S]*?threadCount: c\.threads\.length/);
+        expect(tree).toContain("c.threads.map((t) => renderRow(t, { nested: true }))");
+        expect(css).toContain(".kn-row-thread { padding-left: 34px; }");
+    });
+
+    it("does not offer moving a thread into another category or cloning it — only rename and delete", () => {
+        expect(tree).toMatch(/!nested && <IconButton size="sm" icon=\{<SettingsIcon \/>\} tip="Bearbeiten"/);
+        expect(tree).toMatch(/!nested && <IconButton size="sm" icon=\{<CopyIcon \/>\} tip="Duplizieren"/);
+        // rename and delete stay unconditional — they work for a thread too
+        expect(tree).toMatch(/icon=\{<PencilIcon \/>\} tip="Umbenennen"[^\n]*onClick=\{\(\) => setEditing\(c\.id\)\}/);
+    });
+
+    it("excludes the threads of an archived channel from the tree along with the channel itself", () => {
+        expect(tree).toContain("!archived.has(c.parentId)");
+    });
+
+    it("gives threads their own line icon and type label", () => {
+        expect(bits).toContain("case TYPE_ANNOUNCEMENT_THREAD:");
+        expect(bits).toContain("return <ThreadIcon />;");
+        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "discord.js"), "utf8");
+        expect(server).toContain('[ChannelType.PublicThread]: "Thread",');
+        expect(server).toContain('[ChannelType.PrivateThread]: "Privater Thread",');
     });
 });

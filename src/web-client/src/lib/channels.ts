@@ -148,6 +148,9 @@ export function resultMessage(results: ChannelResult[], verb: string): { message
 export const TYPE_TEXT = 0;
 export const TYPE_VOICE = 2;
 export const TYPE_ANNOUNCEMENT = 5;
+export const TYPE_ANNOUNCEMENT_THREAD = 10;
+export const TYPE_PUBLIC_THREAD = 11;
+export const TYPE_PRIVATE_THREAD = 12;
 export const TYPE_STAGE = 13;
 export const TYPE_FORUM = 15;
 
@@ -156,14 +159,40 @@ export function isTextLike(channel: Pick<Channel, "type">): boolean {
     return channel.type === TYPE_TEXT || channel.type === TYPE_ANNOUNCEMENT;
 }
 
-/** Channels grouped under their Discord category, in server order; uncategorised first. */
-export function groupByCategory(data: Pick<ChannelsData, "categories">, channels: Channel[]) {
-    const groups: { id: string; name: string; channels: Channel[] }[] = [];
+/** A channel as the tree shows it: with the threads that hang off it, if any (#361). */
+export type ChannelNode = Channel & { threads: Channel[] };
+export type CategoryGroup = { id: string; name: string; channels: ChannelNode[] };
+
+/**
+ * Channels grouped under their Discord category, in server order; uncategorised
+ * first. A thread's parentId names the text channel it hangs off, not a
+ * category (#361), so it nests under that channel (`ChannelNode.threads`)
+ * instead of falling into "Ohne Kategorie" itself; only a thread whose parent
+ * channel is not in `channels` (e.g. already filtered out, or deleted) falls
+ * back to a loose row of its own.
+ */
+export function groupByCategory(data: Pick<ChannelsData, "categories">, channels: Channel[]): CategoryGroup[] {
+    const groups: CategoryGroup[] = [];
     const known = new Set(data.categories.map((k) => k.id));
-    const loose = channels.filter((c) => !c.parentId || !known.has(c.parentId));
-    if (loose.length) groups.push({ id: "", name: "Ohne Kategorie", channels: loose });
+    const top = channels.filter((c) => !c.isThread);
+    const topIds = new Set(top.map((c) => c.id));
+    const threadsByParent = new Map<string, Channel[]>();
+    const orphanThreads: Channel[] = [];
+    for (const t of channels) {
+        if (!t.isThread) continue;
+        if (t.parentId && topIds.has(t.parentId)) {
+            const list = threadsByParent.get(t.parentId) || [];
+            list.push(t);
+            threadsByParent.set(t.parentId, list);
+        } else {
+            orphanThreads.push(t);
+        }
+    }
+    const withThreads = (list: Channel[]): ChannelNode[] => list.map((c) => ({ ...c, threads: threadsByParent.get(c.id) || [] }));
+    const loose = [...top.filter((c) => !c.parentId || !known.has(c.parentId)), ...orphanThreads];
+    if (loose.length) groups.push({ id: "", name: "Ohne Kategorie", channels: withThreads(loose) });
     for (const cat of data.categories) {
-        groups.push({ id: cat.id, name: cat.name, channels: channels.filter((c) => c.parentId === cat.id) });
+        groups.push({ id: cat.id, name: cat.name, channels: withThreads(top.filter((c) => c.parentId === cat.id)) });
     }
     return groups;
 }
