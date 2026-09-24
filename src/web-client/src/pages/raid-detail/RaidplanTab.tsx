@@ -8,7 +8,7 @@ import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../componen
 import { useToast } from "../../components/Jobs";
 import { useT } from "../../i18n";
 import {
-    applyProfile, boardOf, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, toSave,
+    applyProfile, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
@@ -72,14 +72,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
     const roster = useMemo(() => (view ? view.roster : []), [view]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
-    const board = boardOf(draft, selected);
+    const besetzung = view ? view.besetzung : null;
+    const board = useMemo(() => ensureBesetzung(boardOf(draft, selected), besetzung, roster), [draft, selected, besetzung, roster]);
     const dirty = !!view && !sameBosses(draft, view.plan.bosses, bossKeys);
     const canWrite = !!view && view.canWrite;
 
     /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
     const editBoard = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
-        histEdit(selectedRef.current, fn, coalesce);
-    }, [histEdit]);
+        histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, roster)), coalesce);
+    }, [histEdit, besetzung, roster]);
 
     // ---- save / publish -----------------------------------------------------------------------
     const save = async () => {
@@ -138,7 +139,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
     // ---- tactic profiles ----------------------------------------------------------------------
     const pickProfile = async (profile: RaidplanProfile) => {
-        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], assignments: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], assignments: board.assignments.filter((a) => a.type === "other"), mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         editBoard((b) => applyProfile(b, profile));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: profile.name }));
@@ -180,7 +181,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
             {boss && (
                 <BoardWorkspace
-                    mode="event" eventId={eventId} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
+                    mode="event" eventId={eventId} besetzung={view.besetzung} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

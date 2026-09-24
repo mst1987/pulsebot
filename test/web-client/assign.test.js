@@ -49,7 +49,7 @@ describe("types per area", () => {
     it("boss, trash and the whole raid offer their own types, everything can be 'other'", () => {
         expect(lib.assignTypes("boss")).toEqual(expect.arrayContaining(["heal", "kick", "md", "ss", "fearward", "special", "other"]));
         expect(lib.assignTypes("trash")[0]).toBe("trashtank");
-        expect(lib.assignTypes("general")).toEqual(["curse", "thunderclap", "demoshout", "other"]);
+        expect(lib.assignTypes("general")).toEqual(["curse", "thunderclap", "demoshout", "buff", "other"]);
         expect(lib.assignTypes("nonsense")).toEqual(lib.assignTypes("boss"));
         for (const scope of ["boss", "trash", "general"]) expect(lib.assignTypes(scope)).toContain("other");
         expect(lib.scopeOf({ general: true })).toBe("general");

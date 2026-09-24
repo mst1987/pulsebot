@@ -20,7 +20,9 @@
 //   lines    [{ id, kind, x1, y1, x2, y2, color, width, ... }]   arrows and plain lines
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
-//   assignments [{ id, type, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
+//   counts   { tank, healer, melee, ranged } | null   how many role slots the Besetzung has (null = the raid type's)
+//   slots may carry placed:false = in the Besetzung, not on the map
+//   assignments [{ id, type, title, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
 //   notes, profileId, mapOpacity          (mapOpacity 0.1..1: how strongly the map shows)
 //   objectScale                           (0.5..2: the default size of tokens, slots, marks and icons)
 //
@@ -32,6 +34,7 @@
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
 const crypto = require("crypto");
 const assign = require("./raidplanAssign");
+const besetzung = require("./raidplanBesetzung");
 
 const LIMITS = {
     tokensPerBoss: 60,
@@ -152,6 +155,8 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         slots.push({
             id: cleanId(o.id, slotIds), kind: o.kind, n, label,
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, size: cleanSize(o.size, "token"), ...common(o),
+            // a role slot of the Besetzung that was not put on the map yet has no place there (placed = false)
+            placed: o.placed !== false,
             hideMembers: o.kind === "group" && o.hideMembers === true, split: o.kind === "group" && o.split === true, offsets,
         });
     }
@@ -258,7 +263,8 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
     const mapOpacity = cleanOpacity(input.mapOpacity, 1);
     const objectScale = Number.isFinite(Number(input.objectScale)) && input.objectScale !== "" && input.objectScale !== null ? Math.max(0.5, Math.min(2, Math.round(Number(input.objectScale) * 100) / 100)) : 1;
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, notes, profileId, mapOpacity, objectScale }, dropped };
+    const counts = besetzung.cleanCounts(input.counts);
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, counts, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */

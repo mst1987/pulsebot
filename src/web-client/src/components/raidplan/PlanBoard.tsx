@@ -287,7 +287,7 @@ export default function PlanBoard({
                 );
             })}
 
-            {slots.filter((s) => !s.hidden).map((s) => {
+            {slots.filter((s) => !s.hidden && s.placed !== false).map((s) => {
                 const player = s.userId ? players.get(s.userId) || null : null;
                 const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps" ? s.kind : "";
                 const mine = !!me && s.userId === me;

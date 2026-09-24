@@ -36,7 +36,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -83,20 +83,13 @@ describe("boards", () => {
     });
 });
 
-describe("target rows", () => {
-    it("adds, renames, assigns once, unassigns and removes", () => {
-        const row = lib.newTarget("Main-Tank");
-        expect(row).toMatchObject({ title: "Main-Tank", userIds: [] });
-        expect(row.id).toMatch(/^r/);
-        let b = board({ targets: [row] });
-        b = lib.updateTarget(b, row.id, { title: "MT" });
-        expect(b.targets[0].title).toBe("MT");
-        b = lib.toggleAssignee(b, row.id, "u1");
-        b = lib.toggleAssignee(b, row.id, "u2");
-        expect(b.targets[0].userIds).toEqual(["u1", "u2"]);
-        b = lib.toggleAssignee(b, row.id, "u1");
-        expect(b.targets[0].userIds).toEqual(["u2"]);
-        expect(lib.removeTarget(b, row.id).targets).toEqual([]);
+describe("task rows", () => {
+    it("old target rows are read as assignments: the title is the task, the players do it, nothing is invented", () => {
+        const r = lib.boardOf({ k: { targets: [{ id: "r1", title: "Main-Tank", userIds: ["u1", "u2"] }, { id: "r2", title: "Kick", userIds: [] }], assignments: [{ id: "a1", type: "heal", assignees: ["slot:healer:1"], targets: [], note: "", suggested: false }] } }, "k");
+        expect(r.targets).toEqual([]);
+        expect(r.assignments.map((x) => [x.id, x.type, x.title, x.assignees])).toEqual([["r1", "other", "Main-Tank", ["user:u1", "user:u2"]], ["r2", "other", "Kick", []], ["a1", "heal", "", ["slot:healer:1"]]]);
+        // reading it again gives the same (nothing changes until it is edited)
+        expect(lib.boardOf({ k: r }, "k")).toEqual(r);
     });
 
     it("gives every new row its own id", () => {
@@ -109,29 +102,31 @@ describe("tactic profiles", () => {
         expect(lib.hasContent(board())).toBe(false);
         expect(lib.hasContent(board({ notes: "  " }))).toBe(false);
         expect(lib.hasContent(board({ notes: "x" }))).toBe(true);
-        expect(lib.hasContent(board({ targets: [lib.newTarget("a")] }))).toBe(true);
+        expect(lib.hasContent(board({ assignments: [{ id: "a", type: "other", title: "a", assignees: [], targets: [], note: "", suggested: false }] }))).toBe(true);
         expect(lib.hasContent(board({ mapOpacity: 0.5 }))).toBe(true);
     });
 
-    it("applies a profile: its rows and the profile id, players stay on rows whose title stays", () => {
+    it("applies a profile: its titles become rows, the profile id is kept, typed assignments and players on rows whose title stays are kept", () => {
+        const row = (id, type, title, assignees = []) => ({ id, type, title, assignees, targets: [], note: "", suggested: false });
         const b = board({
             tokens: [{ userId: "a", x: 0.5, y: 0.5, ...look() }],
-            targets: [{ id: "keep", title: "main-tank", userIds: ["u1"] }, { id: "old", title: "Something else", userIds: ["u2"] }],
+            assignments: [row("keep", "other", "main-tank", ["user:u1"]), row("old", "other", "Something else", ["user:u2"]), row("heal", "heal", "", ["slot:healer:1"])],
             notes: "mine",
         });
         const r = lib.applyProfile(b, profile());
         expect(r.profileId).toBe("p1");
-        expect(r.targets.map((x) => x.title)).toEqual(["Main-Tank", "Off-Tank"]);
-        expect(r.targets[0]).toMatchObject({ id: "keep", userIds: ["u1"] });
-        expect(r.targets[1].userIds).toEqual([]);
+        expect(r.assignments.map((x) => x.title)).toEqual(["", "Main-Tank", "Off-Tank"]);
+        expect(r.assignments[0]).toMatchObject({ id: "heal", type: "heal" });
+        expect(r.assignments[1]).toMatchObject({ id: "keep", assignees: ["user:u1"] });
+        expect(r.assignments[2].assignees).toEqual([]);
         expect(r.tokens).toEqual(b.tokens);
         expect(r.notes).toBe("mine");
         expect(lib.applyProfile(b, profile({ notes: "phase 1" })).notes).toBe("phase 1");
     });
 
-    it("saves only the row titles as a profile", () => {
-        const b = board({ targets: [{ id: "1", title: " MT ", userIds: ["u1"] }, { id: "2", title: "  ", userIds: [] }] });
-        expect(lib.profileRows(b)).toEqual([{ title: "MT" }]);
+    it("saves only the task titles as a profile", () => {
+        const row = (title) => ({ id: title, type: "other", title, assignees: ["user:u1"], targets: [], note: "", suggested: false });
+        expect(lib.profileRows(board({ assignments: [row(" MT "), row("  ")] }))).toEqual([{ title: "MT" }]);
     });
 
     it("offers the profiles for every boss, the boss's instance or exactly this boss", () => {
@@ -201,8 +196,10 @@ describe("inserting objects", () => {
         expect(new Set(b.slots.map((s) => s.id)).size).toBe(4);
         expect(lib.addMark(lib.emptyBoard(), "star").marks).toHaveLength(1);
         expect(lib.addZone(lib.emptyBoard(), "healthy", "rect").zones[0].color).toBe("#22c55e");
+        // a role slot belongs to the Besetzung: deleting it takes it off the map, a free label is removed
         const gap = lib.removeObject(b, "slot", b.slots[0].id);
-        expect(lib.addSlot(gap, "tank", "").slots.filter((s) => s.kind === "tank").map((s) => s.n)).toEqual([2, 3]);
+        expect(gap.slots.find((s) => s.id === b.slots[0].id).placed).toBe(false);
+        expect(lib.removeObject(b, "slot", b.slots[3].id).slots).toHaveLength(3);
     });
 
     it("titles a slot in the active language, with its own label winning", () => {
@@ -1163,5 +1160,64 @@ describe("facing and board labels", () => {
             expect(d.ctx.face).toContain("{dir}");
             expect(typeof d.icon.showLabel).toBe("string");
         }
+    });
+});
+
+describe("the Besetzung", () => {
+    const bes = { size: 25, counts: { tank: 3, healer: 7, melee: 8, ranged: 7 }, groups: 5 };
+    const p = (userId, role) => ({ ...player(userId), role });
+    it("every role slot exists at once, not on the map, groups included", () => {
+        const b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        expect(b.slots).toHaveLength(3 + 7 + 8 + 7 + 5);
+        expect(b.slots.every((s) => s.placed === false && s.userId === "")).toBe(true);
+        expect(lib.besetzungSlots(b).slice(0, 4).map((s) => s.kind + s.n)).toEqual(["tank1", "tank2", "tank3", "healer1"]);
+        expect(b.slots.filter((s) => s.kind === "group").map((s) => s.n)).toEqual([1, 2, 3, 4, 5]);
+    });
+    it("never changes or removes what is there, only adds what is missing", () => {
+        const start = lib.addSlot(lib.emptyBoard(), "tank", "");
+        const b = lib.ensureBesetzung(start, bes, []);
+        expect(b.slots.find((s) => s.id === start.slots[0].id)).toEqual(start.slots[0]);
+        expect(b.slots.filter((s) => s.kind === "tank")).toHaveLength(3);
+        expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
+        expect(lib.ensureBesetzung(b, null, [])).toBe(b);
+    });
+    it("in an event the new slots are filled from the setup by role, once each", () => {
+        const roster = [p("t", "tank"), p("h1", "healer"), p("h2", "healer"), p("m", "melee"), p("d", "dps")];
+        const b = lib.ensureBesetzung(lib.emptyBoard(), bes, roster);
+        const who = (k, n) => b.slots.find((s) => s.kind === k && s.n === n).userId;
+        expect([who("tank", 1), who("tank", 2), who("healer", 1), who("healer", 2), who("healer", 3), who("melee", 1), who("ranged", 1)]).toEqual(["t", "", "h1", "h2", "", "m", ""]);
+    });
+    it("the counts of the board win, +/- adds and removes from the end", () => {
+        let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        b = lib.setCount(b, bes, "healer", 5);
+        expect(b.slots.filter((s) => s.kind === "healer")).toHaveLength(5);
+        expect(b.counts).toEqual({ tank: 3, healer: 5, melee: 8, ranged: 7 });
+        expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
+        b = lib.setCount(b, bes, "healer", 6);
+        expect(lib.ensureBesetzung(b, bes, []).slots.filter((s) => s.kind === "healer").map((s) => s.n)).toEqual([1, 2, 3, 4, 5, 6]);
+        expect(lib.setCount(b, bes, "tank", -4).counts.tank).toBe(0);
+        expect(lib.setCount(b, bes, "tank", 99).counts.tank).toBe(40);
+    });
+    it("a slot goes onto the map and back, and the palette places the next free one instead of making a new slot", () => {
+        let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        const id = b.slots.find((s) => s.kind === "healer" && s.n === 1).id;
+        b = lib.placeSlot(b, id, { x: 0.3, y: 0.4 });
+        expect(b.slots.find((s) => s.id === id)).toMatchObject({ placed: true, x: 0.3, y: 0.4 });
+        expect(lib.unplaceSlot(b, id).slots.find((s) => s.id === id).placed).toBe(false);
+        const r = lib.insertObject(b, { type: "slot", kind: "healer", label: "" }, { x: 0.6, y: 0.6 });
+        expect(r.board.slots).toHaveLength(b.slots.length);
+        expect(r.board.slots.find((s) => s.id === r.sel.id)).toMatchObject({ kind: "healer", n: 2, placed: true, x: 0.6 });
+        expect(lib.layerList(b, new Map()).filter((l) => l.kind === "slot")).toHaveLength(1);
+    });
+    it("is derived from the raid type with the rules of the events", () => {
+        const bt = { defaultSize: 25, suggested: { 25: { tanks: 3, healers: 7 } } };
+        expect(lib.besetzungFor([bt], 25)).toEqual(bes);
+        expect(lib.besetzungFor([bt], 0).size).toBe(25);
+        const kara = { defaultSize: 10, suggested: {} };
+        const ten = lib.besetzungFor([kara], 10);
+        expect(ten.counts.tank + ten.counts.healer + ten.counts.melee + ten.counts.ranged).toBe(10);
+        expect(ten.groups).toBe(2);
+        expect(lib.besetzungFor([], 40).counts.tank).toBe(4);
+        expect(lib.besetzungFor([bt, kara], 25).counts.tank).toBe(3);
     });
 });

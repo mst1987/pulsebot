@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    applyProfile, boardOf, hasContent, profileRows, sameBosses, toSave,
+    applyProfile, boardOf, ensureBesetzung, hasContent, profileRows, sameBosses, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -18,9 +18,12 @@ import PageHead from "../components/ui/PageHead";
 import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
-import { InstancePicker } from "../components/RaidPlanFields";
+import { InstancePicker, NumberInput, SizePicker } from "../components/RaidPlanFields";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import { formatDate } from "../lib/format";
+import type { BesetzungCounts } from "../api";
+import { ROLE_ICON } from "../lib/assign";
+import { ROLE_KINDS, besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { ProfilePickerModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
@@ -29,10 +32,10 @@ import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan.css";
 
-type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[] };
+type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };
 
-const blankFields = (): Fields => ({ name: "", category: "", description: "", guildId: "", instanceIds: [] });
-const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category: tpl.category, description: tpl.description, guildId: tpl.guildId, instanceIds: tpl.instanceIds });
+const blankFields = (): Fields => ({ name: "", category: "", description: "", guildId: "", instanceIds: [], size: 0, counts: null });
+const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category: tpl.category, description: tpl.description, guildId: tpl.guildId, instanceIds: tpl.instanceIds, size: tpl.size, counts: tpl.counts });
 
 /**
  * Raid plan templates ("Raidplan-Vorlagen", docs/raidplan.md): a named layout the
@@ -247,6 +250,14 @@ function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, 
                                                     return <Badge key={id}>{i ? i.short : id}</Badge>;
                                                 })}
                                             </div>
+                                            <div className="rp-tcounts" aria-label={t("planTemplates.besetzung")}>
+                                                <span className="rp-tsize" data-tip={t("planTemplates.besetzungHint", { groups: tpl.besetzung.groups })}>{tpl.besetzung.size}</span>
+                                                {ROLE_KINDS.map((kind) => (
+                                                    <span key={kind} className="rp-tcount" data-tip={t(`raidBoard.slot.kind.${kind}`)}>
+                                                        <WowIcon name={ROLE_ICON[kind]} size={16} />{tpl.besetzung.counts[kind as keyof BesetzungCounts]}
+                                                    </span>
+                                                ))}
+                                            </div>
                                             {tpl.description && <span className="rp-muted rp-tdesc">{tpl.description}</span>}
                                             <div className="rp-tprogress" role="img" aria-label={t("planTemplates.bossesFilled", { count: filled })} data-tip={`${t("planTemplates.bossesFilled", { count: filled })} / ${tpl.bossList.length}`}>
                                                 {tpl.bossList.map((b) => <span key={b.key} className={tpl.bosses[b.key] ? "on" : ""} />)}
@@ -315,7 +326,12 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
     const t = useT();
     const [f, setF] = useState<Fields>(initial);
     const [busy, setBusy] = useState(false);
-    const toggle = (id: string) => setF((cur) => ({ ...cur, instanceIds: cur.instanceIds.includes(id) ? cur.instanceIds.filter((x) => x !== id) : [...cur.instanceIds, id] }));
+    const [freeSize, setFreeSize] = useState(false);
+    // the raid type (instances + size) decides the Besetzung; the counts stay editable
+    const chosen = (version ? version.instances : []).filter((i) => f.instanceIds.includes(i.id));
+    const derived = besetzungFor(chosen, f.size);
+    const counts = f.counts || derived.counts;
+    const toggle = (id: string) => setF((cur) => ({ ...cur, counts: null, instanceIds: cur.instanceIds.includes(id) ? cur.instanceIds.filter((x) => x !== id) : [...cur.instanceIds, id] }));
     const ok = !!f.name.trim() && f.instanceIds.length > 0;
     return (
         <Modal
@@ -350,6 +366,22 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
                     <span className="rp-muted">{t("planTemplates.serverHint")}</span>
                 </label>
                 <InstancePicker version={version} value={f.instanceIds} onToggle={toggle} />
+                <SizePicker version={version} instanceIds={f.instanceIds} size={f.size || derived.size} free={freeSize} onFree={setFreeSize} onSize={(n) => setF({ ...f, size: n || 0, counts: null })} />
+                <div className="rt-field">
+                    <span className="rp-kicker">{t("planTemplates.besetzung")} · {derived.size}</span>
+                    <div className="rp-bes-fields">
+                        {ROLE_KINDS.map((kind) => (
+                            <span key={kind} className="rp-bes-field">
+                                <WowIcon name={ROLE_ICON[kind]} size={22} />
+                                <NumberInput
+                                    id={`bes-${kind}`} label={t(`raidBoard.slot.kind.${kind}`)} value={counts[kind as keyof BesetzungCounts]}
+                                    onChange={(v) => setF({ ...f, counts: { ...counts, [kind]: v || 0 } })}
+                                />
+                            </span>
+                        ))}
+                    </div>
+                    <span className="rp-muted">{t("planTemplates.besetzungHint", { groups: derived.groups })}</span>
+                </div>
             </div>
         </Modal>
     );
@@ -382,11 +414,12 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
 
     const bossKeys = useMemo(() => tpl.bossList.map((b) => b.key), [tpl]);
     const boss = tpl.bossList.find((b) => b.key === selected) || null;
-    const board = boardOf(draft, selected);
+    const besetzung = tpl.besetzung;
+    const board = useMemo(() => ensureBesetzung(boardOf(draft, selected), besetzung, []), [draft, selected, besetzung]);
     const dirty = !sameBosses(draft, tpl.bosses, bossKeys);
     const edit = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
-        histEdit(selectedRef.current, fn, coalesce);
-    }, [histEdit]);
+        histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, [])), coalesce);
+    }, [histEdit, besetzung]);
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
 
@@ -441,7 +474,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     };
 
     const pickProfile = async (p: RaidplanProfile) => {
-        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], assignments: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], assignments: board.assignments.filter((a) => a.type === "other"), mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         edit((b) => applyProfile(b, p));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: p.name }));
@@ -471,7 +504,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
 
             {boss && (
                 <BoardWorkspace
-                    mode="template" eventId="" boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" eventId="" besetzung={tpl.besetzung} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

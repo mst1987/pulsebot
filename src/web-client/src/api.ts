@@ -4099,7 +4099,7 @@ export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | 
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
 export type RaidplanOffset = { dx: number; dy: number; size: number };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
-export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset> } & RaidplanLook;
+export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset>; /** false = a role slot of the Besetzung that is not on the map (missing = on the map) */ placed?: boolean } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
 /** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */
@@ -4117,6 +4117,8 @@ export type RaidplanBoard = {
     targets: RaidplanTarget[]; notes: string; profileId: string;
     /** who heals whom, kicks, curses ... (references only, names come from the setup) */
     assignments: RaidplanAssignment[];
+    /** how many role slots the Besetzung has on this board (null = the raid type's) */
+    counts: BesetzungCounts | null;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
     objectScale: number;
     /** how strongly the map shows, 0.1..1 (dim it so the objects stand out) */
@@ -4137,9 +4139,12 @@ export type RaidplanPlayer = {
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
 export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text"; ref: string };
-export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
+export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
 /** An assignment: assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
+/** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
+export type BesetzungCounts = { tank: number; healer: number; melee: number; ranged: number };
+export type Besetzung = { size: number; counts: BesetzungCounts; groups: number };
 export type RaidplanBoss = {
     /** "Trash" of an instance / "Allgemein" for the whole raid: no boss, but a board (trash) or only assignments (general) */
     trash?: boolean;
@@ -4163,6 +4168,10 @@ export type RaidplanTemplateSummary = { id: string; name: string; category: stri
 export type RaidplanTemplate = {
     id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[];
     bosses: Record<string, Partial<RaidplanBoard>>; version: number; updatedAt: number; bossList: RaidplanBoss[];
+    /** the raid type: its size (0 = the instances' default) and the role counts (null = derived) */
+    size: number; counts: BesetzungCounts | null;
+    /** what the type comes to: size, counts and number of groups */
+    besetzung: Besetzung;
 };
 /** A named, categorised set of target rows (bossKey: "" = every boss, an instance id, or one boss). */
 export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; targets: { title: string }[]; notes: string; updatedAt: number };
@@ -4174,6 +4183,7 @@ export type RaidplanView = {
     canWrite: boolean;
     plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
     bosses: RaidplanBoss[];
+    besetzung: Besetzung;
     roster: RaidplanPlayer[];
     hasApprovedSetup: boolean;
     profiles: RaidplanProfile[];
@@ -4251,7 +4261,7 @@ export function applyRaidplanTemplate(csrfToken: string | null, input: { event: 
 }
 
 export type RaidplanTemplates = { templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
-export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; instanceIds?: string[] };
+export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; instanceIds?: string[]; size?: number; counts?: BesetzungCounts | null };
 
 export function getRaidplanTemplates(): Promise<RaidplanTemplates> {
     return get<RaidplanTemplates>("/api/raidplan/templates");

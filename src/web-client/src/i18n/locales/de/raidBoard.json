@@ -129,7 +129,8 @@
         "deleteText": "Bereits übernommene Zeilen in Plänen bleiben bestehen, nur die Vorlage verschwindet.",
         "deleted": "Taktik gelöscht.",
         "manageEmpty": "Noch keine Taktiken.",
-        "manageHint": "Änderungen an einer Taktik verändern keine schon übernommenen Zeilen."
+        "manageHint": "Änderungen an einer Taktik verändern keine schon übernommenen Zeilen.",
+        "pickShort": "Taktik"
     },
     "share": {
         "title": "Raidplan freigeben",
@@ -384,17 +385,20 @@
             "trashtank": "Trash-Tanks auf Marker"
         },
         "type": {
-            "heal": "Heilung",
+            "heal": "Heilen",
             "kick": "Unterbrecher",
             "md": "Misdirect",
             "ss": "Seelenstein",
             "fearward": "Furchtschutz",
-            "special": "Spezial-Tank",
+            "special": "Tanken / Spezial",
             "curse": "Fluch",
             "thunderclap": "Donnerknall",
             "demoshout": "Demoralisierender Ruf",
             "trashtank": "Trash-Tank",
-            "other": "Sonstiges"
+            "other": "Sonstiges",
+            "dispel": "Dispel",
+            "cc": "Crowd Control",
+            "buff": "Buff"
         },
         "suggested": "Vorschlag",
         "assignees": "Zuständig",
@@ -414,8 +418,24 @@
         "pickFitting": "Passende Klassen",
         "pickOthers": "Weitere Spieler",
         "noSuggestion": "Kein Vorschlag möglich: niemand im Setup passt.",
-        "empty": "Noch keine Einteilung. Lege eine an oder lass dir einen Vorschlag aus dem Setup machen.",
+        "empty": "Noch nichts. Lege eine Zeile an oder hol dir einen Vorschlag.",
         "emptyRead": "Keine Einteilungen.",
-        "links": "Verbindungen zeigen"
+        "links": "Verbindungen zeigen",
+        "addRow": "Zeile",
+        "pickType": "Aufgabe wählen",
+        "task": "Aufgabe",
+        "addNote": "Notiz hinzufügen"
+    },
+    "bes": {
+        "title": "Besetzung",
+        "tip": "Die Rollen-Slots dieses Raids ({size} Spieler). Zuweisungen brauchen keinen Platz auf der Map.",
+        "place": "Auf die Map setzen",
+        "placeTip": "Auf die Map ziehen oder klicken",
+        "placeNow": "Auf die Map setzen",
+        "unplace": "Von der Map nehmen",
+        "free": "Platz freigeben",
+        "give": "Spieler zuweisen",
+        "less": "{role}: einer weniger",
+        "more": "{role}: einer mehr"
     }
 }

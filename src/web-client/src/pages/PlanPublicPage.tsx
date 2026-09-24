@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
-import PlanBoard, { PlayerName, TokenIcon } from "../components/raidplan/PlanBoard";
+import PlanBoard from "../components/raidplan/PlanBoard";
 import { AssignTable } from "./raid-detail/raidplan/AssignPanel";
 import { assignmentLinks, isMine } from "../lib/assign";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -44,7 +44,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     if (!data) return <RaidLoader text={t("raidBoard.public.loading")} />;
 
     const boss: RaidplanPublicBoss | null = data.bosses.find((b) => b.key === selected) || data.bosses[0] || null;
-    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.targets.some((r) => r.userIds.includes(data.me)) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players }, data.me)));
+    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players }, data.me)));
 
     return (
         <div className="rp-public rp-wide">
@@ -86,31 +86,6 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     ? <p className={mineHere ? "rp-me-note" : "rp-muted"}>{mineHere ? t("raidBoard.public.you") : t("raidBoard.public.youNot")}</p>
                                     : <p className="rp-muted">{t("raidBoard.public.loginHint")} <a className="mlink" href="/auth/login">{t("raidBoard.public.login")}</a></p>}
                                 <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.me} />
-                                <h2 className="rp-kicker rp-h2">{t("raidBoard.public.targets")}</h2>
-                                {boss.targets.length === 0 && <p className="rp-muted">{t("raidBoard.public.rowsEmpty")}</p>}
-                                {boss.targets.length > 0 && (
-                                    <table className="rp-table">
-                                        <tbody>
-                                            {boss.targets.map((r) => (
-                                                <tr key={r.id} className={data.me && r.userIds.includes(data.me) ? "is-me" : ""}>
-                                                    <th scope="row">{r.title}</th>
-                                                    <td>
-                                                        {r.userIds.map((id) => {
-                                                            const p = players.get(id);
-                                                            if (!p) return null;
-                                                            return (
-                                                                <span key={id} className={`rp-chip rp-static${id === data.me ? " is-me" : ""}`}>
-                                                                    <TokenIcon player={p} size="sm" />
-                                                                    <PlayerName player={p} />
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
                                 {boss.notes.trim() && (
                                     <>
                                         <h2 className="rp-kicker rp-h2">{t("raidBoard.public.notes")}</h2>

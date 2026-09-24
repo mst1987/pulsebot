@@ -15,6 +15,7 @@ const { approvedSetupOf } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 const assign = require("./raidplanAssign");
+const besetzungOf = require("./raidplanBesetzung");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 
@@ -111,7 +112,7 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    return { ...t, bossList: bosses };
+    return { ...t, bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -145,6 +146,10 @@ function editorView(event, { canWrite }) {
             updatedAt: plan.updatedAt,
         },
         bosses: bossList(event, { templateId: template ? template.id : "" }),
+        // the role slots of this raid: the template's when the plan came from one, else the event's own size and composition
+        besetzung: template
+            ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts)
+            : eventBesetzung(event),
         roster: editorRoster(event),
         hasApprovedSetup: !!approvedSetupOf(event),
         profiles: profileStore.listProfiles(),
@@ -178,9 +183,10 @@ function publicView(plan, event, { me = "" } = {}) {
                 lines: (board.lines || []).filter((l) => !l.hidden),
                 texts: (board.texts || []).filter((x) => !x.hidden),
                 mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
-                targets: board.targets.map((t) => ({ ...t, userIds: t.userIds.filter((u) => known.has(u)) })),
+                // the old task rows are shown as assignments (above)
+                targets: [],
                 // assignments: a raider who is not in the approved setup is left out, a slot reference stays (it resolves to nobody = open)
-                assignments: (board.assignments || []).map((a) => ({
+                assignments: [...assign.targetsToAssignments(board.targets, known), ...(board.assignments || [])].map((a) => ({
                     ...a,
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
@@ -221,6 +227,18 @@ function suggestFor(type, { event = null, slots = [] } = {}) {
     const groups = Array.from({ length: Math.max(1, Math.ceil(size / 5)) }, (_, i) => i + 1);
     const clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
     return assign.suggest(type, { slots: clean, roster, groups });
+}
+
+/** The Besetzung of an event without a template: its size, the planned tanks and healers, the damage dealers split evenly. */
+function eventBesetzung(event) {
+    const base = besetzungOf.defaultBesetzung(event.instanceIds, event.size);
+    const c = event.composition || {};
+    if (!(Number(c.tank) > 0 || Number(c.healer) > 0)) return base;
+    const tank = Math.max(0, Math.floor(Number(c.tank) || 0));
+    const healer = Math.max(0, Math.floor(Number(c.healer) || 0));
+    const dps = Math.max(0, base.size - tank - healer);
+    const melee = Math.max(Math.floor(Number(c.melee) || 0), Math.ceil(dps / 2));
+    return { ...base, counts: { tank, healer, melee: Math.min(melee, dps), ranged: Math.max(0, dps - Math.min(melee, dps)) } };
 }
 
 module.exports = { suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

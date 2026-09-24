@@ -56,13 +56,15 @@ function seedPlan(eventId, event) {
     for (const key of DEMO_BOSSES) {
         const trash = key.endsWith("/trash");
         const list = [...assign.suggest("heal", { slots, groups }), ...(trash ? assign.suggest("trashtank", { slots }) : [])].map((a) => ({ ...a, suggested: false }));
-        bosses[key] = { slots, assignments: list, notes: trash ? "Trash: Tank 1 Totenkopf, Tank 2 Kreuz, Tank 3 Quadrat." : "" };
+        // the Besetzung (all role slots) exists by itself in the editor; the first boss shows tanks and healers on the map as an example
+        const onMap = key === DEMO_BOSSES[0] ? slots.filter((s) => s.kind === "tank" || s.kind === "healer") : [];
+        bosses[key] = { slots: onMap, assignments: list, notes: trash ? "Trash: Tank 1 Totenkopf, Tank 2 Kreuz, Tank 3 Quadrat." : "" };
     }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 
     let tpl = templates.listTemplates().find((t) => t.name === TEMPLATE_NAME);
     if (!tpl) {
-        const created = templates.createTemplate({ name: TEMPLATE_NAME, category: "Demo", description: "Seed: Slots und Heiler-Einteilungen", instanceIds: ["bt"] });
+        const created = templates.createTemplate({ name: TEMPLATE_NAME, category: "Demo", description: "Seed: Raidtyp BT 25, Besetzung, Heiler-Einteilungen", instanceIds: ["bt"], size: 25 });
         if (created.error) throw new Error(created.error);
         tpl = created.template;
     }
@@ -80,7 +82,7 @@ function seedPlan(eventId, event) {
     const extended = { ...plan.bosses };
     const add = (key, types) => {
         const b = extended[key] || { slots: [], assignments: [] };
-        const extra = types.flatMap((type) => raidplan.suggestFor(type, { event, slots: b.slots }));
+        const extra = types.flatMap((type) => raidplan.suggestFor(type, { event, slots }));
         extended[key] = { ...b, assignments: [...(b.assignments || []), ...extra.map((a) => ({ ...a, suggested: false }))] };
     };
     add("bt/high-warlord-najentus", ["kick", "md"]);

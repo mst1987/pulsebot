@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2 } from "lucide-react";
-import type { RaidplanBoard, RaidplanBoss, RaidplanPlayer } from "../../../api";
+import type { RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useT } from "../../../i18n";
 import {
-    angleTo, applyMenuAction, assignSlot, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
+    angleTo, applyMenuAction, assignSlot, placeSlot, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
@@ -17,6 +17,7 @@ import LayerList from "./LayerList";
 import MapPanel, { type MapRow } from "./MapPanel";
 import ContextMenu from "./ContextMenu";
 import AssignPanel from "./AssignPanel";
+import Besetzung from "./Besetzung";
 import { assignmentLinks, scopeOf } from "../../../lib/assign";
 
 type Drag = {
@@ -73,11 +74,13 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
+    mode, eventId, besetzung, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
     eventId: string;
+    /** the role slots of this raid (Tank 1..n ...): shown as the Besetzung, assignable without being on the map */
+    besetzung: BesetzungData;
     boss: RaidplanBoss;
     /** every boss of the plan: the palette offers their icons */
     allBosses: RaidplanBoss[];
@@ -118,7 +121,7 @@ export default function BoardWorkspace({
     const isEvent = mode === "event";
     const scope = scopeOf(boss);
     const links = useMemo(() => (showLinks ? assignmentLinks(board) : []), [showLinks, board]);
-    const groupCount = Math.max(5, ...roster.map((p) => p.group));
+    const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
 
@@ -141,6 +144,12 @@ export default function BoardWorkspace({
 
     /** Puts something new on the board, selects it and shows its properties. */
     const insert = (spec: InsertSpec, at: { x: number; y: number } | null) => {
+        if (spec.type === "place") {
+            // a slot of the Besetzung goes onto the map
+            edit((b) => placeSlot(b, spec.slotId, at));
+            setSelected({ kind: "slot", id: spec.slotId });
+            return;
+        }
         const r = insertObject(boardNow.current, spec, at);
         edit(() => r.board);
         setSelected(r.sel);
@@ -532,22 +541,20 @@ export default function BoardWorkspace({
             {canWrite && scope !== "general" && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             <div className="rp-below">
-                <AssignPanel
-                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
-                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                <Besetzung
+                    board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
+                    onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
                 />
-                <TargetsPanel
-                    board={board}
-                    roster={roster}
-                    canWrite={canWrite}
-                    assignable={isEvent}
-                    maxRows={limits.targetsPerBoss}
-                    maxTitle={limits.title}
-                    maxNotes={limits.notes}
-                    profileName={profileName}
-                    onChange={(b) => edit(() => b)}
-                    onPickProfile={onPickProfile}
-                />
+                <div className="rp-below-grid">
+                    <AssignPanel
+                        scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
+                        eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                        profileName={profileName} onPickProfile={onPickProfile}
+                    />
+                    <aside className="rp-below-side">
+                        <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
+                    </aside>
+                </div>
             </div>
 
             {drag && drag.kind === "tray" && dragPlayer && (

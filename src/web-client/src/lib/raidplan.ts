@@ -10,8 +10,8 @@
 // runs it for real, with `t` injected): imports, `export type`, `export const`
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
-    RaidplanBoard, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanTarget, RaidplanZone, RaidplanZoneType,
-    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon,
+    RaidplanBoard, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
+    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, Besetzung,
 } from "../api";
 import { t } from "../i18n";
 
@@ -48,7 +48,8 @@ export type InsertSpec =
     | { type: "zone"; zoneType: string; shape: string }
     | { type: "line"; kind: string }
     | { type: "text"; text: string }
-    | { type: "icon"; iconKey: string; label: string };
+    | { type: "icon"; iconKey: string; label: string }
+    | { type: "place"; slotId: string };
 export type MenuItem = { id: string; section: string; disabled: boolean; danger: boolean };
 export type LayerRow = { kind: ObjectKind; id: string; name: string; lock: boolean; hidden: boolean };
 export type History<T> = { past: T[]; present: T; future: T[] };
@@ -85,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -99,8 +100,13 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         zones: b.zones || [],
         lines: b.lines || [],
         texts: b.texts || [],
-        targets: b.targets || [],
-        assignments: b.assignments || [],
+        // the old task rows are read as assignments (title = the task, the players = who does it)
+        targets: [],
+        assignments: [
+            ...(b.targets || []).map((r) => ({ id: r.id, type: "other" as RaidplanAssignType, title: r.title, assignees: (r.userIds || []).map((u) => `user:${u}`), targets: [], note: "", suggested: false })),
+            ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "" })),
+        ],
+        counts: b.counts || null,
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -209,9 +215,11 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
     const p = at ? { x: clamp01(at.x), y: clamp01(at.y) } : spawnPoint(objectCount(board));
     const id = newRowId();
     if (spec.type === "slot") {
+        const free = isRoleKind(spec.kind) ? board.slots.filter((s) => s.kind === spec.kind && s.placed === false).sort((a, b) => a.n - b.n)[0] : undefined;
+        if (free) return { board: { ...board, slots: board.slots.map((s) => (s.id === free.id ? { ...s, placed: true, x: p.x, y: p.y } : s)) }, sel: { kind: "slot", id: free.id } };
         const slot = {
             id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label || (spec.kind === "group" ? t("raidBoard.slot.group", { n: nextSlotNumber(board, spec.kind) }) : ""), x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
-            hideMembers: false, split: false, offsets: {}, ...newLook(1),
+            hideMembers: false, split: false, offsets: {}, placed: true, ...newLook(1),
         };
         return { board: { ...board, slots: [...board.slots, slot] }, sel: { kind: "slot", id } };
     }
@@ -237,6 +245,7 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
         };
         return { board: { ...board, lines: [...board.lines, line] }, sel: { kind: "line", id } };
     }
+    if (spec.type !== "text") return { board, sel: null };
     const text = { id, text: spec.text, x: p.x, y: p.y, color: DEFAULT_TEXT_COLOR, size: 18, ...newLook(1) };
     return { board: { ...board, texts: [...board.texts, text] }, sel: { kind: "text", id } };
 }
@@ -424,7 +433,12 @@ export function nudgeObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
 /** Deletes a board object. A slot's player is simply not placed any more. */
 export function removeObject(board: RaidplanBoard, kind: ObjectKind, id: string): RaidplanBoard {
     if (kind === "token") return removeToken(board, id);
-    if (kind === "slot") return { ...board, slots: board.slots.filter((s) => s.id !== id) };
+    if (kind === "slot") {
+        // a role slot belongs to the Besetzung: taking it off the map keeps it (the counts remove it)
+        const o = board.slots.find((s) => s.id === id);
+        if (o && isRoleKind(o.kind)) return unplaceSlot(board, id);
+        return { ...board, slots: board.slots.filter((s) => s.id !== id) };
+    }
     if (kind === "mark") return { ...board, marks: board.marks.filter((m) => m.id !== id) };
     if (kind === "icon") return { ...board, icons: board.icons.filter((m) => m.id !== id) };
     if (kind === "member") {
@@ -648,7 +662,7 @@ export function layerList(board: RaidplanBoard, players: Map<string, RaidplanPla
     };
     add("token", board.tokens, (o) => o.userId);
     add("text", board.texts, (o) => o.id);
-    add("slot", board.slots, (o) => o.id);
+    add("slot", board.slots.filter((o) => o.placed !== false), (o) => o.id);
     add("mark", board.marks, (o) => o.id);
     add("icon", board.icons, (o) => o.id);
     add("line", board.lines, (o) => o.id);
@@ -827,35 +841,89 @@ export function historyRedo<T>(h: History<T>): History<T> {
 
 // ---- rows, profiles ------------------------------------------------------------------------
 
-/** A new, empty target row. */
-export function newTarget(title: string): RaidplanTarget {
-    return { id: newRowId(), title, userIds: [] };
+// ---- the Besetzung (role slots that exist before anything is on the map) ---------------------
+
+/**
+ * The Besetzung a raid type comes to (the same rules as the server's raidplanBesetzung.js): tanks and
+ * healers from the biggest instance's own suggestion for the size (else the default rule), the
+ * damage dealers split evenly, the odd one to melee. `size` 0 = the instances' default (else 25).
+ */
+export function besetzungFor(instances: { defaultSize: number; suggested: Record<string, { tanks: number; healers: number }> }[], size: number): Besetzung {
+    const biggest = [...instances].sort((a, b) => b.defaultSize - a.defaultSize)[0];
+    const fallback = biggest ? biggest.defaultSize : 0;
+    const n = size >= 1 && size <= 40 ? Math.floor(size) : fallback || 25;
+    const own = biggest ? biggest.suggested[String(n)] : undefined;
+    const base = n <= 1 ? { tanks: n, healers: 0 } : n <= 5 ? { tanks: 1, healers: 1 } : { tanks: n <= 20 ? 2 : n <= 25 ? 3 : 4, healers: 0 };
+    const tanks = own ? own.tanks : base.tanks;
+    const healers = own ? own.healers : n <= 5 ? base.healers : Math.min(Math.round(n / 4), n - tanks);
+    const tank = Math.min(tanks, n);
+    const healer = Math.min(healers, n - tank);
+    const dps = Math.max(0, n - tank - healer);
+    const melee = Math.ceil(dps / 2);
+    return { size: n, counts: { tank, healer, melee, ranged: dps - melee }, groups: Math.max(1, Math.ceil(n / 5)) };
 }
 
-/** Gives one row a new title, players, or drops it. */
-export function updateTarget(board: RaidplanBoard, id: string, patch: Partial<RaidplanTarget>): RaidplanBoard {
-    return { ...board, targets: board.targets.map((r) => (r.id === id ? { ...r, ...patch } : r)) };
+export const ROLE_KINDS = ["tank", "healer", "melee", "ranged"];
+
+/** A slot of the Besetzung: a tank, healer, melee or ranged place, or a setup group. */
+export function isRoleKind(kind: string): boolean {
+    return ROLE_KINDS.indexOf(kind) >= 0 || kind === "group";
 }
 
-export function removeTarget(board: RaidplanBoard, id: string): RaidplanBoard {
-    return { ...board, targets: board.targets.filter((r) => r.id !== id) };
+/**
+ * The board with every role slot its Besetzung has: Tank 1..n, Heiler 1..n, Melee 1..n, Ranged 1..n
+ * and the groups. What is missing is added (not on the map, `placed: false`; in an event the setup's
+ * players fill the new ones by role); what is there is never changed or removed. `counts` of the board
+ * (set with +/-) win over the raid type's.
+ */
+export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
+    if (!besetzung) return board;
+    const counts = board.counts || besetzung.counts;
+    const missing = [];
+    for (const kind of ROLE_KINDS) {
+        for (let n = 1; n <= counts[kind]; n += 1) if (!board.slots.some((s) => s.kind === kind && s.n === n)) missing.push({ kind, n });
+    }
+    for (let n = 1; n <= besetzung.groups; n += 1) if (!board.slots.some((s) => s.kind === "group" && s.n === n)) missing.push({ kind: "group", n });
+    if (missing.length === 0) return board;
+    const taken = new Set(board.slots.map((s) => s.userId).filter(Boolean));
+    const added = missing.map((m) => {
+        const who = m.kind === "group" ? null : roster.find((p) => p.role === m.kind && !taken.has(p.userId)) || null;
+        if (who) taken.add(who.userId);
+        return {
+            id: `bes-${m.kind}-${m.n}`, kind: m.kind as RaidplanSlotKind, n: m.n, label: "", x: 0.5, y: 0.5, userId: who ? who.userId : "", size: SIZE_RANGES.slot.def,
+            hideMembers: false, split: false, offsets: {}, placed: false, ...newLook(1),
+        };
+    });
+    return { ...board, slots: [...board.slots, ...added] };
 }
 
-/** Assigns a player to a row (once), or takes them off it. */
-export function toggleAssignee(board: RaidplanBoard, id: string, userId: string): RaidplanBoard {
-    return {
-        ...board,
-        targets: board.targets.map((r) => {
-            if (r.id !== id) return r;
-            const has = r.userIds.includes(userId);
-            return { ...r, userIds: has ? r.userIds.filter((u) => u !== userId) : [...r.userIds, userId] };
-        }),
-    };
+/** Sets how many slots of a role the board has (+/-): more are added by ensureBesetzung, fewer are removed from the end. */
+export function setCount(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number): RaidplanBoard {
+    const next = Math.max(0, Math.min(40, Math.round(n)));
+    const counts = { ...(board.counts || besetzung.counts), [kind]: next };
+    return { ...board, counts, slots: board.slots.filter((s) => !(s.kind === kind && s.n > next)) };
+}
+
+/** Puts a slot of the Besetzung on the map (at a point, else near the middle). */
+export function placeSlot(board: RaidplanBoard, id: string, at: { x: number; y: number } | null): RaidplanBoard {
+    const p = at ? { x: clamp01(at.x), y: clamp01(at.y) } : spawnPoint(objectCount(board));
+    return { ...board, slots: board.slots.map((s) => (s.id === id ? { ...s, placed: true, x: p.x, y: p.y } : s)) };
+}
+
+/** Takes a slot off the map; it stays in the Besetzung and stays assignable. */
+export function unplaceSlot(board: RaidplanBoard, id: string): RaidplanBoard {
+    return { ...board, slots: board.slots.map((s) => (s.id === id ? { ...s, placed: false } : s)) };
+}
+
+/** The role slots of a board in Besetzung order: tanks, healers, melee, ranged, then the groups. */
+export function besetzungSlots(board: RaidplanBoard): RaidplanSlot[] {
+    const order = [...ROLE_KINDS, "group"];
+    return board.slots.filter((s) => isRoleKind(s.kind)).sort((x, y) => order.indexOf(x.kind) - order.indexOf(y.kind) || x.n - y.n);
 }
 
 /** Whether applying a profile or a template would overwrite something the orga already made (asks first). */
 export function hasContent(board: RaidplanBoard): boolean {
-    return board.targets.length > 0 || board.assignments.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
+    return board.assignments.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
 }
 
 /** Whether any board of a plan holds something. */
@@ -870,17 +938,18 @@ export function planHasContent(bosses: Record<string, Partial<RaidplanBoard>>, b
  * slots, marks and zones are not touched.
  */
 export function applyProfile(board: RaidplanBoard, profile: RaidplanProfile): RaidplanBoard {
-    const kept = new Map(board.targets.map((r) => [r.title.trim().toLowerCase(), r]));
-    const targets = profile.targets.map((r) => {
+    const own = board.assignments.filter((a) => a.type === "other");
+    const kept = new Map(own.map((a) => [a.title.trim().toLowerCase(), a]));
+    const rows = profile.targets.map((r) => {
         const old = kept.get(r.title.trim().toLowerCase());
-        return old ? { ...old, title: r.title } : newTarget(r.title);
+        return old ? { ...old, title: r.title } : { id: newRowId(), type: "other" as RaidplanAssignType, title: r.title, assignees: [], targets: [], note: "", suggested: false };
     });
-    return { ...board, targets, notes: profile.notes || board.notes, profileId: profile.id };
+    return { ...board, assignments: [...board.assignments.filter((a) => a.type !== "other"), ...rows], notes: profile.notes || board.notes, profileId: profile.id };
 }
 
-/** The rows of a board as a profile stores them: titles only, no players. */
+/** The rows of a board as a profile stores them: the titles of its assignments, no players. */
 export function profileRows(board: RaidplanBoard): { title: string }[] {
-    return board.targets.map((r) => ({ title: r.title.trim() })).filter((r) => r.title);
+    return board.assignments.map((a) => ({ title: a.title.trim() })).filter((r) => r.title);
 }
 
 /** The profiles that fit a boss: made for every boss, for its instance, or for exactly this boss. */
@@ -908,7 +977,7 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 /** How many objects and rows a boss holds — the small dot next to it in the boss list. */
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
-    return objectCount(b) + b.targets.length + b.assignments.length;
+    return objectCount(b) + b.assignments.length;
 }
 
 /** Players by userId, for looking up who a token or an assignment is. */

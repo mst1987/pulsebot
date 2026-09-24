@@ -42,5 +42,7 @@
         "one": "{count} Boss befüllt",
         "other": "{count} Bosse befüllt"
     },
-    "updated": "geändert am {date}"
+    "updated": "geändert am {date}",
+    "besetzung": "Besetzung",
+    "besetzungHint": "Aus Raidtyp und Größe vorbelegt, {groups} Gruppen. Pro Boss lässt sich die Anzahl im Editor ändern."
 }

@@ -42,5 +42,7 @@
         "one": "{count} boss filled",
         "other": "{count} bosses filled"
     },
-    "updated": "changed {date}"
+    "updated": "changed {date}",
+    "besetzung": "Roster slots",
+    "besetzungHint": "Filled in from the raid type and size, {groups} groups. The counts can be changed per boss in the editor."
 }

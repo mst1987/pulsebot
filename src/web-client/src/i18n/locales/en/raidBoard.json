@@ -129,7 +129,8 @@
         "deleteText": "Rows already applied in plans stay, only the template goes away.",
         "deleted": "Tactic deleted.",
         "manageEmpty": "No tactics yet.",
-        "manageHint": "Changing a tactic does not change rows that were already applied."
+        "manageHint": "Changing a tactic does not change rows that were already applied.",
+        "pickShort": "Tactic"
     },
     "share": {
         "title": "Publish the raid plan",
@@ -384,17 +385,20 @@
             "trashtank": "Trash tanks to marks"
         },
         "type": {
-            "heal": "Healing",
+            "heal": "Heal",
             "kick": "Interrupts",
             "md": "Misdirect",
             "ss": "Soulstone",
             "fearward": "Fear Ward",
-            "special": "Special tank",
+            "special": "Tank / special",
             "curse": "Curse",
             "thunderclap": "Thunder Clap",
             "demoshout": "Demoralizing Shout",
             "trashtank": "Trash tank",
-            "other": "Other"
+            "other": "Other",
+            "dispel": "Dispel",
+            "cc": "Crowd control",
+            "buff": "Buff"
         },
         "suggested": "Suggestion",
         "assignees": "Assigned",
@@ -414,8 +418,24 @@
         "pickFitting": "Fitting classes",
         "pickOthers": "Other players",
         "noSuggestion": "No suggestion possible: nobody in the setup fits.",
-        "empty": "No assignment yet. Add one or let the setup suggest some.",
+        "empty": "Nothing yet. Add a row or get a suggestion.",
         "emptyRead": "No assignments.",
-        "links": "Show connections"
+        "links": "Show connections",
+        "addRow": "Row",
+        "pickType": "Pick the task",
+        "task": "Task",
+        "addNote": "Add a note"
+    },
+    "bes": {
+        "title": "Roster slots",
+        "tip": "The role slots of this raid ({size} players). Assignments do not need a place on the map.",
+        "place": "Put on the map",
+        "placeTip": "Drag onto the map or click",
+        "placeNow": "Put on the map",
+        "unplace": "Take off the map",
+        "free": "Free the place",
+        "give": "Assign a player",
+        "less": "{role}: one less",
+        "more": "{role}: one more"
     }
 }

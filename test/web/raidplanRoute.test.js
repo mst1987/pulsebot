@@ -273,7 +273,9 @@ describe("GET /api/raidplan/public", () => {
         expect(d.bosses[0]).toMatchObject({ key: "bt/supremus", name: "Supremus", notes: "Hi", profileName: "" });
         // u9 exists only in the draft: not on the public page, on no row
         expect(d.bosses[0].tokens.map((t) => t.userId)).toEqual(["u1"]);
-        expect(d.bosses[0].targets[0].userIds).toEqual(["u1"]);
+        // the old task rows are handed out as assignments: title = the task, the player who is in the approved setup = the assignee
+        expect(d.bosses[0].targets).toEqual([]);
+        expect(d.bosses[0].assignments[0]).toMatchObject({ type: "other", assignees: ["user:u1"] });
         expect(d.roster.map((p) => p.userId)).toEqual(["u1"]);
         expect(JSON.stringify(d)).not.toContain("Drafty");
         expect(d).toMatchObject({ me: "", loggedIn: false });

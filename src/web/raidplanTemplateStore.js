@@ -18,6 +18,7 @@ const crypto = require("crypto");
 const { instanceById } = require("../config/gameVersions");
 const board = require("./raidplanBoard");
 const planStore = require("./raidplanStore");
+const besetzung = require("./raidplanBesetzung");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-templates.json");
 const LIMITS = { templates: 100, name: 40, category: 30, description: 200 };
@@ -54,6 +55,9 @@ function normalize(raw) {
         description: str(r.description).slice(0, LIMITS.description),
         guildId: /^\d{5,25}$/.test(str(r.guildId)) ? str(r.guildId) : "",
         instanceIds: [...new Set((Array.isArray(r.instanceIds) ? r.instanceIds : []).map(str).filter((i) => instanceById(i)))],
+        // the raid type: its size (0 = the instances' default) and the Besetzung's role counts (null = derived from the type)
+        size: Math.max(0, Math.min(besetzung.MAX_SIZE, Math.floor(Number(r.size) || 0))),
+        counts: besetzung.cleanCounts(r.counts),
         bosses: r.bosses && typeof r.bosses === "object" ? r.bosses : {},
         version: Math.max(0, Math.floor(Number(r.version) || 0)),
         updatedAt: Number(r.updatedAt) || 0,
@@ -96,6 +100,15 @@ function validate(input, { partial = false } = {}) {
         const g = str(body.guildId);
         if (g && !/^\d{5,25}$/.test(g)) return { code: "invalid", error: "Ungültiger Server." };
         value.guildId = g;
+    }
+    if (body.size !== undefined) {
+        const n = Math.floor(Number(body.size));
+        if (!Number.isFinite(n) || n < 0 || n > besetzung.MAX_SIZE) return { code: "invalid", error: `Die Raidgröße muss zwischen 1 und ${besetzung.MAX_SIZE} liegen.` };
+        value.size = n;
+    }
+    if (body.counts !== undefined) {
+        if (body.counts !== null && (typeof body.counts !== "object" || Array.isArray(body.counts))) return { code: "invalid", error: "Die Besetzung hat ein ungültiges Format." };
+        value.counts = body.counts;
     }
     if (body.instanceIds !== undefined) {
         if (!Array.isArray(body.instanceIds)) return { code: "invalid", error: "Die Instanzen haben ein ungültiges Format." };

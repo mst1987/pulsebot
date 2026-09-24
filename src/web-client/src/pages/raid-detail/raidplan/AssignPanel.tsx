@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Wand2, X } from "lucide-react";
-import { suggestRaidplan, type ApiError, type RaidplanAssignment, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanPlayer } from "../../../api";
+import { ArrowRight, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import { suggestRaidplan, type ApiError, type RaidplanAssignment, type RaidplanAssignTarget, type RaidplanAssignType, type RaidplanBoard, type RaidplanPlayer } from "../../../api";
 import { Badge, IconButton } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
@@ -83,13 +83,48 @@ function ChipPicker({ options, onToggle, textPlaceholder, onText, label }: {
     );
 }
 
+/** The type of a row as an icon button; a small list of all the types (icon and name) opens under it. */
+function TypePicker({ value, types, onPick, disabled }: { value: string; types: string[]; onPick: (type: string) => void; disabled: boolean }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLSpanElement>(null);
+    useEffect(() => {
+        if (!open) return undefined;
+        const away = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+        const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+        document.addEventListener("pointerdown", away, true);
+        document.addEventListener("keydown", key);
+        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", key); };
+    }, [open]);
+    const meta = ASSIGN_META[value] || ASSIGN_META.other;
+    const list = types.indexOf(value) >= 0 ? types : [value, ...types];
+    return (
+        <span className="rp-picker" ref={ref}>
+            <button type="button" className="rp-atype-btn" disabled={disabled} aria-expanded={open} aria-label={t("raidBoard.assign.pickType")} data-tip={t(`raidBoard.assign.type.${value}`)} onClick={() => setOpen((v) => !v)}>
+                <WowIcon name={meta.icon} size={24} />
+            </button>
+            {open && (
+                <div className="rp-pop rp-typepop" role="listbox" aria-label={t("raidBoard.assign.pickType")}>
+                    {list.map((x) => (
+                        <button key={x} type="button" role="option" aria-selected={x === value} className={`rp-typeopt${x === value ? " is-on" : ""}`} onClick={() => { onPick(x); setOpen(false); }}>
+                            <WowIcon name={(ASSIGN_META[x] || ASSIGN_META.other).icon} size={22} />
+                            <span>{t(`raidBoard.assign.type.${x}`)}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </span>
+    );
+}
+
 /**
- * "Einteilungen": compact rows right under the board — who does what (healers to tanks
- * and groups, kicks in order, misdirects, curses, trash tanks to marks ...). Assignees and
- * targets are chips picked from a small list (several at once); a suggestion button fills
- * rows from the setup and marks them "Vorschlag" until somebody edits them.
+ * "Einteilungen" — the one list of a board (the old task rows are part of it): a dense row per
+ * assignment: type icon, the task in free words, who does it (chips from the Besetzung; in an
+ * event also the players), an arrow, the optional target (slot, group, player, mark, free text),
+ * a note only when wanted. A suggestion button fills rows from the setup and marks them
+ * "Vorschlag" until they are edited; "Taktik wählen" applies a saved set of task titles.
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -102,10 +137,13 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     groupCount: number;
     links: boolean;
     onLinks: (on: boolean) => void;
+    profileName: string;
+    onPickProfile: () => void;
 }) {
     const t = useT();
     const toast = useToast();
     const [busy, setBusy] = useState(false);
+    const [noteOpen, setNoteOpen] = useState<string[]>([]);
     const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players }), [board.slots, players]);
     const types = assignTypes(scope);
     const suggestable = types.filter((x) => SUGGESTABLE.indexOf(x) >= 0);
@@ -168,45 +206,46 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         <section className="rp-assign" aria-label={t("raidBoard.assign.title")}>
             <div className="rp-assign-head">
                 <h3 className="rp-kicker">{t("raidBoard.assign.title")} · {rows.length}</h3>
-                {canWrite && (
-                    <div className="rp-assign-tools">
-                        {suggestable.length > 0 && (
-                            <label className="rp-assign-sel" data-tip={t("raidBoard.assign.suggestTip")}>
-                                <Wand2 size={15} aria-hidden="true" />
-                                <select value="" disabled={busy} aria-label={t("raidBoard.assign.suggest")} onChange={(e) => suggest(e.target.value)}>
-                                    <option value="">{t("raidBoard.assign.suggest")}</option>
-                                    {suggestable.map((x) => <option key={x} value={x}>{t(`raidBoard.assign.suggestType.${x}`)}</option>)}
-                                </select>
-                            </label>
-                        )}
-                        <label className="rp-assign-sel">
-                            <Plus size={15} aria-hidden="true" />
-                            <select
-                                value="" aria-label={t("raidBoard.assign.add")}
-                                onChange={(e) => { if (e.target.value) edit((b) => addAssignment(b, e.target.value).board); }}
-                            >
-                                <option value="">{t("raidBoard.assign.add")}</option>
-                                {types.map((x) => <option key={x} value={x}>{t(`raidBoard.assign.type.${x}`)}</option>)}
+                <div className="rp-assign-tools">
+                    {canWrite && (
+                        <button type="button" className="rp-assign-btn" onClick={onPickProfile} data-tip={t("raidBoard.profile.pick")}>
+                            <ScrollText size={15} aria-hidden="true" /><span>{profileName || t("raidBoard.profile.pickShort")}</span>
+                        </button>
+                    )}
+                    {canWrite && suggestable.length > 0 && (
+                        <label className="rp-assign-sel" data-tip={t("raidBoard.assign.suggestTip")}>
+                            <Wand2 size={15} aria-hidden="true" />
+                            <select value="" disabled={busy} aria-label={t("raidBoard.assign.suggest")} onChange={(e) => suggest(e.target.value)}>
+                                <option value="">{t("raidBoard.assign.suggest")}</option>
+                                {suggestable.map((x) => <option key={x} value={x}>{t(`raidBoard.assign.suggestType.${x}`)}</option>)}
                             </select>
                         </label>
-                    </div>
-                )}
-                {scope !== "general" && rows.some((a) => a.type === "heal") && (
-                    <label className="rp-check rp-assign-links"><input type="checkbox" checked={links} onChange={(e) => onLinks(e.target.checked)} /> {t("raidBoard.assign.links")}</label>
-                )}
+                    )}
+                    {canWrite && (
+                        <button type="button" className="rp-assign-btn is-primary" disabled={rows.length >= 60} onClick={() => edit((b) => addAssignment(b, types[0]).board)}>
+                            <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.assign.addRow")}</span>
+                        </button>
+                    )}
+                    {scope !== "general" && rows.some((a) => a.type === "heal") && (
+                        <label className="rp-check rp-assign-links"><input type="checkbox" checked={links} onChange={(e) => onLinks(e.target.checked)} /> {t("raidBoard.assign.links")}</label>
+                    )}
+                </div>
             </div>
             {rows.length === 0 && <p className="rp-muted rp-assign-empty">{t(canWrite ? "raidBoard.assign.empty" : "raidBoard.assign.emptyRead")}</p>}
             <ul className="rp-alist">
                 {rows.map((a) => {
-                    const meta = ASSIGN_META[a.type] || ASSIGN_META.other;
                     const rotation = a.type === "kick" && a.assignees.length > 1;
+                    const showNote = a.note !== "" || noteOpen.indexOf(a.id) >= 0;
                     return (
                         <li key={a.id} className={`rp-arow${a.suggested ? " is-suggested" : ""}`}>
-                            <span className="rp-atype" data-tip={t(`raidBoard.assign.type.${a.type}`)}>
-                                <WowIcon name={meta.icon} size={22} />
-                                <span>{t(`raidBoard.assign.type.${a.type}`)}</span>
-                                {a.suggested && <Badge tone="mid">{t("raidBoard.assign.suggested")}</Badge>}
-                            </span>
+                            <TypePicker value={a.type} types={types} disabled={!canWrite} onPick={(x) => edit((b) => patchAssignment(b, a.id, { type: x as RaidplanAssignType }))} />
+                            {canWrite ? (
+                                <input
+                                    className="rp-atitle" value={a.title} maxLength={80} placeholder={t(`raidBoard.assign.type.${a.type}`)} aria-label={t("raidBoard.assign.task")}
+                                    onChange={(e) => edit((b) => patchAssignment(b, a.id, { title: e.target.value }))}
+                                />
+                            ) : <span className="rp-atitle-read">{a.title || t(`raidBoard.assign.type.${a.type}`)}</span>}
+                            {a.suggested && <Badge tone="mid">{t("raidBoard.assign.suggested")}</Badge>}
                             <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.assignees")}>
                                 {a.assignees.map((ref, i) => (
                                     <AssignChip
@@ -227,7 +266,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                 )}
                                 {canWrite && <ChipPicker label={t("raidBoard.assign.addAssignee")} options={assigneeOptions(a)} onToggle={(k) => edit((b) => toggleAssignee(b, a.id, k))} />}
                             </span>
-                            <span className="rp-aarrow" aria-hidden="true">→</span>
+                            <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>
                             <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.targets")}>
                                 {a.targets.map((tg) => (
                                     <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(tg, ctx)} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
@@ -241,13 +280,14 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     />
                                 )}
                             </span>
-                            {canWrite ? (
+                            {showNote && (canWrite ? (
                                 <input
                                     className="rp-anote" value={a.note} maxLength={200} placeholder={t("raidBoard.assign.note")} aria-label={t("raidBoard.assign.note")}
                                     onChange={(e) => edit((b) => patchAssignment(b, a.id, { note: e.target.value }))}
                                 />
-                            ) : a.note ? <span className="rp-muted">{a.note}</span> : null}
-                            {canWrite && <IconButton size="sm" tone="danger" icon={<Trash2 size={15} />} tip={t("raidBoard.assign.delete")} onClick={() => edit((b) => removeAssignment(b, a.id))} />}
+                            ) : <span className="rp-muted">{a.note}</span>)}
+                            {canWrite && !showNote && <IconButton size="sm" icon={<StickyNote size={14} />} tip={t("raidBoard.assign.addNote")} onClick={() => setNoteOpen([...noteOpen, a.id])} />}
+                            {canWrite && <IconButton size="sm" tone="danger" icon={<Trash2 size={14} />} tip={t("raidBoard.assign.delete")} onClick={() => edit((b) => removeAssignment(b, a.id))} />}
                         </li>
                     );
                 })}
@@ -272,7 +312,7 @@ export function AssignTable({ assignments, ctx, me }: { assignments: RaidplanAss
                     const mine = isMine(a, ctx, me);
                     return (
                         <tr key={a.id} className={mine ? "is-own" : ""}>
-                            <th scope="row"><span className="rp-atype"><WowIcon name={meta.icon} size={20} />{t(`raidBoard.assign.type.${a.type}`)}</span></th>
+                            <th scope="row"><span className="rp-atype"><WowIcon name={meta.icon} size={20} />{a.title || t(`raidBoard.assign.type.${a.type}`)}</span></th>
                             <td>
                                 <span className="rp-achips">
                                     {a.assignees.map((ref, i) => {
@@ -281,7 +321,7 @@ export function AssignTable({ assignments, ctx, me }: { assignments: RaidplanAss
                                     })}
                                 </span>
                             </td>
-                            <td className="rp-aarrow" aria-hidden="true">→</td>
+                            <td className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></td>
                             <td>
                                 <span className="rp-achips">
                                     {a.targets.map((tg) => {

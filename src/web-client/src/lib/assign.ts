@@ -17,6 +17,9 @@ export const ASSIGN_META = {
     ss: { icon: "spell_shadow_soulgem", classes: ["Warlock"] },
     fearward: { icon: "spell_holy_excorcism", classes: ["Priest"] },
     special: { icon: "inv_shield_06", classes: [] },
+    dispel: { icon: "spell_holy_dispelmagic", classes: ["Priest", "Paladin", "Shaman", "Druid"] },
+    cc: { icon: "spell_nature_polymorph", classes: ["Mage", "Hunter", "Rogue", "Druid", "Warlock", "Priest"] },
+    buff: { icon: "spell_holy_prayeroffortitude", classes: [] },
     curse: { icon: "spell_shadow_chilltouch", classes: ["Warlock"] },
     thunderclap: { icon: "spell_nature_thunderclap", classes: ["Warrior"] },
     demoshout: { icon: "ability_warrior_warcry", classes: ["Warrior"] },
@@ -25,10 +28,18 @@ export const ASSIGN_META = {
 } as Record<string, { icon: string; classes: string[] }>;
 export const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
 export const SCOPE_TYPES = {
-    boss: ["heal", "kick", "md", "ss", "fearward", "special", "other"],
-    trash: ["trashtank", "heal", "kick", "other"],
-    general: ["curse", "thunderclap", "demoshout", "other"],
+    boss: ["special", "heal", "kick", "md", "ss", "fearward", "dispel", "cc", "buff", "other"],
+    trash: ["trashtank", "heal", "kick", "cc", "dispel", "other"],
+    general: ["curse", "thunderclap", "demoshout", "buff", "other"],
 } as Record<string, string[]>;
+/** The role icons the raid detail already uses for its role groups. */
+export const ROLE_ICON = {
+    tank: "ability_warrior_defensivestance",
+    healer: "spell_holy_flashheal",
+    melee: "ability_dualwield",
+    ranged: "inv_weapon_bow_07",
+    dps: "inv_misc_questionmark",
+} as Record<string, string>;
 export const SLOT_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
 export const HEAL_COLOR = "#35d6c4";
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
@@ -133,7 +144,7 @@ function newRowId(): string {
 
 export function addAssignment(board: RaidplanBoard, type: string): { board: RaidplanBoard; id: string } {
     const id = newRowId();
-    const row = { id, type: type as RaidplanAssignType, assignees: [], targets: [], note: "", suggested: false };
+    const row = { id, type: type as RaidplanAssignType, title: "", assignees: [], targets: [], note: "", suggested: false };
     return { board: { ...board, assignments: [...board.assignments, row] }, id };
 }
 

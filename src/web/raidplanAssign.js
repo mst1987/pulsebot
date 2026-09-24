@@ -1,7 +1,8 @@
 // Raid plan assignments ("Einteilungen", docs/raidplan.md): who heals whom, who kicks in
 // which order, misdirects, soulstones, curses, trash tanks and so on. One model for all:
 //
-//   { id, type, assignees: [ref], targets: [{ kind, ref }], note, suggested }
+//   { id, type, title, assignees: [ref], targets: [{ kind, ref }], note, suggested }
+//   (`title` is the free text of the task: "Kick Fear", "Interrupt Shadow Bolt Volley" ...)
 //
 //   assignee ref   "slot:<kind>:<n>"  a placeholder slot of the board (tank/healer/melee/ranged/dps n)
 //                  "user:<userId>"    one raider (event plans only)
@@ -19,13 +20,13 @@
 // Also here, pure and tested: the suggestions ("Heiler verteilen", "Aus Setup
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
-const ASSIGN_TYPES = ["heal", "kick", "md", "ss", "fearward", "special", "curse", "thunderclap", "demoshout", "trashtank", "other"];
+const ASSIGN_TYPES = ["heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
 const TARGET_KINDS = ["slot", "group", "player", "mark", "text"];
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
-const LIMITS = { perBoard: 60, assignees: 12, targets: 12, note: 200, text: 60 };
+const LIMITS = { perBoard: 60, assignees: 12, targets: 12, note: 200, text: 60, title: 80 };
 
 // Which classes can do it (Vorschlag / Filter). Kick: rogue, warrior, mage (Counterspell), shaman (Earth Shock).
 const CLASS_RULES = {
@@ -85,7 +86,7 @@ function cleanAssignments(raw, allowed = new Set()) {
         }
 
         out.push({
-            id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", assignees, targets,
+            id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", title: str(o.title).slice(0, LIMITS.title), assignees, targets,
             note: str(o.note).slice(0, LIMITS.note), suggested: o.suggested === true,
         });
     }
@@ -101,7 +102,7 @@ function reidAssignments(list) {
 
 const slotsOf = (slots, kind) => (slots || []).filter((s) => s.kind === kind).sort((a, b) => a.n - b.n);
 const refOf = (s) => `slot:${s.kind}:${s.n}`;
-const make = (type, assignees, targets) => ({ id: newId(), type, assignees, targets, note: "", suggested: true });
+const make = (type, assignees, targets) => ({ id: newId(), type, title: "", assignees, targets, note: "", suggested: true });
 
 /**
  * Heal assignments: every tank gets a healer (healer 1 to tank 1, healer 2 to tank 2 ...),
@@ -169,7 +170,21 @@ function suggest(type, { slots = [], roster = [], groups = [] } = {}) {
 /** Whether a suggestion of this type exists (the button is offered). */
 const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
 
+/**
+ * The old task rows of a board ({ id, title, userIds }) as assignments: the title is the task
+ * text (type "other"), the players are the assignees, nobody is invented. Used for boards stored
+ * before the two lists became one.
+ */
+function targetsToAssignments(targets, known) {
+    const out = [];
+    for (const r of Array.isArray(targets) ? targets : []) {
+        const users = (Array.isArray(r && r.userIds) ? r.userIds : []).map(str).filter((u) => u && (!known || known.has(u)));
+        out.push({ id: str(r && r.id) || newId(), type: "other", title: str(r && r.title).slice(0, LIMITS.title), assignees: users.map((u) => `user:${u}`), targets: [], note: "", suggested: false });
+    }
+    return out;
+}
+
 module.exports = {
     ASSIGN_TYPES, TARGET_KINDS, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, suggest, suggestHeal,
+    cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal,
 };
