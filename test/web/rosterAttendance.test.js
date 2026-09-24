@@ -203,6 +203,21 @@ describe("web/rosterAttendance — attendanceForAccounts (per Discord account)",
         expect(out.get("u1")).toMatchObject({ attended: 2, total: 2, pct: 100, link: "manual", inferred: 0, missed: [] });
     });
 
+    it("counts only the nights `comparable` accepts and takes the last eleven of those — one category, two kinds of raid", () => {
+        // 30 nights, alternating a Karazhan night and an SSC night; u1 only ever joins SSC
+        const nights = Array.from({ length: 30 }, (_, i) => event(`e${i + 1}`, (i + 1) * 3, { title: i % 2 ? "SSC" : "Karazhan" }));
+        mockListRaidEvents.mockReturnValue(nights);
+        withReports(nights.map((n, i) => ({ id: `r${i}`, eventId: n.id, names: [n.title === "SSC" ? "Anna" : "Bob"] })));
+        const ctx = buildAttendanceContext("g1", { now: NOW });
+        const accounts = [acc("u1", [ch("Anna", "Priest", true)])];
+
+        // the whole category: about half of the last eleven are nights she never joins
+        expect(attendanceForAccounts(ctx, "cat1", accounts).get("u1").pct).toBeLessThan(100);
+
+        const same = attendanceForAccounts(ctx, "cat1", accounts, { comparable: (raid) => raid.title === "SSC" }).get("u1");
+        expect(same).toMatchObject({ attended: RAID_WINDOW, total: RAID_WINDOW, pct: 100 });
+    });
+
     it("badges the link \"auto\" while only signup characters stand behind it", () => {
         withReports([{ id: "r1", eventId: "e1", names: ["Mainchar"] }, { id: "r2", eventId: "e2", names: ["Mainchar"] }]);
         const ctx = buildAttendanceContext("g1", { now: NOW });
