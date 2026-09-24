@@ -184,7 +184,7 @@ describe("setup editor page", () => {
         expect(editor).toContain("className=\"se-ph se-ph-take\"");
         expect(editor).not.toContain(">leer<");
         // groups and bench share one column; the summary stays beside them
-        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<div className="se-sidecol">\s*<Summary/);
+        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<div className="se-sidecol">\s*\{inspectedPerson/);
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
@@ -206,7 +206,20 @@ describe("setup editor page", () => {
         // the size itself persists through the same PATCH the event-edit dialog uses
         expect(editor).toContain("await updateRaidSize(ctx.csrfToken, ctx.eventId, newSize);");
         const de = makeT("de");
-        expect(de("setup.editor.sizeLabel")).toBe("Größe");
+        // entered as a number of groups, the total is calculated (groups × 5)
+        expect(de("setup.editor.sizeLabel")).toBe("Gruppen");
+        expect(de("setup.editor.sizeTotal", { perGroup: 5, size: 25 })).toBe("× 5 = 25 Spieler");
+        expect(editor).toContain("onCommit(parsed * GROUP_SIZE)");
+        expect(editor).toContain("Math.ceil(size / GROUP_SIZE)");
+    });
+
+    it("has a compact view (default, remembered per browser) and the ping message beside the summary", () => {
+        expect(editor).toContain('localStorage.getItem(COMPACT_KEY) !== "0"');
+        expect(editor).toMatch(/se-editor\$\{compact \? " se-compact" : ""\}/);
+        expect(editor).toMatch(/className="se-topline">\s*<PingTextField[\s\S]*?<Summary/);
+        const css = read("styles", "setup-editor.css");
+        expect(css).toMatch(/@media \(min-width: 1281px\) \{[\s\S]*?\.se-compact \.se-groups \{[^}]*minmax\(158px/);
+        expect(makeT("de")("setup.editor.compact")).toBe("Kompakt");
     });
 
     it("keeps one line per raider — reasons only in the tooltip", () => {
@@ -401,7 +414,7 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("function SlotTip");
         // docked under the summary — never a floating layer that could cover a group
         expect(src).not.toContain("createPortal");
-        expect(src).toMatch(/className="se-sidecol">[\s\S]*?<Summary[\s\S]*?<SlotTip/);
+        expect(src).toMatch(/className="se-sidecol">\s*\{inspectedPerson \? <SlotTip/);
         // the old text tooltip is gone from the line
         expect(src).not.toContain("data-tip-sub={personTip(p)}");
         expect(src).toMatch(/a\.link === "manual"[\s\S]*?<CheckIcon \/>[\s\S]*?setup\.person\.tip\.autoBadge/);

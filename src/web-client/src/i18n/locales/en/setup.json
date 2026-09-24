@@ -171,11 +171,14 @@
         "dragHint": "Drag or click to rearrange",
         "explain": "AI explanation",
         "repropose": "Propose again",
-        "sizeLabel": "Size",
-        "sizeTip": "Raid size",
-        "sizeSub": "Changes groups and bench right away in the browser, applied when you leave the field or press Enter.",
+        "sizeLabel": "Groups",
+        "sizeTotal": "× {perGroup} = {size} players",
+        "sizeTip": "Number of groups",
+        "sizeSub": "Every group has 5 places, the raid's player count follows from that. Groups and bench change right away in the browser, applied when you leave the field or press Enter.",
         "sizeUnsaved": "unsaved",
-        "sizeUnsavedTip": "This size has not been applied yet.",
+        "sizeUnsavedTip": "This number of groups has not been applied yet.",
+        "compact": "Compact",
+        "compactSub": "Narrow cards with one-line raiders – up to 5 groups side by side. Remembered in this browser.",
         "sizeFailed": "Could not change the size."
     },
     "moves": {
