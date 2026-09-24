@@ -3958,8 +3958,10 @@ export type SetupSearch = {
     open: number;
     roles: { role: GameRole; missing: number; specs: string[] }[];
     buffs: { key: string; label: string; icon: string; required: boolean; specs: string[] }[];
-    /** By spec key: what the page needs to draw it. */
+    /** By spec key, for EVERY spec of the rule set (the orga may add one to a role): what the page needs to draw it. */
     specInfo: Record<string, { label: string; classLabel: string; classId: string; icon: string; color: string }>;
+    /** Role -> the keys of its specs. */
+    roleSpecs: Record<string, string[]>;
     /** The message for the channel, English; "" when nothing is missing. */
     text: string;
 };
@@ -3989,6 +3991,11 @@ export type SetupPublish = {
 
 export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+}
+
+/** The message for needs the orga edited — nothing is posted. */
+export function previewRaidSearch(csrfToken: string | null, eventId: string, needs: { roles: { role: string; missing: number; specs: string[] }[]; buffs: { key: string; required: boolean; specs: string[] }[] }): Promise<{ text: string }> {
+    return send("POST", "/api/raids/setup/search/text", csrfToken, { event: eventId, roles: needs.roles, buffs: needs.buffs });
 }
 
 /** Post the "we are looking for …" message into the event channel; `text` = the edited message. */

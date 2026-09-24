@@ -415,3 +415,38 @@ export function groupSearchBuffs(buffs: SetupSearch["buffs"]): { id: string; req
     }
     return groups;
 }
+
+/** What the orga edits in the "Suche" dialog: how many of a role and which specs, and the buffs still listed. */
+export type SearchNeeds = { roles: { role: string; missing: number; specs: string[] }[]; buffs: SetupSearch["buffs"] };
+
+/** The needs as the suggestion has them — a copy, the suggestion itself stays as it came. */
+export function searchNeedsFrom(search: SetupSearch): SearchNeeds {
+    return { roles: search.roles.map((r) => ({ role: r.role, missing: r.missing, specs: [...r.specs] })), buffs: search.buffs.map((b) => ({ ...b })) };
+}
+
+/** One more or one fewer of a role (1–40); a role that reaches 0 drops out of the list. */
+export function stepRole(needs: SearchNeeds, role: string, delta: number): SearchNeeds {
+    return {
+        ...needs,
+        roles: needs.roles.map((r) => (r.role === role ? { ...r, missing: Math.min(40, r.missing + delta) } : r)).filter((r) => r.missing > 0),
+    };
+}
+
+/** Take a spec of a role in or out of the search. */
+export function toggleSpec(needs: SearchNeeds, role: string, key: string): SearchNeeds {
+    return {
+        ...needs,
+        roles: needs.roles.map((r) => (r.role === role ? { ...r, specs: r.specs.includes(key) ? r.specs.filter((k) => k !== key) : [...r.specs, key] } : r)),
+    };
+}
+
+/** Add a role nobody was missing yet: one of it, every spec of the role. */
+export function addRole(needs: SearchNeeds, role: string, specs: string[]): SearchNeeds {
+    if (needs.roles.some((r) => r.role === role)) return needs;
+    return { ...needs, roles: [...needs.roles, { role, missing: 1, specs: [...specs] }] };
+}
+
+/** Drop buffs from the search. */
+export function removeBuffs(needs: SearchNeeds, keys: string[]): SearchNeeds {
+    return { ...needs, buffs: needs.buffs.filter((b) => !keys.includes(b.key)) };
+}
