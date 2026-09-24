@@ -263,8 +263,12 @@ describe("setup editor page", () => {
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
         // the whole top row has ONE fixed height, so the panel never grows or shrinks with its content and the groups never jump;
         // whatever would not fit is cut off inside its own box, never spilled into the next
-        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 330px/);
+        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 384px/);
         expect(css).toMatch(/\.se-topline > \* \{[^}]*overflow: hidden/);
+        // readable: every figure and setting is a bordered tile of its own, and the quiet buttons keep a visible fill and outline
+        expect(css).toMatch(/\.se-topline \.se-stats \{ display: contents; \}/);
+        expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*border: 1px solid var\(--line\)/);
+        expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
         // the panel in three roomy columns
         expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.1fr\) minmax\(0, 1\.15fr\)/);
         expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 14\.5px;/);
@@ -292,9 +296,14 @@ describe("setup editor page", () => {
 
     it("keeps the side column to roles, buffs, fairness and wishes — weights and the explanation in dialogs", () => {
         const summary = editor.match(/function Summary\([\s\S]*?\n}\n/)[0];
-        for (const label of ["label={rolePluralLabel(\"tank\")}", "label={rolePluralLabel(\"healer\")}", "label={t(\"setup.summary.dps\")}", "{t(\"setup.summary.buffs\")}<", "{t(\"setup.summary.fairness\")}<", "{t(\"setup.summary.wishes\")}<", "{t(\"setup.summary.weights\")}"]) {
+        for (const label of ["label={rolePluralLabel(\"tank\")}", "label={rolePluralLabel(\"healer\")}", "label={t(\"setup.summary.dps\")}", "{t(\"setup.summary.buffs\")}<", "{t(\"setup.summary.fairness\")}<", "{t(\"setup.summary.wishes\")}<"]) {
             expect({ label, found: summary.includes(label) }).toEqual({ label, found: true });
         }
+        // wishes are a switch of their own (like fairness), saved through the same request; "Gewichte…" sits with the actions in the bar
+        expect(summary).toContain("onChange={() => onWishes(!wishesOn)}");
+        expect(editor).toContain("{ wishes: on }");
+        expect(editor).toMatch(/onClick=\{\(\) => setDialog\("weights"\)\}>\{t\("setup\.summary\.weights"\)\}<\/Button>/);
+        expect(makeT("de")("setup.summary.wishesCapOff")).toBe("Aus – hier einschalten");
         const de = makeT("de");
         expect([de("setup.summary.dps"), de("setup.summary.wishes"), de("setup.summary.weights")]).toEqual(["DD", "Wünsche", "Gewichte…"]);
         expect(summary).not.toContain("type=\"range\"");
