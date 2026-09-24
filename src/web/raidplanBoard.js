@@ -71,6 +71,16 @@ function cleanFactor(v) {
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
 const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
 const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
+/** The saved default view of a board: zoom above 100 % (at most 400 %) and the board point in the middle of the frame; null for the whole picture. */
+function cleanView(v) {
+    const o = v && typeof v === "object" ? v : {};
+    const zoom = Number(o.zoom);
+    const cx = Number(o.cx);
+    const cy = Number(o.cy);
+    if (!(zoom > 1.001) || !Number.isFinite(cx) || !Number.isFinite(cy)) return null;
+    return { zoom: Math.round(Math.min(4, zoom) * 100) / 100, cx: round4(clamp01(cx)), cy: round4(clamp01(cy)) };
+}
+
 /** The colour and the raid mark of the groups (group n -> "#rrggbb" / a mark id): only groups 1..20, only valid colours, a mark once (the first group keeps it). Empty = the defaults. */
 function cleanGroupStyles(colors, marks) {
     const okKey = (k) => /^(?:[1-9]|1\d|20)$/.test(k);
@@ -325,18 +335,19 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     // all group rings of the board at once (default: shown)
     const showRings = input.showRings !== false;
     const { groupColors, groupMarks } = cleanGroupStyles(input.groupColors, input.groupMarks);
+    const view = cleanView(input.view);
     const showNames = input.showNames !== false;
     const showBadges = input.showBadges !== false;
     const showRoleRings = input.showRoleRings !== false;
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, groupColors, groupMarks, showNames, showBadges, showRoleRings, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.showRings === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -406,7 +417,7 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
-    cleanFactor,
+    cleanFactor, cleanView,
     LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
 };

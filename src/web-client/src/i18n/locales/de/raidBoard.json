@@ -703,7 +703,17 @@
         "out": "Verkleinern",
         "fit": "Einpassen (so sieht es das Sheet)",
         "fitTip": "Zurück auf Einpassen",
-        "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)"
+        "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)",
+        "actual": "100 %",
+        "actualTip": "Bildpunkte 1:1 (das Bild in Referenzgröße)",
+        "saveView": "Ausschnitt als Standard speichern (das Sheet öffnet damit)",
+        "clearView": "Gespeicherten Ausschnitt zurücksetzen",
+        "whole": "Ganzes Bild",
+        "wholeTip": "Zurück zum ganzen Bild",
+        "cutout": "Ausschnitt",
+        "cutoutTip": "Zum vorgegebenen Ausschnitt",
+        "minimap": "Übersicht: Klick oder Ziehen verschiebt den Ausschnitt",
+        "pan": "Bild verschieben: auf leerem Hintergrund ziehen, Leertaste + Ziehen, Pfeiltasten. Auswahlrechteck: Umschalt + Ziehen."
     },
     "view": {
         "title": "Symbolgröße und Anzeige",
@@ -721,6 +731,7 @@
         "forMe": "Nur für dich, in diesem Browser gemerkt.",
         "forPlan": "Im Plan gespeichert (auch im Sheet).",
         "localHead": "Nur bei dir",
-        "planHead": "Im Plan"
+        "planHead": "Im Plan",
+        "minimap": "Übersichtskarte beim Zoomen"
     }
 }

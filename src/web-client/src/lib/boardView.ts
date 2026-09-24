@@ -64,3 +64,36 @@ export function boardToScreen(v: BoardView, bx: number, by: number, left: number
 export function screenToBoard(v: BoardView, x: number, y: number, left: number, top: number, w: number, h: number): { bx: number; by: number } {
     return { bx: ((x - left) / w - v.ox) / v.z, by: ((y - top) / h - v.oy) / v.z };
 }
+
+/** A saved default view of a board: the zoom and the board point (fractions 0..1) in the middle of the frame. */
+export type SavedView = { zoom: number; cx: number; cy: number };
+
+/** The view that has a board point in its middle at a zoom (kept inside the limits). */
+export function centerOn(z: number, cx: number, cy: number): BoardView {
+    const zz = clampZoom(z);
+    return clampView({ z: zz, ox: 0.5 - cx * zz, oy: 0.5 - cy * zz });
+}
+
+/** The board point in the middle of the frame. */
+export function centerOf(v: BoardView): { cx: number; cy: number } {
+    return { cx: (0.5 - v.ox) / v.z, cy: (0.5 - v.oy) / v.z };
+}
+
+/** The part of the board the frame shows, as fractions of the board (zoomed out it is the whole board). */
+export function visibleRect(v: BoardView): { x: number; y: number; w: number; h: number } {
+    const w = Math.min(1, 1 / v.z);
+    return { x: v.z >= 1 ? 0 - v.ox / v.z : 0, y: v.z >= 1 ? 0 - v.oy / v.z : 0, w, h: w };
+}
+
+/** What is stored of a view: null for the whole picture (zoom 100 % or less), else the zoom and the centre, rounded. */
+export function savedView(v: BoardView): SavedView | null {
+    if (!(v.z > 1.001)) return null;
+    const c = centerOf(clampView(v));
+    return { zoom: Math.round(clampZoom(v.z) * 100) / 100, cx: Math.round(c.cx * 10000) / 10000, cy: Math.round(c.cy * 10000) / 10000 };
+}
+
+/** The view a saved one opens with (the whole picture when there is none or it is not usable). */
+export function viewFromSaved(s: SavedView | null | undefined): BoardView {
+    if (!s || !(s.zoom > 1.001) || !isFinite(s.cx) || !isFinite(s.cy)) return FIT;
+    return centerOn(s.zoom, Math.max(0, Math.min(1, s.cx)), Math.max(0, Math.min(1, s.cy)));
+}

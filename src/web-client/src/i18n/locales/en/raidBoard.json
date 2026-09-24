@@ -703,7 +703,17 @@
         "out": "Zoom out",
         "fit": "Fit (as the read view shows it)",
         "fitTip": "Back to fit",
-        "hand": "Hand: move the picture (or hold Space / middle mouse button)"
+        "hand": "Hand: move the picture (or hold Space / middle mouse button)",
+        "actual": "100 %",
+        "actualTip": "One screen pixel per unit (the picture at its reference size)",
+        "saveView": "Save this cut-out as the default (the read view opens with it)",
+        "clearView": "Reset the saved cut-out",
+        "whole": "Whole picture",
+        "wholeTip": "Back to the whole picture",
+        "cutout": "Cut-out",
+        "cutoutTip": "To the set cut-out",
+        "minimap": "Overview: click or drag to move the cut-out",
+        "pan": "Move the picture: drag on empty ground, Space + drag, arrow keys. Selection rectangle: Shift + drag."
     },
     "view": {
         "title": "Icon size and display",
@@ -721,6 +731,7 @@
         "forMe": "Only for you, remembered in this browser.",
         "forPlan": "Saved in the plan (also in the read view).",
         "localHead": "Only for you",
-        "planHead": "In the plan"
+        "planHead": "In the plan",
+        "minimap": "Overview map when zoomed"
     }
 }

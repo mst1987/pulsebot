@@ -5,7 +5,7 @@ const vr = loadTs("lib/viewRules.ts");
 
 describe("viewer preferences", () => {
     it("start with everything on and read back what was stored, keys that are no booleans stay on", () => {
-        expect(vr.parsePrefs(null)).toEqual({ highlight: true, selection: true, links: true, names: true, roleRings: true, groupRings: true });
+        expect(vr.parsePrefs(null)).toEqual({ highlight: true, selection: true, links: true, names: true, roleRings: true, groupRings: true, minimap: true });
         expect(vr.parsePrefs(JSON.stringify({ highlight: false, names: false }))).toMatchObject({ highlight: false, names: false, links: true });
         expect(vr.parsePrefs(JSON.stringify({ highlight: "no", roleRings: 0 }))).toMatchObject({ highlight: true, roleRings: true });
         expect(vr.parsePrefs("{ broken")).toEqual(vr.DEFAULT_PREFS);

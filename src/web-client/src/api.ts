@@ -4181,6 +4181,8 @@ export type RaidplanBoard = {
     showNames?: boolean;
     showBadges?: boolean;
     showRoleRings?: boolean;
+    /** the saved default view (zoom above 100 % and the centre), null = the whole picture */
+    view?: { zoom: number; cx: number; cy: number } | null;
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4279,7 +4281,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

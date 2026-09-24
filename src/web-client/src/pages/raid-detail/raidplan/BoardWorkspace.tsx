@@ -5,6 +5,8 @@ import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../componen
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useBoardView } from "../../../lib/useBoardView";
+import { savedView } from "../../../lib/boardView";
+import MiniMap from "../../../components/raidplan/MiniMap";
 import { useViewPrefs } from "../../../lib/useViewPrefs";
 import { ViewOptions, ZoomControls } from "./ViewControls";
 import { useToast } from "../../../components/Jobs";
@@ -184,7 +186,7 @@ export default function BoardWorkspace({
     const [focusGroup, setFocusGroup] = useState(0);
     const boardRef = useRef<HTMLDivElement>(null);
     // zoom and pan: a view setting; the frame is what shows the picture, boardRef its (transformed) canvas: dragging measures the canvas, so it is exact at any zoom
-    const bv = useBoardView();
+    const bv = useBoardView({ touchPan: !selectMode, arrows: !selected && multi.length === 0, onEmptyClick: () => chooseItems([]) });
     const [prefs, setPref] = useViewPrefs("eh.raidplan.viewPrefs");
     const frameEl = useRef<HTMLDivElement | null>(null);
     const setFrame = useCallback((el: HTMLDivElement | null) => { frameEl.current = el; bv.frame(el); }, [bv.frame]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -805,7 +807,7 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
                     {!noBoard && <IconButton size="sm" icon={<Eye size={17} />} tip={t("raidBoard.tool.preview")} aria-pressed={preview} className={preview ? "is-on" : ""} onClick={() => setPreview((v) => !v)} />}
-                    {!noBoard && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} hand={bv.hand} setHand={bv.setHand} />}
+                    {!noBoard && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} actual={bv.actual} hand={bv.hand} setHand={bv.setHand} canWrite={canWrite} hasSaved={!!board.view} onSaveView={() => edit((b) => ({ ...b, view: savedView(bv.view) }))} onClearView={() => { edit((b) => ({ ...b, view: null })); bv.fit(); }} />}
                     {!noBoard && <ViewOptions board={board} canWrite={canWrite} edit={edit} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} />}
                     {!noBoard && (
                         <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>
@@ -839,7 +841,7 @@ export default function BoardWorkspace({
             <div className={`rp-stage2${showPanel && !noBoard ? "" : " no-dock"}`}>
                 {!noBoard && (
                 <div
-                    className={`rp-board-wrap${bv.hand ? " is-hand" : ""}${bv.panning ? " is-panning" : ""}`}
+                    className={`rp-board-wrap${bv.hand ? " is-hand" : ""}${bv.panning ? " is-panning" : ""}${bv.view.z > 1 ? " is-pannable" : ""}`}
                     onPointerDown={boardWrapDown} onPointerMove={boardWrapMove} onPointerUp={boardWrapEnd} onPointerCancel={boardWrapEnd}
                 >
                     <PlanBoard
@@ -872,6 +874,7 @@ export default function BoardWorkspace({
                         multi={multi} multiBox={frame} band={band} onMultiScale={canWrite && !preview ? startScale : undefined} onMultiMove={canWrite && !preview ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
+                    {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
                 </div>
                 )}
                 {!noBoard && (showPanel || (isEvent && roster.length >= 0)) && (

@@ -2,9 +2,9 @@
 // viewer chose for himself. The plan says what everybody sees; a viewer can only hide more, never show what the plan hides.
 // Written with function declarations and one-line signatures only.
 
-export type ViewPrefs = { highlight: boolean; selection: boolean; links: boolean; names: boolean; roleRings: boolean; groupRings: boolean };
+export type ViewPrefs = { highlight: boolean; selection: boolean; links: boolean; names: boolean; roleRings: boolean; groupRings: boolean; minimap: boolean };
 
-export const DEFAULT_PREFS = { highlight: true, selection: true, links: true, names: true, roleRings: true, groupRings: true };
+export const DEFAULT_PREFS = { highlight: true, selection: true, links: true, names: true, roleRings: true, groupRings: true, minimap: true };
 
 /** The remembered preferences of a viewer from the stored text: every key that is not a real boolean falls back to on. */
 export function parsePrefs(raw: string | null): ViewPrefs {

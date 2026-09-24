@@ -3,6 +3,8 @@ import { MarkIcon } from "../components/raidplan/MarkIcon";
 import { groupColor, groupMark, inkOn } from "../lib/groupStyle";
 import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useBoardView } from "../lib/useBoardView";
+import { viewFromSaved } from "../lib/boardView";
+import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../lib/useViewPrefs";
 import { shownFor } from "../lib/viewRules";
 import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
@@ -39,10 +41,11 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const [mapOnly, setMapOnly] = useState(false);
     const [focusGroup, setFocusGroup] = useState(0);
     const [onlyMine, setOnlyMine] = useState(false);
-    const bv = useBoardView();
+    const bv = useBoardView({ touchPan: true });
     const [prefs, setPref] = useViewPrefs("eh.raidplan.sheetPrefs");
     // another section starts fitted again
-    useEffect(() => { bv.fit(); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+    // a section opens with the view the organiser saved for it (the whole picture when there is none)
+    useEffect(() => { const b = data ? data.bosses.find((x) => x.key === selected) || data.bosses[0] : null; bv.set(viewFromSaved(b ? b.view : null)); }, [selected, data]); // eslint-disable-line react-hooks/exhaustive-deps
     const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 
     useEffect(() => {
@@ -155,8 +158,12 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                         <button type="button" aria-label={t("raidBoard.zoom.out")} data-tip={t("raidBoard.zoom.out")} onClick={bv.zoomOut}><ZoomOut size={16} /></button>
                                         <button type="button" className="rp-zoomctl-pct" aria-label={t("raidBoard.zoom.fit")} data-tip={t("raidBoard.zoom.fitTip")} onClick={bv.fit}>{Math.round(bv.view.z * 100)} %</button>
                                         <button type="button" aria-label={t("raidBoard.zoom.in")} data-tip={t("raidBoard.zoom.in")} onClick={bv.zoomIn}><ZoomIn size={16} /></button>
+                                        {boss.view && (bv.view.z > 1
+                                            ? <button type="button" className="rp-zoomctl-pct" data-tip={t("raidBoard.zoom.wholeTip")} onClick={bv.fit}>{t("raidBoard.zoom.whole")}</button>
+                                            : <button type="button" className="rp-zoomctl-pct" data-tip={t("raidBoard.zoom.cutoutTip")} onClick={() => bv.set(viewFromSaved(boss.view))}>{t("raidBoard.zoom.cutout")}</button>)}
                                         <SheetViewMenu prefs={prefs} setPref={setPref} hasLinks />
                                     </div>
+                                    {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
                                     {wide && (
                                         <button type="button" className="rp-maponly" aria-pressed={mapOnly} data-tip={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} aria-label={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} onClick={() => setMapOnly((v) => !v)}>
                                             {mapOnly ? <Minimize2 size={16} /> : <Maximize2 size={16} />}

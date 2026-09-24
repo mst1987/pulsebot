@@ -1113,3 +1113,13 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-gheal .rp-seg button { width: auto; height: auto; padding: 4px 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
 .rp-gheal .rp-seg button.is-on { background: var(--accent); color: var(--accent-ink); }
 .rp-gmember { white-space: nowrap; }
+
+/* zoomed in: the empty ground pans, the overview map, the cut-out button */
+.rp-board-wrap { position: relative; }
+.rp-board-wrap.is-pannable .rp-canvas { cursor: grab; }
+.rp-minimap { position: absolute; left: 8px; bottom: 8px; z-index: 6; width: 150px; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: #0f1115; cursor: crosshair; touch-action: none; box-shadow: 0 4px 14px rgba(0, 0, 0, .4); }
+.rp-minimap img { display: block; width: 100%; height: auto; opacity: .85; pointer-events: none; }
+.rp-minimap-grid { width: 100%; aspect-ratio: 16 / 10; background: #14171d; }
+.rp-minimap-view { position: absolute; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; box-sizing: border-box; }
+.rp-read-right .rp-minimap { z-index: 6; }
+.rp-zoomctl-pct { width: auto !important; padding: 0 10px !important; }

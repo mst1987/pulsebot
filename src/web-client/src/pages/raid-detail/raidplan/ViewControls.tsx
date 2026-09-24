@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Maximize, SlidersHorizontal, Star, Type, ZoomIn, ZoomOut } from "lucide-react";
+import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, ZoomIn, ZoomOut } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
@@ -9,15 +9,18 @@ import type { ViewPrefs } from "../../../lib/useViewPrefs";
 import { useT } from "../../../i18n";
 
 /** Zoom out / in, the zoom in percent (a click fits the picture again: what the read view shows), the hand tool. */
-export function ZoomControls({ view, zoomIn, zoomOut, fit, hand, setHand }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; hand: boolean; setHand: (on: boolean) => void }) {
+export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand, canWrite, hasSaved, onSaveView, onClearView }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; actual: () => void; hand: boolean; setHand: (on: boolean) => void; canWrite: boolean; hasSaved: boolean; onSaveView: () => void; onClearView: () => void }) {
     const t = useT();
     return (
-        <div className="rp-tool-group rp-zoom" role="group" aria-label={t("raidBoard.zoom.title")}>
+        <div className="rp-tool-group rp-zoom" role="group" aria-label={t("raidBoard.zoom.title")} data-tip={t("raidBoard.zoom.pan")}>
             <IconButton size="sm" icon={<ZoomOut size={17} />} tip={t("raidBoard.zoom.out")} onClick={zoomOut} />
             <button type="button" className={`rp-zoom-pct${view.z !== 1 ? " is-on" : ""}`} data-tip={t("raidBoard.zoom.fitTip")} aria-label={t("raidBoard.zoom.fit")} onClick={fit}>{Math.round(view.z * 100)} %</button>
             <IconButton size="sm" icon={<ZoomIn size={17} />} tip={t("raidBoard.zoom.in")} onClick={zoomIn} />
             <IconButton size="sm" icon={<Maximize size={17} />} tip={t("raidBoard.zoom.fit")} onClick={fit} />
+            <button type="button" className="rp-zoom-pct" data-tip={t("raidBoard.zoom.actualTip")} aria-label={t("raidBoard.zoom.actual")} onClick={actual}>{t("raidBoard.zoom.actual")}</button>
             <IconButton size="sm" icon={<Hand size={17} />} tip={t("raidBoard.zoom.hand")} aria-pressed={hand} className={hand ? "is-on" : ""} onClick={() => setHand(!hand)} />
+            <IconButton size="sm" icon={<Bookmark size={17} />} tip={t("raidBoard.zoom.saveView")} disabled={!canWrite || !(view.z > 1)} onClick={onSaveView} />
+            <IconButton size="sm" icon={<BookmarkX size={17} />} tip={t("raidBoard.zoom.clearView")} disabled={!canWrite || !hasSaved} onClick={onClearView} />
         </div>
     );
 }
@@ -58,6 +61,7 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
                     {local(t("raidBoard.view.mine"), prefs.highlight, (v) => setPref({ highlight: v }), <Star size={15} aria-hidden="true" />)}
                     {local(t("raidBoard.view.selection"), prefs.selection, (v) => setPref({ selection: v }), <BoxSelect size={15} aria-hidden="true" />)}
                     {local(t("raidBoard.view.links"), links, onLinks, <Link2 size={15} aria-hidden="true" />)}
+                    {local(t("raidBoard.view.minimap"), prefs.minimap, (v) => setPref({ minimap: v }), <MapIcon size={15} aria-hidden="true" />)}
                 </div>
             )}
         </div>
@@ -90,6 +94,7 @@ export function SheetViewMenu({ prefs, setPref, hasLinks }: { prefs: ViewPrefs; 
                     {row(t("raidBoard.view.roleRings"), prefs.roleRings, (v) => setPref({ roleRings: v }), <CircleUser size={15} aria-hidden="true" />)}
                     {row(t("raidBoard.view.groupRings"), prefs.groupRings, (v) => setPref({ groupRings: v }), <CircleDashed size={15} aria-hidden="true" />)}
                     {row(t("raidBoard.view.mine"), prefs.highlight, (v) => setPref({ highlight: v }), <Star size={15} aria-hidden="true" />)}
+                    {row(t("raidBoard.view.minimap"), prefs.minimap, (v) => setPref({ minimap: v }), <MapIcon size={15} aria-hidden="true" />)}
                     {hasLinks && row(t("raidBoard.view.links"), prefs.links, (v) => setPref({ links: v }), <Link2 size={15} aria-hidden="true" />)}
                     <span className="rp-muted">{t("raidBoard.view.forMe")}</span>
                 </div>
