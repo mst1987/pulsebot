@@ -481,6 +481,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
         pingText: pingTextOf(event),
+        // what the raid still needs and the message that looks for it (raidSearch.js)
+        search: setup ? require("./raidSearch").suggestSearch(event) : null,
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },
         hasApiKey,
         explainJob: job,

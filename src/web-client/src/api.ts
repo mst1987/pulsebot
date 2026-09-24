@@ -3944,7 +3944,22 @@ export type SetupEditorData = {
     explainJob?: SetupJob;
     /** Only for the orga: where the approved setup goes and what came of it (#290). */
     publish?: SetupPublish;
+    /** Only for the orga: what the raid still needs and the message that looks for it ("Suche"); null without a setup. */
+    search?: SetupSearch | null;
     message?: string;
+};
+
+/** The classes and specs the setup still needs, and the draft of the message that looks for them. */
+export type SetupSearch = {
+    size: number;
+    placed: number;
+    open: number;
+    roles: { role: GameRole; missing: number; specs: string[] }[];
+    buffs: { key: string; label: string; icon: string; required: boolean; specs: string[] }[];
+    /** By spec key: what the page needs to draw it. */
+    specInfo: Record<string, { label: string; classLabel: string; classId: string; icon: string; color: string }>;
+    /** The message for the channel, English; "" when nothing is missing. */
+    text: string;
 };
 
 /** The setup message in the event channel and its DMs (#290) — before approving what will happen, after it what did. */
@@ -3972,6 +3987,11 @@ export type SetupPublish = {
 
 export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+}
+
+/** Post the "we are looking for …" message into the event channel; `text` = the edited message. */
+export function postRaidSearch(csrfToken: string | null, eventId: string, text: string): Promise<{ message: string; url?: string }> {
+    return send("POST", "/api/raids/setup/search", csrfToken, { event: eventId, text });
 }
 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */
