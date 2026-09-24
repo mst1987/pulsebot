@@ -542,7 +542,7 @@
 .rp-mobchip:not(.is-added) .rp-achip { border-style: dashed; }
 .rp-mobchip-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--panel2); color: var(--muted); cursor: pointer; }
 .rp-mobchip-btn:hover { color: var(--text); border-color: var(--accent); }
-.rp-mobicon { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: inline-block; }
+.rp-mobicon { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: inline-block; background: var(--panel2); }
 .rp-mobicon-generic { display: inline-flex; align-items: center; justify-content: center; background: #b91c1c; color: #fff; }
 .rp-spellchip { border-color: var(--accent); }
 .rp-catalog { display: flex; flex-direction: column; gap: 12px; max-width: 980px; }

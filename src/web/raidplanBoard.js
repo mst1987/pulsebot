@@ -61,8 +61,8 @@ const FLEX_ROLES = ["tank", "healer", "dps", "melee", "ranged"];
 const SLOT_KINDS = ["tank", "healer", "melee", "ranged", "dps", "group", "label"];
 // sizes in px: the default and the range of what can be set
 const SIZES = { token: [38, 24, 96], mark: [34, 16, 96], icon: [48, 20, 200] };
-// an icon is the encounter's boss icon (boss:<WCL encounter id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
-const ICON_KEY = /^(boss:\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
+// an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
+const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
 const ZONE_SHAPES = ["rect", "ellipse"];
@@ -282,7 +282,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         const id = str(o.id);
         if (!/^[dcb]:[\w\-/']{1,70}$/.test(id) || !str(o.name) || mobs.some((x) => x.id === id)) { dropped += 1; continue; }
         if (mobs.length >= LIMITS.mobsPerBoss) break;
-        mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|boss:\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
+        mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
     }
     // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
     const hiddenCards = [...new Set((Array.isArray(input.hiddenCards) ? input.hiddenCards : []).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x));

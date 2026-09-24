@@ -237,9 +237,9 @@ export function bossIconOf(url: string): string {
     return wow ? wow[1] : "";
 }
 
-/** The icon object a mob makes on the map: the boss image (boss:N), a spell icon (wow:name) or the built in enemy symbol. */
+/** The icon object a mob makes on the map: the boss image (boss:N) or portrait (mob:N), a spell icon (wow:name) or the built in enemy symbol. */
 export function mobIconKey(icon: string): string {
-    return icon.indexOf("boss:") === 0 ? icon : icon ? `wow:${icon}` : "enemy";
+    return icon.indexOf("boss:") === 0 || icon.indexOf("mob:") === 0 ? icon : icon ? `wow:${icon}` : "enemy";
 }
 
 /** Adds mobs to the section (each once) and takes one away again. */

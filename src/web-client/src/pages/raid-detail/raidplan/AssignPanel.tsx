@@ -12,11 +12,12 @@ import {
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
+import { portraitUrl } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
-/** A mob's icon: a boss image (boss:N), a WoW icon by name, or the generic enemy symbol. */
+/** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */
 export function MobIcon({ icon, size = 18 }: { icon: string; size?: number }) {
-    if (icon.indexOf("boss:") === 0) return <img className="rp-mobicon" src={`/bosses/${icon.slice(5)}.jpg`} alt="" width={size} height={size} draggable={false} />;
+    if (portraitUrl(icon)) return <img className="rp-mobicon" src={portraitUrl(icon)} alt="" width={size} height={size} draggable={false} />;
     if (icon) return <img className="rp-mobicon" src={wowIconUrl(icon, size > 24 ? 56 : 36)} alt="" width={size} height={size} draggable={false} />;
     return <span className="rp-mobicon rp-mobicon-generic" style={{ width: size, height: size }} aria-hidden="true"><Swords size={Math.round(size * 0.66)} /></span>;
 }

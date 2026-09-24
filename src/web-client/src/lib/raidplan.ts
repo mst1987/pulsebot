@@ -723,10 +723,16 @@ export function turnIcon(board: RaidplanBoard, id: string, delta: number): Raidp
 }
 
 export function iconKeyType(key: string): string {
-    if (key.startsWith("boss:")) return "boss";
+    if (key.startsWith("boss:") || key.startsWith("mob:")) return "boss";
     if (key.startsWith("wow:")) return "wow";
     if (key === "enemy" || key === "bosspos") return key;
     return "";
+}
+
+/** The picture of a `boss:<encounter id>` (public/bosses/<id>.jpg) or `mob:<NPC id>` (public/mobs/<id>.png) icon key, "" for any other. */
+export function portraitUrl(key: string): string {
+    const m = key.match(/^(boss|mob):(\d{1,6})$/);
+    return !m ? "" : m[1] === "boss" ? `/bosses/${m[2]}.jpg` : `/mobs/${m[2]}.png`;
 }
 
 /** The icon key a boss list entry stands for: its WCL encounter icon, else the icon of its instance. */

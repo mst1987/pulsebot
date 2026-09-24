@@ -28,7 +28,7 @@ const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob"];
 // a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
-const ICON = /^([a-z0-9_'\-]{2,64}|boss:\d{1,6})$/;
+const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;

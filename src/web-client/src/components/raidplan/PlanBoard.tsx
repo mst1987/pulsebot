@@ -5,7 +5,7 @@ import { classColorProps } from "../ClassSpec";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupMembers, iconBoardLabel, iconKeyType, memberId, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupMembers, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import type { AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
@@ -263,7 +263,7 @@ export default function PlanBoard({
                 const px = scaled(i.size, SIZE_RANGES.icon.def);
                 const name = i.label || t(`raidBoard.icon.${type}`);
                 const face = canFace(i.iconKey);
-                const src = type === "boss" ? `/bosses/${i.iconKey.slice(5)}.jpg` : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
+                const src = type === "boss" ? portraitUrl(i.iconKey) : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
                 return (
                     <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, "", i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
                         <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={name} data-tip={name} {...handlers("icon", i.id)}>
