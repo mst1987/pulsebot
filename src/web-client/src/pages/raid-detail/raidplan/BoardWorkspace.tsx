@@ -15,7 +15,7 @@ import { addItems, alignSelection, bandBox, copySelection, deleteSelection, dupl
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -684,7 +684,7 @@ export default function BoardWorkspace({
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
         const ic = sel.kind === "icon" ? board.icons.find((s) => s.id === sel.id) : undefined;
-        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey) });
+        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 });
     };
     const menuLabel = (item: MenuItem): string => {
         const parts = item.id.split(":");

@@ -10,7 +10,7 @@
 // runs it for real, with `t` injected): imports, `export type`, `export const`
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
-    RaidplanBoard, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
+    RaidplanBoard, RaidplanBoss, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
     RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, Besetzung, BesetzungCounts,
 } from "../api";
 import { t } from "../i18n";
@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -112,6 +112,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         hiddenCards: b.hiddenCards || [],
         inheritOff: b.inheritOff || [],
         showRings: b.showRings !== false,
+        inSheet: b.inSheet !== false,
         groupColors: b.groupColors || {},
         groupMarks: b.groupMarks || {},
         showNames: b.showNames !== false,
@@ -147,13 +148,41 @@ export function sameBosses(a: Record<string, Partial<RaidplanBoard>>, b: Record<
 
 // ---- who stands where ------------------------------------------------------------------
 
-/** The raiders of a group marker that stand around it as tokens: its setup group, minus anyone who already stands somewhere else on the board. */
+/**
+ * Everyone who has a place of his own on the board: a free token, or a role slot that stands ON THE MAP (one that is only in the Besetzung bar,
+ * placed: false, does not count). A member of a group who is in here is not shown again in his group (ring or name list).
+ */
+export function ownPlaceIds(board: RaidplanBoard): Set<string> {
+    const ids = new Set(board.tokens.map((x) => x.userId));
+    for (const s of board.slots) if (s.userId && s.placed !== false) ids.add(s.userId);
+    return ids;
+}
+
+/** The raiders of a group marker that stand around it as tokens: its setup group, minus anyone who has a place of his own on the board (his group ring closes up). */
 export function splitMembers(board: RaidplanBoard, slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
     if (slot.kind !== "group" || !slot.split || slot.hideMembers) return [];
-    const elsewhere = new Set(board.tokens.map((x) => x.userId));
-    // only a slot that stands ON THE MAP shows the person; one that is only in the Besetzung bar (placed: false) does not
-    for (const s of board.slots) if (s.userId && s.placed !== false) elsewhere.add(s.userId);
-    return roster.filter((p) => p.group === slot.n && !elsewhere.has(p.userId));
+    const own = ownPlaceIds(board);
+    return roster.filter((p) => p.group === slot.n && !own.has(p.userId));
+}
+
+/** The names a group marker that is NOT split lists ("Raider anzeigen"): its setup group minus anyone who has a place of his own. */
+export function groupListMembers(board: RaidplanBoard, slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
+    if (slot.kind !== "group" || slot.hideMembers || slot.split) return [];
+    const own = ownPlaceIds(board);
+    return roster.filter((p) => p.group === slot.n && !own.has(p.userId));
+}
+
+/** The group number a player who stands on his own still carries as a badge: that of a split group marker of the board he belongs to, else 0. */
+export function ownBadgeGroup(board: RaidplanBoard, player: RaidplanPlayer): number {
+    return board.slots.some((s) => s.kind === "group" && s.split && !s.hideMembers && s.n === player.group && s.placed !== false) ? player.group : 0;
+}
+
+/** "Aus Gruppe herausnehmen": a raider of a split group becomes a free token where he stands now (his setup group stays, so assignments and the badge keep it). "Zurück in die Gruppe" is removing that token. */
+export function takeOutOfGroup(board: RaidplanBoard, memberKey: string, at: { x: number; y: number } | null): RaidplanBoard {
+    const ref = parseMemberId(memberKey);
+    const spot = objectPoint(board, "member", memberKey) || at;
+    if (!spot || !ref.userId) return board;
+    return placeToken(board, ref.userId, spot.x, spot.y);
 }
 
 /** Everyone who already stands somewhere on the board: a free token, a slot, or a group that is split around its marker. */
@@ -903,7 +932,7 @@ function item(id: string, section: string, disabled: boolean, danger: boolean): 
  * empty board (`"board"`), in order. `id`s are what applyMenuAction() and the page
  * understand; `section` groups them (a separator between sections).
  */
-export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; faces?: boolean }): MenuItem[] {
+export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; inGroup?: boolean; faces?: boolean }): MenuItem[] {
     if (target === "board") {
         const out = [];
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
@@ -914,7 +943,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
         out.push(item("deselect", "end", false, false));
         return out;
     }
-    if (target === "member") return [item("properties", "main", false, false), item("resetpos", "end", false, false)];
+    if (target === "member") return [item("properties", "main", false, false), item("member:out", "main", false, false), item("resetpos", "end", false, false)];
     const out = [item("properties", "main", false, false)];
     if (target !== "token") out.push(item("duplicate", "main", false, false));
     if (target === "icon" && opts.faces) for (const a of COMPASS) out.push(item("face:" + a, "face", false, false));
@@ -926,6 +955,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
         if (opts.hasPlayer) out.push(item("unassign", "player", false, false));
     }
     if (target === "token") out.push(item("unassign", "player", false, false));
+    if (target === "token" && opts.inGroup) out.push(item("token:back", "player", false, false));
     if (target === "slot" && opts.kind === "group") {
         out.push(item(opts.hideMembers ? "members:show" : "members:hide", "group", false, false));
         out.push(item(opts.split ? "split:off" : "split:on", "group", false, false));
@@ -960,6 +990,8 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     const sel = kind ? { kind, id: objId } : null;
     if (!kind) return { board, sel: null };
     if (id === "duplicate") return duplicateObject(board, kind, objId);
+    if (id === "member:out") return { board: takeOutOfGroup(board, objId, at), sel: null };
+    if (id === "token:back") return { board: removeToken(board, objId), sel: null };
     if (id.startsWith("size:")) {
         const pct = Number(id.slice(5));
         return { board: kind === "zone" ? scaleObject(board, "zone", objId, pct / 100) : setObjectPercent(board, kind, objId, pct), sel };
@@ -1348,6 +1380,18 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
     return objectCount(b) + (b.assignments || []).length;
+}
+
+/** Whether a section (boss, trash, Allgemein) comes with the shared sheet: every one does unless its board says inSheet: false. */
+export function sheetIncluded(bosses: Record<string, Partial<RaidplanBoard>>, key: string): boolean {
+    const b = bosses[key];
+    return !b || b.inSheet !== false;
+}
+
+/** The sections the sheet-quick-actions put IN, by mode: "all", "none", "bosses" (no trash, no Allgemein), "noTrash" (everything but the trash). */
+export function sheetKeysFor(sections: RaidplanBoss[], mode: string): string[] {
+    const keep = (b) => (mode === "all" ? true : mode === "none" ? false : mode === "bosses" ? !b.trash && !b.general : !b.trash);
+    return sections.filter(keep).map((b) => b.key);
 }
 
 /** Players by userId, for looking up who a token or an assignment is. */

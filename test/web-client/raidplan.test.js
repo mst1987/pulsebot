@@ -45,7 +45,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -731,7 +731,7 @@ describe("the pages", () => {
     });
 
     it("renders zones, marks, slots, lines, texts and groups in the shared board and the read view", () => {
-        for (const needle of ["zones.filter", "marks.filter", "slots.filter", "lines.filter", "texts.filter", "tokens.filter", "groupMembers", "rp-zone-label", "ZONE_GLYPHS", "arrowHead"]) expect(board2).toContain(needle);
+        for (const needle of ["zones.filter", "marks.filter", "slots.filter", "lines.filter", "texts.filter", "tokens.filter", "groupListMembers", "rp-zone-label", "ZONE_GLYPHS", "arrowHead"]) expect(board2).toContain(needle);
         expect(pub).toContain("slots={boss.slots}");
         expect(pub).toContain("lines={boss.lines}");
         expect(pub).toContain("texts={boss.texts}");
@@ -990,7 +990,7 @@ describe("group markers: hiding and splitting", () => {
         expect(items({ hideMembers: true, split: true })).toEqual(expect.arrayContaining(["members:show", "split:off"]));
         expect(items({})).not.toContain("assign");
         expect(lib.contextMenuItems("slot", { locked: false, hasPlayer: false, isEvent: true, kind: "tank" }).map((i) => i.id)).not.toContain("split:on");
-        expect(lib.contextMenuItems("member", { locked: false, hasPlayer: false, isEvent: true, kind: "" }).map((i) => i.id)).toEqual(["properties", "resetpos"]);
+        expect(lib.contextMenuItems("member", { locked: false, hasPlayer: false, isEvent: true, kind: "" }).map((i) => i.id)).toEqual(["properties", "member:out", "resetpos"]);
     });
 
     it("arranges the raiders on a ring that grows with their number and never overlaps", () => {
@@ -1353,5 +1353,28 @@ describe("mending role slots that got out of step", () => {
         expect(lib.repairSlots(more, bes, []).slots.some((s) => s.kind === "group" && s.n === 9)).toBe(false);
         const keepPlaced = { ...ok, slots: [...ok.slots, slot("group", 9, { placed: true })] };
         expect(lib.repairSlots(keepPlaced, bes, []).slots.some((s) => s.kind === "group" && s.n === 9)).toBe(true);
+    });
+});
+
+describe("sections in or out of the sheet", () => {
+    const sections = [
+        { key: "bt/a", name: "A" }, { key: "bt/b", name: "B" },
+        { key: "bt/trash", name: "Trash", trash: true }, { key: "bt/general", name: "Allgemein", general: true },
+    ];
+    it("every section is in unless its board says inSheet: false", () => {
+        expect(lib.sheetIncluded({}, "bt/a")).toBe(true);
+        expect(lib.sheetIncluded({ "bt/a": { inSheet: true } }, "bt/a")).toBe(true);
+        expect(lib.sheetIncluded({ "bt/a": { inSheet: false } }, "bt/a")).toBe(false);
+        expect(lib.sheetIncluded({ "bt/a": { inSheet: false } }, "bt/b")).toBe(true);
+    });
+    it("boardOf reads the flag, a missing one is in", () => {
+        expect(lib.boardOf({}, "bt/a").inSheet).toBe(true);
+        expect(lib.boardOf({ "bt/a": { inSheet: false } }, "bt/a").inSheet).toBe(false);
+    });
+    it("the quick actions pick the sections that go in", () => {
+        expect(lib.sheetKeysFor(sections, "all")).toEqual(["bt/a", "bt/b", "bt/trash", "bt/general"]);
+        expect(lib.sheetKeysFor(sections, "none")).toEqual([]);
+        expect(lib.sheetKeysFor(sections, "bosses")).toEqual(["bt/a", "bt/b"]);
+        expect(lib.sheetKeysFor(sections, "noTrash")).toEqual(["bt/a", "bt/b", "bt/general"]);
     });
 });

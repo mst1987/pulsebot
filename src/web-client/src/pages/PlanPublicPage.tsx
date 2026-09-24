@@ -106,7 +106,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                 </div>
             </header>
 
-            {data.bosses.length === 0 && <div className="rp-empty"><p className="rp-muted">{t("raidBoard.public.empty")}</p></div>}
+            {data.bosses.length === 0 && <div className="rp-empty"><p className="rp-muted">{(data.hiddenCount || 0) > 0 ? t("raidBoard.public.nothingShared") : t("raidBoard.public.empty")}</p></div>}
 
             {data.bosses.length > 0 && (
                 <>

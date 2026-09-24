@@ -307,6 +307,57 @@ describe("GET /api/raidplan/public", () => {
         expect(orphan.end.mock.calls[0][0]).toBe(withdrawn.end.mock.calls[0][0]);
     });
 
+    describe("sections left out of the sheet", () => {
+        async function publishTwo(flags) {
+            await call(route.putPlan, ORGA, {
+                event: "eh_1", version: 0,
+                bosses: {
+                    "bt/supremus": { tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], notes: "BOSS-SECRET-NOTE", ...(flags.boss || {}) },
+                    "bt/trash": { notes: "TRASH-SECRET-NOTE", texts: [{ text: "TRASH-TEXT", x: 0.5, y: 0.5 }], ...(flags.trash || {}) },
+                },
+            });
+            const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
+            return on.plan.publicPath.replace("/p/", "");
+        }
+
+        it("delivers every section by default (a plan from before the switch: all in)", async () => {
+            const d = body(publicGet(await publishTwo({})));
+            expect(d.bosses.map((b) => b.key)).toEqual(["bt/supremus", "bt/trash"]);
+            expect(d.hiddenCount).toBe(0);
+        });
+
+        it("does not deliver an excluded section at all: no chip, no notes, no objects, no players", async () => {
+            const d = body(publicGet(await publishTwo({ trash: { inSheet: false } })));
+            expect(d.bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
+            expect(d.hiddenCount).toBe(1);
+            const text = JSON.stringify(d);
+            expect(text).not.toContain("TRASH-SECRET-NOTE");
+            expect(text).not.toContain("TRASH-TEXT");
+            expect(text).toContain("BOSS-SECRET-NOTE");
+        });
+
+        it("a player only an excluded section names is not in the public roster", async () => {
+            const d = body(publicGet(await publishTwo({ boss: { inSheet: false } })));
+            expect(d.bosses.map((b) => b.key)).toEqual(["bt/trash"]);
+            expect(d.roster).toEqual([]);
+            expect(JSON.stringify(d)).not.toContain("BOSS-SECRET-NOTE");
+        });
+
+        it("all sections excluded: nothing is delivered, only how many are held back", async () => {
+            const d = body(publicGet(await publishTwo({ boss: { inSheet: false }, trash: { inSheet: false } })));
+            expect(d.bosses).toEqual([]);
+            expect(d.roster).toEqual([]);
+            expect(d.hiddenCount).toBe(2);
+            expect(JSON.stringify(d)).not.toContain("SECRET");
+        });
+
+        it("the editor still gets the excluded section with all its data", async () => {
+            await publishTwo({ trash: { inSheet: false } });
+            const v = body(await call(route.getPlan, ORGA, null, "event=eh_1"));
+            expect(v.plan.bosses["bt/trash"]).toMatchObject({ inSheet: false, notes: "TRASH-SECRET-NOTE" });
+        });
+    });
+
     it("leaves out bosses nobody planned", async () => {
         const token = await publish();
         expect(body(publicGet(token)).bosses.map((b) => b.key)).toEqual(["bt/supremus"]);

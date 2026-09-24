@@ -167,7 +167,8 @@
         "mapOnly": "Map only (full screen)",
         "mapBack": "Back to the overview",
         "thatsYou": "That is you",
-        "du": "You"
+        "du": "You",
+        "nothingShared": "Nothing shared yet."
     },
     "slot": {
         "tank": "Tank {n}",
@@ -369,6 +370,8 @@
         "members_show": "Show raiders",
         "split_on": "Split up",
         "split_off": "Merge",
+        "member_out": "Take out of group",
+        "token_back": "Back into the group",
         "resetpos": "Reset position",
         "face": "Face {dir}",
         "m_duplicate": "Duplicate selection",
@@ -738,5 +741,18 @@
         "localHead": "Only for you",
         "planHead": "In the plan",
         "minimap": "Overview map when zoomed"
+    },
+    "sheet": {
+        "title": "Show in the sheet",
+        "outAction": "Leave out of the sheet",
+        "inAction": "Put back into the sheet",
+        "notInSheet": "Not in the sheet",
+        "outCount": "{n} section(s) left out: not in the sheet, still editable here.",
+        "quick": {
+            "all": "All",
+            "none": "None",
+            "bosses": "Bosses only",
+            "noTrash": "Without trash"
+        }
     }
 }

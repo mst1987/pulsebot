@@ -167,7 +167,8 @@
         "mapOnly": "Nur das Bild (Vollbild)",
         "mapBack": "Zurück zur Übersicht",
         "thatsYou": "Das bist du",
-        "du": "Du"
+        "du": "Du",
+        "nothingShared": "Noch nichts freigegeben."
     },
     "slot": {
         "tank": "Tank {n}",
@@ -369,6 +370,8 @@
         "members_show": "Raider anzeigen",
         "split_on": "Aufsplitten",
         "split_off": "Zusammenfassen",
+        "member_out": "Aus Gruppe herausnehmen",
+        "token_back": "Zurück in die Gruppe",
         "resetpos": "Position zurücksetzen",
         "face": "Blick nach {dir}",
         "m_duplicate": "Auswahl duplizieren",
@@ -738,5 +741,18 @@
         "localHead": "Nur bei dir",
         "planHead": "Im Plan",
         "minimap": "Übersichtskarte beim Zoomen"
+    },
+    "sheet": {
+        "title": "Im Sheet anzeigen",
+        "outAction": "Aus dem Sheet ausklammern",
+        "inAction": "Wieder ins Sheet aufnehmen",
+        "notInSheet": "Nicht im Sheet",
+        "outCount": "{n} Abschnitt(e) ausgeklammert: nicht im Sheet, im Editor weiter bearbeitbar.",
+        "quick": {
+            "all": "Alle",
+            "none": "Keine",
+            "bosses": "Nur Bosse",
+            "noTrash": "Ohne Trash"
+        }
     }
 }

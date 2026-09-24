@@ -9,7 +9,7 @@ import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
-    applyProfile, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, toSave,
+    applyProfile, boardCount, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
@@ -90,6 +90,13 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const editAllBoards = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
         histEditAll(view ? view.bosses.filter((b) => !b.general).map((b) => b.key) : [], fn, coalesce);
     }, [histEditAll, view]);
+    // the sections that come with the shared sheet: switched on/off for one section or for several (share dialog); two steps at most (in, out)
+    const setSheet = useCallback((changes: Record<string, boolean>) => {
+        const on = Object.keys(changes).filter((k) => changes[k]);
+        const off = Object.keys(changes).filter((k) => !changes[k]);
+        if (on.length > 0) histEditAll(on, (b) => ({ ...b, inSheet: true }));
+        if (off.length > 0) histEditAll(off, (b) => ({ ...b, inSheet: false }));
+    }, [histEditAll]);
     const editBoard = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
         histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, roster)), coalesce);
     }, [histEdit, besetzung, roster]);
@@ -198,7 +205,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
-                    bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} />}
+                    bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
                     status={(
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
@@ -258,6 +265,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             <ShareModal
                 open={modal === "share"} onClose={() => setModal("")} published={published} publicPath={view.plan.publicPath}
                 dirty={dirty} hasApprovedSetup={view.hasApprovedSetup} busy={saving}
+                sections={view.bosses.filter((b) => !b.defaults && (boardCount(draft, b.key) > 0 || !sheetIncluded(draft, b.key)))} draft={draft} onSheet={setSheet}
                 onPublish={(p) => publish(p)} onRotate={() => publish(true, true)}
             />
         </div>
