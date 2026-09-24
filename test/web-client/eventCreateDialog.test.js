@@ -366,3 +366,17 @@ describe("Event anlegen: dialog", () => {
         expect(fields).not.toContain("className=\"hint\"");
     });
 });
+
+describe("Event anlegen: the leader is picked from a dropdown", () => {
+    const src = read("components", "RaidCreateDialog.tsx");
+
+    it("offers the creator and the signed-up people, and an \"other id\" that shows the text field", () => {
+        expect(src).toContain("ctx.leaderCandidates");
+        expect(src).toContain("<select\n                                    id=\"re-leader\"");
+        expect(src).toContain("setLeaderOther(true)");
+        expect(src).toContain("leaderOther && (");
+        for (const key of ["leader", "leaderTip", "leaderOptionYou", "leaderOther", "leaderPlaceholder"]) {
+            for (const lang of ["de", "en"]) expect(makeT(lang)(`raidCreate.termin.${key}`)).not.toBe(`raidCreate.termin.${key}`);
+        }
+    });
+});
