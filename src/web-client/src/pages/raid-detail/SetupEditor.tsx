@@ -1041,15 +1041,17 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
-            {/* three boxes in one row: the ping message, the evening's numbers, and the raider panel (the one the pointer touched last) */}
+            {/* top row: left the ping message with the evening's numbers under it, right the raider panel (the one the pointer touched last) */}
             <div className="se-topline">
-                <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
-                <Summary
-                    data={data} setup={setup} busy={busy}
-                    onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
-                    onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                    onWeights={() => setDialog("weights")}
-                />
+                <div className="se-topleft">
+                    <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
+                    <Summary
+                        data={data} setup={setup} busy={busy}
+                        onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                        onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
+                        onWeights={() => setDialog("weights")}
+                    />
+                </div>
                 {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
             </div>
 
