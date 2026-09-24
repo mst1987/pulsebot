@@ -173,7 +173,7 @@
         "kind": {
             "tank": "Tank",
             "healer": "Healer",
-            "dps": "DPS (any)",
+            "dps": "DPS",
             "group": "Group",
             "label": "Label",
             "melee": "Melee DPS",
@@ -457,6 +457,13 @@
         "free": "Free the place",
         "give": "Assign a player",
         "less": "{role}: one less",
-        "more": "{role}: one more"
+        "more": "{role}: one more",
+        "dpsTotal": "DPS (total)",
+        "split": "Split DPS into melee / ranged",
+        "flex": "Role on this boss",
+        "flexNote": "In the setup: {role}. Only for this boss.",
+        "own": "this boss only",
+        "ownTip": "These numbers only apply to this boss.",
+        "reset": "Back to the raid type's numbers"
     }
 }

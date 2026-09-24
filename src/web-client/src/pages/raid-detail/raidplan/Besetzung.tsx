@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { Check, MapPin, Minus, Plus, Users } from "lucide-react";
+import { Check, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON } from "../../../lib/assign";
-import { ROLE_KINDS, assignSlot, besetzungSlots, placeSlot, setCount, unplaceSlot } from "../../../lib/raidplan";
+import { assignSlot, besetzungSlots, countOf, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
 /**
- * The "Besetzung": the role slots of this raid (Tank 1..n, Heiler 1..n, Melee, Ranged and the
- * groups) as compact chips with the role icon — there from the start, no dragging onto the
- * board first. In an event they show who stands in them (name, spec icon; open = the role
- * icon) and can be given to somebody else; +/- changes how many a role has. The pin puts a
- * slot on the map (click, or drag it onto the board); everything can be assigned unplaced.
+ * The "Besetzung": the role slots of this raid (Tank 1..n, Heiler 1..n, DPS 1..n and the groups) as compact
+ * chips with the role icon — there from the start, no dragging onto the board first. The DPS is one number
+ * (size - tanks - healers); melee / ranged only exist when they are split (the switch), the rest stays "DPS n".
+ * In an event the chips show who stands in them (name, spec icon; open = the role icon) and can be given to
+ * somebody else; a player can play another role on this boss (flex). +/- change how many a role has — for this
+ * boss only ("nur dieser Boss", back to the raid type's numbers with the arrow). The pin puts a slot on the
+ * map (click, or drag it onto the board); everything can be assigned unplaced.
  */
 export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown }: {
     board: RaidplanBoard;
@@ -27,6 +29,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
 }) {
     const t = useT();
     const [open, setOpen] = useState("");
+    const [showSplit, setShowSplit] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (!open) return undefined;
@@ -39,17 +42,20 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
 
     const all = besetzungSlots(board);
     const counts = board.counts || besetzung.counts;
-    const clusters = [...ROLE_KINDS, "group"];
+    const split = showSplit || counts.melee > 0 || counts.ranged > 0;
+    const clusters = split ? ["tank", "healer", "dps", "melee", "ranged", "group"] : ["tank", "healer", "dps", "group"];
+    const own = board.counts !== null;
 
     const chip = (s: RaidplanSlot) => {
         const player = s.userId ? players.get(s.userId) || null : null;
         const name = t(`raidBoard.slot.${s.kind}`, { n: s.n });
         const on = s.placed !== false;
         const roleIcon = ROLE_ICON[s.kind];
+        const flexNow = player ? board.roles[player.userId] : "";
         return (
             <span key={s.id} className={`rp-bes-slot${on ? " is-placed" : ""}`}>
                 <button
-                    type="button" className={`rp-bes-chip${player ? "" : " is-open"}`} aria-expanded={open === s.id}
+                    type="button" className={`rp-bes-chip${player ? "" : " is-open"}${flexNow ? " is-flex" : ""}`} aria-expanded={open === s.id}
                     aria-label={`${name}${player ? `: ${player.character}` : ` (${t("raidBoard.slot.open")})`}`}
                     data-tip={player ? `${name}: ${player.character}` : `${name} (${t("raidBoard.slot.open")})`}
                     onClick={() => setOpen(open === s.id ? "" : s.id)}
@@ -71,12 +77,29 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                                 <MapPin size={14} /> {on ? t("raidBoard.bes.unplace") : t("raidBoard.bes.placeNow")}
                             </button>
                         )}
+                        {canWrite && isEvent && player && s.kind !== "group" && (
+                            <div className="rp-bes-flex" role="group" aria-label={t("raidBoard.bes.flex")}>
+                                <span className="rp-kicker">{t("raidBoard.bes.flex")}</span>
+                                <span className="rp-bes-flexbtns">
+                                    {["tank", "healer", "dps"].map((r) => {
+                                        const eff = roleOn(board, player);
+                                        const cur = eff === r || (r === "dps" && eff !== "tank" && eff !== "healer");
+                                        return (
+                                            <button key={r} type="button" className={`rp-pop-act${cur ? " is-on" : ""}`} aria-pressed={cur} onClick={() => { edit((b) => setFlexRole(b, roster, player.userId, r)); setOpen(""); }}>
+                                                <WowIcon name={ROLE_ICON[r]} size={18} /> {t(`raidBoard.slot.kind.${r}`)}
+                                            </button>
+                                        );
+                                    })}
+                                </span>
+                                {flexNow && <span className="rp-muted">{t("raidBoard.bes.flexNote", { role: t(`raidBoard.slot.kind.${player.role === "healer" || player.role === "tank" ? player.role : "dps"}`) })}</span>}
+                            </div>
+                        )}
                         {canWrite && isEvent && s.kind !== "group" && (
                             <>
                                 {player && <button type="button" className="rp-pop-act" onClick={() => { edit((b) => assignSlot(b, s.id, "")); setOpen(""); }}>{t("raidBoard.bes.free")}</button>}
                                 <span className="rp-kicker">{t("raidBoard.bes.give")}</span>
                                 <div className="rp-bes-people">
-                                    {[...roster.filter((p) => p.role === s.kind), ...roster.filter((p) => p.role !== s.kind)].map((p) => (
+                                    {[...roster.filter((p) => roleOn(board, p) === s.kind || (s.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer")), ...roster.filter((p) => roleOn(board, p) !== s.kind && !(s.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer"))].map((p) => (
                                         <button key={p.userId} type="button" className={`rp-pop-item${player && p.userId === player.userId ? " is-on" : ""}`} onClick={() => { edit((b) => assignSlot(b, s.id, p.userId)); setOpen(""); }}>
                                             <span className="rp-achip"><TokenIcon player={p} size="sm" /><PlayerName player={p} /></span>
                                         </button>
@@ -96,20 +119,33 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);
                 const isGroup = kind === "group";
+                const label = kind === "dps" ? t("raidBoard.bes.dpsTotal") : t(`raidBoard.slot.kind.${kind}`);
+                const n = isGroup ? list.length : countOf(counts, kind);
                 return (
-                    <div key={kind} className={`rp-bes-role rp-bes-${kind}`} role="group" aria-label={t(`raidBoard.slot.kind.${kind}`)}>
-                        <span className="rp-bes-roleicon" data-tip={t(`raidBoard.slot.kind.${kind}`)}>{isGroup ? <Users size={17} /> : <WowIcon name={ROLE_ICON[kind]} size={22} />}</span>
+                    <div key={kind} className={`rp-bes-role rp-bes-${kind}`} role="group" aria-label={label}>
+                        <span className="rp-bes-roleicon" data-tip={label}>{isGroup ? <Users size={17} /> : <WowIcon name={ROLE_ICON[kind]} size={22} />}</span>
                         {!isGroup && canWrite && (
-                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: t(`raidBoard.slot.kind.${kind}`) })} disabled={counts[kind] <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, counts[kind] - 1))}><Minus size={12} /></button>
+                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: label })} disabled={n <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, n - 1))}><Minus size={12} /></button>
                         )}
-                        <span className="rp-bes-count">{isGroup ? list.length : counts[kind]}</span>
+                        <span className="rp-bes-count">{n}</span>
                         {!isGroup && canWrite && (
-                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.more", { role: t(`raidBoard.slot.kind.${kind}`) })} disabled={counts[kind] >= 40} onClick={() => edit((b) => setCount(b, besetzung, kind, counts[kind] + 1))}><Plus size={12} /></button>
+                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.more", { role: label })} disabled={n >= 40} onClick={() => edit((b) => setCount(b, besetzung, kind, n + 1))}><Plus size={12} /></button>
                         )}
                         <span className="rp-bes-chips">{list.map(chip)}</span>
                     </div>
                 );
             })}
+            {canWrite && (
+                <span className="rp-bes-tools">
+                    <button type="button" className={`rp-bes-step rp-bes-splitbtn${split ? " is-on" : ""}`} aria-pressed={split} data-tip={t("raidBoard.bes.split")} aria-label={t("raidBoard.bes.split")} disabled={counts.melee > 0 || counts.ranged > 0} onClick={() => setShowSplit(!showSplit)}><Split size={13} /></button>
+                    {own && (
+                        <>
+                            <span className="rp-bes-own" data-tip={t("raidBoard.bes.ownTip")}>{t("raidBoard.bes.own")}</span>
+                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.reset")} data-tip={t("raidBoard.bes.reset")} onClick={() => edit((b) => resetCounts(b, besetzung))}><RotateCcw size={12} /></button>
+                        </>
+                    )}
+                </span>
+            )}
         </section>
     );
 }

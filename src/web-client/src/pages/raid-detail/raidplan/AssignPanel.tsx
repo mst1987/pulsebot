@@ -207,7 +207,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const suggest = async (type: string) => {
         setBusy(type);
         try {
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })) });
+            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
             if (r.assignments.length === 0) toast(t("raidBoard.assign.noSuggestion"));
             else edit((b) => applySuggestions(b, type, r.assignments));
         } catch (err) {

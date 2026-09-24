@@ -4119,6 +4119,8 @@ export type RaidplanBoard = {
     assignments: RaidplanAssignment[];
     /** how many role slots the Besetzung has on this board (null = the raid type's) */
     counts: BesetzungCounts | null;
+    /** who plays another role on this boss than in the setup: { userId: role } */
+    roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
     objectScale: number;
     /** how strongly the map shows, 0.1..1 (dim it so the objects stand out) */
@@ -4143,8 +4145,8 @@ export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "s
 /** An assignment: assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
 export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
-export type BesetzungCounts = { tank: number; healer: number; melee: number; ranged: number };
-export type Besetzung = { size: number; counts: BesetzungCounts; groups: number };
+export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
+export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
 export type RaidplanBoss = {
     /** "Trash" of an instance / "Allgemein" for the whole raid: no boss, but a board (trash) or only assignments (general) */
     trash?: boolean;
@@ -4216,7 +4218,7 @@ export function saveRaidplan(csrfToken: string | null, input: { event: string; v
 }
 
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
-export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; slots: { kind: string; n: number; userId: string }[] }): Promise<{ assignments: RaidplanAssignment[] }> {
+export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string> }): Promise<{ assignments: RaidplanAssignment[] }> {
     return send("POST", "/api/raidplan/suggest", csrfToken, input);
 }
 

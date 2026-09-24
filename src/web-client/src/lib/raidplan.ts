@@ -11,7 +11,7 @@
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
     RaidplanBoard, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
-    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, Besetzung,
+    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, Besetzung, BesetzungCounts,
 } from "../api";
 import { t } from "../i18n";
 
@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -107,6 +107,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
             ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "" })),
         ],
         counts: b.counts || null,
+        roles: b.roles || {},
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -845,8 +846,8 @@ export function historyRedo<T>(h: History<T>): History<T> {
 
 /**
  * The Besetzung a raid type comes to (the same rules as the server's raidplanBesetzung.js): tanks and
- * healers from the biggest instance's own suggestion for the size (else the default rule), the
- * damage dealers split evenly, the odd one to melee. `size` 0 = the instances' default (else 25).
+ * healers from the biggest instance's own suggestion for the size (else the default rule), the DPS is
+ * what is left — one number, no melee / ranged split. `size` 0 = the instances' default (else 25).
  */
 export function besetzungFor(instances: { defaultSize: number; suggested: Record<string, { tanks: number; healers: number }> }[], size: number): Besetzung {
     const biggest = [...instances].sort((a, b) => b.defaultSize - a.defaultSize)[0];
@@ -858,36 +859,78 @@ export function besetzungFor(instances: { defaultSize: number; suggested: Record
     const healers = own ? own.healers : n <= 5 ? base.healers : Math.min(Math.round(n / 4), n - tanks);
     const tank = Math.min(tanks, n);
     const healer = Math.min(healers, n - tank);
-    const dps = Math.max(0, n - tank - healer);
-    const melee = Math.ceil(dps / 2);
-    return { size: n, counts: { tank, healer, melee, ranged: dps - melee }, groups: Math.max(1, Math.ceil(n / 5)) };
+    return { size: n, counts: { tank, healer, dps: Math.max(0, n - tank - healer), melee: 0, ranged: 0 }, groups: Math.max(1, Math.ceil(n / 5)), split: false };
 }
 
-export const ROLE_KINDS = ["tank", "healer", "melee", "ranged"];
+/** How many slots of each kind the counts make: the DPS that is not split into melee / ranged is "DPS n". */
+export function slotCounts(counts: BesetzungCounts): BesetzungCounts {
+    return { tank: counts.tank, healer: counts.healer, dps: Math.max(0, counts.dps - counts.melee - counts.ranged), melee: counts.melee, ranged: counts.ranged };
+}
 
-/** A slot of the Besetzung: a tank, healer, melee or ranged place, or a setup group. */
+/** One role's number out of a counts object. */
+export function countOf(counts: BesetzungCounts, kind: string): number {
+    return kind === "tank" ? counts.tank : kind === "healer" ? counts.healer : kind === "dps" ? counts.dps : kind === "melee" ? counts.melee : kind === "ranged" ? counts.ranged : 0;
+}
+
+export const ROLE_KINDS = ["tank", "healer", "dps", "melee", "ranged"];
+
+/** A slot of the Besetzung: a tank, healer, DPS, melee or ranged place, or a setup group. */
 export function isRoleKind(kind: string): boolean {
     return ROLE_KINDS.indexOf(kind) >= 0 || kind === "group";
 }
 
+/** What a player counts as on this board: the role set for this boss (flex), else the role of the setup. */
+export function roleOn(board: RaidplanBoard, player: RaidplanPlayer): string {
+    return board.roles[player.userId] || player.role;
+}
+
+/** Which slot kinds take a player of a role: the exact kind first, a damage dealer also any melee / ranged / DPS place. */
+function kindsFor(role: string): string[] {
+    if (role === "tank" || role === "healer") return [role];
+    if (role === "melee") return ["melee", "dps"];
+    if (role === "ranged") return ["ranged", "dps"];
+    return ["dps", "melee", "ranged"];
+}
+
+/** How many of each role the lineup really has on this boss (flex roles counted): the damage dealers are all that are neither tank nor healer. */
+function rosterCounts(board: RaidplanBoard, roster: RaidplanPlayer[]): BesetzungCounts {
+    const out = { tank: 0, healer: 0, dps: 0, melee: 0, ranged: 0 };
+    for (const p of roster) {
+        const r = roleOn(board, p);
+        if (r === "tank") out.tank += 1;
+        else if (r === "healer") out.healer += 1;
+        else out.dps += 1;
+    }
+    return out;
+}
+
 /**
- * The board with every role slot its Besetzung has: Tank 1..n, Heiler 1..n, Melee 1..n, Ranged 1..n
- * and the groups. What is missing is added (not on the map, `placed: false`; in an event the setup's
- * players fill the new ones by role); what is there is never changed or removed. `counts` of the board
- * (set with +/-) win over the raid type's.
+ * The board with every role slot its Besetzung has: Tank 1..n, Heiler 1..n, DPS 1..n (melee / ranged only
+ * when they were split), and the groups. What is missing is added (not on the map, `placed: false`);
+ * what is there is never changed or removed. In an event the setup's players fill the new slots by role
+ * (the role of a boss counts: flex), and — as long as this boss has no counts of its own — a lineup
+ * with more tanks, healers or DPS than the type has gets the extra slots; one with fewer leaves slots open.
  */
 export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
     if (!besetzung) return board;
-    const counts = board.counts || besetzung.counts;
+    const counts = { ...(board.counts || besetzung.counts) };
+    if (!board.counts && roster.length > 0) {
+        const real = rosterCounts(board, roster);
+        counts.tank = Math.max(counts.tank, real.tank);
+        counts.healer = Math.max(counts.healer, real.healer);
+        counts.dps = Math.max(counts.dps, real.dps);
+    }
+    const want = slotCounts(counts);
     const missing = [];
-    for (const kind of ROLE_KINDS) {
-        for (let n = 1; n <= counts[kind]; n += 1) if (!board.slots.some((s) => s.kind === kind && s.n === n)) missing.push({ kind, n });
+    for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
+        for (let n = 1; n <= countOf(want, kind); n += 1) if (!board.slots.some((s) => s.kind === kind && s.n === n)) missing.push({ kind, n });
     }
     for (let n = 1; n <= besetzung.groups; n += 1) if (!board.slots.some((s) => s.kind === "group" && s.n === n)) missing.push({ kind: "group", n });
     if (missing.length === 0) return board;
     const taken = new Set(board.slots.map((s) => s.userId).filter(Boolean));
+    // the exact roles first, so a generic "DPS n" never takes a melee or ranged player from a place that asks for him
     const added = missing.map((m) => {
-        const who = m.kind === "group" ? null : roster.find((p) => p.role === m.kind && !taken.has(p.userId)) || null;
+        const who = m.kind === "group" ? null : roster.find((p) => !taken.has(p.userId) && (roleOn(board, p) === m.kind || (m.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer"))) || null;
         if (who) taken.add(who.userId);
         return {
             id: `bes-${m.kind}-${m.n}`, kind: m.kind as RaidplanSlotKind, n: m.n, label: "", x: 0.5, y: 0.5, userId: who ? who.userId : "", size: SIZE_RANGES.slot.def,
@@ -897,11 +940,56 @@ export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | nul
     return { ...board, slots: [...board.slots, ...added] };
 }
 
-/** Sets how many slots of a role the board has (+/-): more are added by ensureBesetzung, fewer are removed from the end. */
+/** The counts as this board sets them (its own, else the type's) with one role changed (+/-); melee + ranged stay within the DPS. */
+export function countsWith(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number): BesetzungCounts {
+    const cur = { ...(board.counts || besetzung.counts) };
+    const v = Math.max(0, Math.min(40, Math.round(n)));
+    if (kind === "dps") cur.dps = Math.max(v, cur.melee + cur.ranged);
+    else if (kind === "melee") cur.melee = Math.min(v, cur.dps - cur.ranged);
+    else if (kind === "ranged") cur.ranged = Math.min(v, cur.dps - cur.melee);
+    else if (kind === "tank") { cur.tank = v; } else if (kind === "healer") { cur.healer = v; }
+    return cur;
+}
+
+/** Sets how many slots of a role this board has (+/-): more are added by ensureBesetzung, fewer are removed from the end. */
 export function setCount(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number): RaidplanBoard {
-    const next = Math.max(0, Math.min(40, Math.round(n)));
-    const counts = { ...(board.counts || besetzung.counts), [kind]: next };
-    return { ...board, counts, slots: board.slots.filter((s) => !(s.kind === kind && s.n > next)) };
+    const counts = countsWith(board, besetzung, kind, n);
+    return { ...board, counts, slots: trimSlots(board.slots, counts) };
+}
+
+/** Back to the raid type's numbers on this board (extra slots beyond them go away). */
+export function resetCounts(board: RaidplanBoard, besetzung: Besetzung): RaidplanBoard {
+    return { ...board, counts: null, slots: trimSlots(board.slots, besetzung.counts) };
+}
+
+function trimSlots(slots: RaidplanSlot[], counts: BesetzungCounts): RaidplanSlot[] {
+    const want = slotCounts(counts);
+    return slots.filter((s) => !(ROLE_KINDS.indexOf(s.kind) >= 0 && s.n > countOf(want, s.kind)));
+}
+
+/**
+ * Somebody plays another role on this boss than in the setup ("Heiler 5 spielt hier DPS"): the player leaves
+ * his slot (it stays, open) and takes the first open place that fits the new role; the role is remembered
+ * for this board only. Setting the role the setup already has clears the flex. Nothing else changes.
+ */
+export function setFlexRole(board: RaidplanBoard, roster: RaidplanPlayer[], userId: string, role: string): RaidplanBoard {
+    const player = roster.find((p) => p.userId === userId);
+    if (!player) return board;
+    const roles = { ...board.roles };
+    if (role === player.role || (role === "dps" && player.role !== "tank" && player.role !== "healer")) delete roles[userId]; else roles[userId] = role;
+    const eff = roles[userId] || player.role;
+    const freed = board.slots.map((s) => (s.userId === userId ? { ...s, userId: "" } : s));
+    let slots = freed;
+    const place = () => {
+        for (const kind of kindsFor(eff)) {
+            const free = freed.filter((s) => s.kind === kind && !s.userId).sort((a, b) => a.n - b.n)[0];
+            if (free) return free.id;
+        }
+        return "";
+    };
+    const target = place();
+    if (target) slots = freed.map((s) => (s.id === target ? { ...s, userId } : s));
+    return { ...board, roles, slots };
 }
 
 /** Puts a slot of the Besetzung on the map (at a point, else near the middle). */

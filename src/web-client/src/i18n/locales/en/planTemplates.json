@@ -44,5 +44,8 @@
     },
     "updated": "changed {date}",
     "besetzung": "Roster slots",
-    "besetzungHint": "Filled in from the raid type and size, {groups} groups. The counts can be changed per boss in the editor."
+    "besetzungHint": "Set the size, tanks and healers, the rest is DPS. {groups} groups. The counts can be changed per boss in the editor.",
+    "dpsHint": "What is left of the size after tanks and healers. The DPS slots are DPS 1..n, any damage dealer fits.",
+    "splitDps": "Split DPS into melee / ranged (optional)",
+    "splitRest": "Rest: {n} x DPS (any)"
 }

@@ -124,8 +124,12 @@ describe("suggest: class based, never wrong, empty when nobody fits", () => {
 describe("suggestFor (from an event)", () => {
     it("uses the event's size for the groups and passes slots through", () => {
         const event = { id: "e", size: 10, versionId: "tbc", setup: { groups: [{ index: 1, slots: [{ userId: "h1", spec: "Priest-Holy", role: "healer" }] }], bench: [] } };
-        const r = raidplan.suggestFor("heal", { event, slots: [{ kind: "healer", n: 1 }, { kind: "tank", n: 1 }] });
+        // only slots somebody stands in count in an event (an open healer slot is not a healer)
+        const r = raidplan.suggestFor("heal", { event, slots: [{ kind: "healer", n: 1, userId: "h1" }, { kind: "tank", n: 1, userId: "t1" }, { kind: "healer", n: 2 }] });
         expect(refs(r)).toEqual(["slot:healer:1>slot:tank:1,group:1,group:2"]);
+        // a healer who plays DPS on this boss (flex) is no healer here
+        expect(raidplan.suggestFor("md", { event: { ...event, setup: { groups: [{ index: 1, slots: [{ userId: "h9", spec: "Hunter-BeastMastery", role: "ranged" }] }], bench: [] } }, slots: [{ kind: "tank", n: 1, userId: "t1" }] }).length).toBe(1);
+        expect(raidplan.suggestFor("heal", { event, slots: [{ kind: "healer", n: 1, userId: "h1" }, { kind: "tank", n: 1, userId: "t1" }], roles: { h1: "dps" } }).length).toBe(1);
     });
     it("works without an event (a template)", () => {
         expect(assign.SUGGESTABLE).toContain("heal");

@@ -36,7 +36,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -1164,39 +1164,67 @@ describe("facing and board labels", () => {
 });
 
 describe("the Besetzung", () => {
-    const bes = { size: 25, counts: { tank: 3, healer: 7, melee: 8, ranged: 7 }, groups: 5 };
+    const bes = { size: 25, counts: { tank: 3, healer: 7, dps: 15, melee: 0, ranged: 0 }, groups: 5, split: false };
+    const split = { ...bes, counts: { tank: 3, healer: 7, dps: 15, melee: 8, ranged: 4 }, split: true };
     const p = (userId, role) => ({ ...player(userId), role });
-    it("every role slot exists at once, not on the map, groups included", () => {
+    const kinds = (b, kind) => b.slots.filter((s) => s.kind === kind).map((s) => s.n);
+    it("tanks, healers and DPS 1..n exist at once, not on the map, groups included; no melee / ranged unless split", () => {
         const b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
-        expect(b.slots).toHaveLength(3 + 7 + 8 + 7 + 5);
+        expect(b.slots).toHaveLength(3 + 7 + 15 + 5);
         expect(b.slots.every((s) => s.placed === false && s.userId === "")).toBe(true);
+        expect(kinds(b, "dps")).toHaveLength(15);
+        expect(kinds(b, "melee")).toEqual([]);
         expect(lib.besetzungSlots(b).slice(0, 4).map((s) => s.kind + s.n)).toEqual(["tank1", "tank2", "tank3", "healer1"]);
-        expect(b.slots.filter((s) => s.kind === "group").map((s) => s.n)).toEqual([1, 2, 3, 4, 5]);
+        expect(kinds(b, "group")).toEqual([1, 2, 3, 4, 5]);
+    });
+    it("a split makes melee / ranged slots and the rest stays DPS n; an old board with melee / ranged slots keeps them", () => {
+        const b = lib.ensureBesetzung(lib.emptyBoard(), split, []);
+        expect([kinds(b, "melee").length, kinds(b, "ranged").length, kinds(b, "dps").length]).toEqual([8, 4, 3]);
+        expect(lib.slotCounts(split.counts)).toEqual({ tank: 3, healer: 7, dps: 3, melee: 8, ranged: 4 });
     });
     it("never changes or removes what is there, only adds what is missing", () => {
         const start = lib.addSlot(lib.emptyBoard(), "tank", "");
         const b = lib.ensureBesetzung(start, bes, []);
         expect(b.slots.find((s) => s.id === start.slots[0].id)).toEqual(start.slots[0]);
-        expect(b.slots.filter((s) => s.kind === "tank")).toHaveLength(3);
+        expect(kinds(b, "tank")).toHaveLength(3);
         expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
         expect(lib.ensureBesetzung(b, null, [])).toBe(b);
     });
-    it("in an event the new slots are filled from the setup by role, once each", () => {
-        const roster = [p("t", "tank"), p("h1", "healer"), p("h2", "healer"), p("m", "melee"), p("d", "dps")];
+    it("in an event DPS n is filled from the damage dealers of the setup in setup order, melee / ranged only by their role", () => {
+        const roster = [p("t", "tank"), p("h1", "healer"), p("m", "melee"), p("r", "ranged"), p("d", "dps")];
         const b = lib.ensureBesetzung(lib.emptyBoard(), bes, roster);
         const who = (k, n) => b.slots.find((s) => s.kind === k && s.n === n).userId;
-        expect([who("tank", 1), who("tank", 2), who("healer", 1), who("healer", 2), who("healer", 3), who("melee", 1), who("ranged", 1)]).toEqual(["t", "", "h1", "h2", "", "m", ""]);
+        expect([who("tank", 1), who("healer", 1), who("healer", 2), who("dps", 1), who("dps", 2), who("dps", 3), who("dps", 4)]).toEqual(["t", "h1", "", "m", "r", "d", ""]);
+        const s2 = lib.ensureBesetzung(lib.emptyBoard(), { ...split, counts: { ...split.counts, dps: 3, melee: 1, ranged: 1 } }, roster);
+        const w2 = (k, n) => s2.slots.find((s) => s.kind === k && s.n === n).userId;
+        expect([w2("melee", 1), w2("ranged", 1), w2("dps", 1)]).toEqual(["m", "r", "d"]);
     });
-    it("the counts of the board win, +/- adds and removes from the end", () => {
+    it("the lineup decides when it has more than the type: extra slots are added; fewer leave slots open, nothing false is filled", () => {
+        const many = [...Array.from({ length: 4 }, (_, i) => p("t" + i, "tank")), ...Array.from({ length: 9 }, (_, i) => p("h" + i, "healer")), ...Array.from({ length: 16 }, (_, i) => p("d" + i, "dps"))];
+        const b = lib.ensureBesetzung(lib.emptyBoard(), bes, many);
+        expect([kinds(b, "tank").length, kinds(b, "healer").length, kinds(b, "dps").length]).toEqual([4, 9, 16]);
+        expect(b.slots.filter((s) => s.kind !== "group").every((s) => s.userId)).toBe(true);
+        const few = lib.ensureBesetzung(lib.emptyBoard(), bes, [p("t", "tank")]);
+        expect(few.slots.filter((s) => s.kind === "tank").map((s) => s.userId)).toEqual(["t", "", ""]);
+        // a boss with numbers of its own is not adapted
+        const own = lib.ensureBesetzung({ ...lib.emptyBoard(), counts: { tank: 2, healer: 6, dps: 17, melee: 0, ranged: 0 } }, bes, many);
+        expect([kinds(own, "tank").length, kinds(own, "healer").length, kinds(own, "dps").length]).toEqual([2, 6, 17]);
+    });
+    it("+/- set the numbers of this boss, the DPS is one number, melee + ranged stay within it, reset goes back to the type", () => {
         let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
-        b = lib.setCount(b, bes, "healer", 5);
-        expect(b.slots.filter((s) => s.kind === "healer")).toHaveLength(5);
-        expect(b.counts).toEqual({ tank: 3, healer: 5, melee: 8, ranged: 7 });
-        expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
         b = lib.setCount(b, bes, "healer", 6);
-        expect(lib.ensureBesetzung(b, bes, []).slots.filter((s) => s.kind === "healer").map((s) => s.n)).toEqual([1, 2, 3, 4, 5, 6]);
+        expect(b.counts).toEqual({ tank: 3, healer: 6, dps: 15, melee: 0, ranged: 0 });
+        expect(kinds(b, "healer")).toHaveLength(6);
+        expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
+        b = lib.setCount(b, bes, "dps", 16);
+        expect(kinds(lib.ensureBesetzung(b, bes, []), "dps")).toHaveLength(16);
+        b = lib.setCount(b, bes, "melee", 99);
+        expect(b.counts.melee).toBe(16);
+        b = lib.setCount(b, bes, "ranged", 5);
+        expect(b.counts.ranged).toBe(0);
         expect(lib.setCount(b, bes, "tank", -4).counts.tank).toBe(0);
-        expect(lib.setCount(b, bes, "tank", 99).counts.tank).toBe(40);
+        expect(lib.resetCounts(b, bes).counts).toBeNull();
+        expect(kinds(lib.ensureBesetzung(lib.resetCounts(b, bes), bes, []), "dps")).toHaveLength(15);
     });
     it("a slot goes onto the map and back, and the palette places the next free one instead of making a new slot", () => {
         let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
@@ -1209,13 +1237,29 @@ describe("the Besetzung", () => {
         expect(r.board.slots.find((s) => s.id === r.sel.id)).toMatchObject({ kind: "healer", n: 2, placed: true, x: 0.6 });
         expect(lib.layerList(b, new Map()).filter((l) => l.kind === "slot")).toHaveLength(1);
     });
-    it("is derived from the raid type with the rules of the events", () => {
+    it("flex: a healer plays DPS on this boss, leaves his slot (open) and takes the first open DPS place; the setup role is untouched", () => {
+        const roster = [p("h1", "healer"), p("d1", "dps")];
+        let b = lib.ensureBesetzung(lib.emptyBoard(), bes, roster);
+        expect(b.slots.find((s) => s.kind === "healer" && s.n === 1).userId).toBe("h1");
+        b = lib.setFlexRole(b, roster, "h1", "dps");
+        expect(b.roles).toEqual({ h1: "dps" });
+        expect(b.slots.find((s) => s.kind === "healer" && s.n === 1).userId).toBe("");
+        expect(b.slots.find((s) => s.kind === "dps" && s.n === 2).userId).toBe("h1");
+        expect(lib.roleOn(b, roster[0])).toBe("dps");
+        expect(roster[0].role).toBe("healer");
+        // back to the setup's role clears the flex
+        const back = lib.setFlexRole(b, roster, "h1", "healer");
+        expect(back.roles).toEqual({});
+        expect(back.slots.find((s) => s.kind === "healer" && s.n === 1).userId).toBe("h1");
+        expect(lib.setFlexRole(b, roster, "nobody", "tank")).toBe(b);
+    });
+    it("is derived from the raid type with the rules of the events: DPS is what is left", () => {
         const bt = { defaultSize: 25, suggested: { 25: { tanks: 3, healers: 7 } } };
         expect(lib.besetzungFor([bt], 25)).toEqual(bes);
         expect(lib.besetzungFor([bt], 0).size).toBe(25);
         const kara = { defaultSize: 10, suggested: {} };
         const ten = lib.besetzungFor([kara], 10);
-        expect(ten.counts.tank + ten.counts.healer + ten.counts.melee + ten.counts.ranged).toBe(10);
+        expect(ten.counts.tank + ten.counts.healer + ten.counts.dps).toBe(10);
         expect(ten.groups).toBe(2);
         expect(lib.besetzungFor([], 40).counts.tank).toBe(4);
         expect(lib.besetzungFor([bt, kara], 25).counts.tank).toBe(3);

@@ -173,7 +173,7 @@
         "kind": {
             "tank": "Tank",
             "healer": "Heiler",
-            "dps": "DPS (egal)",
+            "dps": "DPS",
             "group": "Gruppe",
             "label": "Label",
             "melee": "Melee-DPS",
@@ -457,6 +457,13 @@
         "free": "Platz freigeben",
         "give": "Spieler zuweisen",
         "less": "{role}: einer weniger",
-        "more": "{role}: einer mehr"
+        "more": "{role}: einer mehr",
+        "dpsTotal": "DPS (gesamt)",
+        "split": "DPS in Melee / Ranged aufteilen",
+        "flex": "Rolle für diesen Boss",
+        "flexNote": "Im Setup: {role}. Gilt nur für diesen Boss.",
+        "own": "nur dieser Boss",
+        "ownTip": "Diese Zahlen gelten nur für diesen Boss.",
+        "reset": "Zurück auf die Zahlen des Raidtyps"
     }
 }

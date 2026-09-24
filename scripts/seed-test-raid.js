@@ -31,6 +31,8 @@ const ROSTER = [
 const FIRST_USER_ID = 201;
 const ME_CHARACTER = "Heilbert";
 const TEMPLATE_NAME = "BT Demo";
+// DPS as one number (15) that the demo splits into 8 melee + 7 ranged slots, so both ways of filling can be tried
+const DEMO_COUNTS = { tank: 3, healer: 7, dps: 15, melee: 8, ranged: 7 };
 const DEMO_BOSSES = ["bt/high-warlord-najentus", "bt/supremus", "bt/gurtogg-bloodboil", "bt/illidan-stormrage", "bt/trash"];
 
 /** The placeholder slots of a raid: 3 tanks, 7 healers, 8 melee, 7 ranged, five group markers. */
@@ -66,11 +68,11 @@ function seedPlan(eventId, event) {
 
     let tpl = templates.listTemplates().find((t) => t.name === TEMPLATE_NAME);
     if (!tpl) {
-        const created = templates.createTemplate({ name: TEMPLATE_NAME, category: "Demo", description: "Seed: Raidtyp BT 25, Besetzung, Heiler-Einteilungen", instanceIds: ["bt"], size: 25 });
+        const created = templates.createTemplate({ name: TEMPLATE_NAME, category: "Demo", description: "Seed: Raidtyp BT 25, Besetzung, Heiler-Einteilungen", instanceIds: ["bt"], size: 25, counts: DEMO_COUNTS });
         if (created.error) throw new Error(created.error);
         tpl = created.template;
     }
-    const saved = templates.updateTemplate(tpl.id, { bosses, version: tpl.version });
+    const saved = templates.updateTemplate(tpl.id, { bosses, version: tpl.version, size: 25, counts: DEMO_COUNTS });
     if (saved.error) throw new Error(saved.error);
     tpl = saved.template;
 
@@ -82,9 +84,12 @@ function seedPlan(eventId, event) {
     if (applied.error) throw new Error(applied.error);
     plan = applied.plan;
     const extended = { ...plan.bosses };
+    // the tank / healer places as the event fills them (only slots somebody stands in are suggested for)
+    const byRole = (kind) => roster.filter((p) => p.role === kind);
+    const filled = demoSlots().map((sl) => ({ ...sl, userId: ((byRole(sl.kind) || [])[sl.n - 1] || {}).userId || "" }));
     const add = (key, types) => {
         const b = extended[key] || { slots: [], assignments: [] };
-        const extra = types.flatMap((type) => raidplan.suggestFor(type, { event, slots }));
+        const extra = types.flatMap((type) => raidplan.suggestFor(type, { event, slots: filled }));
         extended[key] = { ...b, assignments: [...(b.assignments || []), ...extra.map((a) => ({ ...a, suggested: false }))] };
     };
     add("bt/high-warlord-najentus", ["kick", "md"]);

@@ -243,11 +243,15 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [] } = {}) {
-    const roster = event ? editorRoster(event) : [];
+function suggestFor(type, { event = null, slots = [], roles = {} } = {}) {
+    // flex: on this boss somebody plays another role than in the setup
+    const flex = roles && typeof roles === "object" ? roles : {};
+    const roster = (event ? editorRoster(event) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
     const size = event ? Number(event.size) || 25 : 25;
     const groups = Array.from({ length: Math.max(1, Math.ceil(size / 5)) }, (_, i) => i + 1);
-    const clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
+    let clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
+    // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
+    if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
     return assign.suggest(type, { slots: clean, roster, groups });
 }
 
@@ -258,9 +262,7 @@ function eventBesetzung(event) {
     if (!(Number(c.tank) > 0 || Number(c.healer) > 0)) return base;
     const tank = Math.max(0, Math.floor(Number(c.tank) || 0));
     const healer = Math.max(0, Math.floor(Number(c.healer) || 0));
-    const dps = Math.max(0, base.size - tank - healer);
-    const melee = Math.max(Math.floor(Number(c.melee) || 0), Math.ceil(dps / 2));
-    return { ...base, counts: { tank, healer, melee: Math.min(melee, dps), ranged: Math.max(0, dps - Math.min(melee, dps)) } };
+    return { ...base, counts: { tank, healer, dps: Math.max(0, base.size - tank - healer), melee: 0, ranged: 0 }, split: false };
 }
 
 module.exports = { identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
