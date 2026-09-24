@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
 import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } from "lucide-react";
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
@@ -17,31 +18,12 @@ import { useT } from "../../../i18n";
 
 /** A slider and a number field for an opacity in percent, 10..100. */
 export function OpacityField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-    const pct = Math.round(value * 100);
-    const set = (raw: string) => onChange(clampOpacity(Number(raw) / 100, value));
-    return (
-        <div className="rp-field">
-            <span className="rp-kicker">{label}</span>
-            <div className="rp-opacity">
-                <input type="range" min={10} max={100} step={5} value={pct} aria-label={label} onChange={(e) => set(e.target.value)} />
-                <input type="number" min={10} max={100} value={pct} aria-label={`${label} %`} onChange={(e) => set(e.target.value)} />
-                <span className="rp-muted">%</span>
-            </div>
-        </div>
-    );
+    return <SliderField label={label} value={Math.round(value * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => onChange(clampOpacity(v / 100, value))} />;
 }
 
 /** A slider and a number field for a size (px, or the multiplier of the whole board), between min and max. */
-export function SizeField({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void }) {
-    return (
-        <div className="rp-field">
-            <span className="rp-kicker">{label}</span>
-            <div className="rp-opacity">
-                <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={(e) => onChange(Number(e.target.value))} />
-                <input type="number" min={min} max={max} step={step} value={value} aria-label={`${label} (number)`} onChange={(e) => onChange(Number(e.target.value))} />
-            </div>
-        </div>
-    );
+export function SizeField({ label, value, min, max, step = 1, unit = "px", onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void }) {
+    return <SliderField label={label} value={value} min={min} max={max} step={step} unit={unit} onChange={onChange} />;
 }
 
 /**
@@ -135,12 +117,12 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     </div>
                     <div className="rp-field-row">
                         <label className="rp-field">
-                            <span className="rp-kicker">{t("raidBoard.insp.width")} %</span>
-                            <input type="number" min={3} max={100} value={Math.round(zone.w * 100)} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { w: Math.max(0.03, Math.min(1 - zone.x, Number(e.target.value) / 100 || 0.03)) }), true)} />
+                            <span className="rp-kicker">{t("raidBoard.insp.width")}</span>
+                            <NumberField label={t("raidBoard.insp.width")} value={Math.round(zone.w * 100)} min={3} max={100} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { w: Math.max(0.03, Math.min(1 - zone.x, v / 100)) }), true)} />
                         </label>
                         <label className="rp-field">
-                            <span className="rp-kicker">{t("raidBoard.insp.height")} %</span>
-                            <input type="number" min={3} max={100} value={Math.round(zone.h * 100)} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { h: Math.max(0.03, Math.min(1 - zone.y, Number(e.target.value) / 100 || 0.03)) }), true)} />
+                            <span className="rp-kicker">{t("raidBoard.insp.height")}</span>
+                            <NumberField label={t("raidBoard.insp.height")} value={Math.round(zone.h * 100)} min={3} max={100} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { h: Math.max(0.03, Math.min(1 - zone.y, v / 100)) }), true)} />
                         </label>
                     </div>
                 </>
@@ -186,7 +168,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     {slot.kind !== "label" && (
                         <label className="rp-field">
                             <span className="rp-kicker">{t("raidBoard.slot.number")}</span>
-                            <input type="number" min={1} max={99} value={slot.n} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { n: Math.max(1, Math.min(99, Math.floor(Number(e.target.value)) || 1)) }), true)} />
+                            <NumberField label={t("raidBoard.slot.number")} value={slot.n} min={1} max={99} disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { n: v }), true)} />
                         </label>
                     )}
                     <label className="rp-field">
@@ -275,18 +257,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
 /** The default size of tokens, slots, marks and icons of the whole board (50–200 %). */
 export function ObjectScaleField({ board, canWrite, edit }: { board: RaidplanBoard; canWrite: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void }) {
     const t = useT();
-    const pct = Math.round(board.objectScale * 100);
-    const set = (raw: number) => canWrite && edit((b) => setObjectScale(b, raw / 100), true);
-    return (
-        <div className={`rp-field${canWrite ? "" : " rp-disabled"}`}>
-            <span className="rp-kicker">{t("raidBoard.bg.objectScale")}</span>
-            <div className="rp-opacity">
-                <input type="range" min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} value={pct} aria-label={t("raidBoard.bg.objectScale")} onChange={(e) => set(Number(e.target.value))} />
-                <input type="number" min={SCALE_MIN * 100} max={SCALE_MAX * 100} value={pct} aria-label={`${t("raidBoard.bg.objectScale")} %`} onChange={(e) => set(Number(e.target.value))} />
-                <span className="rp-muted">%</span>
-            </div>
-        </div>
-    );
+    return <SliderField label={t("raidBoard.bg.objectScale")} value={Math.round(board.objectScale * 100)} min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} unit="%" disabled={!canWrite} onChange={(v) => canWrite && edit((b) => setObjectScale(b, v / 100), true)} />;
 }
 
 /** How strongly the map shows: dim it so the objects stand out. Shown when nothing is selected, and always on the background tab. */

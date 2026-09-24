@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BringToFront, Copy, SendToBack, Trash2 } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
+import { SliderField } from "../../../components/raidplan/NumberField";
 import { alignSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
 import { clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
@@ -36,22 +37,15 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
     const btn = (label: string, icon: JSX.Element, fn: () => void, danger = false) => (
         <IconButton size="sm" tone={danger ? "danger" : undefined} icon={icon} tip={label} disabled={dis} onClick={fn} />
     );
-    const pct = sum.opacity === null ? "" : String(Math.round(sum.opacity * 100));
     return (
         <div className="rp-insp rp-multi-insp" role="group" aria-label={t("raidBoard.multi.count", { n: sel.length })}>
             <div className="rp-insp-head">
                 <strong className="rp-insp-name">{t("raidBoard.multi.count", { n: sel.length })}</strong>
             </div>
-            <div className="rp-field">
-                <span className="rp-kicker">{t("raidBoard.insp.opacity")}</span>
-                <div className="rp-numrow">
-                    <input
-                        type="range" min={10} max={100} step={5} value={sum.opacity === null ? 100 : Math.round(sum.opacity * 100)} disabled={dis} aria-label={t("raidBoard.insp.opacity")}
-                        onChange={(e) => edit((b) => setLookSelection(b, sel, { opacity: clampOpacity(Number(e.target.value) / 100, 1) }), true)}
-                    />
-                    <span className="rp-num"><input type="text" inputMode="numeric" value={pct} placeholder={t("raidBoard.multi.mixed")} disabled={dis} aria-label={`${t("raidBoard.insp.opacity")} %`} onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && e.target.value !== "") edit((b) => setLookSelection(b, sel, { opacity: clampOpacity(n / 100, 1) }), true); }} /><i>%</i></span>
-                </div>
-            </div>
+            <SliderField
+                label={sum.opacity === null ? `${t("raidBoard.insp.opacity")} (${t("raidBoard.multi.mixed")})` : t("raidBoard.insp.opacity")} value={sum.opacity === null ? 100 : Math.round(sum.opacity * 100)} min={10} max={100} step={5} unit="%" disabled={dis}
+                onChange={(v) => edit((b) => setLookSelection(b, sel, { opacity: clampOpacity(v / 100, 1) }), true)}
+            />
             <div className="rp-field">
                 <span className="rp-kicker">{t("raidBoard.insp.size")}</span>
                 <div className="rp-insp-actions">
