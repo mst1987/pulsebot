@@ -206,11 +206,11 @@ export default function BoardWorkspace({
     const scope = scopeOf(boss);
     /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */
     const noBoard = scope === "general" || scope === "defaults";
-    // the rows with their class references resolved ("the first free Hunter"): the lines and the facing of icons follow who it really is
-    const filledRows = useMemo(() => expandClassRefs(board.assignments, board.slots, roster, board.roles), [board.assignments, board.slots, board.roles, roster]);
-    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows }, me || []) : []), [showLinks, board, filledRows, me]);
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
+    // the EFFECTIVE rows of the section: its own and the ones it inherits from the Standard, class references resolved - what the lines and the facing of icons follow
+    const filledRows = useMemo(() => expandClassRefs([...board.assignments, ...inherited], board.slots, roster, board.roles), [board.assignments, inherited, board.slots, board.roles, roster]);
+    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows }, me || []) : []), [showLinks, board, filledRows, me]);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
@@ -906,7 +906,7 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
+                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit} rows={filledRows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
                             {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">

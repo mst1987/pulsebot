@@ -477,11 +477,13 @@ export function assignmentLinks(board: RaidplanBoard, me: string[] = []): Assign
 }
 
 /**
- * The tank a mob has: the first assignee (in the order they were picked) of a tank row that targets the mob and whose
- * place is on the map (a slot that is placed, or a free token). Null when there is none — then nothing turns by itself.
+ * The tanks of a mob, in the order of the rows: for every tank row that targets the mob, its first assignee whose place is on the map (a placed slot, or a
+ * free token; an assignee that is not placed is skipped, the next one of the row counts), each place once. `board.assignments` must be the EFFECTIVE rows of the
+ * section (its own rows and the ones it inherits from the Standard, class references resolved) - that is what the callers hand over.
  */
-export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number } | null {
-    if (!mobId) return null;
+export function tanksOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number }[] {
+    const out = [];
+    if (!mobId) return out;
     for (const a of board.assignments || []) {
         const type = a.type as string;
         if (type !== "tank" && type !== "trashtank") continue;
@@ -489,10 +491,30 @@ export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: 
         for (const r of a.assignees || []) {
             const p = r.split(":");
             const at = p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : position(board, "user", p[1]);
-            if (at) return at;
+            if (at) { if (!out.some((x) => x.x === at.x && x.y === at.y)) out.push(at); break; }
         }
     }
-    return null;
+    return out;
+}
+
+/** The first tank of a mob that stands on the map, or null (then nothing turns by itself). */
+export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number } | null {
+    const all = tanksOfMob(board, mobId);
+    return all.length > 0 ? all[0] : null;
+}
+
+type FacingIcon = { id?: string; x: number; y: number; rotation: number; mobId?: string; iconKey?: string; autoFace?: boolean };
+
+/** The mobs a tank row of the section targets that an icon stands for: its own mob; a boss icon without a mob is the section's boss ("b:...", also a Standard row's resolved "boss of this section"). */
+function mobRefsOfIcon(board: RaidplanBoard, icon: FacingIcon): string[] {
+    if (icon.mobId) return [icon.mobId];
+    if (String(icon.iconKey || "").indexOf("boss:") !== 0) return [];
+    const out = [];
+    for (const a of board.assignments || []) {
+        if ((a.type as string) !== "tank" && (a.type as string) !== "trashtank") continue;
+        for (const tg of a.targets || []) if (tg.kind === "mob" && tg.ref.indexOf("b:") === 0 && out.indexOf(tg.ref) < 0) out.push(tg.ref);
+    }
+    return out;
 }
 
 /** The angle (0 = straight up, clockwise, degrees) from a point to another, on a board that is `ar` times as wide as high. */
@@ -504,16 +526,30 @@ export function angleBetween(from: { x: number; y: number }, to: { x: number; y:
     return Math.round(((deg % 360) + 360) % 360);
 }
 
-/** The facing an icon is drawn with: towards its mob's tank when it follows the tank and one is on the map, else its own rotation. */
-export function facingOf(board: RaidplanBoard, icon: { x: number; y: number; rotation: number; mobId?: string; autoFace?: boolean }, ar: number): number {
-    if (icon.autoFace === false || !icon.mobId) return icon.rotation || 0;
-    const tank = tankOfMob(board, icon.mobId);
-    return tank ? angleBetween(icon, tank, ar) : icon.rotation || 0;
+/**
+ * The facing an icon is drawn with: towards the tank of the mob it stands for when it follows the tank (the default) and one stands on the map, else its own
+ * rotation - never a jump to a default when the tank is not placed. Several icons of one mob (two Flames of Azzinoth) take the tanks of that mob in the
+ * order of the icons; with fewer tanks than icons the extra ones follow the first. Pure: the effective rows and the board's places in, an angle out, so
+ * the editor, the template editor and the read view show the same (there is no cache to go stale).
+ */
+export function facingOf(board: RaidplanBoard, icon: FacingIcon, ar: number): number {
+    if (icon.autoFace === false) return icon.rotation || 0;
+    const refs = mobRefsOfIcon(board, icon);
+    if (refs.length === 0) return icon.rotation || 0;
+    const all = [];
+    for (const r of refs) for (const t of tanksOfMob(board, r)) if (!all.some((x) => x.x === t.x && x.y === t.y)) all.push(t);
+    if (all.length === 0) return icon.rotation || 0;
+    // the icons that stand for the same mob, in the board's order: the n-th takes the n-th tank
+    const peers = (board.icons || []).filter((x) => !x.hidden && (icon.mobId ? x.mobId === icon.mobId : !x.mobId && String(x.iconKey || "").indexOf("boss:") === 0));
+    const at = icon.id ? peers.findIndex((x) => x.id === icon.id) : 0;
+    const tank = all[at >= 0 && at < all.length ? at : 0];
+    return angleBetween(icon, tank, ar);
 }
 
 /** Whether an icon is turned by its tank right now (for the inspector's hint). */
-export function followsTank(board: RaidplanBoard, icon: { mobId?: string; autoFace?: boolean }): boolean {
-    return icon.autoFace !== false && !!icon.mobId && tankOfMob(board, icon.mobId) !== null;
+export function followsTank(board: RaidplanBoard, icon: FacingIcon): boolean {
+    if (icon.autoFace === false) return false;
+    return mobRefsOfIcon(board, icon).some((r) => tanksOfMob(board, r).length > 0);
 }
 
 /** How many assignments a board has (the boss chip's dot counts them too). */

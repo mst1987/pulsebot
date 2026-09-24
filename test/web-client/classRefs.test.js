@@ -92,3 +92,28 @@ describe("an unfilled class reference as it is shown", () => {
         expect(assign.resolveTarget({ kind: "class", ref: "Priest:1" }, ctx)).toMatchObject({ kind: "class", ref: "Priest:1", label: "Priester", open: true });
     });
 });
+
+describe("a role is the spec's role, never a class guess", () => {
+    const Q = (userId, classId, role) => ({ userId, character: userId, classId, role, group: 1 });
+    const setup = [Q("ret", "Paladin", "melee"), Q("enh", "Shaman", "melee"), Q("feral", "Druid", "melee"), Q("shadow", "Priest", "ranged"), Q("holy", "Paladin", "healer"), Q("resto", "Shaman", "healer"), Q("prot", "Paladin", "tank")];
+    const run = (list) => cr.expandClassRefs(list, [], setup, {});
+    it("a healing row takes only healer specs, whatever the ref says about the class", () => {
+        const r = run([row("h", "heal", ["class:Paladin:1", "class:Shaman:1", "class:Druid:1", "class:Priest:1"])]);
+        expect(r[0].assignees).toEqual(["user:holy", "user:resto", "class:Druid:1", "class:Priest:1"]);
+    });
+    it("without a healer of the class the place stays open: no damage dealer of that class fills it", () => {
+        const r = cr.expandClassRefs([row("h", "heal", ["class:Paladin:1", "class:Paladin:2"])], [], setup.filter((p) => p.userId !== "holy"), {});
+        expect(r[0].assignees).toEqual(["class:Paladin:1", "class:Paladin:2"]);
+    });
+    it("a tank row takes only tank specs; an explicit role in the reference still wins; other tasks ignore the role", () => {
+        expect(run([row("t", "tank", ["class:Paladin:1", "class:Druid:1"])])[0].assignees).toEqual(["user:prot", "class:Druid:1"]);
+        expect(run([row("t", "special", ["class:Paladin:1:melee"])])[0].assignees).toEqual(["user:ret"]);
+        expect(run([row("k", "kick", ["class:Shaman:1"])])[0].assignees).toEqual(["user:enh"]);
+        expect(cr.impliedRole("heal")).toBe("healer");
+        expect(cr.impliedRole("md")).toBe("");
+    });
+    it("a flex role on this boss counts as the role", () => {
+        const r = cr.expandClassRefs([row("h", "heal", ["class:Paladin:1"])], [], setup, { ret: "healer", holy: "melee" });
+        expect(r[0].assignees).toEqual(["user:ret"]);
+    });
+});

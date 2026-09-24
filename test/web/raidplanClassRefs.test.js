@@ -68,3 +68,20 @@ describe("suggestions without a setup (a template) name classes", () => {
         }
     });
 });
+
+describe("server: a role is the spec's role (heal / tank rows)", () => {
+    const P = (userId, classId, role) => ({ userId, classId, role });
+    const setup = [P("ret", "Paladin", "melee"), P("holy", "Paladin", "healer"), P("enh", "Shaman", "melee"), P("prot", "Paladin", "tank")];
+    const r = (type, assignees) => ({ id: "a", type, assignees, targets: [] });
+    it("healing takes healer specs only, tanking tank specs only, and nobody fitting leaves it open", () => {
+        expect(assign.expandClassRefs([r("heal", ["class:Paladin:1", "class:Shaman:1"])], [], setup, {})[0].assignees).toEqual(["user:holy", "class:Shaman:1"]);
+        expect(assign.expandClassRefs([r("tank", ["class:Paladin:1"])], [], setup, {})[0].assignees).toEqual(["user:prot"]);
+        expect(assign.expandClassRefs([r("heal", ["class:Paladin:1"])], [], setup.filter((p) => p.userId !== "holy"), {})[0].assignees).toEqual(["class:Paladin:1"]);
+        expect(assign.expandClassRefs([r("kick", ["class:Shaman:1"])], [], setup, {})[0].assignees).toEqual(["user:enh"]);
+        expect(assign.impliedRole("trashtank")).toBe("tank");
+    });
+    it("a suggestion never adds other classes unless the row allows it", () => {
+        expect(assign.classesFor("heal", ["Paladin"], false)).toEqual(["Paladin"]);
+        expect(assign.classesFor("kick", ["Mage"], false)).toEqual(["Mage"]);
+    });
+});

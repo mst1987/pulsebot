@@ -153,6 +153,7 @@ function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
     const pref = cleanClasses(prefer);
     if (!pref.length) return base;
     // a row's own preferred classes win over the catalog's; the usual classes only follow when others are allowed
+    // no silent fallback: the usual classes only follow when the row explicitly allows others
     return allowOthers ? [...pref, ...base.filter((c) => !pref.includes(c))] : pref;
 }
 
@@ -280,6 +281,8 @@ const parseClassRef = (ref) => {
     const n = Number(p[1]);
     return p.length < 2 || !p[0] || !(n >= 1) ? null : { classId: p[0], n, role: p[2] || "" };
 };
+/** The role a kind of task needs by itself: healing is done by healers (the SPEC's role from the setup, never the class), tanking by tanks. */
+const impliedRole = (type) => (type === "heal" ? "healer" : type === "tank" || type === "trashtank" ? "tank" : "");
 const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !== "tank" && role !== "healer" : role === filter);
 
 /** The assignments with every class reference replaced by the raider it means (the n-th free one of the class); an unfilled one stays a reference. */
@@ -306,7 +309,8 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
         if (hand && byId.has(hand)) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const pool = roster.filter((p) => p.classId === q.classId && roleFits(q.role, roles[p.userId] || p.role));
+        const want = q.role || impliedRole(a.type);
+        const pool = roster.filter((p) => p.classId === q.classId && roleFits(want, roles[p.userId] || p.role));
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) { take(bag, a.type, free.userId); return free.userId; }
@@ -320,6 +324,7 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
 }
 
 module.exports = {
+    impliedRole,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

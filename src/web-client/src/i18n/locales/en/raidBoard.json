@@ -401,7 +401,9 @@
         "compass": "Compass direction",
         "facingHint": "Drag the handle above the icon to turn it (Shift = 15° steps), Q / E turn by 15°.",
         "autoFace": "Face the tank automatically",
-        "autoFaceOn": "follows the tank"
+        "autoFaceOn": "follows the tank",
+        "manual": "Manual",
+        "backToAuto": "Automatic again"
     },
     "compass": {
         "N": "north",
@@ -560,8 +562,7 @@
         "task": "Task",
         "search": "Search …",
         "classes": "Preferred class",
-        "allowOthers": "Allow other classes",
-        "classHint": "Suggestions take these classes first. If nobody fits the row stays empty, unless you allow others.",
+        "classHint": "Suggestions take only these classes. When nobody fits, the row stays empty.",
         "suggest": "Suggest assignees",
         "bind": "Bind the class to the slots",
         "bindTip": "The chosen classes then apply to this row's slots (e.g. DPS 3 = Rogue)",
@@ -622,7 +623,8 @@
         "copyText": "The {count} rows of the default are written as own rows into every boss that does not deviate yet. Bosses with a deviation stay untouched. One Ctrl+Z undoes everything.",
         "copyEmpty": "The default has no rows yet.",
         "copied": "Copied into {count} bosses.",
-        "explain": "The default is the basic tank and healer set-up every boss and trash section takes over (“Tank 1 -> Boss” shows each boss's own boss). A boss can deviate or hide a row. “General” is something else: raid-wide utility such as curses, once for the whole raid."
+        "explain": "The default is the basic tank and healer set-up every boss and trash section takes over (“Tank 1 -> Boss” shows each boss's own boss). A boss can deviate or hide a row. “General” is something else: raid-wide utility such as curses, once for the whole raid.",
+        "facingHint": "Tank -> boss follows automatically in every boss: the wedge of the boss icon points at the placed tank. General has no map; put tank -> boss here, in the Standard."
     },
     "roster": {
         "title": "Assign the roster",
