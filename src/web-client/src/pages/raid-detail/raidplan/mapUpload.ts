@@ -1,5 +1,5 @@
 import { locale, t } from "../../../i18n";
-import { MAP_MAX_EDGE, MAP_TARGET_BYTES, attempts, formatBytes, isMapType, needsCompression, outputType, renamedFor, scaledSize } from "../../../lib/mapImage";
+import { MAP_TARGET_BYTES, attempts, formatBytes, isMapType, needsCompression, outputType, renamedFor, scaledSize } from "../../../lib/mapImage";
 
 export type PreparedMap = { file: File; /** what was done, for the toast ("4,8 MB -> 1,9 MB, 2560x1600"), "" = sent as it is */ note: string };
 
@@ -10,10 +10,9 @@ function encode(canvas: HTMLCanvasElement, type: string, quality: number): Promi
 
 /**
  * The file to upload as a room map. A small file is returned untouched. A big one
- * (over 2.8 MB, or longer than 2560 px) is drawn on a canvas at most 2560 px on
- * the long edge and written as WebP (transparency stays; JPEG when the browser
- * cannot write WebP) with a falling quality until it fits under the limit, and a
- * smaller picture as the last resort. Throws an Error with a readable message when
+ * (over 900 KB: under the 1 MB default of a reverse proxy) is drawn on a canvas at
+ * most 2560 px, then 2048, 1600 ... on the long edge and written as WebP (transparency
+ * stays; JPEG when the browser cannot write WebP) with a falling quality until it fits. Throws an Error with a readable message when
  * the file is no accepted image or cannot be brought under the limit.
  */
 export async function prepareMapFile(file: File): Promise<PreparedMap> {
@@ -25,13 +24,11 @@ export async function prepareMapFile(file: File): Promise<PreparedMap> {
         throw new Error(t("raidBoard.board.mapUnreadable"));
     }
     try {
-        if (!needsCompression(file.size, bitmap.width, bitmap.height)) return { file, note: "" };
-        const base = scaledSize(bitmap.width, bitmap.height, MAP_MAX_EDGE);
+        if (!needsCompression(file.size)) return { file, note: "" };
         const canvas = document.createElement("canvas");
         let type = outputType(true);
         for (const step of attempts()) {
-            const w = Math.max(1, Math.round(base.width * step.factor));
-            const h = Math.max(1, Math.round(base.height * step.factor));
+            const { width: w, height: h } = scaledSize(bitmap.width, bitmap.height, step.edge);
             canvas.width = w;
             canvas.height = h;
             const ctx = canvas.getContext("2d");

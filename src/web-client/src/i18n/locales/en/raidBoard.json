@@ -57,7 +57,7 @@
         "mapResetText": "This map is deleted, the board shows the template's map or the default map again.",
         "mapWasReset": "Reset to the default.",
         "mapCompressed": "Shrunk: {from} → {to}, {w}×{h}.",
-        "mapCannotShrink": "The image cannot be brought under 3 MB. Use a smaller or less detailed picture.",
+        "mapCannotShrink": "The image cannot be brought under 0.9 MB. Use a smaller or less detailed picture.",
         "mapNotImage": "Only PNG, JPG or WebP are allowed (no GIF, SVG or anything else).",
         "mapUnreadable": "The file cannot be read as an image."
     },

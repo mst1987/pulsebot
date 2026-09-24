@@ -4,6 +4,7 @@
 
 import type { SpecCatalogEntry } from "./lib/recruitmentSpecs";
 import type { DeployVersion } from "./lib/deployVersion";
+import { t } from "./i18n";
 
 export type ApiError = { code: string; message: string };
 
@@ -389,6 +390,14 @@ export function saveChannelPurpose(csrfToken: string | null, purpose: ChannelPur
     return send("PATCH", "/api/settings", csrfToken, partial);
 }
 
+/** What a non-JSON answer says in words (a proxy in front of the server: 413 body too large, 502 / 503 / 504 gateway errors); translated by the language of the menu. */
+export function nonJsonMessage(status: number, ok: boolean): string {
+    if (ok) return t("common.errors.badResponse");
+    if (status === 413) return t("common.errors.tooLarge");
+    if (status === 502 || status === 503 || status === 504) return t("common.errors.gateway", { status });
+    return t("common.errors.server", { status });
+}
+
 /**
  * Read a response body as JSON without letting a non-JSON body escape as a bare
  * "Unexpected token". Anything that is not JSON — a gateway timeout page from a
@@ -401,13 +410,9 @@ async function parseJson(res: Response): Promise<Record<string, unknown> | null>
     try {
         return JSON.parse(text) as Record<string, unknown>;
     } catch {
-        const snippet = text.trim().slice(0, 120);
-        throw {
-            code: "bad_response",
-            message: res.ok
-                ? `Unerwartete Antwort vom Server (kein JSON): ${snippet}`
-                : `Serverfehler (HTTP ${res.status}). Antwort: ${snippet}`,
-        } as ApiError;
+        // the HTML of a proxy's error page goes to the console only; the person gets a sentence in his language
+        console.error(`API answer that is no JSON (HTTP ${res.status}):`, text.trim().slice(0, 600));
+        throw { code: res.ok ? "bad_response" : `http_${res.status}`, message: nonJsonMessage(res.status, res.ok) } as ApiError;
     }
 }
 
