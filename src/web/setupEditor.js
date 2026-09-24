@@ -411,6 +411,8 @@ function decoratePerson(x, table, names) {
         classLabel: (cls && cls.label) || "",
         specLabel: (spec && spec.label) || "",
         specIcon: (spec && spec.icon) || (cls && cls.icon) || "",
+        // the specs of the raider's class, so the panel can offer "im Setup als Tank / Heiler / …" (a paladin who also plays protection)
+        classSpecs: ((cls && cls.specs) || []).map((x) => ({ key: x.key, label: x.label, icon: x.icon || "", role: x.role })),
     };
 }
 

@@ -507,6 +507,35 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("se-suggest");
     });
 
+    describe("im Setup als — a raider who plays several specs (the third tank, an extra healer)", () => {
+        const prot = { key: "Paladin-Protection", role: "tank" };
+        const input = lib.toInput(setup());
+
+        it("changes the slot's spec and role, keeps its place and locks it, without touching the request it came from", () => {
+            const out = lib.respecRaider(input, "h", prot).input;
+            const slot = out.groups[0].slots.find((x) => x.userId === "h");
+            expect(slot).toMatchObject({ spec: "Paladin-Protection", role: "tank", locked: true, pos: 2 });
+            expect(input.groups[0].slots.find((x) => x.userId === "h")).toMatchObject({ spec: "Priest-Holy", role: "healer", locked: false });
+        });
+
+        it("does nothing for the spec already played and locked, and refuses somebody on the bench", () => {
+            const again = lib.respecRaider(lib.respecRaider(input, "h", prot).input, "h", prot);
+            expect(again).toEqual({ input: null });
+            expect(lib.respecRaider(input, "b", prot).error).toMatch(/Bank/);
+        });
+
+        it("offers the specs in the panel's last column, as icon buttons, and saves through the usual request", () => {
+            const src = read("pages", "raid-detail", "SetupEditor.tsx");
+            expect(src).toContain("const respec = (userId: string, specKey: string) => {");
+            expect(src).toContain("respecRaider(toInput(shown.setup), userId, spec)");
+            expect(src).toMatch(/onSpec && \(p\.classSpecs \|\| \[\]\)\.length > 1/);
+            // never for somebody on the bench, and not while a save is running
+            expect(src).toContain("onSpec={busy || inspectedIsBench ? undefined :");
+            expect(read("styles", "setup-editor.css")).toMatch(/\.se-tip-spec\.is-on \{[^}]*border-color: var\(--accent\)/);
+            expect(makeT("de")("setup.person.tip.playsAs")).toBe("Im Setup als");
+        });
+    });
+
     describe("Suche — the classes and specs the raid still needs", () => {
         const buff = (key, specs, required = false) => ({ key, label: key, icon: "i", required, specs });
 

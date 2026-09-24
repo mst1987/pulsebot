@@ -17,7 +17,7 @@ import {
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, groupSearchBuffs, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, groupSearchBuffs, respecRaider, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -131,7 +131,7 @@ function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
  * three columns: what the raider brings, why they stand here, the attendance in
  * detail. It shows the raider the pointer touched last.
  */
-function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendance | undefined | null }) {
+function SlotTip({ p, attendance, onSpec }: { p: SetupPerson; attendance: SetupAttendance | undefined | null; onSpec?: (specKey: string) => void }) {
     const t = useT();
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
@@ -182,6 +182,22 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                 )}
             </div>
             <div className="se-tip-col">
+                {onSpec && (p.classSpecs || []).length > 1 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.playsAs")} data-tip-sub={t("setup.person.tip.playsAsSub")}>{t("setup.person.tip.playsAs")}</span>
+                        <div className="se-tip-specs">
+                            {(p.classSpecs || []).map((sp) => (
+                                <button
+                                    key={sp.key} type="button" className={`se-tip-spec${sp.key === p.spec ? " is-on" : ""}`} aria-pressed={sp.key === p.spec}
+                                    aria-label={`${specLabel(sp.key, sp.label)} · ${roleLabel(sp.role)}`}
+                                    data-tip={specLabel(sp.key, sp.label)} data-tip-sub={roleLabel(sp.role)} onClick={() => onSpec(sp.key)}
+                                >
+                                    <WowIcon name={sp.icon || "inv_misc_questionmark"} size={22} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}
             </div>
         </aside>
@@ -952,6 +968,18 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         return chain.current;
     };
 
+    /** Put a raider into the setup as another spec of their class (the third tank, an extra healer) — saved like any move. */
+    const respec = (userId: string, specKey: string) => {
+        const shown = current.current;
+        if (!shown?.setup) return;
+        const person = peopleOf(shown.setup).get(userId);
+        const spec = person?.classSpecs?.find((x) => x.key === specKey);
+        if (!spec) return;
+        const result = respecRaider(toInput(shown.setup), userId, spec);
+        if ("error" in result && result.error) return jobs.notify(result.error, "err");
+        if (result.input) save(result.input);
+    };
+
     const move = (target: SetupTarget, userId?: string) => {
         const who = userId || selected;
         setSelected(null);
@@ -1102,6 +1130,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
     // looked up fresh every render, so a move redraws the panel's group and buffs
     const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
+    const inspectedIsBench = !!inspectedPerson && setup.bench.some((b) => b.userId === inspectedPerson.userId);
     const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
@@ -1162,7 +1191,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     />
                 </div>
-                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
+                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">

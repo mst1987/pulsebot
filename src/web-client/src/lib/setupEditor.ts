@@ -255,6 +255,31 @@ export function toggleLock(current: SetupPlacementInput, userId: string): SetupP
     return input;
 }
 
+/**
+ * Put a raider into the setup as another spec of their class — the third tank, an extra healer.
+ * The slot keeps its place, takes the spec and its role, and is locked, so the next proposal leaves it as chosen.
+ * `{ input: null }` when nothing changes, `{ error }` for somebody on the bench (they have no slot to change yet).
+ */
+export function respecRaider(current: SetupPlacementInput, userId: string, spec: { key: string; role: string }) {
+    for (const g of current.groups) {
+        if (!g.slots.some((s) => s.userId === userId)) continue;
+        const now = g.slots.find((s) => s.userId === userId);
+        if (now && now.spec === spec.key && now.locked) return { input: null };
+        const input = cloneInput(current);
+        for (const gr of input.groups) {
+            for (const s of gr.slots) {
+                if (s.userId === userId) {
+                    s.spec = spec.key;
+                    s.role = spec.role;
+                    s.locked = true;
+                }
+            }
+        }
+        return { input };
+    }
+    return { error: t("setup.moves.respecBench") };
+}
+
 /** Every raider of a stored setup by user id. */
 export function peopleOf(setup: StoredSetup): Map<string, SetupPerson> {
     const map = new Map();

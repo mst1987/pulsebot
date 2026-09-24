@@ -3864,6 +3864,8 @@ export type SetupPerson = {
     locked?: boolean;
     /** The place 1…5 in the group the orga put them on (a group of two may stand on 1 and 5). */
     pos?: number;
+    /** The specs of their class — what the panel offers to put them into the setup as. */
+    classSpecs?: { key: string; label: string; icon: string; role: GameRole }[];
     /** Why they are where they are — shown in the tooltip only. */
     reasons?: string[];
     brings?: SetupBuff[];

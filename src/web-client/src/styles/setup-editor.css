@@ -101,6 +101,12 @@
 .se-tip-row { display: flex; align-items: flex-start; gap: 10px; }
 .se-tip-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
 .se-tip-bench { color: var(--text); margin-top: 4px; }
+/* "im Setup als": the specs of the raider's class as icon buttons (name and role in the tooltip) — the one played now is ringed */
+.se-tip-specs { display: flex; flex-wrap: wrap; gap: 5px; }
+.se-tip-spec { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); cursor: pointer; }
+.se-tip-spec:hover { border-color: var(--accent); }
+.se-tip-spec.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.se-tip-spec .wi { border-radius: 3px; }
 /* the name is always readable in full and on one line: the header gives it the width */
 .se-tip-name { font-weight: 800; font-size: 20px; line-height: 1.2; white-space: nowrap; }
 .se-tip-k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
