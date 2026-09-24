@@ -607,8 +607,13 @@ describe("the raider tooltip and the drag glow", () => {
     it("says in the attendance block when the raider last signed up but stood on the bench — or that they did not, in the nights looked at", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).toContain("function benchText(");
-        expect(src).toContain('t("setup.person.tip.lastBench", { date })');
+        // the row is an icon and the date ("–" for never); the sentence is the tooltip
+        expect(src).toContain('t("setup.person.tip.lastBench", { date: bench })');
         expect(src).toContain('t("setup.person.tip.benchNever", { count: a.benchNights })');
+        expect(src).toContain("<BenchIcon />{bench}");
+        // the character link is the Auto badge or the check mark, with the sentence as its tooltip, not a line of text
+        expect(src).toContain('data-tip={t("setup.person.tip.linkAuto")}>{t("setup.person.tip.autoBadge")}');
+        expect(src).not.toContain('<span className="se-tip-sub">{a.link === "manual"');
         // nothing to say without an earlier night
         expect(src).toMatch(/if \(!a \|\| !a\.benchNights\) return "";/);
         expect(makeT("de")("setup.person.tip.lastBench", { date: "12.09.2026" })).toBe("Zuletzt auf der Bank: 12.09.2026");
@@ -631,5 +636,21 @@ describe("the raider tooltip and the drag glow", () => {
             expect(de(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
             expect(en(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
         }
+    });
+
+    describe("Extra tank / healer", () => {
+        it("has a toggle per role the class can take besides the setup's, a pill on the tile, and texts in both languages", () => {
+            const src = read("pages", "raid-detail", "SetupEditor.tsx");
+            expect(src).toContain("saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on)");
+            expect(src).toContain('(["tank", "healer"] as const).filter((r) => r !== p.role');
+            expect(src).toContain("ui.extraRoles[p.userId]");
+            expect(src).toContain("aria-pressed={on}");
+            // the bench is not marked: only a raider in the setup can be an extra
+            expect(src).toContain("onExtra={inspectedIsBench ? undefined");
+            for (const key of ["setup.person.tip.extra", "setup.person.tip.extraSub", "setup.extra.tip", "setup.extra.short.tank", "setup.extra.short.healer"]) {
+                expect(makeT("de")(key, { role: "Tank" })).not.toBe(key);
+                expect(makeT("en")(key, { role: "Tank" })).not.toBe(key);
+            }
+        });
     });
 });

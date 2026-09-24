@@ -1,9 +1,15 @@
 {
+    "extra": {
+        "tip": "Extra {role}: plays {role} on some bosses",
+        "short": { "tank": "+Tank", "healer": "+Healer" }
+    },
     "person": {
         "tip": {
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
             "attendanceDetails": "Details",
+            "extra": "Also as",
+            "extraSub": "For raiders who switch on some bosses: a third tank or an extra healer. Only a mark on the raider, the raid plan uses it later.",
             "playsAs": "In the setup as",
             "playsAsSub": "For raiders who play several specs: the third tank, an extra healer. The place is locked so a new proposal does not undo it.",
             "attendanceCount": "{attended} of {total} raids",

@@ -3945,6 +3945,8 @@ export type SetupEditorData = {
     hasApiKey?: boolean;
     /** The ping text sent with the posted setup — orga only, always the effective text (own or default, never empty). */
     pingText?: string;
+    /** Raiders marked as an extra tank / healer (they play that role on some bosses), by user id. */
+    extraRoles?: Record<string, string[]>;
     explainJob?: SetupJob;
     /** Only for the orga: where the approved setup goes and what came of it (#290). */
     publish?: SetupPublish;
@@ -4008,6 +4010,11 @@ export function postRaidSearch(csrfToken: string | null, eventId: string, text: 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */
 export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/ping-text", csrfToken, { event: eventId, text });
+}
+
+/** Mark a raider as an extra tank / healer (`on`), or take the mark away; not part of the setup, a new proposal keeps it. */
+export function saveSetupExtraRole(csrfToken: string | null, eventId: string, userId: string, role: "tank" | "healer", on: boolean): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/extra-role", csrfToken, { event: eventId, userId, role, on });
 }
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */

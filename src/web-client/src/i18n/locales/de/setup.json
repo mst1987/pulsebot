@@ -1,9 +1,15 @@
 {
+    "extra": {
+        "tip": "Extra-{role}: spielt bei manchen Bossen {role}",
+        "short": { "tank": "+Tank", "healer": "+Heiler" }
+    },
     "person": {
         "tip": {
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceDetails": "Details",
+            "extra": "Zusätzlich als",
+            "extraSub": "Für Raider, die bei manchen Bossen umskillen: ein dritter Tank oder ein Extra-Heiler. Steht nur als Markierung am Raider, der Raidplan nutzt sie später.",
             "playsAs": "Im Setup als",
             "playsAsSub": "Für Raider, die mehrere Specs spielen: der dritte Tank, ein zusätzlicher Heiler. Der Platz wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",
             "attendanceCount": "{attended} von {total} Raids",

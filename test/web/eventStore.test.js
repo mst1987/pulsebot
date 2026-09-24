@@ -19,7 +19,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
-    setEventSetupPingText, setEventDiscordEvent, eventEndTime,
+    setEventSetupPingText, setEventDiscordEvent, eventEndTime, setEventExtraRole,
 } = require("../../src/web/eventStore");
 
 const base = (over = {}) => ({
@@ -53,6 +53,20 @@ describe("web/eventStore", () => {
         expect(getEvent(event.id).setupPost.messageId).toBe("m1");
         expect(setEventSetupPost(event.id, null).setupPost).toBeNull();
         expect(setEventSetupPost("eh-nope", { version: 1 })).toBeNull();
+    });
+
+    it("marks a raider as an extra tank / healer, keeps the marks apart from the setup, and takes them away again", () => {
+        const { event } = createEvent(base());
+        expect(event.extraRoles).toEqual({});
+        expect(setEventExtraRole(event.id, "u9", "tank", true).extraRoles).toEqual({ u9: ["tank"] });
+        expect(setEventExtraRole(event.id, "u9", "healer", true).extraRoles).toEqual({ u9: ["tank", "healer"] });
+        expect(setEventExtraRole(event.id, "u9", "tank", true).extraRoles.u9).toEqual(["tank", "healer"]);
+        expect(getEvent(event.id).extraRoles).toEqual({ u9: ["tank", "healer"] });
+        expect(setEventExtraRole(event.id, "u9", "tank", false).extraRoles).toEqual({ u9: ["healer"] });
+        expect(setEventExtraRole(event.id, "u9", "healer", false).extraRoles).toEqual({});
+        // only tank and healer, only for a known event
+        expect(setEventExtraRole(event.id, "u9", "melee", true)).toBeNull();
+        expect(setEventExtraRole("eh-nope", "u9", "tank", true)).toBeNull();
     });
 
     it("stores the ping text, empty by default, trimmed to 300 characters (#354's follow-up)", () => {
