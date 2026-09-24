@@ -12,6 +12,7 @@ import Flyout from "../../../components/raidplan/Flyout";
 import { followsTank } from "../../../lib/assign";
 import MultiInspector from "./MultiInspector";
 import type { SelItem } from "../../../lib/multiSelect";
+import GroupStyle from "./GroupStyle";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
@@ -33,7 +34,7 @@ export function SizeField({ label, value, min, max, step = 1, unit = "px", onCha
  * and player), opacity for every kind, and the actions — lock, duplicate, front /
  * back, delete — as icon buttons. Nothing selected: a hint.
  */
-export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, onSelect }: {
+export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, onSelect, focusGroup = 0, onFocusGroup }: {
     board: RaidplanBoard;
     selection: Selection;
     /** several objects selected: only what they share is shown */
@@ -45,6 +46,9 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
     canWrite: boolean;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     onSelect: (sel: Selection) => void;
+    /** the group the map highlights (0 = none) and the switch for it */
+    focusGroup?: number;
+    onFocusGroup?: (n: number) => void;
 }) {
     const t = useT();
     const [pick, setPick] = useState<HTMLElement | null>(null);
@@ -227,6 +231,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
 
             {slot && slot.kind === "group" && (
                 <div className="rp-field">
+                    <GroupStyle board={board} n={slot.n} canWrite={canWrite} edit={edit} focused={focusGroup === slot.n} onFocus={onFocusGroup ? () => onFocusGroup(focusGroup === slot.n ? 0 : slot.n) : undefined} />
                     <label className="rp-check"><input type="checkbox" checked={!slot.hideMembers} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { hideMembers: !e.target.checked }))} /> {t("raidBoard.insp.showMembers")}</label>
                     <label className="rp-check"><input type="checkbox" checked={slot.split} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { split: e.target.checked }))} /> {t("raidBoard.insp.split")}</label>
                     {slot.split && Object.keys(slot.offsets || {}).length > 0 && (
@@ -235,15 +240,6 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     {slot.split && (
                         <>
                             <label className="rp-check"><input type="checkbox" checked={slot.showRing !== false} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { showRing: e.target.checked }))} /> {t("raidBoard.insp.showRing")}</label>
-                            {slot.showRing !== false && (
-                                <div className="rp-field-row">
-                                    <label className="rp-field">
-                                        <span className="rp-kicker">{t("raidBoard.insp.ringColor")}</span>
-                                        <input type="color" className="rp-color" value={slot.ringColor || "#7c5cff"} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { ringColor: e.target.value }), true)} />
-                                    </label>
-                                    <button type="button" className="rp-link" disabled={dis || !slot.ringColor} onClick={() => edit((b) => updateSlot(b, id, { ringColor: "" }))}>{t("raidBoard.zone.presetColor")}</button>
-                                </div>
-                            )}
                             {slot.showRing !== false && <SliderField label={t("raidBoard.insp.ringOpacity")} value={Math.round((slot.ringOpacity === undefined ? 0.55 : slot.ringOpacity) * 100)} min={10} max={100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { ringOpacity: v / 100 }), true)} />}
                         </>
                     )}

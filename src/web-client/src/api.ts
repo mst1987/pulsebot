@@ -4170,6 +4170,9 @@ export type RaidplanBoard = {
     inheritOff: string[];
     /** the rings round split groups, all at once (default shown) */
     showRings?: boolean;
+    /** the colour ("#rrggbb") and the raid mark of the groups, by group number; missing = the default colour / no mark */
+    groupColors?: Record<string, string>;
+    groupMarks?: Record<string, string>;
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4268,7 +4271,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { ArrowRight, Users } from "lucide-react";
+import { ArrowRight, ListChecks, Users } from "lucide-react";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -9,12 +9,13 @@ import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
 import { groupHealTable, simpleTables, tankTable } from "../../../lib/planTables";
 import { splitMine, type MineBlock } from "../../../lib/mineView";
+import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
 import TypeBadge from "./TypeBadge";
 import { useT } from "../../../i18n";
 
 /** Who or what a cell names: a person with class icon and class colour, an open place with its role, a mob with its portrait, a mark, a group, a word. */
-function Who({ r, mine, names = [] }: { r: Resolved; mine: boolean; names?: string[] }) {
+function Who({ r, mine, names = [], ctx }: { r: Resolved; mine: boolean; names?: string[]; ctx?: AssignCtx }) {
     const t = useT();
     let body: ReactNode;
     if (r.player) {
@@ -27,7 +28,11 @@ function Who({ r, mine, names = [] }: { r: Resolved; mine: boolean; names?: stri
     } else if (r.kind === "mob") body = <><MobIcon icon={r.icon} size={32} /><strong>{r.label}</strong></>;
     else if (r.kind === "mark") body = <><MarkIcon mark={r.mark as never} size={28} /><span>{r.label}</span></>;
     else if (r.kind === "class") body = <><WowIcon name={r.icon} size={24} /><span className="rp-who-open">{r.label} ({t("raidBoard.class.missing")})</span></>;
-    else if (r.kind === "group") body = <><Users size={20} aria-hidden="true" /><strong>{r.label}</strong></>;
+    else if (r.kind === "group") {
+        const col = groupColor(ctx ? ctx.groupColors : undefined, r.group);
+        const mk = groupMark(ctx ? ctx.groupMarks : undefined, r.group);
+        body = <span className="rp-gtag" style={{ "--gc": col, "--gi": inkOn(col) } as React.CSSProperties}><Users size={18} aria-hidden="true" /><strong>{r.label}</strong>{mk && <MarkIcon mark={mk as never} size={18} />}</span>;
+    }
     else if (r.kind === "text") body = <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={24} /><span><Mentions text={r.label} names={names} /></span></>;
     else {
         body = (
@@ -40,9 +45,9 @@ function Who({ r, mine, names = [] }: { r: Resolved; mine: boolean; names?: stri
     return <span className={`rp-who${mine ? " is-own" : ""}`} {...(mine ? { "data-tip": t("raidBoard.public.thatsYou"), "aria-label": `${r.label}: ${t("raidBoard.public.thatsYou")}` } : {})}>{body}{mine && <span className="rp-du" aria-hidden="true">{t("raidBoard.public.du")}</span>}</span>;
 }
 
-function WhoList({ list, me, names = [] }: { list: Resolved[]; me: string[]; names?: string[] }) {
+function WhoList({ list, me, names = [], ctx }: { list: Resolved[]; me: string[]; names?: string[]; ctx?: AssignCtx }) {
     if (list.length === 0) return <span className="rp-muted">–</span>;
-    return <span className="rp-who-list">{list.map((r) => <Who key={`${r.kind}|${r.ref}`} r={r} mine={isMe(r, me)} names={names} />)}</span>;
+    return <span className="rp-who-list">{list.map((r) => <Who key={`${r.kind}|${r.ref}`} r={r} mine={isMe(r, me)} names={names} ctx={ctx} />)}</span>;
 }
 
 /** The verbs of the rows that act on the visitor ("Heilt dich", "Heilt deine Gruppe (4)"); the kinds of task without their own wording use the type's name. */
@@ -99,7 +104,7 @@ function MineBlocks({ blocks, mode, ctx, me, names }: { blocks: MineBlock[]; mod
  * The read view's assignments as real tables: first "Meine Einteilungen" (for a visitor who was recognised), then
  * Tank | Ziel | Heiler, Heiler | Gruppen, and a slim table per other type. Rows of the visitor are highlighted.
  */
-export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string }) {
+export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, focusGroup = 0, onFocusGroup }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string; focusGroup?: number; onFocusGroup?: (n: number) => void }) {
     const t = useT();
     // the visitor's own characters by name: for the names in words (notes, free text)
     const names = useMemo(() => cleanNames(me.map((id) => (ctx.players.get(id) || { character: "" }).character)), [me, ctx.players]);
@@ -112,6 +117,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
     const others = useMemo(() => simpleTables(assignments, ctx), [assignments, ctx]);
     return (
         <div className="rp-rtables">
+            <div className="rp-personal">
             {me.length === 0 ? (
                 <p className="rp-muted rp-mine-hint">{loggedIn ? t("raidBoard.read.notInPlan") : <>{t("raidBoard.read.loginHint")} <a className="mlink" href={loginHref}>{t("raidBoard.public.login")}</a></>}</p>
             ) : split.mine.length === 0 && split.onMe.length === 0 ? (
@@ -130,10 +136,14 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                             <MineBlocks blocks={split.onMe} mode="on" ctx={ctx} me={me} names={names} />
                         </section>
                     )}
-                    <h2 className="rp-allhead">{t("raidBoard.mine.all")}</h2>
                 </>
             )}
+            </div>
 
+            {(tanks.length > 0 || groups.length > 0 || others.length > 0) && (
+            <details className="rp-allzone" open>
+                <summary><ListChecks size={18} aria-hidden="true" /><h2>{t("raidBoard.mine.all")}</h2></summary>
+                <div className="rp-rgrid">
             {tanks.length > 0 && (
                 <section className="rp-rsec" aria-label={t("raidBoard.assign.type.tank")}>
                     <h3><TypeBadge type="tank" /></h3>
@@ -164,7 +174,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                                     <td>
                                         <span className="rp-who-list">
                                             {r.groups.map((g) => (
-                                                <span key={g} className={`rp-gbadge${ctx.players.size > 0 && me.some((id) => (ctx.players.get(id) || { group: -1 }).group === g) ? " is-own" : ""}`}><Users size={15} aria-hidden="true" />{g}</span>
+                                                <span key={g} className={`rp-gbadge${ctx.players.size > 0 && me.some((id) => (ctx.players.get(id) || { group: -1 }).group === g) ? " is-own" : ""}${focusGroup === g ? " is-focus" : ""}`} style={{ "--gc": groupColor(ctx.groupColors, g), "--gi": inkOn(groupColor(ctx.groupColors, g)) } as React.CSSProperties} role={onFocusGroup ? "button" : undefined} tabIndex={onFocusGroup ? 0 : undefined} onClick={onFocusGroup ? () => onFocusGroup(focusGroup === g ? 0 : g) : undefined} onKeyDown={onFocusGroup ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFocusGroup(focusGroup === g ? 0 : g); } } : undefined}><Users size={15} aria-hidden="true" />{g}{groupMark(ctx.groupMarks, g) && <MarkIcon mark={groupMark(ctx.groupMarks, g) as never} size={15} />}</span>
                                             ))}
                                         </span>
                                     </td>
@@ -203,6 +213,9 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                     </table>
                 </section>
             ))}
+                </div>
+            </details>
+            )}
         </div>
     );
 }

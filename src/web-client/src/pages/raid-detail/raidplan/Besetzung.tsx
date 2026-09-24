@@ -6,6 +6,9 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON, classIconOf } from "../../../lib/assign";
 import { classStatus, refillByClass } from "../../../lib/rosterAssign";
+import { groupColor, groupMark } from "../../../lib/groupStyle";
+import { MarkIcon } from "../../../components/raidplan/MarkIcon";
+import GroupStyle from "./GroupStyle";
 import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
@@ -55,13 +58,15 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
         return (
             <span key={s.id} className={`rp-bes-slot${on ? " is-placed" : ""}`}>
                 <button
-                    type="button" className={`rp-bes-chip${player ? "" : " is-open"}${flexNow ? " is-flex" : ""}`} aria-expanded={open === s.id}
+                    type="button" className={`rp-bes-chip${player ? "" : " is-open"}${flexNow ? " is-flex" : ""}${s.kind === "group" ? " is-group" : ""}`} aria-expanded={open === s.id}
+                    style={s.kind === "group" ? ({ "--gc": groupColor(board.groupColors, s.n) } as React.CSSProperties) : undefined}
                     aria-label={`${name}${player ? `: ${player.character}` : ` (${t("raidBoard.slot.open")})`}`}
                     data-tip={player ? `${name}: ${player.character}` : `${name} (${t("raidBoard.slot.open")})`}
                     onPointerDown={(e) => { if (canWrite) onChipDown(e, s.id); }}
                     onClick={(e) => { if (on) onShow(s.id); setOpenSlot(open === s.id ? null : { id: s.id, el: e.currentTarget }); }}
                 >
                     {player ? <TokenIcon player={player} size="sm" /> : s.kind === "group" ? <Users size={15} aria-hidden="true" /> : <WowIcon name={roleIcon} size={20} />}
+                    {s.kind === "group" && groupMark(board.groupMarks, s.n) && <MarkIcon mark={groupMark(board.groupMarks, s.n) as never} size={14} />}
                     <span className="rp-bes-n">{s.n}</span>
                     {(s.preferredClasses || []).length > 0 && <span className={`rp-bes-cls is-${classStatus(s, roster, board)}`} aria-hidden="true"><WowIcon name={classIconOf((s.preferredClasses || [])[0])} size={13} /></span>}
                 </button>
@@ -96,6 +101,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                 onToggle={(id) => edit((b) => assignSlot(b, s.id, id))} onClose={() => setOpenSlot(null)}
                 top={canWrite ? (
                     <>
+                        {s.kind === "group" && <GroupStyle board={board} n={s.n} canWrite={canWrite} edit={edit} />}
                         <button type="button" className="rp-pop-act" onClick={() => { edit((b) => (on ? unplaceSlot(b, s.id) : placeSlot(b, s.id, null))); setOpenSlot(null); }}>
                             <MapPin size={14} /> {on ? t("raidBoard.bes.unplace") : t("raidBoard.bes.placeNow")}
                         </button>

@@ -780,9 +780,10 @@
 .rp-multi-insp .rp-insp-actions { flex-wrap: wrap; }
 
 /* read view, compact: tables as wide as their content, side by side when there is room; nothing wraps inside a chip */
-.rp-rtables { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
-.rp-rtables > .rp-mine, .rp-rtables > .rp-mine-hint { flex: 1 1 100%; }
-.rp-rtables > .rp-rsec { flex: 0 1 auto; max-width: 100%; }
+.rp-rtables { flex-direction: column; gap: 0; }
+.rp-rgrid { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
+.rp-rgrid > .rp-rsec { flex: 0 1 auto; max-width: 100%; min-width: 0; }
+.rp-personal { display: flex; flex-direction: column; gap: 12px; }
 .rp-rtable { width: auto; max-width: 100%; }
 .rp-rtable th { padding: 5px 10px; }
 .rp-rtable td { padding: 5px 10px; }
@@ -793,8 +794,8 @@
 .rp-tbadge > span, .rp-mine-text { white-space: nowrap; }
 .rp-tbadge.is-small > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
 @media (max-width: 700px) {
-    .rp-rtables { flex-direction: column; flex-wrap: nowrap; }
-    .rp-rtables > .rp-rsec { width: 100%; }
+    .rp-rgrid { flex-direction: column; flex-wrap: nowrap; }
+    .rp-rgrid > .rp-rsec { width: 100%; }
     .rp-rtable { width: 100%; table-layout: auto; }
     .rp-who { white-space: normal; }
     .rp-mine-text { white-space: normal; }
@@ -989,5 +990,41 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-onme-badge.is-small { margin-left: 8px; font-size: 10px; }
 .rp-onme-verb { font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 13px; }
 .rp-onme-you { background: var(--onme, #e0a020); color: #1a1205; }
-.rp-allhead { margin: 14px 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .rp-rtable tr.is-onme td { background: color-mix(in srgb, var(--onme, #e0a020) 14%, transparent); box-shadow: inset 3px 0 0 var(--onme, #e0a020); }
+
+/* group colours, raid marks, highlight */
+.rp-groupwrap { --gc: var(--accent); --gi: var(--accent-ink); }
+.rp-groupring { border-color: var(--gc); }
+.rp-groupchip { border-color: var(--gc); }
+.rp-groupchip-n { background: var(--gc); color: var(--gi); }
+.rp-token-gbadge { background: var(--gc, var(--accent)); color: var(--gi, var(--accent-ink)); }
+.rp-groupwrap.is-dim { opacity: .22; transition: opacity .15s; }
+.rp-groupwrap.is-focus .rp-groupring { border-width: 3px; opacity: 1; }
+.rp-groupchip-head { align-items: center; }
+.rp-grouptext { display: inline-flex; align-items: center; gap: 4px; }
+.rp-bes-chip.is-group { border-color: var(--gc); box-shadow: inset 0 0 0 1px var(--gc); }
+.rp-gtag { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px; border-radius: 999px; border: 2px solid var(--gc); }
+.rp-gbadge { border: 2px solid var(--gc, transparent); }
+.rp-gbadge[role="button"] { cursor: pointer; }
+.rp-gbadge.is-focus { background: var(--gc); color: var(--gi); }
+.rp-gstyle { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.rp-gswatches, .rp-gmarks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rp-gswatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); padding: 0; cursor: pointer; }
+.rp-gswatch.is-on { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rp-gmark { padding: 3px 5px; }
+.rp-glegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; font-size: 12px; }
+.rp-glegend button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; border: 2px solid var(--gc); background: var(--panel); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; }
+.rp-glegend button.is-on { background: var(--gc); color: var(--gi); }
+
+/* "Alle Einteilungen": its own zone, apart from the personal blocks */
+.rp-allzone { margin-top: 36px; padding-top: 14px; border-top: 2px solid var(--line); }
+.rp-allzone > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; margin-bottom: 12px; color: var(--text); }
+.rp-allzone > summary::-webkit-details-marker { display: none; }
+.rp-allzone > summary h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.rp-allzone > summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
+.rp-allzone[open] > summary::after { transform: rotate(-135deg); }
+.rp-rtable .rp-rtask, .rp-rtable .rp-who, .rp-rtable .rp-rnote { white-space: normal; overflow-wrap: anywhere; }
+.rp-rtable td .rp-who-list { flex-wrap: wrap; }
+.rp-rtable td { min-width: 0; }
+.rp-read-right { flex-direction: column; align-items: center; }
+.rp-read-right .rp-glegend { align-self: stretch; }

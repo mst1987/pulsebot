@@ -678,5 +678,17 @@
                 "generic": "{type} on your group ({n})"
             }
         }
+    },
+    "group": {
+        "style": "Look of group {n}",
+        "color": "Group colour",
+        "paletteColor": "Default colour {n}",
+        "customColor": "Custom colour",
+        "resetColor": "Default",
+        "mark": "Raid mark",
+        "noMark": "None",
+        "focus": "Highlight group",
+        "legend": "Groups",
+        "legendFocus": "Highlight this group (the others dim)"
     }
 }

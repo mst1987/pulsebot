@@ -171,6 +171,8 @@ export default function BoardWorkspace({
     const [showPalette, setShowPalette] = useState(() => window.innerHeight > 1000);
     const [showPanel, setShowPanel] = useState(true);
     const [showLinks, setShowLinks] = useState(true);
+    /** the group the map highlights (the others dim): a view setting, not part of the plan */
+    const [focusGroup, setFocusGroup] = useState(0);
     const boardRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLElement>(null);
     const workRef = useRef<HTMLDivElement>(null);
@@ -835,7 +837,7 @@ export default function BoardWorkspace({
                         onContext={canWrite ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
-                        me={me} showRings={board.showRings !== false}
+                        me={me} showRings={board.showRings !== false} groupColors={board.groupColors} groupMarks={board.groupMarks} focusGroup={focusGroup}
                         multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined} onMultiMove={canWrite ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
@@ -870,7 +872,7 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
                             {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">

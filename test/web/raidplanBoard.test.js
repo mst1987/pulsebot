@@ -85,7 +85,7 @@ describe("zones", () => {
 describe("the rest of a board", () => {
     it("has every field even for nothing and reports no content", () => {
         const r = clean(undefined);
-        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(board.boardHasContent(r.board)).toBe(false);
         expect(board.boardHasContent(clean({ zones: [{}] }).board)).toBe(true);
         expect(board.boardHasContent(clean({ notes: "x" }).board)).toBe(true);
@@ -315,5 +315,14 @@ describe("icon facing", () => {
         ] });
         expect(r.board.icons.map((i) => i.rotation)).toEqual([270, 0, 6, 0, 359]);
         expect(r.board.icons.map((i) => i.showLabel)).toEqual([false, false, false, false, false]);
+    });
+});
+
+describe("group styles", () => {
+    const { cleanGroupStyles } = require("../../src/web/raidplanBoard");
+    it("keeps valid colours (lower case) and marks once, drops the rest", () => {
+        const r = cleanGroupStyles({ 1: "#ABCDEF", 2: "red", 21: "#000000", x: "#000000" }, { 1: "skull", 2: "skull", 3: "star", 4: "banana" });
+        expect(r).toEqual({ groupColors: { 1: "#abcdef" }, groupMarks: { 1: "skull", 3: "star" } });
+        expect(cleanGroupStyles(null, undefined)).toEqual({ groupColors: {}, groupMarks: {} });
     });
 });

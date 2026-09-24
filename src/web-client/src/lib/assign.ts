@@ -287,7 +287,7 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[] };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[] };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
 export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string; /** a class reference: the class */ classId?: string };
 

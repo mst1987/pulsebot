@@ -1,4 +1,5 @@
 import { REF_W, canvasStyle } from "../../lib/boardScale";
+import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
@@ -92,6 +93,10 @@ type BoardProps = {
     assignments?: RaidplanAssignment[];
     /** The rings round split groups: all shown (default) or all hidden. */
     showRings?: boolean;
+    /** the colour / raid mark of the groups (by group number) and the group the others dim for */
+    groupColors?: Record<string, string>;
+    groupMarks?: Record<string, string>;
+    focusGroup?: number;
     /** The other selected objects when several are selected (`selected` is then null). */
     multi?: { kind: ObjectKind; id: string }[];
     /** The frame round the whole multi selection and the rubber band, in board fractions. */
@@ -147,7 +152,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", assignments, maxHeight, showRings = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -328,6 +333,8 @@ export default function PlanBoard({
                     const around = splitMembers(boardLike, s, roster);
                     const everyone = s.split && !s.hideMembers ? roster.filter((p) => p.group === s.n) : [];
                     const memberPx = scaled(s.size, SIZE_RANGES.member.def);
+                    const gcol = groupColor(groupColors, s.n);
+                    const gmark = groupMark(groupMarks, s.n);
                     const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
                     const tag = groupTag(s, roster.filter((p) => p.group === s.n).length, roster.length > 0);
                     const chipMode = groupChipMode(editable, tag.badges, boardLabel);
@@ -335,17 +342,18 @@ export default function PlanBoard({
                     const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off || ring[at] || { dx: 0, dy: 0 }; }), ...holders];
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
-                        <div key={s.id} className="rp-groupwrap">
+                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " is-dim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
                                 <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { borderColor: s.ringColor } : {}) }} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
-                                {chipMode === "text" && <span className="rp-grouptext">{boardLabel}</span>}
+                                {chipMode === "text" && <span className="rp-grouptext">{gmark && <MarkIcon mark={gmark as never} size={16} />}{boardLabel}</span>}
                                 {chipMode === "chip" && (
                                 <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
                                     <span className="rp-groupchip-head">
                                         <Users size={15} aria-hidden="true" />
                                         <span className="rp-groupchip-n">{tag.number}</span>
+                                        {gmark && <MarkIcon mark={gmark as never} size={16} />}
                                         {boardLabel && <span className="rp-groupchip-title">{boardLabel}</span>}
                                     </span>
                                     {showList && members.length > 0 && (

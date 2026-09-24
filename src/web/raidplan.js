@@ -212,6 +212,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 texts: (board.texts || []).filter((x) => !x.hidden),
                 mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
                 showRings: board.showRings !== false,
+                groupColors: board.groupColors || {},
+                groupMarks: board.groupMarks || {},
                 // the old task rows are shown as assignments (above)
                 targets: [],
                 mobs: board.mobs || [],

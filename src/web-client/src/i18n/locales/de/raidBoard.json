@@ -678,5 +678,17 @@
                 "generic": "{type} auf deine Gruppe ({n})"
             }
         }
+    },
+    "group": {
+        "style": "Aussehen von Gruppe {n}",
+        "color": "Gruppenfarbe",
+        "paletteColor": "Standardfarbe {n}",
+        "customColor": "Eigene Farbe",
+        "resetColor": "Standard",
+        "mark": "Raid-Marker",
+        "noMark": "Keiner",
+        "focus": "Gruppe hervorheben",
+        "legend": "Gruppen",
+        "legendFocus": "Gruppe hervorheben (die anderen werden abgedunkelt)"
     }
 }

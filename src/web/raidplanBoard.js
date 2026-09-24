@@ -65,6 +65,20 @@ const SIZES = { token: [38, 24, 96], mark: [34, 16, 96], icon: [48, 20, 200] };
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
 const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
 const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
+/** The colour and the raid mark of the groups (group n -> "#rrggbb" / a mark id): only groups 1..20, only valid colours, a mark once (the first group keeps it). Empty = the defaults. */
+function cleanGroupStyles(colors, marks) {
+    const okKey = (k) => /^(?:[1-9]|1d|20)$/.test(k);
+    const outColors = {};
+    for (const k of Object.keys(colors && typeof colors === "object" ? colors : {})) if (okKey(k) && /^#[0-9a-fA-F]{6}$/.test(String(colors[k]))) outColors[k] = String(colors[k]).toLowerCase();
+    const outMarks = {};
+    const seen = new Set();
+    for (const k of Object.keys(marks && typeof marks === "object" ? marks : {}).sort((a, b) => Number(a) - Number(b))) {
+        const m = String(marks[k]);
+        if (okKey(k) && MARKS.includes(m) && !seen.has(m)) { outMarks[k] = m; seen.add(m); }
+    }
+    return { groupColors: outColors, groupMarks: outMarks };
+}
+
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
 const ZONE_SHAPES = ["rect", "ellipse"];
@@ -301,15 +315,16 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const counts = besetzung.cleanCounts(input.counts);
     // all group rings of the board at once (default: shown)
     const showRings = input.showRings !== false;
+    const { groupColors, groupMarks } = cleanGroupStyles(input.groupColors, input.groupMarks);
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, groupColors, groupMarks, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.showRings === false || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.showRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -379,6 +394,6 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
-    LIMITS, SIZES, SLOT_KINDS, MARKS, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
+    LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
 };

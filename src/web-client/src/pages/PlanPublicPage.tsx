@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { MarkIcon } from "../components/raidplan/MarkIcon";
+import { groupColor, groupMark, inkOn } from "../lib/groupStyle";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
@@ -30,6 +32,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const [error, setError] = useState<ApiError | null>(null);
     const [selected, setSelected] = useState("");
     const [mapOnly, setMapOnly] = useState(false);
+    const [focusGroup, setFocusGroup] = useState(0);
     const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 
     useEffect(() => {
@@ -62,7 +65,9 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const names = cleanNames(data.meIds.map((id) => (players.get(id) || { character: "" }).character));
     // the map's height: the window minus the head, the chips and some air (wide); a small part of the window when it is on top (narrow)
     const mapHeight = mapOnly ? Math.max(300, win.h - 96) : wide ? Math.max(320, win.h - 108) : Math.round(win.h * 0.45);
-    const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog } : null;
+    const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks } : null;
+    /** the groups of this section, for the legend that highlights one (the others dim on the map) */
+    const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
     const label = (b: RaidplanPublicBoss) => (b.general ? t("raidBoard.assign.general") : b.trash ? t("raidBoard.assign.trash") : b.name);
 
     return (
@@ -105,15 +110,25 @@ export default function PlanPublicPage({ token }: { token: string }) {
                             {!mapOnly && (
                                 <div className="rp-read-left">
                                     {boss.notes.trim() && <p className="rp-notes-text"><Mentions text={boss.notes} names={names} /></p>}
-                                    <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} />
+                                    <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />
                                 </div>
                             )}
                             {!boss.general && (
                                 <div className="rp-read-right">
+                                    {groupNs.length > 0 && (
+                                        <div className="rp-glegend" role="group" aria-label={t("raidBoard.group.legend")}>
+                                            <span className="rp-kicker">{t("raidBoard.group.legend")}</span>
+                                            {groupNs.map((n) => (
+                                                <button key={n} type="button" className={focusGroup === n ? "is-on" : ""} aria-pressed={focusGroup === n} data-tip={t("raidBoard.group.legendFocus")} style={{ "--gc": groupColor(boss.groupColors, n), "--gi": inkOn(groupColor(boss.groupColors, n)) } as CSSProperties} onClick={() => setFocusGroup(focusGroup === n ? 0 : n)}>
+                                                    {n}{groupMark(boss.groupMarks, n) && <MarkIcon mark={groupMark(boss.groupMarks, n) as never} size={14} />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                     <PlanBoard
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                        players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never, data.meIds)} assignments={boss.assignments} showRings={boss.showRings !== false}
+                                        players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never, data.meIds)} assignments={boss.assignments} showRings={boss.showRings !== false} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
                                     />
                                     {wide && (
                                         <button type="button" className="rp-maponly" aria-pressed={mapOnly} data-tip={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} aria-label={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} onClick={() => setMapOnly((v) => !v)}>
