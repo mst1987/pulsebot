@@ -155,6 +155,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                 {brings.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.brings")}</span>
+                        <div className="se-tip-buffs">
                         {brings.map((b) => (
                             <span
                                 key={`${b.scope}-${b.key}`} className="se-tip-buff"
@@ -168,6 +169,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                                 </span>
                             </span>
                         ))}
+                        </div>
                     </div>
                 )}
             </div>

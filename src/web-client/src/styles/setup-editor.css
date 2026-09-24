@@ -124,6 +124,7 @@
 .se-tip-buff { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .se-tip-buff .wi { width: 22px; height: 22px; border-radius: 5px; flex: 0 0 auto; }
 /* one line per buff: the name, and for a group buff a small tag after it (a raid buff needs none) */
+.se-tip-buffs { display: flex; flex-direction: column; gap: 5px; }
 .se-tip-buff > span { min-width: 0; line-height: 1.3; font-size: 13.5px; }
 .se-tip-buff small { margin-left: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .se-tip-reasons { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; }
@@ -223,7 +224,10 @@
     .se-topline { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
     .se-topline > * { overflow: visible; }
     .se-topline .se-pingtext { flex-basis: auto; }
-    .se-tip { grid-template-columns: minmax(0, 1fr); }
+    /* stacked: the panel keeps two columns (brings | why here) with the details as one row under them, instead of one long column */
+    .se-tip { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); min-height: 430px; }
+    .se-tip-col:last-child { grid-column: 1 / -1; }
+    .se-tip-col:last-child .se-tip-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; }
     .se-tip-top { flex-wrap: wrap; }
     .se-tip-attn { flex-basis: 100%; }
 }
@@ -265,4 +269,11 @@
 .se-search-count { align-self: flex-end; font-size: 12px; color: var(--muted); }
 @media (max-width: 760px) {
     .se-search-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* a phone: one column again, but the buffs sit two by two */
+@media (max-width: 600px) {
+    .se-tip { grid-template-columns: minmax(0, 1fr); padding: 14px 14px; min-height: 500px; }
+    .se-tip-buffs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; }
+    .se-tip-name { font-size: 18px; }
 }
