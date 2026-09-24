@@ -690,5 +690,22 @@
         "focus": "Highlight group",
         "legend": "Groups",
         "legendFocus": "Highlight this group (the others dim)"
+    },
+    "zoom": {
+        "title": "Zoom",
+        "in": "Zoom in (Ctrl + wheel)",
+        "out": "Zoom out",
+        "fit": "Fit (as the read view shows it)",
+        "fitTip": "Back to fit",
+        "hand": "Hand: move the picture (or hold Space / middle mouse button)"
+    },
+    "view": {
+        "title": "Icon size and display",
+        "iconSize": "Icon size",
+        "reset": "Back to 100 %",
+        "iconSizeHint": "Tokens, slots, marks, boss icons and their names - also in the read view.",
+        "names": "Show names",
+        "badges": "Show number badges",
+        "roleRings": "Show role rings"
     }
 }

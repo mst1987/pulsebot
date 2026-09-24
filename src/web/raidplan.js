@@ -214,6 +214,9 @@ function publicView(plan, event, { me = "" } = {}) {
                 showRings: board.showRings !== false,
                 groupColors: board.groupColors || {},
                 groupMarks: board.groupMarks || {},
+                showNames: board.showNames !== false,
+                showBadges: board.showBadges !== false,
+                showRoleRings: board.showRoleRings !== false,
                 // the old task rows are shown as assignments (above)
                 targets: [],
                 mobs: board.mobs || [],

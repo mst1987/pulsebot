@@ -4173,6 +4173,10 @@ export type RaidplanBoard = {
     /** the colour ("#rrggbb") and the raid mark of the groups, by group number; missing = the default colour / no mark */
     groupColors?: Record<string, string>;
     groupMarks?: Record<string, string>;
+    /** what the board shows besides the icons (all default on): the names, the group number badges, the role rings */
+    showNames?: boolean;
+    showBadges?: boolean;
+    showRoleRings?: boolean;
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4271,7 +4275,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

@@ -1,0 +1,55 @@
+import { useEffect, useRef, useState } from "react";
+import { Hand, Maximize, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
+import type { RaidplanBoard } from "../../../api";
+import { IconButton } from "../../../components/ui";
+import { SliderField } from "../../../components/raidplan/NumberField";
+import type { BoardView } from "../../../lib/boardView";
+import { SCALE_MAX, SCALE_MIN, setObjectScale } from "../../../lib/raidplan";
+import { useT } from "../../../i18n";
+
+/** Zoom out / in, the zoom in percent (a click fits the picture again: what the read view shows), the hand tool. */
+export function ZoomControls({ view, zoomIn, zoomOut, fit, hand, setHand }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; hand: boolean; setHand: (on: boolean) => void }) {
+    const t = useT();
+    return (
+        <div className="rp-tool-group rp-zoom" role="group" aria-label={t("raidBoard.zoom.title")}>
+            <IconButton size="sm" icon={<ZoomOut size={17} />} tip={t("raidBoard.zoom.out")} onClick={zoomOut} />
+            <button type="button" className={`rp-zoom-pct${view.z !== 1 ? " is-on" : ""}`} data-tip={t("raidBoard.zoom.fitTip")} aria-label={t("raidBoard.zoom.fit")} onClick={fit}>{Math.round(view.z * 100)} %</button>
+            <IconButton size="sm" icon={<ZoomIn size={17} />} tip={t("raidBoard.zoom.in")} onClick={zoomIn} />
+            <IconButton size="sm" icon={<Maximize size={17} />} tip={t("raidBoard.zoom.fit")} onClick={fit} />
+            <IconButton size="sm" icon={<Hand size={17} />} tip={t("raidBoard.zoom.hand")} aria-pressed={hand} className={hand ? "is-on" : ""} onClick={() => setHand(!hand)} />
+        </div>
+    );
+}
+
+/** The symbol size (tokens, slot icons, marks, boss / mob icons and the names with them) and what the board shows besides the icons. Stored on the board, so the read view looks the same. */
+export function ViewOptions({ board, canWrite, edit }: { board: RaidplanBoard; canWrite: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void }) {
+    const t = useT();
+    const [open, setOpen] = useState(false);
+    const box = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!open) return undefined;
+        const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+        const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+        document.addEventListener("pointerdown", away, true);
+        document.addEventListener("keydown", esc);
+        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); };
+    }, [open]);
+    const flag = (key: "showNames" | "showBadges" | "showRoleRings", label: string) => (
+        <label className="rp-check"><input type="checkbox" checked={board[key] !== false} disabled={!canWrite} onChange={(e) => edit((b) => ({ ...b, [key]: e.target.checked }))} /> {label}</label>
+    );
+    return (
+        <div className="rp-viewopts" ref={box}>
+            <IconButton size="sm" icon={<SlidersHorizontal size={17} />} tip={t("raidBoard.view.title")} aria-expanded={open} aria-haspopup="dialog" className={open || board.objectScale !== 1 ? "is-on" : ""} onClick={() => setOpen((v) => !v)} />
+            {open && (
+                <div className="rp-viewopts-pop" role="dialog" aria-label={t("raidBoard.view.title")}>
+                    <SliderField label={t("raidBoard.view.iconSize")} value={Math.round(board.objectScale * 100)} min={SCALE_MIN * 100} max={SCALE_MAX * 100} step={5} unit="%" disabled={!canWrite} onChange={(v) => canWrite && edit((b) => setObjectScale(b, v / 100), true)} />
+                    <button type="button" className="rp-link" disabled={!canWrite || board.objectScale === 1} onClick={() => edit((b) => setObjectScale(b, 1))}>{t("raidBoard.view.reset")}</button>
+                    <span className="rp-muted">{t("raidBoard.view.iconSizeHint")}</span>
+                    {flag("showNames", t("raidBoard.view.names"))}
+                    {flag("showBadges", t("raidBoard.view.badges"))}
+                    {flag("showRoleRings", t("raidBoard.view.roleRings"))}
+                </div>
+            )}
+        </div>
+    );
+}

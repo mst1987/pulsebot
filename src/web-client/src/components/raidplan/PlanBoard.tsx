@@ -1,4 +1,5 @@
 import { REF_W, canvasStyle } from "../../lib/boardScale";
+import { FIT, type BoardView } from "../../lib/boardView";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { Crosshair, Swords, Users } from "lucide-react";
@@ -93,6 +94,13 @@ type BoardProps = {
     assignments?: RaidplanAssignment[];
     /** The rings round split groups: all shown (default) or all hidden. */
     showRings?: boolean;
+    /** zoom and pan (a view setting; default = fit) and the frame element, for the code that zooms and pans it */
+    view?: BoardView;
+    frameRef?: MutableRefObject<HTMLDivElement | null> | ((el: HTMLDivElement | null) => void);
+    /** what the board shows besides the icons: the names, the group number badges, the role rings (all default on) */
+    showNames?: boolean;
+    showBadges?: boolean;
+    showRoleRings?: boolean;
     /** the colour / raid mark of the groups (by group number) and the group the others dim for */
     groupColors?: Record<string, string>;
     groupMarks?: Record<string, string>;
@@ -152,15 +160,20 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
     const [setEl, outer] = useElementSize();
     const attach = useCallback((el: HTMLDivElement | null) => {
         setEl(el);
+        if (typeof frameRef === "function") frameRef(el);
+        else if (frameRef) frameRef.current = el;
+    }, [frameRef, setEl]);
+    // the canvas is what the code that drags things measures: its rectangle is the picture as it is shown, at any zoom and pan
+    const attachCanvas = useCallback((el: HTMLDivElement | null) => {
         if (boardRef) (boardRef as MutableRefObject<HTMLDivElement | null>).current = el;
-    }, [boardRef, setEl]);
+    }, [boardRef]);
     useEffect(() => { setAspect(0); }, [mapUrl]);
 
     const mineIds = Array.isArray(me) ? me : me ? [me] : [];
@@ -180,7 +193,7 @@ export default function PlanBoard({
     // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
     // board's real width, so editor, template preview and read view look the same at any size (see lib/boardScale.ts)
     const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
-    const canvas = canvasStyle(outer.w, ar) as CSSProperties;
+    const canvas = { ...canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy), "--rp-os": String(Math.max(0.6, objectScale)) } as CSSProperties;
     const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
@@ -194,7 +207,7 @@ export default function PlanBoard({
 
     return (
         <div
-            className={`rp-board${mapUrl ? " has-map" : ""}`} ref={attach} style={style} data-rp-board
+            className={`rp-board${mapUrl ? " has-map" : ""}${showNames ? "" : " is-nonames"}${showBadges ? "" : " is-nobadges"}${showRoleRings ? "" : " is-noroles"}${view.z !== 1 ? " is-zoomed" : ""}`} ref={attach} style={style} data-rp-board
             onContextMenu={onContext ? (e) => {
                 e.preventDefault();
                 const el = (e.target as HTMLElement).closest("[data-obj]");
@@ -203,7 +216,7 @@ export default function PlanBoard({
                 onContext(e, at > 0 ? { kind: raw.slice(0, at) as ObjectKind, id: raw.slice(at + 1) } : null);
             } : undefined}
         >
-            <div className="rp-canvas" style={canvas}>
+            <div className="rp-canvas" style={canvas} ref={attachCanvas}>
             {mapUrl ? (
                 <img
                     className="rp-map" src={mapUrl} alt={t("raidBoard.board.mapAlt", { boss: bossName })} draggable={false}
@@ -342,7 +355,7 @@ export default function PlanBoard({
                     const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off || ring[at] || { dx: 0, dy: 0 }; }), ...holders];
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
-                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " is-dim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol) } as CSSProperties}>
+                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " rp-gdim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
                                 <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { borderColor: s.ringColor } : {}) }} />
                             )}

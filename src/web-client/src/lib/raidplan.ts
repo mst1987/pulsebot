@@ -30,7 +30,7 @@ export const SIZE_RANGES = {
     text: { def: 18, min: 10, max: 48 },
     line: { def: 4, min: 1, max: 12 },
 };
-export const SCALE_MIN = 0.5;
+export const SCALE_MIN = 0.4;
 export const SCALE_MAX = 2;
 export const DEFAULT_LINE_COLOR = "#f8fafc";
 export const DEFAULT_TEXT_COLOR = "#f8fafc";
@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -114,6 +114,9 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         showRings: b.showRings !== false,
         groupColors: b.groupColors || {},
         groupMarks: b.groupMarks || {},
+        showNames: b.showNames !== false,
+        showBadges: b.showBadges !== false,
+        showRoleRings: b.showRoleRings !== false,
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,

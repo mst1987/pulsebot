@@ -690,5 +690,22 @@
         "focus": "Gruppe hervorheben",
         "legend": "Gruppen",
         "legendFocus": "Gruppe hervorheben (die anderen werden abgedunkelt)"
+    },
+    "zoom": {
+        "title": "Zoom",
+        "in": "Vergrößern (Strg + Mausrad)",
+        "out": "Verkleinern",
+        "fit": "Einpassen (so sieht es das Sheet)",
+        "fitTip": "Zurück auf Einpassen",
+        "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)"
+    },
+    "view": {
+        "title": "Symbolgröße und Anzeige",
+        "iconSize": "Symbolgröße",
+        "reset": "Auf 100 % zurück",
+        "iconSizeHint": "Tokens, Slots, Marker, Boss-Icons und die Namen dazu – auch im Sheet.",
+        "names": "Namen zeigen",
+        "badges": "Nummern-Badges zeigen",
+        "roleRings": "Rollen-Ringe zeigen"
     }
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { MarkIcon } from "../components/raidplan/MarkIcon";
 import { groupColor, groupMark, inkOn } from "../lib/groupStyle";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
+import { useBoardView } from "../lib/useBoardView";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
@@ -33,6 +34,9 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const [selected, setSelected] = useState("");
     const [mapOnly, setMapOnly] = useState(false);
     const [focusGroup, setFocusGroup] = useState(0);
+    const bv = useBoardView();
+    // another section starts fitted again
+    useEffect(() => { bv.fit(); }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
     const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 
     useEffect(() => {
@@ -129,7 +133,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
                                         players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never, data.meIds)} assignments={boss.assignments} showRings={boss.showRings !== false} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
+                                        view={bv.view} frameRef={bv.frame} showNames={boss.showNames !== false} showBadges={boss.showBadges !== false} showRoleRings={boss.showRoleRings !== false}
                                     />
+                                    <div className="rp-zoomctl" role="group" aria-label={t("raidBoard.zoom.title")}>
+                                        <button type="button" aria-label={t("raidBoard.zoom.out")} data-tip={t("raidBoard.zoom.out")} onClick={bv.zoomOut}><ZoomOut size={16} /></button>
+                                        <button type="button" className="rp-zoomctl-pct" aria-label={t("raidBoard.zoom.fit")} data-tip={t("raidBoard.zoom.fitTip")} onClick={bv.fit}>{Math.round(bv.view.z * 100)} %</button>
+                                        <button type="button" aria-label={t("raidBoard.zoom.in")} data-tip={t("raidBoard.zoom.in")} onClick={bv.zoomIn}><ZoomIn size={16} /></button>
+                                    </div>
                                     {wide && (
                                         <button type="button" className="rp-maponly" aria-pressed={mapOnly} data-tip={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} aria-label={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} onClick={() => setMapOnly((v) => !v)}>
                                             {mapOnly ? <Minimize2 size={16} /> : <Maximize2 size={16} />}

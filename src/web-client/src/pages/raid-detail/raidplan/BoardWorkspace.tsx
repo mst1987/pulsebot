@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { BoxSelect, Circle, CircleDashed, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
+import { useBoardView } from "../../../lib/useBoardView";
+import { ViewOptions, ZoomControls } from "./ViewControls";
 import { useToast } from "../../../components/Jobs";
 import { inheritedRows } from "../../../lib/inherit";
 import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
@@ -174,6 +176,11 @@ export default function BoardWorkspace({
     /** the group the map highlights (the others dim): a view setting, not part of the plan */
     const [focusGroup, setFocusGroup] = useState(0);
     const boardRef = useRef<HTMLDivElement>(null);
+    // zoom and pan: a view setting; the frame is what shows the picture, boardRef its (transformed) canvas: dragging measures the canvas, so it is exact at any zoom
+    const bv = useBoardView();
+    const frameEl = useRef<HTMLDivElement | null>(null);
+    const setFrame = useCallback((el: HTMLDivElement | null) => { frameEl.current = el; bv.frame(el); }, [bv.frame]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { bv.fit(); }, [boss.key]); // eslint-disable-line react-hooks/exhaustive-deps
     const panelRef = useRef<HTMLElement>(null);
     const workRef = useRef<HTMLDivElement>(null);
     // The workspace is one screen: opening it scrolls the page so the tool bar sits under the header (wide screens only).
@@ -204,7 +211,9 @@ export default function BoardWorkspace({
     const toBoard = (x: number, y: number) => {
         const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : null;
         if (!rect || !rect.width || !rect.height) return null;
-        return { x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, w: rect.width, h: rect.height, inside: x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom };
+        // "inside" = on the visible part of the picture (zoomed in, the canvas reaches beyond its frame)
+        const fr = frameEl.current ? frameEl.current.getBoundingClientRect() : rect;
+        return { x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, w: rect.width, h: rect.height, inside: x >= Math.max(rect.left, fr.left) && x <= Math.min(rect.right, fr.right) && y >= Math.max(rect.top, fr.top) && y <= Math.min(rect.bottom, fr.bottom) };
     };
 
     /** The board's size in px (for the boxes of text and group markers). */
@@ -777,6 +786,8 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
+                    {!noBoard && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} hand={bv.hand} setHand={bv.setHand} />}
+                    {!noBoard && <ViewOptions board={board} canWrite={canWrite} edit={edit} />}
                     {!noBoard && (
                         <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>
                             {["S", "M", "L"].map((k) => (
@@ -809,11 +820,12 @@ export default function BoardWorkspace({
             <div className={`rp-stage2${showPanel && !noBoard ? "" : " no-dock"}`}>
                 {!noBoard && (
                 <div
-                    className="rp-board-wrap"
+                    className={`rp-board-wrap${bv.hand ? " is-hand" : ""}${bv.panning ? " is-panning" : ""}`}
                     onPointerDown={boardWrapDown} onPointerMove={boardWrapMove} onPointerUp={boardWrapEnd} onPointerCancel={boardWrapEnd}
                 >
                     <PlanBoard
-                        boardRef={boardRef}
+                        boardRef={boardRef} frameRef={setFrame} view={bv.view}
+                        showNames={board.showNames !== false} showBadges={board.showBadges !== false} showRoleRings={board.showRoleRings !== false}
                         bossName={boss.name}
                         bossIcon={boss.iconUrl}
                         mapUrl={boss.mapUrl}

@@ -45,7 +45,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -899,7 +899,7 @@ describe("sizes", () => {
 
     it("sets the board's default object size between 0.5 and 2", () => {
         expect(lib.setObjectScale(lib.emptyBoard(), 1.5).objectScale).toBe(1.5);
-        expect(lib.setObjectScale(lib.emptyBoard(), 0).objectScale).toBe(0.5);
+        expect(lib.setObjectScale(lib.emptyBoard(), 0).objectScale).toBe(0.4);
         expect(lib.setObjectScale(lib.emptyBoard(), 7).objectScale).toBe(2);
         expect(lib.setObjectScale(lib.emptyBoard(), NaN).objectScale).toBe(1);
         expect(lib.hasContent(lib.setObjectScale(lib.emptyBoard(), 1.2))).toBe(true);

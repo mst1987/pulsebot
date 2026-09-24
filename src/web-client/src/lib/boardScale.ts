@@ -16,8 +16,8 @@ export function refHeight(aspect: number): number {
     return REF_W / (aspect > 0 ? aspect : 16 / 10);
 }
 
-/** The css of the canvas: laid out at the reference size, scaled to the board's width. */
-export function canvasStyle(width: number, aspect: number): object {
-    const k = boardScale(width);
-    return { width: REF_W, height: refHeight(aspect), transform: `scale(${k})`, "--rp-k": String(k) };
+/** The css of the canvas: laid out at the reference size, scaled to the board's width and (zoom / pan of the view) enlarged and moved. `--rp-k` = the scale on screen. */
+export function canvasStyle(width: number, height: number, aspect: number, z: number, ox: number, oy: number): object {
+    const s = boardScale(width) * z;
+    return { width: REF_W, height: refHeight(aspect), transform: `translate(${ox * width}px, ${oy * height}px) scale(${s})`, "--rp-k": String(s) };
 }
