@@ -85,7 +85,7 @@ describe("zones", () => {
 describe("the rest of a board", () => {
     it("has every field even for nothing and reports no content", () => {
         const r = clean(undefined);
-        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(board.boardHasContent(r.board)).toBe(false);
         expect(board.boardHasContent(clean({ zones: [{}] }).board)).toBe(true);
         expect(board.boardHasContent(clean({ notes: "x" }).board)).toBe(true);
@@ -347,5 +347,22 @@ describe("ring switch and group scales", () => {
         expect(r.slots[0]).toMatchObject({ groupScale: 4, ringSpread: 0.25, tokenScale: 1 });
         expect(r.slots[1]).toMatchObject({ groupScale: 1, ringSpread: 1, tokenScale: 1 });
         expect(require("../../src/web/raidplanBoard").cleanFactor(1.234)).toBe(1.23);
+    });
+});
+
+describe("saved default view", () => {
+    const { cleanView } = require("../../src/web/raidplanBoard");
+    it("keeps a zoom above 100 % (at most 400 %) with its centre inside the board, else nothing", () => {
+        expect(cleanView({ zoom: 2.5, cx: 0.3, cy: 0.6 })).toEqual({ zoom: 2.5, cx: 0.3, cy: 0.6 });
+        expect(cleanView({ zoom: 9, cx: 3, cy: -1 })).toEqual({ zoom: 4, cx: 1, cy: 0 });
+        expect(cleanView({ zoom: 1, cx: 0.5, cy: 0.5 })).toBe(null);
+        expect(cleanView({ zoom: 2, cx: "x", cy: 0.5 })).toBe(null);
+        expect(cleanView(null)).toBe(null);
+    });
+    it("is part of the board and makes it non-empty", () => {
+        const r = clean({ view: { zoom: 2, cx: 0.4, cy: 0.4 } });
+        expect(r.board.view).toEqual({ zoom: 2, cx: 0.4, cy: 0.4 });
+        expect(board.isEmptyBoard ? board.isEmptyBoard(r.board) : false).toBe(false);
+        expect(clean({}).board.view).toBe(null);
     });
 });

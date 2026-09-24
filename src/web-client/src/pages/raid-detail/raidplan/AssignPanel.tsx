@@ -379,6 +379,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                 </div>
             </div>
             {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.explain")}</p>}
+            {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.facingHint")}</p>}
             {shown.length === 0 && <p className="rp-muted rp-assign-empty">{t("raidBoard.assign.emptyRead")}</p>}
             <div className="rp-cards">
                 {shown.map((type) => {

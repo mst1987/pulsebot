@@ -153,6 +153,7 @@ function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
     const pref = cleanClasses(prefer);
     if (!pref.length) return base;
     // a row's own preferred classes win over the catalog's; the usual classes only follow when others are allowed
+    // no silent fallback: the usual classes only follow when the row explicitly allows others
     return allowOthers ? [...pref, ...base.filter((c) => !pref.includes(c))] : pref;
 }
 
@@ -205,6 +206,8 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     const tanks = slotsOf(slots, "tank");
     const pc = cleanClasses(preferredClasses);
     const classes = (t) => classesFor(t, pc, allowOthers, versionId);
+    // a template has no players: the suggestion names classes instead ("the first free Hunter"), resolved from the setup when the template is applied
+    if (roster.length === 0 && ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"].includes(type)) return suggestClassRows(type, tanks, classes(type), pc, allowOthers);
     if (type === "heal") return suggestHeal({ slots, roster, groups, preferredClasses: pc, allowOthers });
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
@@ -239,6 +242,18 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     return [];
 }
 
+
+/** The class-reference rows of a suggestion without a setup (a template): one class reference per class of the task, in the order of the classes. */
+function suggestClassRows(type, tanks, cls, pc, allowOthers) {
+    const ref = (c, n = 1) => `class:${c}:${n}`;
+    if (!cls.length) return [];
+    if (type === "md" || type === "fearward") return tanks.slice(0, 3).map((s) => make(type, cls.slice(0, 2).map((c) => ref(c)), [{ kind: "slot", ref: `tank:${s.n}` }], null, pc, allowOthers));
+    if (type === "kick") return [make("kick", cls.slice(0, 3).map((c) => ref(c)), [], null, pc, allowOthers)];
+    if (type === "curse") return Array.from({ length: 3 }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], null, pc, allowOthers));
+    if (type === "thunderclap") return [make(type, [ref(cls[0], 1), ref(cls[0], 2)], [], null, pc, allowOthers)];
+    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
+}
+
 /** Whether a suggestion of this type exists (the button is offered). */
 const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
 
@@ -266,6 +281,8 @@ const parseClassRef = (ref) => {
     const n = Number(p[1]);
     return p.length < 2 || !p[0] || !(n >= 1) ? null : { classId: p[0], n, role: p[2] || "" };
 };
+/** The role a kind of task needs by itself: healing is done by healers (the SPEC's role from the setup, never the class), tanking by tanks. */
+const impliedRole = (type) => (type === "heal" ? "healer" : type === "tank" || type === "trashtank" ? "tank" : "");
 const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !== "tank" && role !== "healer" : role === filter);
 
 /** The assignments with every class reference replaced by the raider it means (the n-th free one of the class); an unfilled one stays a reference. */
@@ -292,7 +309,8 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
         if (hand && byId.has(hand)) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const pool = roster.filter((p) => p.classId === q.classId && roleFits(q.role, roles[p.userId] || p.role));
+        const want = q.role || impliedRole(a.type);
+        const pool = roster.filter((p) => p.classId === q.classId && roleFits(want, roles[p.userId] || p.role));
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) { take(bag, a.type, free.userId); return free.userId; }
@@ -306,6 +324,7 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
 }
 
 module.exports = {
+    impliedRole,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

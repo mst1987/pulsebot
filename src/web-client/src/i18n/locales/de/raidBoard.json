@@ -264,7 +264,8 @@
         "panel": "Eigenschaften ein-/ausblenden",
         "bes": "Besetzung ein-/ausblenden",
         "select": "Auswahlmodus (Antippen fügt hinzu / nimmt heraus, Gummiband auf leerer Fläche)",
-        "rings": "Gruppenrahmen ein-/ausblenden (alle auf einmal)"
+        "rings": "Gruppenrahmen ein-/ausblenden (alle auf einmal)",
+        "preview": "Sheet-Vorschau: so sieht es die Lese-Ansicht (ohne Griffe und Auswahl)"
     },
     "palette": {
         "title": "Elemente",
@@ -400,7 +401,9 @@
         "compass": "Himmelsrichtung",
         "facingHint": "Ziehen am Griff über dem Icon dreht (Umschalt = 15°-Schritte), Q / E drehen um 15°.",
         "autoFace": "Automatisch zum Tank",
-        "autoFaceOn": "folgt dem Tank"
+        "autoFaceOn": "folgt dem Tank",
+        "manual": "Manuell",
+        "backToAuto": "Wieder automatisch"
     },
     "compass": {
         "N": "Norden",
@@ -559,8 +562,7 @@
         "task": "Aufgabe",
         "search": "Suchen …",
         "classes": "Bevorzugte Klasse",
-        "allowOthers": "Andere Klassen zulassen",
-        "classHint": "Vorschläge nehmen zuerst diese Klassen. Passt niemand, bleibt die Zeile leer – außer du lässt andere zu.",
+        "classHint": "Vorschläge nehmen nur diese Klassen. Passt niemand, bleibt die Zeile leer.",
         "suggest": "Zuständige vorschlagen",
         "bind": "Klasse an die Slots binden",
         "bindTip": "Die gewählten Klassen gelten dann für die Slots dieser Zeile (z. B. DPS 3 = Schurke)",
@@ -592,7 +594,12 @@
         "colMembers": "Mitglieder",
         "colHealedBy": "Geheilt von",
         "yourGroup": "Deine Gruppe",
-        "nobody": "– niemand –"
+        "nobody": "– niemand –",
+        "ghView": "Ansicht der Gruppenheilung",
+        "byGroup": "Nach Gruppe",
+        "byHealer": "Nach Heiler",
+        "onlyMine": "Nur für mich",
+        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen"
     },
     "multi": {
         "count": "{n} ausgewählt",
@@ -616,7 +623,8 @@
         "copyText": "Die {count} Zeilen des Standards werden als eigene Zeilen in jeden Boss geschrieben, der noch nicht vom Standard abweicht. Bosse mit Abweichung bleiben unberührt. Ein Strg+Z macht alles rückgängig.",
         "copyEmpty": "Der Standard hat noch keine Zeilen.",
         "copied": "In {count} Bosse kopiert.",
-        "explain": "Der Standard ist die Tank- und Heiler-Grundaufstellung, die jeder Boss und jeder Trash übernimmt („Tank 1 → Boss“ zeigt bei jedem Boss dessen Boss). Ein Boss kann davon abweichen oder eine Zeile ausblenden. „Allgemein“ ist etwas anderes: Raid-Utility wie Flüche, einmal für den ganzen Raid."
+        "explain": "Der Standard ist die Tank- und Heiler-Grundaufstellung, die jeder Boss und jeder Trash übernimmt („Tank 1 → Boss“ zeigt bei jedem Boss dessen Boss). Ein Boss kann davon abweichen oder eine Zeile ausblenden. „Allgemein“ ist etwas anderes: Raid-Utility wie Flüche, einmal für den ganzen Raid.",
+        "facingHint": "Tank → Boss folgt automatisch in jedem Boss: der Keil des Boss-Icons zeigt zum platzierten Tank. Allgemein hat keine Map; Tank → Boss gehört hierher, in den Standard."
     },
     "roster": {
         "title": "Besetzung zuweisen",
@@ -697,7 +705,17 @@
         "out": "Verkleinern",
         "fit": "Einpassen (so sieht es das Sheet)",
         "fitTip": "Zurück auf Einpassen",
-        "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)"
+        "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)",
+        "actual": "100 %",
+        "actualTip": "Bildpunkte 1:1 (das Bild in Referenzgröße)",
+        "saveView": "Ausschnitt als Standard speichern (das Sheet öffnet damit)",
+        "clearView": "Gespeicherten Ausschnitt zurücksetzen",
+        "whole": "Ganzes Bild",
+        "wholeTip": "Zurück zum ganzen Bild",
+        "cutout": "Ausschnitt",
+        "cutoutTip": "Zum vorgegebenen Ausschnitt",
+        "minimap": "Übersicht: Klick oder Ziehen verschiebt den Ausschnitt",
+        "pan": "Bild verschieben: auf leerem Hintergrund ziehen, Leertaste + Ziehen, Pfeiltasten. Auswahlrechteck: Umschalt + Ziehen."
     },
     "view": {
         "title": "Symbolgröße und Anzeige",
@@ -715,6 +733,7 @@
         "forMe": "Nur für dich, in diesem Browser gemerkt.",
         "forPlan": "Im Plan gespeichert (auch im Sheet).",
         "localHead": "Nur bei dir",
-        "planHead": "Im Plan"
+        "planHead": "Im Plan",
+        "minimap": "Übersichtskarte beim Zoomen"
     }
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
 import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } from "lucide-react";
-import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
+import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import {
     COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
@@ -46,7 +46,7 @@ export function SizeField({ label, value, min, max, step = 1, unit = "px", onCha
  * and player), opacity for every kind, and the actions — lock, duplicate, front /
  * back, delete — as icon buttons. Nothing selected: a hint.
  */
-export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, onSelect, focusGroup = 0, onFocusGroup }: {
+export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, editAll, rows, onSelect, focusGroup = 0, onFocusGroup }: {
     board: RaidplanBoard;
     selection: Selection;
     /** several objects selected: only what they share is shown */
@@ -58,6 +58,9 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
     canWrite: boolean;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     onSelect: (sel: Selection) => void;
+    editAll?: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
+    /** the effective rows of the section (own + inherited, resolved): what an icon's auto facing follows */
+    rows?: RaidplanAssignment[];
     /** the group the map highlights (0 = none) and the switch for it */
     focusGroup?: number;
     onFocusGroup?: (n: number) => void;
@@ -239,11 +242,12 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     <label className="rp-check"><input type="checkbox" checked={icon.showLabel} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { showLabel: e.target.checked }))} /> {t("raidBoard.icon.showLabel")}</label>
                     {canFace(icon.iconKey) && (
                         <>
-                            {icon.mobId && (
-                                <label className="rp-check">
-                                    <input type="checkbox" checked={icon.autoFace} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { autoFace: e.target.checked }))} /> {t("raidBoard.icon.autoFace")}
-                                    {followsTank(board, icon) && <span className="rp-muted"> · {t("raidBoard.icon.autoFaceOn")}</span>}
-                                </label>
+                            <label className="rp-check">
+                                <input type="checkbox" checked={icon.autoFace !== false} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { autoFace: e.target.checked }))} /> {t("raidBoard.icon.autoFace")}
+                                {followsTank({ ...board, assignments: rows || board.assignments }, icon) && <span className="rp-muted"> · {t("raidBoard.icon.autoFaceOn")}</span>}
+                            </label>
+                            {icon.autoFace === false && (
+                                <span className="rp-manual"><strong>{t("raidBoard.icon.manual")}</strong> <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateIcon(b, id, { autoFace: true }))}>{t("raidBoard.icon.backToAuto")}</button></span>
                             )}
                             <SizeField label={t("raidBoard.icon.facing")} value={icon.rotation} min={0} max={359} step={1} onChange={(v) => !dis && edit((b) => updateIcon(b, id, { rotation: normAngle(v), autoFace: false }), true)} />
                             <div className="rp-compass" role="group" aria-label={t("raidBoard.icon.compass")}>
@@ -263,7 +267,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
 
             {slot && slot.kind === "group" && (
                 <div className="rp-field">
-                    <GroupStyle board={board} n={slot.n} canWrite={canWrite} edit={edit} focused={focusGroup === slot.n} onFocus={onFocusGroup ? () => onFocusGroup(focusGroup === slot.n ? 0 : slot.n) : undefined} />
+                    <GroupStyle board={board} n={slot.n} canWrite={canWrite} edit={editAll || edit} focused={focusGroup === slot.n} onFocus={onFocusGroup ? () => onFocusGroup(focusGroup === slot.n ? 0 : slot.n) : undefined} />
                     <label className="rp-check"><input type="checkbox" checked={!slot.hideMembers} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { hideMembers: !e.target.checked }))} /> {t("raidBoard.insp.showMembers")}</label>
                     <label className="rp-check"><input type="checkbox" checked={slot.split} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { split: e.target.checked }))} /> {t("raidBoard.insp.split")}</label>
                     {slot.split && Object.keys(slot.offsets || {}).length > 0 && (

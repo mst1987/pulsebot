@@ -73,3 +73,37 @@ describe("pan, wheel, buttons and pinch", () => {
         expect(bv.pinchView({ z: 2, ox: -0.5, oy: -0.5 }, 0, 0.5, 0.5, 0.3, 0.5, 0.5)).toEqual({ z: 2, ox: -0.5, oy: -0.5 });
     });
 });
+
+describe("saved default view", () => {
+    it("centre and visible rectangle agree, the centre is where the frame's middle is", () => {
+        const v = bv.centerOn(2.5, 0.3, 0.6);
+        const c = bv.centerOf(v);
+        close(c.cx, 0.3);
+        close(c.cy, 0.6);
+        const r = bv.visibleRect(v);
+        close(r.w, 0.4);
+        close(r.x + r.w / 2, 0.3);
+        expect(bv.visibleRect(bv.FIT)).toMatchObject({ w: 1, h: 1 });
+    });
+    it("a centre near the edge is kept inside the picture (no gap)", () => {
+        const v = bv.centerOn(2, 0.02, 0.98);
+        const r = bv.visibleRect(v);
+        expect(r.x).toBeGreaterThanOrEqual(-1e-9);
+        expect(r.y + r.h).toBeLessThanOrEqual(1 + 1e-9);
+    });
+    it("stores nothing for the whole picture, rounds the rest, and opens the same view again", () => {
+        expect(bv.savedView(bv.FIT)).toBe(null);
+        expect(bv.savedView({ z: 0.7, ox: 0.15, oy: 0.15 })).toBe(null);
+        const s = bv.savedView(bv.centerOn(2.5, 0.3, 0.6));
+        expect(s).toEqual({ zoom: 2.5, cx: 0.3, cy: 0.6 });
+        const back = bv.viewFromSaved(s);
+        close(bv.centerOf(back).cx, 0.3);
+        expect(back.z).toBe(2.5);
+    });
+    it("an unusable saved view opens the whole picture", () => {
+        expect(bv.viewFromSaved(null)).toEqual(bv.FIT);
+        expect(bv.viewFromSaved({ zoom: 1, cx: 0.5, cy: 0.5 })).toEqual(bv.FIT);
+        expect(bv.viewFromSaved({ zoom: 2, cx: NaN, cy: 0.5 })).toEqual(bv.FIT);
+        expect(bv.viewFromSaved({ zoom: 99, cx: 5, cy: -1 }).z).toBe(4);
+    });
+});

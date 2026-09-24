@@ -53,5 +53,7 @@
     "note": "Note",
     "similar": "Placeholder icon",
     "similarTip": "Not the real NPC picture: a similar WoW icon by the kind of creature. Override the entry to set your own.",
-    "iconSearch": "Search icons (kind or name)"
+    "iconSearch": "Search icons (kind or name)",
+    "versions": "Game version",
+    "versionsHint": "Empty = every version. Otherwise only in the chosen ones (a TBC plan shows TBC entries only)."
 }

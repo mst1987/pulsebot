@@ -9,7 +9,9 @@ import { useT } from "../../../i18n";
  * classes the catalog suggests for this kind of task carry a mark, and an optional role limits the next ones added (Priest - healer). What is
  * chosen shows as removable chips; the raid's players fill them in automatically (lib/classRefs.ts), nothing else has to be chosen first.
  */
-export default function ClassPicker({ refs, suggested, disabled, onAdd, onRemove, label }: {
+export default function ClassPicker({ refs, suggested, disabled, onAdd, onRemove, label, defaultRole = "" }: {
+    /** the role new references get (healing: healer, tanking: tank): the class alone is never enough */
+    defaultRole?: string;
     /** the class references chosen so far, in the target form ("Hunter:1[:role]") */
     refs: string[];
     /** the classes the catalog suggests for this kind of task */
@@ -20,7 +22,7 @@ export default function ClassPicker({ refs, suggested, disabled, onAdd, onRemove
     label: string;
 }) {
     const t = useT();
-    const [role, setRole] = useState("");
+    const [role, setRole] = useState(defaultRole);
     return (
         <div className="rp-cpick" role="group" aria-label={label}>
             <span className="rp-kicker">{label}</span>

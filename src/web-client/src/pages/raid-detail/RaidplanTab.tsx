@@ -43,7 +43,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
     const [view, setView] = useState<RaidplanView | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const { draft, edit: histEdit, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
+    const { draft, edit: histEdit, editAll: histEditAll, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
     const [selected, setSelected] = useState("");
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);
@@ -86,6 +86,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const canWrite = !!view && view.canWrite;
 
     /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
+    // the colours and marks of the groups are the plan's, not one boss's: one step over every board with a map
+    const editAllBoards = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
+        histEditAll(view ? view.bosses.filter((b) => !b.general).map((b) => b.key) : [], fn, coalesce);
+    }, [histEditAll, view]);
     const editBoard = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
         histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, roster)), coalesce);
     }, [histEdit, besetzung, roster]);
@@ -190,7 +194,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             {boss && (
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
-                    mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
+                    mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}

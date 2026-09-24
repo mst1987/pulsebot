@@ -6,7 +6,7 @@ import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { sectionsOf, filterItems, type FlyItem } from "../../../lib/flyout";
 import { CLASS_IDS, classIconOf, classesForType, patchAssignment, toggleAssignee, toggleTarget } from "../../../lib/assign";
-import { classRef, classTargetRef, expandClassRefs, isClassRef, pickKey } from "../../../lib/classRefs";
+import { classRef, classTargetRef, expandClassRefs, impliedRole, isClassRef, pickKey } from "../../../lib/classRefs";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
 import { useT } from "../../../i18n";
 
@@ -85,7 +85,7 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
     const setPick = (key: string, userId: string) => set((b) => { const cur = (b.assignments.find((x) => x.id === rowId) || { picks: {} }).picks || {}; const next = { ...cur }; if (userId) next[key] = userId; else delete next[key]; return patchAssignment(b, rowId, { picks: next }); });
     const suggestClasses = () => set((b) => {
         let cur = b.assignments.find((x) => x.id === rowId);
-        for (const c of suggested) if (cur && !cur.assignees.some((r) => isClassRef(r) && r.indexOf(`class:${c}:`) === 0)) { b = toggleAssignee(b, rowId, classRef(c, 1, "")); cur = b.assignments.find((x) => x.id === rowId); }
+        for (const c of suggested) if (cur && !cur.assignees.some((r) => isClassRef(r) && r.indexOf(`class:${c}:`) === 0)) { b = toggleAssignee(b, rowId, classRef(c, 1, impliedRole(row.type))); cur = b.assignments.find((x) => x.id === rowId); }
         return b;
     });
     const suggest = async () => {
@@ -117,7 +117,7 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                     <input value={qWho} placeholder={t("raidBoard.am.search")} aria-label={t("raidBoard.am.search")} onChange={(e) => setQWho(e.target.value)} />
                     {grid(who, (k) => set((b) => toggleAssignee(b, rowId, k)))}
                     <ClassPicker
-                        label={t("raidBoard.class.title")} refs={asClasses} suggested={suggested}
+                        label={t("raidBoard.class.title")} refs={asClasses} suggested={suggested} defaultRole={impliedRole(row.type)}
                         onAdd={(c, n, role) => set((b) => toggleAssignee(b, rowId, classRef(c, n, role)))} onRemove={(ref) => set((b) => toggleAssignee(b, rowId, ref))}
                     />
                     {suggested.length > 0 && <Button variant="ghost" onClick={suggestClasses}><Wand2 size={15} /> {t("raidBoard.class.addSuggested")}</Button>}
@@ -145,9 +145,6 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                             </button>
                         ))}
                     </div>
-                    <label className="rp-check">
-                        <input type="checkbox" checked={!!row.allowOthers} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowOthers: e.target.checked }))} /> {t("raidBoard.am.allowOthers")}
-                    </label>
                     <span className="rp-muted">{t("raidBoard.am.classHint")}</span>
                     {(asClasses.length > 0 || atClasses.length > 0) && (
                         <label className="rp-check"><input type="checkbox" checked={!!row.allowMulti} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowMulti: e.target.checked }))} /> {t("raidBoard.class.allowMulti")}</label>

@@ -40,6 +40,11 @@ export function nextClassN(refs: string[], classId: string): number {
     return Math.min(9, top + 1);
 }
 
+/** The role a kind of task needs by itself (from the SPEC's role in the setup, never from the class): healing -> healer, tanking -> tank, else none. */
+export function impliedRole(type: string): string {
+    return type === "heal" ? "healer" : type === "tank" || type === "trashtank" ? "tank" : "";
+}
+
 /** Whether a player of this role (on this boss) passes the role filter of a class reference. */
 export function roleFits(filter: string, role: string): boolean {
     if (!filter) return true;
@@ -82,7 +87,8 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         if (hand && byId[hand]) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const pool = roster.filter((p) => p.classId === q.classId && roleFits(q.role, roles[p.userId] || p.role));
+        const want = q.role || impliedRole(a.type);
+        const pool = roster.filter((p) => p.classId === q.classId && roleFits(want, roles[p.userId] || p.role));
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) {
