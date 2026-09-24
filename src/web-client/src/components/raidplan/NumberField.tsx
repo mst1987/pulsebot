@@ -38,7 +38,7 @@ export function NumberField({ value, min, max, step = 1, unit = "", decimals = 0
         }
     };
     return (
-        <span className={`rp-num${disabled ? " is-disabled" : ""}`}>
+        <span className={`rp-num${disabled ? " is-inert" : ""}`}>
             <input
                 type="text" inputMode={decimals > 0 ? "decimal" : "numeric"} value={text} disabled={disabled} aria-label={label}
                 onChange={(e) => setText(e.target.value)} onFocus={(e) => { setFocused(true); e.target.select(); }} onBlur={() => { setFocused(false); commit(); }} onKeyDown={key}

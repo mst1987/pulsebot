@@ -719,7 +719,7 @@ describe("the pages", () => {
 
     it("gives every kind of object an opacity control, and the map its own", () => {
         expect(insp).toContain("OpacityField");
-        expect(insp).toContain("type=\"range\" min={10} max={100}");
+        expect(insp).toContain("min={10} max={100} step={5} unit=\"%\"");
         expect(insp).toContain("MapOpacityField");
         expect(board2).toContain("style={{ opacity: mapOpacity }}");
         expect(board2).toContain("opacity: l.opacity");

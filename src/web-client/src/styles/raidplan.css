@@ -879,7 +879,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-num { position: relative; display: inline-flex; align-items: center; width: 84px; flex: 0 0 auto; }
 .rp-dock .rp-num input, .rp-num input { width: 100%; text-align: right; padding-right: 27px; font-variant-numeric: tabular-nums; }
 .rp-num i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12px; color: var(--muted); pointer-events: none; }
-.rp-num.is-disabled i { opacity: .5; }
+.rp-num.is-inert i { opacity: .5; }
 .rp-num input::-webkit-outer-spin-button, .rp-num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 /* slider + number: the slider takes the room, the number keeps its width, both on one centre line */
 .rp-sf { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h-sm, 32px); }
