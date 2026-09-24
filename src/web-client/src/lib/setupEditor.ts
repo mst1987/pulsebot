@@ -7,7 +7,7 @@
 // Written to be strippable like raidTemplates.ts (test/web-client/setupEditor.test.js
 // runs it for real, with `t` injected): imports, `export type` and one-line
 // signatures only.
-import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, StoredSetup } from "../api";
+import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, SetupSearch, StoredSetup } from "../api";
 import { t } from "../i18n";
 
 export const GROUP_SIZE = 5;
@@ -377,4 +377,16 @@ export function publishHint(publish: SetupPublish | undefined, approved: boolean
         lines.unshift(t("setup.publish.outdated", { version: publish.posted.version }));
     }
     return { tone, text: parts.join(" · "), tip: t("setup.publish.tip"), sub: lines.join("\n") || t("setup.publish.reapproveSub"), running, canPost: true };
+}
+
+/** The missing buffs, one row per set of specs that brings them — six blessings of the same paladin specs are one row, not six. */
+export function groupSearchBuffs(buffs: SetupSearch["buffs"]): { id: string; required: boolean; specs: string[]; buffs: SetupSearch["buffs"] }[] {
+    const groups = [];
+    for (const b of buffs) {
+        const id = `${b.required}:${b.specs.join(",")}`;
+        const hit = groups.find((g) => g.id === id);
+        if (hit) hit.buffs.push(b);
+        else groups.push({ id, required: b.required, specs: b.specs, buffs: [b] });
+    }
+    return groups;
 }
