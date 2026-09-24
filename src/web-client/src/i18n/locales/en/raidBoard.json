@@ -459,7 +459,24 @@
         "removeCardTitle": "Remove the \"{type}\" card?",
         "removeCardText": "{count} rows of this card are deleted. Ctrl+Z undoes it.",
         "hide": "Hide",
-        "outOfClass": "Not the preferred class of this assignment"
+        "outOfClass": "Not the preferred class of this assignment",
+        "badge": {
+            "tank": "TANKS",
+            "trashtank": "TANKS",
+            "heal": "HEALS",
+            "kick": "KICK",
+            "md": "MISDIRECT",
+            "ss": "SOULSTONE",
+            "fearward": "FEARWARD",
+            "special": "SPECIAL",
+            "dispel": "DISPEL",
+            "cc": "CC",
+            "buff": "BUFF",
+            "curse": "CURSE",
+            "thunderclap": "THUNDER CLAP",
+            "demoshout": "DEMO SHOUT",
+            "other": "TASK"
+        }
     },
     "bes": {
         "title": "Roster slots",
@@ -520,5 +537,19 @@
         "stepS": "Small map",
         "stepM": "Medium map",
         "stepL": "Large map"
+    },
+    "read": {
+        "mine": "My assignments",
+        "notInPlan": "You have no assignment in this section of the plan.",
+        "loginHint": "Log in to see your assignments.",
+        "colTank": "Tank",
+        "colTarget": "Target",
+        "colHealers": "Healers",
+        "colHealer": "Healer",
+        "colGroups": "Groups",
+        "colPlayer": "Player",
+        "colOrder": "#",
+        "colTargetAbility": "Target / ability",
+        "groupHeal": "Group healing"
     }
 }

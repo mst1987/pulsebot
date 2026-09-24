@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
-import { AssignTable, PlayerTasksList } from "./raid-detail/raidplan/AssignPanel";
+import ReadTables, { ByPlayerLog } from "./raid-detail/raidplan/ReadTables";
 import { assignmentLinks, isMine } from "../lib/assign";
 import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
@@ -74,32 +74,32 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     </div>
 
                     {boss && (
-                        <div className="rp-public-body">
-                            {!boss.general && <PlanBoard
+                        <div className={`rp-read-2col${boss.general ? " no-board" : ""}`}>
+                            <div className="rp-read-left">
+                                <div className="rp-public-side">
+                                    {boss.profileName && <p className="rp-muted">{t("raidBoard.public.tactic", { name: boss.profileName })}</p>}
+                                    {data.me && <p className={mineHere ? "rp-me-note" : "rp-muted"}>{mineHere ? t("raidBoard.public.you") : t("raidBoard.public.youNot")}</p>}
+                                    {boss.notes.trim() && (
+                                        <>
+                                            <h2 className="rp-kicker rp-h2">{t("raidBoard.public.notes")}</h2>
+                                            <p className="rp-notes-text">{boss.notes}</p>
+                                        </>
+                                    )}
+                                </div>
+                                <ReadTables assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} />
+                            </div>
+                            {!boss.general && (
+                                <div className="rp-read-right">
+                                    <PlanBoard
                                 bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl}
                                 tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
                                 players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never)}
-                            />}
-                            <div className="rp-public-side">
-                                {boss.profileName && <p className="rp-muted">{t("raidBoard.public.tactic", { name: boss.profileName })}</p>}
-                                {data.me
-                                    ? <p className={mineHere ? "rp-me-note" : "rp-muted"}>{mineHere ? t("raidBoard.public.you") : t("raidBoard.public.youNot")}</p>
-                                    : <p className="rp-muted">{t("raidBoard.public.loginHint")} <a className="mlink" href={`/auth/login?next=/p/${token}`}>{t("raidBoard.public.login")}</a></p>}
-                                {boss.notes.trim() && (
-                                    <>
-                                        <h2 className="rp-kicker rp-h2">{t("raidBoard.public.notes")}</h2>
-                                        <p className="rp-notes-text">{boss.notes}</p>
-                                    </>
-                                )}
-                            </div>
+                            />
+                                </div>
+                            )}
                         </div>
                     )}
-                    {boss && (
-                        <div className="rp-read-assign">
-                            <PlayerTasksList assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} yours />
-                            <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} />
-                        </div>
-                    )}
+                    {boss && <ByPlayerLog assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} />}
                 </>
             )}
         </div>

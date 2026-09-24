@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
+import TypeBadge from "./TypeBadge";
 import { AlertTriangle, ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { Badge, IconButton, useConfirm } from "../../../components/ui";
@@ -364,13 +365,11 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             {view === "cards" && <div className="rp-cards">
                 {shown.map((type) => {
                     const rows = rowsOfType(board.assignments, type);
-                    const meta = ASSIGN_META[type] || ASSIGN_META.other;
                     const fold = folded.indexOf(type) >= 0;
                     return (
                         <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
                             <header className="rp-acard-head">
-                                <WowIcon name={meta.icon} size={24} />
-                                <strong>{t(`raidBoard.assign.type.${type}`)}</strong>
+                                <TypeBadge type={type} label={t(`raidBoard.assign.type.${type}`)} size={24} />
                                 <span className="rp-acard-count">{rows.length}</span>
                                 <span className="rp-acard-tools">
                                     {canWrite && SUGGESTABLE.indexOf(type) >= 0 && (

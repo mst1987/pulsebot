@@ -459,7 +459,24 @@
         "removeCardTitle": "Karte „{type}“ entfernen?",
         "removeCardText": "{count} Zeilen dieser Karte werden gelöscht. Mit Strg+Z lässt es sich rückgängig machen.",
         "hide": "Ausblenden",
-        "outOfClass": "Nicht die bevorzugte Klasse dieser Einteilung"
+        "outOfClass": "Nicht die bevorzugte Klasse dieser Einteilung",
+        "badge": {
+            "tank": "TANKT",
+            "trashtank": "TANKT",
+            "heal": "HEILT",
+            "kick": "KICK",
+            "md": "MISDIRECT",
+            "ss": "SOULSTONE",
+            "fearward": "FEARWARD",
+            "special": "SPEZIAL",
+            "dispel": "DISPEL",
+            "cc": "CC",
+            "buff": "BUFF",
+            "curse": "CURSE",
+            "thunderclap": "DONNERKNALL",
+            "demoshout": "DEMO-RUF",
+            "other": "AUFGABE"
+        }
     },
     "bes": {
         "title": "Besetzung",
@@ -520,5 +537,19 @@
         "stepS": "Map klein",
         "stepM": "Map mittel",
         "stepL": "Map groß"
+    },
+    "read": {
+        "mine": "Meine Einteilungen",
+        "notInPlan": "Für dich steht in diesem Abschnitt keine Einteilung im Plan.",
+        "loginHint": "Einloggen, um deine Einteilungen zu sehen.",
+        "colTank": "Tank",
+        "colTarget": "Ziel",
+        "colHealers": "Heiler",
+        "colHealer": "Heiler",
+        "colGroups": "Gruppen",
+        "colPlayer": "Spieler",
+        "colOrder": "#",
+        "colTargetAbility": "Ziel / Ability",
+        "groupHeal": "Gruppenheilung"
     }
 }
