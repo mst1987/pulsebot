@@ -82,7 +82,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -116,6 +116,8 @@ export default function BoardWorkspace({
     /** template editor: the rows of the Standard (inherited by every boss) and the action that writes them into every boss */
     defaultRows?: RaidplanAssignment[];
     onCopyDefaults?: () => void;
+    /** the logged-in user's own characters in the lineup (highlighted on the board and in the lines) */
+    me?: string[];
 }) {
     const t = useT();
     const toast = useToast();
@@ -182,7 +184,7 @@ export default function BoardWorkspace({
     const scope = scopeOf(boss);
     /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */
     const noBoard = scope === "general" || scope === "defaults";
-    const links = useMemo(() => (showLinks ? assignmentLinks(board) : []), [showLinks, board]);
+    const links = useMemo(() => (showLinks ? assignmentLinks(board, me || []) : []), [showLinks, board, me]);
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
@@ -823,6 +825,7 @@ export default function BoardWorkspace({
                         onContext={canWrite ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
+                        me={me}
                         multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined} onMultiMove={canWrite ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />

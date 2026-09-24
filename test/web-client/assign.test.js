@@ -215,9 +215,17 @@ describe("tasks derived from the assignments", () => {
         const all = lib.tasksByAssignee(list, ctx);
         expect(all.map((x) => x.who.label)).toEqual(["Heiler 1", "Heiler 2", "Schleich"]);
         const heilbert = all.find((x) => x.who.player && x.who.player.userId === "h1");
-        expect(heilbert.tasks.map((k) => k.text)).toEqual(["Heilt Tank 1 + Gruppe 3", "Fear #2"]);
+        // the tank slot is filled: the sentence names the PLAYER, a group stays "Gruppe 3"
+        expect(heilbert.tasks.map((k) => k.text)).toEqual(["Heilt Tank + Gruppe 3", "Fear #2"]);
         const open = all.find((x) => x.who.open && x.who.ref === "slot:healer:2");
-        expect(open.tasks[0].text).toBe("Heilt Tank 1 + Gruppe 3");
+        expect(open.tasks[0].text).toBe("Heilt Tank + Gruppe 3");
+        // an OPEN slot keeps its label
+        const openTank = lib.taskText({ id: "z", type: "heal", title: "", spell: null, assignees: ["slot:healer:1"], targets: [{ kind: "slot", ref: "tank:2" }, { kind: "group", ref: "3" }], note: "", suggested: false }, 0, ctx);
+        expect(openTank).toBe("Heilt Tank 2 + Gruppe 3");
+        expect(lib.nameOf(lib.resolveTarget({ kind: "slot", ref: "tank:1" }, ctx))).toBe("Tank");
+        expect(lib.nameOf(lib.resolveTarget({ kind: "slot", ref: "tank:2" }, ctx))).toBe("Tank 2");
+        expect(lib.nameOf(lib.resolveTarget({ kind: "group", ref: "3" }, ctx))).toBe("Gruppe 3");
+        expect(lib.nameOf(lib.resolveTarget({ kind: "text", ref: "Fear" }, ctx))).toBe("Fear");
         const rogue = all.find((x) => x.who.player && x.who.player.userId === "r1");
         expect(rogue.tasks.map((k) => k.text)).toEqual(["Fear #1", "Soulstone auf Heilbert"]);
         expect(rogue.tasks[0].icon).toBe("ability_kick");

@@ -4228,6 +4228,8 @@ export type RaidplanProfile = { id: string; name: string; category: string; boss
 export type RaidplanProfileInput = { name?: string; category?: string; bossKey?: string; targets?: { title: string }[]; notes?: string };
 export type RaidplanProfiles = { profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
 export type RaidplanView = {
+    /** the players of the lineup the logged-in user is (own account + raider profile characters) */
+    meIds?: string[];
     eventId: string;
     event: { id: string; title: string; startTime: number };
     canWrite: boolean;

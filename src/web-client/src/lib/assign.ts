@@ -6,6 +6,7 @@
 //
 // Written to be strippable (test/web-client/assign.test.js runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
+import { mentionsInRow } from "./mention";
 import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../api";
 import { t } from "../i18n";
 
@@ -157,8 +158,13 @@ export type PlayerTasks = { key: string; who: Resolved; tasks: Task[] };
 const SENTENCE_TYPES = ["heal", "md", "ss", "fearward", "tank"];
 
 /** The sentence of a row for one of its assignees (`index` = the place in a rotation, 0 = first). */
+/** What a resolved reference is called in a sentence: the player who stands in a slot, else the slot / group / mob / mark / text. */
+export function nameOf(r: Resolved): string {
+    return r.player ? r.player.character : r.label;
+}
+
 export function taskText(a: RaidplanAssignment, index: number, ctx: AssignCtx): string {
-    const targets = a.targets.map((tg) => resolveTarget(tg, ctx).label).join(" + ");
+    const targets = a.targets.map((tg) => nameOf(resolveTarget(tg, ctx))).join(" + ");
     if (!a.title && !a.spell && SENTENCE_TYPES.indexOf(a.type) >= 0 && targets) return t(`raidBoard.assign.sentence.${a.type}`, { targets });
     const head = a.title || (a.spell ? a.spell.name : t(`raidBoard.assign.type.${a.type}`));
     const rot = a.type === "kick" && a.assignees.length > 1 ? ` #${index + 1}` : "";
@@ -181,8 +187,13 @@ export function tasksByAssignee(assignments: RaidplanAssignment[], ctx: AssignCt
 }
 
 /** The tasks of the visitor's own players, in the order of the rows. */
-export function myTasks(assignments: RaidplanAssignment[], ctx: AssignCtx, me: string[]): Task[] {
-    return tasksByAssignee(assignments, ctx).filter((x) => isMe(x.who, me)).flatMap((x) => x.tasks);
+export function myTasks(assignments: RaidplanAssignment[], ctx: AssignCtx, me: string[], names: string[] = []): Task[] {
+    const own = tasksByAssignee(assignments, ctx).filter((x) => isMe(x.who, me)).flatMap((x) => x.tasks);
+    if (names.length === 0 || me.length === 0) return own;
+    // rows that name the visitor in words (a note, a free-text target) although they are not the assignee: a task of their own, once
+    const seen = own.map((k) => k.id.split(":")[0]);
+    const extra = assignments.filter((a) => seen.indexOf(a.id) < 0 && mentionsInRow(a, names)).map((a) => ({ id: `${a.id}:m`, type: a.type, icon: iconForTask(a), text: taskText(a, 0, ctx) }));
+    return [...own, ...extra];
 }
 
 export const SLOT_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
@@ -373,9 +384,11 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
 }
 
 /** Whether the viewer (`me`: their own players' userIds) is part of an assignment: as assignee, as a target, or in a targeted group. */
-export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string[]): boolean {
+export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string[], names: string[] = []): boolean {
     if (me.length === 0) return false;
     if (a.assignees.some((r) => isMe(resolveAssignee(r, ctx), me))) return true;
+    // named in words: the title, the note or a free-text target
+    if (names.length > 0 && mentionsInRow(a, names)) return true;
     const groups = me.map((id) => (ctx.players.get(id) || { group: -1 }).group);
     return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && groups.indexOf(r.group) >= 0); });
 }
@@ -445,7 +458,7 @@ export function applySuggestions(board: RaidplanBoard, type: string, list: Raidp
 
 // ---- lines on the map -----------------------------------------------------------------------
 
-export type AssignLink = { key: string; x1: number; y1: number; x2: number; y2: number; color: string };
+export type AssignLink = { key: string; x1: number; y1: number; x2: number; y2: number; color: string; /** the line concerns one of the visitor's own characters */ mine?: boolean };
 
 /** Where a reference stands on the board (a slot, the slot or token a raider is in, a mark), or null. */
 function position(board: RaidplanBoard, kind: string, ref: string) {
@@ -471,8 +484,17 @@ function position(board: RaidplanBoard, kind: string, ref: string) {
     return null;
 }
 
+/** The player behind a reference of a line: a raider, or whoever stands in a slot ("" for anything else). */
+function linkPlayer(board: RaidplanBoard, kind: string, ref: string): string {
+    if (kind === "player" || kind === "user") return ref;
+    if (kind !== "slot") return "";
+    const q = ref.split(":");
+    const s = board.slots.find((x) => x.kind === q[0] && x.n === Number(q[1]));
+    return s ? s.userId : "";
+}
+
 /** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are ON THE MAP: a slot or group that only stands in the Besetzung (placed: false) has no place, so no line is drawn to or from it. */
-export function assignmentLinks(board: RaidplanBoard): AssignLink[] {
+export function assignmentLinks(board: RaidplanBoard, me: string[] = []): AssignLink[] {
     const out = [];
     for (const a of board.assignments) {
         if (a.type !== "heal") continue;
@@ -482,7 +504,8 @@ export function assignmentLinks(board: RaidplanBoard): AssignLink[] {
             if (!from) continue;
             for (const tg of a.targets) {
                 const to = position(board, tg.kind, tg.ref);
-                if (to) out.push({ key: `${a.id}:${r}:${tg.kind}:${tg.ref}`, x1: from.x, y1: from.y, x2: to.x, y2: to.y, color: HEAL_COLOR });
+                const mine = me.length > 0 && (me.indexOf(linkPlayer(board, p[0] === "slot" ? "slot" : "user", p[0] === "slot" ? `${p[1]}:${p[2]}` : p[1])) >= 0 || me.indexOf(linkPlayer(board, tg.kind, tg.ref)) >= 0);
+                if (to) out.push({ key: `${a.id}:${r}:${tg.kind}:${tg.ref}`, x1: from.x, y1: from.y, x2: to.x, y2: to.y, color: HEAL_COLOR, mine });
             }
         }
     }

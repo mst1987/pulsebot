@@ -78,7 +78,7 @@ function getPlan(req, res, url) {
     if (!user) return;
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
-    ok(res, raidplan.editorView(event, { canWrite: canWrite(user) }));
+    ok(res, raidplan.editorView(event, { canWrite: canWrite(user), me: user && user.id ? String(user.id) : "" }));
 }
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */

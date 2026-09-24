@@ -676,6 +676,16 @@ export function groupTag(slot: RaidplanSlot, memberCount: number, rosterKnown: b
     };
 }
 
+/**
+ * How a group marker is drawn: in the editor and the template always as the chip (icon + number, the grip one drags); in the read
+ * view a SPLIT group has no chip at all (the number badges on its tokens say who belongs together; a typed label is plain text
+ * without a chip or grip look), a group that is not split keeps its chip with the names.
+ */
+export function groupChipMode(editable: boolean, split: boolean, label: string): string {
+    if (editable || !split) return "chip";
+    return label.trim() !== "" ? "text" : "none";
+}
+
 /** The ellipse (half width / height, as fractions of the board) that covers the offsets of a ring, with a little room for the tokens. */
 export function ringCover(offsets: { dx: number; dy: number }[], padX: number, padY: number): { rx: number; ry: number } {
     let rx = 0;

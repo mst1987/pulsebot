@@ -85,7 +85,8 @@ describe("my assignments", () => {
         const mine = assign.myTasks(a, ctx, ["h1"]);
         expect(mine).toHaveLength(1);
         expect(mine[0].type).toBe("heal");
-        expect(mine[0].text).toContain("Tank 1");
+        expect(mine[0].text).toContain("Tankwart");
+        expect(mine[0].text).not.toContain("Tank 1");
         expect(assign.myTasks(a, ctx, ["nobody"])).toEqual([]);
         expect(assign.myTasks(a, ctx, [])).toEqual([]);
     });

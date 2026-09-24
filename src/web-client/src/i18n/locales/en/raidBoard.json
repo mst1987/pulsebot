@@ -163,7 +163,11 @@
         "you": "You are in the plan for this boss.",
         "youNot": "You are not in the plan for this boss.",
         "loginHint": "Log in and your spot is highlighted.",
-        "login": "Log in with Discord"
+        "login": "Log in with Discord",
+        "mapOnly": "Map only (full screen)",
+        "mapBack": "Back to the overview",
+        "thatsYou": "That is you",
+        "du": "You"
     },
     "slot": {
         "tank": "Tank {n}",

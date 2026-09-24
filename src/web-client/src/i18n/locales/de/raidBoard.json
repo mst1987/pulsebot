@@ -163,7 +163,11 @@
         "you": "Du stehst auf diesem Boss im Plan.",
         "youNot": "Du stehst auf diesem Boss nicht im Plan.",
         "loginHint": "Melde dich an, dann wird dein Platz hervorgehoben.",
-        "login": "Mit Discord anmelden"
+        "login": "Mit Discord anmelden",
+        "mapOnly": "Nur das Bild (Vollbild)",
+        "mapBack": "Zurück zur Übersicht",
+        "thatsYou": "Das bist du",
+        "du": "Du"
     },
     "slot": {
         "tank": "Tank {n}",

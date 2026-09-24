@@ -135,7 +135,7 @@ function templatesFor(event) {
 }
 
 /** GET /api/raidplan — everything the editor needs. */
-function editorView(event, { canWrite }) {
+function editorView(event, { canWrite, me = "" }) {
     const plan = store.getPlan(event.id) || store.emptyPlan(event.id);
     const template = plan.templateId ? templateStore.getTemplate(plan.templateId) : null;
     return {
@@ -157,6 +157,8 @@ function editorView(event, { canWrite }) {
             ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts)
             : eventBesetzung(event),
         roster: editorRoster(event),
+        // which players of the lineup the logged-in user is (account + the characters of the raider profile): highlighted on the board
+        meIds: identify(me, (me ? (raiderProfiles.getProfile(me) || { characters: [] }).characters : []).map((c) => c.key), editorRoster(event)),
         hasApprovedSetup: !!approvedSetupOf(event),
         profiles: profileStore.listProfiles(),
         templates: templatesFor(event).map(templateSummary),

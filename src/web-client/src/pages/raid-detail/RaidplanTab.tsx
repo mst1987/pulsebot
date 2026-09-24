@@ -79,6 +79,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const roster = useMemo(() => (view ? view.roster : []), [view]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
     const besetzung = view ? view.besetzung : null;
+    const mine = useMemo(() => (view ? view.meIds || [] : []), [view]);
     const board = useMemo(() => ensureBesetzung(boardOf(draft, selected), besetzung, roster), [draft, selected, besetzung, roster]);
     const dirty = !!view && !sameBosses(draft, view.plan.bosses, bossKeys);
     const canWrite = !!view && view.canWrite;
@@ -190,7 +191,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
-                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
+                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} />}
                     status={(
                         <>

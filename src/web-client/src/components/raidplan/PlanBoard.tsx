@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEven
 import { Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
+import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupMembers, groupTag, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupMembers, groupChipMode, groupTag, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { facingOf, type AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
@@ -155,6 +156,8 @@ export default function PlanBoard({
     const mineIds = Array.isArray(me) ? me : me ? [me] : [];
     const isMe = (id: string) => mineIds.indexOf(id) >= 0;
     const editable = !!onObjectDown;
+    /** the names of the visitor's own characters (a text on the map that names them is marked) */
+    const mineNames = mineIds.map((id) => (players.get(id) || { character: "" }).character).filter((n) => n.length > 1);
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
     const picked = (kind: ObjectKind, id: string) => multi.some((m) => m.kind === kind && m.id === id);
     const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) || picked(kind, id) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
@@ -220,7 +223,7 @@ export default function PlanBoard({
 
             {size.w > 0 && links && links.length > 0 && (
                 <svg className="rp-links" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
-                    {links.map((k) => <line key={k.key} x1={px(k.x1, size.w)} y1={px(k.y1, size.h)} x2={px(k.x2, size.w)} y2={px(k.y2, size.h)} stroke={k.color} />)}
+                    {links.map((k) => <line key={k.key} className={k.mine ? "is-yours" : undefined} x1={px(k.x1, size.w)} y1={px(k.y1, size.h)} x2={px(k.x2, size.w)} y2={px(k.y2, size.h)} stroke={k.color} />)}
                 </svg>
             )}
             {size.w > 0 && lines.some((l) => !l.hidden) && (
@@ -317,15 +320,18 @@ export default function PlanBoard({
                     const memberPx = scaled(s.size, SIZE_RANGES.member.def);
                     const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
                     const tag = groupTag(s, roster.filter((p) => p.group === s.n).length, roster.length > 0);
+                    const chipMode = groupChipMode(editable, tag.badges, boardLabel);
                     const holders = ringOffsets(tag.placeholders, size.w, size.h, memberPx);
                     const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off || ring[at] || { dx: 0, dy: 0 }; }), ...holders];
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
                         <div key={s.id} className="rp-groupwrap">
                             {tag.ring && shownOffsets.length > 0 && (
-                                <div className="rp-groupring" aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity }} />
+                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity }} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
+                                {chipMode === "text" && <span className="rp-grouptext">{boardLabel}</span>}
+                                {chipMode === "chip" && (
                                 <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
                                     <span className="rp-groupchip-head">
                                         <Users size={15} aria-hidden="true" />
@@ -338,6 +344,7 @@ export default function PlanBoard({
                                         </span>
                                     )}
                                 </button>
+                                )}
                             </div>
                             {holders.map((h, i) => (
                                 <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ left: `${(s.x + h.dx) * 100}%`, top: `${(s.y + h.dy) * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.member.def) }}>
@@ -407,7 +414,7 @@ export default function PlanBoard({
                     style={{ left: `${x.x * 100}%`, top: `${x.y * 100}%`, color: x.color, fontSize: x.size, opacity: x.opacity }}
                     {...handlers("text", x.id)}
                 >
-                    {x.text || "\u2026"}
+                    {x.text ? <Mentions text={x.text} names={mineNames} /> : "\u2026"}
                     {sizeHandle("text", x.id, x.lock)}
                 </div>
             ))}
