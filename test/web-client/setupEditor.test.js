@@ -183,8 +183,8 @@ describe("setup editor page", () => {
         expect(editor).toContain("Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }");
         expect(editor).toContain("className=\"se-ph se-ph-take\"");
         expect(editor).not.toContain(">leer<");
-        // groups and bench share one column; the summary stays beside them
-        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<div className="se-sidecol">\s*\{inspectedPerson/);
+        // groups and bench share one column across the full width — the summary sits in the top row above
+        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<\/div>/);
         expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
@@ -213,12 +213,18 @@ describe("setup editor page", () => {
         expect(editor).toContain("Math.ceil(size / GROUP_SIZE)");
     });
 
-    it("has a compact view (default, remembered per browser) and the ping message beside the summary", () => {
-        expect(editor).toContain('localStorage.getItem(COMPACT_KEY) !== "0"');
+    it("has an optional compact view (off by default, remembered per browser) and a top row of three boxes", () => {
+        expect(editor).toContain('localStorage.getItem(COMPACT_KEY) === "1"');
         expect(editor).toMatch(/se-editor\$\{compact \? " se-compact" : ""\}/);
-        expect(editor).toMatch(/className="se-topline">\s*<PingTextField[\s\S]*?<Summary/);
+        // ping message | summary | raider panel, one row
+        expect(editor).toMatch(/className="se-topline">\s*<PingTextField[\s\S]*?<Summary[\s\S]*?<SlotTip[\s\S]*?<TipEmpty/);
         const css = read("styles", "setup-editor.css");
-        expect(css).toMatch(/@media \(min-width: 1281px\) \{[\s\S]*?\.se-compact \.se-groups \{[^}]*minmax\(158px/);
+        // five groups side by side: the cards are ~190 px wide, the compact ones narrower
+        expect(css).toMatch(/\.se-groups \{[^}]*minmax\(188px/);
+        expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
+        // fixed height, so hovering a raider never moves the groups
+        expect(css).toMatch(/\.se-topline > \* \{[^}]*min-height: 132px/);
+        expect(css).toMatch(/\.se-tip \{[^}]*max-height: 132px/);
         expect(makeT("de")("setup.editor.compact")).toBe("Kompakt");
     });
 
@@ -412,9 +418,9 @@ describe("the raider tooltip and the drag glow", () => {
     it("draws the tooltip itself (icons, attendance with check or auto badge, brings) instead of a text block", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).toContain("function SlotTip");
-        // docked under the summary — never a floating layer that could cover a group
+        // a box of the top row — never a floating layer that could cover a group
         expect(src).not.toContain("createPortal");
-        expect(src).toMatch(/className="se-sidecol">\s*\{inspectedPerson \? <SlotTip/);
+        expect(src).toMatch(/\{inspectedPerson \? <SlotTip p=\{inspectedPerson\}/);
         // the old text tooltip is gone from the line
         expect(src).not.toContain("data-tip-sub={personTip(p)}");
         expect(src).toMatch(/a\.link === "manual"[\s\S]*?<CheckIcon \/>[\s\S]*?setup\.person\.tip\.autoBadge/);
@@ -422,8 +428,6 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("onMouseEnter={inspect}");
         expect(src).toContain("onFocus={inspect}");
         const css = read("styles", "setup-editor.css");
-        expect(css).toMatch(/\.se-sidecol \{[^}]*position: sticky/);
-        expect(css).toMatch(/\.se-layout \{[^}]*380px/);
         // the glow rides on the group card
         expect(src).toContain("se-suggest");
     });
