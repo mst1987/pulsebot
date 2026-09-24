@@ -333,7 +333,8 @@
         "relativeHint": "Ein Faktor für alle Ausgewählten (100 % = unverändert).",
         "showBorder": "Rand anzeigen",
         "showRingObj": "Ring / Rand anzeigen",
-        "showName": "Name anzeigen"
+        "showName": "Name anzeigen",
+        "nameAuto": "Der Name ist ausgeblendet: das Icon ist auf dem Bild zu klein dafür (größeres Board, Zoom oder größere Symbole zeigen ihn wieder)."
     },
     "panel": {
         "props": "Eigenschaften",

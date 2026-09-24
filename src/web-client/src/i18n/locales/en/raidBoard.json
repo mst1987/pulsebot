@@ -333,7 +333,8 @@
         "relativeHint": "One factor for everything selected (100 % = unchanged).",
         "showBorder": "Show border",
         "showRingObj": "Show ring / border",
-        "showName": "Show name"
+        "showName": "Show name",
+        "nameAuto": "The name is hidden: the icon is too small on screen to carry it (a bigger board, zoom or bigger icons show it again)."
     },
     "panel": {
         "props": "Properties",

@@ -5,7 +5,7 @@ import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, Rai
 import { IconButton } from "../../../components/ui";
 import {
     COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
-    setObjectScale, objectPercent, setObjectPercent, groupScales, setGroupScale, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
+    setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
@@ -13,6 +13,8 @@ import { followsTank } from "../../../lib/assign";
 import MultiInspector from "./MultiInspector";
 import type { SelItem } from "../../../lib/multiSelect";
 import GroupStyle from "./GroupStyle";
+import { REF_W } from "../../../lib/boardScale";
+import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../../lib/labelScale";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
@@ -124,6 +126,9 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <label className="rp-check"><input type="checkbox" checked={look.ring !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { ring: e.target.checked }))} /> {t(kind === "zone" ? "raidBoard.insp.showBorder" : "raidBoard.insp.showRingObj")}</label>
             )}
 
+            {(kind === "token" || kind === "slot" || kind === "icon") && look.showName !== false && nameTooSmall(board, kind, id, boardPx ? boardPx().w : 0) && (
+                <p className="rp-muted rp-name-auto">{t("raidBoard.insp.nameAuto")}</p>
+            )}
             {(kind === "token" || kind === "slot" || kind === "icon") && (
                 <label className="rp-check"><input type="checkbox" checked={look.showName !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { showName: e.target.checked }))} /> {t("raidBoard.insp.showName")}</label>
             )}
@@ -312,4 +317,12 @@ export function MapOpacityField({ board, canWrite, edit }: { board: RaidplanBoar
             <OpacityField label={t("raidBoard.bg.mapOpacity")} value={board.mapOpacity} onChange={(v) => canWrite && edit((b) => setMapOpacity(b, v), true)} />
         </div>
     );
+}
+
+/** Whether the board hides this object's name by itself because the icon is too small on screen to carry it (lib/labelScale.ts); `width` = the board's width on screen in px. */
+function nameTooSmall(board: RaidplanBoard, kind: string, id: string, width: number): boolean {
+    if (!(width > 0)) return false;
+    const size = sizeOf(board, kind as ObjectKind, id);
+    if (size === null) return false;
+    return !labelMetrics(Math.round(size * board.objectScale), kind === "icon" ? ICON_NAME_FACTOR : NAME_FACTOR, width / REF_W).show;
 }

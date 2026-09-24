@@ -127,6 +127,9 @@ const SPELLS = [
  * ALL priests in Patch 2.3.0 (before: Draenei and Dwarf only), Tricks of the Trade is Patch 3.0.2 (Wrath). The audit test fails when a spell that exists later
  * than TBC is not limited to its versions.
  */
+// Checked one by one against Wowhead TBC / Warcraft Wiki (all exist in 2.4.3): Shield Bash (warrior, needs a shield: wowclassicdb.com/tbc/spell/36988),
+// Cure Poison for druids AND shamans (wowhead.com/tbc/spell=526), Remove Curse for mages AND druids (wowhead.com/tbc/spell=2782), Fear Ward (all priests since 2.3.0),
+// Bloodlust (Horde) / Heroism (Alliance). Nothing to remove.
 const SINCE = { "tricks-of-the-trade": "wotlk" };
 
 module.exports = { MOBS, SPELLS, SINCE };
