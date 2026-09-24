@@ -16,7 +16,27 @@ jest.mock("../../src/web/rosterAttendance", () => ({
     attendanceForAccounts: (...a) => mockCounted(...a),
 }));
 
-const { setupAttendance, accountCharacters } = require("../../src/web/setupAttendance");
+const { setupAttendance, accountCharacters, comparableTo } = require("../../src/web/setupAttendance");
+
+describe("comparableTo — the same kind of raid", () => {
+    const night = (title, zone) => ({ title, logs: zone ? [{ zone }] : [] });
+
+    it("keeps a 25-man event to 25-man nights and a 10-man event to 10-man nights, told from title or log zone", () => {
+        const big = comparableTo({ size: 25 });
+        expect(big(night("SSC&TK&Gruul"))).toBe(true);
+        expect(big(night("Karazhan mit Sapa"))).toBe(false);
+        expect(big(night("Freitag", "Karazhan"))).toBe(false);
+        const small = comparableTo({ size: 10 });
+        expect(small(night("Karazhan mit Sapa"))).toBe(true);
+        expect(small(night("Hyjal+BT+Gruul"))).toBe(false);
+    });
+
+    it("lets a night through whose kind cannot be told, and asks for no filter without an event size", () => {
+        expect(comparableTo({ size: 25 })(night("Spontan-Raid"))).toBe(true);
+        expect(comparableTo({})).toBeNull();
+        expect(comparableTo(undefined)).toBeNull();
+    });
+});
 
 describe("accountCharacters", () => {
     it("puts the orga's assignment and the profile's characters first, as manual links", () => {

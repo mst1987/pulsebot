@@ -11,6 +11,7 @@ const profileStore = require("./raiderProfileStore");
 const characterStore = require("./characterStore");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("./rosterAttendance");
+const { raidContentIds, raidSize } = require("./raidListing");
 
 /** "Druid-Feral" -> "Druid". */
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
@@ -49,6 +50,27 @@ function accountCharacters(userId, categoryId, signup, profile, assignments) {
     return [...byKey.values()];
 }
 
+/** A 10-man night and a 25-man night are different raids, even in one category. */
+const sizeClass = (n) => (n <= 10 ? 10 : 25);
+
+/**
+ * Which past nights count for this event: those of the same kind of raid. A
+ * category such as "PUG Raids" runs Karazhan (10) and SSC/TK/Gruul (25) side by
+ * side, and somebody who only comes to one of them must not be marked absent for
+ * the other. The kind is the raid size — the event's own, against the night's
+ * read from its title and log zones; a night whose size cannot be told counts.
+ * Null (= every night of the category) when the event has no size.
+ */
+function comparableTo(event) {
+    const own = Number(event && event.size);
+    if (!(own > 0)) return null;
+    return (raid) => {
+        const contents = raidContentIds({ title: raid.title, zones: (raid.logs || []).map((l) => l.zone) }).contentIds;
+        const night = raidSize(contents);
+        return !night.known || sizeClass(night.size) === sizeClass(own);
+    };
+}
+
 /**
  * Attendance of everyone who signed up for these events (absences excluded).
  *
@@ -77,11 +99,12 @@ function setupAttendance(events, { now = Date.now() } = {}) {
             userId,
             chars: accountCharacters(userId, categoryId, signup, profiles.get(userId), assignments),
         }));
-        for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts)) {
+        const comparable = comparableTo(list.find((e) => e.categoryId === categoryId));
+        for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts, comparable ? { comparable } : {})) {
             if (!out[userId]) out[userId] = result;
         }
     }
     return out;
 }
 
-module.exports = { setupAttendance, accountCharacters };
+module.exports = { setupAttendance, accountCharacters, comparableTo };

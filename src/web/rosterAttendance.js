@@ -153,8 +153,11 @@ function buildAttendanceContext(guildId, opts = {}) {
         list.push({ id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs });
         raidsByCategory.set(ev.categoryId, list);
     }
+    // every night, newest first, for callers that pick their own kind of raid (attendanceForAccounts' `comparable`)
+    const allRaidsByCategory = new Map();
     for (const [id, list] of raidsByCategory) {
         list.sort((a, b) => b.startTime - a.startTime);
+        allRaidsByCategory.set(id, list);
         raidsByCategory.set(id, list.slice(0, RAID_WINDOW));
     }
 
@@ -166,7 +169,7 @@ function buildAttendanceContext(guildId, opts = {}) {
         }
     }
 
-    return { raidsByCategory, roleByKey };
+    return { raidsByCategory, allRaidsByCategory, roleByKey };
 }
 
 /** How one night went for one character — see the header for the rules. */
@@ -219,17 +222,26 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
  * `link` says how sure the character link is: "manual" (the orga's assignment
  * or the raider's own profile) or "auto" (from signups, or a class guess).
  *
+ * A category can mix kinds of raid (a 10-man Karazhan night and a 25-man SSC night
+ * in one "PUG Raids" category): with `comparable(raid)` only the nights it accepts
+ * count, and the window is the last RAID_WINDOW *of those* — so somebody who
+ * never joins the other kind is not marked absent for it.
+ *
  * @param {{ userId: string, chars: { name: string, className?: string, manual?: boolean }[] }[]} accounts
+ * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
  *            inferred: number, missed: {eventId, title, startTime, reason}[]}>}
  */
-function attendanceForAccounts(ctx, categoryId, accounts) {
+function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
     const claimed = new Set(list.flatMap((a) => a.chars.map((c) => charKey(c.name))));
     const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
     const notInLog = (r) => r && !r.attended && r.reason === "nicht im Log";
-    for (const raid of ctx.raidsByCategory.get(categoryId) || []) {
+    const raidNights = typeof opts.comparable === "function"
+        ? ((ctx.allRaidsByCategory || ctx.raidsByCategory).get(categoryId) || []).filter(opts.comparable).slice(0, RAID_WINDOW)
+        : (ctx.raidsByCategory.get(categoryId) || []);
+    for (const raid of raidNights) {
         const results = new Map();
         for (const a of list) {
             const nights = a.chars.map((c) => nightStatus(raid, charKey(c.name), [String(a.userId)])).filter(Boolean);
