@@ -232,6 +232,10 @@ function complete(e) {
         // The text "Ping everyone" sends, and what the first post of the setup
         // pings with by itself (#354's follow-up); "" = setupPing.js's default.
         setupPingText: String(e.setupPingText || ""),
+        // Raiders the orga marked as an extra tank / extra healer — they play another role
+        // on some bosses (a third tank, a healer who is DPS on most). `{ userId: ["tank", "healer"] }`;
+        // no part of the setup, so a new proposal keeps it. The raid plan reads it.
+        extraRoles: cleanExtraRoles(e.extraRoles),
         // The Discord event (guild scheduled event) that belongs to this one
         // (#305, discordEvent.js): `{ id, guildId, at, error }`, null for none.
         discordEvent: e.discordEvent && typeof e.discordEvent === "object" ? e.discordEvent : null,
@@ -412,6 +416,38 @@ function setEventSetupPost(id, patch) {
     return complete(events[idx]);
 }
 
+/** The roles a raider can be marked as an extra for. */
+const EXTRA_ROLES = ["tank", "healer"];
+
+/** `{ userId: [roles] }` with known roles only, in the order tank, healer; no empty entries. */
+function cleanExtraRoles(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [userId, roles] of Object.entries(raw)) {
+        const list = EXTRA_ROLES.filter((r) => Array.isArray(roles) && roles.includes(r));
+        if (userId && list.length) out[userId] = list;
+    }
+    return out;
+}
+
+/**
+ * Mark a raider as an extra tank / healer, or take the mark away.
+ * @returns {object|null} the event, null for an unknown event or role
+ */
+function setEventExtraRole(id, userId, role, on) {
+    if (!EXTRA_ROLES.includes(role) || !str(userId)) return null;
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const all = cleanExtraRoles(events[idx].extraRoles);
+    const now = new Set(all[str(userId)] || []);
+    if (on) now.add(role); else now.delete(role);
+    if (now.size) all[str(userId)] = [...now]; else delete all[str(userId)];
+    events[idx] = { ...events[idx], extraRoles: cleanExtraRoles(all) };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** The text "Ping everyone" (setupPingBot.js) and the first post's own ping use, "" = the default. */
 function setEventSetupPingText(id, text) {
     const events = readAll();
@@ -569,7 +605,7 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventDiscordEvent, setEventAnnounced,
+    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
     eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
 };

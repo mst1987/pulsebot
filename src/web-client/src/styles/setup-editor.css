@@ -100,7 +100,8 @@
 .se-tip-top img, .se-tip-top [class*="spec-ph"] { width: 40px; height: 40px; }
 .se-tip-row { display: flex; align-items: flex-start; gap: 10px; }
 .se-tip-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
-.se-tip-bench { color: var(--text); margin-top: 4px; }
+.se-tip-row { display: inline-flex; align-items: center; gap: 7px; color: var(--text); font-weight: 600; }
+.se-tip-row > svg { width: 16px; height: 16px; color: var(--muted); flex: 0 0 auto; }
 /* "im Setup als": the specs of the raider's class as icon buttons (name and role in the tooltip) — the one played now is ringed */
 .se-tip-specs { display: flex; flex-wrap: wrap; gap: 5px; }
 .se-tip-spec { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); cursor: pointer; }
@@ -299,3 +300,9 @@
 .se-search-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .se-search-regen { padding: 3px 10px; border: 1px solid var(--accent); border-radius: 8px; background: none; color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .se-search-foot .se-search-count { margin-left: auto; }
+
+/* an extra tank / healer: a small pill on the tile, and the two toggles in the raider panel */
+.se-extra { margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.se-tip-extra { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 4px; border: 1px solid var(--line); border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.se-tip-extra:hover { border-color: var(--accent); color: var(--text); }
+.se-tip-extra.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }

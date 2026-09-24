@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, previewRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, previewRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, updateRaidSize,
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
@@ -29,7 +29,7 @@ import { Modal, useConfirm } from "../../components/ui/Modal";
 import RaidLoader from "../../components/ui/RaidLoader";
 import WowIcon from "../../components/ui/WowIcon";
 import { useJobs } from "../../components/Jobs";
-import { CheckIcon, LockIcon, UnlockIcon, XIcon } from "../../components/icons";
+import { BenchIcon, CheckIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import SpecTile from "./SpecTile";
 import type { RaidCtx } from "./meta";
@@ -71,12 +71,11 @@ const dateTime = (ms: number) => (ms
     : "");
 
 
-/** "Zuletzt auf der Bank: 12.09.2026" — or that they were not on it in the nights looked at; "" without any earlier night. */
+/** The date of the last night on the bench ("12.09.2026"), "–" when they were not on it in the nights looked at; "" without any earlier night. */
 function benchText(a: SetupAttendance | undefined): string {
     if (!a || !a.benchNights) return "";
-    if (!a.lastBench) return t("setup.person.tip.benchNever", { count: a.benchNights });
-    const date = new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
-    return t("setup.person.tip.lastBench", { date });
+    if (!a.lastBench) return "–";
+    return new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
@@ -116,9 +115,19 @@ function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
     return (
         <div className="se-tip-body">
             <span className="se-tip-k">{t("setup.person.tip.attendanceDetails")}</span>
-            {a.pct !== null && <span>{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>}
-            {a.pct !== null && <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>}
-            {bench && <span className="se-tip-bench">{bench}</span>}
+            {a.pct !== null && (
+                <span className="se-tip-row" data-tip={t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}>
+                    <SignedIcon />{a.attended}/{a.total}
+                    {a.link === "manual"
+                        ? <span className="se-tip-link se-tip-linked" data-tip={t("setup.person.tip.linkManual")}><CheckIcon /></span>
+                        : <span className="se-tip-link se-tip-auto" data-tip={t("setup.person.tip.linkAuto")}>{t("setup.person.tip.autoBadge")}</span>}
+                </span>
+            )}
+            {bench && (
+                <span className="se-tip-row" data-tip={a.lastBench ? t("setup.person.tip.lastBench", { date: bench }) : t("setup.person.tip.benchNever", { count: a.benchNights })}>
+                    <BenchIcon />{bench}
+                </span>
+            )}
         </div>
     );
 }
@@ -131,8 +140,10 @@ function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
  * three columns: what the raider brings, why they stand here, the attendance in
  * detail. It shows the raider the pointer touched last.
  */
-function SlotTip({ p, attendance, onSpec }: { p: SetupPerson; attendance: SetupAttendance | undefined | null; onSpec?: (specKey: string) => void }) {
+function SlotTip({ p, attendance, extra, onSpec, onExtra }: { p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[]; onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void }) {
     const t = useT();
+    // the roles this raider could take on besides the one in the setup: a tank or a healer spec of the class
+    const extraOffers = ((["tank", "healer"] as const).filter((r) => r !== p.role && (p.classSpecs || []).some((sp) => sp.role === r)));
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
     const brings = p.brings || [];
@@ -195,6 +206,26 @@ function SlotTip({ p, attendance, onSpec }: { p: SetupPerson; attendance: SetupA
                                     <WowIcon name={sp.icon || "inv_misc_questionmark"} size={22} />
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                )}
+                {onExtra && extraOffers.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.extra")} data-tip-sub={t("setup.person.tip.extraSub")}>{t("setup.person.tip.extra")}</span>
+                        <div className="se-tip-specs">
+                            {extraOffers.map((r) => {
+                                const on = extra.includes(r);
+                                const spec = (p.classSpecs || []).find((sp) => sp.role === r);
+                                return (
+                                    <button
+                                        key={r} type="button" className={`se-tip-extra${on ? " is-on" : ""}`} aria-pressed={on}
+                                        data-tip={t("setup.extra.tip", { role: roleLabel(r) })} onClick={() => onExtra(r, !on)}
+                                    >
+                                        <WowIcon name={(spec && spec.icon) || "inv_misc_questionmark"} size={20} />
+                                        <span>{roleLabel(r)}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -290,6 +321,8 @@ type Interaction = {
     onPick: (userId: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
     onDrag: (userId: string | null) => void;
+    /** raiders marked as an extra tank / healer, by user id */
+    extraRoles: Record<string, string[]>;
     onLock: (userId: string) => void;
 };
 
@@ -335,6 +368,9 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
                     {specText(p)}
                     {/* an off-spec role is tinted — "Zweitspec" itself is in the tooltip */}
                     {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>}
+                    {(ui.extraRoles[p.userId] || []).map((r) => (
+                        <span key={r} className="se-extra" data-tip={t("setup.extra.tip", { role: roleLabel(r) })}>{t(`setup.extra.short.${r}`)}</span>
+                    ))}
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
@@ -896,7 +932,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
@@ -1152,6 +1188,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    const toggleExtra = async (userId: string, role: "tank" | "healer", on: boolean) => {
+        try {
+            const next = await saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on);
+            setData((prev) => (prev ? { ...prev, extraRoles: next.extraRoles } : prev));
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
+        }
+    };
+
     const savePingText = async (text: string) => {
         try {
             const next = await saveSetupPingText(ctx.csrfToken, ctx.eventId, text);
@@ -1191,7 +1236,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     // looked up fresh every render, so a move redraws the panel's group and buffs
     const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
     const inspectedIsBench = !!inspectedPerson && setup.bench.some((b) => b.userId === inspectedPerson.userId);
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -1251,7 +1296,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     />
                 </div>
-                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} /> : <TipEmpty />}
+                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} extra={(data.extraRoles || {})[inspectedPerson.userId] || []} onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">
