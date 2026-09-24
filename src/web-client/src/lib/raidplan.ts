@@ -630,6 +630,35 @@ export function groupMembers(slot: RaidplanSlot, roster: RaidplanPlayer[]): Raid
     return roster.filter((p) => p.group === slot.n);
 }
 
+/** How many placeholder tokens a split group shows in a template (no roster there): the size of a raid group. */
+export const GROUP_PLACEHOLDERS = 5;
+
+/**
+ * What a group marker draws (pure, so the rule is testable). The tag is ALWAYS there, in every view: the group's icon and
+ * its number — the number is the group's identity, not a text label, so the "only what was typed" rule does not apply
+ * (a typed label is added next to it). A split group also puts a number badge on each of its tokens and a ring round
+ * them; in a template (no roster) the ring shows placeholder tokens. An event group nobody is in has a dimmed number.
+ */
+export function groupTag(slot: RaidplanSlot, memberCount: number, rosterKnown: boolean): { number: string; label: string; dim: boolean; badges: boolean; placeholders: number; ring: boolean } {
+    const around = !!slot.split && !slot.hideMembers;
+    return {
+        number: String(slot.n),
+        label: (slot.label || "").trim(),
+        dim: rosterKnown && memberCount === 0,
+        badges: around,
+        placeholders: around && !rosterKnown ? GROUP_PLACEHOLDERS : 0,
+        ring: around && (memberCount > 0 || !rosterKnown),
+    };
+}
+
+/** The ellipse (half width / height, as fractions of the board) that covers the offsets of a ring, with a little room for the tokens. */
+export function ringCover(offsets: { dx: number; dy: number }[], padX: number, padY: number): { rx: number; ry: number } {
+    let rx = 0;
+    let ry = 0;
+    for (const o of offsets) { rx = Math.max(rx, Math.abs(o.dx)); ry = Math.max(ry, Math.abs(o.dy)); }
+    return { rx: rx + padX, ry: ry + padY };
+}
+
 /** How many slots of a board are still open (a group marker and a label are not places to fill). */
 export function openSlots(board: RaidplanBoard): number {
     return board.slots.filter((s) => (s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps") && !s.userId).length;

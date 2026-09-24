@@ -5,7 +5,7 @@ import { classColorProps } from "../ClassSpec";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupMembers, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupMembers, groupTag, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import type { AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
@@ -20,6 +20,7 @@ const ROLE_ICONS: Record<string, string> = {
 };
 
 /** The type of a zone as a glyph, so it reads without its colour (danger, healthy, neutral, own). */
+const PLACEHOLDER_ROLES = ["tank", "healer", "dps", "dps", "dps"];
 export const ZONE_GLYPHS: Record<string, string> = { danger: "⚠", healthy: "✚", neutral: "○", custom: "◆" };
 
 /**
@@ -303,20 +304,36 @@ export default function PlanBoard({
                     const everyone = s.split && !s.hideMembers ? roster.filter((p) => p.group === s.n) : [];
                     const memberPx = scaled(s.size, SIZE_RANGES.member.def);
                     const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
+                    const tag = groupTag(s, roster.filter((p) => p.group === s.n).length, roster.length > 0);
+                    const holders = ringOffsets(tag.placeholders, size.w, size.h, memberPx);
+                    const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off || ring[at] || { dx: 0, dy: 0 }; }), ...holders];
+                    const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
                         <div key={s.id} className="rp-groupwrap">
+                            {tag.ring && shownOffsets.length > 0 && (
+                                <div className="rp-groupring" aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity }} />
+                            )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
-                                {(editable || boardLabel || (showList && members.length > 0)) && (
-                                <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
-                                    {boardLabel ? <span className="rp-groupchip-title">{boardLabel}</span> : editable && !(showList && members.length > 0) && <Users size={16} aria-hidden="true" />}
+                                <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-dim" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
+                                    <span className="rp-groupchip-head">
+                                        <Users size={15} aria-hidden="true" />
+                                        <span className="rp-groupchip-n">{tag.number}</span>
+                                        {boardLabel && <span className="rp-groupchip-title">{boardLabel}</span>}
+                                    </span>
                                     {showList && members.length > 0 && (
                                         <span className="rp-groupchip-names">
                                             {members.map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}
                                         </span>
                                     )}
                                 </button>
-                                )}
                             </div>
+                            {holders.map((h, i) => (
+                                <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ left: `${(s.x + h.dx) * 100}%`, top: `${(s.y + h.dy) * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.member.def) }}>
+                                    <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
+                                        <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
+                                    </span><span className="rp-token-gbadge">{tag.number}</span></span>
+                                </div>
+                            ))}
                             {around.map((p) => {
                                 const at = everyone.findIndex((x) => x.userId === p.userId);
                                 const off = s.offsets ? s.offsets[p.userId] : undefined;
@@ -335,6 +352,7 @@ export default function PlanBoard({
                                             data-tip={playerLabel(p)} {...handlers("member", id)}
                                         >
                                             <TokenIcon player={p} />
+                                            {tag.badges && <span className="rp-token-gbadge" aria-hidden="true">{tag.number}</span>}
                                         </button>
                                         <span className="rp-token-name"><PlayerName player={p} /></span>
                                         {mineHere && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
