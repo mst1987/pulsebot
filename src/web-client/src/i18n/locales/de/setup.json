@@ -178,7 +178,7 @@
         "sizeUnsaved": "ungespeichert",
         "sizeUnsavedTip": "Diese Gruppenzahl ist noch nicht übernommen.",
         "compact": "Kompakt",
-        "compactSub": "Schmale Karten mit einzeiligen Raidern – bis zu 5 Gruppen nebeneinander. Die Wahl wird in diesem Browser gemerkt.",
+        "compactSub": "Schmale Karten mit einzeiligen Raidern, für kleine Bildschirme. Die Wahl wird in diesem Browser gemerkt.",
         "sizeFailed": "Größe konnte nicht geändert werden."
     },
     "moves": {

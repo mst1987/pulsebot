@@ -178,7 +178,7 @@
         "sizeUnsaved": "unsaved",
         "sizeUnsavedTip": "This number of groups has not been applied yet.",
         "compact": "Compact",
-        "compactSub": "Narrow cards with one-line raiders – up to 5 groups side by side. Remembered in this browser.",
+        "compactSub": "Narrow cards with one-line raiders, for small screens. Remembered in this browser.",
         "sizeFailed": "Could not change the size."
     },
     "moves": {

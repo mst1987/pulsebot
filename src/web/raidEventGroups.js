@@ -166,10 +166,13 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     // "Latest Events" list still surfaces from the local snapshot. Runs whenever
     // a lookback window is requested (that's the shape callers use to look up a
     // specific past event) or the live fetch failed outright; skipped for a
-    // bare "upcoming" call so old persisted raids don't pollute that list.
+    // bare "upcoming" call so old persisted raids don't pollute that list — and
+    // when that bare call falls back because Raid-Helper is down, it keeps the
+    // same meaning: only persisted events that have not started yet.
     if (error || sinceSeconds) {
+        const lower = sinceSeconds || Math.floor(Date.now() / 1000);
         for (const e of persistedById.values()) {
-            if (seen.has(e.id) || (sinceSeconds && (e.startTime || 0) < sinceSeconds)) continue;
+            if (seen.has(e.id) || (e.startTime || 0) < lower) continue;
             const signUps = e.signUps || [];
             place(e.categoryId, e.categoryName, {
                 id: e.id, source: "raidhelper", title: e.title, startTime: e.startTime, leaderId: "",
