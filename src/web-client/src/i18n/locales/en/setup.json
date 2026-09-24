@@ -3,7 +3,7 @@
         "tip": {
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
-            "attendanceDetails": "Attendance details",
+            "attendanceDetails": "Details",
             "attendanceCount": "{attended} of {total} raids",
             "lastBench": "Last on the bench: {date}",
             "benchNever": "Not on the bench in the last {count} raids",
@@ -12,6 +12,7 @@
             "autoBadge": "Auto",
             "brings": "Brings",
             "bringsGroup": "to the group ({count} profit)",
+            "bringsGroupShort": "Group · {count}",
             "bringsRaid": "to the raid",
             "why": "Why here",
             "aria": "Raider details",

@@ -263,7 +263,14 @@ describe("setup editor page", () => {
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
         // the whole top row has ONE fixed height, so the panel never grows or shrinks with its content and the groups never jump;
         // whatever would not fit is cut off inside its own box, never spilled into the next
-        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 384px/);
+        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 352px/);
+        // stacked below 1360 px of viewport (the sidebar takes ~250 px, the panel needs ~600 px of its own)
+        expect(css).toMatch(/@media \(max-width: 1360px\) \{\s*\.se-topline \{ grid-template-columns: minmax\(0, 1fr\); grid-template-rows: none;/);
+        // compact enough that the worst case (7 raid buffs, 4 reasons) fits — checked in a real browser, not just here
+        expect(css).toMatch(/\.se-tip \{[^}]*font-size: 13\.5px/);
+        expect(css).toMatch(/\.se-tip-buff \.wi \{ width: 22px/);
+        expect(editor).toContain('t("setup.person.tip.bringsGroupShort", { count: b.count })');
+        expect(editor).not.toMatch(/title=\{`\$\{b\.label\}/);
         expect(css).toMatch(/\.se-topline > \* \{[^}]*overflow: hidden/);
         // readable: every figure and setting is a bordered tile of its own, and the quiet buttons keep a visible fill and outline
         expect(css).toMatch(/\.se-topline \.se-stats \{ display: contents; \}/);
@@ -272,13 +279,13 @@ describe("setup editor page", () => {
         expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*grid-template-columns: minmax\(0, 1fr\); justify-items: start/);
         expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
         // the panel: a header across the whole width, three columns under it (brings · why · attendance details)
-        expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1\.15fr\) minmax\(0, 1\.2fr\) minmax\(0, \.9fr\); grid-template-rows: auto minmax\(0, 1fr\)/);
+        expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1\.2fr\) minmax\(0, \.9fr\); grid-template-rows: auto minmax\(0, 1fr\)/);
         expect(css).toMatch(/\.se-tip-top \{ grid-column: 1 \/ -1;/);
         expect(editor).toContain('<header className="se-tip-top">');
         // the attendance is the big number of the header, its details are a column of their own
         expect(editor).toMatch(/<header className="se-tip-top">[\s\S]*?<AttendanceHead a=\{attendance\} \/>[\s\S]*?<\/header>[\s\S]*?<AttendanceDetails a=\{attendance\} \/>/);
-        expect(css).toMatch(/\.se-tip-att b \{[^}]*font-size: 34px/);
-        expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 14\.5px;/);
+        expect(css).toMatch(/\.se-tip-att b \{[^}]*font-size: 28px/);
+        expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 13\.5px;/);
         expect(editor).toContain('<span className="se-pingtext-hint">');
         expect(css).toMatch(/\.se-bar-hint \{ display: none; \}/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*overflow-y: auto/);

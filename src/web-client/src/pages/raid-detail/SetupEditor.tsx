@@ -156,11 +156,15 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.brings")}</span>
                         {brings.map((b) => (
-                            <span key={`${b.scope}-${b.key}`} className="se-tip-buff">
-                                <WowIcon name={b.icon} size={20} />
+                            <span
+                                key={`${b.scope}-${b.key}`} className="se-tip-buff"
+                                data-tip={b.label}
+                                data-tip-sub={b.scope === "party" ? t("setup.person.tip.bringsGroup", { count: b.count }) : t("setup.person.tip.bringsRaid")}
+                            >
+                                <WowIcon name={b.icon} size={22} />
                                 <span>
                                     {b.label}
-                                    <small>{b.scope === "party" ? t("setup.person.tip.bringsGroup", { count: b.count }) : t("setup.person.tip.bringsRaid")}</small>
+                                    {b.scope === "party" && <small>{t("setup.person.tip.bringsGroupShort", { count: b.count })}</small>}
                                 </span>
                             </span>
                         ))}
