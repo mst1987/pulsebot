@@ -57,7 +57,8 @@
 .se-topline .se-side-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; min-height: 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
 .se-topline .se-side-row [class~="kicker"] { font-size: 12px; font-weight: 700; letter-spacing: .07em; color: var(--text); }
 .se-topline .se-side-cap { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
-.se-topline .se-side > .badge, .se-topline .se-side > [class*="badge"] { grid-column: 1 / -1; justify-self: start; }
+/* anything else in the summary (the hints badge) takes a whole row */
+.se-topline .se-side > :not(.se-side-row):not(.se-stats) { grid-column: 1 / -1; justify-self: start; }
 
 /* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
