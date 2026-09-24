@@ -85,7 +85,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -100,6 +100,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         lines: b.lines || [],
         texts: b.texts || [],
         targets: b.targets || [],
+        assignments: b.assignments || [],
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -854,7 +855,7 @@ export function toggleAssignee(board: RaidplanBoard, id: string, userId: string)
 
 /** Whether applying a profile or a template would overwrite something the orga already made (asks first). */
 export function hasContent(board: RaidplanBoard): boolean {
-    return board.targets.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
+    return board.targets.length > 0 || board.assignments.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
 }
 
 /** Whether any board of a plan holds something. */
@@ -907,7 +908,7 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 /** How many objects and rows a boss holds — the small dot next to it in the boss list. */
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
-    return objectCount(b) + b.targets.length;
+    return objectCount(b) + b.targets.length + b.assignments.length;
 }
 
 /** Players by userId, for looking up who a token or an assignment is. */

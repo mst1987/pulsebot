@@ -4115,6 +4115,8 @@ export type RaidplanText = { id: string; text: string; x: number; y: number; col
 export type RaidplanBoard = {
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
     targets: RaidplanTarget[]; notes: string; profileId: string;
+    /** who heals whom, kicks, curses ... (references only, names come from the setup) */
+    assignments: RaidplanAssignment[];
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
     objectScale: number;
     /** how strongly the map shows, 0.1..1 (dim it so the objects stand out) */
@@ -4133,7 +4135,15 @@ export type RaidplanPlayer = {
     iconUrl: string;
     group: number;
 };
+/** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text"; ref: string };
+export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
+/** An assignment: assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
 export type RaidplanBoss = {
+    /** "Trash" of an instance / "Allgemein" for the whole raid: no boss, but a board (trash) or only assignments (general) */
+    trash?: boolean;
+    general?: boolean;
     key: string;
     instanceId: string;
     instanceName: string;
@@ -4173,9 +4183,9 @@ export type RaidplanView = {
     dropped?: number;
 };
 export type RaidplanPublicBoss = {
-    key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string;
+    key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; notes: string; profileName: string; mapOpacity: number; objectScale: number;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
@@ -4191,6 +4201,11 @@ export function getRaidplan(eventId: string): Promise<RaidplanView> {
 
 export function saveRaidplan(csrfToken: string | null, input: { event: string; version: number; bosses: Record<string, RaidplanBoard> }): Promise<RaidplanView> {
     return send("PUT", "/api/raidplan", csrfToken, input);
+}
+
+/** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
+export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; slots: { kind: string; n: number; userId: string }[] }): Promise<{ assignments: RaidplanAssignment[] }> {
+    return send("POST", "/api/raidplan/suggest", csrfToken, input);
 }
 
 export function publishRaidplan(csrfToken: string | null, input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {

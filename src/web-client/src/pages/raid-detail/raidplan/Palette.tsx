@@ -54,7 +54,8 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss }: {
             {body}
         </button>
     );
-    const ordered = [...bosses.filter((b) => b.key === currentBoss), ...bosses.filter((b) => b.key !== currentBoss)];
+    const real = bosses.filter((b) => !b.trash && !b.general);
+    const ordered = [...real.filter((b) => b.key === currentBoss), ...real.filter((b) => b.key !== currentBoss)];
     return (
         <aside className="rp-palette" aria-label={t("raidBoard.palette.title")}>
             <h3 className="rp-kicker">{t("raidBoard.palette.marks")}</h3>

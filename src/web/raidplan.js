@@ -167,7 +167,7 @@ function publicView(plan, event, { me = "" } = {}) {
         .map((b) => {
             const board = plan.bosses[b.key];
             return {
-                key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: b.mapUrl,
+                key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: b.mapUrl, trash: !!b.trash, general: !!b.general,
                 // objects switched off in the editor's layer list are not drawn here either
                 tokens: board.tokens.filter((t) => known.has(t.userId) && !t.hidden),
                 slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })),

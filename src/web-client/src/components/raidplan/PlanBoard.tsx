@@ -7,6 +7,7 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, canFace, groupMembers, iconBoardLabel, iconKeyType, memberId, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
+import type { AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
@@ -82,6 +83,8 @@ type BoardProps = {
     onObjectOpen?: (kind: ObjectKind, id: string) => void;
     /** Right click on an object (target) or on the empty board (null). */
     onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
+    /** Thin connection lines (who heals whom), in board fractions. */
+    links?: AssignLink[];
     /** Shown on the grid when there is no map. */
     emptyText?: string;
 };
@@ -126,7 +129,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, emptyText,
+    me = "", selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -200,6 +203,11 @@ export default function PlanBoard({
                 );
             })}
 
+            {size.w > 0 && links && links.length > 0 && (
+                <svg className="rp-links" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
+                    {links.map((k) => <line key={k.key} x1={px(k.x1, size.w)} y1={px(k.y1, size.h)} x2={px(k.x2, size.w)} y2={px(k.y2, size.h)} stroke={k.color} />)}
+                </svg>
+            )}
             {size.w > 0 && lines.some((l) => !l.hidden) && (
                 <svg className="rp-lines" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
                     {lines.filter((l) => !l.hidden).map((l) => {

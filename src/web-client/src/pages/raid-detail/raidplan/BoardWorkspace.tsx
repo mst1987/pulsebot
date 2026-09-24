@@ -16,6 +16,8 @@ import Inspector, { MapOpacityField, ObjectScaleField } from "./Inspector";
 import LayerList from "./LayerList";
 import MapPanel, { type MapRow } from "./MapPanel";
 import ContextMenu from "./ContextMenu";
+import AssignPanel from "./AssignPanel";
+import { assignmentLinks, scopeOf } from "../../../lib/assign";
 
 type Drag = {
     kind: ObjectKind | "tray" | "palette";
@@ -71,9 +73,11 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
+    mode, eventId, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
 }: {
     mode: "event" | "template";
+    /** the event whose plan this is ("" in a template): suggestions read its lineup */
+    eventId: string;
     boss: RaidplanBoss;
     /** every boss of the plan: the palette offers their icons */
     allBosses: RaidplanBoss[];
@@ -104,6 +108,7 @@ export default function BoardWorkspace({
     const [tab, setTab] = useState<"props" | "bg">("props");
     const [showPalette, setShowPalette] = useState(true);
     const [showPanel, setShowPanel] = useState(true);
+    const [showLinks, setShowLinks] = useState(true);
     const boardRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLElement>(null);
     const dragRef = useRef<Drag | null>(null);
@@ -111,6 +116,9 @@ export default function BoardWorkspace({
     const players = useMemo(() => rosterMap(roster), [roster]);
     const missing = useMemo(() => unplaced(roster, board), [roster, board]);
     const isEvent = mode === "event";
+    const scope = scopeOf(boss);
+    const links = useMemo(() => (showLinks ? assignmentLinks(board) : []), [showLinks, board]);
+    const groupCount = Math.max(5, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
 
@@ -446,7 +454,7 @@ export default function BoardWorkspace({
                 {bossNav}
             </div>
 
-            {isEvent && (
+            {isEvent && scope !== "general" && (
                 <section className={`rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
                     <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
                     {roster.length === 0 && <span className="rp-muted">{t("raidBoard.tray.none")}</span>}
@@ -467,6 +475,7 @@ export default function BoardWorkspace({
                 </section>
             )}
 
+            {scope !== "general" && (
             <div className={`rp-stage${showPalette ? "" : " no-palette"}${showPanel ? "" : " no-panel"}`}>
                 {showPalette && (canWrite ? <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} /> : <div />)}
                 <div
@@ -495,6 +504,7 @@ export default function BoardWorkspace({
                         onObjectKey={canWrite ? onKey : undefined}
                         onObjectOpen={canWrite ? (kind, id) => { setSelected({ kind, id }); focusProperties(); } : undefined}
                         onContext={canWrite ? onContext : undefined}
+                        links={links}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>
@@ -518,9 +528,14 @@ export default function BoardWorkspace({
                     </aside>
                 )}
             </div>
-            {canWrite && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
+            )}
+            {canWrite && scope !== "general" && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             <div className="rp-below">
+                <AssignPanel
+                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
+                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                />
                 <TargetsPanel
                     board={board}
                     roster={roster}

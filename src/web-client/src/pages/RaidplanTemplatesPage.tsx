@@ -441,7 +441,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     };
 
     const pickProfile = async (p: RaidplanProfile) => {
-        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], assignments: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         edit((b) => applyProfile(b, p));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: p.name }));
@@ -471,7 +471,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
 
             {boss && (
                 <BoardWorkspace
-                    mode="template" boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" eventId="" boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

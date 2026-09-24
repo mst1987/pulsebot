@@ -36,7 +36,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });

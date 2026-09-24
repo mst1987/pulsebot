@@ -138,7 +138,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
     // ---- tactic profiles ----------------------------------------------------------------------
     const pickProfile = async (profile: RaidplanProfile) => {
-        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
+        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], assignments: [], mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
         editBoard((b) => applyProfile(b, profile));
         setModal("");
         toast(t("raidBoard.profile.applied", { name: profile.name }));
@@ -180,7 +180,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
             {boss && (
                 <BoardWorkspace
-                    mode="event" boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
+                    mode="event" eventId={eventId} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
