@@ -942,3 +942,32 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 @keyframes rp-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent), 0 0 12px 3px var(--accent); } 50% { box-shadow: 0 0 0 5px var(--accent), 0 0 24px 8px var(--accent); } }
 .rp-token.is-me .rp-ico { animation: rp-pulse 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .rp-token.is-me .rp-ico { animation: none; } }
+
+/* the dialog that gives the roster slots to players: slots by role on the left, the players on the right, all on one page */
+.rp-ar { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.rp-ar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.rp-ar-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 14px; align-items: start; }
+.rp-ar-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rp-ar-col h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; }
+.rp-ar-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; min-width: 0; }
+.rp-ar-row:hover { border-color: var(--accent); }
+.rp-ar-row.is-sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.rp-ar-row.is-target:hover { border-style: dashed; }
+.rp-ar-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rp-ar-n { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); font-size: 11px; font-weight: 800; color: var(--muted); flex: 0 0 auto; }
+.rp-ar-cls { margin-left: auto; display: inline-flex; gap: 2px; padding: 1px 3px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); flex: 0 0 auto; }
+.rp-ar-cls.is-missing { border-color: var(--high, #e0524f); }
+.rp-ar-cls.is-filled { border-color: #22c55e; }
+.rp-ar-cls .wi { border-radius: 4px; }
+.rp-ar-pick { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-ar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rp-ar-wish { display: flex; flex-direction: column; gap: 5px; }
+.rp-ar-filter { display: flex; flex-direction: column; gap: 6px; }
+.rp-ar-players { display: flex; flex-direction: column; gap: 8px; }
+.rp-ar-note { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; font-weight: 700; }
+.rp-ar-at { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.rp-fchip.is-used { opacity: .7; }
+.rp-bes-assign { align-self: flex-start; }
+@media (max-width: 900px) { .rp-ar { grid-template-columns: minmax(0, 1fr); } }
+.rp-ar { user-select: none; -webkit-user-select: none; }
+.rp-ar-players .rp-fchip { touch-action: none; }

@@ -4124,7 +4124,7 @@ export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | 
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
 export type RaidplanOffset = { dx: number; dy: number; size: number };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
-export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset>; /** false = a role slot of the Besetzung that is not on the map (missing = on the map) */ placed?: boolean } & RaidplanLook;
+export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset>; /** the ring round a split group (default shown), its colour ("" = accent) and opacity */ showRing?: boolean; ringColor?: string; ringOpacity?: number; /** a role slot asks for these classes (priority = order); a template fills it from the setup's players of them */ preferredClasses?: string[]; /** filled by class when the template was applied */ byClass?: boolean; /** false = a role slot of the Besetzung that is not on the map (missing = on the map) */ placed?: boolean } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
 /** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */
@@ -4150,6 +4150,8 @@ export type RaidplanBoard = {
     hiddenCards: string[];
     /** the rows of the template's Standard this boss does not inherit (deviated from / switched off) */
     inheritOff: string[];
+    /** the rings round split groups, all at once (default shown) */
+    showRings?: boolean;
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4248,7 +4250,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

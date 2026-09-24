@@ -113,7 +113,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     <PlanBoard
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                        players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never, data.meIds)}
+                                        players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never, data.meIds)} showRings={boss.showRings !== false}
                                     />
                                     {wide && (
                                         <button type="button" className="rp-maponly" aria-pressed={mapOnly} data-tip={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} aria-label={t(mapOnly ? "raidBoard.public.mapBack" : "raidBoard.public.mapOnly")} onClick={() => setMapOnly((v) => !v)}>

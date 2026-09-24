@@ -3,7 +3,7 @@ import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEn
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
+import { alignSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, setRingSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
 import { clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
@@ -33,6 +33,7 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
     const sum = lookSummary(board, sel);
     const dis = !canWrite;
     const box = selectionBox(board, sel, px);
+    const groups = board.slots.filter((s) => s.kind === "group" && sel.some((it) => it.kind === "slot" && it.id === s.id));
     const center = box ? { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 } : { x: 0.5, y: 0.5 };
     const btn = (label: string, icon: JSX.Element, fn: () => void, danger = false) => (
         <IconButton size="sm" tone={danger ? "danger" : undefined} icon={icon} tip={label} disabled={dis} onClick={fn} />
@@ -55,6 +56,7 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
             </div>
             <TriCheck label={t("raidBoard.insp.lock")} value={sum.lock} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { lock: v }))} />
             <TriCheck label={t("raidBoard.multi.hide")} value={sum.hidden} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { hidden: v }))} />
+            {groups.length > 0 && <TriCheck label={t("raidBoard.insp.showRing")} value={groups.every((g) => g.showRing !== false) ? true : groups.every((g) => g.showRing === false) ? false : null} disabled={dis} onChange={(v) => edit((b) => setRingSelection(b, sel, v))} />}
             <div className="rp-field">
                 <span className="rp-kicker">{t("raidBoard.multi.align")}</span>
                 <div className="rp-insp-actions">

@@ -232,6 +232,21 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     {slot.split && Object.keys(slot.offsets || {}).length > 0 && (
                         <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateSlot(b, id, { offsets: {} }))}>{t("raidBoard.insp.resetMembers")}</button>
                     )}
+                    {slot.split && (
+                        <>
+                            <label className="rp-check"><input type="checkbox" checked={slot.showRing !== false} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { showRing: e.target.checked }))} /> {t("raidBoard.insp.showRing")}</label>
+                            {slot.showRing !== false && (
+                                <div className="rp-field-row">
+                                    <label className="rp-field">
+                                        <span className="rp-kicker">{t("raidBoard.insp.ringColor")}</span>
+                                        <input type="color" className="rp-color" value={slot.ringColor || "#7c5cff"} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { ringColor: e.target.value }), true)} />
+                                    </label>
+                                    <button type="button" className="rp-link" disabled={dis || !slot.ringColor} onClick={() => edit((b) => updateSlot(b, id, { ringColor: "" }))}>{t("raidBoard.zone.presetColor")}</button>
+                                </div>
+                            )}
+                            {slot.showRing !== false && <SliderField label={t("raidBoard.insp.ringOpacity")} value={Math.round((slot.ringOpacity === undefined ? 0.55 : slot.ringOpacity) * 100)} min={10} max={100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { ringOpacity: v / 100 }), true)} />}
+                        </>
+                    )}
                     <span className="rp-muted">{t("raidBoard.insp.splitHint")}</span>
                 </div>
             )}

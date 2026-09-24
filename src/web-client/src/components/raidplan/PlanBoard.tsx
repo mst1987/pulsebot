@@ -6,7 +6,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupMembers, groupChipMode, groupTag, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupMembers, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { facingOf, type AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
@@ -87,6 +87,8 @@ type BoardProps = {
     onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
     /** Thin connection lines (who heals whom), in board fractions. */
     links?: AssignLink[];
+    /** The rings round split groups: all shown (default) or all hidden. */
+    showRings?: boolean;
     /** The other selected objects when several are selected (`selected` is then null). */
     multi?: { kind: ObjectKind; id: string }[];
     /** The frame round the whole multi selection and the rubber band, in board fractions. */
@@ -142,7 +144,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", maxHeight, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", maxHeight, showRings = true, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -326,8 +328,8 @@ export default function PlanBoard({
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
                         <div key={s.id} className="rp-groupwrap">
-                            {tag.ring && shownOffsets.length > 0 && (
-                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity }} />
+                            {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
+                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { borderColor: s.ringColor } : {}) }} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
                                 {chipMode === "text" && <span className="rp-grouptext">{boardLabel}</span>}

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
-import { BoxSelect, Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
+import { BoxSelect, Circle, CircleDashed, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
 import { inheritedRows } from "../../../lib/inherit";
-import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
+import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
@@ -22,6 +22,7 @@ import ContextMenu from "./ContextMenu";
 import AssignPanel from "./AssignPanel";
 import Besetzung from "./Besetzung";
 import MobsBar from "./MobsBar";
+import AssignRosterModal from "./AssignRosterModal";
 import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/assign";
 
 type Drag = {
@@ -157,6 +158,7 @@ export default function BoardWorkspace({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [splitting]);
     const [showBes, setShowBes] = useState(true);
+    const [rosterOpen, setRosterOpen] = useState(false);
     const [multi, setMulti] = useState<SelItem[]>([]);
     const [band, setBand] = useState<Box | null>(null);
     const [banding, setBanding] = useState(false);
@@ -643,7 +645,7 @@ export default function BoardWorkspace({
         return [
             it("m:duplicate", "main"), it("m:front", "order"), it("m:back", "order"), it("m:lock", "order"), it("m:unlock", "order"), it("m:hide", "order"),
             it("m:alignLeft", "align"), it("m:alignRight", "align"), it("m:alignTop", "align"), it("m:alignBottom", "align"), it("m:alignCenterH", "align"), it("m:alignCenterV", "align"),
-            it("m:distH", "align"), it("m:distV", "align"), it("m:delete", "end", true),
+            it("m:distH", "align"), it("m:distV", "align"), it("m:ringHide", "order"), it("m:ringShow", "order"), it("m:delete", "end", true),
         ];
     };
     const menuItems = (): MenuItem[] => {
@@ -655,7 +657,7 @@ export default function BoardWorkspace({
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
         const ic = sel.kind === "icon" ? board.icons.find((s) => s.id === sel.id) : undefined;
-        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, faces: !!ic && canFace(ic.iconKey) });
+        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey) });
     };
     const menuLabel = (item: MenuItem): string => {
         const parts = item.id.split(":");
@@ -681,6 +683,8 @@ export default function BoardWorkspace({
             else if (act === "front" || act === "back") multiAction((b, sel) => reorderSelection(b, sel, act));
             else if (act === "lock") multiAction((b, sel) => setLookSelection(b, sel, { lock: true }));
             else if (act === "unlock") multiAction((b, sel) => setLookSelection(b, sel, { lock: false }));
+            else if (act === "ringHide") multiAction((b, sel) => setRingSelection(b, sel, false));
+            else if (act === "ringShow") multiAction((b, sel) => setRingSelection(b, sel, true));
             else if (act === "hide") { multiAction((b, sel) => setLookSelection(b, sel, { hidden: true })); chooseItems([]); }
             else {
                 const modes: Record<string, string> = { alignLeft: "left", alignRight: "right", alignTop: "top", alignBottom: "bottom", alignCenterH: "centerH", alignCenterV: "centerV", distH: "distH", distV: "distV" };
@@ -762,6 +766,8 @@ export default function BoardWorkspace({
                     <span className="rp-tool-sep" aria-hidden="true" />
                     <div className="rp-tool-group">
                         <IconButton size="sm" icon={<PanelLeft size={17} />} tip={t("raidBoard.tool.palette")} aria-pressed={showPalette} className={showPalette ? "is-on" : ""} onClick={() => setShowPalette((v) => !v)} />
+                        {!noBoard && <IconButton size="sm" icon={<ListChecks size={17} />} tip={t("raidBoard.roster.title")} onClick={() => setRosterOpen(true)} />}
+                        {!noBoard && <IconButton size="sm" icon={<CircleDashed size={17} />} tip={t("raidBoard.tool.rings")} aria-pressed={board.showRings !== false} className={board.showRings !== false ? "is-on" : ""} disabled={!canWrite} onClick={() => edit((b) => ({ ...b, showRings: b.showRings === false }))} />}
                         <IconButton size="sm" icon={<BoxSelect size={17} />} tip={t("raidBoard.tool.select")} aria-pressed={selectMode} className={selectMode ? "is-on" : ""} disabled={!canWrite} onClick={() => setSelectMode((v) => !v)} />
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
@@ -789,7 +795,7 @@ export default function BoardWorkspace({
                             board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
                             onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
                             onChipDown={(e, slotId) => startPalette(e, { type: "place", slotId }, true)}
-                            onShow={showSlot}
+                            onShow={showSlot} onAssign={() => setRosterOpen(true)}
                         />
                     )}
                 </div>
@@ -825,7 +831,7 @@ export default function BoardWorkspace({
                         onContext={canWrite ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
-                        me={me}
+                        me={me} showRings={board.showRings !== false}
                         multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined} onMultiMove={canWrite ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
@@ -891,6 +897,7 @@ export default function BoardWorkspace({
                 />
                 <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
             </div>
+            {rosterOpen && <AssignRosterModal board={board} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onClose={() => setRosterOpen(false)} />}
             {canWrite && !noBoard && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             {drag && drag.kind === "tray" && dragPlayer && (

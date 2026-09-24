@@ -85,7 +85,7 @@ describe("zones", () => {
 describe("the rest of a board", () => {
     it("has every field even for nothing and reports no content", () => {
         const r = clean(undefined);
-        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(r.board).toEqual({ tokens: [], slots: [], marks: [], zones: [], icons: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(board.boardHasContent(r.board)).toBe(false);
         expect(board.boardHasContent(clean({ zones: [{}] }).board)).toBe(true);
         expect(board.boardHasContent(clean({ notes: "x" }).board)).toBe(true);

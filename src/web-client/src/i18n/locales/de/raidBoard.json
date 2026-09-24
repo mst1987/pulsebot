@@ -263,7 +263,8 @@
         "palette": "Elemente ein-/ausblenden",
         "panel": "Eigenschaften ein-/ausblenden",
         "bes": "Besetzung ein-/ausblenden",
-        "select": "Auswahlmodus (Antippen fügt hinzu / nimmt heraus, Gummiband auf leerer Fläche)"
+        "select": "Auswahlmodus (Antippen fügt hinzu / nimmt heraus, Gummiband auf leerer Fläche)",
+        "rings": "Gruppenrahmen ein-/ausblenden (alle auf einmal)"
     },
     "palette": {
         "title": "Elemente",
@@ -315,7 +316,10 @@
         "split": "Aufgesplittet (Raider als einzelne Tokens)",
         "resetMembers": "Positionen zurücksetzen",
         "splitHint": "Ausgeblendet zeigt der Marker nur sein Tag. Aufgesplittet stehen die Raider der Setup-Gruppe als Tokens um ihn.",
-        "memberHint": "Ein Raider einer aufgesplitteten Gruppe. Ziehen verschiebt nur ihn (die Position gilt relativ zum Marker), die Größe gilt für ihn allein."
+        "memberHint": "Ein Raider einer aufgesplitteten Gruppe. Ziehen verschiebt nur ihn (die Position gilt relativ zum Marker), die Größe gilt für ihn allein.",
+        "showRing": "Rahmen anzeigen",
+        "ringColor": "Farbe des Rahmens",
+        "ringOpacity": "Deckkraft des Rahmens"
     },
     "panel": {
         "props": "Eigenschaften",
@@ -366,7 +370,11 @@
         "m_alignCenterV": "Vertikal zentrieren",
         "m_distH": "Horizontal verteilen",
         "m_distV": "Vertikal verteilen",
-        "m_delete": "Auswahl löschen"
+        "m_delete": "Auswahl löschen",
+        "ring_hide": "Rahmen ausblenden",
+        "ring_show": "Rahmen einblenden",
+        "m_ringHide": "Gruppenrahmen ausblenden",
+        "m_ringShow": "Gruppenrahmen einblenden"
     },
     "icon": {
         "boss": "Boss",
@@ -596,5 +604,19 @@
         "copyEmpty": "Der Standard hat noch keine Zeilen.",
         "copied": "In {count} Bosse kopiert.",
         "explain": "Der Standard ist die Tank- und Heiler-Grundaufstellung, die jeder Boss und jeder Trash übernimmt („Tank 1 → Boss“ zeigt bei jedem Boss dessen Boss). Ein Boss kann davon abweichen oder eine Zeile ausblenden. „Allgemein“ ist etwas anderes: Raid-Utility wie Flüche, einmal für den ganzen Raid."
+    },
+    "roster": {
+        "title": "Besetzung zuweisen",
+        "hint": "Slot wählen, dann Spieler anklicken oder auf einen Slot ziehen. Wer schon woanders steht, tauscht den Platz.",
+        "fill": "Offene Slots füllen (Rolle / Klasse)",
+        "clearAll": "Alle leeren",
+        "clear": "Slot leeren",
+        "pick": "Spieler",
+        "wish": "Bevorzugte Klasse",
+        "wishHint": "Beim Anwenden der Vorlage bekommt der Slot einen Spieler dieser Klasse; fehlt sie im Raid, bleibt er offen.",
+        "onlyClass": "Nur",
+        "noSlots": "Keine Slots.",
+        "swapped": "Getauscht: {a} ↔ {b}",
+        "classMissing": "{cls} fehlt im Raid"
     }
 }

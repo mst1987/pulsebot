@@ -165,6 +165,14 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             // a role slot of the Besetzung that was not put on the map yet has no place there (placed = false)
             placed: o.placed !== false,
             hideMembers: o.kind === "group" && o.hideMembers === true, split: o.kind === "group" && o.split === true, offsets,
+            // the ring round a split group: shown (default), its colour ("" = the accent) and its opacity
+            showRing: o.kind !== "group" || o.showRing !== false,
+            ringColor: o.kind === "group" ? cleanColor(o.ringColor, "") : "",
+            ringOpacity: o.kind === "group" ? cleanOpacity(o.ringOpacity, 0.55) : 0.55,
+            // a role slot can ask for a class (priority = order): a template fills it from the setup's players of that class only;
+            // byClass = it was filled that way (shown as a small class badge in the event)
+            preferredClasses: assign.SLOT_ROLES.includes(o.kind) ? assign.cleanClasses(o.preferredClasses) : [],
+            byClass: assign.SLOT_ROLES.includes(o.kind) && o.byClass === true,
         });
     }
 
@@ -291,15 +299,17 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
     const hiddenCards = [...new Set((Array.isArray(input.hiddenCards) ? input.hiddenCards : []).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x));
     const counts = besetzung.cleanCounts(input.counts);
+    // all group rings of the board at once (default: shown)
+    const showRings = input.showRings !== false;
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.showRings === false || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -328,16 +338,37 @@ function reidBoard(board) {
 function fillSlots(slots, roster) {
     const taken = new Set(slots.map((s) => s.userId).filter(Boolean));
     const isDamage = (p) => p.role !== "tank" && p.role !== "healer";
-    const pick = (kind) => {
-        const fits = kind === "dps" ? isDamage : (p) => p.role === kind;
-        return roster.find((p) => fits(p) && !taken.has(p.userId)) || null;
-    };
+    const fitsRole = (kind) => (kind === "dps" ? isDamage : (p) => p.role === kind);
+    const pick = (kind) => roster.find((p) => fitsRole(kind)(p) && !taken.has(p.userId)) || null;
     const order = (kind) => slots.map((s, i) => ({ s, i })).filter((x) => x.s.kind === kind && !x.s.userId)
         .sort((a, b) => a.s.n - b.s.n || a.i - b.i);
     const out = slots.map((s) => ({ ...s }));
-    // the exact roles first, so a generic "DPS (egal)" slot never takes a melee or ranged player away from a slot that asks for him
-    for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
+    const kinds = ["tank", "healer", "melee", "ranged", "dps"];
+    // 1. the slots that ask for a class come first, so the ones without a wish never eat their players: the first free player of the
+    //    slot's role in the order of its classes (setup order among the same class), each player once; nobody of that class = the slot
+    //    stays open (a stranger never takes it)
+    const bound = new Set();
+    for (const kind of kinds) {
+        for (const { s, i } of order(kind)) {
+            const wish = Array.isArray(s.preferredClasses) ? s.preferredClasses : [];
+            if (wish.length === 0) continue;
+            bound.add(i);
+            let found = null;
+            for (const cls of wish) {
+                found = roster.find((p) => fitsRole(kind)(p) && !taken.has(p.userId) && p.classId === cls) || null;
+                if (found) break;
+            }
+            if (!found) continue;
+            taken.add(found.userId);
+            out[i].userId = found.userId;
+            out[i].byClass = true;
+        }
+    }
+    // 2. the slots without a wish, the exact roles first, so a generic "DPS (egal)" slot never takes a melee or ranged player away
+    //    from a slot that asks for him
+    for (const kind of kinds) {
         for (const { i } of order(kind)) {
+            if (bound.has(i)) continue;
             const p = pick(kind);
             if (!p) break;
             taken.add(p.userId);

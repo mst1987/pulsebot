@@ -48,6 +48,7 @@ const CLASS_RULES = {
 // The curses handed out, in the order of the warlocks.
 const CURSES = ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom"];
 
+const SLOT_ROLES = ["tank", "healer", "melee", "ranged", "dps"];
 const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
 /** A list of class ids as stored: only known classes, each once, in the order given. */
 function cleanClasses(raw) {
@@ -241,6 +242,6 @@ function targetsToAssignments(targets, known) {
 }
 
 module.exports = {
-    ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
+    ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

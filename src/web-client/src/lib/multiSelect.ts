@@ -308,6 +308,12 @@ export function setLookSelection(board: RaidplanBoard, sel: SelItem[], patch: { 
     return out;
 }
 
+/** The rings of the group markers of the selection: shown or hidden (everything else in it is left alone). */
+export function setRingSelection(board: RaidplanBoard, sel: SelItem[], show: boolean): RaidplanBoard {
+    const ids = sel.filter((it) => it.kind === "slot").map((it) => it.id);
+    return { ...board, slots: board.slots.map((s) => (s.kind === "group" && ids.indexOf(s.id) >= 0 ? { ...s, showRing: show } : s)) };
+}
+
 /** Puts the selection in front of or behind the rest of its layer; the order among them stays. */
 export function reorderSelection(board: RaidplanBoard, sel: SelItem[], dir: string): RaidplanBoard {
     let out = board;

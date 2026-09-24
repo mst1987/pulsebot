@@ -1,6 +1,6 @@
 import { useState, type PointerEvent } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
-import { Check, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
+import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
@@ -17,7 +17,7 @@ import { useT } from "../../../i18n";
  * boss only ("nur dieser Boss", back to the raid type's numbers with the arrow). The pin puts a slot on the
  * map (click, or drag it onto the board); everything can be assigned unplaced.
  */
-export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown, onChipDown, onShow }: {
+export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown, onChipDown, onShow, onAssign }: {
     board: RaidplanBoard;
     besetzung: BesetzungData;
     roster: RaidplanPlayer[];
@@ -31,6 +31,8 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     onChipDown: (e: PointerEvent<HTMLElement>, slotId: string) => void;
     /** A placed chip was clicked: select the slot on the map and let it blink. */
     onShow: (slotId: string) => void;
+    /** Opens the dialog that gives all roster slots to players (and binds classes to slots). */
+    onAssign: () => void;
 }) {
     const t = useT();
     const [openSlot, setOpenSlot] = useState<{ id: string; el: HTMLElement } | null>(null);
@@ -119,6 +121,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     return (
         <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
             <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
+            <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
             <div className="rp-bes-blocks">
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);

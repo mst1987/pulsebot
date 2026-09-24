@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -111,6 +111,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         mobs: b.mobs || [],
         hiddenCards: b.hiddenCards || [],
         inheritOff: b.inheritOff || [],
+        showRings: b.showRings !== false,
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -686,6 +687,11 @@ export function groupChipMode(editable: boolean, split: boolean, label: string):
     return label.trim() !== "" ? "text" : "none";
 }
 
+/** Whether the ring round a split group is drawn: the board's switch for all rings and the group's own one (both default to shown). */
+export function ringShown(boardShowRings: boolean | undefined, slot: { showRing?: boolean }): boolean {
+    return boardShowRings !== false && slot.showRing !== false;
+}
+
 /** The ellipse (half width / height, as fractions of the board) that covers the offsets of a ring, with a little room for the tokens. */
 export function ringCover(offsets: { dx: number; dy: number }[], padX: number, padY: number): { rx: number; ry: number } {
     let rx = 0;
@@ -821,7 +827,7 @@ function item(id: string, section: string, disabled: boolean, danger: boolean): 
  * empty board (`"board"`), in order. `id`s are what applyMenuAction() and the page
  * understand; `section` groups them (a separator between sections).
  */
-export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; faces?: boolean }): MenuItem[] {
+export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; faces?: boolean }): MenuItem[] {
     if (target === "board") {
         const out = [];
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
@@ -846,6 +852,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
     if (target === "slot" && opts.kind === "group") {
         out.push(item(opts.hideMembers ? "members:show" : "members:hide", "group", false, false));
         out.push(item(opts.split ? "split:off" : "split:on", "group", false, false));
+        if (opts.split) out.push(item(opts.ringOff ? "ring:show" : "ring:hide", "group", false, false));
     }
     out.push(item("delete", "end", false, true));
     return out;
@@ -877,6 +884,8 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     if (!kind) return { board, sel: null };
     if (id === "duplicate") return duplicateObject(board, kind, objId);
     if (id.startsWith("face:")) return { board: updateIcon(board, objId, { rotation: normAngle(Number(id.slice(5))) }), sel };
+    if (id === "ring:hide") return { board: updateSlot(board, objId, { showRing: false }), sel };
+    if (id === "ring:show") return { board: updateSlot(board, objId, { showRing: true }), sel };
     if (id === "members:hide") return { board: updateSlot(board, objId, { hideMembers: true }), sel };
     if (id === "members:show") return { board: updateSlot(board, objId, { hideMembers: false }), sel };
     if (id === "split:on") return { board: updateSlot(board, objId, { split: true }), sel };

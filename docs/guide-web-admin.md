@@ -131,3 +131,11 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Berechtigungen** — Rechte je Discord-Rolle oder Einzelkonto pro Bereich (lesen/schreiben), Basiszugang für alle, Bot-Befehl-Rechte, "Ansicht als Rolle" zum Testen. Details: [docs/permissions.md](permissions.md).
 - **Verbindungen** — Discord-Server (Event-/Talk-Server), Raid-Helper-Umstieg, Loot-Sync-Token, Warcraft-Logs- und KI-Zugang.
 - **Kategorien** — pro Raid-Kategorie Quelle (Bot/Raid-Helper), Rollen, Vorlage, Lootsystem, Erinnerungen, Setup-DMs, Sprachkanal, Discord-Event.
+
+### Neu: Besetzung zuweisen, Standard, Mehrfachauswahl
+
+- **Besetzung zuweisen** (Knopf in der Besetzungs-Leiste und in der Werkzeugleiste): ein Fenster mit allen Slots je Rolle (Tank | Heiler | Melee | Ranged | DPS). Slot waehlen, Spieler anklicken oder auf einen Slot ziehen; wer schon woanders steht, tauscht den Platz. "Offene Slots fuellen" belegt nach Rolle und Klasse, "Alle leeren" leert. Jeder Slot kann eine bevorzugte Klasse haben: beim Anwenden der Vorlage bekommt er einen Spieler dieser Klasse, fehlt sie, bleibt er offen.
+- **Standard** (Vorlage): Tank-/Heiler-Einteilungen einmal eintragen, alle Bosse erben sie; pro Boss abweichen, ausblenden oder zuruecksetzen; "Standard auf alle Bosse anwenden" kopiert.
+- **Mehrfachauswahl** auf dem Board: mit dem Gummiband, Strg/Shift-Klick oder Strg+A; der Rahmen verschiebt und skaliert alles gemeinsam.
+- **Gruppenring** ausblendbar (je Gruppe, Auswahl oder ganzes Board).
+- **Lese-Ansicht**: zwei Spalten, "Meine Einteilungen" zuerst, "Du" wird ueberall hervorgehoben.

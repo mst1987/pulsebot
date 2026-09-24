@@ -263,7 +263,8 @@
         "palette": "Show / hide elements",
         "panel": "Show / hide properties",
         "bes": "Show or hide the roster slots",
-        "select": "Selection mode (tap adds / removes, rubber band on empty ground)"
+        "select": "Selection mode (tap adds / removes, rubber band on empty ground)",
+        "rings": "Show or hide the group rings (all at once)"
     },
     "palette": {
         "title": "Elements",
@@ -315,7 +316,10 @@
         "split": "Split (raiders as single tokens)",
         "resetMembers": "Reset positions",
         "splitHint": "Hidden, the marker shows only its tag. Split, the raiders of the setup group stand around it as tokens.",
-        "memberHint": "A raider of a split group. Dragging moves only him (his place is kept relative to the marker), the size is his alone."
+        "memberHint": "A raider of a split group. Dragging moves only him (his place is kept relative to the marker), the size is his alone.",
+        "showRing": "Show the ring",
+        "ringColor": "Ring colour",
+        "ringOpacity": "Ring opacity"
     },
     "panel": {
         "props": "Properties",
@@ -366,7 +370,11 @@
         "m_alignCenterV": "Center vertically",
         "m_distH": "Distribute horizontally",
         "m_distV": "Distribute vertically",
-        "m_delete": "Delete selection"
+        "m_delete": "Delete selection",
+        "ring_hide": "Hide the ring",
+        "ring_show": "Show the ring",
+        "m_ringHide": "Hide group rings",
+        "m_ringShow": "Show group rings"
     },
     "icon": {
         "boss": "Boss",
@@ -596,5 +604,19 @@
         "copyEmpty": "The default has no rows yet.",
         "copied": "Copied into {count} bosses.",
         "explain": "The default is the basic tank and healer set-up every boss and trash section takes over (“Tank 1 -> Boss” shows each boss's own boss). A boss can deviate or hide a row. “General” is something else: raid-wide utility such as curses, once for the whole raid."
+    },
+    "roster": {
+        "title": "Assign the roster",
+        "hint": "Pick a slot, then click a player or drag him onto a slot. Whoever stands elsewhere swaps places.",
+        "fill": "Fill open slots (role / class)",
+        "clearAll": "Clear all",
+        "clear": "Clear slot",
+        "pick": "Players",
+        "wish": "Preferred class",
+        "wishHint": "When the template is applied the slot gets a player of this class; without one in the raid it stays open.",
+        "onlyClass": "Only",
+        "noSlots": "No slots.",
+        "swapped": "Swapped: {a} <-> {b}",
+        "classMissing": "{cls} is missing in the raid"
     }
 }
