@@ -658,8 +658,8 @@
 .rp-groupchip { min-width: 0; }
 .rp-groupchip-head { display: inline-flex; align-items: center; gap: 5px; }
 .rp-groupchip-n { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 800; line-height: 1; }
-.rp-groupchip.is-dim { opacity: .6; }
-.rp-groupchip.is-dim .rp-groupchip-n { background: transparent; color: inherit; border: 1px solid currentColor; }
+.rp-groupchip.is-gempty { opacity: .6; }
+.rp-groupchip.is-gempty .rp-groupchip-n { background: transparent; color: inherit; border: 1px solid currentColor; }
 .rp-groupring { position: absolute; transform: translate(-50%, -50%); border: 2px dashed var(--accent); border-radius: 50%; opacity: .55; pointer-events: none; z-index: 0; box-sizing: border-box; }
 .rp-token-gbadge { position: absolute; right: -5px; bottom: -5px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); border: 1px solid rgba(0, 0, 0, .45); font-size: 10px; font-weight: 800; line-height: 14px; text-align: center; box-sizing: border-box; pointer-events: none; }
 .rp-member-ph { pointer-events: none; }

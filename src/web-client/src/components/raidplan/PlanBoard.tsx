@@ -314,7 +314,7 @@ export default function PlanBoard({
                                 <div className="rp-groupring" aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity }} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
-                                <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-dim" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
+                                <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
                                     <span className="rp-groupchip-head">
                                         <Users size={15} aria-hidden="true" />
                                         <span className="rp-groupchip-n">{tag.number}</span>
