@@ -61,13 +61,19 @@ const LIMITS = {
 const FLEX_ROLES = ["tank", "healer", "dps", "melee", "ranged"];
 const SLOT_KINDS = ["tank", "healer", "melee", "ranged", "dps", "group", "label"];
 // sizes in px: the default and the range of what can be set
-const SIZES = { token: [38, 24, 96], mark: [34, 16, 96], icon: [48, 20, 200] };
+// def, min, max: 25 % .. 400 % of the default (sizes are in reference units, see docs/raidplan.md)
+const SIZES = { token: [38, 10, 152], mark: [34, 9, 136], icon: [48, 12, 192] };
+/** A scale factor as stored: 0.25 .. 4 (25 % .. 400 %), two decimals, 1 when it is not a number. */
+function cleanFactor(v) {
+    const n = Number(v);
+    return v !== "" && v !== null && v !== undefined && Number.isFinite(n) ? Math.max(0.25, Math.min(4, Math.round(n * 100) / 100)) : 1;
+}
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
 const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
 const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
 /** The colour and the raid mark of the groups (group n -> "#rrggbb" / a mark id): only groups 1..20, only valid colours, a mark once (the first group keeps it). Empty = the defaults. */
 function cleanGroupStyles(colors, marks) {
-    const okKey = (k) => /^(?:[1-9]|1d|20)$/.test(k);
+    const okKey = (k) => /^(?:[1-9]|1\d|20)$/.test(k);
     const outColors = {};
     for (const k of Object.keys(colors && typeof colors === "object" ? colors : {})) if (okKey(k) && /^#[0-9a-fA-F]{6}$/.test(String(colors[k]))) outColors[k] = String(colors[k]).toLowerCase();
     const outMarks = {};
@@ -102,7 +108,8 @@ function cleanOpacity(v, fallback) {
 
 /** What every board object shares: its opacity, whether it is locked and whether it is hidden. */
 function common(o, defaultOpacity = 1) {
-    return { opacity: cleanOpacity(o.opacity, defaultOpacity), lock: o.lock === true, hidden: o.hidden === true };
+    // `ring: false` = no ring / border round this object (default shown; only stored when off)
+    return { opacity: cleanOpacity(o.opacity, defaultOpacity), lock: o.lock === true, hidden: o.hidden === true, ...(o.ring === false ? { ring: false } : {}), ...(o.showName === false ? { showName: false } : {}) };
 }
 
 /** A size in px inside the range of its kind, the default for anything that is no number. */
@@ -179,6 +186,8 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             // a role slot of the Besetzung that was not put on the map yet has no place there (placed = false)
             placed: o.placed !== false,
             hideMembers: o.kind === "group" && o.hideMembers === true, split: o.kind === "group" && o.split === true, offsets,
+            // a group as a whole (ring radius, spacing of the tokens, member tokens, tag, badges, names), its ring spacing and its member tokens on their own: 25 % .. 400 %
+            groupScale: o.kind === "group" ? cleanFactor(o.groupScale) : 1, ringSpread: o.kind === "group" ? cleanFactor(o.ringSpread) : 1, tokenScale: o.kind === "group" ? cleanFactor(o.tokenScale) : 1,
             // the ring round a split group: shown (default), its colour ("" = the accent) and its opacity
             showRing: o.kind !== "group" || o.showRing !== false,
             ringColor: o.kind === "group" ? cleanColor(o.ringColor, "") : "",
@@ -248,7 +257,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             x1: round4(clamp01(Number(o.x1))), y1: round4(clamp01(Number(o.y1))),
             x2: round4(clamp01(Number(o.x2))), y2: round4(clamp01(Number(o.y2))),
             color: cleanColor(o.color, DEFAULT_LINE_COLOR),
-            width: Math.max(1, Math.min(12, Math.round(Number(o.width)) || 4)),
+            width: Math.max(1, Math.min(16, Math.round(Number(o.width)) || 4)),
             ...common(o),
         };
     });
@@ -265,7 +274,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             id: cleanId(o.id, textIds), text,
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))),
             color: cleanColor(o.color, DEFAULT_TEXT_COLOR),
-            size: Math.max(10, Math.min(48, Math.round(Number(o.size)) || 16)),
+            size: Math.max(5, Math.min(72, Math.round(Number(o.size)) || 16)),
             ...common(o),
         });
     }
@@ -397,6 +406,7 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
+    cleanFactor,
     LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
 };

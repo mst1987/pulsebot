@@ -2,7 +2,7 @@
 // (nothing to maintain). Two kinds never mix: a row where the visitor is the one who does it is a task of his (even when it also
 // targets him, marked "auch auf dich"); a row of somebody else that targets him, his group, his slot or names him in words acts ON him.
 // Pure and tested (test/web-client/mineView.test.js); written with function declarations and one-line signatures only.
-import type { RaidplanAssignment } from "../api";
+import type { RaidplanAssignment, RaidplanAssignTarget } from "../api";
 import { isMe, resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx } from "./assign";
 import { mentionsInRow } from "./mention";
@@ -75,4 +75,15 @@ export function splitMine(assignments: RaidplanAssignment[], ctx: AssignCtx, me:
         (r.mode === "do" ? mine : onMe).push(r);
     }
     return { mine: blocksOf(mine), onMe: blocksOf(onMe), modes };
+}
+
+/** One assignment as ONE card: who does it, at what / whom (all targets of the row together), and the small extras. `recipient` is set for what acts on the visitor: "me", "group" (with `group`) or "text" (named in words). */
+export type MineCard = { id: string; type: string; text: string; whoMe: boolean; who: string[]; to: RaidplanAssignTarget[]; recipient: string; group: number; order: number; alsoOnMe: boolean; note: string };
+
+/** The card of a row that concerns the visitor: a task of his shows "me" as the one who does it and every target of the row; what acts on him shows who does it and himself (or his group) as the receiver. */
+export function mineCard(r: MineRow): MineCard {
+    const a = r.a;
+    const text = [a.spell ? a.spell.name : "", a.title].filter(Boolean).join(": ");
+    if (r.mode === "do") return { id: a.id, type: a.type, text, whoMe: true, who: [], to: a.targets, recipient: "", group: 0, order: r.order, alsoOnMe: r.alsoOnMe, note: a.note };
+    return { id: a.id, type: a.type, text, whoMe: false, who: a.assignees, to: [], recipient: r.via === "group" ? "group" : r.via === "text" ? "text" : "me", group: r.group, order: 0, alsoOnMe: false, note: a.note };
 }

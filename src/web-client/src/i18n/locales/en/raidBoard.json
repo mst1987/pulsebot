@@ -319,7 +319,19 @@
         "memberHint": "A raider of a split group. Dragging moves only him (his place is kept relative to the marker), the size is his alone.",
         "showRing": "Show the ring",
         "ringColor": "Ring colour",
-        "ringOpacity": "Ring opacity"
+        "ringOpacity": "Ring opacity",
+        "sizePct": "Size",
+        "groupSize": "Group size",
+        "ringSpread": "Ring spacing",
+        "tokenSize": "Token size",
+        "allGroups": "All groups this size",
+        "zoneScale": "Scale zone",
+        "mixed": "mixed",
+        "relative": "Size relative",
+        "relativeHint": "One factor for everything selected (100 % = unchanged).",
+        "showBorder": "Show border",
+        "showRingObj": "Show ring / border",
+        "showName": "Show name"
     },
     "panel": {
         "props": "Properties",
@@ -374,7 +386,8 @@
         "ring_hide": "Hide the ring",
         "ring_show": "Show the ring",
         "m_ringHide": "Hide group rings",
-        "m_ringShow": "Show group rings"
+        "m_ringShow": "Show group rings",
+        "sizeTo": "Size {pct} %"
     },
     "icon": {
         "boss": "Boss",
@@ -641,11 +654,9 @@
     },
     "mine": {
         "title": "My tasks",
-        "onMe": "Acting on me",
+        "onMe": "Acts on you",
         "all": "All assignments",
-        "me": "ME",
-        "you": "YOU",
-        "onYou": "ON YOU",
+        "you": "You",
         "alsoOnYou": "also on you",
         "group": {
             "tank": "Tanking",
@@ -659,25 +670,7 @@
             "warrior": "Thunder Clap / Demo Shout",
             "other": "Other"
         },
-        "on": {
-            "text": "Names you: {type}",
-            "player": {
-                "tank": "Tanks with you",
-                "heal": "Heals you",
-                "md": "Misdirect on you",
-                "ss": "Soulstone on you",
-                "fearward": "Fear Ward on you",
-                "generic": "{type} on you"
-            },
-            "group": {
-                "tank": "Tanks for your group ({n})",
-                "heal": "Heals your group ({n})",
-                "md": "Misdirect on your group ({n})",
-                "ss": "Soulstone on your group ({n})",
-                "fearward": "Fear Ward on your group ({n})",
-                "generic": "{type} on your group ({n})"
-            }
-        }
+        "yourGroup": "Your group ({n})"
     },
     "group": {
         "style": "Look of group {n}",
@@ -706,6 +699,15 @@
         "iconSizeHint": "Tokens, slots, marks, boss icons and their names - also in the read view.",
         "names": "Show names",
         "badges": "Show number badges",
-        "roleRings": "Show role rings"
+        "roleRings": "Role rings",
+        "menu": "View",
+        "mine": "Highlight me",
+        "selection": "Show selection frame",
+        "links": "Connection lines",
+        "groupRings": "Group rings",
+        "forMe": "Only for you, remembered in this browser.",
+        "forPlan": "Saved in the plan (also in the read view).",
+        "localHead": "Only for you",
+        "planHead": "In the plan"
     }
 }

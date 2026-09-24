@@ -2,7 +2,7 @@
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
 // Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../api";
-import { MIN_ZONE, SIZE_RANGES, clamp01, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, setObjectSize, sizeOf, unplaceSlot, updateLine, updateZone } from "./raidplan";
+import { MIN_ZONE, SIZE_RANGES, clamp01, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateLine, updateZone } from "./raidplan";
 import type { ObjectKind } from "./raidplan";
 
 export type SelItem = { kind: ObjectKind; id: string };
@@ -10,6 +10,17 @@ export type SelItem = { kind: ObjectKind; id: string };
 export type Box = { x0: number; y0: number; x1: number; y1: number };
 export type BoardPx = { w: number; h: number };
 export type Snapshot = { marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[]; labels: RaidplanSlot[] };
+
+/** Resizes everything selected by a factor, each relative to its own size (a group by its scale, a zone about its own middle); one edit, so one undo step. */
+export function resizeSelection(board: RaidplanBoard, sel: SelItem[], factor: number): RaidplanBoard {
+    let next = board;
+    for (const it of sel) {
+        if (it.kind === "zone") { next = scaleObject(next, "zone", it.id, factor); continue; }
+        const now = objectPercent(next, it.kind, it.id);
+        if (now !== null) next = setObjectPercent(next, it.kind, it.id, Math.round(now * factor));
+    }
+    return next;
+}
 
 export function itemKey(it: SelItem): string {
     return `${it.kind}:${it.id}`;

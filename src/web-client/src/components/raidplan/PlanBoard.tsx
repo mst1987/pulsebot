@@ -1,6 +1,9 @@
-import { REF_W, canvasStyle } from "../../lib/boardScale";
+import { REF_W, boardScale, canvasStyle } from "../../lib/boardScale";
+import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../lib/labelScale";
 import { FIT, type BoardView } from "../../lib/boardView";
+import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
+import { groupScales } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
@@ -101,6 +104,9 @@ type BoardProps = {
     showNames?: boolean;
     showBadges?: boolean;
     showRoleRings?: boolean;
+    /** the highlight of the viewer's own character (default on) and the frame + grips of the selection (editor, default on) */
+    highlightMe?: boolean;
+    showSelection?: boolean;
     /** the colour / raid mark of the groups (by group number) and the group the others dim for */
     groupColors?: Record<string, string>;
     groupMarks?: Record<string, string>;
@@ -160,7 +166,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -176,14 +182,14 @@ export default function PlanBoard({
     }, [boardRef]);
     useEffect(() => { setAspect(0); }, [mapUrl]);
 
-    const mineIds = Array.isArray(me) ? me : me ? [me] : [];
+    const mineIds = !highlightMe ? [] : Array.isArray(me) ? me : me ? [me] : [];
     const isMe = (id: string) => mineIds.indexOf(id) >= 0;
     const editable = !!onObjectDown;
     /** the names of the visitor's own characters (a text on the map that names them is marked) */
     const mineNames = mineIds.map((id) => (players.get(id) || { character: "" }).character).filter((n) => n.length > 1);
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
     const picked = (kind: ObjectKind, id: string) => multi.some((m) => m.kind === kind && m.id === id);
-    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) || picked(kind, id) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
+    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", selectionDrawn(editable, isSel(kind, id) || picked(kind, id), showSelection) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
     const handlers = (kind: ObjectKind, id: string) => (editable ? {
         onPointerDown: (e: PointerEvent<HTMLElement>) => onObjectDown!(e, kind, id),
         onKeyDown: onObjectKey ? (e: KeyboardEvent<HTMLElement>) => onObjectKey(e, kind, id) : undefined,
@@ -193,12 +199,18 @@ export default function PlanBoard({
     // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
     // board's real width, so editor, template preview and read view look the same at any size (see lib/boardScale.ts)
     const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
-    const canvas = { ...canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy), "--rp-os": String(Math.max(0.6, objectScale)) } as CSSProperties;
+    const canvas = canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy) as CSSProperties;
     const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
-    const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px` }) as CSSProperties;
+    // the name label follows the icon (lib/labelScale.ts): its font is set here in reference units, and it is hidden when legibility would blow it up
+    const screenScale = boardScale(outer.w) * view.z;
+    const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
+    const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
+    const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px`, "--rp-nf": `${labelOf(scaled(size, def), def).font}px` }) as CSSProperties;
+    /** " is-noname" when the object's name is off or would not fit its icon */
+    const noName = (size: number | undefined, def: number, mult: number, show: boolean | undefined) => (show === false || !labelOf(scaled(size, def) * mult, def).show ? " is-noname" : "");
     /** The grip that scales a selected object (drag it away from / towards the object). */
     const sizeHandle = (kind: ObjectKind, id: string, locked: boolean) => (editable && !locked && isSel(kind, id) ? (
         <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
@@ -207,7 +219,7 @@ export default function PlanBoard({
 
     return (
         <div
-            className={`rp-board${mapUrl ? " has-map" : ""}${showNames ? "" : " is-nonames"}${showBadges ? "" : " is-nobadges"}${showRoleRings ? "" : " is-noroles"}${view.z !== 1 ? " is-zoomed" : ""}`} ref={attach} style={style} data-rp-board
+            className={`rp-board${mapUrl ? " has-map" : ""}${showNames ? "" : " is-nonames"}${showBadges ? "" : " is-nobadges"}${showRoleRings ? "" : " is-noroles"}${view.z !== 1 ? " is-zoomed" : ""}${showSelection ? "" : " is-nosel"}`} ref={attach} style={style} data-rp-board
             onContextMenu={onContext ? (e) => {
                 e.preventDefault();
                 const el = (e.target as HTMLElement).closest("[data-obj]");
@@ -237,7 +249,7 @@ export default function PlanBoard({
                 return (
                     <div
                         key={z.id} style={zs} data-zone={z.id} data-obj={`zone:${z.id}`} tabIndex={editable ? 0 : undefined}
-                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}`, "zone", z.id, "", z.lock)}
+                        className={cls(`rp-zone rp-zone-${z.type} rp-shape-${z.shape}`, "zone", z.id, ringShownFor(true, z.ring) ? "" : "is-noborder", z.lock)}
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
@@ -309,7 +321,7 @@ export default function PlanBoard({
                 const face = canFace(i.iconKey);
                 const src = type === "boss" ? portraitUrl(i.iconKey) : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
                 return (
-                    <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, "", i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
+                    <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, `${ringShownFor(showRoleRings, i.ring) ? "" : "is-noring"}${noName(i.size, SIZE_RANGES.icon.def, 1, i.showName)}`, i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
                         <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={name} data-tip={name} {...handlers("icon", i.id)}>
                             <span className={`rp-icon-face${face ? " is-round" : ""}`}>
                                 {src ? <img src={src} alt="" draggable={false} /> : (
@@ -345,21 +357,27 @@ export default function PlanBoard({
                     const showList = !s.hideMembers && !s.split;
                     const around = splitMembers(boardLike, s, roster);
                     const everyone = s.split && !s.hideMembers ? roster.filter((p) => p.group === s.n) : [];
-                    const memberPx = scaled(s.size, SIZE_RANGES.member.def);
+                    // the group's own scales: as a whole (gs), the spacing of its ring (sp) and its member tokens (ts); effective size = the board's symbol size x these
+                    const { gs, sp, ts } = groupScales(s);
+                    const memberBase = scaled(s.size, SIZE_RANGES.member.def);
+                    const memberPx = memberBase * gs * ts;
+                    const spacePx = memberBase * gs * sp;
+                    const spread = gs * sp;
+                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px` }) as CSSProperties;
                     const gcol = groupColor(groupColors, s.n);
                     const gmark = groupMark(groupMarks, s.n);
-                    const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
+                    const ring = ringOffsets(everyone.length, size.w, size.h, spacePx);
                     const tag = groupTag(s, roster.filter((p) => p.group === s.n).length, roster.length > 0);
                     const chipMode = groupChipMode(editable, tag.badges, boardLabel);
-                    const holders = ringOffsets(tag.placeholders, size.w, size.h, memberPx);
-                    const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off || ring[at] || { dx: 0, dy: 0 }; }), ...holders];
+                    const holders = ringOffsets(tag.placeholders, size.w, size.h, spacePx);
+                    const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off ? { dx: off.dx * spread, dy: off.dy * spread } : ring[at] || { dx: 0, dy: 0 }; }), ...holders];
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
-                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " rp-gdim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol) } as CSSProperties}>
+                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " rp-gdim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol), "--rp-gs": String(gs * objectScale) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
                                 <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { borderColor: s.ringColor } : {}) }} />
                             )}
-                            <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
+                            <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, `${members.some((p) => isMe(p.userId)) ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                                 {chipMode === "text" && <span className="rp-grouptext">{gmark && <MarkIcon mark={gmark as never} size={16} />}{boardLabel}</span>}
                                 {chipMode === "chip" && (
                                 <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
@@ -378,7 +396,7 @@ export default function PlanBoard({
                                 )}
                             </div>
                             {holders.map((h, i) => (
-                                <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ left: `${(s.x + h.dx) * 100}%`, top: `${(s.y + h.dy) * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.member.def) }}>
+                                <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ left: `${(s.x + h.dx) * 100}%`, top: `${(s.y + h.dy) * 100}%`, opacity: s.opacity, ...memberSize(s.size) }}>
                                     <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
                                         <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
                                     </span><span className="rp-token-gbadge">{tag.number}</span></span>
@@ -387,14 +405,14 @@ export default function PlanBoard({
                             {around.map((p) => {
                                 const at = everyone.findIndex((x) => x.userId === p.userId);
                                 const off = s.offsets ? s.offsets[p.userId] : undefined;
-                                const dx = off ? off.dx : ring[at] ? ring[at].dx : 0;
-                                const dy = off ? off.dy : ring[at] ? ring[at].dy : 0;
+                                const dx = off ? off.dx * spread : ring[at] ? ring[at].dx : 0;
+                                const dy = off ? off.dy * spread : ring[at] ? ring[at].dy : 0;
                                 const id = memberId(s.id, p.userId);
                                 const mineHere = isMe(p.userId);
                                 return (
                                     <div
-                                        key={id} data-obj={`member:${id}`} className={cls("rp-token rp-member", "member", id, mineHere ? "is-me" : "", s.lock)}
-                                        style={{ left: `${(s.x + dx) * 100}%`, top: `${(s.y + dy) * 100}%`, opacity: s.opacity, ...sizeStyle(off && off.size ? off.size : s.size, SIZE_RANGES.member.def) }}
+                                        key={id} data-obj={`member:${id}`} className={cls("rp-token rp-member", "member", id, `${mineHere ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(off && off.size ? off.size : s.size, SIZE_RANGES.member.def, gs * ts, s.showName)}`, s.lock)}
+                                        style={{ left: `${(s.x + dx) * 100}%`, top: `${(s.y + dy) * 100}%`, opacity: s.opacity, ...memberSize(off && off.size ? off.size : s.size) }}
                                     >
                                         <button
                                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
@@ -414,7 +432,7 @@ export default function PlanBoard({
                     );
                 }
                 return (
-                    <div key={s.id} data-obj={`slot:${s.id}`} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? "" : " is-open"}`, s.lock)} style={anchor} data-slot={s.id}>
+                    <div key={s.id} data-obj={`slot:${s.id}`} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? "" : " is-open"}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={player ? `${title}: ${playerLabel(player)}` : `${title} (${t("raidBoard.slot.open")})`}
@@ -455,7 +473,7 @@ export default function PlanBoard({
                 if (!p) return null;
                 const mine = isMe(tok.userId);
                 return (
-                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "", tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) }}>
+                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, `${mine ? "is-me" : ""}${ringShownFor(showRoleRings, tok.ring) ? "" : " is-noring"}${noName(tok.size, SIZE_RANGES.token.def, 1, tok.showName)}`, tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) }}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}

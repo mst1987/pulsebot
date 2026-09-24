@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BringToFront, Copy, SendToBack, Trash2 } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
-import { SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, setRingSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
+import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
+import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, setRingSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
 import { clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
@@ -43,6 +43,8 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
             <div className="rp-insp-head">
                 <strong className="rp-insp-name">{t("raidBoard.multi.count", { n: sel.length })}</strong>
             </div>
+            <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.relative")}</span><NumberField label={t("raidBoard.insp.relative")} value={100} min={25} max={400} unit="%" disabled={dis} onChange={(v) => v !== 100 && edit((b) => resizeSelection(b, sel, v / 100))} /></label>
+            <span className="rp-muted">{t("raidBoard.insp.relativeHint")}</span>
             <SliderField
                 label={sum.opacity === null ? `${t("raidBoard.insp.opacity")} (${t("raidBoard.multi.mixed")})` : t("raidBoard.insp.opacity")} value={sum.opacity === null ? 100 : Math.round(sum.opacity * 100)} min={10} max={100} step={5} unit="%" disabled={dis}
                 onChange={(v) => edit((b) => setLookSelection(b, sel, { opacity: clampOpacity(v / 100, 1) }), true)}

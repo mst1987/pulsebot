@@ -5,6 +5,7 @@ import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../componen
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useBoardView } from "../../../lib/useBoardView";
+import { useViewPrefs } from "../../../lib/useViewPrefs";
 import { ViewOptions, ZoomControls } from "./ViewControls";
 import { useToast } from "../../../components/Jobs";
 import { inheritedRows } from "../../../lib/inherit";
@@ -178,6 +179,7 @@ export default function BoardWorkspace({
     const boardRef = useRef<HTMLDivElement>(null);
     // zoom and pan: a view setting; the frame is what shows the picture, boardRef its (transformed) canvas: dragging measures the canvas, so it is exact at any zoom
     const bv = useBoardView();
+    const [prefs, setPref] = useViewPrefs("eh.raidplan.viewPrefs");
     const frameEl = useRef<HTMLDivElement | null>(null);
     const setFrame = useCallback((el: HTMLDivElement | null) => { frameEl.current = el; bv.frame(el); }, [bv.frame]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { bv.fit(); }, [boss.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -675,6 +677,7 @@ export default function BoardWorkspace({
     };
     const menuLabel = (item: MenuItem): string => {
         const parts = item.id.split(":");
+        if (parts[0] === "size") return t("raidBoard.ctx.sizeTo", { pct: parts[1] });
         if (parts[0] === "face") return t("raidBoard.ctx.face", { dir: t(`raidBoard.compass.${compassName(Number(parts[1]))}`) });
         if (parts[0] === "insert") {
             if (parts[1] === "mark") return t(`raidBoard.mark.${parts[2]}`);
@@ -787,7 +790,7 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
                     {!noBoard && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} hand={bv.hand} setHand={bv.setHand} />}
-                    {!noBoard && <ViewOptions board={board} canWrite={canWrite} edit={edit} />}
+                    {!noBoard && <ViewOptions board={board} canWrite={canWrite} edit={edit} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} />}
                     {!noBoard && (
                         <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>
                             {["S", "M", "L"].map((k) => (
@@ -825,7 +828,7 @@ export default function BoardWorkspace({
                 >
                     <PlanBoard
                         boardRef={boardRef} frameRef={setFrame} view={bv.view}
-                        showNames={board.showNames !== false} showBadges={board.showBadges !== false} showRoleRings={board.showRoleRings !== false}
+                        showNames={board.showNames !== false} showBadges={board.showBadges !== false} showRoleRings={board.showRoleRings !== false} highlightMe={prefs.highlight} showSelection={prefs.selection}
                         bossName={boss.name}
                         bossIcon={boss.iconUrl}
                         mapUrl={boss.mapUrl}

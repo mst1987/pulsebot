@@ -319,7 +319,19 @@
         "memberHint": "Ein Raider einer aufgesplitteten Gruppe. Ziehen verschiebt nur ihn (die Position gilt relativ zum Marker), die Größe gilt für ihn allein.",
         "showRing": "Rahmen anzeigen",
         "ringColor": "Farbe des Rahmens",
-        "ringOpacity": "Deckkraft des Rahmens"
+        "ringOpacity": "Deckkraft des Rahmens",
+        "sizePct": "Größe",
+        "groupSize": "Gruppengröße",
+        "ringSpread": "Kranz-Abstand",
+        "tokenSize": "Token-Größe",
+        "allGroups": "Alle Gruppen so groß",
+        "zoneScale": "Zone skalieren",
+        "mixed": "gemischt",
+        "relative": "Größe relativ",
+        "relativeHint": "Ein Faktor für alle Ausgewählten (100 % = unverändert).",
+        "showBorder": "Rand anzeigen",
+        "showRingObj": "Ring / Rand anzeigen",
+        "showName": "Name anzeigen"
     },
     "panel": {
         "props": "Eigenschaften",
@@ -374,7 +386,8 @@
         "ring_hide": "Rahmen ausblenden",
         "ring_show": "Rahmen einblenden",
         "m_ringHide": "Gruppenrahmen ausblenden",
-        "m_ringShow": "Gruppenrahmen einblenden"
+        "m_ringShow": "Gruppenrahmen einblenden",
+        "sizeTo": "Größe {pct} %"
     },
     "icon": {
         "boss": "Boss",
@@ -641,11 +654,9 @@
     },
     "mine": {
         "title": "Meine Aufgaben",
-        "onMe": "Auf mich wirkend",
+        "onMe": "Wirkt auf dich",
         "all": "Alle Einteilungen",
-        "me": "ICH",
-        "you": "DICH",
-        "onYou": "AUF DICH",
+        "you": "Du",
         "alsoOnYou": "auch auf dich",
         "group": {
             "tank": "Tanken",
@@ -659,25 +670,7 @@
             "warrior": "Thunder Clap / Demo Shout",
             "other": "Sonstiges"
         },
-        "on": {
-            "text": "Nennt dich: {type}",
-            "player": {
-                "tank": "Tankt mit dir",
-                "heal": "Heilt dich",
-                "md": "Misdirect auf dich",
-                "ss": "Soulstone auf dich",
-                "fearward": "Fearward auf dich",
-                "generic": "{type} auf dich"
-            },
-            "group": {
-                "tank": "Tankt für deine Gruppe ({n})",
-                "heal": "Heilt deine Gruppe ({n})",
-                "md": "Misdirect auf deine Gruppe ({n})",
-                "ss": "Soulstone auf deine Gruppe ({n})",
-                "fearward": "Fearward auf deine Gruppe ({n})",
-                "generic": "{type} auf deine Gruppe ({n})"
-            }
-        }
+        "yourGroup": "Deine Gruppe ({n})"
     },
     "group": {
         "style": "Aussehen von Gruppe {n}",
@@ -706,6 +699,15 @@
         "iconSizeHint": "Tokens, Slots, Marker, Boss-Icons und die Namen dazu – auch im Sheet.",
         "names": "Namen zeigen",
         "badges": "Nummern-Badges zeigen",
-        "roleRings": "Rollen-Ringe zeigen"
+        "roleRings": "Rollenringe",
+        "menu": "Ansicht",
+        "mine": "Mich hervorheben",
+        "selection": "Auswahlrahmen anzeigen",
+        "links": "Verbindungslinien",
+        "groupRings": "Gruppenkränze",
+        "forMe": "Nur für dich, in diesem Browser gemerkt.",
+        "forPlan": "Im Plan gespeichert (auch im Sheet).",
+        "localHead": "Nur bei dir",
+        "planHead": "Im Plan"
     }
 }

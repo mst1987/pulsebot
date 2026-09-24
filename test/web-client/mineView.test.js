@@ -77,3 +77,25 @@ describe("what acts on me", () => {
         expect(mv.splitMine(list, ctx, ["h1"], []).onMe).toEqual([]);
     });
 });
+
+describe("the card of one row", () => {
+    const rows = (list, me = ["h1"]) => mv.splitMine(list, ctx, me, names);
+    it("a task of mine is one card: me as the one who does it and ALL targets of the row together", () => {
+        const r = rows([row("h", "heal", ["user:h1"], [{ kind: "group", ref: "1" }, { kind: "group", ref: "5" }, { kind: "slot", ref: "tank:1" }], { note: "nach dem Pull" })]);
+        const card = mv.mineCard(r.mine[0].rows[0]);
+        expect(card).toMatchObject({ id: "h", type: "heal", whoMe: true, who: [], recipient: "", note: "nach dem Pull" });
+        expect(card.to).toEqual([{ kind: "group", ref: "1" }, { kind: "group", ref: "5" }, { kind: "slot", ref: "tank:1" }]);
+    });
+    it("what acts on me is one card: who does it, and me or my group as the one receiver, no text repeated", () => {
+        const r = rows([row("a", "ss", ["slot:tank:1"], [{ kind: "player", ref: "h1" }]), row("b", "heal", ["slot:healer:2"], [{ kind: "group", ref: "2" }]), row("d", "fearward", ["slot:tank:1"], [{ kind: "text", ref: "Fear auf Heilbert" }])]);
+        const cards = r.onMe.flatMap((b) => b.rows).map(mv.mineCard);
+        expect(cards.map((c) => [c.id, c.whoMe, c.recipient, c.group])).toEqual([["b", false, "group", 2], ["a", false, "me", 0], ["d", false, "text", 0]]);
+        expect(cards[0].who).toEqual(["slot:healer:2"]);
+        expect(cards[0].to).toEqual([]);
+    });
+    it("a spell and a title make the text of the card, the kick order and 'also on you' ride along", () => {
+        const r = rows([row("k", "kick", ["user:k1", "user:h1"], [{ kind: "group", ref: "2" }], { title: "Fear", spell: { id: "d:kick", name: "Kick", icon: "x" } })]);
+        const card = mv.mineCard(r.mine[0].rows[0]);
+        expect(card).toMatchObject({ text: "Kick: Fear", order: 2, alsoOnMe: true });
+    });
+});

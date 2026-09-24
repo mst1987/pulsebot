@@ -4134,7 +4134,7 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
-export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean };
+export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean; /** false = no ring / border round it (missing = shown) */ ring?: boolean; /** false = no name label at this object (missing = shown) */ showName?: boolean };
 export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
 export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label";
@@ -4142,7 +4142,11 @@ export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | 
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
 export type RaidplanOffset = { dx: number; dy: number; size: number };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
-export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset>; /** the ring round a split group (default shown), its colour ("" = accent) and opacity */ showRing?: boolean; ringColor?: string; ringOpacity?: number; /** a role slot asks for these classes (priority = order); a template fills it from the setup's players of them */ preferredClasses?: string[]; /** filled by class when the template was applied */ byClass?: boolean; /** false = a role slot of the Besetzung that is not on the map (missing = on the map) */ placed?: boolean } & RaidplanLook;
+export type RaidplanSlot = {
+    /** a group: its scale as a whole, of its ring spacing and of its member tokens (0.25 .. 4, missing = 1) */
+    groupScale?: number;
+    ringSpread?: number;
+    tokenScale?: number; id: string; kind: RaidplanSlotKind; n: number; label: string; x: number; y: number; userId: string; size: number; hideMembers: boolean; split: boolean; offsets: Record<string, RaidplanOffset>; /** the ring round a split group (default shown), its colour ("" = accent) and opacity */ showRing?: boolean; ringColor?: string; ringOpacity?: number; /** a role slot asks for these classes (priority = order); a template fills it from the setup's players of them */ preferredClasses?: string[]; /** filled by class when the template was applied */ byClass?: boolean; /** false = a role slot of the Besetzung that is not on the map (missing = on the map) */ placed?: boolean } & RaidplanLook;
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
 /** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */

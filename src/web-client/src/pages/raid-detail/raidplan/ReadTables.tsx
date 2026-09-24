@@ -4,11 +4,11 @@ import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, iconForText, isMe, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/assign";
+import { ROLE_ICON, iconForTask, iconForText, isMe, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/assign";
 import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
 import { groupHealTable, simpleTables, tankTable } from "../../../lib/planTables";
-import { splitMine, type MineBlock } from "../../../lib/mineView";
+import { mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
 import TypeBadge from "./TypeBadge";
@@ -50,51 +50,46 @@ function WhoList({ list, me, names = [], ctx }: { list: Resolved[]; me: string[]
     return <span className="rp-who-list">{list.map((r) => <Who key={`${r.kind}|${r.ref}`} r={r} mine={isMe(r, me)} names={names} ctx={ctx} />)}</span>;
 }
 
-/** The verbs of the rows that act on the visitor ("Heilt dich", "Heilt deine Gruppe (4)"); the kinds of task without their own wording use the type's name. */
-const OWN_VERBS = ["heal", "md", "ss", "fearward", "tank"];
-
-/** The blocks of "Meine Aufgaben" (mode "do": I -> target) and "Auf mich wirkend" (mode "on": who -> YOU), grouped by kind of task. */
-function MineBlocks({ blocks, mode, ctx, me, names }: { blocks: MineBlock[]; mode: string; ctx: AssignCtx; me: string[]; names: string[] }) {
+/**
+ * The blocks of "Meine Aufgaben" (cards of mode "do") and "Wirkt auf dich" (mode "on"): one block per kind of task (its icon and name as the head), in it ONE
+ * CARD per assignment in fixed columns - [icon] | who | arrow | at whom / what | extras. All targets of a row sit in its card; what acts on the visitor
+ * shows who does it and himself (or his group) as the one highlighted receiver. The columns are shared by the cards of a block (a subgrid).
+ */
+function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ctx: AssignCtx; me: string[]; names: string[] }) {
     const t = useT();
     return (
         <>
             {blocks.map((b) => (
-                <div key={b.group} className="rp-mineblk">
+                <section key={b.group} className="rp-mineblk" aria-label={t(`raidBoard.mine.group.${b.group}`)}>
                     <h3><TypeBadge type={b.badge} label={t(`raidBoard.mine.group.${b.group}`)} /></h3>
-                    <ul>
+                    <ul className="rp-mgrid">
                         {b.rows.map((r) => {
+                            const card = mineCard(r);
                             const a = r.a;
-                            const text = [a.spell ? a.spell.name : "", a.title].filter(Boolean).join(": ");
-                            if (mode === "do") {
-                                return (
-                                    <li key={a.id} className="rp-mine-row">
-                                        {text && <span className="rp-mine-text"><Mentions text={text} names={names} /></span>}
-                                        <span className="rp-mine-me">{t("raidBoard.mine.me")}</span>
-                                        <ArrowRight size={16} aria-hidden="true" />
-                                        {a.targets.length > 0 ? <WhoList list={a.targets.map((tg) => resolveTarget(tg, ctx))} me={me} names={names} /> : <span className="rp-muted">{"\u2013"}</span>}
-                                        {r.order > 0 && <span className="rp-achip-no">{r.order}</span>}
-                                        {r.alsoOnMe && <span className="rp-also-onyou">{t("raidBoard.mine.alsoOnYou")}</span>}
-                                        {a.note && <span className="rp-muted rp-mine-note"><Mentions text={a.note} names={names} /></span>}
-                                    </li>
-                                );
-                            }
-                            const type = a.type === "trashtank" ? "tank" : a.type;
-                            const key = OWN_VERBS.indexOf(type) >= 0 ? type : "generic";
-                            const verb = r.via === "text" ? t("raidBoard.mine.on.text", { type: t(`raidBoard.assign.type.${a.type}`) }) : t(`raidBoard.mine.on.${r.via}.${key}`, { n: r.group, type: t(`raidBoard.assign.type.${a.type}`) });
+                            const lead = a.spell && a.spell.icon ? a.spell.icon : iconForTask(a);
                             return (
-                                <li key={a.id} className="rp-mine-row is-onme">
-                                    <span className="rp-onme-badge">{t("raidBoard.mine.onYou")}</span>
-                                    <span className="rp-onme-verb">{verb}</span>
-                                    {text && <span className="rp-mine-text"><Mentions text={text} names={names} /></span>}
-                                    <WhoList list={a.assignees.map((ref) => resolveAssignee(ref, ctx))} me={me} names={names} />
-                                    <ArrowRight size={16} aria-hidden="true" />
-                                    <span className="rp-onme-you">{t("raidBoard.mine.you")}</span>
-                                    {a.note && <span className="rp-muted rp-mine-note"><Mentions text={a.note} names={names} /></span>}
+                                <li key={card.id} className="rp-mcard">
+                                    <span className="rp-mcard-ico"><WowIcon name={lead} size={34} /></span>
+                                    <span className="rp-mcard-who">
+                                        {card.whoMe ? <span className="rp-me-chip">{t("raidBoard.mine.you")}</span> : <WhoList list={card.who.map((ref) => resolveAssignee(ref, ctx))} me={me} names={names} ctx={ctx} />}
+                                    </span>
+                                    <ArrowRight className="rp-mcard-arrow" size={18} aria-hidden="true" />
+                                    <span className="rp-mcard-to">
+                                        {card.whoMe
+                                            ? (card.to.length > 0 ? <WhoList list={card.to.map((tg) => resolveTarget(tg, ctx))} me={me} names={names} ctx={ctx} /> : <span className="rp-muted">{"\u2013"}</span>)
+                                            : <span className="rp-recipient">{card.recipient === "group" ? t("raidBoard.mine.yourGroup", { n: card.group }) : t("raidBoard.mine.you")}</span>}
+                                    </span>
+                                    <span className="rp-mcard-note">
+                                        {card.text && <span className="rp-mine-text"><Mentions text={card.text} names={names} /></span>}
+                                        {card.order > 0 && <span className="rp-achip-no">{card.order}</span>}
+                                        {card.alsoOnMe && <span className="rp-also-onyou">{t("raidBoard.mine.alsoOnYou")}</span>}
+                                        {card.note && <span className="rp-muted"><Mentions text={card.note} names={names} /></span>}
+                                    </span>
                                 </li>
                             );
                         })}
                     </ul>
-                </div>
+                </section>
             ))}
         </>
     );
@@ -112,7 +107,6 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
     const tanks = useMemo(() => tankTable(assignments, ctx, (a) => split.modes[a.id] === "do"), [assignments, ctx, split]);
     /** how a row of a table concerns the visitor: his own task, or something that acts on him */
     const rowCls = (id: string) => (split.modes[id] === "do" ? "is-own" : split.modes[id] === "on" ? "is-onme" : "");
-    const onYou = (id: string) => (split.modes[id] === "on" ? <span className="rp-onme-badge is-small">{t("raidBoard.mine.onYou")}</span> : null);
     const groups = useMemo(() => groupHealTable(assignments, ctx), [assignments, ctx]);
     const others = useMemo(() => simpleTables(assignments, ctx), [assignments, ctx]);
     return (
@@ -127,13 +121,13 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                     {split.mine.length > 0 && (
                         <section className="rp-mine" aria-label={t("raidBoard.mine.title")}>
                             <h2>{t("raidBoard.mine.title")}</h2>
-                            <MineBlocks blocks={split.mine} mode="do" ctx={ctx} me={me} names={names} />
+                            <MineBlocks blocks={split.mine} ctx={ctx} me={me} names={names} />
                         </section>
                     )}
                     {split.onMe.length > 0 && (
                         <section className="rp-onme" aria-label={t("raidBoard.mine.onMe")}>
                             <h2>{t("raidBoard.mine.onMe")}</h2>
-                            <MineBlocks blocks={split.onMe} mode="on" ctx={ctx} me={me} names={names} />
+                            <MineBlocks blocks={split.onMe} ctx={ctx} me={me} names={names} />
                         </section>
                     )}
                 </>
@@ -152,7 +146,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                         <tbody>
                             {tanks.map((r) => (
                                 <tr key={r.key} className={r.own ? "is-own" : rowCls(r.rowId)}>
-                                    <td><Who r={r.tank} mine={isMe(r.tank, me)} names={names} />{onYou(r.rowId)}</td>
+                                    <td><Who r={r.tank} mine={isMe(r.tank, me)} names={names} /></td>
                                     <td>{r.target ? <Who r={r.target} mine={isMe(r.target, me)} names={names} /> : <span className="rp-muted">–</span>}</td>
                                     <td><WhoList list={r.healers} me={me} names={names} /></td>
                                 </tr>
@@ -170,7 +164,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                         <tbody>
                             {groups.map((r) => (
                                 <tr key={r.key} className={r.healers.some((h) => isMe(h, me)) ? "is-own" : rowCls(r.rowId)}>
-                                    <td><WhoList list={r.healers} me={me} names={names} />{onYou(r.rowId)}</td>
+                                    <td><WhoList list={r.healers} me={me} names={names} /></td>
                                     <td>
                                         <span className="rp-who-list">
                                             {r.groups.map((g) => (
@@ -200,7 +194,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                             {tb.rows.map((r) => (
                                 <tr key={r.key} className={r.who.some((w) => isMe(w, me)) ? "is-own" : rowCls(r.rowId)}>
                                     {tb.rows.some((x) => x.order > 0) && <td className="rp-col-no">{r.order > 0 ? <span className="rp-achip-no">{r.order}</span> : "–"}</td>}
-                                    <td><WhoList list={r.who} me={me} names={names} />{onYou(r.rowId)}</td>
+                                    <td><WhoList list={r.who} me={me} names={names} /></td>
                                     <td>
                                         {(r.spell || r.task) && <span className="rp-rtask"><Mentions text={[r.spell, r.task].filter(Boolean).join(": ")} names={names} /></span>}
                                         {r.targets.length > 0 && <WhoList list={r.targets} me={me} names={names} />}

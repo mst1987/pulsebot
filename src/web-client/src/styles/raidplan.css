@@ -182,10 +182,6 @@
     .rp-bosses .rp-kicker { display: none; }
     .rp-boss { width: auto; white-space: nowrap; }
     .rp-public-title { font-size: 21px; }
-    .rp-token-name { font-size: 10.5px; max-width: 72px; }
-    .rp-ico { width: 34px; height: 34px; }
-    .rp-token-btn { left: -17px; top: -17px; }
-    .rp-token-name { top: 20px; }
 }
 
 /* ---- work area: tool bar, board, then the folds underneath ---- */
@@ -362,7 +358,6 @@
 .rp-icon-builtin { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; border: 2px solid #0f1115; box-sizing: border-box; color: #fff; }
 .rp-icon-enemy { background: #b91c1c; }
 .rp-icon-bosspos { background: #7e22ce; }
-.rp-member .rp-token-name { font-size: 10.5px; }
 .rp-groupwrap { display: contents; }
 .rp-pal-boss { border-radius: 6px; }
 .rp-pal-name { display: flex; align-items: center; gap: 4px; }
@@ -979,17 +974,8 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 
 /* Meine Aufgaben / Auf mich wirkend */
 .rp-mine h2, .rp-onme h2 { margin: 0 0 6px; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.rp-mineblk { margin-top: 8px; }
-.rp-mineblk h3 { margin: 0 0 4px; }
-.rp-mineblk ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.rp-mine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 15px; font-weight: 600; }
-.rp-mine-me, .rp-onme-you { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .08em; background: var(--accent); color: var(--accent-ink); }
 .rp-also-onyou { font-size: 12px; font-weight: 700; color: var(--muted); font-style: italic; }
 .rp-onme { border: 2px solid var(--onme, #e0a020); border-radius: 12px; background: color-mix(in srgb, var(--onme, #e0a020) 10%, var(--panel)); padding: 10px 14px 12px; margin: 10px 0; }
-.rp-onme-badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: .1em; background: var(--onme, #e0a020); color: #1a1205; }
-.rp-onme-badge.is-small { margin-left: 8px; font-size: 10px; }
-.rp-onme-verb { font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 13px; }
-.rp-onme-you { background: var(--onme, #e0a020); color: #1a1205; }
 .rp-rtable tr.is-onme td { background: color-mix(in srgb, var(--onme, #e0a020) 14%, transparent); box-shadow: inset 3px 0 0 var(--onme, #e0a020); }
 
 /* group colours, raid marks, highlight */
@@ -1031,8 +1017,6 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 
 /* zoom, names / badges / rings on or off, the size of the names follows the symbol size */
 .rp-canvas .rp-handle { transform: scale(calc(1 / var(--rp-k, 1))); }
-.rp-canvas .rp-token-name { font-size: calc(11.5px * var(--rp-os, 1)); max-width: calc(96px * var(--rp-os, 1)); }
-.rp-canvas .rp-token-gbadge { font-size: calc(10px * var(--rp-os, 1)); min-width: calc(16px * var(--rp-os, 1)); height: calc(16px * var(--rp-os, 1)); line-height: calc(14px * var(--rp-os, 1)); }
 .rp-board.is-nonames .rp-token-name, .rp-board.is-nonames .rp-grouptext { display: none; }
 .rp-board.is-nobadges .rp-token-gbadge { display: none; }
 .rp-board.is-noroles .rp-ico { border-color: transparent; }
@@ -1049,3 +1033,54 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-zoomctl { position: absolute; right: 8px; bottom: 8px; z-index: 5; display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 88%, transparent); }
 .rp-zoomctl button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 4px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .rp-zoomctl button:hover { background: var(--accent-soft); }
+
+/* a group as a whole: its tag and label scale with it */
+.rp-groupwrap .rp-groupchip { transform: translate(-50%, -50%) scale(var(--rp-gs, 1)); }
+.rp-groupwrap .rp-grouptext { font-size: calc(13px * var(--rp-gs, 1)); }
+
+/* rings and borders that can be switched off: per object (ring: false), the role rings of the board, the selection frame (viewer) */
+.rp-token.is-noring .rp-ico { border-color: transparent; box-shadow: none; }
+.rp-token.is-noring .rp-icon-face img, .rp-token.is-noring .rp-icon-face.is-round img, .rp-token.is-noring .rp-icon-builtin { border-color: transparent; box-shadow: none; }
+.rp-zone.is-noborder { border-color: transparent; }
+.rp-token.is-selected .rp-ico, .rp-token.is-selected .rp-mark-svg { filter: drop-shadow(0 0 2px var(--accent)); }
+.rp-board.is-nosel .is-selected, .rp-board.is-nosel .is-selected * { filter: none; }
+.rp-board.is-nosel .rp-zone.is-selected, .rp-board.is-nosel .rp-token.is-multi { outline: none; }
+.rp-board.is-nosel .rp-handle:not(.rp-h-rot) { display: none; }
+
+.rp-view-row { display: flex; align-items: center; gap: 6px; }
+.rp-sheetview { position: relative; display: inline-flex; }
+.rp-sheetview-pop { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; }
+
+/* one card per assignment, in the fixed columns icon | who | arrow | at whom | extras; the cards of a block share the columns */
+.rp-mineblk { margin-top: 10px; padding: 8px 10px 10px; border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--panel) 70%, transparent); }
+.rp-mineblk + .rp-mineblk { margin-top: 16px; }
+.rp-mineblk h3 { margin: 0 0 8px; }
+.rp-mgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); gap: 6px; }
+.rp-mcard { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; column-gap: 12px; padding: 6px 10px; border: 1px solid var(--line-soft, var(--line)); border-radius: 10px; background: var(--panel2); font-size: 15px; font-weight: 600; }
+@supports not (grid-template-columns: subgrid) { .rp-mcard { grid-template-columns: auto auto auto minmax(0, 1fr); } }
+.rp-mcard-ico { display: inline-flex; }
+.rp-mcard-ico .wi { border-radius: 8px; }
+.rp-mcard-who, .rp-mcard-to { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.rp-mcard-arrow { color: var(--muted); }
+.rp-mcard-note { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-size: 13px; }
+.rp-mcard-note .rp-mine-text { font-size: 14px; font-weight: 700; }
+.rp-me-chip, .rp-recipient { display: inline-flex; align-items: center; padding: 2px 11px; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--accent); color: var(--accent-ink); }
+.rp-recipient { background: var(--onme, #e0a020); color: #1a1205; }
+@media (max-width: 700px) {
+    .rp-mgrid { grid-template-columns: minmax(0, 1fr); }
+    .rp-mcard { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "ico who" "ico arrow" "ico to" "note note"; row-gap: 4px; }
+    .rp-mcard-ico { grid-area: ico; align-self: start; }
+    .rp-mcard-who { grid-area: who; }
+    .rp-mcard-arrow { grid-area: arrow; transform: rotate(90deg); justify-self: start; }
+    .rp-mcard-to { grid-area: to; }
+    .rp-mcard-note { grid-area: note; }
+}
+
+/* the name, the badges, the rings and the facing wedge are shares of the icon's own size (--rp-s, in reference units): every scale that changes the icon changes them by the same factor */
+.rp-canvas .rp-token .rp-token-name { font-size: var(--rp-nf, calc(var(--rp-s, 38px) * .3)); top: calc(var(--rp-s, 38px) * .58); max-width: calc(var(--rp-s, 38px) * 2.6); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .16); border-radius: calc(var(--rp-s, 38px) * .16); }
+.rp-canvas .rp-token.is-noname .rp-token-name { display: none; }
+.rp-canvas .rp-token .rp-ico { border-width: calc(var(--rp-s, 38px) * .079); }
+.rp-canvas .rp-token-me { top: calc(var(--rp-s, 38px) * -.9); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .18); font-size: calc(var(--rp-s, 38px) * .29); }
+.rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); bottom: calc(var(--rp-s, 38px) * -.13); min-width: calc(var(--rp-s, 38px) * .42); height: calc(var(--rp-s, 38px) * .42); padding: 0 calc(var(--rp-s, 38px) * .08); border-radius: calc(var(--rp-s, 38px) * .21); font-size: calc(var(--rp-s, 38px) * .26); line-height: calc(var(--rp-s, 38px) * .38); }
+.rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46); height: calc(var(--rp-s, 48px) * .42); left: calc(var(--rp-s, 48px) * -.23); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52); }
+.rp-zoomctl { width: auto !important; }

@@ -191,16 +191,16 @@ describe("lines and texts", () => {
             { kind: "arrow", x1: -1, y1: 0.2, x2: 3, y2: 0.8, color: "#FF0000", width: 20 },
             { kind: "weird", width: 0, color: "red" },
         ] }).board;
-        expect(r.lines[0]).toMatchObject({ kind: "arrow", x1: 0, y1: 0.2, x2: 1, y2: 0.8, color: "#ff0000", width: 12 });
+        expect(r.lines[0]).toMatchObject({ kind: "arrow", x1: 0, y1: 0.2, x2: 1, y2: 0.8, color: "#ff0000", width: 16 });
         expect(r.lines[1]).toMatchObject({ kind: "line", color: "#f8fafc", width: 4 });
     });
 
     it("keeps texts with a size between 10 and 48, drops empty ones and cuts long ones", () => {
         const r = clean({ texts: [{ text: "  Hallo ", size: 99, color: "#00ff00" }, { text: "   " }, { text: "x".repeat(200), size: 1 }] });
         expect(r.board.texts).toHaveLength(2);
-        expect(r.board.texts[0]).toMatchObject({ text: "Hallo", size: 48, color: "#00ff00" });
+        expect(r.board.texts[0]).toMatchObject({ text: "Hallo", size: 72, color: "#00ff00" });
         expect(r.board.texts[1].text).toHaveLength(board.LIMITS.text);
-        expect(r.board.texts[1].size).toBe(10);
+        expect(r.board.texts[1].size).toBe(5);
         expect(r.dropped).toBe(1);
     });
 
@@ -258,7 +258,7 @@ describe("group markers", () => {
             { kind: "tank", hideMembers: true, split: true, offsets: { u1: { dx: 0.1, dy: 0.1 } } },
         ] });
         expect(r.board.slots[0]).toMatchObject({ hideMembers: true, split: true });
-        expect(r.board.slots[0].offsets).toEqual({ u1: { dx: 0.1, dy: -1, size: 96 }, u2: { dx: 0, dy: 0, size: 38 } });
+        expect(r.board.slots[0].offsets).toEqual({ u1: { dx: 0.1, dy: -1, size: 152 }, u2: { dx: 0, dy: 0, size: 38 } });
         expect(r.board.slots[1]).toMatchObject({ hideMembers: false, split: false, offsets: {} });
         expect(r.dropped).toBe(1);
     });
@@ -276,9 +276,9 @@ describe("sizes and icons", () => {
             slots: [{ kind: "tank", size: 60.4 }],
             marks: [{ mark: "star", size: 2 }, { mark: "star", size: "abc" }],
         }).board;
-        expect(r.tokens.map((t) => t.size)).toEqual([24, 96, 38]);
+        expect(r.tokens.map((t) => t.size)).toEqual([10, 152, 38]);
         expect(r.slots[0].size).toBe(60);
-        expect(r.marks.map((m) => m.size)).toEqual([16, 34]);
+        expect(r.marks.map((m) => m.size)).toEqual([9, 34]);
     });
 
     it("keeps icons of the three sources and drops anything else", () => {
@@ -289,8 +289,8 @@ describe("sizes and icons", () => {
             { iconKey: "http://evil/x.png" }, { iconKey: "wow:../x" }, { iconKey: "" },
         ] });
         expect(r.board.icons.map((i) => i.iconKey)).toEqual(["boss:609", "wow:spell_fire_fireball", "enemy", "bosspos"]);
-        expect(r.board.icons[0]).toMatchObject({ label: "Illidan", size: 200, rotation: 40, showLabel: true, opacity: 1, lock: false, hidden: false });
-        expect(r.board.icons[1].size).toBe(20);
+        expect(r.board.icons[0]).toMatchObject({ label: "Illidan", size: 192, rotation: 40, showLabel: true, opacity: 1, lock: false, hidden: false });
+        expect(r.board.icons[1].size).toBe(12);
         expect(r.board.icons[2]).toMatchObject({ size: 48, rotation: 0, showLabel: false });
         expect(r.dropped).toBe(3);
         expect(clean({ icons: Array.from({ length: 61 }, () => ({ iconKey: "enemy" })) }).code).toBe("invalid");
@@ -324,5 +324,28 @@ describe("group styles", () => {
         const r = cleanGroupStyles({ 1: "#ABCDEF", 2: "red", 21: "#000000", x: "#000000" }, { 1: "skull", 2: "skull", 3: "star", 4: "banana" });
         expect(r).toEqual({ groupColors: { 1: "#abcdef" }, groupMarks: { 1: "skull", 3: "star" } });
         expect(cleanGroupStyles(null, undefined)).toEqual({ groupColors: {}, groupMarks: {} });
+    });
+});
+
+describe("group styles for groups 10 to 20", () => {
+    const { cleanGroupStyles } = require("../../src/web/raidplanBoard");
+    it("keep the two-digit group numbers up to 20", () => {
+        expect(cleanGroupStyles({ 10: "#112233", 19: "#445566", 20: "#778899" }, { 12: "moon" })).toEqual({ groupColors: { 10: "#112233", 19: "#445566", 20: "#778899" }, groupMarks: { 12: "moon" } });
+    });
+});
+
+describe("ring switch and group scales", () => {
+    const cleanBoard = (input) => clean(input);
+    it("keeps `ring: false` on an object and stores nothing for a shown ring", () => {
+        const r = cleanBoard({ tokens: [{ userId: "u1", x: 0.5, y: 0.5, ring: false }], zones: [{ type: "danger", shape: "rect", x: 0.1, y: 0.1, w: 0.2, h: 0.2, ring: false }], icons: [{ iconKey: "enemy", x: 0.3, y: 0.3 }] }).board;
+        expect(r.tokens[0].ring).toBe(false);
+        expect(r.zones[0].ring).toBe(false);
+        expect(r.icons[0].ring).toBeUndefined();
+    });
+    it("clamps the three group scales to 25 % .. 400 %, 100 % when missing, and leaves other slots at 1", () => {
+        const r = cleanBoard({ slots: [{ kind: "group", n: 1, x: 0.5, y: 0.5, groupScale: 9, ringSpread: 0.01, tokenScale: "x" }, { kind: "tank", n: 1, x: 0.2, y: 0.2, groupScale: 3 }] }).board;
+        expect(r.slots[0]).toMatchObject({ groupScale: 4, ringSpread: 0.25, tokenScale: 1 });
+        expect(r.slots[1]).toMatchObject({ groupScale: 1, ringSpread: 1, tokenScale: 1 });
+        expect(require("../../src/web/raidplanBoard").cleanFactor(1.234)).toBe(1.23);
     });
 });

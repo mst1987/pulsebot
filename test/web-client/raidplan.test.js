@@ -423,7 +423,7 @@ describe("layers", () => {
 
 describe("the context menu", () => {
     const opts = (extra = {}) => ({ locked: false, hasPlayer: false, isEvent: false, kind: "", ...extra });
-    const ids = (items) => items.map((i) => i.id);
+    const ids = (items) => items.filter((i) => i.id.indexOf("size:") !== 0).map((i) => i.id);
 
     it("offers the empty board what can be put there and a way to deselect", () => {
         const items = lib.contextMenuItems("board", opts());
@@ -453,7 +453,7 @@ describe("the context menu", () => {
 
     it("groups the entries in sections, in a stable order", () => {
         const sections = lib.contextMenuItems("slot", opts({ isEvent: true, kind: "tank", hasPlayer: true })).map((i) => i.section);
-        expect(sections).toEqual(["main", "main", "order", "order", "order", "player", "player", "end"]);
+        expect(sections).toEqual(["main", "main", "order", "order", "order", "size", "size", "size", "size", "size", "size", "player", "player", "end"]);
     });
 
     it("reads an insert id back into what it inserts", () => {
@@ -867,12 +867,12 @@ describe("sizes", () => {
         let b = lib.emptyBoard();
         for (const spec of [{ type: "slot", kind: "tank", label: "" }, { type: "mark", mark: "star" }, { type: "icon", iconKey: "enemy", label: "" }, { type: "text", text: "T" }, { type: "line", kind: "line" }]) b = slotIns(b, spec, { x: 0.5, y: 0.5 }).board;
         b = lib.placeToken(b, "u1", 0.5, 0.5);
-        check("token", b, "u1", 24, 96);
-        check("slot", b, b.slots[0].id, 24, 96);
-        check("mark", b, b.marks[0].id, 16, 96);
-        check("icon", b, b.icons[0].id, 20, 200);
-        check("text", b, b.texts[0].id, 10, 48);
-        check("line", b, b.lines[0].id, 1, 12);
+        check("token", b, "u1", 10, 152);
+        check("slot", b, b.slots[0].id, 10, 152);
+        check("mark", b, b.marks[0].id, 9, 136);
+        check("icon", b, b.icons[0].id, 12, 192);
+        check("text", b, b.texts[0].id, 5, 72);
+        check("line", b, b.lines[0].id, 1, 16);
         expect(lib.setObjectSize(b, "mark", b.marks[0].id, NaN)).toBe(b);
         const locked = lib.patchLook(b, "icon", b.icons[0].id, { lock: true });
         expect(lib.setObjectSize(locked, "icon", b.icons[0].id, 100)).toBe(locked);
@@ -1037,7 +1037,7 @@ describe("group markers: hiding and splitting", () => {
         b = lib.setObjectSize(b, "member", mid, 70);
         expect(lib.sizeOf(b, "member", mid)).toBe(70);
         expect(b.slots[0].size).toBe(50);
-        expect(lib.sizeOf(lib.scaleObject(b, "member", mid, 2), "member", mid)).toBe(96);
+        expect(lib.sizeOf(lib.scaleObject(b, "member", mid, 2), "member", mid)).toBe(140);
         const locked = lib.patchLook(b, "slot", b.slots[0].id, { lock: true });
         expect(lib.isLocked(locked, "member", mid)).toBe(true);
         expect(lib.moveObject(locked, "member", mid, 0.9, 0.9)).toBe(locked);

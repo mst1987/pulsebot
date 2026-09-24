@@ -4,8 +4,8 @@ import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } fro
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import {
-    COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, SIZE_RANGES, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
-    setObjectScale, setObjectSize, sizeOf, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
+    COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    setObjectScale, objectPercent, setObjectPercent, groupScales, setGroupScale, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
@@ -23,6 +23,18 @@ export function OpacityField({ label, value, onChange }: { label: string; value:
 }
 
 /** A slider and a number field for a size (px, or the multiplier of the whole board), between min and max. */
+/** "Größe %": the size of any element as percent of its default (25 - 400 %); for a group its scale as a whole. Shown first in the inspector, the same for every kind. */
+function PctField({ label, board, kind, id, dis, edit }: { label: string; board: RaidplanBoard; kind: ObjectKind; id: string; dis: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void }) {
+    const v = objectPercent(board, kind, id);
+    if (v === null) return null;
+    return (
+        <label className="rp-field">
+            <span className="rp-kicker">{label}</span>
+            <NumberField label={label} value={v} min={25} max={400} unit="%" disabled={dis} onChange={(n) => edit((b) => setObjectPercent(b, kind, id, n), true)} />
+        </label>
+    );
+}
+
 export function SizeField({ label, value, min, max, step = 1, unit = "px", onChange }: { label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void }) {
     return <SliderField label={label} value={value} min={min} max={max} step={step} unit={unit} onChange={onChange} />;
 }
@@ -59,14 +71,14 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
     if (!look) return <p className="rp-muted rp-insp-empty">{t("raidBoard.insp.none")}</p>;
     const dis = !canWrite;
     if (kind === "member") {
-        const at = sizeOf(board, kind, id);
+        const at = objectPercent(board, kind, id);
         return (
             <div className="rp-insp">
                 <div className="rp-insp-head">
                     <strong className="rp-insp-name">{objectName(board, kind, id, players)}</strong>
                     <span className="rp-muted">{t("raidBoard.obj.member")}</span>
                 </div>
-                {at !== null && <SizeField label={t("raidBoard.insp.size")} value={at} min={SIZE_RANGES.member.min} max={SIZE_RANGES.member.max} onChange={(v) => !dis && edit((b) => setObjectSize(b, "member", id, v), true)} />}
+                {at !== null && <PctField label={t("raidBoard.insp.sizePct")} board={board} kind="member" id={id} dis={dis} edit={edit} />}
                 <p className="rp-muted">{t("raidBoard.insp.memberHint")}</p>
                 <div className="rp-insp-actions">
                     <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => removeObject(b, "member", id))}>{t("raidBoard.ctx.resetpos")}</button>
@@ -80,8 +92,6 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
     const slot = kind === "slot" ? board.slots.find((s) => s.id === id) : undefined;
     const name = objectName(board, kind, id, players);
     const icon: RaidplanIcon | undefined = kind === "icon" ? board.icons.find((i) => i.id === id) : undefined;
-    const size = sizeOf(board, kind, id);
-    const range = SIZE_RANGES[kind];
     const opacity = (v: number, merge = false) => edit((b) => patchLook(b, kind as ObjectKind, id, { opacity: v }), merge);
 
     return (
@@ -90,6 +100,30 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <strong className="rp-insp-name">{name}</strong>
                 <span className="rp-muted">{t(`raidBoard.obj.${kind}`)}</span>
             </div>
+
+            {kind !== "zone" && !(slot && slot.kind === "group") && <PctField label={t("raidBoard.insp.sizePct")} board={board} kind={kind as ObjectKind} id={id} dis={dis} edit={edit} />}
+            {slot && slot.kind === "group" && (
+                <div className="rp-field">
+                    <PctField label={t("raidBoard.insp.groupSize")} board={board} kind="slot" id={id} dis={dis} edit={edit} />
+                    <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.ringSpread")}</span><NumberField label={t("raidBoard.insp.ringSpread")} value={Math.round(groupScales(slot).sp * 100)} min={25} max={400} unit="%" disabled={dis} onChange={(v) => edit((b) => setGroupScale(b, id, { ringSpread: v / 100 }), true)} /></label>
+                    <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.tokenSize")}</span><NumberField label={t("raidBoard.insp.tokenSize")} value={Math.round(groupScales(slot).ts * 100)} min={25} max={400} unit="%" disabled={dis} onChange={(v) => edit((b) => setGroupScale(b, id, { tokenScale: v / 100 }), true)} /></label>
+                    <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => setAllGroupScale(b, groupScales(slot).gs))}>{t("raidBoard.insp.allGroups")}</button>
+                </div>
+            )}
+            {kind === "zone" && (
+                <span className="rp-cpick-roles" role="group" aria-label={t("raidBoard.insp.zoneScale")}>
+                    <span className="rp-muted">{t("raidBoard.insp.zoneScale")}</span>
+                    {SIZE_STEPS.filter((x) => x !== 100).map((x) => <button key={x} type="button" className="rp-fchip" disabled={dis} onClick={() => edit((b) => scaleObject(b, "zone", id, x / 100))}>{x} %</button>)}
+                </span>
+            )}
+
+            {(kind === "token" || kind === "slot" || kind === "icon" || kind === "zone") && (
+                <label className="rp-check"><input type="checkbox" checked={look.ring !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { ring: e.target.checked }))} /> {t(kind === "zone" ? "raidBoard.insp.showBorder" : "raidBoard.insp.showRingObj")}</label>
+            )}
+
+            {(kind === "token" || kind === "slot" || kind === "icon") && (
+                <label className="rp-check"><input type="checkbox" checked={look.showName !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { showName: e.target.checked }))} /> {t("raidBoard.insp.showName")}</label>
+            )}
 
             {zone && (
                 <>
@@ -142,7 +176,6 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                                 <option value="line">{t("raidBoard.line.line")}</option>
                             </select>
                         </label>
-                        <SizeField label={t("raidBoard.insp.thickness")} value={line.width} min={SIZE_RANGES.line.min} max={SIZE_RANGES.line.max} onChange={(v) => !dis && edit((b) => setObjectSize(b, "line", id, v), true)} />
                     </div>
                     <label className="rp-field">
                         <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
@@ -162,7 +195,6 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                             <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
                             <input type="color" className="rp-color" value={text.color} disabled={dis} onChange={(e) => edit((b) => updateText(b, id, { color: e.target.value }), true)} />
                         </label>
-                        <SizeField label={t("raidBoard.insp.fontSize")} value={text.size} min={SIZE_RANGES.text.min} max={SIZE_RANGES.text.max} onChange={(v) => !dis && edit((b) => setObjectSize(b, "text", id, v), true)} />
                     </div>
                 </>
             )}
@@ -247,9 +279,6 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 </div>
             )}
 
-            {size !== null && kind !== "line" && kind !== "text" && (
-                <SizeField label={slot && slot.kind === "group" ? t("raidBoard.insp.memberSize") : t("raidBoard.insp.size")} value={size} min={range.min} max={range.max} onChange={(v) => !dis && edit((b) => setObjectSize(b, kind as ObjectKind, id, v), true)} />
-            )}
 
             <OpacityField label={t("raidBoard.insp.opacity")} value={look.opacity} onChange={(v) => opacity(v, true)} />
 

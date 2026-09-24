@@ -22,13 +22,13 @@ export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#6
 export const MIN_ZONE = 0.03;
 // The size of an object in px: what a new one starts with, and the range it can be set to.
 export const SIZE_RANGES = {
-    token: { def: 38, min: 24, max: 96 },
-    slot: { def: 38, min: 24, max: 96 },
-    mark: { def: 34, min: 16, max: 96 },
-    icon: { def: 48, min: 20, max: 200 },
-    member: { def: 38, min: 24, max: 96 },
-    text: { def: 18, min: 10, max: 48 },
-    line: { def: 4, min: 1, max: 12 },
+    token: { def: 38, min: 10, max: 152 },
+    slot: { def: 38, min: 10, max: 152 },
+    mark: { def: 34, min: 9, max: 136 },
+    icon: { def: 48, min: 12, max: 192 },
+    member: { def: 38, min: 10, max: 152 },
+    text: { def: 18, min: 5, max: 72 },
+    line: { def: 4, min: 1, max: 16 },
 };
 export const SCALE_MIN = 0.4;
 export const SCALE_MAX = 2;
@@ -411,7 +411,9 @@ export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x
         const slot = board.slots.find((k) => k.id === ref.slotId);
         if (!slot) return board;
         const old = slot.offsets[ref.userId] || { dx: 0, dy: 0, size: SIZE_RANGES.member.def };
-        const offsets = { ...slot.offsets, [ref.userId]: { ...old, dx: Math.max(-1, Math.min(1, x - slot.x)), dy: Math.max(-1, Math.min(1, y - slot.y)) } };
+        // stored relative to the marker in units of the group's spacing, so the group's scale moves the whole ring
+        const k = groupSpread(slot);
+        const offsets = { ...slot.offsets, [ref.userId]: { ...old, dx: Math.max(-1, Math.min(1, (x - slot.x) / k)), dy: Math.max(-1, Math.min(1, (y - slot.y) / k)) } };
         return updateSlot(board, ref.slotId, { offsets });
     }
     if (kind === "text") return { ...board, texts: patchIn(board.texts, (o) => o.id === id, { x: clamp01(x), y: clamp01(y) }) };
@@ -432,7 +434,7 @@ export function objectPoint(board: RaidplanBoard, kind: ObjectKind, id: string):
         const ref = parseMemberId(id);
         const slot = board.slots.find((k) => k.id === ref.slotId);
         const off = slot ? slot.offsets[ref.userId] : undefined;
-        return slot && off ? { x: slot.x + off.dx, y: slot.y + off.dy } : null;
+        return slot && off ? { x: slot.x + off.dx * groupSpread(slot), y: slot.y + off.dy * groupSpread(slot) } : null;
     }
     const list = kind === "token" ? board.tokens.filter((k) => k.userId === id)
         : kind === "slot" ? board.slots.filter((s) => s.id === id)
@@ -490,6 +492,74 @@ export function sizeOf(board: RaidplanBoard, kind: ObjectKind, id: string): numb
         return slot ? (off && off.size) || slot.size || SIZE_RANGES.member.def : null;
     }
     return null;
+}
+
+/** A scale factor kept between 25 % and 400 % (two decimals); 1 when it is not a number. */
+export function clampFactor(v: number): number {
+    return Number.isFinite(v) ? Math.max(0.25, Math.min(4, Math.round(v * 100) / 100)) : 1;
+}
+
+/** The three scales of a group (whole, ring spacing, member tokens): each 0.25 .. 4, 1 when missing. */
+export function groupScales(s: { groupScale?: number; ringSpread?: number; tokenScale?: number }): { gs: number; sp: number; ts: number } {
+    return { gs: clampFactor(s.groupScale === undefined ? 1 : s.groupScale), sp: clampFactor(s.ringSpread === undefined ? 1 : s.ringSpread), ts: clampFactor(s.tokenScale === undefined ? 1 : s.tokenScale) };
+}
+
+/** How far a group's members stand from its marker relative to what is stored: the whole scale times the ring spacing. */
+export function groupSpread(s: { groupScale?: number; ringSpread?: number; tokenScale?: number }): number {
+    const g = groupScales(s);
+    return g.gs * g.sp;
+}
+
+/** The size steps of the context menu (percent of the default). */
+export const SIZE_STEPS = [50, 75, 100, 125, 150, 200];
+
+/** A size in reference units as percent of the default of its kind, and back (the range of the kind is applied by setObjectSize). */
+export function sizePct(size: number, def: number): number {
+    return Math.round((size / def) * 100);
+}
+
+export function pctSize(pct: number, def: number): number {
+    return Math.round((def * pct) / 100);
+}
+
+/** Sets a group's own scales (each clamped 25 % .. 400 %); a locked group keeps them. */
+export function setGroupScale(board: RaidplanBoard, slotId: string, patch: { groupScale?: number; ringSpread?: number; tokenScale?: number }): RaidplanBoard {
+    const s = board.slots.find((x) => x.id === slotId);
+    if (!s || s.kind !== "group" || s.lock) return board;
+    const next = {};
+    for (const k of Object.keys(patch)) next[k] = clampFactor(patch[k]);
+    return updateSlot(board, slotId, next);
+}
+
+/** Scales the given groups by a factor, each relative to its own scale (a group keeps its proportion to the others). */
+export function scaleGroups(board: RaidplanBoard, slotIds: string[], factor: number): RaidplanBoard {
+    return { ...board, slots: board.slots.map((s) => (s.kind === "group" && !s.lock && slotIds.indexOf(s.id) >= 0 ? { ...s, groupScale: clampFactor(groupScales(s).gs * factor) } : s)) };
+}
+
+/** Gives every group the same scale. */
+export function setAllGroupScale(board: RaidplanBoard, value: number): RaidplanBoard {
+    return { ...board, slots: board.slots.map((s) => (s.kind === "group" && !s.lock ? { ...s, groupScale: clampFactor(value) } : s)) };
+}
+
+/** An object's size as percent of the default of its kind: a group as a whole (its scale), every other point object its size, a text its font, a line its thickness. */
+export function objectPercent(board: RaidplanBoard, kind: ObjectKind, id: string): number | null {
+    if (kind === "zone") return null;
+    if (kind === "slot") {
+        const s = board.slots.find((x) => x.id === id);
+        if (s && s.kind === "group") return Math.round(groupScales(s).gs * 100);
+    }
+    const size = sizeOf(board, kind, id);
+    return size === null ? null : sizePct(size, SIZE_RANGES[kind].def);
+}
+
+/** Sets that percent (25 % .. 400 %): a group scales as a whole, the rest by size. A zone is scaled relative by scaleObject(). */
+export function setObjectPercent(board: RaidplanBoard, kind: ObjectKind, id: string, pct: number): RaidplanBoard {
+    if (!Number.isFinite(pct) || kind === "zone") return board;
+    if (kind === "slot") {
+        const s = board.slots.find((x) => x.id === id);
+        if (s && s.kind === "group") return setGroupScale(board, id, { groupScale: pct / 100 });
+    }
+    return setObjectSize(board, kind, id, pctSize(Math.max(25, Math.min(400, pct)), SIZE_RANGES[kind].def));
 }
 
 /** Sets an object's size, kept inside the range of its kind. A locked object keeps its size. A zone is scaled by scaleObject(). */
@@ -849,6 +919,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
     if (target === "icon" && opts.faces) for (const a of COMPASS) out.push(item("face:" + a, "face", false, false));
     out.push(item("front", "order", false, false), item("back", "order", false, false));
     out.push(item(opts.locked ? "unlock" : "lock", "order", false, false));
+    if (!opts.locked) for (const p of SIZE_STEPS) out.push(item(`size:${p}`, "size", false, false));
     if (target === "slot" && opts.isEvent && opts.kind !== "group") {
         out.push(item("assign", "player", false, false));
         if (opts.hasPlayer) out.push(item("unassign", "player", false, false));
@@ -888,6 +959,10 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     const sel = kind ? { kind, id: objId } : null;
     if (!kind) return { board, sel: null };
     if (id === "duplicate") return duplicateObject(board, kind, objId);
+    if (id.startsWith("size:")) {
+        const pct = Number(id.slice(5));
+        return { board: kind === "zone" ? scaleObject(board, "zone", objId, pct / 100) : setObjectPercent(board, kind, objId, pct), sel };
+    }
     if (id.startsWith("face:")) return { board: updateIcon(board, objId, { rotation: normAngle(Number(id.slice(5))) }), sel };
     if (id === "ring:hide") return { board: updateSlot(board, objId, { showRing: false }), sel };
     if (id === "ring:show") return { board: updateSlot(board, objId, { showRing: true }), sel };
