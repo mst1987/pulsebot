@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { BoxSelect, Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
-import type { Catalog, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
+import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
+import { inheritedRows } from "../../../lib/inherit";
 import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
 import { useT } from "../../../i18n";
 import {
@@ -81,7 +82,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -112,6 +113,9 @@ export default function BoardWorkspace({
     csrfToken: string | null;
     mapRows: MapRow[];
     onMapsChanged: () => void;
+    /** template editor: the rows of the Standard (inherited by every boss) and the action that writes them into every boss */
+    defaultRows?: RaidplanAssignment[];
+    onCopyDefaults?: () => void;
 }) {
     const t = useT();
     const toast = useToast();
@@ -176,8 +180,11 @@ export default function BoardWorkspace({
     const missing = useMemo(() => unplaced(roster, board), [roster, board]);
     const isEvent = mode === "event";
     const scope = scopeOf(boss);
+    /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */
+    const noBoard = scope === "general" || scope === "defaults";
     const links = useMemo(() => (showLinks ? assignmentLinks(board) : []), [showLinks, board]);
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
+    const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
@@ -581,7 +588,7 @@ export default function BoardWorkspace({
             const tag = (e.target as HTMLElement).tagName;
             if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
             const mod = e.ctrlKey || e.metaKey;
-            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && scope !== "general") { e.preventDefault(); chooseItems(selectableItems(boardNow.current)); }
+            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && !noBoard) { e.preventDefault(); chooseItems(selectableItems(boardNow.current)); }
             else if (canWrite && mod && e.key.toLowerCase() === "d") { e.preventDefault(); doDuplicate(); }
             else if (canWrite && mod && e.key.toLowerCase() === "c") { if (currentSel().length > 0) { e.preventDefault(); doCopy(); } }
             else if (canWrite && mod && e.key.toLowerCase() === "v") { if (clip.current) { e.preventDefault(); doPaste(); } }
@@ -692,7 +699,7 @@ export default function BoardWorkspace({
         const onObject = !!el.closest(".rp-token, .rp-zone, .rp-text, .rp-line-hit, .rp-handle, .rp-multibox");
         const add = e.ctrlKey || e.metaKey || e.shiftKey;
         // a rubber band from empty ground (a finger needs the selection mode; long press stays the context menu)
-        if (!onObject && canWrite && e.button === 0 && scope !== "general" && (e.pointerType !== "touch" || selectMode)) {
+        if (!onObject && canWrite && e.button === 0 && !noBoard && (e.pointerType !== "touch" || selectMode)) {
             const p = toBoard(e.clientX, e.clientY);
             if (p && p.inside) {
                 bandRef.current = { x0: p.x, y0: p.y, add, base: add ? currentSel() : [], moved: false, cx: e.clientX, cy: e.clientY };
@@ -757,7 +764,7 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
-                    {scope !== "general" && (
+                    {!noBoard && (
                         <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>
                             {["S", "M", "L"].map((k) => (
                                 <button key={k} type="button" className={`rp-mapsize-btn${mapSize.step === k ? " is-on" : ""}`} aria-pressed={mapSize.step === k} data-tip={t(`raidBoard.split.step${k}`)} onClick={() => chooseMapSize({ step: k as "S" | "M" | "L", px: 0 })}>{k}</button>
@@ -772,7 +779,7 @@ export default function BoardWorkspace({
 
             {(showPalette || showBes) && (
                 <div className="rp-bands">
-                    {showPalette && canWrite && scope !== "general" && (
+                    {showPalette && canWrite && !noBoard && (
                         <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} tally={slotTally(board)} />
                     )}
                     {showBes && (
@@ -786,8 +793,8 @@ export default function BoardWorkspace({
                 </div>
             )}
 
-            <div className={`rp-stage2${showPanel && scope !== "general" ? "" : " no-dock"}`}>
-                {scope !== "general" && (
+            <div className={`rp-stage2${showPanel && !noBoard ? "" : " no-dock"}`}>
+                {!noBoard && (
                 <div
                     className="rp-board-wrap"
                     onPointerDown={boardWrapDown} onPointerMove={boardWrapMove} onPointerUp={boardWrapEnd} onPointerCancel={boardWrapEnd}
@@ -821,9 +828,9 @@ export default function BoardWorkspace({
                     />
                 </div>
                 )}
-                {scope !== "general" && (showPanel || (isEvent && roster.length >= 0)) && (
+                {!noBoard && (showPanel || (isEvent && roster.length >= 0)) && (
                     <div className="rp-side">
-                {isEvent && scope !== "general" && (
+                {isEvent && !noBoard && (
                     <section className={`rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
                         <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
                         {roster.length === 0 && <span className="rp-muted">{t("raidBoard.tray.none")}</span>}
@@ -843,7 +850,7 @@ export default function BoardWorkspace({
                         </div>
                     </section>
                 )}
-                    {showPanel && scope !== "general" && (
+                    {showPanel && !noBoard && (
                         <aside className="rp-dock" ref={panelRef} aria-label={t("raidBoard.panel.props")}>
                             <div className="rp-dock-tabs" role="tablist">
                                 <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>
@@ -864,7 +871,7 @@ export default function BoardWorkspace({
                     </div>
                 )}
             </div>
-            {scope !== "general" && (
+            {!noBoard && (
                 <div
                     className="rp-splitter" role="separator" aria-orientation="horizontal" tabIndex={0} aria-label={t("raidBoard.split.label")} aria-valuenow={mapPx} data-tip={t("raidBoard.split.tip")}
                     onPointerDown={startSplit}
@@ -872,15 +879,16 @@ export default function BoardWorkspace({
                 ><span aria-hidden="true" /></div>
             )}
             <div className="rp-below-map">
-                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
+                {!noBoard && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
                 <AssignPanel
                     scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
                     eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
                     profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
+                    inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults}
                 />
                 <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
             </div>
-            {canWrite && scope !== "general" && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
+            {canWrite && !noBoard && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             {drag && drag.kind === "tray" && dragPlayer && (
                 <div className="rp-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">

@@ -22,7 +22,8 @@ import { InstancePicker, NumberInput, SizePicker } from "../components/RaidPlanF
 import PlanBoard from "../components/raidplan/PlanBoard";
 import { formatDate } from "../lib/format";
 import type { BesetzungCounts } from "../api";
-import { ROLE_ICON } from "../lib/assign";
+import { ROLE_ICON, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/assign";
+import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/inherit";
 import { besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
@@ -440,6 +441,24 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const edit = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
         histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, [])), coalesce);
     }, [histEdit, besetzung]);
+    /** "Standard auf alle Bosse anwenden (kopieren)": the Standard's rows become the own rows of every boss that does not differ (one undo step). */
+    const copyDefaults = async () => {
+        const rows = boardOf(draft, DEFAULTS_KEY).assignments;
+        if (rows.length === 0) { toast(t("raidBoard.defaults.copyEmpty")); return; }
+        if (!(await ask({ title: t("raidBoard.defaults.copyTitle"), text: t("raidBoard.defaults.copyText", { count: rows.length }), action: t("raidBoard.defaults.copy") }))) return;
+        let n = 0;
+        for (const b of tpl.bossList) {
+            if (b.general || b.defaults) continue;
+            const cur = boardOf(draft, b.key);
+            if (differs(cur)) continue;
+            const scope = scopeOf(b);
+            const mobs = sectionMobsOf(scope, b.key, b.name, bossIconOf(b.iconUrl), b.instanceId, cur, tpl.catalog);
+            const section = { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs };
+            histEdit(b.key, (x) => copyDefaultsToAll({ [b.key]: x }, rows, { [b.key]: section })[b.key] as RaidplanBoard, true);
+            n += 1;
+        }
+        toast(t("raidBoard.defaults.copied", { count: n }));
+    };
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
 
@@ -528,6 +547,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
+                    defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
                     bossNav={<BossNav bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} />}
                     status={<Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>}
                     actions={canWrite ? (

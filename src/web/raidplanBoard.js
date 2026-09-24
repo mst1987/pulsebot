@@ -22,6 +22,7 @@
 //   targets  [{ id, title, userIds }]     task rows
 //   counts   { tank, healer, dps, melee, ranged } | null   how many role slots the Besetzung has on this board (null = the raid type's)
 //   hiddenCards [type]   default assignment cards that are hidden on this board
+//   inheritOff  [id]     rows of the template's Standard this boss does not inherit (raidplanInherit.js)
 //   mobs     [{ id, name, icon }]   mobs added to this section (tank targets, optionally also icons on the map)
 //   roles    { [userId]: role }   who plays another role on this boss than in the setup (flex)
 //   slots may carry placed:false = in the Besetzung, not on the map
@@ -290,13 +291,15 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
     const hiddenCards = [...new Set((Array.isArray(input.hiddenCards) ? input.hiddenCards : []).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x));
     const counts = besetzung.cleanCounts(input.counts);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
+    const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */

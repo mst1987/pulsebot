@@ -32,6 +32,7 @@ export const SCOPE_TYPES = {
     boss: ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"],
     trash: ["trashtank", "tank", "heal", "kick", "cc", "dispel", "other"],
     general: ["curse", "thunderclap", "demoshout", "buff", "other"],
+    defaults: ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"],
 } as Record<string, string[]>;
 /** The role icons the raid detail already uses for its role groups. */
 export const ROLE_ICON = {
@@ -48,6 +49,7 @@ export const DEFAULT_CARDS = {
     boss: ["tank", "heal"],
     trash: ["trashtank", "heal"],
     general: ["curse", "thunderclap", "demoshout"],
+    defaults: ["tank", "heal"],
 } as Record<string, string[]>;
 
 /**
@@ -188,8 +190,8 @@ export const HEAL_COLOR = "#35d6c4";
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 
 /** Which area a boss entry is: the whole raid, the trash of an instance or a boss. */
-export function scopeOf(boss: { trash?: boolean; general?: boolean }): string {
-    return boss.general ? "general" : boss.trash ? "trash" : "boss";
+export function scopeOf(boss: { trash?: boolean; general?: boolean; defaults?: boolean }): string {
+    return boss.defaults ? "defaults" : boss.general ? "general" : boss.trash ? "trash" : "boss";
 }
 
 export function assignTypes(scope: string): string[] {
@@ -294,7 +296,9 @@ export function mobTarget(m: RaidplanMobRef): RaidplanAssignTarget {
 export function sectionMobs(scope: string, bossKey: string, bossName: string, bossIcon: string, instanceId: string, board: RaidplanBoard, catalog: Catalog | null | undefined): RaidplanMobRef[] {
     const out = [];
     if (scope === "boss") pushUnique(out, { id: `b:${bossKey}`, name: bossName, icon: bossIcon });
-    if (catalog && scope !== "general") {
+    // the Standard has no boss of its own: "the boss of the section this row lands in"
+    if (scope === "defaults") pushUnique(out, { id: "b:this", name: t("raidBoard.defaults.thisBoss"), icon: "" });
+    if (catalog && scope !== "general" && scope !== "defaults") {
         for (const m of catalog.mobs) {
             if (scope === "boss" ? m.bossKey === bossKey : m.kind === "trash" && m.instanceId === instanceId && m.bossKey === "") pushUnique(out, mobRef(m));
         }

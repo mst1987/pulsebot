@@ -9,6 +9,7 @@
 //     never sees a draft). A token whose player is not in the approved setup is
 //     left out of the public page instead of being named from a draft.
 const store = require("./raidplanStore");
+const inherit = require("./raidplanInherit");
 const profileStore = require("./raidplanProfileStore");
 const templateStore = require("./raidplanTemplateStore");
 const { approvedSetupOf } = require("./setupEditor");
@@ -115,6 +116,8 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
+    // the Standard: one more "boss" at the end of the list (its own board: the tank / healer basics of every boss)
+    if (bosses.length > 0) bosses.push({ key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", templateMap: false, ownMap: false, instanceMap: false });
     return { ...t, catalog: catalogStore.catalogView(), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
@@ -122,7 +125,7 @@ function templateView(t) {
 function templateSummary(t) {
     return {
         id: t.id, name: t.name, category: t.category, description: t.description,
-        guildId: t.guildId, instanceIds: t.instanceIds, bossCount: Object.keys(t.bosses).length,
+        guildId: t.guildId, instanceIds: t.instanceIds, bossCount: Object.keys(t.bosses).filter((k) => k !== inherit.DEFAULTS_KEY).length,
     };
 }
 

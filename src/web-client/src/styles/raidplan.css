@@ -885,3 +885,8 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-sf { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h-sm, 32px); }
 .rp-sf input[type="range"] { flex: 1 1 auto; min-width: 0; height: 20px; margin: 0; padding: 0; background: transparent; }
 .rp-disabled { opacity: .6; }
+
+/* the template's Standard: rows a boss inherits */
+.rp-arow.is-inherited { border-style: dashed; background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.rp-inh-mark { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; border: 1px dashed var(--line); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.rp-defaults-explain { margin: 0 0 6px; font-size: 13px; max-width: 900px; }

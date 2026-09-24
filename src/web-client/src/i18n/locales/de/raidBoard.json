@@ -576,5 +576,21 @@
         "align": "Ausrichten",
         "skipped": "{n} Objekt(e) übersprungen: Slots der Besetzung und Spieler werden nicht kopiert.",
         "hint": "Ziehen verschiebt alle, Entf löscht alle, +/− und die Eck-Griffe skalieren, Strg+D dupliziert, Esc hebt auf. Ein Strg+Z macht die ganze Aktion rückgängig."
+    },
+    "defaults": {
+        "title": "Standard",
+        "thisBoss": "Boss (dieser Abschnitt)",
+        "inherited": "Standard",
+        "inheritedTip": "Geerbt aus dem Standard der Vorlage. Änderungen im Standard wirken auf alle Bosse, die nicht abweichen.",
+        "deviate": "Für diesen Boss abweichen (Zeile wird bossspezifisch)",
+        "hideRow": "Für diesen Boss ausblenden",
+        "restore": "Standard wiederherstellen (Abweichungen dieser Karte zurücksetzen)",
+        "copy": "Standard auf alle Bosse anwenden (kopieren)",
+        "copyTip": "Schreibt die Zeilen fest in jeden Boss, der nicht abweicht",
+        "copyTitle": "Standard in alle Bosse kopieren?",
+        "copyText": "Die {count} Zeilen des Standards werden als eigene Zeilen in jeden Boss geschrieben, der noch nicht vom Standard abweicht. Bosse mit Abweichung bleiben unberührt. Ein Strg+Z macht alles rückgängig.",
+        "copyEmpty": "Der Standard hat noch keine Zeilen.",
+        "copied": "In {count} Bosse kopiert.",
+        "explain": "Der Standard ist die Tank- und Heiler-Grundaufstellung, die jeder Boss und jeder Trash übernimmt („Tank 1 → Boss“ zeigt bei jedem Boss dessen Boss). Ein Boss kann davon abweichen oder eine Zeile ausblenden. „Allgemein“ ist etwas anderes: Raid-Utility wie Flüche, einmal für den ganzen Raid."
     }
 }

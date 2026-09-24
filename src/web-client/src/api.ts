@@ -4148,6 +4148,8 @@ export type RaidplanBoard = {
     mobs: RaidplanMobRef[];
     /** default assignment cards hidden on this board */
     hiddenCards: string[];
+    /** the rows of the template's Standard this boss does not inherit (deviated from / switched off) */
+    inheritOff: string[];
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4176,7 +4178,7 @@ export type RaidplanSpellRef = { id: string; name: string; icon: string };
 export type RaidplanMobRef = { id: string; name: string; icon: string };
 export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
 /** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean };
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
@@ -4191,6 +4193,8 @@ export type CatalogAdmin = Catalog & {
     entry?: CatalogMob | CatalogSpell | null;
 };
 export type RaidplanBoss = {
+    /** the template's Standard (the tank / healer basics of every boss), not a boss */
+    defaults?: boolean;
     /** "Trash" of an instance / "Allgemein" for the whole raid: no boss, but a board (trash) or only assignments (general) */
     trash?: boolean;
     general?: boolean;

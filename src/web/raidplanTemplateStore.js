@@ -19,6 +19,7 @@ const { instanceById } = require("../config/gameVersions");
 const board = require("./raidplanBoard");
 const planStore = require("./raidplanStore");
 const besetzung = require("./raidplanBesetzung");
+const inherit = require("./raidplanInherit");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-templates.json");
 const LIMITS = { templates: 100, name: 40, category: 30, description: 200 };
@@ -77,7 +78,9 @@ function getTemplate(id) {
 
 /** The boss keys a template with these instances can have a board for. */
 function bossKeysOf(instanceIds) {
-    return planStore.bossesForInstances(instanceIds).map((b) => b.key);
+    const keys = planStore.bossesForInstances(instanceIds).map((b) => b.key);
+    // the template's own "Standard" board (the tank / healer basics every boss inherits, raidplanInherit.js)
+    return keys.length > 0 ? [...keys, inherit.DEFAULTS_KEY] : keys;
 }
 
 /** Checks the descriptive fields; returns `{ value }` or `{ code: "invalid", error }`. */

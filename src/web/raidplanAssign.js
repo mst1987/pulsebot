@@ -107,6 +107,8 @@ function cleanAssignments(raw, allowed = new Set()) {
             note: str(o.note).slice(0, LIMITS.note), suggested: o.suggested === true,
             // the class(es) that should do it (only known classes, once each) and whether a suggestion may take others when none fits
             preferredClasses: cleanClasses(o.preferredClasses), allowOthers: o.allowOthers === true,
+            // where the row comes from: "default" (written in from the template's Standard) or the id of the default row a boss deviated from
+            origin: /^[\w-]{1,24}$/.test(str(o.origin)) ? str(o.origin) : "",
         });
     }
     return { assignments: out, dropped };

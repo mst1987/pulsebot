@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
 import TypeBadge from "./TypeBadge";
-import { AlertTriangle, ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Copy, Link2, Pencil, RotateCcw, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -14,6 +14,7 @@ import {
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
+import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
@@ -177,7 +178,7 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile, catalog, sectionMobs }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -194,6 +195,12 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     onPickProfile: () => void;
     catalog: Catalog | null;
     sectionMobs: RaidplanMobRef[];
+    /** the rows this section inherits from the template's Standard (resolved for it), shown in their cards and not editable in place */
+    inherited?: RaidplanAssignment[];
+    /** the Standard's own rows (to restore a card) */
+    defaultRows?: RaidplanAssignment[];
+    /** in the Standard's own editor: writes its rows into every boss that does not differ (asks first) */
+    onCopyDefaults?: () => void;
 }) {
     const t = useT();
     const toast = useToast();
@@ -212,13 +219,13 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     useEffect(() => { setExtra([]); setFolded([]); }, [scope, eventId]);
 
     const ask = useConfirm();
-    const shown = cardTypes(scope, board.assignments, extra, !canWrite, board.hiddenCards);
+    const shown = cardTypes(scope, [...board.assignments, ...inherited], extra, !canWrite, board.hiddenCards);
     const addable = addableCards(scope, shown);
 
     /** A new row of a card's type; a tanking row of a boss starts with the boss as its target. */
     const newRow = (b: RaidplanBoard, type: string): RaidplanBoard => {
         const made = addRowOfType(b, type);
-        const boss = scope === "boss" && type === "tank" ? sectionMobs.find((m) => m.id.indexOf("b:") === 0) : undefined;
+        const boss = (scope === "boss" || scope === "defaults") && type === "tank" ? sectionMobs.find((m) => m.id.indexOf("b:") === 0) : undefined;
         return boss ? toggleTarget(made.board, made.id, mobTarget(boss)) : made.board;
     };
 
@@ -349,6 +356,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                             <ScrollText size={15} aria-hidden="true" /><span>{profileName || t("raidBoard.profile.pickShort")}</span>
                         </button>
                     )}
+                    {canWrite && scope === "defaults" && onCopyDefaults && (
+                        <button type="button" className="rp-assign-btn" data-tip={t("raidBoard.defaults.copyTip")} onClick={onCopyDefaults}><Copy size={15} aria-hidden="true" /><span>{t("raidBoard.defaults.copy")}</span></button>
+                    )}
                     {canWrite && addable.length > 0 && (
                         <button type="button" className="rp-assign-btn" aria-haspopup="dialog" onClick={(e) => setAddAnchor(addAnchor ? null : e.currentTarget)}>
                             <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.assign.addCard")}</span>
@@ -363,18 +373,23 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                     )}
                 </div>
             </div>
+            {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.explain")}</p>}
             {shown.length === 0 && <p className="rp-muted rp-assign-empty">{t("raidBoard.assign.emptyRead")}</p>}
             {view === "players" && <PlayerTasksList assignments={board.assignments} ctx={ctx} me={[]} yours={false} />}
             {view === "cards" && <div className="rp-cards">
                 {shown.map((type) => {
                     const rows = rowsOfType(board.assignments, type);
+                    const inh = rowsOfType(inherited, type);
                     const fold = folded.indexOf(type) >= 0;
                     return (
                         <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
                             <header className="rp-acard-head">
                                 <TypeBadge type={type} label={t(`raidBoard.assign.type.${type}`)} size={24} />
-                                <span className="rp-acard-count">{rows.length}</span>
+                                <span className="rp-acard-count">{rows.length + inh.length}</span>
                                 <span className="rp-acard-tools">
+                                    {canWrite && defaultRows.length > 0 && canRestore(board, defaultRows, type) && (
+                                        <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("raidBoard.defaults.restore")} onClick={() => edit((b) => restoreInherited(b, defaultRows, type))} />
+                                    )}
                                     {canWrite && SUGGESTABLE.indexOf(type) >= 0 && (
                                         <IconButton size="sm" icon={<Wand2 size={15} />} tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)} />
                                     )}
@@ -385,7 +400,22 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                             </header>
                             {!fold && (
                                 <ul className="rp-alist">
-                                    {rows.length === 0 && <li className="rp-muted rp-acard-empty">{t("raidBoard.assign.cardEmpty")}</li>}
+                                    {rows.length === 0 && inh.length === 0 && <li className="rp-muted rp-acard-empty">{t("raidBoard.assign.cardEmpty")}</li>}
+                                    {inh.map((a) => (
+                                        <li key={`inh-${a.id}`} className="rp-arow is-inherited">
+                                            <div className="rp-arow-top">
+                                                <span className="rp-inh-mark" data-tip={t("raidBoard.defaults.inheritedTip")}><Link2 size={13} aria-hidden="true" />{t("raidBoard.defaults.inherited")}</span>
+                                                {a.title && <span className="rp-atitle-read">{a.title}</span>}
+                                                {canWrite && <IconButton size="sm" icon={<Pencil size={14} />} tip={t("raidBoard.defaults.deviate")} onClick={() => { edit((b) => deviate(b, a)); }} />}
+                                                {canWrite && <IconButton size="sm" tone="danger" icon={<EyeOff size={14} />} tip={t("raidBoard.defaults.hideRow")} onClick={() => edit((b) => hideInherited(b, a.origin || a.id))} />}
+                                            </div>
+                                            <div className="rp-arow-main">
+                                                <span className="rp-achips">{a.assignees.map((ref) => <AssignChip key={ref} r={resolveAssignee(ref, ctx)} />)}</span>
+                                                {a.targets.length > 0 && <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>}
+                                                <span className="rp-achips">{a.targets.map((tg) => <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(tg, ctx)} />)}</span>
+                                            </div>
+                                        </li>
+                                    ))}
                                     {rows.map((a) => (
                                         <AssignRow
                                             key={a.id} a={a} canWrite={canWrite} ctx={ctx} edit={edit} spellOptions={spellOptions}

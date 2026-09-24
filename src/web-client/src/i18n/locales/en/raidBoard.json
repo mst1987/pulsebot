@@ -576,5 +576,21 @@
         "align": "Align",
         "skipped": "{n} object(s) skipped: slots of the roster and players are not copied.",
         "hint": "Drag moves all, Del deletes all, +/- and the corner grips scale, Ctrl+D duplicates, Esc clears. One Ctrl+Z undoes the whole action."
+    },
+    "defaults": {
+        "title": "Default",
+        "thisBoss": "Boss (of this section)",
+        "inherited": "Default",
+        "inheritedTip": "Inherited from the template's default. A change of the default reaches every boss that does not deviate.",
+        "deviate": "Deviate for this boss (the row becomes boss specific)",
+        "hideRow": "Hide for this boss",
+        "restore": "Restore the default (reset the deviations of this card)",
+        "copy": "Apply the default to all bosses (copy)",
+        "copyTip": "Writes the rows into every boss that does not deviate",
+        "copyTitle": "Copy the default into all bosses?",
+        "copyText": "The {count} rows of the default are written as own rows into every boss that does not deviate yet. Bosses with a deviation stay untouched. One Ctrl+Z undoes everything.",
+        "copyEmpty": "The default has no rows yet.",
+        "copied": "Copied into {count} bosses.",
+        "explain": "The default is the basic tank and healer set-up every boss and trash section takes over (“Tank 1 -> Boss” shows each boss's own boss). A boss can deviate or hide a row. “General” is something else: raid-wide utility such as curses, once for the whole raid."
     }
 }

@@ -14,13 +14,13 @@ export default function BossNav({ bosses, selected, draft, onSelect }: {
     onSelect: (key: string) => void;
 }) {
     const t = useT();
-    const label = (b: RaidplanBoss) => (b.general ? t("raidBoard.assign.general") : b.trash ? `${b.instanceName ? `${b.instanceName}: ` : ""}${t("raidBoard.assign.trash")}` : b.name);
+    const label = (b: RaidplanBoss) => (b.defaults ? t("raidBoard.defaults.title") : b.general ? t("raidBoard.assign.general") : b.trash ? `${b.instanceName ? `${b.instanceName}: ` : ""}${t("raidBoard.assign.trash")}` : b.name);
     return (
         <nav className="rp-bossnav" aria-label={t("raidBoard.bosses.title")}>
             {bosses.map((b, idx) => {
                 const on = b.key === selected;
-                const special = !!b.trash || !!b.general;
-                const i = bosses.slice(0, idx).filter((x) => !x.trash && !x.general).length;
+                const special = !!b.trash || !!b.general || !!b.defaults;
+                const i = bosses.slice(0, idx).filter((x) => !x.trash && !x.general && !x.defaults).length;
                 return (
                     <button
                         key={b.key} type="button" className={`rp-bosschip${on ? " is-on" : ""}`} aria-current={on ? "true" : undefined}

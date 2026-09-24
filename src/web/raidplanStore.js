@@ -32,6 +32,7 @@ const DEFAULT_FILE = path.join(DATA_DIR, "settings", "raidplans.json");
 const DEFAULT_MAP_DIR = path.join(DATA_DIR, "raidplan-maps");
 
 const board = require("./raidplanBoard");
+const inherit = require("./raidplanInherit");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -258,9 +259,21 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, n
     }
     const allowed = new Set(bossKeys);
     const bosses = { ...current.bosses };
-    for (const [key, tb] of Object.entries(template.bosses || {})) {
+    const defaultRows = ((template.bosses || {})[inherit.DEFAULTS_KEY] || {}).assignments || [];
+    const meta = new Map(bossesForInstances(template.instanceIds).map((b) => [b.key, b]));
+    let mobsOfCatalog = null;
+    // every boss (and trash) the event has gets the template's board, or an empty one when the template has only the Standard for it
+    const keys = new Set([...Object.keys(template.bosses || {}).filter((k) => k !== inherit.DEFAULTS_KEY), ...(defaultRows.length > 0 ? bossKeys.filter((k) => meta.has(k) && !meta.get(k).general) : [])]);
+    for (const key of keys) {
         if (!allowed.has(key)) continue;
-        const copy = board.reidBoard({ ...tb, tokens: [], profileId: tb.profileId || "" });
+        let tb = (template.bosses || {})[key] || {};
+        const bm = meta.get(key);
+        if (defaultRows.length > 0 && bm && !bm.general) {
+            if (!mobsOfCatalog) mobsOfCatalog = require("./raidplanCatalogStore").listMobs();
+            const section = inherit.sectionOf(bm, mobsOfCatalog, tb.mobs);
+            tb = { ...tb, assignments: inherit.effectiveRows(defaultRows, tb, section) };
+        }
+        const copy = board.reidBoard({ ...tb, tokens: [], inheritOff: [], profileId: tb.profileId || "" });
         copy.slots = board.fillSlots(copy.slots, roster);
         const cleaned = board.cleanBoard(copy, { allowedUserIds: roster.map((p) => p.userId), profileIds: tb.profileId ? [tb.profileId] : [] });
         if (cleaned.error) return cleaned;
