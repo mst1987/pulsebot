@@ -7,7 +7,8 @@
             "roster": "Roster",
             "setup": "Setup",
             "loot": "Loot",
-            "logs": "Logs"
+            "logs": "Logs",
+            "plan": "Raid plan"
         },
         "signups": {
             "openTitle": "Reopen signups?",

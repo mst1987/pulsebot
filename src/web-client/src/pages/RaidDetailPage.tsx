@@ -38,6 +38,7 @@ import StepBar from "./raid-detail/StepBar";
 import RosterTab from "./raid-detail/RosterTab";
 import LootTab from "./raid-detail/LootTab";
 import LogsTab from "./raid-detail/LogsTab";
+import RaidplanTab from "./raid-detail/RaidplanTab";
 import SetupEditor from "./raid-detail/SetupEditor";
 import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
@@ -53,8 +54,8 @@ import "../styles/raid-detail.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { useT } from "../i18n";
 
-type Tab = "roster" | "setup" | "loot" | "logs";
-const TABS: Tab[] = ["roster", "setup", "loot", "logs"];
+type Tab = "roster" | "setup" | "loot" | "logs" | "plan";
+const TABS: Tab[] = ["roster", "setup", "plan", "loot", "logs"];
 
 /**
  * The six tabs this page used to have, mapped onto the three it has now — so a
@@ -74,6 +75,7 @@ const TAB_ICONS: Record<Tab, string> = {
     setup: "inv_misc_map_01",
     loot: "inv_misc_bag_10",
     logs: "inv_misc_pocketwatch_01",
+    plan: "inv_misc_map02",
 };
 
 export default function RaidDetailPage() {
@@ -129,8 +131,9 @@ export default function RaidDetailPage() {
 
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
     const ownEvent = data.event.source === "eventhelper";
-    const tabs = TABS.filter((t) => t !== "setup" || ownEvent);
-    const shown: Tab = tab === "setup" && !ownEvent ? LEGACY_TABS.setup.tab : tab;
+    // The raid plan (boards per boss) belongs to an own event like the setup it takes its players from.
+    const tabs = TABS.filter((t) => (t !== "setup" && t !== "plan") || ownEvent);
+    const shown: Tab = (tab === "setup" || tab === "plan") && !ownEvent ? LEGACY_TABS.setup.tab : tab;
 
     const openStep = (step: RaidStep) => {
         if (step.open.modal) setModal(step.open.modal);
@@ -150,6 +153,7 @@ export default function RaidDetailPage() {
         setup: data.ownSetup?.placed || 0,
         loot: data.lootItems.length,
         logs: data.eventLogs.length,
+        plan: 0,
     };
     const close = () => setModal(null);
 
@@ -240,7 +244,7 @@ export default function RaidDetailPage() {
                     <button key={id} type="button" role="tab" aria-selected={shown === id} className={`tab-btn${shown === id ? " active" : ""}`} onClick={() => switchTab(id)}>
                         <WowIcon name={TAB_ICONS[id]} size={16} />
                         {t(`raidDetail.page.tab.${id}`)}
-                        <span className="tab-count">{counts[id]}</span>
+                        {id !== "plan" && <span className="tab-count">{counts[id]}</span>}
                     </button>
                 ))}
             </div>
@@ -249,6 +253,7 @@ export default function RaidDetailPage() {
             {shown === "setup" && <SetupEditor ctx={ctx} />}
             {shown === "loot" && <LootTab ctx={ctx} />}
             {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
+            {shown === "plan" && <RaidplanTab ctx={ctx} />}
 
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
             <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />

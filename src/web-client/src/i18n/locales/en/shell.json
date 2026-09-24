@@ -12,7 +12,9 @@
         "lootcouncil": "Loot council",
         "recruitment": "Recruitment",
         "channels": "Channels",
-        "settings": "Settings"
+        "settings": "Settings",
+        "planTemplates": "Raid plan templates",
+        "planCatalog": "Raid plan catalog"
     },
     "group": {
         "Start": "Start",
@@ -26,10 +28,12 @@
         "newEvent": "New event",
         "notifyTemplates": "Call templates",
         "raidTemplates": "Raid templates",
+        "planTemplates": "Raid plan templates",
         "series": "Series",
         "eventLoot": "Event loot",
         "character": "Character",
-        "editPost": "Edit message"
+        "editPost": "Edit message",
+        "planCatalog": "Raid plan catalog"
     },
     "noArea": {
         "label": "No area unlocked",

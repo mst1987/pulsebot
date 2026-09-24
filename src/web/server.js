@@ -14,6 +14,7 @@ const { renderEventPage } = require("./eventPublicPage");
 const { renderDocsPage } = require("./docsPage");
 const { buildIcs, icsFileName } = require("./icsFeed");
 const calendarFeed = require("./calendarFeed");
+const raidplanStore = require("./raidplanStore");
 const { getEvent } = require("./eventStore");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const { versionInfo } = require("./version");
@@ -64,7 +65,9 @@ async function handle(req, res) {
     if (pathname === "/auth/login" && req.method === "GET") {
         if (!auth.configured()) return send(res, 503, renderNotFound());
         const state = crypto.randomBytes(12).toString("hex");
-        states.set(state, Date.now() + 600000);
+        // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else)
+        const next = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
+        states.set(state, { expires: Date.now() + 600000, next });
         return redirect(res, auth.loginUrl(state));
     }
     if (pathname === "/auth/callback" && req.method === "GET") {
@@ -75,10 +78,11 @@ async function handle(req, res) {
         if (!code) return send(res, 400, renderError("Login fehlgeschlagen", "Kein Autorisierungscode von Discord erhalten."));
         // state is CSRF protection; if it's unknown (e.g. the bot restarted) just warn and proceed
         if (state && !states.has(state)) console.warn("OAuth state not found (process restart?) — proceeding anyway");
+        const pending = state ? states.get(state) : null;
         if (state) states.delete(state);
         try {
             const sid = await auth.completeLogin(code);
-            return redirect(res, "/", { "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` });
+            return redirect(res, pending && pending.next ? pending.next : "/", { "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` });
         } catch (e) {
             const detail = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
             console.error("OAuth callback failed:", detail);
@@ -159,6 +163,22 @@ async function handle(req, res) {
     if (ep) {
         const html = renderEventPage(ep[1]);
         return send(res, html ? 200 : 404, html || renderNotFound());
+    }
+    // Room maps of the raid plan (docs/raidplan.md): /rp-map/<instance>[/<boss>], no
+    // login — the public plan page shows them too, and a map is a picture the orga
+    // uploaded, nothing personal. The key is checked against the known instances
+    // and bosses before any file is touched; the url carries ?v=<mtime>, so the
+    // long cache never hides a new upload.
+    const rpMap = pathname.match(/^\/rp-map\/((?:[te]\/[a-z0-9-]{3,40}\/)?[a-z0-9]+(?:\/[a-z0-9-]+)?)$/);
+    if (rpMap) {
+        const map = raidplanStore.readMap(rpMap[1]);
+        if (!map) return send(res, 404, renderNotFound());
+        res.writeHead(200, {
+            "Content-Type": map.mime,
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        });
+        return res.end(map.buffer);
     }
     // The in-app documentation (#349): /docs, no login needed — the "Dokumentation"
     // icon in the web menu's topbar (Shell.tsx) points here too. See docsPage.js.

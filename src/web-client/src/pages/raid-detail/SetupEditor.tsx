@@ -17,7 +17,7 @@ import {
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, addRole, groupSearchBuffs, removeBuffs, respecRaider, searchNeedsFrom, stepRole, suggestGroup, toggleSpec, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, addRole, groupSearchBuffs, removeBuffs, respecRaider, searchNeedsFrom, stepRole, suggestGroup, toggleSpec, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
     type SearchNeeds, type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -986,7 +986,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const saving = useRef(0);
 
     const load = useCallback(() => {
-        getRaidSetup(ctx.eventId).then((d) => { setData(d); setError(null); }).catch((e: ApiError) => setError(e));
+        getRaidSetup(ctx.eventId).then((d) => { setData(d.setup ? { ...d, setup: withSetupDefaults(d.setup) } : d); setError(null); }).catch((e: ApiError) => setError(e));
     }, [ctx.eventId]);
     useEffect(load, [load]);
 
@@ -1023,8 +1023,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     useEffect(() => { if (data?.setup && !saving.current) confirmedVersion.current = data.setup.version; }, [data]);
 
     /** A server answer, with the Discord names the page already knows (mutations do not resolve them again). */
-    const withNames = (next: SetupEditorData): SetupEditorData => {
-        if (!next.setup) return next;
+    const withNames = (raw: SetupEditorData): SetupEditorData => {
+        if (!raw.setup) return raw;
+        const next = { ...raw, setup: withSetupDefaults(raw.setup) };
         const known = current.current?.setup ? peopleOf(current.current.setup) : new Map<string, SetupPerson>();
         const named = (p: SetupPerson) => (p.name ? p : { ...p, name: known.get(p.userId)?.name || "" });
         return { ...next, setup: { ...next.setup, groups: next.setup.groups.map((g) => ({ ...g, slots: g.slots.map(named) })), bench: next.setup.bench.map(named) } };

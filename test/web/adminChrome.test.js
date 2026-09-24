@@ -99,12 +99,13 @@ describe("web/adminChrome", () => {
     it("colours the active entry of every section with its own area token", () => {
         const { MENU } = require("../../src/config/menu.js");
         for (const e of MENU) {
-            expect(CHROME_STYLE).toContain(`.nav-item.area-${e.id} { --area:var(--area-${e.id}); --area-soft:var(--area-${e.id}-soft); }`);
+            const id = e.area || e.id;
+            expect(CHROME_STYLE).toContain(`.nav-item.area-${id} { --area:var(--area-${id}); --area-soft:var(--area-${id}-soft); }`);
         }
         // ...and render.js, which ships the palette of the SSR pages, defines them all
         const renderSrc = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "web", "render.js"), "utf8");
         for (const e of MENU) {
-            expect((renderSrc.match(new RegExp(`--area-${e.id}:#`, "g")) || []).length).toBe(3);
+            expect((renderSrc.match(new RegExp(`--area-${e.area || e.id}:#`, "g")) || []).length).toBe(3);
         }
     });
 

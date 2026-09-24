@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import Shell, { firstAllowedTab } from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
 import ChannelsPage from "./pages/ChannelsPage";
@@ -9,6 +9,8 @@ import RaidCreatePage from "./pages/RaidCreatePage";
 import RaidDetailPage from "./pages/RaidDetailPage";
 import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
 import RaidTemplatesPage from "./pages/RaidTemplatesPage";
+import RaidplanTemplatesPage from "./pages/RaidplanTemplatesPage";
+import RaidplanCatalogPage from "./pages/RaidplanCatalogPage";
 import EventSeriesPage from "./pages/EventSeriesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -27,6 +29,7 @@ import { canAccess, canAccessAny, getSession, type ApiError, type Session, type 
 import { getLang, setLang, useT } from "./i18n";
 import RaidLoader from "./components/ui/RaidLoader";
 import LangToggle from "./components/LangToggle";
+import PlanPublicPage from "./pages/PlanPublicPage";
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -97,7 +100,19 @@ function useSession(): LoadState {
     return state;
 }
 
+/**
+ * The public read view of a raid plan, /p/<token>, needs no login and no menu:
+ * it is answered before the session is even asked for (the token in the address
+ * is its authentication, see PlanPublicPage). Everything else is the menu.
+ */
 export default function App() {
+    const { pathname } = useLocation();
+    const publicPlan = pathname.match(/^\/p\/([A-Za-z0-9_-]+)\/?$/);
+    if (publicPlan) return <PlanPublicPage token={publicPlan[1]} />;
+    return <MenuApp />;
+}
+
+function MenuApp() {
     const state = useSession();
     const t = useT();
 
@@ -151,6 +166,8 @@ export default function App() {
                         <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
                         <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
                         <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
+                        <Route path="raids/plan-templates" element={<Guard user={user} areas={["raids"]}><RaidplanTemplatesPage /></Guard>} />
+                        <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raids"]}><RaidplanCatalogPage /></Guard>} />
                         <Route path="raids/series" element={<Guard user={user} areas={["raids"]}><EventSeriesPage /></Guard>} />
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}

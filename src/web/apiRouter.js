@@ -43,6 +43,7 @@ const {
     postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain, postPublish: postSetupPublish,
     postPingText: postSetupPingText, postExtraRole: postSetupExtraRole, postSearchMessage: postSetupSearch, postSearchText: postSetupSearchText,
 } = require("./apiRoutes/setup");
+const raidplanRoutes = require("./apiRoutes/raidplan");
 const eventManageRoutes = require("./apiRoutes/eventManage");
 const eventSeriesRoutes = require("./apiRoutes/eventSeries");
 
@@ -449,6 +450,106 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/explain" && req.method === "GET") {
         await getSetupExplain(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan" && req.method === "GET") {
+        raidplanRoutes.getPlan(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan" && req.method === "PUT") {
+        await raidplanRoutes.putPlan(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/suggest" && req.method === "POST") {
+        await raidplanRoutes.postSuggest(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/publish" && req.method === "POST") {
+        await raidplanRoutes.postPublish(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/map" && req.method === "POST") {
+        await raidplanRoutes.postMap(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan/map/delete" && req.method === "POST") {
+        await raidplanRoutes.postMapDelete(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog" && req.method === "GET") {
+        raidplanRoutes.getCatalog(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "POST") {
+        await raidplanRoutes.postMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "PATCH") {
+        await raidplanRoutes.patchMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "DELETE") {
+        await raidplanRoutes.deleteMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "POST") {
+        await raidplanRoutes.postSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "PATCH") {
+        await raidplanRoutes.patchSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "DELETE") {
+        await raidplanRoutes.deleteSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/reset" && req.method === "POST") {
+        await raidplanRoutes.postCatalogReset(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "GET") {
+        raidplanRoutes.getProfiles(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "POST") {
+        await raidplanRoutes.postProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "PATCH") {
+        await raidplanRoutes.patchProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/profiles" && req.method === "DELETE") {
+        await raidplanRoutes.deleteProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/apply" && req.method === "POST") {
+        await raidplanRoutes.postApply(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "GET") {
+        raidplanRoutes.getTemplates(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "POST") {
+        await raidplanRoutes.postTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "PATCH") {
+        await raidplanRoutes.patchTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates" && req.method === "DELETE") {
+        await raidplanRoutes.deleteTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/templates/duplicate" && req.method === "POST") {
+        await raidplanRoutes.postTemplateDuplicate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/public" && req.method === "GET") {
+        raidplanRoutes.getPublic(req, res, url);
         return true;
     }
     const manageHandler = eventManageHandler(pathname, req.method);

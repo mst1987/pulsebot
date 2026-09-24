@@ -195,8 +195,8 @@ describe("setup editor page", () => {
     const css = read("styles", "setup-editor.css");
 
     it("is a tab of the raid detail — only for an own event", () => {
-        expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"loot\", \"logs\"];");
-        expect(page).toContain("const tabs = TABS.filter((t) => t !== \"setup\" || ownEvent);");
+        expect(page).toContain("const TABS: Tab[] = [\"roster\", \"setup\", \"plan\", \"loot\", \"logs\"];");
+        expect(page).toContain("const tabs = TABS.filter((t) => (t !== \"setup\" && t !== \"plan\") || ownEvent);");
         expect(page).toContain("{shown === \"setup\" && <SetupEditor ctx={ctx} />}");
         // the primary action and the step open the tab
         expect(page).toContain("else if (action.tab) switchTab(action.tab);");

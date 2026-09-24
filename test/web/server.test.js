@@ -50,6 +50,7 @@ const docsPage = require("../../src/web/docsPage");
 const icsFeed = require("../../src/web/icsFeed");
 const calendarFeed = require("../../src/web/calendarFeed");
 const eventStore = require("../../src/web/eventStore");
+const raidplanStore = require("../../src/web/raidplanStore");
 const auth = require("../../src/web/auth");
 const apiRouter = require("../../src/web/apiRouter");
 const staticClient = require("../../src/web/staticClient");
@@ -338,6 +339,31 @@ describe("web/server", () => {
         });
     });
 
+    describe("raid plan (docs/raidplan.md)", () => {
+        it("GET /rp-map/<key> serves the stored map without a session, cached and not sniffable", async () => {
+            const spy = jest.spyOn(raidplanStore, "readMap").mockReturnValue({ buffer: Buffer.from("IMG"), mime: "image/png", mtime: 1 });
+            const res = await request({ url: "/rp-map/bt/supremus?v=1", method: "GET", headers: {} });
+            expect(spy).toHaveBeenCalledWith("bt/supremus");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "image/png", "X-Content-Type-Options": "nosniff", "Cache-Control": expect.stringContaining("max-age") }));
+            expect(res.end).toHaveBeenCalledWith(Buffer.from("IMG"));
+            expect(auth.getUser).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        it("GET /rp-map/<key> answers 404 for a key without a map, and never reads a traversal path", async () => {
+            const spy = jest.spyOn(raidplanStore, "readMap").mockReturnValue(null);
+            expect((await request({ url: "/rp-map/bt", method: "GET", headers: {} })).writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            spy.mockClear();
+            for (const url of ["/rp-map/../.env", "/rp-map/bt/../../x", "/rp-map/BT", "/rp-map/bt/a/b"]) await request({ url, method: "GET", headers: {} });
+            expect(spy).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        it("GET /p/<token> is the SPA (its data comes from the token-guarded /api/raidplan/public)", async () => {
+            await request({ url: "/p/abcdefghijklmnopqrstuv", method: "GET", headers: {} });
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/p/abcdefghijklmnopqrstuv");
+        });
+    });
     describe("in-app documentation (#349)", () => {
         it("GET /docs renders the docs page without requiring a session", async () => {
             auth.getUser.mockReturnValue(null);

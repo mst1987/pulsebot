@@ -158,6 +158,22 @@ const AREA_BY_PATH = {
     "/api/raids/series/run": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
+    // Raidplan: board editor of an own event, its tactic profiles and the room-map
+    // upload (GET reads, everything else writes, by method). The public read view
+    // (/api/raidplan/public) is UNGATED below and authenticated by its token.
+    "/api/raidplan": "raids",
+    "/api/raidplan/publish": "raids",
+    "/api/raidplan/suggest": "raids",
+    "/api/raidplan/catalog": "raids",
+    "/api/raidplan/catalog/mobs": "raids",
+    "/api/raidplan/catalog/spells": "raids",
+    "/api/raidplan/catalog/reset": "raids",
+    "/api/raidplan/map": "raids",
+    "/api/raidplan/map/delete": "raids",
+    "/api/raidplan/profiles": "raids",
+    "/api/raidplan/templates": "raids",
+    "/api/raidplan/templates/duplicate": "raids",
+    "/api/raidplan/apply": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid
     // templates are one path for GET/POST/PATCH/DELETE — the method sets the level.
     "/api/notify-templates": "raids",
@@ -215,7 +231,10 @@ const AREA_BY_PATH = {
 // "/api/session/view-as" checks the caller's *own* rights in its handler
 // (auth.getRealUser): while an admin looks at the menu as a role, this gate only
 // sees the role's rights — and the way back out must never be refused by them.
-const UNGATED = new Set(["/api/session", "/api/session/view-as"]);
+// "/api/raidplan/public" is the token-guarded read view of a published raid plan
+// (/p/<token>): no session needed, and its handler answers only for the token of
+// a published plan.
+const UNGATED = new Set(["/api/session", "/api/session/view-as", "/api/raidplan/public"]);
 // Needs a menu user, but belongs to no single area (the guild switcher, the
 // account's own menu language).
 const ANY_AREA = new Set(["/api/session/guild", "/api/session/lang"]);

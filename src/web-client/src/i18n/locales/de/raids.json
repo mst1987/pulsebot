@@ -15,11 +15,13 @@
         "title": "Raid-Events",
         "info": "Alle Events des gewählten Servers aus Raid-Helper, kommende und vergangene. Anmelde-Aufruf, Raidsheet, Logs und Loot findest du im Event selbst.",
         "series": "Serien",
+        "planTemplates": "Raidplan-Vorlagen",
         "raidTemplates": "Raid-Vorlagen",
         "notifyTemplates": "Aufruf-Vorlagen",
         "newEvent": "Neues Event",
         "categoryAria": "Kategorie",
-        "all": "Alle"
+        "all": "Alle",
+        "planCatalog": "Raidplan-Katalog"
     },
     "list": {
         "openEvent": "Event öffnen",

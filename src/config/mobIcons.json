@@ -1,0 +1,1124 @@
+{
+  "generatedAt": "2026-09-24T10:17:09.605Z",
+  "source": "portraits: Wowhead TBC model renders of the NPC (wow.zamimg.com/modelviewer/tbc/webthumbs), cropped by scripts/lib/png.js; placeholders: wow.zamimg.com icon CDN, similar icons by creature kind",
+  "portraits": {
+    "d:gathios": {
+      "npcId": 22949,
+      "name": "Gathios the Shatterer",
+      "displayId": 21416,
+      "icon": "mob:22949",
+      "crop": {
+        "x": 66,
+        "y": 1,
+        "size": 157
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/168/21416.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:zerevor": {
+      "npcId": 22950,
+      "name": "High Nethermancer Zerevor",
+      "displayId": 21417,
+      "icon": "mob:22950",
+      "crop": {
+        "x": 75,
+        "y": 0,
+        "size": 139
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/169/21417.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:malande": {
+      "npcId": 22951,
+      "name": "Lady Malande",
+      "displayId": 21419,
+      "icon": "mob:22951",
+      "crop": {
+        "x": 90,
+        "y": 0,
+        "size": 126
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/171/21419.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:veras": {
+      "npcId": 22952,
+      "name": "Veras Darkshadow",
+      "displayId": 21418,
+      "icon": "mob:22952",
+      "crop": {
+        "x": 93,
+        "y": 12,
+        "size": 118
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/170/21418.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:flame-of-azzinoth": {
+      "npcId": 22997,
+      "name": "Flame of Azzinoth",
+      "displayId": 20431,
+      "icon": "mob:22997",
+      "crop": {
+        "x": 110,
+        "y": 72,
+        "size": 85
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/207/20431.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:shadow-demon": {
+      "npcId": 23375,
+      "name": "Shadow Demon",
+      "displayId": 21447,
+      "icon": "mob:23375",
+      "crop": {
+        "x": 115,
+        "y": 86,
+        "size": 72
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/199/21447.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:parasitic-shadowfiend": {
+      "npcId": 23498,
+      "name": "Parasitic Shadowfiend",
+      "displayId": 19110,
+      "icon": "mob:23498",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/166/19110.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:maiev": {
+      "npcId": 23197,
+      "name": "Maiev Shadowsong",
+      "displayId": 21349,
+      "icon": "mob:23197",
+      "crop": {
+        "x": 75,
+        "y": 10,
+        "size": 160
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/101/21349.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:ashtongue-channeler": {
+      "npcId": 23421,
+      "name": "Ashtongue Channeler",
+      "displayId": 21594,
+      "icon": "mob:23421",
+      "crop": {
+        "x": 73,
+        "y": 36,
+        "size": 154
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/90/21594.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:ashtongue-sorcerer": {
+      "npcId": 23215,
+      "name": "Ashtongue Sorcerer",
+      "displayId": 21402,
+      "icon": "mob:23215",
+      "crop": {
+        "x": 65,
+        "y": 8,
+        "size": 170
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/154/21402.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:ashtongue-defender": {
+      "npcId": 23216,
+      "name": "Ashtongue Defender",
+      "displayId": 21595,
+      "icon": "mob:23216",
+      "crop": {
+        "x": 73,
+        "y": 37,
+        "size": 154
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/91/21595.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:ashtongue-elementalist": {
+      "npcId": 23523,
+      "name": "Ashtongue Elementalist",
+      "displayId": 21607,
+      "icon": "mob:23523",
+      "crop": {
+        "x": 73,
+        "y": 36,
+        "size": 154
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/103/21607.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:ashtongue-rogue": {
+      "npcId": 23318,
+      "name": "Ashtongue Rogue",
+      "displayId": 21591,
+      "icon": "mob:23318",
+      "crop": {
+        "x": 65,
+        "y": 7,
+        "size": 171
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/87/21591.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:essence-of-suffering": {
+      "npcId": 23418,
+      "name": "Essence of Suffering",
+      "displayId": 21483,
+      "icon": "mob:23418",
+      "crop": {
+        "x": 43,
+        "y": 62,
+        "size": 184
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/235/21483.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:essence-of-desire": {
+      "npcId": 23419,
+      "name": "Essence of Desire",
+      "displayId": 21485,
+      "icon": "mob:23419",
+      "crop": {
+        "x": 89,
+        "y": 53,
+        "size": 115
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/237/21485.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:essence-of-anger": {
+      "npcId": 23420,
+      "name": "Essence of Anger",
+      "displayId": 21484,
+      "icon": "mob:23420",
+      "crop": {
+        "x": 77,
+        "y": 81,
+        "size": 165
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/236/21484.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:shadowy-construct": {
+      "npcId": 23111,
+      "name": "Shadowy Construct",
+      "displayId": 21305,
+      "icon": "mob:23111",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/57/21305.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:vengeful-spirit": {
+      "npcId": 23109,
+      "name": "Vengeful Spirit",
+      "displayId": 21300,
+      "icon": "mob:23109",
+      "crop": {
+        "x": 74,
+        "y": 34,
+        "size": 151
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/52/21300.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:illidari-nightlord": {
+      "npcId": 22855,
+      "name": "Illidari Nightlord",
+      "displayId": 19991,
+      "icon": "mob:22855",
+      "crop": {
+        "x": 17,
+        "y": 16,
+        "size": 268
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/23/19991.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:illidari-fearbringer": {
+      "npcId": 22954,
+      "name": "Illidari Fearbringer",
+      "displayId": 18753,
+      "icon": "mob:22954",
+      "crop": {
+        "x": 25,
+        "y": 38,
+        "size": 252
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/65/18753.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:illidari-defiler": {
+      "npcId": 22853,
+      "name": "Illidari Defiler",
+      "displayId": 11335,
+      "icon": "mob:22853",
+      "crop": {
+        "x": 67,
+        "y": 21,
+        "size": 161
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/71/11335.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:illidari-heartseeker": {
+      "npcId": 23339,
+      "name": "Illidari Heartseeker",
+      "displayId": 11342,
+      "icon": "mob:23339",
+      "crop": {
+        "x": 67,
+        "y": 21,
+        "size": 161
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/78/11342.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:lesser-doomguard": {
+      "npcId": 17864,
+      "name": "Lesser Doomguard",
+      "displayId": 20930,
+      "icon": "mob:17864",
+      "crop": {
+        "x": 67,
+        "y": 24,
+        "size": 162
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/194/20930.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:hyjal-abomination": {
+      "npcId": 17898,
+      "name": "Abomination",
+      "displayId": 12818,
+      "icon": "mob:17898",
+      "crop": {
+        "x": 2,
+        "y": 2,
+        "size": 298
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/18/12818.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:hyjal-ghoul": {
+      "npcId": 17895,
+      "name": "Ghoul",
+      "displayId": 571,
+      "icon": "mob:17895",
+      "crop": {
+        "x": 79,
+        "y": 49,
+        "size": 123
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/59/571.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:hyjal-necromancer": {
+      "npcId": 17899,
+      "name": "Shadowy Necromancer",
+      "displayId": 17537,
+      "icon": "mob:17899",
+      "crop": {
+        "x": 73,
+        "y": 1,
+        "size": 153
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/129/17537.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:hyjal-crypt-fiend": {
+      "npcId": 17897,
+      "name": "Crypt Fiend",
+      "displayId": 17308,
+      "icon": "mob:17897",
+      "crop": {
+        "x": 14,
+        "y": 23,
+        "size": 277
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/156/17308.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:midnight": {
+      "npcId": 16151,
+      "name": "Midnight",
+      "displayId": 19640,
+      "icon": "mob:16151",
+      "crop": {
+        "x": 104,
+        "y": 59,
+        "size": 75
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/184/19640.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:netherspite-infernal": {
+      "npcId": 17646,
+      "name": "Netherspite Infernal",
+      "displayId": 18036,
+      "icon": "mob:17646",
+      "crop": {
+        "x": 32,
+        "y": 51,
+        "size": 235
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/116/18036.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:pure-spawn": {
+      "npcId": 22035,
+      "name": "Pure Spawn of Hydross",
+      "displayId": 5564,
+      "icon": "mob:22035",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/188/5564.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:tainted-spawn": {
+      "npcId": 22036,
+      "name": "Tainted Spawn of Hydross",
+      "displayId": 11172,
+      "icon": "mob:22036",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/164/11172.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:fathom-guard-sharkkis": {
+      "npcId": 21966,
+      "name": "Fathom-Guard Sharkkis",
+      "displayId": 20671,
+      "icon": "mob:21966",
+      "crop": {
+        "x": 68,
+        "y": 14,
+        "size": 160
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/191/20671.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:fathom-guard-tidalvess": {
+      "npcId": 21965,
+      "name": "Fathom-Guard Tidalvess",
+      "displayId": 20670,
+      "icon": "mob:21965",
+      "crop": {
+        "x": 73,
+        "y": 36,
+        "size": 154
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/190/20670.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:fathom-guard-caribdis": {
+      "npcId": 21964,
+      "name": "Fathom-Guard Caribdis",
+      "displayId": 20672,
+      "icon": "mob:21964",
+      "crop": {
+        "x": 78,
+        "y": 15,
+        "size": 143
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/192/20672.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:tainted-elemental": {
+      "npcId": 22009,
+      "name": "Tainted Elemental",
+      "displayId": 11172,
+      "icon": "mob:22009",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/164/11172.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:coilfang-strider": {
+      "npcId": 22056,
+      "name": "Coilfang Strider",
+      "displayId": 18194,
+      "icon": "mob:22056",
+      "crop": {
+        "x": 131,
+        "y": 50,
+        "size": 67
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/18/18194.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:enchanted-elemental": {
+      "npcId": 21958,
+      "name": "Enchanted Elemental",
+      "displayId": 20076,
+      "icon": "mob:21958",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "size": 300
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/108/20076.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:thaladred": {
+      "npcId": 20064,
+      "name": "Thaladred the Darkener",
+      "displayId": 20236,
+      "icon": "mob:20064",
+      "crop": {
+        "x": 56,
+        "y": 0,
+        "size": 179
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/12/20236.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:sanguinar": {
+      "npcId": 20060,
+      "name": "Lord Sanguinar",
+      "displayId": 20178,
+      "icon": "mob:20060",
+      "crop": {
+        "x": 73,
+        "y": 9,
+        "size": 144
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/210/20178.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:capernian": {
+      "npcId": 20062,
+      "name": "Grand Astromancer Capernian",
+      "displayId": 20237,
+      "icon": "mob:20062",
+      "crop": {
+        "x": 92,
+        "y": 13,
+        "size": 118
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/13/20237.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:telonicus": {
+      "npcId": 20063,
+      "name": "Master Engineer Telonicus",
+      "displayId": 20177,
+      "icon": "mob:20063",
+      "crop": {
+        "x": 77,
+        "y": 11,
+        "size": 136
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/209/20177.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:sathrovarr": {
+      "npcId": 24892,
+      "name": "Sathrovarr the Corruptor",
+      "displayId": 6686,
+      "icon": "mob:24892",
+      "crop": {
+        "x": 16,
+        "y": 15,
+        "size": 269
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/30/6686.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    "d:void-sentinel": {
+      "npcId": 25772,
+      "name": "Void Sentinel",
+      "displayId": 23372,
+      "icon": "mob:25772",
+      "crop": {
+        "x": 70,
+        "y": 77,
+        "size": 145
+      },
+      "source": "https://wow.zamimg.com/modelviewer/tbc/webthumbs/npc/76/23372.png",
+      "verified": {
+        "status": 200,
+        "type": "image/png"
+      }
+    }
+  },
+  "icons": {
+    "d:gathios": {
+      "icon": "spell_holy_sealofmight",
+      "kind": "paladin"
+    },
+    "d:zerevor": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:malande": {
+      "icon": "spell_holy_holybolt",
+      "kind": "priest"
+    },
+    "d:veras": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:flame-of-azzinoth": {
+      "icon": "spell_fire_incinerate",
+      "kind": "fire"
+    },
+    "d:shadow-demon": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:parasitic-shadowfiend": {
+      "icon": "spell_shadow_shadowfiend",
+      "kind": "fiend"
+    },
+    "d:maiev": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:ashtongue-channeler": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    },
+    "d:ashtongue-sorcerer": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:ashtongue-defender": {
+      "icon": "ability_warrior_defensivestance",
+      "kind": "guard"
+    },
+    "d:ashtongue-elementalist": {
+      "icon": "spell_nature_lightning",
+      "kind": "shaman"
+    },
+    "d:ashtongue-rogue": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:essence-of-suffering": {
+      "icon": "spell_shadow_lifedrain02",
+      "kind": "drain"
+    },
+    "d:essence-of-desire": {
+      "icon": "spell_arcane_arcane01",
+      "kind": "arcane"
+    },
+    "d:essence-of-anger": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:shadowy-construct": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    },
+    "d:vengeful-spirit": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:illidari-nightlord": {
+      "icon": "spell_shadow_summonfelguard",
+      "kind": "doomguard"
+    },
+    "d:illidari-fearbringer": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:illidari-defiler": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:illidari-heartseeker": {
+      "icon": "ability_marksmanship",
+      "kind": "ranged"
+    },
+    "d:towering-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:lesser-doomguard": {
+      "icon": "spell_shadow_summonfelguard",
+      "kind": "doomguard"
+    },
+    "d:doomfire-spirit": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:hyjal-abomination": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:hyjal-ghoul": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:hyjal-necromancer": {
+      "icon": "spell_shadow_deathcoil",
+      "kind": "necromancer"
+    },
+    "d:hyjal-crypt-fiend": {
+      "icon": "ability_hunter_beasttaming",
+      "kind": "beast"
+    },
+    "d:hyjal-giant-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:midnight": {
+      "icon": "ability_mount_ridinghorse",
+      "kind": "horse"
+    },
+    "d:netherspite-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:pure-spawn": {
+      "icon": "spell_frost_summonwaterelemental_2",
+      "kind": "water"
+    },
+    "d:tainted-spawn": {
+      "icon": "spell_nature_acid_01",
+      "kind": "tainted"
+    },
+    "d:fathom-guard-sharkkis": {
+      "icon": "ability_marksmanship",
+      "kind": "ranged"
+    },
+    "d:fathom-guard-tidalvess": {
+      "icon": "spell_nature_lightning",
+      "kind": "shaman"
+    },
+    "d:fathom-guard-caribdis": {
+      "icon": "spell_holy_holybolt",
+      "kind": "priest"
+    },
+    "d:tainted-elemental": {
+      "icon": "spell_nature_acid_01",
+      "kind": "tainted"
+    },
+    "d:coilfang-strider": {
+      "icon": "ability_hunter_beasttaming",
+      "kind": "beast"
+    },
+    "d:enchanted-elemental": {
+      "icon": "spell_arcane_arcane01",
+      "kind": "arcane"
+    },
+    "d:thaladred": {
+      "icon": "ability_warrior_charge",
+      "kind": "warrior"
+    },
+    "d:sanguinar": {
+      "icon": "spell_shadow_lifedrain02",
+      "kind": "drain"
+    },
+    "d:capernian": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:telonicus": {
+      "icon": "inv_misc_gear_01",
+      "kind": "engineer"
+    },
+    "d:sathrovarr": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:void-sentinel": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    }
+  },
+  "choices": {
+    "Demon": [
+      "spell_shadow_summoninfernal",
+      "spell_shadow_summonfelguard",
+      "spell_shadow_summonvoidwalker",
+      "spell_shadow_summonfelhunter",
+      "spell_shadow_demonform",
+      "spell_shadow_shadowfiend"
+    ],
+    "Undead": [
+      "spell_shadow_animatedead",
+      "spell_shadow_raisedead",
+      "spell_shadow_deathcoil",
+      "spell_shadow_shadowbolt",
+      "spell_shadow_lifedrain02"
+    ],
+    "Elemental": [
+      "spell_fire_incinerate",
+      "spell_fire_flamebolt",
+      "spell_frost_summonwaterelemental_2",
+      "spell_nature_lightning",
+      "spell_arcane_arcane01",
+      "spell_nature_earthquake"
+    ],
+    "Guard": [
+      "ability_warrior_defensivestance",
+      "ability_defend",
+      "ability_warrior_charge",
+      "ability_warrior_shieldbash",
+      "inv_shield_06"
+    ],
+    "Caster": [
+      "spell_frost_frostbolt02",
+      "spell_fire_fireball02",
+      "spell_holy_holybolt",
+      "spell_holy_flashheal",
+      "spell_shadow_shadowfury"
+    ],
+    "Rogue": [
+      "ability_stealth",
+      "ability_rogue_ambush",
+      "ability_rogue_eviscerate",
+      "ability_backstab"
+    ],
+    "Beast": [
+      "ability_hunter_beasttaming",
+      "ability_druid_catform",
+      "ability_mount_ridinghorse",
+      "ability_hunter_pet_bear"
+    ],
+    "Ranged": [
+      "ability_marksmanship",
+      "ability_hunter_snipershot",
+      "inv_weapon_bow_07"
+    ],
+    "Other": [
+      "inv_misc_head_orc_01",
+      "inv_misc_gear_01",
+      "inv_misc_questionmark",
+      "spell_shadow_curseofmannoroth"
+    ]
+  },
+  "verified": {
+    "spell_holy_sealofmight": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_frost_frostbolt02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_holy_holybolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_stealth": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_incinerate": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonvoidwalker": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowfiend": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowfury": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_defensivestance": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_lightning": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_lifedrain02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_arcane_arcane01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_felflamestrike": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_animatedead": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonfelguard": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_marksmanship": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summoninfernal": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_deathcoil": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_beasttaming": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_mount_ridinghorse": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_frost_summonwaterelemental_2": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_acid_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_charge": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_gear_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonfelhunter": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_demonform": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_raisedead": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowbolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_flamebolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_earthquake": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_defend": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_shieldbash": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_shield_06": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_fireball02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_holy_flashheal": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_rogue_ambush": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_rogue_eviscerate": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_backstab": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_druid_catform": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_pet_bear": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_snipershot": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_weapon_bow_07": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_head_orc_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_questionmark": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_curseofmannoroth": {
+      "status": 200,
+      "type": "image/jpeg"
+    }
+  }
+}

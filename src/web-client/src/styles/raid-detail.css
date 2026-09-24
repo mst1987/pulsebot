@@ -287,3 +287,7 @@ label.rd-check input { accent-color: var(--accent); margin: 0; }
     .rd-reasons { margin-left: 0; }
     .rd-inline { flex-direction: column; align-items: stretch; }
 }
+
+/* an editor on the page (the raid plan, data-rp-editor) lifts the content width cap; the hero and tabs above it keep the normal width */
+.content:has([data-rp-editor]) .rd-page > .page-hero,
+.content:has([data-rp-editor]) .rd-page > .tabs { max-width: 1032px; }

@@ -48,6 +48,30 @@ export function placeGrid<T extends { pos?: number }>(slots: T[]): (T | null)[] 
     return grid;
 }
 
+/** A stored setup with everything the editor reads: what a hand-written or older setup lacks gets a neutral default (the server does the same). */
+export function withSetupDefaults(setup: StoredSetup): StoredSetup {
+    if (!setup) return setup;
+    const c: Partial<StoredSetup["checks"]> = setup.checks || {};
+    const b: Partial<StoredSetup["checks"]["buffs"]> = c.buffs || {};
+    const groups = (setup.groups || []).map((g) => ({ ...g, slots: g.slots || [] }));
+    const placed = groups.reduce((n, g) => n + g.slots.length, 0);
+    return {
+        ...setup,
+        groups,
+        bench: setup.bench || [],
+        warnings: setup.warnings || [],
+        options: setup.options || { weights: {}, fairness: null, wishes: null },
+        checks: {
+            ...c,
+            ok: !!c.ok,
+            size: c.size || { count: placed, size: 0, ok: false },
+            roles: c.roles || {},
+            buffs: { ...b, ok: !!b.ok, required: b.required || [], raid: b.raid || [], party: b.party || [] },
+            wishes: c.wishes || { met: 0, total: 0 },
+        },
+    };
+}
+
 /** The stored setup as the save request carries it. */
 export function toInput(setup: StoredSetup): SetupPlacementInput {
     return {

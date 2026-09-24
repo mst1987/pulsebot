@@ -19,6 +19,7 @@
 const { DateTime } = require("luxon");
 const eventStore = require("./eventStore");
 const signupStore = require("./signupStore");
+const raidplanStore = require("./raidplanStore");
 const signupService = require("./signupService");
 const profiles = require("./raiderProfileStore");
 const reminderStore = require("./reminderStore");
@@ -605,6 +606,7 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
     eventStore.deleteEvent(event.id);
     signupStore.deleteEventSignups(event.id);
     reminderStore.clearEvent(event.id);
+    raidplanStore.deletePlan(event.id);
     const seriesMarked = markSeriesDeleted(event, actor, now);
 
     const warnings = [];

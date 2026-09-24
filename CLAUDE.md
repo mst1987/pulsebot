@@ -143,6 +143,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/events.md](docs/events.md) | Eigene Events: Store und Adapter, Anlegen im Web, das Raid-Cockpit der Detailseite, Event verwalten, Serien, Discord-Event, Kalender-Link und öffentliche Event-Seite |
 | [docs/signups.md](docs/signups.md) | Anmeldung im Web und im Bot, mehrere Raids auf einmal, Anmelder-Nachricht, Warteliste und Ankündigung, App-Emojis |
 | [docs/setup.md](docs/setup.md) | Setup-Vorschlag, Setup-Editor und das Setup im Kanal (Nachricht + DMs) |
+| [docs/raidplan.md](docs/raidplan.md) | Raidplan: ein Board je Boss (Karte, Spieler-Tokens, Aufgabenzeilen), Taktik-Profile, Karten-Upload, Freigabe und die öffentliche Lese-Ansicht `/p/<token>` |
 | [docs/raid-templates.md](docs/raid-templates.md) | Spielversionen und Instanzen (`src/config/gameVersions/`) sowie Raid-Vorlagen |
 | [docs/channels.md](docs/channels.md) | Kanäle-Seite, Namensregeln und -ableitung, Archiv, Schnellanlage |
 | [docs/roster-profile.md](docs/roster-profile.md) | Roster-Bereich und das Raider-Profil („Mein Profil“) |

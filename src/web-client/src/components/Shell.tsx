@@ -50,6 +50,8 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/templates") return tr("shell.crumb.notifyTemplates");
     if (pathname === "/raids/raid-templates") return tr("shell.crumb.raidTemplates");
     if (pathname === "/raids/series") return tr("shell.crumb.series");
+    if (pathname === "/raids/plan-templates") return tr("shell.crumb.planTemplates");
+    if (pathname === "/raids/plan-catalog") return tr("shell.crumb.planCatalog");
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
@@ -61,6 +63,9 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
 function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
     const t = useT();
     let lastGroup: string | null = null;
+    const { pathname } = useLocation();
+    // an entry that has sub entries under it (Raid-Events) is not active while one of them is open
+    const subOpen = (tab: Tab) => TABS.some((o) => o.sub && o.id !== tab.id && o.href.startsWith(`${tab.href}/`) && tab.href !== o.href && !tab.sub && matchesTab(o.href, pathname));
     const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
     // The sidebar is always rendered, so it has to say something when a member's
     // account opens nothing at all — an empty column reads like a broken page.
@@ -86,7 +91,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                             to={tab.href}
                             end={tab.href === "/"}
                             onClick={onNavigate}
-                            className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}
+                            className={({ isActive }) => `nav-item area-${tab.area || tab.id}${tab.sub ? " is-sub" : ""}${isActive && !subOpen(tab) ? " active" : ""}`}
                         >
                             <WowIcon name={tab.wowIcon} size={24} />
                             <span>{tabLabel(tab)}</span>

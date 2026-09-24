@@ -12,7 +12,9 @@
         "lootcouncil": "Loot-Council",
         "recruitment": "Recruitment",
         "channels": "Kanäle",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "planTemplates": "Raidplan-Vorlagen",
+        "planCatalog": "Raidplan-Katalog"
     },
     "group": {
         "Start": "Start",
@@ -26,10 +28,12 @@
         "newEvent": "Neues Event",
         "notifyTemplates": "Aufruf-Vorlagen",
         "raidTemplates": "Raid-Vorlagen",
+        "planTemplates": "Raidplan-Vorlagen",
         "series": "Serien",
         "eventLoot": "Event-Loot",
         "character": "Charakter",
-        "editPost": "Nachricht bearbeiten"
+        "editPost": "Nachricht bearbeiten",
+        "planCatalog": "Raidplan-Katalog"
     },
     "noArea": {
         "label": "Kein Bereich freigegeben",
