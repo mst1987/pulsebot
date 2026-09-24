@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -78,16 +78,28 @@ export default function RaidplanCatalogPage() {
             return false;
         }
     };
+    /** Left / Right / Home / End move between the tabs (a tablist's keys). */
+    const tabKeys = (e: KeyboardEvent<HTMLElement>) => {
+        const order: Tab[] = ["mobs", "spells"];
+        const at = order.indexOf(which);
+        const next = e.key === "ArrowRight" ? order[(at + 1) % 2] : e.key === "ArrowLeft" ? order[(at + 1) % 2] : e.key === "Home" ? order[0] : e.key === "End" ? order[1] : null;
+        if (!next) return;
+        e.preventDefault();
+        setWhich(next);
+        window.setTimeout(() => document.getElementById(`cattab-${next}`)?.focus(), 0);
+    };
+
     const remove = async (kind: Tab, e: CatalogMob | CatalogSpell) => {
         const isDefault = e.id.startsWith("d:");
         if (!(await ask({ title: t(isDefault ? "catalog.hideTitle" : "catalog.deleteTitle", { name: e.name }), text: t(isDefault ? "catalog.hideText" : "catalog.deleteText"), action: t(isDefault ? "catalog.hide" : "catalog.delete"), tone: "danger" }))) return;
         await run(() => deleteCatalogEntry(csrfToken, kind, e.id), t("catalog.removed"));
     };
 
-    const row = (kind: Tab, e: CatalogMob | CatalogSpell, icon: JSX.Element, meta: string) => (
+    const row = (kind: Tab, e: CatalogMob | CatalogSpell, icon: JSX.Element, meta: string, extra?: ReactNode) => (
         <li key={e.id} className="rp-crow">
             {icon}
             <span className="rp-crow-main"><strong>{e.name}</strong><span className="rp-muted">{meta}</span></span>
+            {extra}
             <Badge tone={e.source === "custom" ? "accent" : e.source === "override" ? "mid" : undefined}>{t(`catalog.source.${e.source}`)}</Badge>
             {canWrite && (
                 <span className="rp-crow-tools">
@@ -109,11 +121,15 @@ export default function RaidplanCatalogPage() {
             />
             <p className="rp-muted">{t("catalog.intro")}</p>
             <div className="rp-tfilters">
-                <span className="rp-seg" role="tablist" aria-label={t("catalog.title")}>
+                <div className="tabs rp-cattabs" role="tablist" aria-label={t("catalog.title")} onKeyDown={tabKeys}>
                     {(["mobs", "spells"] as Tab[]).map((x) => (
-                        <button key={x} type="button" role="tab" aria-selected={which === x} className={`rp-segtext${which === x ? " is-on" : ""}`} onClick={() => setWhich(x)}>{t(`catalog.tab.${x}`)} · {x === "mobs" ? data.mobs.length : data.spells.length}</button>
+                        <button key={x} type="button" role="tab" id={`cattab-${x}`} aria-selected={which === x} tabIndex={which === x ? 0 : -1} className={`tab-btn${which === x ? " active" : ""}`} onClick={() => setWhich(x)}>
+                            <WowIcon name={x === "mobs" ? "ability_warrior_defensivestance" : "spell_shadow_curseofsargeras"} size={18} />
+                            <span>{t(`catalog.tab.${x}`)}</span>
+                            <span className="tab-count">{x === "mobs" ? data.mobs.length : data.spells.length}</span>
+                        </button>
                     ))}
-                </span>
+                </div>
                 <label className="rp-tsearch">
                     <Search size={15} aria-hidden="true" />
                     <input value={q} placeholder={t("catalog.search")} aria-label={t("catalog.search")} onChange={(e) => setQ(e.target.value)} />
@@ -123,7 +139,7 @@ export default function RaidplanCatalogPage() {
             {which === "mobs" && mobGroups.map(([inst, list]) => (
                 <section key={inst} className="rp-cgroup">
                     <h3 className="rp-kicker">{instanceName(inst)}</h3>
-                    <ul className="rp-clist">{list.map((m) => row("mobs", m, <MobIcon icon={m.icon} size={30} />, [t(`catalog.kind.${m.kind}`), bossName(m.bossKey)].filter(Boolean).join(" · ")))}</ul>
+                    <ul className="rp-clist">{list.map((m) => row("mobs", m, <MobIcon icon={m.icon} size={30} />, [t(`catalog.kind.${m.kind}`), bossName(m.bossKey)].filter(Boolean).join(" · "), m.similar && m.source === "default" ? <Badge tip={t("catalog.similarTip")}>{t("catalog.similar")}</Badge> : undefined))}</ul>
                 </section>
             ))}
             {which === "spells" && spellGroups.map(([type, list]) => (
@@ -237,6 +253,7 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                 )}
                 <label>
                     <span className="rp-kicker">{t("catalog.icon")}</span>
+                    {which === "mobs" && <IconPicker choices={data.iconChoices} value={(f.icon || "").toLowerCase()} onPick={(n) => setF({ ...f, icon: n })} />}
                     <span className="rp-iconfield">
                         {which === "mobs" ? <MobIcon icon={(f.icon || "").toLowerCase()} size={30} /> : <WowIcon name={(f.icon || "").toLowerCase() || "inv_misc_questionmark"} size={30} />}
                         <input value={f.icon || ""} maxLength={64} placeholder={which === "mobs" ? "spell_fire_flamebolt" : "spell_shadow_curseofsargeras"} onChange={(e) => setF({ ...f, icon: e.target.value })} />
@@ -249,5 +266,35 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                 </label>
             </div>
         </Modal>
+    );
+}
+
+/** Icons to pick from, by category, with a search over category and icon name; anything else can still be typed below. */
+function IconPicker({ choices, value, onPick }: { choices: Record<string, string[]>; value: string; onPick: (name: string) => void }) {
+    const t = useT();
+    const [q, setQ] = useState("");
+    const needle = q.trim().toLowerCase();
+    const groups = Object.entries(choices)
+        .map(([cat, list]) => [cat, list.filter((n) => !needle || cat.toLowerCase().includes(needle) || n.includes(needle))] as [string, string[]])
+        .filter(([, list]) => list.length > 0);
+    return (
+        <div className="rp-iconpick">
+            <input value={q} placeholder={t("catalog.iconSearch")} aria-label={t("catalog.iconSearch")} onChange={(e) => setQ(e.target.value)} />
+            <div className="rp-iconpick-grid" role="listbox" aria-label={t("catalog.icon")}>
+                {groups.map(([cat, list]) => (
+                    <div key={cat} className="rp-iconpick-group">
+                        <span className="rp-kicker">{cat}</span>
+                        <div>
+                            {list.map((n) => (
+                                <button key={n} type="button" role="option" aria-selected={value === n} className={`rp-iconpick-btn${value === n ? " is-on" : ""}`} data-tip={n} aria-label={n} onClick={() => onPick(n)}>
+                                    <MobIcon icon={n} size={28} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+                {groups.length === 0 && <span className="rp-muted">{t("catalog.none")}</span>}
+            </div>
+        </div>
     );
 }

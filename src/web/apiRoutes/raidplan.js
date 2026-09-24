@@ -258,6 +258,11 @@ async function deleteProfile(req, res) {
     ok(res, profileList());
 }
 
+/** The icons offered when a mob is made, by category (generated and checked by scripts/fetch-mob-icons.js). */
+function mobIconChoices() {
+    try { return require("../../config/mobIcons.json").choices || {}; } catch { return {}; }
+}
+
 /** What the catalog page needs: every visible entry, the hidden defaults, and the choices of the forms. */
 function catalogAnswer() {
     const { bossesForInstances } = store;
@@ -266,6 +271,7 @@ function catalogAnswer() {
         ...catalog.catalogView(),
         hidden: catalog.hiddenEntries(),
         kinds: catalog.KINDS,
+        iconChoices: mobIconChoices(),
         classes: catalog.CLASS_IDS,
         types: assign.ASSIGN_TYPES,
         instances: instances.map((i) => ({ id: i.id, name: i.name, short: i.short, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),

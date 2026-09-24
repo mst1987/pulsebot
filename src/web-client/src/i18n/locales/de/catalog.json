@@ -50,5 +50,8 @@
     "icon": "Icon",
     "iconHintMob": "Wowhead-Icon-Name (z. B. spell_fire_flamebolt) oder boss:<Encounter-ID>; leer = allgemeines Gegner-Icon.",
     "iconHintSpell": "Wowhead-Icon-Name (z. B. spell_shadow_curseofsargeras).",
-    "note": "Notiz"
+    "note": "Notiz",
+    "similar": "Platzhalter-Icon",
+    "similarTip": "Kein echtes NPC-Bild: ein ähnliches WoW-Icon nach Art des Mobs. Überschreibe den Eintrag, um ein eigenes zu setzen.",
+    "iconSearch": "Icon suchen (Art oder Name)"
 }

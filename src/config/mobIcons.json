@@ -1,0 +1,434 @@
+{
+  "generatedAt": "2026-09-24T09:22:08.812Z",
+  "source": "wow.zamimg.com icon CDN, similar icons by creature kind",
+  "icons": {
+    "d:gathios": {
+      "icon": "spell_holy_sealofmight",
+      "kind": "paladin"
+    },
+    "d:zerevor": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:malande": {
+      "icon": "spell_holy_holybolt",
+      "kind": "priest"
+    },
+    "d:veras": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:flame-of-azzinoth": {
+      "icon": "spell_fire_incinerate",
+      "kind": "fire"
+    },
+    "d:shadow-demon": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:parasitic-shadowfiend": {
+      "icon": "spell_shadow_shadowfiend",
+      "kind": "fiend"
+    },
+    "d:maiev": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:ashtongue-channeler": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    },
+    "d:ashtongue-sorcerer": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:ashtongue-defender": {
+      "icon": "ability_warrior_defensivestance",
+      "kind": "guard"
+    },
+    "d:ashtongue-elementalist": {
+      "icon": "spell_nature_lightning",
+      "kind": "shaman"
+    },
+    "d:ashtongue-rogue": {
+      "icon": "ability_stealth",
+      "kind": "rogue"
+    },
+    "d:essence-of-suffering": {
+      "icon": "spell_shadow_lifedrain02",
+      "kind": "drain"
+    },
+    "d:essence-of-desire": {
+      "icon": "spell_arcane_arcane01",
+      "kind": "arcane"
+    },
+    "d:essence-of-anger": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:shadowy-construct": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    },
+    "d:vengeful-spirit": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:illidari-nightlord": {
+      "icon": "spell_shadow_summonfelguard",
+      "kind": "doomguard"
+    },
+    "d:illidari-fearbringer": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:illidari-defiler": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:illidari-heartseeker": {
+      "icon": "ability_marksmanship",
+      "kind": "ranged"
+    },
+    "d:towering-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:lesser-doomguard": {
+      "icon": "spell_shadow_summonfelguard",
+      "kind": "doomguard"
+    },
+    "d:doomfire-spirit": {
+      "icon": "spell_fire_felflamestrike",
+      "kind": "fel"
+    },
+    "d:hyjal-abomination": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:hyjal-ghoul": {
+      "icon": "spell_shadow_animatedead",
+      "kind": "undead"
+    },
+    "d:hyjal-necromancer": {
+      "icon": "spell_shadow_deathcoil",
+      "kind": "necromancer"
+    },
+    "d:hyjal-crypt-fiend": {
+      "icon": "ability_hunter_beasttaming",
+      "kind": "beast"
+    },
+    "d:hyjal-giant-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:midnight": {
+      "icon": "ability_mount_ridinghorse",
+      "kind": "horse"
+    },
+    "d:netherspite-infernal": {
+      "icon": "spell_shadow_summoninfernal",
+      "kind": "infernal"
+    },
+    "d:pure-spawn": {
+      "icon": "spell_frost_summonwaterelemental_2",
+      "kind": "water"
+    },
+    "d:tainted-spawn": {
+      "icon": "spell_nature_acid_01",
+      "kind": "tainted"
+    },
+    "d:fathom-guard-sharkkis": {
+      "icon": "ability_marksmanship",
+      "kind": "ranged"
+    },
+    "d:fathom-guard-tidalvess": {
+      "icon": "spell_nature_lightning",
+      "kind": "shaman"
+    },
+    "d:fathom-guard-caribdis": {
+      "icon": "spell_holy_holybolt",
+      "kind": "priest"
+    },
+    "d:tainted-elemental": {
+      "icon": "spell_nature_acid_01",
+      "kind": "tainted"
+    },
+    "d:coilfang-strider": {
+      "icon": "ability_hunter_beasttaming",
+      "kind": "beast"
+    },
+    "d:enchanted-elemental": {
+      "icon": "spell_arcane_arcane01",
+      "kind": "arcane"
+    },
+    "d:thaladred": {
+      "icon": "ability_warrior_charge",
+      "kind": "warrior"
+    },
+    "d:sanguinar": {
+      "icon": "spell_shadow_lifedrain02",
+      "kind": "drain"
+    },
+    "d:capernian": {
+      "icon": "spell_frost_frostbolt02",
+      "kind": "caster"
+    },
+    "d:telonicus": {
+      "icon": "inv_misc_gear_01",
+      "kind": "engineer"
+    },
+    "d:sathrovarr": {
+      "icon": "spell_shadow_summonvoidwalker",
+      "kind": "demon"
+    },
+    "d:void-sentinel": {
+      "icon": "spell_shadow_shadowfury",
+      "kind": "shadow"
+    }
+  },
+  "choices": {
+    "Demon": [
+      "spell_shadow_summoninfernal",
+      "spell_shadow_summonfelguard",
+      "spell_shadow_summonvoidwalker",
+      "spell_shadow_summonfelhunter",
+      "spell_shadow_demonform",
+      "spell_shadow_shadowfiend"
+    ],
+    "Undead": [
+      "spell_shadow_animatedead",
+      "spell_shadow_raisedead",
+      "spell_shadow_deathcoil",
+      "spell_shadow_shadowbolt",
+      "spell_shadow_lifedrain02"
+    ],
+    "Elemental": [
+      "spell_fire_incinerate",
+      "spell_fire_flamebolt",
+      "spell_frost_summonwaterelemental_2",
+      "spell_nature_lightning",
+      "spell_arcane_arcane01",
+      "spell_nature_earthquake"
+    ],
+    "Guard": [
+      "ability_warrior_defensivestance",
+      "ability_defend",
+      "ability_warrior_charge",
+      "ability_warrior_shieldbash",
+      "inv_shield_06"
+    ],
+    "Caster": [
+      "spell_frost_frostbolt02",
+      "spell_fire_fireball02",
+      "spell_holy_holybolt",
+      "spell_holy_flashheal",
+      "spell_shadow_shadowfury"
+    ],
+    "Rogue": [
+      "ability_stealth",
+      "ability_rogue_ambush",
+      "ability_rogue_eviscerate",
+      "ability_backstab"
+    ],
+    "Beast": [
+      "ability_hunter_beasttaming",
+      "ability_druid_catform",
+      "ability_mount_ridinghorse",
+      "ability_hunter_pet_bear"
+    ],
+    "Ranged": [
+      "ability_marksmanship",
+      "ability_hunter_snipershot",
+      "inv_weapon_bow_07"
+    ],
+    "Other": [
+      "inv_misc_head_orc_01",
+      "inv_misc_gear_01",
+      "inv_misc_questionmark",
+      "spell_shadow_curseofmannoroth"
+    ]
+  },
+  "verified": {
+    "spell_holy_sealofmight": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_frost_frostbolt02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_holy_holybolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_stealth": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_incinerate": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonvoidwalker": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowfiend": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowfury": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_defensivestance": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_lightning": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_lifedrain02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_arcane_arcane01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_felflamestrike": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_animatedead": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonfelguard": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_marksmanship": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summoninfernal": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_deathcoil": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_beasttaming": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_mount_ridinghorse": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_frost_summonwaterelemental_2": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_acid_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_charge": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_gear_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_summonfelhunter": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_demonform": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_raisedead": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_shadowbolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_flamebolt": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_nature_earthquake": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_defend": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_warrior_shieldbash": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_shield_06": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_fire_fireball02": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_holy_flashheal": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_rogue_ambush": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_rogue_eviscerate": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_backstab": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_druid_catform": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_pet_bear": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "ability_hunter_snipershot": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_weapon_bow_07": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_head_orc_01": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "inv_misc_questionmark": {
+      "status": 200,
+      "type": "image/jpeg"
+    },
+    "spell_shadow_curseofmannoroth": {
+      "status": 200,
+      "type": "image/jpeg"
+    }
+  }
+}

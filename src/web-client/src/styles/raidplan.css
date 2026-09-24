@@ -572,3 +572,17 @@
 .rp-classbtn.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .rp-iconfield { display: flex; align-items: center; gap: 8px; }
 .rp-iconfield input { flex: 1; }
+
+/* ---- catalog tabs and icon picker ---- */
+.rp-cattabs { display: flex; gap: 4px; margin: 0; border-bottom: 1px solid var(--line); }
+.rp-cattabs .tab-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; }
+.rp-cattabs .tab-btn .wi { border-radius: 5px; flex: 0 0 auto; }
+.rp-cattabs .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rp-cattabs .tab-count { flex: 0 0 auto; margin-left: 2px; }
+.rp-iconpick { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; }
+.rp-iconpick > input { height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13px; }
+.rp-iconpick-grid { display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+.rp-iconpick-group > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.rp-iconpick-btn { display: inline-flex; padding: 2px; border: 2px solid transparent; border-radius: 50%; background: transparent; cursor: pointer; }
+.rp-iconpick-btn:hover { border-color: var(--line); }
+.rp-iconpick-btn.is-on { border-color: var(--accent); }

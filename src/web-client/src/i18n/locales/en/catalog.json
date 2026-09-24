@@ -50,5 +50,8 @@
     "icon": "Icon",
     "iconHintMob": "Wowhead icon name (e.g. spell_fire_flamebolt) or boss:<encounter id>; empty = the generic enemy icon.",
     "iconHintSpell": "Wowhead icon name (e.g. spell_shadow_curseofsargeras).",
-    "note": "Note"
+    "note": "Note",
+    "similar": "Placeholder icon",
+    "similarTip": "Not the real NPC picture: a similar WoW icon by the kind of creature. Override the entry to set your own.",
+    "iconSearch": "Search icons (kind or name)"
 }
