@@ -15,6 +15,7 @@
 // Idempotent: run twice and the event holds the same 25 signups and one approved setup.
 // Refuses to run with NODE_ENV=production. Nothing goes to Discord: only the local
 // JSON stores under data/ are written.
+const fs = require("fs");
 const TITLE = "BT Vollraid Test";
 
 // 3 tanks, 7 healers, 8 melee, 7 ranged; several classes and specs, five groups of five.
@@ -28,6 +29,7 @@ const ROSTER = [
     ["Pfeilchen", "Hunter-BeastMastery"], ["Scharfschuss", "Hunter-Marksmanship"], ["Dunkelpriester", "Priest-Shadow"],
 ];
 const FIRST_USER_ID = 201;
+const ME_CHARACTER = "Heilbert";
 const TEMPLATE_NAME = "BT Demo";
 const DEMO_BOSSES = ["bt/high-warlord-najentus", "bt/supremus", "bt/gurtogg-bloodboil", "bt/illidan-stormrage", "bt/trash"];
 
@@ -104,6 +106,13 @@ function main() {
         console.error("seed-test-raid: refused, NODE_ENV=production.");
         process.exit(1);
     }
+    // the dev auto-login user is one of the players (Heilbert), so "you are highlighted" can be tried:
+    // --me <userId> overrides, else the first admin id of .env.dev (what the dev login uses)
+    const path = require("path");
+    const envFile = path.join(__dirname, "..", ".env.dev");
+    if (fs.existsSync(envFile)) require("dotenv").config({ path: envFile });
+    const { logcheckAdminIds } = require("../src/config/variables");
+    const meId = arg("me") || logcheckAdminIds[0] || "dev";
     const eventStore = require("../src/web/eventStore");
     const signupStore = require("../src/web/signupStore");
     const editor = require("../src/web/setupEditor");
@@ -132,7 +141,7 @@ function main() {
 
     ROSTER.forEach(([character, specKey], n) => {
         if (!spec(specKey, "tbc")) throw new Error(`unknown spec ${specKey}`);
-        const r = signupStore.saveSignup(id, String(FIRST_USER_ID + n), { character, spec: specKey, status: "signed" }, { versionId: "tbc" });
+        const r = signupStore.saveSignup(id, character === ME_CHARACTER ? meId : String(FIRST_USER_ID + n), { character, spec: specKey, status: "signed" }, { versionId: "tbc" });
         if (r.error) throw new Error(`${character}: ${r.error}`);
     });
 

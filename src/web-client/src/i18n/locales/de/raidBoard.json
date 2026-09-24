@@ -390,7 +390,7 @@
             "md": "Misdirect",
             "ss": "Seelenstein",
             "fearward": "Furchtschutz",
-            "special": "Tanken / Spezial",
+            "special": "Spezial-Tank",
             "curse": "Fluch",
             "thunderclap": "Donnerknall",
             "demoshout": "Demoralisierender Ruf",
@@ -398,7 +398,8 @@
             "other": "Sonstiges",
             "dispel": "Dispel",
             "cc": "Crowd Control",
-            "buff": "Buff"
+            "buff": "Buff",
+            "tank": "Main-Tank / Tanken"
         },
         "suggested": "Vorschlag",
         "assignees": "Zuständig",
@@ -424,7 +425,27 @@
         "addRow": "Zeile",
         "pickType": "Aufgabe wählen",
         "task": "Aufgabe",
-        "addNote": "Notiz hinzufügen"
+        "addNote": "Notiz hinzufügen",
+        "addCard": "Karte hinzufügen …",
+        "suggestOne": "{type}: aus dem Setup vorschlagen",
+        "addRowTo": "{type}: Zeile hinzufügen",
+        "fold": "Einklappen",
+        "unfold": "Ausklappen",
+        "cardEmpty": "Noch keine Zeile.",
+        "sentence": {
+            "heal": "Heilt {targets}",
+            "md": "Misdirect auf {targets}",
+            "ss": "Soulstone auf {targets}",
+            "fearward": "Furchtschutz auf {targets}",
+            "tank": "Tankt {targets}"
+        },
+        "pickCurses": "Flüche",
+        "pickSpells": "Fähigkeiten",
+        "view": "Ansicht",
+        "viewCards": "Karten",
+        "viewPlayers": "Aufgaben nach Spieler",
+        "yourTasks": "Deine Aufgaben",
+        "byPlayer": "Aufgaben nach Spieler"
     },
     "bes": {
         "title": "Besetzung",

@@ -4202,6 +4202,8 @@ export type RaidplanPublic = {
     bosses: RaidplanPublicBoss[];
     roster: RaidplanPlayer[];
     me: string;
+    /** every player of the approved setup that is the visitor's: their own account and the characters of their raider profile */
+    meIds: string[];
     loggedIn: boolean;
 };
 

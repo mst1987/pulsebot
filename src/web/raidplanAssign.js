@@ -20,7 +20,7 @@
 // Also here, pure and tested: the suggestions ("Heiler verteilen", "Aus Setup
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
-const ASSIGN_TYPES = ["heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
+const ASSIGN_TYPES = ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
 const TARGET_KINDS = ["slot", "group", "player", "mark", "text"];
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;

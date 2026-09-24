@@ -390,7 +390,7 @@
             "md": "Misdirect",
             "ss": "Soulstone",
             "fearward": "Fear Ward",
-            "special": "Tank / special",
+            "special": "Special tank",
             "curse": "Curse",
             "thunderclap": "Thunder Clap",
             "demoshout": "Demoralizing Shout",
@@ -398,7 +398,8 @@
             "other": "Other",
             "dispel": "Dispel",
             "cc": "Crowd control",
-            "buff": "Buff"
+            "buff": "Buff",
+            "tank": "Main tank / tanking"
         },
         "suggested": "Suggestion",
         "assignees": "Assigned",
@@ -424,7 +425,27 @@
         "addRow": "Row",
         "pickType": "Pick the task",
         "task": "Task",
-        "addNote": "Add a note"
+        "addNote": "Add a note",
+        "addCard": "Add a card …",
+        "suggestOne": "{type}: suggest from the setup",
+        "addRowTo": "{type}: add a row",
+        "fold": "Fold",
+        "unfold": "Unfold",
+        "cardEmpty": "No row yet.",
+        "sentence": {
+            "heal": "Heals {targets}",
+            "md": "Misdirect on {targets}",
+            "ss": "Soulstone on {targets}",
+            "fearward": "Fear Ward on {targets}",
+            "tank": "Tanks {targets}"
+        },
+        "pickCurses": "Curses",
+        "pickSpells": "Abilities",
+        "view": "View",
+        "viewCards": "Cards",
+        "viewPlayers": "Tasks by player",
+        "yourTasks": "Your tasks",
+        "byPlayer": "Tasks by player"
     },
     "bes": {
         "title": "Roster slots",

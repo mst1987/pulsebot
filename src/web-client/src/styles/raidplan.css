@@ -501,3 +501,46 @@
 .rp-tsize { padding: 1px 7px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); }
 .rp-tcount { display: inline-flex; align-items: center; gap: 3px; }
 .rp-tcount .wi { border-radius: 4px; }
+
+/* ---- assignment cards side by side ---- */
+.rp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 350px)); gap: 10px; align-items: start; }
+.rp-acard { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.rp-acard-head { display: flex; align-items: center; gap: 7px; }
+.rp-acard-head .wi { border-radius: 6px; flex: 0 0 auto; }
+.rp-acard-head strong { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-acard-count { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 11px; font-weight: 800; text-align: center; }
+.rp-acard-tools { display: inline-flex; gap: 2px; margin-left: auto; }
+.rp-rot-90 { transform: rotate(-90deg); }
+.rp-acard-empty { list-style: none; font-size: 12.5px; }
+.rp-acard .rp-alist { gap: 6px; }
+.rp-acard .rp-arow { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; padding: 6px 8px; background: var(--panel); }
+.rp-arow-top { display: flex; align-items: center; gap: 4px; }
+.rp-arow-top .rp-atitle { flex: 1 1 auto; min-width: 0; }
+.rp-arow-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.rp-acard .rp-anote { flex: 1 1 auto; width: 100%; }
+.rp-arow.is-own { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft, rgba(124, 92, 255, .25)); }
+.rp-cards-read { margin-bottom: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 340px)); }
+
+/* ---- read view of the assignments: readable width, cards side by side, tasks per player ---- */
+.rp-read-assign { width: 100%; max-width: 1180px; box-sizing: border-box; margin: 14px auto 0; display: flex; flex-direction: column; gap: 14px; font-size: 14.5px; }
+.rp-read-assign .rp-cards-read { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 400px)); margin-bottom: 0; }
+.rp-read-assign .rp-achip { font-size: 14px; min-height: 30px; }
+.rp-read-assign .rp-acard-head strong { font-size: 15px; }
+.rp-read-assign .rp-atitle-read { display: flex; align-items: center; gap: 6px; font-size: 14.5px; }
+.rp-read-assign .rp-atitle-read .wi { border-radius: 5px; }
+.rp-tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 14px; align-items: start; }
+.rp-tasks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rp-tasks h3 { margin: 0 0 6px; }
+.rp-mytasks, .rp-bytasks { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.rp-mytasks { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft, rgba(124, 92, 255, .22)); }
+.rp-mytasks li { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; }
+.rp-mytasks .wi { border-radius: 6px; }
+.rp-bytasks li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 6px; border-radius: 8px; }
+.rp-bytasks li.is-own { background: var(--accent-soft, rgba(124, 92, 255, .12)); }
+.rp-taskchip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); font-size: 13.5px; font-weight: 600; }
+.rp-taskchip .wi { border-radius: 5px; }
+.rp-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--ctl-radius, 8px); overflow: hidden; }
+.rp-seg button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: var(--ctl-h-sm, 32px); border: 0; background: var(--panel2); color: var(--muted); cursor: pointer; padding: 0; }
+.rp-seg button.is-on { background: var(--accent); color: #fff; }
+.rp-achip .wi { border-radius: 4px; flex: 0 0 auto; }
+@media (max-width: 700px) { .rp-read-assign { font-size: 15px; } .rp-bytasks li { align-items: flex-start; } }

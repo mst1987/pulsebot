@@ -74,7 +74,7 @@ type BoardProps = {
     /** Everyone of the setup, for what a group marker names. */
     roster?: RaidplanPlayer[];
     /** The viewer's own userId: that token or slot is highlighted. */
-    me?: string;
+    me?: string | string[];
     selected?: Selection;
     /** The object being dragged right now ("kind:id"). */
     dragKey?: string;
@@ -140,6 +140,8 @@ export default function PlanBoard({
     }, [boardRef, setEl]);
     useEffect(() => { setAspect(0); }, [mapUrl]);
 
+    const mineIds = Array.isArray(me) ? me : me ? [me] : [];
+    const isMe = (id: string) => mineIds.indexOf(id) >= 0;
     const editable = !!onObjectDown;
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
     const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) ? "is-selected" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
@@ -290,7 +292,7 @@ export default function PlanBoard({
             {slots.filter((s) => !s.hidden && s.placed !== false).map((s) => {
                 const player = s.userId ? players.get(s.userId) || null : null;
                 const tone = s.kind === "tank" || s.kind === "healer" || s.kind === "melee" || s.kind === "ranged" || s.kind === "dps" ? s.kind : "";
-                const mine = !!me && s.userId === me;
+                const mine = isMe(s.userId);
                 const title = slotTitle(s);
                 const boardLabel = slotBoardLabel(s);
                 const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) };
@@ -303,13 +305,13 @@ export default function PlanBoard({
                     const ring = ringOffsets(everyone.length, size.w, size.h, memberPx);
                     return (
                         <div key={s.id} className="rp-groupwrap">
-                            <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, me && members.some((p) => p.userId === me) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
+                            <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, members.some((p) => isMe(p.userId)) ? "is-me" : "", s.lock)} style={anchor} data-slot={s.id}>
                                 {(editable || boardLabel || (showList && members.length > 0)) && (
                                 <button type="button" className="rp-token-btn rp-groupchip" tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
                                     {boardLabel ? <span className="rp-groupchip-title">{boardLabel}</span> : editable && !(showList && members.length > 0) && <Users size={16} aria-hidden="true" />}
                                     {showList && members.length > 0 && (
                                         <span className="rp-groupchip-names">
-                                            {members.map((p) => <PlayerName key={p.userId} player={p} className={p.userId === me ? "is-me" : ""} />)}
+                                            {members.map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}
                                         </span>
                                     )}
                                 </button>
@@ -321,7 +323,7 @@ export default function PlanBoard({
                                 const dx = off ? off.dx : ring[at] ? ring[at].dx : 0;
                                 const dy = off ? off.dy : ring[at] ? ring[at].dy : 0;
                                 const id = memberId(s.id, p.userId);
-                                const mineHere = !!me && p.userId === me;
+                                const mineHere = isMe(p.userId);
                                 return (
                                     <div
                                         key={id} data-obj={`member:${id}`} className={cls("rp-token rp-member", "member", id, mineHere ? "is-me" : "", s.lock)}
@@ -383,7 +385,7 @@ export default function PlanBoard({
             {tokens.filter((k) => !k.hidden).map((tok) => {
                 const p = players.get(tok.userId);
                 if (!p) return null;
-                const mine = !!me && tok.userId === me;
+                const mine = isMe(tok.userId);
                 return (
                     <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, mine ? "is-me" : "", tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) }}>
                         <button

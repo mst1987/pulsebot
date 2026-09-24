@@ -11,6 +11,7 @@ import { t } from "../i18n";
 
 /** Per type: its icon, where it is offered and which classes can do it (a filter for the picker, never a rule). */
 export const ASSIGN_META = {
+    tank: { icon: "ability_warrior_defensivestance", classes: [] },
     heal: { icon: "spell_holy_flashheal", classes: [] },
     kick: { icon: "ability_kick", classes: ["Rogue", "Shaman", "Warrior", "Mage"] },
     md: { icon: "ability_hunter_misdirection", classes: ["Hunter", "Rogue"] },
@@ -28,8 +29,8 @@ export const ASSIGN_META = {
 } as Record<string, { icon: string; classes: string[] }>;
 export const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
 export const SCOPE_TYPES = {
-    boss: ["special", "heal", "kick", "md", "ss", "fearward", "dispel", "cc", "buff", "other"],
-    trash: ["trashtank", "heal", "kick", "cc", "dispel", "other"],
+    boss: ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"],
+    trash: ["trashtank", "tank", "heal", "kick", "cc", "dispel", "other"],
     general: ["curse", "thunderclap", "demoshout", "buff", "other"],
 } as Record<string, string[]>;
 /** The role icons the raid detail already uses for its role groups. */
@@ -40,6 +41,126 @@ export const ROLE_ICON = {
     ranged: "inv_weapon_bow_07",
     dps: "inv_misc_questionmark",
 } as Record<string, string>;
+/** The fixed order of the cards: tanking, healing, interrupts ... (the same in the editor, the template and the read view). */
+export const CARD_ORDER = ["tank", "trashtank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
+/** The cards an area always has in the editor, even empty. */
+export const DEFAULT_CARDS = {
+    boss: ["tank", "heal"],
+    trash: ["trashtank", "heal"],
+    general: ["curse", "thunderclap", "demoshout"],
+} as Record<string, string[]>;
+
+/**
+ * Which cards to show, in the fixed order: the area's default cards (editor only), every type that
+ * has a row, and the cards added by hand (`extra`, editor only). The read view (`readOnly`) shows only
+ * cards with content.
+ */
+export function cardTypes(scope: string, assignments: RaidplanAssignment[], extra: string[], readOnly: boolean): string[] {
+    const want = new Set(assignments.map((a) => a.type as string));
+    if (!readOnly) {
+        for (const x of DEFAULT_CARDS[scope] || DEFAULT_CARDS.boss) want.add(x);
+        for (const x of extra) want.add(x);
+    }
+    return CARD_ORDER.filter((x) => want.has(x));
+}
+
+/** The types a card can still be added for (the area's types that are not shown yet). */
+export function addableCards(scope: string, shown: string[]): string[] {
+    const types = SCOPE_TYPES[scope] || SCOPE_TYPES.boss;
+    return CARD_ORDER.filter((x) => types.indexOf(x) >= 0 && shown.indexOf(x) < 0);
+}
+
+/** The rows of one card, in their stored order. */
+export function rowsOfType(assignments: RaidplanAssignment[], type: string): RaidplanAssignment[] {
+    return assignments.filter((a) => a.type === type);
+}
+
+/** A new empty row of a card's type. */
+export function addRowOfType(board: RaidplanBoard, type: string): { board: RaidplanBoard; id: string } {
+    return addAssignment(board, type);
+}
+
+// The spell / ability icon of a task, found by a word in its text (a curse, an interrupt, Thunder Clap ...).
+export const TEXT_ICONS = [
+    ["curse of the elements", "spell_shadow_chilltouch"], ["fluch der elemente", "spell_shadow_chilltouch"], ["elements", "spell_shadow_chilltouch"],
+    ["recklessness", "spell_shadow_unholystrength"], ["tollkühn", "spell_shadow_unholystrength"],
+    ["doom", "spell_shadow_auraofdarkness"], ["verdammnis", "spell_shadow_auraofdarkness"],
+    ["agony", "spell_shadow_curseofsargeras"], ["qual", "spell_shadow_curseofsargeras"],
+    ["tongues", "spell_shadow_curseoftounges"], ["sprachen", "spell_shadow_curseoftounges"],
+    ["weakness", "spell_shadow_curseofmannoroth"], ["schwäche", "spell_shadow_curseofmannoroth"],
+    ["thunder clap", "spell_nature_thunderclap"], ["donnerknall", "spell_nature_thunderclap"],
+    ["demoralizing", "ability_warrior_warcry"], ["demoralisierend", "ability_warrior_warcry"],
+    ["counterspell", "spell_frost_iceshock"], ["gegenzauber", "spell_frost_iceshock"],
+    ["earth shock", "spell_nature_earthshock"], ["erdschock", "spell_nature_earthshock"],
+    ["pummel", "inv_gauntlets_04"], ["shield bash", "ability_warrior_shieldbash"], ["schildschlag", "ability_warrior_shieldbash"],
+    ["kick", "ability_kick"], ["tritt", "ability_kick"],
+    ["misdirect", "ability_hunter_misdirection"], ["irreführ", "ability_hunter_misdirection"],
+    ["soulstone", "spell_shadow_soulgem"], ["seelenstein", "spell_shadow_soulgem"],
+    ["fear ward", "spell_holy_excorcism"], ["furchtschutz", "spell_holy_excorcism"],
+    ["dispel", "spell_holy_dispelmagic"], ["polymorph", "spell_nature_polymorph"], ["verwandlung", "spell_nature_polymorph"],
+];
+
+/** The icon a text names (a curse, an interrupt ...), or "" when it names none. */
+export function iconForText(text: string): string {
+    const low = text.toLowerCase();
+    const hit = TEXT_ICONS.find((x) => low.indexOf(x[0]) >= 0);
+    return hit ? hit[1] : "";
+}
+
+/** The icon of a row: what its task text or a text target names, else the icon of its type. */
+export function iconForTask(a: RaidplanAssignment): string {
+    const fromTitle = iconForText(a.title || "");
+    if (fromTitle) return fromTitle;
+    for (const tg of a.targets) {
+        const hit = tg.kind === "text" ? iconForText(tg.ref) : "";
+        if (hit) return hit;
+    }
+    return (ASSIGN_META[a.type] || ASSIGN_META.other).icon;
+}
+
+/** Ready-made texts for a type's target picker (the curses, the interrupts). */
+export function quickTexts(type: string): string[] {
+    if (type === "curse") return ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom", "Curse of Agony", "Curse of Tongues", "Curse of Weakness"];
+    if (type === "kick") return ["Kick", "Pummel", "Shield Bash", "Counterspell", "Earth Shock"];
+    return [];
+}
+
+/** One thing somebody has to do: its icon and a short sentence ("Heilt Tank 1 + Gruppe 3"). */
+export type Task = { id: string; type: string; icon: string; text: string };
+/** What one assignee has to do in a section: the assignee (a player, or a placeholder slot) and their tasks. */
+export type PlayerTasks = { key: string; who: Resolved; tasks: Task[] };
+
+const SENTENCE_TYPES = ["heal", "md", "ss", "fearward", "tank"];
+
+/** The sentence of a row for one of its assignees (`index` = the place in a rotation, 0 = first). */
+export function taskText(a: RaidplanAssignment, index: number, ctx: AssignCtx): string {
+    const targets = a.targets.map((tg) => resolveTarget(tg, ctx).label).join(" + ");
+    if (!a.title && SENTENCE_TYPES.indexOf(a.type) >= 0 && targets) return t(`raidBoard.assign.sentence.${a.type}`, { targets });
+    const head = a.title || t(`raidBoard.assign.type.${a.type}`);
+    const rot = a.type === "kick" && a.assignees.length > 1 ? ` #${index + 1}` : "";
+    return `${head}${rot}${targets ? ` \u2192 ${targets}` : ""}`;
+}
+
+/** The tasks of a section derived from its assignments, per assignee (a filled slot counts as its player), in the order they first appear. */
+export function tasksByAssignee(assignments: RaidplanAssignment[], ctx: AssignCtx): PlayerTasks[] {
+    const out = [];
+    for (const a of assignments) {
+        a.assignees.forEach((ref, i) => {
+            const who = resolveAssignee(ref, ctx);
+            const key = who.player ? `u:${who.player.userId}` : ref;
+            let row = out.find((x) => x.key === key);
+            if (!row) { row = { key, who, tasks: [] }; out.push(row); }
+            row.tasks.push({ id: `${a.id}:${i}`, type: a.type, icon: iconForTask(a), text: taskText(a, i, ctx) });
+        });
+    }
+    return out;
+}
+
+/** The tasks of the visitor's own players, in the order of the rows. */
+export function myTasks(assignments: RaidplanAssignment[], ctx: AssignCtx, me: string[]): Task[] {
+    return tasksByAssignee(assignments, ctx).filter((x) => isMe(x.who, me)).flatMap((x) => x.tasks);
+}
+
 export const SLOT_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
 export const HEAL_COLOR = "#35d6c4";
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
@@ -75,9 +196,9 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
 export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer> };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
-export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number };
+export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string };
 
-const NONE = { kind: "", ref: "", label: "", player: null, open: false, mark: "", group: 0 };
+const NONE = { kind: "", ref: "", label: "", player: null, open: false, mark: "", group: 0, role: "" };
 
 function slotLabel(kind: string, n: number): string {
     return t(`raidBoard.slot.${kind}`, { n });
@@ -94,7 +215,7 @@ export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
     if (p[0] === "slot") {
         const n = Number(p[2]);
         const player = slotPlayer(ctx, p[1], n);
-        return { ...NONE, kind: "slot", ref, label: slotLabel(p[1], n), player, open: !player };
+        return { ...NONE, kind: "slot", ref, label: slotLabel(p[1], n), player, open: !player, role: p[1] };
     }
     if (p[0] === "user") {
         const player = ctx.players.get(p[1]) || null;
@@ -108,7 +229,7 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
     if (target.kind === "slot") {
         const p = target.ref.split(":");
         const player = slotPlayer(ctx, p[0], Number(p[1]));
-        return { ...NONE, kind: "slot", ref: target.ref, label: slotLabel(p[0], Number(p[1])), player, open: !player };
+        return { ...NONE, kind: "slot", ref: target.ref, label: slotLabel(p[0], Number(p[1])), player, open: !player, role: p[0] };
     }
     if (target.kind === "group") return { ...NONE, kind: "group", ref: target.ref, label: t("raidBoard.slot.group", { n: Number(target.ref) }), group: Number(target.ref) };
     if (target.kind === "player") {
@@ -119,17 +240,17 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
     return { ...NONE, kind: "text", ref: target.ref, label: target.ref };
 }
 
-/** Whether the viewer (`me`, a userId) is part of an assignment: as assignee, as a target, or in a targeted group. */
-export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string): boolean {
-    if (!me) return false;
+/** Whether the viewer (`me`: their own players' userIds) is part of an assignment: as assignee, as a target, or in a targeted group. */
+export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string[]): boolean {
+    if (me.length === 0) return false;
     if (a.assignees.some((r) => isMe(resolveAssignee(r, ctx), me))) return true;
-    const meP = ctx.players.get(me);
-    const mineGroup = meP ? meP.group : -1;
-    return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && r.group === mineGroup); });
+    const groups = me.map((id) => (ctx.players.get(id) || { group: -1 }).group);
+    return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && groups.indexOf(r.group) >= 0); });
 }
 
-function isMe(r: Resolved, me: string): boolean {
-    return !!r.player && r.player.userId === me;
+/** Whether a resolved reference is one of the visitor's own players. */
+export function isMe(r: Resolved, me: string[]): boolean {
+    return !!r.player && me.indexOf(r.player.userId) >= 0;
 }
 
 function sameTarget(x: RaidplanAssignTarget, y: RaidplanAssignTarget): boolean {

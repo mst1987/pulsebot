@@ -16,6 +16,8 @@ const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 const assign = require("./raidplanAssign");
 const besetzungOf = require("./raidplanBesetzung");
+const raiderProfiles = require("./raiderProfileStore");
+const characterKey = raiderProfiles.characterKey;
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 
@@ -164,9 +166,28 @@ function editorView(event, { canWrite }) {
  * session and they stand in the plan (the page highlights their token). A slot
  * whose player is not in the approved setup is shown open.
  */
+/**
+ * Which players of a lineup the visitor is: the one under their own Discord account, and every one whose
+ * character name is one of the characters on the visitor's raider profile (mains and alts, case and
+ * realm ignored) — also when the setup lists that character under another account. `keys` = the
+ * visitor's character keys (raiderProfileStore.characterKey). Returns userIds, the account's own first.
+ */
+function identify(viewerId, keys, roster) {
+    const own = String(viewerId || "");
+    const set = new Set(keys || []);
+    const ids = [];
+    if (own && roster.some((p) => p.userId === own)) ids.push(own);
+    for (const p of roster) {
+        if (p.userId !== own && set.has(characterKey(p.character)) && !ids.includes(p.userId)) ids.push(p.userId);
+    }
+    return ids;
+}
+
 function publicView(plan, event, { me = "" } = {}) {
     const roster = publicRoster(event);
     const known = new Set(roster.map((r) => r.userId));
+    const profile = me ? raiderProfiles.getProfile(me) : null;
+    const meIds = identify(me, profile ? profile.characters.map((c) => c.key) : [], roster);
     const bosses = bossList(event, { templateId: plan.templateId })
         .filter((b) => plan.bosses[b.key])
         .map((b) => {
@@ -211,7 +232,8 @@ function publicView(plan, event, { me = "" } = {}) {
         event: { title: event.title, startTime: event.startTime },
         bosses,
         roster: roster.filter((r) => used.has(r.userId)),
-        me: known.has(String(me)) ? String(me) : "",
+        me: meIds[0] || "",
+        meIds,
         loggedIn: !!me,
     };
 }
@@ -241,4 +263,4 @@ function eventBesetzung(event) {
     return { ...base, counts: { tank, healer, melee: Math.min(melee, dps), ranged: Math.max(0, dps - Math.min(melee, dps)) } };
 }
 
-module.exports = { suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+module.exports = { identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

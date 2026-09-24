@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
-import { AssignTable } from "./raid-detail/raidplan/AssignPanel";
+import { AssignTable, PlayerTasksList } from "./raid-detail/raidplan/AssignPanel";
 import { assignmentLinks, isMine } from "../lib/assign";
 import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
@@ -44,7 +44,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     if (!data) return <RaidLoader text={t("raidBoard.public.loading")} />;
 
     const boss: RaidplanPublicBoss | null = data.bosses.find((b) => b.key === selected) || data.bosses[0] || null;
-    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players }, data.me)));
+    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players }, data.meIds)));
 
     return (
         <div className="rp-public rp-wide">
@@ -78,14 +78,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
                             {!boss.general && <PlanBoard
                                 bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl}
                                 tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                players={players} roster={data.roster} me={data.me} links={assignmentLinks(boss as never)}
+                                players={players} roster={data.roster} me={data.meIds} links={assignmentLinks(boss as never)}
                             />}
                             <div className="rp-public-side">
                                 {boss.profileName && <p className="rp-muted">{t("raidBoard.public.tactic", { name: boss.profileName })}</p>}
                                 {data.me
                                     ? <p className={mineHere ? "rp-me-note" : "rp-muted"}>{mineHere ? t("raidBoard.public.you") : t("raidBoard.public.youNot")}</p>
-                                    : <p className="rp-muted">{t("raidBoard.public.loginHint")} <a className="mlink" href="/auth/login">{t("raidBoard.public.login")}</a></p>}
-                                <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.me} />
+                                    : <p className="rp-muted">{t("raidBoard.public.loginHint")} <a className="mlink" href={`/auth/login?next=/p/${token}`}>{t("raidBoard.public.login")}</a></p>}
                                 {boss.notes.trim() && (
                                     <>
                                         <h2 className="rp-kicker rp-h2">{t("raidBoard.public.notes")}</h2>
@@ -93,6 +92,12 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     </>
                                 )}
                             </div>
+                        </div>
+                    )}
+                    {boss && (
+                        <div className="rp-read-assign">
+                            <PlayerTasksList assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.meIds} yours />
+                            <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.meIds} />
                         </div>
                     )}
                 </>
