@@ -140,6 +140,8 @@
     },
     "pingText": {
         "label": "Ping message — posted when you click \"Ping everyone\"",
+        "title": "Ping message",
+        "hint": "Posted when you click \"Ping everyone\".",
         "tip": "The text every placed raider gets pinged with — both on \"Ping everyone\" in the channel and automatically on the first post of the approved setup. Leave empty for the default text."
     },
     "readOnly": {

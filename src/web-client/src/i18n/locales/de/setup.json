@@ -140,6 +140,8 @@
     },
     "pingText": {
         "label": "Ping-Nachricht – wird beim Klick auf „Ping everyone“ gepostet",
+        "title": "Ping-Nachricht",
+        "hint": "Wird beim Klick auf „Ping everyone“ gepostet.",
         "tip": "Der Text, mit dem alle platzierten Raider gepingt werden – sowohl beim Klick auf „Ping everyone“ im Kanal als auch automatisch beim ersten Posten des freigegebenen Setups. Leer lassen für den Standardtext."
     },
     "readOnly": {

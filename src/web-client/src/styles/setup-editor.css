@@ -5,10 +5,12 @@
 /* one row height for a raider and for a free place, so cards never differ in height whether a place is taken or not */
 .se-editor { --se-row: 46px; display: flex; flex-direction: column; gap: 14px; }
 
-/* the bar: state badges on the left, the three actions on the right */
-.se-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; }
-.se-bar-hint { color: var(--muted); font-size: 12.5px; margin-left: 6px; flex: 1 1 120px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.se-bar-act { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+/* the bar: one line across the full width — state, groups, spots, locks on the left, the actions on the right (the drag hint is in the tooltip-free
+   space of the groups' own places, not here) */
+.se-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; min-height: 60px; box-sizing: border-box; padding: 10px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.se-bar-hint { display: none; }
+.se-bar-act { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+.se-bar-act .btn { min-height: 36px; padding-left: 16px; padding-right: 16px; font-size: 14px; }
 
 /* the raid size, editable right in the bar (#354) */
 .se-size { display: flex; align-items: center; gap: 6px; cursor: help; }
@@ -29,26 +31,25 @@
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
 
-/* the top area: left the bar (status, groups, actions), the channel line, the ping message and the evening's numbers; right the raider panel.
-   One column on narrow screens. */
-.se-topline { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: stretch; gap: 10px; margin-top: 8px; }
-.se-topline > * { box-sizing: border-box; margin: 0; }
-.se-topleft { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.se-topleft .se-publish { margin-top: 0; }
-/* the ping message: one low row — label left, field right */
-.se-topline .se-pingtext { flex-direction: row; align-items: center; gap: 12px; padding: 6px 14px; }
-.se-topline .se-pingtext-label { flex: 0 1 auto; max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.se-topline .se-pingtext-input { flex: 1 1 0; width: auto; min-width: 0; max-width: none; padding: 5px 10px; }
-.se-topline .se-side { flex: 1 1 auto; min-width: 0; flex-direction: row; flex-wrap: wrap; align-content: center; align-items: center; gap: 12px 16px; padding: 12px 14px; }
-.se-topline .se-stats { flex: 1 0 60%; display: flex; justify-content: space-between; gap: 12px; padding: 0 0 8px; border: 0; border-bottom: 1px solid var(--line-soft); }
-.se-topline .se-stat { flex-direction: column; align-items: center; gap: 1px; }
-.se-topline .se-stat-v { font-size: 22px; }
-.se-topline .se-stat-v small { font-size: 12px; }
-.se-topline .se-side-row { min-height: 0; gap: 7px; }
-.se-topline .se-weights-btn { margin-left: auto; align-self: center; }
-/* the raider panel is as tall as the left block (the row stretches), at least tall enough for a raider with several buffs and reasons — no
-   scrollbar, and hovering the next raider does not move the groups underneath (a moving row would put the pointer on somebody else). */
-.se-topline .se-tip { min-width: 0; min-height: 300px; }
+/* the top area, below the bar and the channel line: left the ping message over the evening's numbers, right the raider panel. ONE fixed height
+   (330 px) for the whole row — the panel never grows or shrinks with its content, so the groups underneath stay put while the pointer moves
+   from raider to raider. Text that would not fit is cut off inside its box, never spilled into the next one. One column on narrow screens. */
+.se-topline { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.6fr); grid-template-rows: 330px; gap: 14px; }
+.se-topline > * { box-sizing: border-box; margin: 0; min-width: 0; min-height: 0; overflow: hidden; }
+.se-topleft { display: flex; flex-direction: column; gap: 14px; }
+/* the ping message: a card of its own — title, field, hint */
+.se-topline .se-pingtext { flex: 0 0 148px; justify-content: center; gap: 12px; padding: 18px 20px; border-radius: 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--panel); }
+.se-topline .se-pingtext-label { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-topline .se-pingtext-input { width: 100%; max-width: none; height: 42px; padding: 0 14px; font-size: 15px; border-radius: 9px; background: var(--bg); }
+.se-pingtext-hint { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the numbers: big role counts on top, the switches in a 2 x 2 grid under them */
+.se-topline .se-side { flex: 1 1 0; display: grid; grid-template-columns: 1fr 1fr; align-content: space-between; gap: 14px 24px; padding: 20px 22px; border-radius: 12px; }
+.se-topline .se-stats { grid-column: 1 / -1; display: flex; justify-content: space-around; padding: 0; border: 0; }
+.se-topline .se-stat { gap: 5px; }
+.se-topline .se-stat-v { font-size: 32px; }
+.se-topline .se-stat-v small { font-size: 15px; }
+.se-topline .se-side-row { min-height: 0; gap: 10px; font-size: 14px; }
+.se-topline .se-weights-btn { justify-self: end; font-size: 14px; }
 
 /* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
@@ -76,40 +77,41 @@
     .se-group.se-suggest:not(.se-over) { animation: none; box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px 1px var(--accent-soft); }
 }
 
-/* the raider panel, right of the top area — always complete, never over a group. One font size and family throughout (the name, the small
-   labels and the numbers aside), so nothing looks different from row to row. */
-.se-tip { font-family: inherit; font-size: 13px; line-height: 1.4; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 16px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; }
-.se-tip-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.se-tip-empty { display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--accent); color: var(--muted); font-size: 13px; text-align: center; padding: 10px 14px; }
-.se-tip-head { display: flex; align-items: center; gap: 10px; }
-.se-tip-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 2px; font-size: 13px; }
-.se-tip-row > .wi { margin-top: 1px; border-radius: 5px; flex: 0 0 auto; }
-.se-tip-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
-.se-tip-name { font-weight: 800; font-size: 15px; }
-.se-tip-k { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.se-tip-sub { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+/* the raider panel, right of the ping message and the numbers — three columns (person and attendance · what they bring · why they stand here), roomy
+   type, always complete, never over a group. The topline's fixed height keeps it the same size for every raider. */
+.se-tip { font-family: inherit; font-size: 14.5px; line-height: 1.4; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1.15fr); gap: 30px; padding: 22px 26px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; }
+.se-tip-col { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-width: 0; overflow: hidden; }
+.se-tip-empty { display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--accent); color: var(--muted); font-size: 14.5px; text-align: center; padding: 22px; }
+.se-tip-head { display: flex; align-items: center; gap: 14px; }
+.se-tip-head img, .se-tip-head [class*="spec-ph"] { width: 44px; height: 44px; }
+.se-tip-row { display: flex; align-items: flex-start; gap: 10px; }
+.se-tip-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; }
+.se-tip-head .se-tip-body { gap: 4px; }
+.se-tip-name { font-weight: 800; font-size: 20px; line-height: 1.2; }
+.se-tip-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.se-tip-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13.5px; color: var(--muted); }
 .se-tip-sub .wi { border-radius: 3px; }
-.se-tip-status { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.se-tip-status { font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
 .se-st-late { color: var(--sig-late); }
 .se-st-tentative { color: var(--sig-tentative); }
 .se-st-bench { color: var(--sig-bench); }
-.se-tip-att { display: flex; align-items: center; gap: 8px; }
-.se-tip-att b { font-family: inherit; font-weight: 700; font-size: 15px; line-height: 1; }
-.se-tip-buff > span, .se-tip-reasons { font-size: 13px; }
-.se-tip-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--panel2); overflow: hidden; }
-.se-tip-bar i { display: block; height: 100%; border-radius: 3px; background: currentColor; }
+.se-tip-att { display: flex; align-items: center; gap: 12px; }
+.se-tip-att b { font-family: inherit; font-weight: 800; font-size: 26px; line-height: 1; }
+.se-tip-bar { display: block; height: 8px; border-radius: 4px; background: var(--panel2); overflow: hidden; }
+.se-tip-bar i { display: block; height: 100%; border-radius: 4px; background: currentColor; }
 .se-tip-ok { color: var(--good); }
 .se-tip-mid { color: var(--medium); }
 .se-tip-bad { color: var(--sig-absence); }
 .se-tip-link { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
-.se-tip-linked { width: 18px; height: 18px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
-.se-tip-linked svg { width: 11px; height: 11px; }
-.se-tip-auto { font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: .04em; padding: 2px 6px; border-radius: 999px; background: var(--medium-bg); color: var(--medium); }
-.se-tip-buff { display: flex; align-items: center; gap: 8px; }
-.se-tip-buff .wi { border-radius: 5px; }
-.se-tip-buff > span { display: flex; flex-direction: column; line-height: 1.2; }
-.se-tip-buff small { font-size: 11px; color: var(--muted); }
-.se-tip-reasons { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 2px; }
+.se-tip-linked { width: 22px; height: 22px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
+.se-tip-linked svg { width: 13px; height: 13px; }
+.se-tip-auto { font: 700 11px var(--mono); text-transform: uppercase; letter-spacing: .05em; padding: 3px 9px; border-radius: 999px; background: var(--medium-bg); color: var(--medium); }
+.se-tip-buff { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.se-tip-buff .wi { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
+.se-tip-buff > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; font-size: 14.5px; }
+.se-tip-buff small { font-size: 12.5px; color: var(--muted); }
+.se-tip-reasons { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 10px; font-size: 14.5px; }
+.se-tip-reasons li { padding-left: 2px; }
 
 /* the bench: below the setup, set apart by a divider — its own header, then chunk cards the width of a group */
 .se-bench { position: relative; margin-top: 14px; }
@@ -197,9 +199,11 @@
 .se-start-sub { color: var(--muted); font-size: 13px; }
 .se-start .btn { margin-left: auto; }
 
-@media (max-width: 900px) {
-    .se-topline { grid-template-columns: minmax(0, 1fr); }
-    .se-topline .se-tip { min-height: 0; }
+@media (max-width: 1100px) {
+    .se-topline { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+    .se-topline > * { overflow: visible; }
+    .se-topline .se-pingtext { flex-basis: auto; }
+    .se-tip { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
     .se-bar-act { margin-left: 0; }

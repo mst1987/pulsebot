@@ -91,12 +91,12 @@ function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
                 {known && a ? (
                     <>
                         <span className="se-tip-att">
-                            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
                             <b className="se-num">{a.pct} %</b>
                             {a.link === "manual"
                                 ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
                                 : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
                         </span>
+                        <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
                         <span className="se-tip-sub">{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>
                         <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>
                     </>
@@ -121,7 +121,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
     const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
     return (
         <aside className="se-tip" aria-label={t("setup.person.tip.aria")} aria-live="polite">
-            {/* left: who they are and how often they came; right: what they bring and why they stand here */}
+            {/* three columns: who they are and how often they came · what they bring · why they stand here */}
             <div className="se-tip-col">
                 <div className="se-tip-head">
                     <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
@@ -156,6 +156,8 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                         ))}
                     </div>
                 )}
+            </div>
+            <div className="se-tip-col">
                 {reasons.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.why")}</span>
@@ -697,7 +699,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
     return (
         <div className="se-pingtext">
             <span className="se-pingtext-label" data-tip={t("setup.pingText.tip")}>
-                📢 {t("setup.pingText.label")}
+                📢 {t("setup.pingText.title")}
             </span>
             <input
                 type="text"
@@ -710,6 +712,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
                 onBlur={commit}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
             />
+            <span className="se-pingtext-hint">{t("setup.pingText.hint")}</span>
         </div>
     );
 }
@@ -1008,9 +1011,6 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
     return (
         <div className={`se-editor${compact ? " se-compact" : ""}`}>
-            {/* top area: left the bar, the channel line, the ping message and the evening's numbers; right the raider panel (the one the pointer touched last) */}
-            <div className="se-topline">
-                <div className="se-topleft">
             <div className="se-bar">
                 <StatusBadge setup={setup} />
                 <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
@@ -1043,7 +1043,10 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </Button>
                 </div>
             </div>
-                    <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
+            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
+            {/* the top area: left the ping message over the evening's numbers, right the raider panel (the one the pointer touched last) — one fixed height */}
+            <div className="se-topline">
+                <div className="se-topleft">
                     <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
                     <Summary
                         data={data} setup={setup} busy={busy}
