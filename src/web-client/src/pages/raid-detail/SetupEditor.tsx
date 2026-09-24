@@ -70,12 +70,6 @@ const dateTime = (ms: number) => (ms
     ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
 
-const ROLE_ICONS: Record<string, string> = {
-    tank: "ability_warrior_defensivestance",
-    healer: "spell_holy_flashheal",
-    melee: "ability_meleedamage",
-    ranged: "ability_marksmanship",
-};
 
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
 const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "mid" : "bad");
@@ -128,7 +122,6 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                     <div className="se-tip-body">
                         <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                         <span className="se-tip-sub">
-                            {p.role && <WowIcon name={ROLE_ICONS[p.role] || "inv_misc_questionmark"} size={14} />}
                             {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
                         </span>
                         {(p.name || status) && (

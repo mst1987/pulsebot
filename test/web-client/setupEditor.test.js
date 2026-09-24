@@ -493,6 +493,17 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("se-suggest");
     });
 
+    it("shows the spec tile only (no role icon), the name in full and the auto badge not in capitals", () => {
+        const src = read("pages", "raid-detail", "SetupEditor.tsx");
+        expect(src).not.toContain("ROLE_ICONS");
+        const css = read("styles", "setup-editor.css");
+        // a long name wraps, it is never cut off with an ellipsis
+        expect(css).toMatch(/\.se-tip-name \{[^}]*white-space: normal/);
+        expect(css).not.toMatch(/\.se-tip-name \{[^}]*text-overflow/);
+        expect(css).not.toMatch(/\.se-tip-auto \{[^}]*text-transform: uppercase/);
+        expect(de("setup.person.tip.autoBadge")).toBe("Auto");
+    });
+
     it("has the tooltip's texts in German and English", () => {
         for (const key of ["attendance", "attendanceNone", "attendanceCount", "linkManual", "linkAuto", "autoBadge", "brings", "bringsGroup", "bringsRaid", "why"]) {
             expect(de(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
