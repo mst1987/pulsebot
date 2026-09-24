@@ -3,7 +3,7 @@
         "tip": {
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
-            "attendanceDetails": "Anwesenheit im Detail",
+            "attendanceDetails": "Details",
             "attendanceCount": "{attended} von {total} Raids",
             "lastBench": "Zuletzt auf der Bank: {date}",
             "benchNever": "Nicht auf der Bank in den letzten {count} Raids",
@@ -12,6 +12,7 @@
             "autoBadge": "Auto",
             "brings": "Bringt",
             "bringsGroup": "für die Gruppe ({count} profitieren)",
+            "bringsGroupShort": "Gruppe · {count}",
             "bringsRaid": "für den Raid",
             "why": "Warum hier",
             "aria": "Details zum Raider",
