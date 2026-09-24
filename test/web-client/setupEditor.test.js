@@ -536,6 +536,18 @@ describe("the raider tooltip and the drag glow", () => {
         });
     });
 
+    it("keeps the raider panel compact when the top area is stacked: two columns, the details in one row, buffs two by two on a phone", () => {
+        const css = read("styles", "setup-editor.css");
+        const stacked = css.slice(css.indexOf("@media (max-width: 1360px)"));
+        expect(stacked).toMatch(/\.se-tip \{ grid-template-columns: minmax\(0, 1\.2fr\) minmax\(0, 1fr\); min-height: 430px; \}/);
+        expect(stacked).toMatch(/\.se-tip-col:last-child \{ grid-column: 1 \/ -1; \}/);
+        expect(stacked).toMatch(/\.se-tip-col:last-child \.se-tip-body \{ flex-direction: row; flex-wrap: wrap;/);
+        // a phone: one column, the buffs in a grid of two — with a reserved height, so hovering never moves the groups under the pointer
+        expect(css).toMatch(/@media \(max-width: 600px\) \{\s*\.se-tip \{ grid-template-columns: minmax\(0, 1fr\); padding: 14px 14px; min-height: 500px; \}/);
+        expect(css).toMatch(/\.se-tip-buffs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+        expect(read("pages", "raid-detail", "SetupEditor.tsx")).toContain('<div className="se-tip-buffs">');
+    });
+
     it("draws the lock as an overlay that takes no width from the raider's name", () => {
         const css = read("styles", "setup-editor.css");
         expect(css).toMatch(/\.se-slot \{ position: relative;/);
