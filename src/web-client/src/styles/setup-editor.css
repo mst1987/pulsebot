@@ -11,6 +11,10 @@
 .se-bar-hint { display: none; }
 .se-bar-act { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
 .se-bar-act .btn { min-height: 36px; padding-left: 16px; padding-right: 16px; font-size: 14px; }
+/* the buttons must read as buttons: a visible fill and outline even for the quiet ones, the accent on hover */
+.se-bar-act .btn[class*="ghost"] { background: var(--panel2); border: 1px solid color-mix(in srgb, var(--text) 26%, transparent); color: var(--text); }
+.se-bar-act .btn[class*="ghost"]:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.se-bar-act .btn[class*="ghost"][aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 
 /* the raid size, editable right in the bar (#354) */
 .se-size { display: flex; align-items: center; gap: 6px; cursor: help; }
@@ -34,7 +38,7 @@
 /* the top area, below the bar and the channel line: left the ping message over the evening's numbers, right the raider panel. ONE fixed height
    (330 px) for the whole row — the panel never grows or shrinks with its content, so the groups underneath stay put while the pointer moves
    from raider to raider. Text that would not fit is cut off inside its box, never spilled into the next one. One column on narrow screens. */
-.se-topline { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.6fr); grid-template-rows: 330px; gap: 14px; }
+.se-topline { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: 384px; gap: 14px; }
 .se-topline > * { box-sizing: border-box; margin: 0; min-width: 0; min-height: 0; overflow: hidden; }
 .se-topleft { display: flex; flex-direction: column; gap: 14px; }
 /* the ping message: a card of its own — title, field, hint */
@@ -43,13 +47,18 @@
 .se-topline .se-pingtext-input { width: 100%; max-width: none; height: 42px; padding: 0 14px; font-size: 15px; border-radius: 9px; background: var(--bg); }
 .se-pingtext-hint { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* the numbers: big role counts on top, the switches in a 2 x 2 grid under them */
-.se-topline .se-side { flex: 1 1 0; display: grid; grid-template-columns: 1fr 1fr; align-content: space-between; gap: 14px 24px; padding: 20px 22px; border-radius: 12px; }
-.se-topline .se-stats { grid-column: 1 / -1; display: flex; justify-content: space-around; padding: 0; border: 0; }
-.se-topline .se-stat { gap: 5px; }
+/* the numbers: every figure and every setting is a tile of its own — border, background, label over value — so nothing runs into its neighbour */
+.se-topline .se-side { flex: 1 1 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 12px; padding: 0; background: none; border: 0; border-radius: 0; }
+.se-topline .se-stats { display: contents; }
+.se-topline .se-stat { justify-content: center; gap: 6px; padding: 14px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .se-topline .se-stat-v { font-size: 32px; }
 .se-topline .se-stat-v small { font-size: 15px; }
-.se-topline .se-side-row { min-height: 0; gap: 10px; font-size: 14px; }
-.se-topline .se-weights-btn { justify-self: end; font-size: 14px; }
+.se-topline .se-stat [class~="kicker"] { font-size: 12px; letter-spacing: .08em; }
+.se-topline .se-side-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; min-height: 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.se-topline .se-side-row [class~="kicker"] { font-size: 12px; font-weight: 700; letter-spacing: .07em; color: var(--text); }
+.se-topline .se-side-cap { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+/* anything else in the summary (the hints badge) takes a whole row */
+.se-topline .se-side > :not(.se-side-row):not(.se-stats) { grid-column: 1 / -1; justify-self: start; }
 
 /* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
@@ -222,3 +231,4 @@
 .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
 .se-compact .se-group-title { font-size: 13.5px; }
 .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
+
