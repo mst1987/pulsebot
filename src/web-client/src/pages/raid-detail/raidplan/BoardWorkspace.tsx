@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
-import { Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2 } from "lucide-react";
+import { Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { Catalog, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
+import { useToast } from "../../../components/Jobs";
 import { useT } from "../../../i18n";
 import {
-    angleTo, applyMenuAction, assignSlot, placeSlot, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
+    angleTo, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
@@ -25,6 +26,8 @@ type Drag = {
     kind: ObjectKind | "tray" | "palette";
     id: string;
     spec?: InsertSpec;
+    /** a chip of the Besetzung is dragged (a click on it must stay a click; the drop does the work) */
+    chip?: boolean;
     handle?: Handle;
     /** pointer, in client px (the ghost of a list chip follows it) */
     x: number;
@@ -108,15 +111,23 @@ export default function BoardWorkspace({
     onMapsChanged: () => void;
 }) {
     const t = useT();
+    const toast = useToast();
     const [selected, setSelected] = useState<Selection>(null);
     const [drag, setDrag] = useState<Drag | null>(null);
     const [menu, setMenu] = useState<Menu | null>(null);
-    const [tab, setTab] = useState<"props" | "bg">("props");
+    const [tab, setTab] = useState<"assign" | "props" | "layers" | "bg">("assign");
+    const [showBes, setShowBes] = useState(true);
     const [showPalette, setShowPalette] = useState(true);
     const [showPanel, setShowPanel] = useState(true);
     const [showLinks, setShowLinks] = useState(true);
     const boardRef = useRef<HTMLDivElement>(null);
     const panelRef = useRef<HTMLElement>(null);
+    const workRef = useRef<HTMLDivElement>(null);
+    // The workspace is one screen: opening it scrolls the page so the tool bar sits under the header (wide screens only).
+    useEffect(() => {
+        const el = workRef.current;
+        if (el && window.innerWidth >= 1000 && typeof el.scrollIntoView === "function") el.scrollIntoView({ block: "start" });
+    }, []);
     const dragRef = useRef<Drag | null>(null);
     const pressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
     const players = useMemo(() => rosterMap(roster), [roster]);
@@ -140,6 +151,7 @@ export default function BoardWorkspace({
 
     const specLabel = (spec: InsertSpec): string => {
         if (spec.type === "mark") return t(`raidBoard.mark.${spec.mark}`);
+        if (spec.type === "place") { const s = board.slots.find((x) => x.id === spec.slotId); return s ? t(`raidBoard.slot.${s.kind}`, { n: s.n }) : ""; }
         if (spec.type === "slot") return t(`raidBoard.slot.kind.${spec.kind}`);
         if (spec.type === "zone") return t(`raidBoard.zone.${spec.zoneType}`);
         if (spec.type === "line") return t(`raidBoard.line.${spec.kind}`);
@@ -155,6 +167,7 @@ export default function BoardWorkspace({
             return;
         }
         const r = insertObject(boardNow.current, spec, at);
+        if (r.blocked) { toast(t("raidBoard.slot.allPlaced", { what: t(`raidBoard.slot.kind.${r.blocked}`) })); return; }
         edit(() => r.board);
         setSelected(r.sel);
         setTab("props");
@@ -213,7 +226,14 @@ export default function BoardWorkspace({
             const slotId = slotEl ? slotEl.getAttribute("data-slot") || "" : "";
             const p = toBoard(e.clientX, e.clientY);
             const slotOk = (b: RaidplanBoard) => b.slots.some((s) => s.id === slotId && s.kind !== "group");
-            if (d.kind === "palette" && d.spec) {
+            if (d.kind === "palette" && d.spec && d.spec.type === "place" && d.chip) {
+                // a chip of the Besetzung: no move = a click (it opens its picker), else the drop decides
+                if (!d.moved) return;
+                const target = p && p.inside ? "map" : el && el.closest("[data-rp-bes]") ? "bar" : "none";
+                const sid = d.spec.slotId;
+                if (target !== "none") edit((b) => dropChip(b, sid, target, p && p.inside ? { x: p.x, y: p.y } : null));
+                if (target === "map") setSelected({ kind: "slot", id: sid });
+            } else if (d.kind === "palette" && d.spec) {
                 if (!d.moved) insert(d.spec, null);
                 else if (p && p.inside) insert(d.spec, { x: p.x, y: p.y });
             } else if (d.kind === "tray") {
@@ -227,10 +247,20 @@ export default function BoardWorkspace({
                 edit((b) => assignSlot(d.origin ? moveObject(b, "slot", d.id, d.origin.x, d.origin.y) : b, d.id, ""));
             }
         };
+        // Esc gives up a drag of the palette, a chip or a listed player: nothing happens
+        const esc = (e: globalThis.KeyboardEvent) => {
+            const d = dragRef.current;
+            if (e.key !== "Escape" || !d || (d.kind !== "palette" && d.kind !== "tray")) return;
+            e.preventDefault();
+            dragRef.current = null;
+            setDrag(null);
+        };
+        window.addEventListener("keydown", esc);
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
         window.addEventListener("pointercancel", up);
         return () => {
+            window.removeEventListener("keydown", esc);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
             window.removeEventListener("pointercancel", up);
@@ -283,12 +313,24 @@ export default function BoardWorkspace({
         setDrag(d);
     };
 
-    const startPalette = (e: PointerEvent<HTMLElement>, spec: InsertSpec) => {
+    const startPalette = (e: PointerEvent<HTMLElement>, spec: InsertSpec, chip = false) => {
         if (!canWrite || e.button !== 0) return;
         e.preventDefault();
-        const d: Drag = { kind: "palette", id: "", spec, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, overTray: false };
+        const d: Drag = { kind: "palette", id: "", spec, chip, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, overTray: false };
         dragRef.current = d;
         setDrag(d);
+    };
+
+    /** A placed chip of the Besetzung was clicked: select the slot on the map and let it blink for a moment. */
+    const showSlot = (slotId: string) => {
+        setSelected({ kind: "slot", id: slotId });
+        // after the re-render of the selection (it would rewrite the class)
+        window.setTimeout(() => {
+            const el = document.querySelector<HTMLElement>(`[data-slot="${slotId}"]`);
+            if (!el) return;
+            el.classList.add("is-flash");
+            window.setTimeout(() => el.classList.remove("is-flash"), 1300);
+        }, 30);
     };
 
     // ---- the properties panel ------------------------------------------------------------
@@ -398,6 +440,7 @@ export default function BoardWorkspace({
         if (id === "deselect") { setSelected(null); return; }
         const sel = target === "board" ? null : target;
         const r = applyMenuAction(board, id, sel ? sel.kind : "", sel ? sel.id : "", menu.at);
+        if (r.blocked) { toast(t("raidBoard.slot.allPlaced", { what: t(`raidBoard.slot.kind.${r.blocked}`) })); return; }
         edit(() => r.board);
         setSelected(r.sel);
         if (id.startsWith("insert:") || id === "duplicate") setTab("props");
@@ -441,7 +484,7 @@ export default function BoardWorkspace({
     );
 
     return (
-        <div className="rp-work">
+        <div className="rp-work" ref={workRef}>
             <div className="rp-sticky">
                 <div className="rp-toolbar2" role="toolbar" aria-label={t("raidBoard.tool.label")}>
                     <div className="rp-tool-group">
@@ -459,6 +502,7 @@ export default function BoardWorkspace({
                     <span className="rp-tool-sep" aria-hidden="true" />
                     <div className="rp-tool-group">
                         <IconButton size="sm" icon={<PanelLeft size={17} />} tip={t("raidBoard.tool.palette")} aria-pressed={showPalette} className={showPalette ? "is-on" : ""} onClick={() => setShowPalette((v) => !v)} />
+                        <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
                     <div className="rp-tool-status">{status}</div>
@@ -466,6 +510,22 @@ export default function BoardWorkspace({
                 </div>
                 {bossNav}
             </div>
+
+            {(showPalette || showBes) && (
+                <div className="rp-bands">
+                    {showPalette && canWrite && scope !== "general" && (
+                        <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} tally={slotTally(board)} />
+                    )}
+                    {showBes && (
+                        <Besetzung
+                            board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
+                            onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
+                            onChipDown={(e, slotId) => startPalette(e, { type: "place", slotId }, true)}
+                            onShow={showSlot}
+                        />
+                    )}
+                </div>
+            )}
 
             {isEvent && scope !== "general" && (
                 <section className={`rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
@@ -488,9 +548,8 @@ export default function BoardWorkspace({
                 </section>
             )}
 
-            {scope !== "general" && (
-            <div className={`rp-stage${showPalette ? "" : " no-palette"}${showPanel ? "" : " no-panel"}`}>
-                {showPalette && (canWrite ? <Palette onStart={startPalette} onInsert={(spec) => insert(spec, null)} bosses={allBosses} currentBoss={boss.key} /> : <div />)}
+            <div className={`rp-stage2${showPanel ? "" : " no-dock"}${scope === "general" ? " is-only-dock" : ""}`}>
+                {scope !== "general" && (
                 <div
                     className="rp-board-wrap"
                     onPointerDown={boardWrapDown} onPointerMove={boardWrapMove} onPointerUp={boardWrapEnd} onPointerCancel={boardWrapEnd}
@@ -521,46 +580,39 @@ export default function BoardWorkspace({
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>
+                    )}
                 {showPanel && (
-                    <aside className="rp-panel" ref={panelRef} aria-label={t("raidBoard.panel.props")}>
-                        <div className="rp-tabs2" role="tablist">
-                            <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>
-                            <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
+                    <aside className="rp-dock" ref={panelRef} aria-label={t("raidBoard.panel.props")}>
+                        <div className="rp-dock-tabs" role="tablist">
+                            <button type="button" role="tab" aria-selected={tab === "assign"} className={tab === "assign" ? "is-on" : ""} onClick={() => setTab("assign")}>{t("raidBoard.assign.title")} <span className="rp-dock-n">{board.assignments.length}</span></button>
+                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>}
+                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>}
+                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>}
                         </div>
-                        {tab === "props" ? (
-                            <Inspector board={board} selection={selected} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />
-                        ) : (
+                        {(tab === "assign" || scope === "general") && (
+                            <div className="rp-dock-assign">
+                                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
+                                <AssignPanel
+                                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
+                                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
+                                />
+                                <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
+                            </div>
+                        )}
+                        {tab === "props" && scope !== "general" && <Inspector board={board} selection={selected} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                        {tab === "layers" && scope !== "general" && <LayerList board={board} players={players} selection={selected} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                        {tab === "bg" && scope !== "general" && (
                             <div className="rp-bg">
                                 <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
                                 <ObjectScaleField board={board} canWrite={canWrite} edit={edit} />
                                 <MapPanel csrfToken={csrfToken} rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
                             </div>
                         )}
-                        <h3 className="rp-kicker rp-layers-head">{t("raidBoard.panel.layers")}</h3>
-                        <LayerList board={board} players={players} selection={selected} canWrite={canWrite} edit={edit} onSelect={setSelected} />
                     </aside>
                 )}
             </div>
-            )}
             {canWrite && scope !== "general" && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
-
-            <div className="rp-below">
-                <Besetzung
-                    board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
-                    onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
-                />
-                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
-                <div className="rp-below-grid">
-                    <AssignPanel
-                        scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
-                        eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
-                        profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
-                    />
-                    <aside className="rp-below-side">
-                        <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
-                    </aside>
-                </div>
-            </div>
 
             {drag && drag.kind === "tray" && dragPlayer && (
                 <div className="rp-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">

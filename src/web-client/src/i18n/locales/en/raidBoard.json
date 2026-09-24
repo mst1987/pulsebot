@@ -188,7 +188,8 @@
         "player": "Player",
         "groupHint": "A group marker names the players of the setup group with this number.",
         "melee": "Melee {n}",
-        "ranged": "Ranged {n}"
+        "ranged": "Ranged {n}",
+        "allPlaced": "All {what} are on the map already. New slots only come from + / - in the roster slots."
     },
     "mark": {
         "skull": "Skull",
@@ -256,7 +257,8 @@
         "redo": "Redo",
         "text": "Text",
         "palette": "Show / hide elements",
-        "panel": "Show / hide properties"
+        "panel": "Show / hide properties",
+        "bes": "Show or hide the roster slots"
     },
     "palette": {
         "title": "Elements",
@@ -268,7 +270,8 @@
         "encounter": "Encounter",
         "iconByName": "Icon name",
         "iconInsert": "Insert icon",
-        "iconUnknown": "There is no icon with this name."
+        "iconUnknown": "There is no icon with this name.",
+        "allPlaced": "all placed"
     },
     "line": {
         "arrow": "Arrow",
@@ -447,7 +450,13 @@
         "yourTasks": "Your tasks",
         "byPlayer": "Tasks by player",
         "pickMobs": "Mobs",
-        "pickSpell": "Pick a spell"
+        "pickSpell": "Pick a spell",
+        "hideCard": "Hide the \"{type}\" card",
+        "removeCard": "Remove the \"{type}\" card",
+        "hideCardTitle": "Hide the \"{type}\" card?",
+        "removeCardTitle": "Remove the \"{type}\" card?",
+        "removeCardText": "{count} rows of this card are deleted. Ctrl+Z undoes it.",
+        "hide": "Hide"
     },
     "bes": {
         "title": "Roster slots",
@@ -466,7 +475,9 @@
         "flexNote": "In the setup: {role}. Only for this boss.",
         "own": "this boss only",
         "ownTip": "These numbers only apply to this boss.",
-        "reset": "Back to the raid type's numbers"
+        "reset": "Back to the raid type's numbers",
+        "fitting": "Fitting role",
+        "others": "Other players"
     },
     "mobs": {
         "title": "Mobs",
@@ -476,5 +487,15 @@
         "all": "All mobs",
         "add": "Add mobs",
         "onMap": "Put {name} on the map as an icon"
+    },
+    "fly": {
+        "done": "Done",
+        "search": "Search",
+        "all": "All",
+        "allOf": "All: {what}",
+        "none": "Nothing found.",
+        "prev": "Previous page",
+        "next": "Next page",
+        "ticked": "{count} selected"
     }
 }

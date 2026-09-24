@@ -76,17 +76,17 @@ describe("types per area", () => {
 describe("cards", () => {
     const row = (type) => ({ id: type, type, title: "", assignees: [], targets: [], note: "", suggested: false });
     it("every area has its default cards even when empty, in a fixed order", () => {
-        expect(lib.cardTypes("boss", [], [], false)).toEqual(["tank", "heal"]);
-        expect(lib.cardTypes("trash", [], [], false)).toEqual(["trashtank", "heal"]);
-        expect(lib.cardTypes("general", [], [], false)).toEqual(["curse", "thunderclap", "demoshout"]);
+        expect(lib.cardTypes("boss", [], [], false, [])).toEqual(["tank", "heal"]);
+        expect(lib.cardTypes("trash", [], [], false, [])).toEqual(["trashtank", "heal"]);
+        expect(lib.cardTypes("general", [], [], false, [])).toEqual(["curse", "thunderclap", "demoshout"]);
     });
     it("a type with a row and a card added by hand appear, in the fixed order whatever the order of the rows", () => {
-        expect(lib.cardTypes("boss", [row("cc"), row("kick"), row("heal")], ["md"], false)).toEqual(["tank", "heal", "kick", "md", "cc"]);
-        expect(lib.cardTypes("boss", [row("other")], [], false)).toEqual(["tank", "heal", "other"]);
+        expect(lib.cardTypes("boss", [row("cc"), row("kick"), row("heal")], ["md"], false, [])).toEqual(["tank", "heal", "kick", "md", "cc"]);
+        expect(lib.cardTypes("boss", [row("other")], [], false, [])).toEqual(["tank", "heal", "other"]);
     });
     it("the read view shows only cards with content, in the same order", () => {
-        expect(lib.cardTypes("boss", [], [], true)).toEqual([]);
-        expect(lib.cardTypes("boss", [row("kick"), row("tank")], ["md"], true)).toEqual(["tank", "kick"]);
+        expect(lib.cardTypes("boss", [], [], true, [])).toEqual([]);
+        expect(lib.cardTypes("boss", [row("kick"), row("tank")], ["md"], true, [])).toEqual(["tank", "kick"]);
     });
     it("offers to add the area's other types, and a row of a card has the card's type", () => {
         expect(lib.addableCards("boss", ["tank", "heal"])).toEqual(["kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "other"]);

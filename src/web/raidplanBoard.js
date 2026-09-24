@@ -21,6 +21,7 @@
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
 //   counts   { tank, healer, dps, melee, ranged } | null   how many role slots the Besetzung has on this board (null = the raid type's)
+//   hiddenCards [type]   default assignment cards that are hidden on this board
 //   mobs     [{ id, name, icon }]   mobs added to this section (tank targets, optionally also icons on the map)
 //   roles    { [userId]: role }   who plays another role on this boss than in the setup (flex)
 //   slots may carry placed:false = in the Besetzung, not on the map
@@ -283,14 +284,16 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         if (mobs.length >= LIMITS.mobsPerBoss) break;
         mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|boss:\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
     }
+    // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
+    const hiddenCards = [...new Set((Array.isArray(input.hiddenCards) ? input.hiddenCards : []).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x));
     const counts = besetzung.cleanCounts(input.counts);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */

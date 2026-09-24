@@ -151,7 +151,7 @@ export default function PlanBoard({
         onDoubleClick: onObjectOpen ? () => onObjectOpen(kind, id) : undefined,
     } : {});
     const ar = aspect || 16 / 10;
-    const style = { aspectRatio: String(ar), maxWidth: `calc((100vh - 250px) * ${ar})` } as CSSProperties;
+    const style = { aspectRatio: String(ar), maxWidth: `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);

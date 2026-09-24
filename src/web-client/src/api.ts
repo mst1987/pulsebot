@@ -4123,6 +4123,8 @@ export type RaidplanBoard = {
     counts: BesetzungCounts | null;
     /** mobs added to this section: always tank targets */
     mobs: RaidplanMobRef[];
+    /** default assignment cards hidden on this board */
+    hiddenCards: string[];
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */

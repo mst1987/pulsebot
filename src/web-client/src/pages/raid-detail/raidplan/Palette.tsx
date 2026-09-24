@@ -35,25 +35,40 @@ function cleanIconName(raw: string): string {
  * CDN the client already uses for its WoW icons, by its name (there is no search
  * over the names; the preview shows whether the name exists).
  */
-export default function Palette({ onStart, onInsert, bosses, currentBoss }: {
+export default function Palette({ onStart, onInsert, bosses, currentBoss, tally }: {
     onStart: (e: PointerEvent<HTMLElement>, spec: InsertSpec) => void;
     onInsert: (spec: InsertSpec) => void;
     bosses: RaidplanBoss[];
     currentBoss: string;
+    /** per role kind: how many of the Besetzung's slots are on the map — a kind with all of them placed is greyed out */
+    tally: { kind: string; placed: number; total: number }[];
 }) {
     const t = useT();
     const [name, setName] = useState("");
     const [found, setFound] = useState(false);
     const clean = cleanIconName(name);
-    const entry = (key: string, spec: InsertSpec, label: string, body: ReactNode) => (
+    const entry = (key: string, spec: InsertSpec, label: string, body: ReactNode, disabled = false) => (
         <button
-            key={key} type="button" className="rp-pal-item" data-tip={label} aria-label={label}
-            onPointerDown={(e) => onStart(e, spec)}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onInsert(spec); } }}
+            key={key} type="button" className={`rp-pal-item${disabled ? " is-full" : ""}`} data-tip={label} aria-label={label} aria-disabled={disabled}
+            onPointerDown={(e) => { if (!disabled) onStart(e, spec); }}
+            onKeyDown={(e) => { if (!disabled && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onInsert(spec); } }}
         >
             {body}
         </button>
     );
+    /** A role slot of the palette: it places one of the Besetzung's slots; once all are on the map it is greyed out and says so. */
+    const slotEntry = (kind: string, icon: string) => {
+        const tl = tally.find((x) => x.kind === kind);
+        const off = !!tl && tl.placed >= tl.total;
+        const name = t(`raidBoard.slot.kind.${kind}`);
+        const label = tl ? `${name} ${tl.placed}/${tl.total}${off ? ` · ${t("raidBoard.palette.allPlaced")}` : ""}` : name;
+        return entry(kind, { type: "slot", kind: kind as never, label: "" }, label, (
+            <>
+                <WowIcon name={icon} size={26} />
+                {tl && <span className="rp-pal-tally">{tl.placed}/{tl.total}</span>}
+            </>
+        ), off);
+    };
     const real = bosses.filter((b) => !b.trash && !b.general);
     const ordered = [...real.filter((b) => b.key === currentBoss), ...real.filter((b) => b.key !== currentBoss)];
     return (
@@ -64,7 +79,7 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss }: {
             </div>
             <h3 className="rp-kicker">{t("raidBoard.palette.slots")}</h3>
             <div className="rp-pal-grid">
-                {SLOT_ICONS.map((s) => entry(s.kind, { type: "slot", kind: s.kind, label: "" }, t(`raidBoard.slot.kind.${s.kind}`), <WowIcon name={s.icon} size={26} />))}
+                {SLOT_ICONS.map((s) => slotEntry(s.kind, s.icon))}
                 {entry("label", { type: "slot", kind: "label", label: t("raidBoard.slot.kind.label") }, t("raidBoard.slot.kind.label"), <span className="rp-pal-text">Abc</span>)}
             </div>
             <h3 className="rp-kicker">{t("raidBoard.palette.encounter")}</h3>

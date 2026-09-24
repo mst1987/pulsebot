@@ -8,6 +8,15 @@ const { loadTs, read, makeT, stripComments, allDicts } = require("./i18nHelper")
 const lib = loadTs("lib/raidplan.ts", { t: makeT("de") });
 const libEn = loadTs("lib/raidplan.ts", { t: makeT("en") });
 
+// Role slots belong to the Besetzung: the palette places a free one. These tests start from a board that has one free.
+const slotIns = (b, spec, at) => {
+    if (spec.type === "slot" && lib.isRoleKind(spec.kind)) {
+        const free = { ...lib.addSlot(lib.emptyBoard(), spec.kind, "").slots[0], n: lib.nextSlotNumber(b, spec.kind), placed: false };
+        return lib.insertObject({ ...b, slots: [...b.slots, free] }, spec, at);
+    }
+    return lib.insertObject(b, spec, at);
+};
+
 const player = (userId, role = "dps") => ({ userId, character: userId, classId: "", className: "", classColor: "", spec: "", specLabel: "", role, iconUrl: "", group: 1 });
 const board = (extra = {}) => ({ ...lib.emptyBoard(), ...extra });
 const profile = (extra = {}) => ({ id: "p1", name: "Tanks", category: "Tank", bossKey: "", targets: [{ title: "Main-Tank" }, { title: "Off-Tank" }], notes: "", updatedAt: 0, ...extra });
@@ -36,7 +45,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -156,33 +165,33 @@ describe("tactic profiles", () => {
 describe("inserting objects", () => {
     it("puts a slot, mark, zone, line and text where told, centred or anchored, and selects it", () => {
         const at = { x: 0.6, y: 0.4 };
-        let r = lib.insertObject(lib.emptyBoard(), { type: "slot", kind: "tank", label: "" }, at);
+        let r = slotIns(lib.emptyBoard(), { type: "slot", kind: "tank", label: "" }, at);
         expect(r.board.slots[0]).toMatchObject({ kind: "tank", n: 1, x: 0.6, y: 0.4, userId: "", opacity: 1, lock: false, hidden: false });
         expect(r.sel).toEqual({ kind: "slot", id: r.board.slots[0].id });
-        r = lib.insertObject(r.board, { type: "mark", mark: "skull" }, at);
+        r = slotIns(r.board, { type: "mark", mark: "skull" }, at);
         expect(r.board.marks[0]).toMatchObject({ mark: "skull", x: 0.6, y: 0.4, opacity: 1 });
-        r = lib.insertObject(r.board, { type: "zone", zoneType: "danger", shape: "ellipse" }, at);
+        r = slotIns(r.board, { type: "zone", zoneType: "danger", shape: "ellipse" }, at);
         expect(r.board.zones[0]).toMatchObject({ type: "danger", shape: "ellipse", color: "#ef4444", opacity: 0.3, w: 0.2, h: 0.2 });
         expect(r.board.zones[0].x).toBeCloseTo(0.5);
         expect(r.board.zones[0].y).toBeCloseTo(0.3);
-        r = lib.insertObject(r.board, { type: "line", kind: "arrow" }, at);
+        r = slotIns(r.board, { type: "line", kind: "arrow" }, at);
         expect(r.board.lines[0]).toMatchObject({ kind: "arrow", y1: 0.4, y2: 0.4, width: 4, color: "#f8fafc", opacity: 1 });
         expect(r.board.lines[0].x1).toBeCloseTo(0.5);
         expect(r.board.lines[0].x2).toBeCloseTo(0.7);
-        r = lib.insertObject(r.board, { type: "text", text: "Hi" }, at);
+        r = slotIns(r.board, { type: "text", text: "Hi" }, at);
         expect(r.board.texts[0]).toMatchObject({ text: "Hi", x: 0.6, y: 0.4, size: 18, opacity: 1 });
         expect(lib.objectCount(r.board)).toBe(5);
     });
 
     it("keeps an insert near an edge on the board and, without a point, puts it near the middle, each one off the last", () => {
-        const edge = lib.insertObject(lib.emptyBoard(), { type: "zone", zoneType: "neutral", shape: "rect" }, { x: 1, y: 1 }).board.zones[0];
+        const edge = slotIns(lib.emptyBoard(), { type: "zone", zoneType: "neutral", shape: "rect" }, { x: 1, y: 1 }).board.zones[0];
         expect(edge.x + edge.w).toBeLessThanOrEqual(1);
         expect(edge.y + edge.h).toBeLessThanOrEqual(1);
-        const line = lib.insertObject(lib.emptyBoard(), { type: "line", kind: "line" }, { x: 0, y: 0 }).board.lines[0];
+        const line = slotIns(lib.emptyBoard(), { type: "line", kind: "line" }, { x: 0, y: 0 }).board.lines[0];
         expect(line.x1).toBe(0);
         let b = lib.emptyBoard();
-        b = lib.insertObject(b, { type: "mark", mark: "star" }, null).board;
-        b = lib.insertObject(b, { type: "mark", mark: "star" }, null).board;
+        b = slotIns(b, { type: "mark", mark: "star" }, null).board;
+        b = slotIns(b, { type: "mark", mark: "star" }, null).board;
         expect(b.marks[0].x).toBeGreaterThan(0.3);
         expect(b.marks[1].x).toBeGreaterThan(b.marks[0].x);
     });
@@ -216,7 +225,7 @@ describe("inserting objects", () => {
 describe("moving, locking, opacity", () => {
     const full = () => {
         let b = lib.emptyBoard();
-        for (const spec of [{ type: "slot", kind: "dps", label: "" }, { type: "mark", mark: "star" }, { type: "zone", zoneType: "neutral", shape: "rect" }, { type: "line", kind: "line" }, { type: "text", text: "T" }]) b = lib.insertObject(b, spec, { x: 0.5, y: 0.5 }).board;
+        for (const spec of [{ type: "slot", kind: "dps", label: "" }, { type: "mark", mark: "star" }, { type: "zone", zoneType: "neutral", shape: "rect" }, { type: "line", kind: "line" }, { type: "text", text: "T" }]) b = slotIns(b, spec, { x: 0.5, y: 0.5 }).board;
         return b;
     };
 
@@ -243,7 +252,7 @@ describe("moving, locking, opacity", () => {
     });
 
     it("moves one end of a line", () => {
-        let b = lib.insertObject(lib.emptyBoard(), { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
+        let b = slotIns(lib.emptyBoard(), { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
         const id = b.lines[0].id;
         b = lib.moveLineEnd(b, id, 2, 1.5, 0.9);
         expect(b.lines[0]).toMatchObject({ x2: 1, y2: 0.9 });
@@ -347,8 +356,8 @@ describe("zones: scaling", () => {
 describe("duplicating and ordering", () => {
     it("copies an object a little off, unlocked, with a new id; a token cannot be copied; a slot's copy is open", () => {
         let b = lib.emptyBoard();
-        b = lib.insertObject(b, { type: "mark", mark: "moon" }, { x: 0.5, y: 0.5 }).board;
-        b = lib.insertObject(b, { type: "slot", kind: "tank", label: "" }, { x: 0.3, y: 0.3 }).board;
+        b = slotIns(b, { type: "mark", mark: "moon" }, { x: 0.5, y: 0.5 }).board;
+        b = slotIns(b, { type: "slot", kind: "tank", label: "" }, { x: 0.3, y: 0.3 }).board;
         b = lib.assignSlot(b, b.slots[0].id, "u1");
         b = lib.patchLook(b, "slot", b.slots[0].id, { lock: true });
         const m = lib.duplicateObject(b, "mark", b.marks[0].id);
@@ -365,9 +374,9 @@ describe("duplicating and ordering", () => {
     });
 
     it("copies zones, lines and texts inside the board", () => {
-        let b = lib.insertObject(lib.emptyBoard(), { type: "zone", zoneType: "danger", shape: "rect" }, { x: 0.95, y: 0.95 }).board;
-        b = lib.insertObject(b, { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
-        b = lib.insertObject(b, { type: "text", text: "T" }, { x: 0.5, y: 0.5 }).board;
+        let b = slotIns(lib.emptyBoard(), { type: "zone", zoneType: "danger", shape: "rect" }, { x: 0.95, y: 0.95 }).board;
+        b = slotIns(b, { type: "line", kind: "arrow" }, { x: 0.5, y: 0.5 }).board;
+        b = slotIns(b, { type: "text", text: "T" }, { x: 0.5, y: 0.5 }).board;
         for (const [kind, id] of [["zone", b.zones[0].id], ["line", b.lines[0].id], ["text", b.texts[0].id]]) b = lib.duplicateObject(b, kind, id).board;
         expect([b.zones.length, b.lines.length, b.texts.length]).toEqual([2, 2, 2]);
         expect(b.zones[1].x + b.zones[1].w).toBeLessThanOrEqual(1);
@@ -376,7 +385,7 @@ describe("duplicating and ordering", () => {
 
     it("moves an object to the front / back of its kind, or one step", () => {
         let b = lib.emptyBoard();
-        for (const m of ["star", "moon", "skull"]) b = lib.insertObject(b, { type: "mark", mark: m }, null).board;
+        for (const m of ["star", "moon", "skull"]) b = slotIns(b, { type: "mark", mark: m }, null).board;
         const id = (i) => b.marks[i].id;
         const order = (x) => x.marks.map((m) => m.mark);
         expect(order(lib.reorderObject(b, "mark", id(0), "front"))).toEqual(["moon", "skull", "star"]);
@@ -393,11 +402,11 @@ describe("layers", () => {
     it("lists every object front to back with a name, lock and hidden flag", () => {
         const players = lib.rosterMap([player("u1")]);
         let b = lib.emptyBoard();
-        b = lib.insertObject(b, { type: "zone", zoneType: "danger", shape: "rect" }, null).board;
-        b = lib.insertObject(b, { type: "line", kind: "arrow" }, null).board;
-        b = lib.insertObject(b, { type: "mark", mark: "skull" }, null).board;
-        b = lib.insertObject(b, { type: "slot", kind: "healer", label: "" }, null).board;
-        b = lib.insertObject(b, { type: "text", text: "Hallo" }, null).board;
+        b = slotIns(b, { type: "zone", zoneType: "danger", shape: "rect" }, null).board;
+        b = slotIns(b, { type: "line", kind: "arrow" }, null).board;
+        b = slotIns(b, { type: "mark", mark: "skull" }, null).board;
+        b = slotIns(b, { type: "slot", kind: "healer", label: "" }, null).board;
+        b = slotIns(b, { type: "text", text: "Hallo" }, null).board;
         b = lib.placeToken(b, "u1", 0.5, 0.5);
         b = lib.patchLook(b, "mark", b.marks[0].id, { lock: true, hidden: true });
         const rows = lib.layerList(b, players);
@@ -407,7 +416,7 @@ describe("layers", () => {
         expect(lib.objectName(b, "zone", b.zones[0].id, players)).toBe("Gefahrenzone");
         expect(lib.objectName(b, "zone", "nope", players)).toBe("");
         // the last added of a kind is in front
-        const two = lib.insertObject(lib.insertObject(lib.emptyBoard(), { type: "mark", mark: "star" }, null).board, { type: "mark", mark: "moon" }, null).board;
+        const two = slotIns(slotIns(lib.emptyBoard(), { type: "mark", mark: "star" }, null).board, { type: "mark", mark: "moon" }, null).board;
         expect(lib.layerList(two, players).map((r) => r.name)).toEqual(["Mond", "Stern"]);
     });
 });
@@ -733,7 +742,7 @@ describe("the pages", () => {
     it("fits any map: the board takes the map's aspect ratio", () => {
         expect(board2).toContain("naturalWidth / i.naturalHeight");
         expect(board2).toContain("aspectRatio: String(ar)");
-        expect(board2).toContain("100vh - 250px");
+        expect(board2).toContain("100vh - 420px");
     });
 
     it("marks a zone's type by pattern and label as well as colour", () => {
@@ -839,7 +848,7 @@ describe("melee and ranged slots", () => {
 });
 
 describe("sizes", () => {
-    const one = (spec) => lib.insertObject(lib.emptyBoard(), spec, { x: 0.5, y: 0.5 });
+    const one = (spec) => slotIns(lib.emptyBoard(), spec, { x: 0.5, y: 0.5 });
 
     it("starts every object with the default size of its kind", () => {
         expect(one({ type: "slot", kind: "tank", label: "" }).board.slots[0].size).toBe(38);
@@ -854,7 +863,7 @@ describe("sizes", () => {
             expect(lib.sizeOf(lib.setObjectSize(board, kind, id, 9999), kind, id)).toBe(high);
         };
         let b = lib.emptyBoard();
-        for (const spec of [{ type: "slot", kind: "tank", label: "" }, { type: "mark", mark: "star" }, { type: "icon", iconKey: "enemy", label: "" }, { type: "text", text: "T" }, { type: "line", kind: "line" }]) b = lib.insertObject(b, spec, { x: 0.5, y: 0.5 }).board;
+        for (const spec of [{ type: "slot", kind: "tank", label: "" }, { type: "mark", mark: "star" }, { type: "icon", iconKey: "enemy", label: "" }, { type: "text", text: "T" }, { type: "line", kind: "line" }]) b = slotIns(b, spec, { x: 0.5, y: 0.5 }).board;
         b = lib.placeToken(b, "u1", 0.5, 0.5);
         check("token", b, "u1", 24, 96);
         check("slot", b, b.slots[0].id, 24, 96);
@@ -870,12 +879,12 @@ describe("sizes", () => {
     });
 
     it("scales an object by a factor, a zone around its centre and inside the board", () => {
-        let b = lib.insertObject(lib.emptyBoard(), { type: "icon", iconKey: "enemy", label: "" }, null).board;
+        let b = slotIns(lib.emptyBoard(), { type: "icon", iconKey: "enemy", label: "" }, null).board;
         const id = b.icons[0].id;
         expect(lib.sizeOf(lib.scaleObject(b, "icon", id, 2), "icon", id)).toBe(96);
         expect(lib.sizeOf(lib.scaleObject(b, "icon", id, 0.5), "icon", id)).toBe(24);
         expect(lib.sizeOf(lib.scaleObject(lib.scaleObject(b, "icon", id, 1.1), "icon", id, 1 / 1.1), "icon", id)).toBe(48);
-        b = lib.insertObject(lib.emptyBoard(), { type: "zone", zoneType: "danger", shape: "rect" }, { x: 0.5, y: 0.5 }).board;
+        b = slotIns(lib.emptyBoard(), { type: "zone", zoneType: "danger", shape: "rect" }, { x: 0.5, y: 0.5 }).board;
         const z = b.zones[0];
         const big = lib.scaleObject(b, "zone", z.id, 2).zones[0];
         expect(big.w).toBeCloseTo(0.4);
@@ -910,7 +919,7 @@ describe("icons", () => {
     });
 
     it("moves, copies, orders, names and deletes an icon, and lists it among the layers", () => {
-        let b = lib.insertObject(lib.emptyBoard(), { type: "icon", iconKey: "boss:609", label: "Illidan" }, { x: 0.3, y: 0.3 }).board;
+        let b = slotIns(lib.emptyBoard(), { type: "icon", iconKey: "boss:609", label: "Illidan" }, { x: 0.3, y: 0.3 }).board;
         const id = b.icons[0].id;
         b = lib.moveObject(b, "icon", id, 2, -1);
         expect(b.icons[0]).toMatchObject({ x: 1, y: 0 });
@@ -935,7 +944,7 @@ describe("group markers: hiding and splitting", () => {
         { ...player("r1", "ranged"), group: 2 }, { ...player("m2", "melee"), group: 2 },
     ];
     const group = (extra = {}) => {
-        const b = lib.insertObject(lib.emptyBoard(), { type: "slot", kind: "group", label: "" }, { x: 0.5, y: 0.5 }).board;
+        const b = slotIns(lib.emptyBoard(), { type: "slot", kind: "group", label: "" }, { x: 0.5, y: 0.5 }).board;
         return lib.updateSlot(b, b.slots[0].id, extra);
     };
 
@@ -1099,7 +1108,7 @@ describe("template overview", () => {
 });
 
 describe("facing and board labels", () => {
-    const withIcon = (extra = {}) => lib.insertObject(board(), { type: "icon", iconKey: "boss:602", label: "" }, { x: 0.5, y: 0.5 });
+    const withIcon = (extra = {}) => slotIns(board(), { type: "icon", iconKey: "boss:602", label: "" }, { x: 0.5, y: 0.5 });
     it("angle maths: 0 = up, clockwise, normalised", () => {
         expect(lib.normAngle(-90)).toBe(270);
         expect(lib.normAngle(360)).toBe(0);
@@ -1131,7 +1140,7 @@ describe("facing and board labels", () => {
         expect(lib.applyMenuAction(r.board, "face:225", "icon", id, null).board.icons[0].rotation).toBe(225);
     });
     it("draws only labels that were typed (no fallback names on the board)", () => {
-        const tank = lib.insertObject(board(), { type: "slot", kind: "tank", label: "" }, null).board.slots[0];
+        const tank = slotIns(board(), { type: "slot", kind: "tank", label: "" }, null).board.slots[0];
         expect(lib.slotBoardLabel(tank)).toBe("");
         expect(lib.slotTitle(tank)).not.toBe("");
         expect(lib.zoneBoardLabel({ label: "  ", type: "danger" })).toBe("");
@@ -1142,10 +1151,6 @@ describe("facing and board labels", () => {
         expect(lib.textShown({ text: "" }, false)).toBe(false);
         expect(lib.textShown({ text: "" }, true)).toBe(true);
         expect(lib.textShown({ text: "Go" }, false)).toBe(true);
-    });
-    it("a new group marker starts with an editable label 'Gruppe n'", () => {
-        const g = lib.insertObject(board(), { type: "slot", kind: "group", label: "" }, null).board.slots[0];
-        expect(g.label).toBe("Gruppe 1");
     });
     it("has the facing UI and its texts", () => {
         const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
@@ -1285,5 +1290,66 @@ describe("the numbers of a board in an event", () => {
     it("a flex role counts: a healer who plays DPS is one healer less and one DPS more", () => {
         const flexed = { ...lib.emptyBoard(), roles: { h0: "dps" } };
         expect(lib.effectiveCounts(flexed, { ...bes, counts: { tank: 3, healer: 5, dps: 10, melee: 0, ranged: 0 } }, roster)).toMatchObject({ healer: 6, dps: 16 });
+    });
+});
+
+describe("the palette never makes new role slots", () => {
+    const bes = { size: 25, counts: { tank: 3, healer: 7, dps: 15, melee: 0, ranged: 0 }, groups: 5, split: false };
+    it("a group or role from the palette places the next slot that is not on the map, never a new one", () => {
+        let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        const before = b.slots.length;
+        for (let i = 0; i < 5; i += 1) b = lib.insertObject(b, { type: "slot", kind: "group", label: "" }, { x: 0.1 * (i + 1), y: 0.5 }).board;
+        expect(b.slots).toHaveLength(before);
+        expect(b.slots.filter((s) => s.kind === "group").map((s) => [s.n, s.placed])).toEqual([[1, true], [2, true], [3, true], [4, true], [5, true]]);
+    });
+    it("when all are placed it says so and changes nothing (also for the context menu and every role)", () => {
+        let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        for (let i = 0; i < 5; i += 1) b = lib.insertObject(b, { type: "slot", kind: "group", label: "" }, null).board;
+        const r = lib.insertObject(b, { type: "slot", kind: "group", label: "" }, null);
+        expect(r.blocked).toBe("group");
+        expect(r.board).toBe(b);
+        expect(r.sel).toBeNull();
+        expect(lib.applyMenuAction(b, "insert:slot:group", "", "", { x: 0.5, y: 0.5 }).blocked).toBe("group");
+        expect(lib.insertObject(lib.emptyBoard(), { type: "slot", kind: "melee", label: "" }, null).blocked).toBe("melee");
+        expect(lib.slotTally(b).find((t) => t.kind === "group")).toEqual({ kind: "group", placed: 5, total: 5 });
+        expect(lib.slotTally(b).find((t) => t.kind === "tank")).toEqual({ kind: "tank", placed: 0, total: 3 });
+    });
+    it("things without a role stay unlimited: a free label, a mark, a zone, a text, an icon", () => {
+        let b = lib.emptyBoard();
+        for (let i = 0; i < 3; i += 1) b = lib.insertObject(b, { type: "slot", kind: "label", label: "x" }, null).board;
+        expect(b.slots).toHaveLength(3);
+        expect(lib.insertObject(b, { type: "mark", mark: "star" }, null).blocked).toBeUndefined();
+    });
+});
+
+describe("mending role slots that got out of step", () => {
+    const bes = { size: 25, counts: { tank: 3, healer: 7, dps: 15, melee: 0, ranged: 0 }, groups: 5, split: false };
+    const slot = (kind, n, extra = {}) => ({ id: "s" + Math.random().toString(36).slice(2, 8), kind, n, label: "", x: 0.5, y: 0.5, userId: "", size: 38, hideMembers: false, split: false, offsets: {}, placed: false, opacity: 1, lock: false, hidden: false, ...extra });
+    it("the same number twice becomes one: it keeps the player and the map position, the count is the Besetzung's again", () => {
+        const start = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        const extra = [slot("group", 3, { placed: true, x: 0.2, y: 0.3 }), slot("group", 4), slot("group", 4), slot("group", 5, { placed: true, x: 0.9, y: 0.9 }), slot("group", 5), slot("group", 6), slot("healer", 2, { userId: "h" })];
+        const broken = { ...start, slots: [...start.slots, ...extra] };
+        const b = lib.ensureBesetzung(broken, bes, []);
+        expect(b.slots.filter((s) => s.kind === "group").map((s) => s.n).sort()).toEqual([1, 2, 3, 4, 5]);
+        expect(b.slots.find((s) => s.kind === "group" && s.n === 3)).toMatchObject({ placed: true, x: 0.2, y: 0.3 });
+        expect(b.slots.find((s) => s.kind === "group" && s.n === 5)).toMatchObject({ placed: true, x: 0.9 });
+        expect(b.slots.find((s) => s.kind === "healer" && s.n === 2).userId).toBe("h");
+        expect(b.slots.filter((s) => s.kind === "healer")).toHaveLength(7);
+    });
+    it("two different players in one slot are both kept: the second gets a free number", () => {
+        const start = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        const broken = { ...start, slots: [...start.slots.filter((s) => !(s.kind === "tank" && s.n === 1)), slot("tank", 1, { userId: "a" }), slot("tank", 1, { userId: "b" })] };
+        const b = lib.repairSlots(broken, bes, []);
+        const tanks = b.slots.filter((s) => s.kind === "tank");
+        expect(new Set(tanks.map((s) => s.n)).size).toBe(tanks.length);
+        expect(tanks.map((s) => s.userId).filter(Boolean).sort()).toEqual(["a", "b"]);
+    });
+    it("a healthy board is left as it is (the same object), and unassigned unplaced slots above the count go", () => {
+        const ok = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
+        expect(lib.repairSlots(ok, bes, [])).toBe(ok);
+        const more = { ...ok, slots: [...ok.slots, slot("group", 9)] };
+        expect(lib.repairSlots(more, bes, []).slots.some((s) => s.kind === "group" && s.n === 9)).toBe(false);
+        const keepPlaced = { ...ok, slots: [...ok.slots, slot("group", 9, { placed: true })] };
+        expect(lib.repairSlots(keepPlaced, bes, []).slots.some((s) => s.kind === "group" && s.n === 9)).toBe(true);
     });
 });

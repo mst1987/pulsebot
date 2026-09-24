@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } from "lucide-react";
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
@@ -5,7 +6,8 @@ import {
     COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, SIZE_RANGES, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, setObjectSize, sizeOf, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
-import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
+import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
+import Flyout from "../../../components/raidplan/Flyout";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
@@ -57,6 +59,7 @@ export default function Inspector({ board, selection, players, roster, isEvent, 
     onSelect: (sel: Selection) => void;
 }) {
     const t = useT();
+    const [pick, setPick] = useState<HTMLElement | null>(null);
     if (!selection) return <p className="rp-muted rp-insp-empty">{t("raidBoard.insp.none")}</p>;
     const { kind, id } = selection;
     const look = lookOf(board, kind, id);
@@ -186,10 +189,16 @@ export default function Inspector({ board, selection, players, roster, isEvent, 
                     {isEvent && slot.kind !== "group" && (
                         <label className="rp-field">
                             <span className="rp-kicker">{t("raidBoard.slot.player")}</span>
-                            <select value={slot.userId} disabled={dis} data-insp-player onChange={(e) => edit((b) => assignSlot(b, id, e.target.value))}>
-                                <option value="">{t("raidBoard.slot.open")}</option>
-                                {roster.map((p) => <option key={p.userId} value={p.userId}>{p.character} — {[p.specLabel, p.className].filter(Boolean).join(" ")}</option>)}
-                            </select>
+                            <button type="button" className="rp-assign-btn" disabled={dis} data-insp-player aria-haspopup="dialog" onClick={(e) => setPick(pick ? null : e.currentTarget)}>
+                                <span>{slot.userId ? (roster.find((p) => p.userId === slot.userId) || { character: slot.userId }).character : t("raidBoard.slot.open")}</span>
+                            </button>
+                            {pick && (
+                                <Flyout
+                                    anchor={pick} title={t("raidBoard.slot.player")} multi={false}
+                                    options={roster.map((p) => ({ key: p.userId, label: p.character, group: p.role === "tank" || p.role === "healer" ? t(`raidBoard.slot.kind.${p.role}`) : t("raidBoard.slot.kind.dps"), on: p.userId === slot.userId, node: <span className="rp-pchip"><TokenIcon player={p} size="sm" /><PlayerName player={p} /></span> }))}
+                                    onToggle={(uid) => { edit((b) => assignSlot(b, id, uid === slot.userId ? "" : uid)); setPick(null); }} onClose={() => setPick(null)}
+                                />
+                            )}
                         </label>
                     )}
                     {slot.kind === "group" && <p className="rp-muted">{t("raidBoard.slot.groupHint")}</p>}

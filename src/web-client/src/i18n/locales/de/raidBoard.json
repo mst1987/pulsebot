@@ -188,7 +188,8 @@
         "player": "Spieler",
         "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer.",
         "melee": "Melee {n}",
-        "ranged": "Ranged {n}"
+        "ranged": "Ranged {n}",
+        "allPlaced": "Alle {what} sind schon auf der Map. Neue Slots entstehen nur über + / − in der Besetzung."
     },
     "mark": {
         "skull": "Totenkopf",
@@ -256,7 +257,8 @@
         "redo": "Wiederholen",
         "text": "Text",
         "palette": "Elemente ein-/ausblenden",
-        "panel": "Eigenschaften ein-/ausblenden"
+        "panel": "Eigenschaften ein-/ausblenden",
+        "bes": "Besetzung ein-/ausblenden"
     },
     "palette": {
         "title": "Elemente",
@@ -268,7 +270,8 @@
         "encounter": "Encounter",
         "iconByName": "Icon-Name",
         "iconInsert": "Icon einfügen",
-        "iconUnknown": "Diesen Icon-Namen gibt es nicht."
+        "iconUnknown": "Diesen Icon-Namen gibt es nicht.",
+        "allPlaced": "alle platziert"
     },
     "line": {
         "arrow": "Pfeil",
@@ -447,7 +450,13 @@
         "yourTasks": "Deine Aufgaben",
         "byPlayer": "Aufgaben nach Spieler",
         "pickMobs": "Mobs",
-        "pickSpell": "Spell wählen"
+        "pickSpell": "Spell wählen",
+        "hideCard": "Karte „{type}“ ausblenden",
+        "removeCard": "Karte „{type}“ entfernen",
+        "hideCardTitle": "Karte „{type}“ ausblenden?",
+        "removeCardTitle": "Karte „{type}“ entfernen?",
+        "removeCardText": "{count} Zeilen dieser Karte werden gelöscht. Mit Strg+Z lässt es sich rückgängig machen.",
+        "hide": "Ausblenden"
     },
     "bes": {
         "title": "Besetzung",
@@ -466,7 +475,9 @@
         "flexNote": "Im Setup: {role}. Gilt nur für diesen Boss.",
         "own": "nur dieser Boss",
         "ownTip": "Diese Zahlen gelten nur für diesen Boss.",
-        "reset": "Zurück auf die Zahlen des Raidtyps"
+        "reset": "Zurück auf die Zahlen des Raidtyps",
+        "fitting": "Passende Rolle",
+        "others": "Weitere Spieler"
     },
     "mobs": {
         "title": "Mobs",
@@ -476,5 +487,15 @@
         "all": "Alle Mobs",
         "add": "Mobs hinzufügen",
         "onMap": "{name} als Icon auf die Map setzen"
+    },
+    "fly": {
+        "done": "Fertig",
+        "search": "Suchen",
+        "all": "Alle",
+        "allOf": "Alle: {what}",
+        "none": "Nichts gefunden.",
+        "prev": "Vorherige Seite",
+        "next": "Nächste Seite",
+        "ticked": "{count} ausgewählt"
     }
 }

@@ -14,6 +14,7 @@ import Badge from "../components/ui/Badge";
 import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
 import { MobIcon } from "./raid-detail/raidplan/AssignPanel";
+import Flyout from "../components/raidplan/Flyout";
 import { ASSIGN_META } from "../lib/assign";
 import { useT } from "../i18n";
 import "../styles/raidplan.css";
@@ -269,32 +270,19 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
     );
 }
 
-/** Icons to pick from, by category, with a search over category and icon name; anything else can still be typed below. */
+/** The icon of a mob: the chosen one on a button; it opens the shared flyout with the icons by category (search, pages, no scrolling). */
 function IconPicker({ choices, value, onPick }: { choices: Record<string, string[]>; value: string; onPick: (name: string) => void }) {
     const t = useT();
-    const [q, setQ] = useState("");
-    const needle = q.trim().toLowerCase();
-    const groups = Object.entries(choices)
-        .map(([cat, list]) => [cat, list.filter((n) => !needle || cat.toLowerCase().includes(needle) || n.includes(needle))] as [string, string[]])
-        .filter(([, list]) => list.length > 0);
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+    const options = Object.entries(choices).flatMap(([cat, list]) => list.map((n) => ({
+        key: n, label: n, group: cat, on: value === n, node: <MobIcon icon={n} size={28} />,
+    })));
     return (
         <div className="rp-iconpick">
-            <input value={q} placeholder={t("catalog.iconSearch")} aria-label={t("catalog.iconSearch")} onChange={(e) => setQ(e.target.value)} />
-            <div className="rp-iconpick-grid" role="listbox" aria-label={t("catalog.icon")}>
-                {groups.map(([cat, list]) => (
-                    <div key={cat} className="rp-iconpick-group">
-                        <span className="rp-kicker">{cat}</span>
-                        <div>
-                            {list.map((n) => (
-                                <button key={n} type="button" role="option" aria-selected={value === n} className={`rp-iconpick-btn${value === n ? " is-on" : ""}`} data-tip={n} aria-label={n} onClick={() => onPick(n)}>
-                                    <MobIcon icon={n} size={28} />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-                {groups.length === 0 && <span className="rp-muted">{t("catalog.none")}</span>}
-            </div>
+            <button type="button" className="rp-assign-btn" aria-haspopup="dialog" onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}>
+                {value ? <MobIcon icon={value} size={22} /> : null}<span>{value || t("catalog.iconSearch")}</span>
+            </button>
+            {anchor && <Flyout anchor={anchor} title={t("catalog.icon")} multi={false} options={options} onToggle={(n) => { onPick(n); setAnchor(null); }} onClose={() => setAnchor(null)} />}
         </div>
     );
 }

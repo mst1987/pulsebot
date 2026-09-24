@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useState, type PointerEvent } from "react";
+import Flyout from "../../../components/raidplan/Flyout";
 import { Check, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -16,7 +17,7 @@ import { useT } from "../../../i18n";
  * boss only ("nur dieser Boss", back to the raid type's numbers with the arrow). The pin puts a slot on the
  * map (click, or drag it onto the board); everything can be assigned unplaced.
  */
-export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown }: {
+export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown, onChipDown, onShow }: {
     board: RaidplanBoard;
     besetzung: BesetzungData;
     roster: RaidplanPlayer[];
@@ -26,20 +27,15 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
     /** Pointer down on a slot's pin: the workspace drags it onto the board (no move = put it near the middle). */
     onPlaceDown: (e: PointerEvent<HTMLElement>, slotId: string) => void;
+    /** Pointer down on a chip itself: the workspace drags it onto the board (or, when it is placed, back onto the bar to take it off). */
+    onChipDown: (e: PointerEvent<HTMLElement>, slotId: string) => void;
+    /** A placed chip was clicked: select the slot on the map and let it blink. */
+    onShow: (slotId: string) => void;
 }) {
     const t = useT();
-    const [open, setOpen] = useState("");
+    const [openSlot, setOpenSlot] = useState<{ id: string; el: HTMLElement } | null>(null);
+    const open = openSlot ? openSlot.id : "";
     const [showSplit, setShowSplit] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (!open) return undefined;
-        const away = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(""); };
-        const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(""); };
-        document.addEventListener("pointerdown", away, true);
-        document.addEventListener("keydown", key);
-        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", key); };
-    }, [open]);
-
     const all = besetzungSlots(board);
     const counts = effectiveCounts(board, besetzung, roster);
     const split = showSplit || counts.melee > 0 || counts.ranged > 0;
@@ -58,7 +54,8 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     type="button" className={`rp-bes-chip${player ? "" : " is-open"}${flexNow ? " is-flex" : ""}`} aria-expanded={open === s.id}
                     aria-label={`${name}${player ? `: ${player.character}` : ` (${t("raidBoard.slot.open")})`}`}
                     data-tip={player ? `${name}: ${player.character}` : `${name} (${t("raidBoard.slot.open")})`}
-                    onClick={() => setOpen(open === s.id ? "" : s.id)}
+                    onPointerDown={(e) => { if (canWrite) onChipDown(e, s.id); }}
+                    onClick={(e) => { if (on) onShow(s.id); setOpenSlot(open === s.id ? null : { id: s.id, el: e.currentTarget }); }}
                 >
                     {player ? <TokenIcon player={player} size="sm" /> : s.kind === "group" ? <Users size={15} aria-hidden="true" /> : <WowIcon name={roleIcon} size={20} />}
                     <span className="rp-bes-n">{s.n}</span>
@@ -69,52 +66,58 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     </button>
                 )}
                 {on && <span className="rp-bes-on" aria-hidden="true"><Check size={10} /></span>}
-                {open === s.id && (
-                    <div className="rp-pop rp-bes-pop" role="dialog" aria-label={name}>
-                        <strong className="rp-bes-pop-title">{name}{player ? <> · <PlayerName player={player} /></> : null}</strong>
-                        {canWrite && (
-                            <button type="button" className="rp-pop-act" onClick={() => { edit((b) => (on ? unplaceSlot(b, s.id) : placeSlot(b, s.id, null))); setOpen(""); }}>
-                                <MapPin size={14} /> {on ? t("raidBoard.bes.unplace") : t("raidBoard.bes.placeNow")}
-                            </button>
-                        )}
-                        {canWrite && isEvent && player && s.kind !== "group" && (
-                            <div className="rp-bes-flex" role="group" aria-label={t("raidBoard.bes.flex")}>
-                                <span className="rp-kicker">{t("raidBoard.bes.flex")}</span>
-                                <span className="rp-bes-flexbtns">
-                                    {["tank", "healer", "dps"].map((r) => {
-                                        const eff = roleOn(board, player);
-                                        const cur = eff === r || (r === "dps" && eff !== "tank" && eff !== "healer");
-                                        return (
-                                            <button key={r} type="button" className={`rp-pop-act${cur ? " is-on" : ""}`} aria-pressed={cur} onClick={() => { edit((b) => setFlexRole(b, roster, player.userId, r)); setOpen(""); }}>
-                                                <WowIcon name={ROLE_ICON[r]} size={18} /> {t(`raidBoard.slot.kind.${r}`)}
-                                            </button>
-                                        );
-                                    })}
-                                </span>
-                                {flexNow && <span className="rp-muted">{t("raidBoard.bes.flexNote", { role: t(`raidBoard.slot.kind.${player.role === "healer" || player.role === "tank" ? player.role : "dps"}`) })}</span>}
-                            </div>
-                        )}
-                        {canWrite && isEvent && s.kind !== "group" && (
-                            <>
-                                {player && <button type="button" className="rp-pop-act" onClick={() => { edit((b) => assignSlot(b, s.id, "")); setOpen(""); }}>{t("raidBoard.bes.free")}</button>}
-                                <span className="rp-kicker">{t("raidBoard.bes.give")}</span>
-                                <div className="rp-bes-people">
-                                    {[...roster.filter((p) => roleOn(board, p) === s.kind || (s.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer")), ...roster.filter((p) => roleOn(board, p) !== s.kind && !(s.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer"))].map((p) => (
-                                        <button key={p.userId} type="button" className={`rp-pop-item${player && p.userId === player.userId ? " is-on" : ""}`} onClick={() => { edit((b) => assignSlot(b, s.id, p.userId)); setOpen(""); }}>
-                                            <span className="rp-achip"><TokenIcon player={p} size="sm" /><PlayerName player={p} /></span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
             </span>
         );
     };
 
+    /** The picker of one slot beside the bar: place it, play another role here, free it, or give it to somebody (single choice). */
+    const flyout = (o: { id: string; el: HTMLElement }) => {
+        const s = board.slots.find((x) => x.id === o.id);
+        if (!s) return null;
+        const player = s.userId ? players.get(s.userId) || null : null;
+        const on = s.placed !== false;
+        const name = t(`raidBoard.slot.${s.kind}`, { n: s.n });
+        const fits = (p: RaidplanPlayer) => roleOn(board, p) === s.kind || (s.kind === "dps" && roleOn(board, p) !== "tank" && roleOn(board, p) !== "healer");
+        const options = canWrite && isEvent && s.kind !== "group"
+            ? roster.map((p) => ({
+                key: p.userId, label: p.character, on: !!player && p.userId === player.userId, group: fits(p) ? t("raidBoard.bes.fitting") : t("raidBoard.bes.others"),
+                node: <span className="rp-pchip"><TokenIcon player={p} size="sm" /><PlayerName player={p} /></span>,
+            })).sort((x, y) => (x.group === y.group ? 0 : x.group === t("raidBoard.bes.fitting") ? -1 : 1))
+            : [];
+        const flexNow = player ? board.roles[player.userId] : "";
+        return (
+            <Flyout
+                anchor={o.el} title={player ? `${name}: ${player.character}` : name} multi={false} options={options}
+                onToggle={(id) => edit((b) => assignSlot(b, s.id, id))} onClose={() => setOpenSlot(null)}
+                top={canWrite ? (
+                    <>
+                        <button type="button" className="rp-pop-act" onClick={() => { edit((b) => (on ? unplaceSlot(b, s.id) : placeSlot(b, s.id, null))); setOpenSlot(null); }}>
+                            <MapPin size={14} /> {on ? t("raidBoard.bes.unplace") : t("raidBoard.bes.placeNow")}
+                        </button>
+                        {isEvent && player && s.kind !== "group" && (
+                            <span className="rp-bes-flexbtns" role="group" aria-label={t("raidBoard.bes.flex")}>
+                                <span className="rp-kicker">{t("raidBoard.bes.flex")}</span>
+                                {["tank", "healer", "dps"].map((r) => {
+                                    const eff = roleOn(board, player);
+                                    const cur = eff === r || (r === "dps" && eff !== "tank" && eff !== "healer");
+                                    return (
+                                        <button key={r} type="button" className={`rp-pop-act${cur ? " is-on" : ""}`} aria-pressed={cur} onClick={() => { edit((b) => setFlexRole(b, roster, player.userId, r)); setOpenSlot(null); }}>
+                                            <WowIcon name={ROLE_ICON[r]} size={18} /> {t(`raidBoard.slot.kind.${r}`)}
+                                        </button>
+                                    );
+                                })}
+                                {flexNow && <span className="rp-muted">{t("raidBoard.bes.flexNote", { role: t(`raidBoard.slot.kind.${player.role === "healer" || player.role === "tank" ? player.role : "dps"}`) })}</span>}
+                            </span>
+                        )}
+                        {isEvent && player && s.kind !== "group" && <button type="button" className="rp-pop-act" onClick={() => { edit((b) => assignSlot(b, s.id, "")); setOpenSlot(null); }}>{t("raidBoard.bes.free")}</button>}
+                    </>
+                ) : undefined}
+            />
+        );
+    };
+
     return (
-        <section className="rp-bes" aria-label={t("raidBoard.bes.title")} ref={ref}>
+        <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
             <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);
@@ -146,6 +149,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     )}
                 </span>
             )}
+            {openSlot && flyout(openSlot)}
         </section>
     );
 }

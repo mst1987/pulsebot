@@ -55,10 +55,10 @@ export const DEFAULT_CARDS = {
  * has a row, and the cards added by hand (`extra`, editor only). The read view (`readOnly`) shows only
  * cards with content.
  */
-export function cardTypes(scope: string, assignments: RaidplanAssignment[], extra: string[], readOnly: boolean): string[] {
+export function cardTypes(scope: string, assignments: RaidplanAssignment[], extra: string[], readOnly: boolean, hidden: string[]): string[] {
     const want = new Set(assignments.map((a) => a.type as string));
     if (!readOnly) {
-        for (const x of DEFAULT_CARDS[scope] || DEFAULT_CARDS.boss) want.add(x);
+        for (const x of DEFAULT_CARDS[scope] || DEFAULT_CARDS.boss) if ((hidden || []).indexOf(x) < 0) want.add(x);
         for (const x of extra) want.add(x);
     }
     return CARD_ORDER.filter((x) => want.has(x));
@@ -68,6 +68,27 @@ export function cardTypes(scope: string, assignments: RaidplanAssignment[], extr
 export function addableCards(scope: string, shown: string[]): string[] {
     const types = SCOPE_TYPES[scope] || SCOPE_TYPES.boss;
     return CARD_ORDER.filter((x) => types.indexOf(x) >= 0 && shown.indexOf(x) < 0);
+}
+
+/** Whether a card is one of the area's default cards (those are hidden, the others removed). */
+export function isDefaultCard(scope: string, type: string): boolean {
+    return (DEFAULT_CARDS[scope] || DEFAULT_CARDS.boss).indexOf(type) >= 0;
+}
+
+/** Hides a default card on this board (kept in the plan, so the template, the event and everybody sees the same); its rows, if any, go with it. */
+export function hideCard(board: RaidplanBoard, type: string): RaidplanBoard {
+    const hidden = (board.hiddenCards || []).indexOf(type) >= 0 ? board.hiddenCards : [...(board.hiddenCards || []), type];
+    return { ...board, hiddenCards: hidden, assignments: board.assignments.filter((a) => a.type !== type) };
+}
+
+/** Brings a hidden default card back. */
+export function showCard(board: RaidplanBoard, type: string): RaidplanBoard {
+    return { ...board, hiddenCards: (board.hiddenCards || []).filter((x) => x !== type) };
+}
+
+/** Removes a card: the rows of its type are deleted (one Undo brings them back). */
+export function removeCard(board: RaidplanBoard, type: string): RaidplanBoard {
+    return { ...board, assignments: board.assignments.filter((a) => a.type !== type) };
 }
 
 /** The rows of one card, in their stored order. */

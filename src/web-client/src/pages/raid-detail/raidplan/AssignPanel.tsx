@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import Flyout from "../../../components/raidplan/Flyout";
+import { ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanSpellRef, type RaidplanPlayer } from "../../../api";
-import { Badge, IconButton } from "../../../components/ui";
+import { Badge, IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -53,49 +54,31 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
 
 export type Option = { key: string; label: string; node: ReactNode; on: boolean; group: string };
 
-/** A "+" that opens a small list to tick from (several at once); closes on a click outside or Esc. */
-export function ChipPicker({ options, onToggle, textPlaceholder, onText, label }: {
+/** A "+" that opens the picker beside the card (Flyout.tsx): a grid of chips in sections, several can be ticked, nothing scrolls. */
+export function ChipPicker({ options, onToggle, textPlaceholder, onText, label, multi = true }: {
     options: Option[];
     onToggle: (key: string) => void;
     textPlaceholder?: string;
     onText?: (text: string) => void;
     label: string;
+    multi?: boolean;
 }) {
     const [open, setOpen] = useState(false);
-    const [text, setText] = useState("");
-    const ref = useRef<HTMLSpanElement>(null);
-    useEffect(() => {
-        if (!open) return undefined;
-        const away = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-        const key = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-        document.addEventListener("pointerdown", away, true);
-        document.addEventListener("keydown", key);
-        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", key); };
-    }, [open]);
-    const groups = [...new Set(options.map((o) => o.group))];
+    const btn = useRef<HTMLButtonElement>(null);
     return (
-        <span className="rp-picker" ref={ref}>
-            <button type="button" className="rp-achip rp-achip-add" aria-label={label} aria-expanded={open} data-tip={label} onClick={() => setOpen((v) => !v)}><Plus size={14} /></button>
-            {open && (
-                <div className="rp-pop" role="listbox" aria-label={label} aria-multiselectable="true">
-                    {groups.map((g) => (
-                        <div key={g} className="rp-pop-group">
-                            {g && <span className="rp-kicker">{g}</span>}
-                            {options.filter((o) => o.group === g).map((o) => (
-                                <button key={o.key} type="button" role="option" aria-selected={o.on} className={`rp-pop-item${o.on ? " is-on" : ""}`} onClick={() => onToggle(o.key)}>
-                                    {o.node}
-                                </button>
-                            ))}
-                        </div>
-                    ))}
-                    {onText && (
-                        <form className="rp-pop-text" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { onText(text.trim()); setText(""); } }}>
-                            <input value={text} maxLength={60} placeholder={textPlaceholder} aria-label={textPlaceholder} onChange={(e) => setText(e.target.value)} />
-                            <button type="submit" className="rp-achip rp-achip-add" aria-label={textPlaceholder} disabled={!text.trim()}><Plus size={14} /></button>
-                        </form>
-                    )}
-                </div>
-            )}
+        <span className="rp-picker">
+            <button ref={btn} type="button" className="rp-achip rp-achip-add" aria-label={label} aria-expanded={open} aria-haspopup="dialog" data-tip={label} onClick={() => setOpen((v) => !v)}><Plus size={14} /></button>
+            {open && <Flyout anchor={btn.current} title={label} options={options} onToggle={onToggle} onClose={() => setOpen(false)} multi={multi} onText={onText} textPlaceholder={textPlaceholder} />}
+        </span>
+    );
+}
+
+/** A slot as a compact chip of a picker: the role's icon (the player's spec icon when somebody stands in it) and its number. */
+export function SlotPickChip({ r, n }: { r: Resolved; n: number }) {
+    return (
+        <span className="rp-pchip">
+            {r.player ? <TokenIcon player={r.player} size="sm" /> : <WowIcon name={ROLE_ICON[r.role] || ROLE_ICON.dps} size={18} />}
+            <b>{n}</b>
         </span>
     );
 }
@@ -228,7 +211,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     // another boss brings its own hand-added cards
     useEffect(() => { setExtra([]); setFolded([]); }, [scope, eventId]);
 
-    const shown = cardTypes(scope, board.assignments, extra, !canWrite);
+    const ask = useConfirm();
+    const shown = cardTypes(scope, board.assignments, extra, !canWrite, board.hiddenCards);
     const addable = addableCards(scope, shown);
 
     /** A new row of a card's type; a tanking row of a boss starts with the boss as its target. */
@@ -236,6 +220,20 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         const made = addRowOfType(b, type);
         const boss = scope === "boss" && type === "tank" ? sectionMobs.find((m) => m.id.indexOf("b:") === 0) : undefined;
         return boss ? toggleTarget(made.board, made.id, mobTarget(boss)) : made.board;
+    };
+
+    /**
+     * Takes a card away: a default card is hidden (it comes back through "Karte hinzufügen"), an added one removed. An empty
+     * one goes at once; with rows the orga is asked first — the rows go with it, Undo (Ctrl+Z) brings them back.
+     */
+    const dropCard = async (type: string, count: number) => {
+        const isDefault = isDefaultCard(scope, type);
+        if (count > 0) {
+            const name = t(`raidBoard.assign.type.${type}`);
+            if (!(await ask({ title: t(isDefault ? "raidBoard.assign.hideCardTitle" : "raidBoard.assign.removeCardTitle", { type: name }), text: t("raidBoard.assign.removeCardText", { count }), action: t(isDefault ? "raidBoard.assign.hide" : "raidBoard.assign.remove"), tone: "danger" }))) return;
+        }
+        setExtra(extra.filter((x) => x !== type));
+        edit((b) => (isDefault ? hideCard(b, type) : removeCard(b, type)));
     };
 
     const suggest = async (type: string) => {
@@ -253,11 +251,10 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
 
     const assigneeOptions = (a: RaidplanAssignment): Option[] => {
         const out: Option[] = [];
-        const slotTitle = t("raidBoard.assign.pickSlots");
         for (const s of slots) {
             const ref = `slot:${s.ref}`;
             const r = resolveAssignee(ref, ctx);
-            out.push({ key: ref, label: r.label, on: a.assignees.indexOf(ref) >= 0, group: slotTitle, node: <AssignChip r={r} /> });
+            out.push({ key: ref, label: r.player ? `${r.label}: ${r.player.character}` : r.label, on: a.assignees.indexOf(ref) >= 0, group: t(`raidBoard.slot.kind.${s.kind}`), node: <SlotPickChip r={r} n={s.n} /> });
         }
         if (isEvent) {
             const fit = roster.filter((p) => fitsType(a.type, p, catalog));
@@ -288,10 +285,14 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         const has = (tg: RaidplanAssignTarget) => a.targets.some((x) => x.kind === tg.kind && x.ref === tg.ref);
         const push = (tg: RaidplanAssignTarget, group: string) => {
             const r = resolveTarget(tg, ctx);
-            out.push({ key: `${tg.kind}|${tg.ref}`, label: r.label, on: has(tg), group, node: <AssignChip r={r} /> });
+            const node = tg.kind === "slot" ? <SlotPickChip r={r} n={Number(tg.ref.split(":")[1])} />
+                : tg.kind === "group" ? <span className="rp-pchip"><Users size={16} aria-hidden="true" /><b>{tg.ref}</b></span>
+                : tg.kind === "mark" ? <span className="rp-pchip"><MarkIcon mark={tg.ref as never} size={22} /></span>
+                : <AssignChip r={r} />;
+            out.push({ key: `${tg.kind}|${tg.ref}`, label: r.label, on: has(tg), group, node });
         };
         if (MOB_TYPES.indexOf(a.type) >= 0) for (const m of sectionMobs) push(mobTarget(m), t("raidBoard.assign.pickMobs"));
-        for (const s of slots) push({ kind: "slot", ref: s.ref }, t("raidBoard.assign.pickSlots"));
+        for (const s of slots) push({ kind: "slot", ref: s.ref }, t(`raidBoard.slot.kind.${s.kind}`));
         for (const g of groups) push({ kind: "group", ref: String(g) }, t("raidBoard.assign.pickGroups"));
         for (const m of ALL_MARKS) push({ kind: "mark", ref: m }, t("raidBoard.assign.pickMarks"));
         if (isEvent) for (const p of roster) push({ kind: "player", ref: p.userId }, t("raidBoard.assign.pickPlayers"));
@@ -311,7 +312,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                     {canWrite && addable.length > 0 && (
                         <label className="rp-assign-sel">
                             <Plus size={15} aria-hidden="true" />
-                            <select value="" aria-label={t("raidBoard.assign.addCard")} onChange={(e) => { const v = e.target.value; if (v) setExtra([...extra, v]); }}>
+                            <select value="" aria-label={t("raidBoard.assign.addCard")} onChange={(e) => { const v = e.target.value; if (!v) return; if (board.hiddenCards.indexOf(v) >= 0) edit((b) => showCard(b, v)); else setExtra([...extra, v]); }}>
                                 <option value="">{t("raidBoard.assign.addCard")}</option>
                                 {addable.map((x) => <option key={x} value={x}>{t(`raidBoard.assign.type.${x}`)}</option>)}
                             </select>
@@ -344,6 +345,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                         <IconButton size="sm" icon={<Wand2 size={15} />} tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)} />
                                     )}
                                     {canWrite && <IconButton size="sm" icon={<Plus size={15} />} tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); setFolded(folded.filter((x) => x !== type)); }} />}
+                                    {canWrite && <IconButton size="sm" tone="danger" icon={isDefaultCard(scope, type) ? <EyeOff size={15} /> : <Trash2 size={15} />} tip={t(isDefaultCard(scope, type) ? "raidBoard.assign.hideCard" : "raidBoard.assign.removeCard", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => dropCard(type, rows.length)} />}
                                     <IconButton size="sm" icon={<ChevronDown size={15} className={fold ? "rp-rot-90" : ""} />} tip={t(fold ? "raidBoard.assign.unfold" : "raidBoard.assign.fold")} aria-expanded={!fold} onClick={() => setFolded(fold ? folded.filter((x) => x !== type) : [...folded, type])} />
                                 </span>
                             </header>

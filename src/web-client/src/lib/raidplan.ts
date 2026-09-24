@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -109,6 +109,7 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         counts: b.counts || null,
         roles: b.roles || {},
         mobs: b.mobs || [],
+        hiddenCards: b.hiddenCards || [],
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -213,12 +214,14 @@ export function objectCount(board: RaidplanBoard): number {
  * near the middle. Returns the new board and the selection of what was inserted.
  * A zone and a line are centred on the point, a slot, mark and text are anchored on it.
  */
-export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: number; y: number } | null): { board: RaidplanBoard; sel: Selection } {
+export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: number; y: number } | null): { board: RaidplanBoard; sel: Selection; blocked?: string } {
     const p = at ? { x: clamp01(at.x), y: clamp01(at.y) } : spawnPoint(objectCount(board));
     const id = newRowId();
     if (spec.type === "slot") {
         const free = isRoleKind(spec.kind) ? board.slots.filter((s) => s.kind === spec.kind && s.placed === false).sort((a, b) => a.n - b.n)[0] : undefined;
         if (free) return { board: { ...board, slots: board.slots.map((s) => (s.id === free.id ? { ...s, placed: true, x: p.x, y: p.y } : s)) }, sel: { kind: "slot", id: free.id } };
+        // a role slot belongs to the Besetzung: the palette never makes a new one (+/- in the Besetzung does), it says so instead
+        if (isRoleKind(spec.kind)) return { board, sel: null, blocked: spec.kind };
         const slot = {
             id, kind: spec.kind, n: nextSlotNumber(board, spec.kind), label: spec.label || (spec.kind === "group" ? t("raidBoard.slot.group", { n: nextSlotNumber(board, spec.kind) }) : ""), x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
             hideMembers: false, split: false, offsets: {}, placed: true, ...newLook(1),
@@ -254,7 +257,14 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
 
 /** Adds a slot of a kind ("Tank 3"); a free label carries its own text. */
 export function addSlot(board: RaidplanBoard, kind: RaidplanSlotKind, label: string): RaidplanBoard {
-    return insertObject(board, { type: "slot", kind, label }, null).board;
+    // makes a slot outright (the palette never does for a role: it places one of the Besetzung)
+    const n = nextSlotNumber(board, kind);
+    const p = spawnPoint(objectCount(board));
+    const slot = {
+        id: newRowId(), kind, n, label: label || (kind === "group" ? t("raidBoard.slot.group", { n }) : ""), x: p.x, y: p.y, userId: "", size: SIZE_RANGES.slot.def,
+        hideMembers: false, split: false, offsets: {}, placed: true, ...newLook(1),
+    };
+    return { ...board, slots: [...board.slots, slot] };
 }
 
 export function addMark(board: RaidplanBoard, mark: RaidplanMarkName): RaidplanBoard {
@@ -790,7 +800,7 @@ export function parseInsertId(id: string): InsertSpec | null {
  * `at` is where the menu was opened (an insert lands there). Returns the new board
  * and what should be selected afterwards (null = nothing / keep).
  */
-export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKind | "", objId: string, at: { x: number; y: number } | null): { board: RaidplanBoard; sel: Selection } {
+export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKind | "", objId: string, at: { x: number; y: number } | null): { board: RaidplanBoard; sel: Selection; blocked?: string } {
     const spec = parseInsertId(id);
     if (spec) return insertObject(board, spec, at);
     const sel = kind ? { kind, id: objId } : null;
@@ -930,6 +940,10 @@ export function effectiveCounts(board: RaidplanBoard, besetzung: Besetzung, rost
  */
 export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
     if (!besetzung) return board;
+    return fillBesetzung(repairSlots(board, besetzung, roster), besetzung, roster);
+}
+
+function fillBesetzung(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): RaidplanBoard {
     const want = slotCounts(effectiveCounts(board, besetzung, roster));
     const missing = [];
     for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
@@ -948,6 +962,74 @@ export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | nul
         };
     });
     return { ...board, slots: [...board.slots, ...added] };
+}
+
+/**
+ * Mends a board whose role slots got out of step (older versions let the palette make extra slots): the same kind and
+ * number more than once is merged into one — it keeps the player, the map position and the size of the ones it
+ * merges, and a second player or position is never thrown away (that slot gets a free number instead) — and slots
+ * above what the Besetzung has that hold nobody and are not on the map go. Assignments refer to kind and number, so
+ * they stay valid. Returns the same board when there is nothing to mend.
+ */
+export function repairSlots(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): RaidplanBoard {
+    const want = slotCounts(effectiveCounts(board, besetzung, roster));
+    const seen = new Map();
+    let changed = false;
+    const out = [];
+    for (const s of board.slots) {
+        if (!isRoleKind(s.kind)) { out.push(s); continue; }
+        const key = `${s.kind}:${s.n}`;
+        const keeper = seen.get(key);
+        if (!keeper) { seen.set(key, s); out.push(s); continue; }
+        // the same slot twice: merge what the second one has into the first
+        changed = true;
+        const merged = mergeSlot(keeper, s);
+        out[out.indexOf(keeper)] = merged.keep;
+        seen.set(key, merged.keep);
+        if (merged.rest) out.push(merged.rest);
+    }
+    // a leftover that could not be merged needs a number of its own
+    const taken = new Set(out.filter((s) => isRoleKind(s.kind)).map((s) => `${s.kind}:${s.n}`));
+    const numbered = out.map((s) => {
+        if (!s.__dupe) return s;
+        let n = s.n;
+        while (taken.has(`${s.kind}:${n}`)) n += 1;
+        taken.add(`${s.kind}:${n}`);
+        return { ...s, n, __dupe: undefined };
+    });
+    const kept = numbered.filter((s) => !(isRoleKind(s.kind) && s.n > slotLimit(s.kind, besetzung, want) && !s.userId && s.placed === false));
+    if (kept.length !== numbered.length) changed = true;
+    return changed ? { ...board, slots: kept.map(withoutMark) } : board;
+}
+
+function slotLimit(kind: string, besetzung: Besetzung, want: BesetzungCounts): number {
+    return kind === "group" ? besetzung.groups : countOf(want, kind);
+}
+
+function withoutMark(s: RaidplanSlot): RaidplanSlot {
+    const c = { ...s };
+    Reflect.deleteProperty(c, "__dupe");
+    return c;
+}
+
+/** Two slots of the same kind and number become one: the first takes the player, the position and the size the second has and it lacks; what cannot be taken over stays as a slot of its own (`rest`). */
+function mergeSlot(a: RaidplanSlot, b: RaidplanSlot): { keep: RaidplanSlot; rest: RaidplanSlot | null } {
+    let keep = a;
+    let rest = null;
+    if (!a.userId && b.userId) keep = { ...keep, userId: b.userId };
+    else if (a.userId && b.userId && a.userId !== b.userId) rest = { ...b, placed: false, __dupe: true };
+    if (a.placed === false && b.placed !== false) keep = { ...keep, placed: true, x: b.x, y: b.y };
+    else if (a.placed !== false && b.placed !== false && rest === null && (a.x !== b.x || a.y !== b.y)) rest = null;
+    if (!keep.label && b.label) keep = { ...keep, label: b.label };
+    return { keep, rest };
+}
+
+/** How many role slots of each kind are on the map and how many there are: the palette shows "3/5" and greys a kind out once all are placed. */
+export function slotTally(board: RaidplanBoard): { kind: string; placed: number; total: number }[] {
+    return [...ROLE_KINDS, "group"].map((kind) => {
+        const list = board.slots.filter((s) => s.kind === kind);
+        return { kind, placed: list.filter((s) => s.placed !== false).length, total: list.length };
+    });
 }
 
 /** The counts as this board sets them (its own, else the type's) with one role changed (+/-); melee + ranged stay within the DPS. */
@@ -1011,6 +1093,19 @@ export function placeSlot(board: RaidplanBoard, id: string, at: { x: number; y: 
 /** Takes a slot off the map; it stays in the Besetzung and stays assignable. */
 export function unplaceSlot(board: RaidplanBoard, id: string): RaidplanBoard {
     return { ...board, slots: board.slots.map((s) => (s.id === id ? { ...s, placed: false } : s)) };
+}
+
+/**
+ * What dropping a chip of the Besetzung does (pure, so it is testable): on the map the slot goes exactly there (an unplaced
+ * one is placed, a placed one moves), on the bar a placed slot leaves the map, anywhere else nothing happens. It never adds
+ * a slot or changes a count.
+ */
+export function dropChip(board: RaidplanBoard, slotId: string, target: "map" | "bar" | "none", at: { x: number; y: number } | null): RaidplanBoard {
+    const s = board.slots.find((x) => x.id === slotId);
+    if (!s || !isRoleKind(s.kind) && s.kind !== "group") return board;
+    if (target === "map" && at) return placeSlot(board, slotId, at);
+    if (target === "bar" && s.placed !== false) return unplaceSlot(board, slotId);
+    return board;
 }
 
 /** The role slots of a board in Besetzung order: tanks, healers, melee, ranged, then the groups. */
