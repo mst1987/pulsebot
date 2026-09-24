@@ -10,13 +10,14 @@ import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
 import { effectiveClasses } from "../../../lib/rosterAssign";
+import { expandClassRefs, isClassRef, parseClassRef } from "../../../lib/classRefs";
 import { useT } from "../../../i18n";
 
 /** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */
@@ -34,6 +35,8 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
             <TokenIcon player={r.player} size="sm" />
             <PlayerName player={r.player} />
         </>
+    ) : r.kind === "class" ? (
+        <><WowIcon name={r.icon} size={18} /><span className="rp-achip-open">{r.label} ({t("raidBoard.class.missing")})</span></>
     ) : r.kind === "mark" ? (
         <><MarkIcon mark={r.mark as never} size={18} /><span>{r.label}</span></>
     ) : r.kind === "mob" ? (
@@ -104,6 +107,9 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
 }) {
     const t = useT();
     const wishCls = effectiveClasses({ slots: ctx.slots } as unknown as RaidplanBoard, a);
+    // what the class references mean right now (the row itself keeps the references)
+    const v = (ctx.filled || []).find((x) => x.id === a.id) || a;
+    const classIcon = (ref: string) => { const q = parseClassRef(ref); return q ? <WowIcon name={classIconOf(q.classId)} size={14} /> : null; };
     const rotation = a.type === "kick" && a.assignees.length > 1;
     const showNote = a.note !== "" || noteOpen;
     return (
@@ -136,8 +142,8 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
                     )}
                     {a.assignees.map((ref, i) => (
                         <AssignChip
-                            key={ref} r={resolveAssignee(ref, ctx)}
-                            extra={<>{rotation ? <span className="rp-achip-no">{i + 1}</span> : null}{outOfClass(a, resolveAssignee(ref, ctx).player) && <AlertTriangle size={12} className="rp-oop" aria-label={t("raidBoard.assign.outOfClass")} data-tip={t("raidBoard.assign.outOfClass")} />}</>}
+                            key={ref} r={resolveAssignee(v.assignees[i] || ref, ctx)}
+                            extra={<>{isClassRef(ref) && v.assignees[i] !== ref ? classIcon(ref) : null}{rotation ? <span className="rp-achip-no">{i + 1}</span> : null}{outOfClass(a, resolveAssignee(v.assignees[i] || ref, ctx).player) && <AlertTriangle size={12} className="rp-oop" aria-label={t("raidBoard.assign.outOfClass")} data-tip={t("raidBoard.assign.outOfClass")} />}</>}
                             onRemove={canWrite ? () => edit((b) => toggleAssignee(b, a.id, ref)) : undefined}
                         />
                     ))}
@@ -155,8 +161,8 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
                 </span>
                 <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>
                 <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.targets")}>
-                    {a.targets.map((tg) => (
-                        <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(tg, ctx)} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
+                    {a.targets.map((tg, i) => (
+                        <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(v.targets[i] || tg, ctx)} extra={tg.kind === "class" && v.targets[i] && v.targets[i].kind !== "class" ? classIcon(tg.ref) : null} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
                     ))}
                     {canWrite && <button type="button" className="rp-achip rp-achip-add" aria-label={t("raidBoard.assign.addTarget")} data-tip={t("raidBoard.assign.addTarget")} onClick={() => onEdit(a.id)}><Plus size={14} /></button>}
                 </span>
@@ -211,7 +217,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [folded, setFolded] = useState<string[]>([]);
     const [editing, setEditing] = useState("");
     const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
-    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog }), [board.slots, players, catalog]);
+    const filled = useMemo(() => expandClassRefs(board.assignments, board.slots, roster, board.roles), [board.assignments, board.slots, board.roles, roster]);
+    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog, filled }), [board.slots, players, catalog, filled]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
@@ -339,7 +346,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             )}
             {editing && board.assignments.some((x) => x.id === editing) && (
                 <AssignModal
-                    board={board} rowId={editing} isEvent={isEvent} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
+                    board={board} rowId={editing} isEvent={isEvent} roster={roster} catalog={catalog} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
                     assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions}
                     onTarget={toggleTargetKey}
                     onText={(b, id, text) => (b.assignments.find((x) => x.id === id)?.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, id, { kind: "text", ref: text }))}
@@ -425,54 +432,5 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                 })}
             </div>
         </section>
-    );
-}
-
-/**
- * The read view: the same cards side by side, only those with content, the viewer's own rows
- * highlighted. Names and icons come live from the (approved) setup.
- */
-export function AssignTable({ assignments, ctx, me }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[] }) {
-    const t = useT();
-    if (assignments.length === 0) return null;
-    const types = CARD_ORDER.filter((x) => assignments.some((a) => a.type === x));
-    return (
-        <div className="rp-cards rp-cards-read">
-            {types.map((type) => {
-                const meta = ASSIGN_META[type] || ASSIGN_META.other;
-                return (
-                    <section key={type} className="rp-acard" aria-label={t(`raidBoard.assign.type.${type}`)}>
-                        <header className="rp-acard-head">
-                            <WowIcon name={meta.icon} size={24} />
-                            <strong>{t(`raidBoard.assign.type.${type}`)}</strong>
-                            <span className="rp-acard-count">{rowsOfType(assignments, type).length}</span>
-                        </header>
-                        <ul className="rp-alist">
-                            {rowsOfType(assignments, type).map((a) => (
-                                <li key={a.id} className={`rp-arow${isMine(a, ctx, me) ? " is-own" : ""}`}>
-                                    {(a.title || a.spell) && <div className="rp-atitle-read"><WowIcon name={iconForTask(a)} size={20} />{[a.spell ? a.spell.name : "", a.title].filter(Boolean).join(": ")}</div>}
-                                    <div className="rp-arow-main">
-                                        <span className="rp-achips">
-                                            {a.assignees.map((ref, i) => {
-                                                const r = resolveAssignee(ref, ctx);
-                                                return <AssignChip key={ref} r={r} mine={isMe(r, me)} extra={a.type === "kick" && a.assignees.length > 1 ? <span className="rp-achip-no">{i + 1}</span> : undefined} />;
-                                            })}
-                                        </span>
-                                        {a.targets.length > 0 && <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>}
-                                        <span className="rp-achips">
-                                            {a.targets.map((tg) => {
-                                                const r = resolveTarget(tg, ctx);
-                                                return <AssignChip key={`${tg.kind}|${tg.ref}`} r={r} mine={isMe(r, me)} />;
-                                            })}
-                                        </span>
-                                    </div>
-                                    {a.note && <span className="rp-muted">{a.note}</span>}
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                );
-            })}
-        </div>
     );
 }

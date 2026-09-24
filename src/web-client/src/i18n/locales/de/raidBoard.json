@@ -562,8 +562,8 @@
     },
     "read": {
         "mine": "Meine Einteilungen",
-        "notInPlan": "Für dich steht in diesem Abschnitt keine Einteilung im Plan.",
-        "loginHint": "Einloggen, um deine Einteilungen zu sehen.",
+        "notInPlan": "Keine Einteilung für dich in diesem Abschnitt.",
+        "loginHint": "Einloggen, um deine Aufgaben und Einteilungen auf dich zu sehen.",
         "colTank": "Tank",
         "colTarget": "Ziel",
         "colHealers": "Heiler",
@@ -618,5 +618,65 @@
         "reload": "Neu laden",
         "retry": "Erneut versuchen",
         "details": "Details"
+    },
+    "class": {
+        "title": "Klasse (wird automatisch besetzt)",
+        "targetTitle": "Klasse als Ziel",
+        "missing": "fehlt",
+        "suggested": "Vorschlag fuer diese Aufgabe",
+        "role": "Rolle",
+        "anySpec": "Beliebig",
+        "roles": {
+            "tank": "Tank",
+            "healer": "Heiler",
+            "dps": "DPS",
+            "melee": "Melee",
+            "ranged": "Ranged"
+        },
+        "addSuggested": "Vorgeschlagene Klassen uebernehmen",
+        "allowMulti": "Mehrfach erlauben (derselbe Spieler darf mehrfach)",
+        "fills": "Wer nimmt die Klasse",
+        "auto": "Automatisch",
+        "none": "{cls} fehlt im Raid"
+    },
+    "mine": {
+        "title": "Meine Aufgaben",
+        "onMe": "Auf mich wirkend",
+        "all": "Alle Einteilungen",
+        "me": "ICH",
+        "you": "DICH",
+        "onYou": "AUF DICH",
+        "alsoOnYou": "auch auf dich",
+        "group": {
+            "tank": "Tanken",
+            "heal": "Heilen",
+            "kick": "Kicken (Unterbrechen)",
+            "md": "Misdirect",
+            "ss": "Soulstone",
+            "fearward": "Fearward",
+            "support": "Dispel / CC / Buff",
+            "curse": "Flüche",
+            "warrior": "Thunder Clap / Demo Shout",
+            "other": "Sonstiges"
+        },
+        "on": {
+            "text": "Nennt dich: {type}",
+            "player": {
+                "tank": "Tankt mit dir",
+                "heal": "Heilt dich",
+                "md": "Misdirect auf dich",
+                "ss": "Soulstone auf dich",
+                "fearward": "Fearward auf dich",
+                "generic": "{type} auf dich"
+            },
+            "group": {
+                "tank": "Tankt für deine Gruppe ({n})",
+                "heal": "Heilt deine Gruppe ({n})",
+                "md": "Misdirect auf deine Gruppe ({n})",
+                "ss": "Soulstone auf deine Gruppe ({n})",
+                "fearward": "Fearward auf deine Gruppe ({n})",
+                "generic": "{type} auf deine Gruppe ({n})"
+            }
+        }
     }
 }

@@ -4191,14 +4191,14 @@ export type RaidplanPlayer = {
     group: number;
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
-export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string };
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string };
 /** The catalog spell a row is about, with a snapshot of its name and icon. */
 export type RaidplanSpellRef = { id: string; name: string; icon: string };
 /** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */
 export type RaidplanMobRef = { id: string; name: string; icon: string };
 export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
 /** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string };
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };

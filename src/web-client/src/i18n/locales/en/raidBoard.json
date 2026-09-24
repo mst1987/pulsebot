@@ -562,8 +562,8 @@
     },
     "read": {
         "mine": "My assignments",
-        "notInPlan": "You have no assignment in this section of the plan.",
-        "loginHint": "Log in to see your assignments.",
+        "notInPlan": "No assignment for you in this section.",
+        "loginHint": "Log in to see your tasks and what is assigned to you.",
         "colTank": "Tank",
         "colTarget": "Target",
         "colHealers": "Healers",
@@ -618,5 +618,65 @@
         "reload": "Reload",
         "retry": "Try again",
         "details": "Details"
+    },
+    "class": {
+        "title": "Class (filled automatically)",
+        "targetTitle": "Class as target",
+        "missing": "missing",
+        "suggested": "Suggested for this task",
+        "role": "Role",
+        "anySpec": "Any",
+        "roles": {
+            "tank": "Tank",
+            "healer": "Healer",
+            "dps": "DPS",
+            "melee": "Melee",
+            "ranged": "Ranged"
+        },
+        "addSuggested": "Add the suggested classes",
+        "allowMulti": "Allow several (the same player may do it more than once)",
+        "fills": "Who takes the class",
+        "auto": "Automatic",
+        "none": "{cls} is missing in the raid"
+    },
+    "mine": {
+        "title": "My tasks",
+        "onMe": "Acting on me",
+        "all": "All assignments",
+        "me": "ME",
+        "you": "YOU",
+        "onYou": "ON YOU",
+        "alsoOnYou": "also on you",
+        "group": {
+            "tank": "Tanking",
+            "heal": "Healing",
+            "kick": "Interrupts",
+            "md": "Misdirect",
+            "ss": "Soulstone",
+            "fearward": "Fear Ward",
+            "support": "Dispel / CC / Buff",
+            "curse": "Curses",
+            "warrior": "Thunder Clap / Demo Shout",
+            "other": "Other"
+        },
+        "on": {
+            "text": "Names you: {type}",
+            "player": {
+                "tank": "Tanks with you",
+                "heal": "Heals you",
+                "md": "Misdirect on you",
+                "ss": "Soulstone on you",
+                "fearward": "Fear Ward on you",
+                "generic": "{type} on you"
+            },
+            "group": {
+                "tank": "Tanks for your group ({n})",
+                "heal": "Heals your group ({n})",
+                "md": "Misdirect on your group ({n})",
+                "ss": "Soulstone on your group ({n})",
+                "fearward": "Fear Ward on your group ({n})",
+                "generic": "{type} on your group ({n})"
+            }
+        }
     }
 }

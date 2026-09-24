@@ -7,6 +7,7 @@
 // Written to be strippable (test/web-client/assign.test.js runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
 import { mentionsInRow } from "./mention";
+import { parseClassRef } from "./classRefs";
 import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../api";
 import { t } from "../i18n";
 
@@ -286,9 +287,9 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[] };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
-export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string };
+export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string; /** a class reference: the class */ classId?: string };
 
 const NONE = { kind: "", ref: "", label: "", player: null, open: false, mark: "", group: 0, role: "", icon: "" };
 
@@ -301,6 +302,13 @@ function slotPlayer(ctx: AssignCtx, kind: string, n: number): RaidplanPlayer | n
     return s ? ctx.players.get(s.userId) || null : null;
 }
 
+/** A class reference nobody fills (yet): an open place with the class icon and the class name; `role` is its role filter. */
+function classResolved(ref: string): Resolved {
+    const q = parseClassRef(ref);
+    if (!q) return { ...NONE, ref, label: ref };
+    return { ...NONE, kind: "class", ref, label: t(`wow.class.${q.classId}`) + (q.n > 1 ? ` ${q.n}` : ""), open: true, role: q.role, icon: classIconOf(q.classId), classId: q.classId };
+}
+
 /** An assignee: `slot:<kind>:<n>` (the placeholder, or who stands in it) or `user:<userId>`. */
 export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
     const p = ref.split(":");
@@ -309,6 +317,7 @@ export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
         const player = slotPlayer(ctx, p[1], n);
         return { ...NONE, kind: "slot", ref, label: slotLabel(p[1], n), player, open: !player, role: p[1] };
     }
+    if (p[0] === "class") return classResolved(ref);
     if (p[0] === "user") {
         const player = ctx.players.get(p[1]) || null;
         return { ...NONE, kind: "user", ref, label: player ? player.character : "?", player, open: !player };
@@ -323,6 +332,7 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
         const player = slotPlayer(ctx, p[0], Number(p[1]));
         return { ...NONE, kind: "slot", ref: target.ref, label: slotLabel(p[0], Number(p[1])), player, open: !player, role: p[0] };
     }
+    if (target.kind === "class") return { ...classResolved(target.ref), ref: target.ref };
     if (target.kind === "group") return { ...NONE, kind: "group", ref: target.ref, label: t("raidBoard.slot.group", { n: Number(target.ref) }), group: Number(target.ref) };
     if (target.kind === "player") {
         const player = ctx.players.get(target.ref) || null;

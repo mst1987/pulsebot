@@ -5,9 +5,9 @@ import type { RaidplanAssignment } from "../api";
 import { resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx, Resolved } from "./assign";
 
-export type TankRow = { key: string; tank: Resolved; target: Resolved | null; healers: Resolved[]; own: boolean };
-export type GroupHealRow = { key: string; healers: Resolved[]; groups: number[] };
-export type SimpleRow = { key: string; order: number; task: string; spell: string; who: Resolved[]; targets: Resolved[]; note: string };
+export type TankRow = { key: string; rowId: string; tank: Resolved; target: Resolved | null; healers: Resolved[]; own: boolean };
+export type GroupHealRow = { key: string; rowId: string; healers: Resolved[]; groups: number[] };
+export type SimpleRow = { key: string; rowId: string; order: number; task: string; spell: string; who: Resolved[]; targets: Resolved[]; note: string };
 export type SimpleTable = { type: string; rows: SimpleRow[] };
 
 /** Whether a tank (an assignee of a tank row) is the thing a heal row's target names: the same slot, or the same person in it. */
@@ -38,7 +38,7 @@ export function tankTable(assignments: RaidplanAssignment[], ctx: AssignCtx, isO
             const tank = resolveAssignee(ref, ctx);
             const list = targets.length > 0 ? targets : [null];
             list.forEach((target, i) => {
-                rows.push({ key: `${a.id}:${ref}:${i}`, tank, target, healers: healersOf(tank, assignments, ctx), own: isOwn(a) });
+                rows.push({ key: `${a.id}:${ref}:${i}`, rowId: a.id, tank, target, healers: healersOf(tank, assignments, ctx), own: isOwn(a) });
             });
         });
     }
@@ -52,7 +52,7 @@ export function groupHealTable(assignments: RaidplanAssignment[], ctx: AssignCtx
         if (String(a.type) !== "heal") continue;
         const groups = a.targets.filter((tg) => tg.kind === "group").map((tg) => Number(tg.ref)).sort((x, y) => x - y);
         if (groups.length === 0 || a.assignees.length === 0) continue;
-        rows.push({ key: a.id, healers: a.assignees.map((ref) => resolveAssignee(ref, ctx)), groups });
+        rows.push({ key: a.id, rowId: a.id, healers: a.assignees.map((ref) => resolveAssignee(ref, ctx)), groups });
     }
     return rows;
 }
@@ -71,7 +71,7 @@ export function simpleTables(assignments: RaidplanAssignment[], ctx: AssignCtx):
         for (const a of assignments) {
             if (String(a.type) !== type) continue;
             const targets = a.targets.map((tg) => resolveTarget(tg, ctx));
-            const base = { task: a.title, spell: a.spell ? a.spell.name : "", targets, note: a.note };
+            const base = { rowId: a.id, task: a.title, spell: a.spell ? a.spell.name : "", targets, note: a.note };
             if (type === "kick" && a.assignees.length > 1) {
                 a.assignees.forEach((ref, i) => rows.push({ ...base, key: `${a.id}:${i}`, order: i + 1, who: [resolveAssignee(ref, ctx)] }));
             } else {

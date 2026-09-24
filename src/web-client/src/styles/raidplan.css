@@ -964,3 +964,30 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .rp-canvas .rp-handle, .rp-canvas .rp-multi-edge { transform-origin: 50% 50%; }
 .rp-canvas .rp-handle { transform: scale(max(1, calc(1 / var(--rp-k, 1)))); }
+
+/* a class as who does a task */
+.rp-cpick { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.rp-cpick-chip { border-color: color-mix(in srgb, var(--cc, var(--line)) 60%, transparent); }
+.rp-cpick-chip.is-suggested { box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc, var(--accent)) 55%, transparent); }
+.rp-cpick-roles { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; }
+.rp-cpick-sel { border-color: color-mix(in srgb, var(--cc, var(--line)) 70%, transparent); }
+.rp-cpick-fill { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.rp-cpick-one { display: flex; flex-direction: column; gap: 3px; }
+.rp-cpick-name { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 13px; }
+.rp-fchip.is-auto { outline: 1px dashed var(--accent); }
+
+/* Meine Aufgaben / Auf mich wirkend */
+.rp-mine h2, .rp-onme h2 { margin: 0 0 6px; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.rp-mineblk { margin-top: 8px; }
+.rp-mineblk h3 { margin: 0 0 4px; }
+.rp-mineblk ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rp-mine-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 15px; font-weight: 600; }
+.rp-mine-me, .rp-onme-you { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .08em; background: var(--accent); color: var(--accent-ink); }
+.rp-also-onyou { font-size: 12px; font-weight: 700; color: var(--muted); font-style: italic; }
+.rp-onme { border: 2px solid var(--onme, #e0a020); border-radius: 12px; background: color-mix(in srgb, var(--onme, #e0a020) 10%, var(--panel)); padding: 10px 14px 12px; margin: 10px 0; }
+.rp-onme-badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: .1em; background: var(--onme, #e0a020); color: #1a1205; }
+.rp-onme-badge.is-small { margin-left: 8px; font-size: 10px; }
+.rp-onme-verb { font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 13px; }
+.rp-onme-you { background: var(--onme, #e0a020); color: #1a1205; }
+.rp-allhead { margin: 14px 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rp-rtable tr.is-onme td { background: color-mix(in srgb, var(--onme, #e0a020) 14%, transparent); box-shadow: inset 3px 0 0 var(--onme, #e0a020); }

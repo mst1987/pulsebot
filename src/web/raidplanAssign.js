@@ -4,7 +4,8 @@
 //   { id, type, title, assignees: [ref], targets: [{ kind, ref }], note, suggested }
 //   (`title` is the free text of the task: "Kick Fear", "Interrupt Shadow Bolt Volley" ...)
 //
-//   assignee ref   "slot:<kind>:<n>"  a placeholder slot of the board (tank/healer/melee/ranged/dps n)
+//   assignee ref   "class:<Class>:<n>[:<role>]"  the n-th free raider of that class (resolved from the setup, never stored; `picks` = a hand-made choice)
+//                  "slot:<kind>:<n>"  a placeholder slot of the board (tank/healer/melee/ranged/dps n)
 //                  "user:<userId>"    one raider (event plans only)
 //   target         { kind: "slot",   ref: "tank:1" }     a slot of the board
 //                  { kind: "group",  ref: "3" }          setup group 3
@@ -24,12 +25,15 @@
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
 const ASSIGN_TYPES = ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
-const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob"];
+const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class"];
 // a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
 const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
+// a class as who does it / at whom: "class:Hunter:1" = the 1st free Hunter (n counts per class and kind of task); an optional last part limits the role
+const CLASS_ASSIGNEE = /^class:(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9])(?::(tank|healer|dps|melee|ranged))?$/;
+const CLASS_TARGET = /^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9])(?::(tank|healer|dps|melee|ranged))?$/;
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
@@ -79,7 +83,7 @@ function cleanAssignments(raw, allowed = new Set()) {
         for (const ref of Array.isArray(o.assignees) ? o.assignees : []) {
             const r = str(ref);
             const isUser = r.startsWith("user:") && ID_REF.test(r.slice(5)) && allowed.has(r.slice(5));
-            if ((!SLOT_REF.test(r) && !isUser) || assignees.includes(r)) { dropped += 1; continue; }
+            if ((!SLOT_REF.test(r) && !isUser && !CLASS_ASSIGNEE.test(r)) || assignees.includes(r)) { dropped += 1; continue; }
             if (assignees.length >= LIMITS.assignees) break;
             assignees.push(r);
         }
@@ -95,6 +99,7 @@ function cleanAssignments(raw, allowed = new Set()) {
             else if (kind === "mark") good = MARKS.includes(ref);
             else if (kind === "text") { ref = ref.slice(0, LIMITS.text); good = ref !== ""; }
             else if (kind === "mob") good = MOB_REF.test(ref);
+            else if (kind === "class") good = CLASS_TARGET.test(ref);
             if (!good || targets.some((x) => x.kind === kind && x.ref === ref)) { dropped += 1; continue; }
             if (targets.length >= LIMITS.targets) break;
             targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "" } : { kind, ref });
@@ -103,11 +108,20 @@ function cleanAssignments(raw, allowed = new Set()) {
         const sp = o.spell && typeof o.spell === "object" ? o.spell : null;
         const spell = sp && SPELL_ID.test(str(sp.id)) && str(sp.name) ? { id: str(sp.id), name: str(sp.name).slice(0, LIMITS.text), icon: ICON.test(str(sp.icon)) ? str(sp.icon) : "" } : null;
 
+        // a class picked by hand for one of the row's class references (key: the assignee ref, or "t:" + the target ref): a raider of this event
+        const picks = {};
+        const rawPicks = o.picks && typeof o.picks === "object" ? o.picks : {};
+        for (const key of Object.keys(rawPicks).slice(0, 24)) {
+            const who = str(rawPicks[key]);
+            const known = assignees.includes(key) || (key.startsWith("t:") && targets.some((x) => x.kind === "class" && x.ref === key.slice(2)));
+            if (known && ID_REF.test(who) && allowed.has(who)) picks[key] = who;
+        }
+
         out.push({
             id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", title: str(o.title).slice(0, LIMITS.title), spell, assignees, targets,
             note: str(o.note).slice(0, LIMITS.note), suggested: o.suggested === true,
             // the class(es) that should do it (only known classes, once each) and whether a suggestion may take others when none fits
-            preferredClasses: cleanClasses(o.preferredClasses), allowOthers: o.allowOthers === true,
+            preferredClasses: cleanClasses(o.preferredClasses), allowOthers: o.allowOthers === true, picks, allowMulti: o.allowMulti === true,
             // where the row comes from: "default" (written in from the template's Standard) or the id of the default row a boss deviated from
             origin: /^[\w-]{1,24}$/.test(str(o.origin)) ? str(o.origin) : "",
         });
@@ -241,7 +255,56 @@ function targetsToAssignments(targets, known) {
     return out;
 }
 
+// ---- class references -------------------------------------------------------------------------
+// The same rules as src/web-client/src/lib/classRefs.ts (expandClassRefs): the public page only gets the raiders a plan names, so the
+// server resolves a class reference before it leaves. Kept in step with the client by the two test files.
+
+const parseClassRef = (ref) => {
+    const p = String(ref).split(":");
+    if (p[0] === "class") p.shift();
+    const n = Number(p[1]);
+    return p.length < 2 || !p[0] || !(n >= 1) ? null : { classId: p[0], n, role: p[2] || "" };
+};
+const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !== "tank" && role !== "healer" : role === filter);
+
+/** The assignments with every class reference replaced by the raider it means (the n-th free one of the class); an unfilled one stays a reference. */
+function expandClassRefs(assignments, slots, roster, roles = {}) {
+    const list = assignments || [];
+    if (!list.some((a) => a.assignees.some((r) => r.startsWith("class:")) || a.targets.some((t) => t.kind === "class"))) return list;
+    const byId = new Map(roster.map((p) => [p.userId, p]));
+    const used = {};
+    const usedAt = {};
+    const take = (bag, type, id) => { (bag[type] = bag[type] || {})[id] = true; };
+    for (const a of list) {
+        for (const r of a.assignees) {
+            const q = r.split(":");
+            if (q[0] === "user") take(used, a.type, q[1]);
+            else if (q[0] === "slot") {
+                const sl = (slots || []).find((x) => x.kind === q[1] && x.n === Number(q[2]) && x.userId);
+                if (sl) take(used, a.type, sl.userId);
+            }
+        }
+        for (const key of Object.keys(a.picks || {})) if (byId.has(a.picks[key])) take(key.startsWith("t:") ? usedAt : used, a.type, a.picks[key]);
+    }
+    const pick = (bag, a, ref, key) => {
+        const hand = (a.picks || {})[key];
+        if (hand && byId.has(hand)) return hand;
+        const q = parseClassRef(ref);
+        if (!q) return "";
+        const pool = roster.filter((p) => p.classId === q.classId && roleFits(q.role, roles[p.userId] || p.role));
+        const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
+        const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
+        if (free) { take(bag, a.type, free.userId); return free.userId; }
+        return a.allowMulti && pool.length ? pool[(q.n - 1) % pool.length].userId : "";
+    };
+    return list.map((a) => ({
+        ...a,
+        assignees: a.assignees.map((r) => { if (!r.startsWith("class:")) return r; const id = pick(used, a, r, r); return id ? "user:" + id : r; }),
+        targets: a.targets.map((t) => { if (t.kind !== "class") return t; const id = pick(usedAt, a, t.ref, "t:" + t.ref); return id ? { kind: "player", ref: id } : t; }),
+    }));
+}
+
 module.exports = {
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal, classesFor,
+    cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

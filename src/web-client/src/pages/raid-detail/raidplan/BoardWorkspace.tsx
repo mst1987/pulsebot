@@ -23,6 +23,7 @@ import AssignPanel from "./AssignPanel";
 import Besetzung from "./Besetzung";
 import MobsBar from "./MobsBar";
 import AssignRosterModal from "./AssignRosterModal";
+import { expandClassRefs } from "../../../lib/classRefs";
 import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/assign";
 
 type Drag = {
@@ -186,7 +187,9 @@ export default function BoardWorkspace({
     const scope = scopeOf(boss);
     /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */
     const noBoard = scope === "general" || scope === "defaults";
-    const links = useMemo(() => (showLinks ? assignmentLinks(board, me || []) : []), [showLinks, board, me]);
+    // the rows with their class references resolved ("the first free Hunter"): the lines and the facing of icons follow who it really is
+    const filledRows = useMemo(() => expandClassRefs(board.assignments, board.slots, roster, board.roles), [board.assignments, board.slots, board.roles, roster]);
+    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows }, me || []) : []), [showLinks, board, filledRows, me]);
     const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
@@ -820,7 +823,7 @@ export default function BoardWorkspace({
                         objectScale={board.objectScale}
                         zones={board.zones}
                         lines={board.lines}
-                        assignments={board.assignments}
+                        assignments={filledRows}
                         texts={board.texts}
                         players={players}
                         roster={roster}

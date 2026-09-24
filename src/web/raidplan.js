@@ -216,11 +216,12 @@ function publicView(plan, event, { me = "" } = {}) {
                 targets: [],
                 mobs: board.mobs || [],
                 // assignments: a raider who is not in the approved setup is left out, a slot reference stays (it resolves to nobody = open)
-                assignments: [...assign.targetsToAssignments(board.targets, known), ...(board.assignments || [])].map((a) => ({
+                // a class reference ("the first free Hunter") is resolved here, from the whole approved setup: the page only gets the raiders a plan names
+                assignments: assign.expandClassRefs([...assign.targetsToAssignments(board.targets, known), ...(board.assignments || [])].map((a) => ({
                     ...a,
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
-                })),
+                })), (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, board.roles || {}),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };

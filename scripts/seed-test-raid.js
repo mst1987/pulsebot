@@ -110,6 +110,20 @@ function seedPlan(eventId, event) {
     add("bt/illidan-stormrage", ["kick", "md", "ss", "fearward"]);
     add("bt/trash", ["kick"]);
     add("general", ["curse", "thunderclap", "demoshout"]);
+    // class based rows (resolved from the setup, no slot to choose) and rows that act on the dev user (Heilbert), to try "Meine Aufgaben" / "Auf mich wirkend"
+    const me = roster.find((p) => p.character === ME_CHARACTER);
+    if (me) {
+        const rowId = () => require("crypto").randomBytes(5).toString("hex");
+        const mk = (type, assignees, targets, extra = {}) => ({ id: rowId(), type, title: "", spell: null, assignees, targets, note: "", suggested: false, ...extra });
+        const key = "bt/high-warlord-najentus";
+        const b = extended[key] || { slots: [], assignments: [] };
+        extended[key] = { ...b, assignments: [...(b.assignments || []),
+            mk("ss", ["class:Warlock:1"], [{ kind: "player", ref: me.userId }]),
+            mk("fearward", ["class:Priest:1:dps"], [{ kind: "player", ref: me.userId }]),
+            mk("md", ["class:Hunter:1", "class:Rogue:1"], [{ kind: "slot", ref: "tank:1" }]),
+            mk("heal", ["user:" + me.userId], [{ kind: "slot", ref: "tank:2" }]),
+        ] };
+    }
     const savedPlan = planStore.savePlan(eventId, { version: plan.version, bosses: extended }, {
         bossKeys, allowedUserIds: roster.map((p) => p.userId), profileIds: [], userId: "seed",
     });
