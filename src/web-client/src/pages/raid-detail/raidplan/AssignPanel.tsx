@@ -18,6 +18,7 @@ import { canRestore, deviate, hideInherited, restoreInherited } from "../../../l
 import { portraitUrl } from "../../../lib/raidplan";
 import { effectiveClasses } from "../../../lib/rosterAssign";
 import { expandClassRefs, isClassRef, parseClassRef } from "../../../lib/classRefs";
+import { groupColor } from "../../../lib/groupStyle";
 import { useT } from "../../../i18n";
 
 /** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */
@@ -28,7 +29,7 @@ export function MobIcon({ icon, size = 18 }: { icon: string; size?: number }) {
 }
 
 /** One assignee or target as a small chip: who it is now (icon and name), or the placeholder / mark / text. */
-export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: boolean; onRemove?: () => void; extra?: ReactNode }) {
+export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; mine?: boolean; onRemove?: () => void; extra?: ReactNode; ctx?: AssignCtx }) {
     const t = useT();
     const body = r.player ? (
         <>
@@ -42,7 +43,7 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
     ) : r.kind === "mob" ? (
         <><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></>
     ) : r.kind === "group" ? (
-        <><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
+        <><span className="rp-gdot" aria-hidden="true" style={{ background: groupColor(ctx ? ctx.groupColors : undefined, r.group) }} /><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
     ) : r.kind === "text" ? (
         <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={18} /><span>{r.label}</span></>
     ) : (
@@ -52,7 +53,7 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
         </>
     );
     return (
-        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} data-tip={r.kind === "slot" && r.player ? r.label : undefined}>
+        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} data-tip={r.kind === "slot" && r.player ? r.label : r.kind === "group" && ctx ? groupMembersTip(ctx, r.group) : undefined}>
             {extra}{body}
             {onRemove && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={onRemove}><X size={12} /></button>}
         </span>
@@ -162,7 +163,7 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
                 <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>
                 <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.targets")}>
                     {a.targets.map((tg, i) => (
-                        <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(v.targets[i] || tg, ctx)} extra={tg.kind === "class" && v.targets[i] && v.targets[i].kind !== "class" ? classIcon(tg.ref) : null} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
+                        <AssignChip ctx={ctx} key={`${tg.kind}|${tg.ref}`} r={resolveTarget(v.targets[i] || tg, ctx)} extra={tg.kind === "class" && v.targets[i] && v.targets[i].kind !== "class" ? classIcon(tg.ref) : null} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
                     ))}
                     {canWrite && <button type="button" className="rp-achip rp-achip-add" aria-label={t("raidBoard.assign.addTarget")} data-tip={t("raidBoard.assign.addTarget")} onClick={() => onEdit(a.id)}><Plus size={14} /></button>}
                 </span>
@@ -218,7 +219,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [editing, setEditing] = useState("");
     const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
     const filled = useMemo(() => expandClassRefs(board.assignments, board.slots, roster, board.roles), [board.assignments, board.slots, board.roles, roster]);
-    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog, filled }), [board.slots, players, catalog, filled]);
+    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog, filled, groupColors: board.groupColors, groupMarks: board.groupMarks }), [board.slots, players, catalog, filled, board.groupColors, board.groupMarks]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
@@ -302,7 +303,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         const push = (tg: RaidplanAssignTarget, group: string) => {
             const r = resolveTarget(tg, ctx);
             const node = tg.kind === "slot" ? <SlotPickChip r={r} n={Number(tg.ref.split(":")[1])} />
-                : tg.kind === "group" ? <span className="rp-pchip"><Users size={16} aria-hidden="true" /><b>{tg.ref}</b></span>
+                : tg.kind === "group" ? <span className="rp-pchip"><Users size={16} aria-hidden="true" /><b>{t("raidBoard.slot.group", { n: Number(tg.ref) })}</b></span>
                 : tg.kind === "mark" ? <span className="rp-pchip"><MarkIcon mark={tg.ref as never} size={22} /></span>
                 : <AssignChip r={r} />;
             out.push({ key: `${tg.kind}|${tg.ref}`, label: r.label, on: has(tg), group, node });
@@ -403,7 +404,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                             </header>
                             {!fold && (
                                 <ul className="rp-alist">
-                                    {rows.length === 0 && inh.length === 0 && <li className="rp-muted rp-acard-empty">{t("raidBoard.assign.cardEmpty")}</li>}
+                                    {rows.length === 0 && inh.length === 0 && <li className="rp-muted rp-acard-empty">{t(type === "heal" ? "raidBoard.assign.cardEmptyHeal" : "raidBoard.assign.cardEmpty")}</li>}
                                     {inh.map((a) => (
                                         <li key={`inh-${a.id}`} className="rp-arow is-inherited">
                                             <div className="rp-arow-top">
@@ -433,4 +434,10 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             </div>
         </section>
     );
+}
+
+/** The members of a raid group for a tooltip: "Gruppe 3: A, B, C". */
+function groupMembersTip(ctx: AssignCtx, group: number): string {
+    const names = Array.from(ctx.players.values()).filter((p) => p.group === group).map((p) => p.character);
+    return names.length > 0 ? names.join(", ") : "";
 }

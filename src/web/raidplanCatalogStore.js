@@ -56,7 +56,7 @@ function cleanMob(raw, id) {
     const bossKey = /^[a-z0-9]+\/[a-z0-9-]+$/.test(str(r.bossKey)) && str(r.bossKey).startsWith(`${instanceId}/`) ? str(r.bossKey) : "";
     return {
         id, name: str(r.name).slice(0, LIMITS.name), kind: KINDS.includes(r.kind) ? r.kind : "add",
-        instanceId, bossKey, icon: cleanIcon(r.icon), note: str(r.note).slice(0, LIMITS.note),
+        instanceId, bossKey, icon: cleanIcon(r.icon), note: str(r.note).slice(0, LIMITS.note), ...versionsOf(r),
     };
 }
 
@@ -67,7 +67,19 @@ function cleanSpell(raw, id) {
         type: ASSIGN_TYPES.includes(r.type) ? r.type : "other",
         classes: [...new Set((Array.isArray(r.classes) ? r.classes : []).map(str).filter((c) => CLASS_IDS.includes(c)))],
         note: str(r.note).slice(0, LIMITS.note),
+        ...versionsOf(r),
     };
+}
+
+/** The optional `versions` of an entry: known game version ids only; nothing when it is every version. */
+function versionsOf(r) {
+    const v = [...new Set((Array.isArray(r && r.versions) ? r.versions : []).map(str).filter((x) => /^[a-z0-9]{2,12}$/.test(x)))];
+    return v.length ? { versions: v } : {};
+}
+
+/** Whether an entry exists in a game version (an entry without `versions` exists in all; no version asked = all). */
+function inVersion(entry, versionId) {
+    return !versionId || !Array.isArray(entry.versions) || entry.versions.length === 0 || entry.versions.includes(versionId);
 }
 
 /** The visible entries: defaults (overridden or not, unless hidden) and the admin's own; each says where it comes from. */
@@ -109,19 +121,19 @@ function hiddenEntries() {
 }
 
 /** What the plan editor and the read view get: every visible mob and spell. */
-function catalogView() {
-    return { mobs: listMobs(), spells: listSpells() };
+function catalogView(versionId = "") {
+    return { mobs: listMobs().filter((m) => inVersion(m, versionId)), spells: listSpells().filter((s) => inVersion(s, versionId)) };
 }
 
 /** The classes that can cast a type of assignment, from the visible spells of that type (in the order they first appear). */
-function classesOf(type) {
+function classesOf(type, versionId = "") {
     const out = [];
-    for (const s of listSpells()) if (s.type === type) for (const c of s.classes) if (!out.includes(c)) out.push(c);
+    for (const s of listSpells()) if (s.type === type && inVersion(s, versionId)) for (const c of s.classes) if (!out.includes(c)) out.push(c);
     return out;
 }
 
 /** The visible spells of a type, in list order. */
-const spellsOfType = (type) => listSpells().filter((s) => s.type === type);
+const spellsOfType = (type, versionId = "") => listSpells().filter((s) => s.type === type && inVersion(s, versionId));
 
 /**
  * Creates (no `id`), or changes (`id`; a default's id makes an override) a mob or a spell. Returns
@@ -179,4 +191,4 @@ function reset(kind, id) {
     return { reset: true };
 }
 
-module.exports = { useFile, LIMITS, KINDS, CLASS_IDS, ICON, cleanIcon, listMobs, listSpells, getMob, getSpell, hiddenEntries, catalogView, classesOf, spellsOfType, save, remove, reset };
+module.exports = { inVersion, useFile, LIMITS, KINDS, CLASS_IDS, ICON, cleanIcon, listMobs, listSpells, getMob, getSpell, hiddenEntries, catalogView, classesOf, spellsOfType, save, remove, reset };

@@ -128,7 +128,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                             <span className="rp-kicker">{t("raidBoard.group.legend")}</span>
                                             {groupNs.map((n) => (
                                                 <button key={n} type="button" className={focusGroup === n ? "is-on" : ""} aria-pressed={focusGroup === n} data-tip={t("raidBoard.group.legendFocus")} style={{ "--gc": groupColor(boss.groupColors, n), "--gi": inkOn(groupColor(boss.groupColors, n)) } as CSSProperties} onClick={() => setFocusGroup(focusGroup === n ? 0 : n)}>
-                                                    {n}{groupMark(boss.groupMarks, n) && <MarkIcon mark={groupMark(boss.groupMarks, n) as never} size={14} />}
+                                                    {t("raidBoard.slot.group", { n })}{groupMark(boss.groupMarks, n) && <MarkIcon mark={groupMark(boss.groupMarks, n) as never} size={14} />}
                                                 </button>
                                             ))}
                                         </div>

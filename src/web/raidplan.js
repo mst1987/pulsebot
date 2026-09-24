@@ -118,7 +118,7 @@ function templateView(t) {
     });
     // the Standard: one more "boss" at the end of the list (its own board: the tank / healer basics of every boss)
     if (bosses.length > 0) bosses.push({ key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", templateMap: false, ownMap: false, instanceMap: false });
-    return { ...t, catalog: catalogStore.catalogView(), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, catalog: catalogStore.catalogView("tbc"), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -162,7 +162,7 @@ function editorView(event, { canWrite, me = "" }) {
         hasApprovedSetup: !!approvedSetupOf(event),
         profiles: profileStore.listProfiles(),
         templates: templatesFor(event).map(templateSummary),
-        catalog: catalogStore.catalogView(),
+        catalog: catalogStore.catalogView(event.versionId || "tbc"),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
     };
 }
@@ -242,6 +242,8 @@ function publicView(plan, event, { me = "" } = {}) {
             for (const t of a.targets) if (t.kind === "player") used.add(t.ref);
         }
         for (const sl of b.slots) if (sl.kind === "group") for (const r of roster) if (r.group === sl.n) used.add(r.userId);
+        // the group healing table shows every group with its members: a board that heals groups knows the whole lineup
+        if (b.assignments.some((a) => a.type === "heal" && a.targets.some((t) => t.kind === "group"))) for (const r of roster) used.add(r.userId);
     }
     return {
         event: { title: event.title, startTime: event.startTime },
@@ -249,7 +251,7 @@ function publicView(plan, event, { me = "" } = {}) {
         roster: roster.filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
-        catalog: catalogStore.catalogView(),
+        catalog: catalogStore.catalogView(event.versionId || "tbc"),
         loggedIn: !!me,
     };
 }
@@ -268,7 +270,8 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     let clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
     // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
-    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true });
+    // a plan of a TBC raid never offers what only later game versions have (Tricks of the Trade); a template is a TBC one
+    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc" });
 }
 
 /** The Besetzung of an event without a template: its size, the planned tanks and healers, the damage dealers split evenly. */

@@ -49,13 +49,29 @@ describe("Tank | Ziel | Heiler", () => {
     });
 });
 
-describe("group healing", () => {
-    it("lists heal rows that name groups, with the group numbers in order, and leaves tank-only rows out", () => {
-        const a = [row("h", "heal", ["slot:healer:1"], [{ kind: "group", ref: "4" }, { kind: "group", ref: "2" }, { kind: "slot", ref: "tank:1" }]), row("i", "heal", ["slot:healer:2"], [{ kind: "slot", ref: "tank:2" }])];
-        const r = tables.groupHealTable(a, ctx);
-        expect(r).toHaveLength(1);
-        expect(r[0].groups).toEqual([2, 4]);
-        expect(r[0].healers[0].label).toBe("Heiler 1");
+describe("group healing by group", () => {
+    const pl = (userId, group) => ({ userId, character: userId, classId: "Priest", className: "", classColor: "", spec: "", specLabel: "", role: "healer", group });
+    const gctx = { slots: [{ kind: "healer", n: 1, userId: "h1", id: "x", x: 0, y: 0, label: "" }, { kind: "healer", n: 2, userId: "h2", id: "y", x: 0, y: 0, label: "" }], players: new Map([["h1", pl("h1", 1)], ["h2", pl("h2", 2)], ["m1", pl("m1", 3)], ["m2", pl("m2", 3)]]) };
+    it("has a row per group with its members, also groups nobody heals, and at least the minimum number of groups", () => {
+        const a = [row("h", "heal", ["slot:healer:1"], [{ kind: "group", ref: "1" }, { kind: "group", ref: "3" }])];
+        const r = tables.groupHealByGroup(a, gctx, 5);
+        expect(r.map((x) => x.group)).toEqual([1, 2, 3, 4, 5]);
+        expect(r[2].members.map((p) => p.userId)).toEqual(["m1", "m2"]);
+        expect(r[1].healers).toEqual([]);
+        expect(r[3].members).toEqual([]);
+    });
+    it("a healer with several groups is in several rows, each healer once per group, in the order of the rows", () => {
+        const a = [row("h", "heal", ["slot:healer:1"], [{ kind: "group", ref: "1" }, { kind: "group", ref: "3" }]), row("i", "heal", ["slot:healer:2", "slot:healer:1"], [{ kind: "group", ref: "3" }])];
+        const r = tables.groupHealByGroup(a, gctx, 3);
+        expect(r[0].healers.map((h) => h.ref)).toEqual(["slot:healer:1"]);
+        expect(r[2].healers.map((h) => h.ref)).toEqual(["slot:healer:1", "slot:healer:2"]);
+    });
+    it("tank-only rows and rows of other types are not group healing; a named group above the lineup still gets its row", () => {
+        const a = [row("i", "heal", ["slot:healer:2"], [{ kind: "slot", ref: "tank:2" }]), row("k", "kick", ["slot:healer:1"], [{ kind: "group", ref: "1" }]), row("g", "heal", ["slot:healer:2"], [{ kind: "group", ref: "7" }])];
+        const r = tables.groupHealByGroup(a, gctx, 5);
+        expect(r).toHaveLength(7);
+        expect(r[0].healers).toEqual([]);
+        expect(r[6].healers.map((h) => h.ref)).toEqual(["slot:healer:2"]);
     });
 });
 

@@ -120,7 +120,7 @@ function seedPlan(eventId, event) {
         extended[key] = { ...b, assignments: [...(b.assignments || []),
             mk("ss", ["class:Warlock:1"], [{ kind: "player", ref: me.userId }]),
             mk("fearward", ["class:Priest:1:dps"], [{ kind: "player", ref: me.userId }]),
-            mk("md", ["class:Hunter:1", "class:Rogue:1"], [{ kind: "slot", ref: "tank:1" }]),
+            mk("md", ["class:Hunter:1", "class:Hunter:2"], [{ kind: "slot", ref: "tank:1" }]),
             mk("heal", ["user:" + me.userId], [{ kind: "slot", ref: "tank:2" }]),
         ] };
     }

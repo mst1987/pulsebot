@@ -506,7 +506,8 @@
             "demoshout": "DEMO SHOUT",
             "other": "TASK"
         },
-        "cardTypes": "Card types"
+        "cardTypes": "Card types",
+        "cardEmptyHeal": "No row yet. Give healers tanks, groups or players."
     },
     "bes": {
         "title": "Roster slots",
@@ -585,7 +586,13 @@
         "colPlayer": "Player",
         "colOrder": "#",
         "colTargetAbility": "Target / ability",
-        "groupHeal": "Group healing"
+        "groupHeal": "Group healing",
+        "groupHealSub": "Which healer heals which group",
+        "colGroup": "Group",
+        "colMembers": "Members",
+        "colHealedBy": "Healed by",
+        "yourGroup": "Your group",
+        "nobody": "– nobody –"
     },
     "multi": {
         "count": "{n} selected",

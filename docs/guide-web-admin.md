@@ -139,3 +139,12 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Mehrfachauswahl** auf dem Board: mit dem Gummiband, Strg/Shift-Klick oder Strg+A; der Rahmen verschiebt und skaliert alles gemeinsam.
 - **Gruppenring** ausblendbar (je Gruppe, Auswahl oder ganzes Board).
 - **Lese-Ansicht**: zwei Spalten, "Meine Einteilungen" zuerst, "Du" wird ueberall hervorgehoben.
+
+### Neu (Runde 4)
+
+- **Editor = Sheet.** Das Board wird in einem festen Referenzraum gezeichnet und als Ganzes skaliert: was du im Editor anordnest, sieht das Sheet bei jeder Breite gleich (nur groesser oder kleiner).
+- **Zoom:** Strg + Mausrad zoomt zum Zeiger, normales Rad scrollt die Seite; verschieben mit Leertaste + Ziehen, mittlerer Maustaste oder Hand-Werkzeug; Klick auf die Prozentzahl = Einpassen. Auch im Sheet (Knoepfe auf der Karte).
+- **Groessen in Prozent** fuer jedes Element (Inspektor oben, Rechtsklick, Mehrfachauswahl relativ). Gruppen haben "Gruppengroesse", "Kranz-Abstand" und "Token-Groesse"; der Name skaliert mit dem Icon. "Ansicht" (Regler-Symbol): Symbolgroesse, Namen, Nummern-Badges, Rollenringe, Gruppenkraenze, "Mich hervorheben", Auswahlrahmen, Verbindungslinien; im Sheet ein kleines Ansicht-Menue nur fuer dich.
+- **Gruppen:** eigene Farben (Standard: acht gut unterscheidbare) und Raid-Marker, "Gruppe hervorheben". Gruppenheilung: eine Zeile je Gruppe mit Mitgliedern und Heilern.
+- **Klassen als Zustaendige:** in der Zeile unter "Klasse" waehlen (z. B. Jaeger fuer Misdirect); beim Anwenden auf ein Event wird der erste freie Spieler der Klasse eingesetzt, fehlt die Klasse, bleibt es offen ("Jaeger fehlt"). Misdirect ist in TBC nur Jaeger.
+- **Sheet:** "Meine Aufgaben" und "Wirkt auf dich" als Karten je Einteilung, darunter "Alle Einteilungen".

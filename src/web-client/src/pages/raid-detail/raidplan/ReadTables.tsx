@@ -7,7 +7,7 @@ import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON, iconForTask, iconForText, isMe, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/assign";
 import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
-import { groupHealTable, simpleTables, tankTable } from "../../../lib/planTables";
+import { groupHealByGroup, simpleTables, tankTable } from "../../../lib/planTables";
 import { mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
@@ -107,7 +107,8 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
     const tanks = useMemo(() => tankTable(assignments, ctx, (a) => split.modes[a.id] === "do"), [assignments, ctx, split]);
     /** how a row of a table concerns the visitor: his own task, or something that acts on him */
     const rowCls = (id: string) => (split.modes[id] === "do" ? "is-own" : split.modes[id] === "on" ? "is-onme" : "");
-    const groups = useMemo(() => groupHealTable(assignments, ctx), [assignments, ctx]);
+    const groups = useMemo(() => (assignments.some((a) => a.type === "heal" && a.targets.some((tg) => tg.kind === "group")) ? groupHealByGroup(assignments, ctx, 5) : []), [assignments, ctx]);
+    const myGroups = useMemo(() => me.map((id) => (ctx.players.get(id) || { group: -1 }).group), [me, ctx.players]);
     const others = useMemo(() => simpleTables(assignments, ctx), [assignments, ctx]);
     return (
         <div className="rp-rtables">
@@ -157,23 +158,36 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
             )}
 
             {groups.length > 0 && (
-                <section className="rp-rsec" aria-label={t("raidBoard.read.groupHeal")}>
+                <section className="rp-rsec rp-gheal" aria-label={t("raidBoard.read.groupHeal")}>
                     <h3><TypeBadge type="heal" label={t("raidBoard.read.groupHeal")} /></h3>
+                    <p className="rp-muted rp-gheal-sub">{t("raidBoard.read.groupHealSub")}</p>
                     <table className="rp-rtable">
-                        <thead><tr><th>{t("raidBoard.read.colHealer")}</th><th>{t("raidBoard.read.colGroups")}</th></tr></thead>
+                        <thead><tr><th>{t("raidBoard.read.colGroup")}</th><th>{t("raidBoard.read.colMembers")}</th><th>{t("raidBoard.read.colHealedBy")}</th></tr></thead>
                         <tbody>
-                            {groups.map((r) => (
-                                <tr key={r.key} className={r.healers.some((h) => isMe(h, me)) ? "is-own" : rowCls(r.rowId)}>
-                                    <td><WhoList list={r.healers} me={me} names={names} /></td>
-                                    <td>
-                                        <span className="rp-who-list">
-                                            {r.groups.map((g) => (
-                                                <span key={g} className={`rp-gbadge${ctx.players.size > 0 && me.some((id) => (ctx.players.get(id) || { group: -1 }).group === g) ? " is-own" : ""}${focusGroup === g ? " is-focus" : ""}`} style={{ "--gc": groupColor(ctx.groupColors, g), "--gi": inkOn(groupColor(ctx.groupColors, g)) } as React.CSSProperties} role={onFocusGroup ? "button" : undefined} tabIndex={onFocusGroup ? 0 : undefined} onClick={onFocusGroup ? () => onFocusGroup(focusGroup === g ? 0 : g) : undefined} onKeyDown={onFocusGroup ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFocusGroup(focusGroup === g ? 0 : g); } } : undefined}><Users size={15} aria-hidden="true" />{g}{groupMark(ctx.groupMarks, g) && <MarkIcon mark={groupMark(ctx.groupMarks, g) as never} size={15} />}</span>
-                                            ))}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
+                            {groups.map((g) => {
+                                const col = groupColor(ctx.groupColors, g.group);
+                                const mk = groupMark(ctx.groupMarks, g.group);
+                                const mine = myGroups.indexOf(g.group) >= 0;
+                                return (
+                                    <tr key={g.group} className={mine ? "is-mygroup" : ""}>
+                                        <td>
+                                            <span className={`rp-gcell${focusGroup === g.group ? " is-focus" : ""}`} style={{ "--gc": col } as React.CSSProperties} role={onFocusGroup ? "button" : undefined} tabIndex={onFocusGroup ? 0 : undefined} aria-pressed={onFocusGroup ? focusGroup === g.group : undefined} data-tip={onFocusGroup ? t("raidBoard.group.legendFocus") : undefined} onClick={onFocusGroup ? () => onFocusGroup(focusGroup === g.group ? 0 : g.group) : undefined} onKeyDown={onFocusGroup ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFocusGroup(focusGroup === g.group ? 0 : g.group); } } : undefined}>
+                                                <span className="rp-gbar" aria-hidden="true" />
+                                                <strong className="rp-gnum">{t("raidBoard.slot.group", { n: g.group })}</strong>
+                                                {mk && <MarkIcon mark={mk as never} size={20} />}
+                                                {mine && <span className="rp-mygroup-label">{t("raidBoard.read.yourGroup")}</span>}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="rp-gmembers">
+                                                {g.members.map((p) => <span key={p.userId} className={`rp-gmember${me.indexOf(p.userId) >= 0 ? " is-me" : ""}`}><TokenIcon player={p} size="sm" /><PlayerName player={p} /></span>)}
+                                                {g.members.length === 0 && <span className="rp-muted">{"\u2013"}</span>}
+                                            </span>
+                                        </td>
+                                        <td>{g.healers.length > 0 ? <WhoList list={g.healers} me={me} names={names} ctx={ctx} /> : <span className="rp-nobody">{t("raidBoard.read.nobody")}</span>}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </section>

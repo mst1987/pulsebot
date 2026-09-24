@@ -1084,3 +1084,26 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); bottom: calc(var(--rp-s, 38px) * -.13); min-width: calc(var(--rp-s, 38px) * .42); height: calc(var(--rp-s, 38px) * .42); padding: 0 calc(var(--rp-s, 38px) * .08); border-radius: calc(var(--rp-s, 38px) * .21); font-size: calc(var(--rp-s, 38px) * .26); line-height: calc(var(--rp-s, 38px) * .38); }
 .rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46); height: calc(var(--rp-s, 48px) * .42); left: calc(var(--rp-s, 48px) * -.23); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52); }
 .rp-zoomctl { width: auto !important; }
+
+/* group healing: one row per group */
+.rp-gheal-sub { margin: -2px 0 2px; font-size: 13px; }
+.rp-gcell { display: inline-flex; align-items: center; gap: 8px; }
+.rp-gbar { width: 6px; align-self: stretch; min-height: 26px; border-radius: 3px; background: var(--gc, var(--accent)); }
+.rp-gnum { font-size: 22px; line-height: 1; min-width: 20px; }
+.rp-mygroup-label { padding: 1px 8px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rp-gmembers { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; }
+.rp-gmember { display: inline-flex; align-items: center; gap: 4px; }
+.rp-gmember.is-me { font-weight: 800; text-decoration: underline; }
+.rp-nobody { color: var(--high, #c0504d); font-style: italic; opacity: .85; }
+.rp-rtable tr.is-mygroup td { background: var(--accent-soft); }
+.rp-rtable tr.is-mygroup td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+.rp-gcell[role="button"] { cursor: pointer; }
+.rp-gcell.is-focus .rp-gnum { text-decoration: underline; }
+
+.rp-gdot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; border: 1px solid rgba(0, 0, 0, .4); }
+.rp-gheal .rp-rtable { width: 100%; }
+.rp-gheal .rp-rtable td .rp-who, .rp-gheal .rp-rtable td .rp-who * { white-space: nowrap; overflow-wrap: normal; }
+.rp-gheal .rp-rtable td:last-child { min-width: 128px; }
+.rp-mygroup-label { white-space: nowrap; }
+.rp-gcell { flex-wrap: wrap; }
+.rp-gnum { font-size: 16px; white-space: nowrap; }

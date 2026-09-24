@@ -506,7 +506,8 @@
             "demoshout": "DEMO-RUF",
             "other": "AUFGABE"
         },
-        "cardTypes": "Kartentypen"
+        "cardTypes": "Kartentypen",
+        "cardEmptyHeal": "Noch keine Zeile. Weise Heilern Tanks, Gruppen oder Spieler zu."
     },
     "bes": {
         "title": "Besetzung",
@@ -562,7 +563,7 @@
         "classHint": "Vorschläge nehmen zuerst diese Klassen. Passt niemand, bleibt die Zeile leer – außer du lässt andere zu.",
         "suggest": "Zuständige vorschlagen",
         "bind": "Klasse an die Slots binden",
-        "bindTip": "Die gewaehlten Klassen gelten dann fuer die Slots dieser Zeile (z. B. DPS 3 = Schurke)",
+        "bindTip": "Die gewählten Klassen gelten dann für die Slots dieser Zeile (z. B. DPS 3 = Schurke)",
         "boundTo": "Slots verlangen: {cls}"
     },
     "split": {
@@ -585,7 +586,13 @@
         "colPlayer": "Spieler",
         "colOrder": "#",
         "colTargetAbility": "Ziel / Ability",
-        "groupHeal": "Gruppenheilung"
+        "groupHeal": "Gruppenheilung",
+        "groupHealSub": "Welcher Heiler heilt welche Gruppe",
+        "colGroup": "Gruppe",
+        "colMembers": "Mitglieder",
+        "colHealedBy": "Geheilt von",
+        "yourGroup": "Deine Gruppe",
+        "nobody": "– niemand –"
     },
     "multi": {
         "count": "{n} ausgewählt",
@@ -636,7 +643,7 @@
         "title": "Klasse (wird automatisch besetzt)",
         "targetTitle": "Klasse als Ziel",
         "missing": "fehlt",
-        "suggested": "Vorschlag fuer diese Aufgabe",
+        "suggested": "Vorschlag für diese Aufgabe",
         "role": "Rolle",
         "anySpec": "Beliebig",
         "roles": {
@@ -646,7 +653,7 @@
             "melee": "Melee",
             "ranged": "Ranged"
         },
-        "addSuggested": "Vorgeschlagene Klassen uebernehmen",
+        "addSuggested": "Vorgeschlagene Klassen übernehmen",
         "allowMulti": "Mehrfach erlauben (derselbe Spieler darf mehrfach)",
         "fills": "Wer nimmt die Klasse",
         "auto": "Automatisch",

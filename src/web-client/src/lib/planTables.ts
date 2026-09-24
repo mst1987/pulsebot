@@ -1,12 +1,13 @@
 // The read view's tables, derived from the assignments (nothing to maintain): "Tank | Ziel | Heiler", the group healing,
 // and the slim tables of the other types. Pure; the component (pages/raid-detail/raidplan/ReadTables.tsx) only draws them.
 // Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
-import type { RaidplanAssignment } from "../api";
+import type { RaidplanAssignment, RaidplanPlayer } from "../api";
 import { resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx, Resolved } from "./assign";
 
 export type TankRow = { key: string; rowId: string; tank: Resolved; target: Resolved | null; healers: Resolved[]; own: boolean };
-export type GroupHealRow = { key: string; rowId: string; healers: Resolved[]; groups: number[] };
+/** One raid group as the group healing table shows it: who is in it and which healers heal it (none = nobody yet). */
+export type GroupRow = { group: number; members: RaidplanPlayer[]; healers: Resolved[] };
 export type SimpleRow = { key: string; rowId: string; order: number; task: string; spell: string; who: Resolved[]; targets: Resolved[]; note: string };
 export type SimpleTable = { type: string; rows: SimpleRow[] };
 
@@ -45,14 +46,25 @@ export function tankTable(assignments: RaidplanAssignment[], ctx: AssignCtx, isO
     return rows;
 }
 
-/** "Heiler | Gruppen": the heal rows that name raid groups (their tank targets are in the tank table). */
-export function groupHealTable(assignments: RaidplanAssignment[], ctx: AssignCtx): GroupHealRow[] {
+/**
+ * "Gruppe | Mitglieder | Geheilt von": one row per raid group (1 .. the highest group that exists or is named, at least `minGroups`), every group even
+ * when nobody heals it. The healers of a group are the assignees of the heal rows that name it, each once, in the order of the rows; a healer who has
+ * several groups is in several rows. The members are the players of the lineup in that group.
+ */
+export function groupHealByGroup(assignments: RaidplanAssignment[], ctx: AssignCtx, minGroups: number): GroupRow[] {
+    const players = Array.from(ctx.players.values());
+    let top = minGroups;
+    for (const p of players) top = Math.max(top, p.group);
+    const heal = assignments.filter((a) => String(a.type) === "heal" && a.assignees.length > 0);
+    for (const a of heal) for (const tg of a.targets) if (tg.kind === "group") top = Math.max(top, Number(tg.ref) || 0);
     const rows = [];
-    for (const a of assignments) {
-        if (String(a.type) !== "heal") continue;
-        const groups = a.targets.filter((tg) => tg.kind === "group").map((tg) => Number(tg.ref)).sort((x, y) => x - y);
-        if (groups.length === 0 || a.assignees.length === 0) continue;
-        rows.push({ key: a.id, rowId: a.id, healers: a.assignees.map((ref) => resolveAssignee(ref, ctx)), groups });
+    for (let n = 1; n <= top; n++) {
+        const healers = [];
+        for (const a of heal) {
+            if (!a.targets.some((tg) => tg.kind === "group" && Number(tg.ref) === n)) continue;
+            for (const ref of a.assignees) if (!healers.some((x) => x.ref === ref)) healers.push(resolveAssignee(ref, ctx));
+        }
+        rows.push({ group: n, members: players.filter((p) => p.group === n), healers });
     }
     return rows;
 }
