@@ -86,7 +86,6 @@ function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
     const known = !!a && a.pct !== null;
     return (
         <div className="se-tip-row">
-            <WowIcon name="inv_misc_note_01" size={20} />
             <div className="se-tip-body">
                 <span className="se-tip-k">{t("setup.person.tip.attendance")}</span>
                 {known && a ? (
@@ -122,27 +121,28 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
     const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
     return (
         <aside className="se-tip" aria-label={t("setup.person.tip.aria")} aria-live="polite">
-            <div className="se-tip-head">
-                <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
-                <div className="se-tip-body">
-                    <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
-                    <span className="se-tip-sub">
-                        {p.role && <WowIcon name={ROLE_ICONS[p.role] || "inv_misc_questionmark"} size={14} />}
-                        {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
-                    </span>
+            {/* left: who they are and how often they came; right: what they bring and why they stand here */}
+            <div className="se-tip-col">
+                <div className="se-tip-head">
+                    <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
+                    <div className="se-tip-body">
+                        <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                        <span className="se-tip-sub">
+                            {p.role && <WowIcon name={ROLE_ICONS[p.role] || "inv_misc_questionmark"} size={14} />}
+                            {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
+                        </span>
+                        {(p.name || status) && (
+                            <span className="se-tip-sub">
+                                {p.name && <span>@{p.name}</span>}
+                                {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+                {attendance !== null && <AttendanceRow a={attendance} />}
             </div>
-            {p.name && (
-                <div className="se-tip-row">
-                    <WowIcon name="inv_letter_15" size={20} />
-                    <div className="se-tip-body"><span className="se-tip-k">Discord</span><span>@{p.name}</span></div>
-                </div>
-            )}
-            {attendance !== null && <AttendanceRow a={attendance} />}
-            {brings.length > 0 && (
-                <div className="se-tip-row">
-                    <WowIcon name="spell_holy_prayerofspirit" size={20} />
+            <div className="se-tip-col">
+                {brings.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.brings")}</span>
                         {brings.map((b) => (
@@ -155,17 +155,14 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                             </span>
                         ))}
                     </div>
-                </div>
-            )}
-            {reasons.length > 0 && (
-                <div className="se-tip-row">
-                    <WowIcon name="inv_scroll_03" size={20} />
+                )}
+                {reasons.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.why")}</span>
                         <ul className="se-tip-reasons">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </aside>
     );
 }
@@ -713,14 +710,14 @@ function ReadOnly({ data }: { data: SetupEditorData }) {
     );
 }
 
-// The compact view (one-line raiders, narrow cards — up to five groups in a row) is the default;
+// The compact view (one-line raiders, narrower cards) is an option, off by default;
 // the choice is a per-viewer convenience, so it lives in the browser only.
 const COMPACT_KEY = "eh-setup-compact";
 function readCompact(): boolean {
     try {
-        return localStorage.getItem(COMPACT_KEY) !== "0";
+        return localStorage.getItem(COMPACT_KEY) === "1";
     } catch {
-        return true;
+        return false;
     }
 }
 function storeCompact(on: boolean) {
@@ -1021,7 +1018,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
-            {/* the ping message and the evening's numbers side by side, one small row */}
+            {/* three boxes in one row: the ping message, the evening's numbers, and the raider panel (the one the pointer touched last) */}
             <div className="se-topline">
                 <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
                 <Summary
@@ -1030,6 +1027,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     onWeights={() => setDialog("weights")}
                 />
+                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">
@@ -1041,9 +1039,6 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         ))}
                     </div>
                     <BenchCard bench={setup.bench} ui={ui} />
-                </div>
-                <div className="se-sidecol">
-                    {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
                 </div>
             </div>
 
