@@ -93,6 +93,8 @@ type BoardProps = {
     band?: { x0: number; y0: number; x1: number; y1: number } | null;
     /** Pointer down on a corner grip of the shared frame: the workspace scales the whole selection. */
     onMultiScale?: (e: PointerEvent<HTMLElement>, corner: string) => void;
+    /** Pointer down on an edge of the frame: the workspace drags the whole selection. */
+    onMultiMove?: (e: PointerEvent<HTMLElement>) => void;
     /** The map's height in px (the board is as wide as its aspect ratio makes it); without it: what fits the window. */
     maxHeight?: number;
     /** Shown on the grid when there is no map. */
@@ -139,7 +141,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", maxHeight, multi = [], multiBox = null, band = null, onMultiScale, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", maxHeight, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -437,6 +439,7 @@ export default function PlanBoard({
             {multiBox && multi.length > 1 && (
                 <div className="rp-multibox" style={{ left: `${multiBox.x0 * 100}%`, top: `${multiBox.y0 * 100}%`, width: `${(multiBox.x1 - multiBox.x0) * 100}%`, height: `${(multiBox.y1 - multiBox.y0) * 100}%` }}>
                     <span className="rp-multi-count">{t("raidBoard.multi.count", { n: multi.length })}</span>
+                    {editable && onMultiMove && ["n", "s", "w", "e"].map((s) => <span key={s} className={`rp-multi-edge rp-me-${s}`} onPointerDown={(e) => { e.stopPropagation(); onMultiMove(e); }} />)}
                     {editable && onMultiScale && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
                         <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onMultiScale(e, c); }} />
                     ))}

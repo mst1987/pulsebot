@@ -12,7 +12,9 @@
         "lootcouncil": "Loot-Council",
         "recruitment": "Recruitment",
         "channels": "Kanäle",
-        "settings": "Einstellungen"
+        "settings": "Einstellungen",
+        "planTemplates": "Raidplan-Vorlagen",
+        "planCatalog": "Raidplan-Katalog"
     },
     "group": {
         "Start": "Start",

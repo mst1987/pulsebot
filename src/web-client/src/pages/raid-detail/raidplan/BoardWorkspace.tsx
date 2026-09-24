@@ -490,6 +490,17 @@ export default function BoardWorkspace({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [banding]);
 
+    /** The edge of the shared frame: drags the whole selection like any object of it. */
+    const startFrameDrag = (e: PointerEvent<HTMLElement>) => {
+        if (e.button !== 0 || multi.length < 2 || !canWrite) return;
+        e.preventDefault();
+        const p = toBoard(e.clientX, e.clientY);
+        if (!p) return;
+        const d: Drag = { kind: "zone", id: "", x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, p0: { x: p.x, y: p.y }, overTray: false, multi: { board0: boardNow.current, sel: multi } };
+        dragRef.current = d;
+        setDrag(d);
+    };
+
     /** A corner grip of the shared frame: scales the whole selection around the frame's middle (the pointer's distance from it decides). */
     const startScale = (e: PointerEvent<HTMLElement>) => {
         if (e.button !== 0 || multi.length < 2) return;
@@ -575,6 +586,13 @@ export default function BoardWorkspace({
             else if (canWrite && mod && e.key.toLowerCase() === "c") { if (currentSel().length > 0) { e.preventDefault(); doCopy(); } }
             else if (canWrite && mod && e.key.toLowerCase() === "v") { if (clip.current) { e.preventDefault(); doPaste(); } }
             else if (e.key === "Escape" && (multi.length > 0 || selected) && !document.querySelector("dialog[open]")) { chooseItems([]); }
+            else if (canWrite && multi.length > 1 && !e.defaultPrevented && !document.querySelector("dialog[open]") && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+                // the whole selection by one step, also when no object has the focus
+                const st = e.shiftKey ? 0.05 : 0.01;
+                const dirs: Record<string, [number, number]> = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] };
+                e.preventDefault();
+                multiAction((b, sel) => moveSelection(b, sel, dirs[e.key][0], dirs[e.key][1], boardPx()), true);
+            }
             else if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); history.undo(); }
             else if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); history.redo(); }
         };
@@ -798,7 +816,7 @@ export default function BoardWorkspace({
                         onContext={canWrite ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
-                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined}
+                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined} onMultiMove={canWrite ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>

@@ -31,14 +31,16 @@ function topLevelRoutes() {
 
 describe("one menu for both front ends", () => {
     it("has an entry for every top-level route and a route for every entry", () => {
-        const hrefs = MENU.map((e) => e.href).sort();
+        // sub entries (the raid plan's templates and catalog under Raid-Events) are routes below a top-level route
+        const hrefs = MENU.filter((e) => !e.sub).map((e) => e.href).sort();
         expect(hrefs).toEqual(topLevelRoutes().sort());
     });
 
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
-                id: expect.stringMatching(/^[a-z]+$/),
+                ...(entry.sub ? { area: "raids", sub: true } : {}),
+                id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
                 group: expect.stringMatching(/^(Start|Raids|Loot|Gilde|System)$/),
@@ -52,7 +54,7 @@ describe("one menu for both front ends", () => {
     it("groups the menu by what the entries are about, never more than three under one heading", () => {
         // one heading with eight entries under it ("Verwaltung") was the raid lead's complaint
         const groups = [];
-        for (const entry of MENU) {
+        for (const entry of MENU.filter((e) => !e.sub)) {
             const last = groups[groups.length - 1];
             if (last && last.name === entry.group) last.ids.push(entry.id);
             else groups.push({ name: entry.group, ids: [entry.id] });
@@ -70,7 +72,8 @@ describe("one menu for both front ends", () => {
     });
 
     it("uses the icons of the approved design", () => {
-        const icons = Object.fromEntries(MENU.map((e) => [e.id, e.wowIcon]));
+        const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({ planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11" });
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",
@@ -95,9 +98,10 @@ describe("one menu for both front ends", () => {
     it("has an accent colour for every entry, in the dark and in both light blocks", () => {
         const css = read("index.css");
         for (const entry of MENU) {
-            const defs = css.match(new RegExp(`--area-${entry.id}: #[0-9a-f]{6}; --area-${entry.id}-soft: rgba\\(`, "g")) || [];
-            expect({ id: entry.id, defs: defs.length }).toEqual({ id: entry.id, defs: 3 });
-            expect(css).toContain(`.area-${entry.id} { --area: var(--area-${entry.id}); --area-soft: var(--area-${entry.id}-soft); }`);
+            const id = entry.area || entry.id;
+            const defs = css.match(new RegExp(`--area-${id}: #[0-9a-f]{6}; --area-${id}-soft: rgba\\(`, "g")) || [];
+            expect({ id, defs: defs.length }).toEqual({ id, defs: 3 });
+            expect(css).toContain(`.area-${id} { --area: var(--area-${id}); --area-soft: var(--area-${id}-soft); }`);
         }
     });
 });

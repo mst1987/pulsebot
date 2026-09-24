@@ -17,6 +17,10 @@ export type MenuEntry = {
     group: string;
     areas: string[];
     wowIcon: string;
+    /** the colour of another area (a sub entry of Raid-Events keeps the raids colour) */
+    area?: string;
+    /** a sub entry: drawn a little indented under the entry it belongs to, and the parent is not active while it is open */
+    sub?: boolean;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;

@@ -63,6 +63,9 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
 function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
     const t = useT();
     let lastGroup: string | null = null;
+    const { pathname } = useLocation();
+    // an entry that has sub entries under it (Raid-Events) is not active while one of them is open
+    const subOpen = (tab: Tab) => TABS.some((o) => o.sub && o.id !== tab.id && o.href.startsWith(`${tab.href}/`) && tab.href !== o.href && !tab.sub && matchesTab(o.href, pathname));
     const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
     // The sidebar is always rendered, so it has to say something when a member's
     // account opens nothing at all — an empty column reads like a broken page.
@@ -88,7 +91,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                             to={tab.href}
                             end={tab.href === "/"}
                             onClick={onNavigate}
-                            className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}
+                            className={({ isActive }) => `nav-item area-${tab.area || tab.id}${tab.sub ? " is-sub" : ""}${isActive && !subOpen(tab) ? " active" : ""}`}
                         >
                             <WowIcon name={tab.wowIcon} size={24} />
                             <span>{tabLabel(tab)}</span>

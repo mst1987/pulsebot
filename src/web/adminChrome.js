@@ -24,7 +24,7 @@ const ICONS = {
 const TABS = MENU.map((entry) => ({ ...entry, iconUrl: wowIconUrl(entry.wowIcon, 24) }));
 
 // One accent per section for the active entry, the --area-* tokens of render.js.
-const AREA_STYLE = MENU.map((e) => `  .nav-item.area-${e.id} { --area:var(--area-${e.id}); --area-soft:var(--area-${e.id}-soft); }`).join("\n");
+const AREA_STYLE = [...new Set(MENU.map((e) => e.area || e.id))].map((id) => `  .nav-item.area-${id} { --area:var(--area-${id}); --area-soft:var(--area-${id}-soft); }`).join("\n");
 
 // Shell layout, ported from the "sidebar app shell" block of index.css so the
 // SSR pages line up pixel-wise with the React admin.
@@ -40,6 +40,7 @@ const CHROME_STYLE = `
   .menu-label { font-size:10.5px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1.3px; color:var(--muted); opacity:.7; padding:14px 12px 6px; }
   .nav-item { --area:var(--accent); --area-soft:var(--accent-soft); display:flex; align-items:center; gap:12px; padding:7px 12px; border-radius:8px; color:var(--muted); font-weight:600; font-size:14.5px; text-decoration:none; border:1px solid transparent; position:relative; transition:background .12s, color .12s, border-color .12s; }
   .nav-item .wi { width:24px; height:24px; border-radius:6px; border:1px solid var(--line); flex:0 0 auto; object-fit:cover; filter:saturate(.45) brightness(.8); transition:filter .12s, box-shadow .12s, border-color .12s; }
+  .nav-item.is-sub { margin-left:16px; padding-top:5px; padding-bottom:5px; font-size:13.5px; }
   .nav-item:hover { background:var(--panel2); color:var(--text); }
   .nav-item:hover .wi, .nav-item:focus-visible .wi { filter:none; }
   .nav-item.active { background:var(--area-soft); color:var(--text); border-color:var(--area-soft); }
@@ -88,7 +89,7 @@ function navHtml(activeTab) {
         const label = tab.group !== lastGroup ? `<div class="menu-label">${tab.group}</div>` : "";
         lastGroup = tab.group;
         const active = tab.id === activeTab ? " active" : "";
-        return `${label}<a class="nav-item area-${tab.id}${active}" href="${tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
+        return `${label}<a class="nav-item area-${tab.area || tab.id}${tab.sub ? " is-sub" : ""}${active}" href="${tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
     }).join("");
 }
 

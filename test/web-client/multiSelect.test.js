@@ -88,6 +88,62 @@ describe("moving the selection", () => {
     });
 });
 
+describe("moving everything together (Ctrl+A, then drag or arrow keys)", () => {
+    const b = board({
+        slots: [slot("s1", "tank", 1, 0.2, 0.3), slot("g1", "group", 1, 0.5, 0.5, { split: true, offsets: { u1: { dx: 0.05, dy: -0.04, size: 30 } } })],
+        tokens: [token("u2", 0.4, 0.2)],
+        marks: [mark("m1", 0.6, 0.3)],
+        icons: [icon("i1", 0.3, 0.6)],
+        zones: [zone("z1", 0.5, 0.65, 0.2, 0.15, { shape: "ellipse" })],
+        lines: [line("l1", 0.1, 0.8, 0.3, 0.85)],
+        texts: [text("t1", 0.7, 0.4)],
+    });
+    const all = ms.selectableItems(b);
+    const anchor = (bd, it) => raidplan.objectPoint(bd, it.kind, it.id);
+    it("every kind moves by exactly the same offset, so the distances between them do not change", () => {
+        const r = ms.moveSelection(b, all, 0.07, 0.05, px);
+        for (const it of all) {
+            const before = anchor(b, it);
+            const after = anchor(r, it);
+            expect(after.x - before.x).toBeCloseTo(0.07, 6);
+            expect(after.y - before.y).toBeCloseTo(0.05, 6);
+        }
+        // both ends of the line and the whole rectangle of the zone moved, nothing was squeezed
+        expect(r.lines[0].x2 - r.lines[0].x1).toBeCloseTo(0.2, 6);
+        expect(r.zones[0].w).toBeCloseTo(0.2, 6);
+    });
+    it("a split group's raiders keep their place round the marker (their offsets are not moved twice)", () => {
+        const r = ms.moveSelection(b, all, 0.07, 0.05, px);
+        expect(r.slots[1].offsets).toEqual(b.slots[1].offsets);
+        expect(r.slots[1].x).toBeCloseTo(0.57, 6);
+    });
+    it("the whole selection stops at the edge: the box stays inside 0..1 and no object is squeezed against it alone", () => {
+        const r = ms.moveSelection(b, all, 5, 5, px);
+        const box = ms.selectionBox(r, all, px);
+        expect(box.x1).toBeLessThanOrEqual(1.0001);
+        expect(box.y1).toBeLessThanOrEqual(1.0001);
+        const b0 = ms.selectionBox(b, all, px);
+        expect(box.x1 - box.x0).toBeCloseTo(b0.x1 - b0.x0, 6);
+        expect(box.y1 - box.y0).toBeCloseTo(b0.y1 - b0.y0, 6);
+        const dx = anchor(r, all[0]).x - anchor(b, all[0]).x;
+        for (const it of all) expect(anchor(r, it).x - anchor(b, it).x).toBeCloseTo(dx, 6);
+        const back = ms.moveSelection(b, all, -5, -5, px);
+        expect(ms.selectionBox(back, all, px).x0).toBeGreaterThanOrEqual(-0.0001);
+    });
+    it("a locked object does not come along, the rest still moves by the same offset", () => {
+        const c = { ...b, marks: [mark("m1", 0.6, 0.3, { lock: true })] };
+        const r = ms.moveSelection(c, [item("mark", "m1"), item("icon", "i1"), item("text", "t1")], 0.1, 0, px);
+        expect(r.marks[0].x).toBe(0.6);
+        expect(r.icons[0].x).toBeCloseTo(0.4, 6);
+        expect(r.texts[0].x).toBeCloseTo(0.8, 6);
+    });
+    it("moves in steps by the arrow keys the same way, and a step of zero changes nothing", () => {
+        const r = ms.moveSelection(b, all, 0.01, 0, px);
+        expect(r.icons[0].x).toBeCloseTo(0.31, 6);
+        expect(ms.moveSelection(b, all, 0, 0, px).icons[0]).toEqual(b.icons[0]);
+    });
+});
+
 describe("scaling the selection around its centre", () => {
     const b = board({ icons: [icon("i1", 0.4, 0.5)], marks: [mark("m1", 0.6, 0.5)], zones: [zone("z1", 0.4, 0.3, 0.2, 0.1)], lines: [line("l1", 0.4, 0.7, 0.6, 0.7)], texts: [text("t1", 0.5, 0.2)] });
     const sel = [item("icon", "i1"), item("mark", "m1"), item("zone", "z1"), item("line", "l1"), item("text", "t1")];

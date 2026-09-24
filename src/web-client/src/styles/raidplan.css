@@ -840,3 +840,10 @@
 /* palette: every group of icons with its label above it */
 .rp-bands .rp-palette { align-items: flex-start; gap: 4px 14px; }
 .rp-palette-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rp-multi-edge { position: absolute; pointer-events: auto; cursor: move; touch-action: none; }
+.rp-me-n, .rp-me-s { left: 0; right: 0; height: 10px; }
+.rp-me-n { top: -5px; }
+.rp-me-s { bottom: -5px; }
+.rp-me-w, .rp-me-e { top: 0; bottom: 0; width: 10px; }
+.rp-me-w { left: -5px; }
+.rp-me-e { right: -5px; }

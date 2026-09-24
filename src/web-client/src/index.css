@@ -1711,3 +1711,7 @@ dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
 .lang-toggle button:hover:not(.is-on) { color: var(--text); background: var(--panel3); }
 .lang-toggle button.is-on { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 .lang-toggle button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+
+/* sub entries of the menu (Raidplan-Vorlagen, Raidplan-Katalog under Raid-Events) */
+.nav-item.is-sub { margin-left: 16px; padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
+.nav-item.is-sub .wi { width: 20px; height: 20px; }

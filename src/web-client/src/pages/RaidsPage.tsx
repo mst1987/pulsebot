@@ -149,8 +149,6 @@ export default function RaidsPage() {
                     </h1>
                 </div>
                 <div className="ph-act">
-                    <Link className={buttonClass("ghost", "md", true)} to="/raids/plan-templates"><WowIcon name="inv_misc_map02" size={22} />{t("raids.page.planTemplates")}</Link>
-                    <Link className={buttonClass("ghost", "md", true)} to="/raids/plan-catalog"><WowIcon name="inv_misc_book_09" size={22} />{t("raids.page.planCatalog")}</Link>
                     <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />{t("raids.page.series")}</Link>
                     <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />{t("raids.page.raidTemplates")}</Link>
                     <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />{t("raids.page.notifyTemplates")}</Link>

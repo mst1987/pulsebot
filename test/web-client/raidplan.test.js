@@ -779,7 +779,9 @@ describe("the pages", () => {
 
     it("reaches the template page from the raid list and the router, inside the raids area", () => {
         expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raids"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
-        expect(read("pages/RaidsPage.tsx")).toContain("to=\"/raids/plan-templates\"");
+        // in the menu (a sub entry of Raid-Events), no longer a button in the page head
+        expect(read("pages/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
+        expect(JSON.stringify(require("../../src/config/menu.json"))).toContain("/raids/plan-templates");
         expect(read("components/Shell.tsx")).toContain("/raids/plan-templates");
     });
 });
