@@ -28,6 +28,7 @@ const { refreshEventMessage } = require("../eventMessage");
 const setupMessage = require("../setupMessage");
 const { saveSetupPingText } = require("../setupPing");
 const { setupAttendance } = require("../setupAttendance");
+const { postSearch } = require("../raidSearch");
 const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
@@ -202,6 +203,19 @@ async function postPingText(req, res) {
     await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
 }
 
+/** POST /api/raids/setup/search — body `{ event, text? }`: post the "we are looking for …" message into the event channel. */
+async function postSearchMessage(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user || !requireWrite(res, user)) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const result = await postSearch({ guildId: event.guildId, eventId: event.id, userId: user.id, byName: user.username || user.name || "", text: body.text });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, result);
+}
+
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
 async function postExplain(req, res) {
     const user = requireAdmin(req, res);
@@ -239,4 +253,4 @@ async function getExplain(req, res, url) {
     });
 }
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExplain, getExplain, EXPLAIN_SECTION };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postSearchMessage, postExplain, getExplain, EXPLAIN_SECTION };

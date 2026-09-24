@@ -147,6 +147,21 @@
         "post": "Post setup",
         "postSub": "Posts the approved setup to the event channel or updates the message there, and sends any DMs still missing. A draft is never posted."
     },
+    "search": {
+        "kicker": "Raid search",
+        "title": "Who are we still looking for?",
+        "hint": "The message goes into the event channel (in English, you can edit it).",
+        "open": "{open} of {size} places are still open.",
+        "required": "Required buff",
+        "roleCount": "{count}× {role}",
+        "buffCount": "{count} buffs",
+        "helps": "would help",
+        "message": "Message for the channel",
+        "post": "Post to channel",
+        "posted": "Search posted to the channel.",
+        "failed": "Could not post.",
+        "none": "Nothing is missing – roles and buffs are covered and every place is filled."
+    },
     "pingText": {
         "label": "Ping message — posted when you click \"Ping everyone\"",
         "title": "Ping message",
@@ -188,6 +203,8 @@
         "sizeSub": "Every group has 5 places, the raid's player count follows from that. Groups and bench change right away in the browser, applied when you leave the field or press Enter.",
         "sizeUnsaved": "unsaved",
         "sizeUnsavedTip": "This number of groups has not been applied yet.",
+        "search": "Search",
+        "searchSub": "Which classes and specs the raid still needs – with a ready message for the channel.",
         "compact": "Compact",
         "compactSub": "Narrow cards with one-line raiders, for small screens. Remembered in this browser.",
         "sizeFailed": "Could not change the size."

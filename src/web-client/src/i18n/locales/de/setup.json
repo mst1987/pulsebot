@@ -147,6 +147,21 @@
         "post": "Setup posten",
         "postSub": "Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
     },
+    "search": {
+        "kicker": "Raid-Suche",
+        "title": "Wen suchen wir noch?",
+        "hint": "Die Nachricht geht in den Event-Kanal (auf Englisch, du kannst sie ändern).",
+        "open": "{open} von {size} Plätzen sind noch offen.",
+        "required": "Pflicht-Buff",
+        "roleCount": "{count}× {role}",
+        "buffCount": "{count} Buffs",
+        "helps": "wäre hilfreich",
+        "message": "Nachricht für den Kanal",
+        "post": "Im Kanal posten",
+        "posted": "Suche im Kanal gepostet.",
+        "failed": "Konnte nicht posten.",
+        "none": "Es fehlt nichts – Rollen und Buffs sind abgedeckt und alle Plätze besetzt."
+    },
     "pingText": {
         "label": "Ping-Nachricht – wird beim Klick auf „Ping everyone“ gepostet",
         "title": "Ping-Nachricht",
@@ -188,6 +203,8 @@
         "sizeSub": "Jede Gruppe hat 5 Plätze, die Spielerzahl des Raids ergibt sich daraus. Gruppen und Bank ändern sich sofort im Browser, übernommen wird es beim Verlassen des Felds oder mit Enter.",
         "sizeUnsaved": "ungespeichert",
         "sizeUnsavedTip": "Diese Gruppenzahl ist noch nicht übernommen.",
+        "search": "Suche",
+        "searchSub": "Welche Klassen und Specs dem Raid noch fehlen – mit fertiger Nachricht für den Kanal.",
         "compact": "Kompakt",
         "compactSub": "Schmale Karten mit einzeiligen Raidern, für kleine Bildschirme. Die Wahl wird in diesem Browser gemerkt.",
         "sizeFailed": "Größe konnte nicht geändert werden."

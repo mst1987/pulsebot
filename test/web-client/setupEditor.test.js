@@ -507,6 +507,35 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("se-suggest");
     });
 
+    describe("Suche — the classes and specs the raid still needs", () => {
+        const buff = (key, specs, required = false) => ({ key, label: key, icon: "i", required, specs });
+
+        it("makes one row per set of specs that brings a buff — six blessings of the same paladin specs are one row", () => {
+            const paladin = ["Paladin-Holy", "Paladin-Protection", "Paladin-Retribution"];
+            const groups = lib.groupSearchBuffs([buff("kings", paladin), buff("might", paladin), buff("windfury", ["Shaman-Enhancement"], true), buff("wisdom", paladin)]);
+            expect(groups.map((g) => [g.required, g.buffs.map((b) => b.key)])).toEqual([[false, ["kings", "might", "wisdom"]], [true, ["windfury"]]]);
+            // the same specs but one buff required and one not are two rows: what is required must stay visible as such
+            expect(lib.groupSearchBuffs([buff("a", ["X-Y"], true), buff("b", ["X-Y"], false)])).toHaveLength(2);
+            expect(lib.groupSearchBuffs([])).toEqual([]);
+        });
+
+        it("has a Suche button in the bar, a dialog with the editable message and a post button, in both languages", () => {
+            const src = read("pages", "raid-detail", "SetupEditor.tsx");
+            expect(src).toContain('setDialog("search")');
+            expect(src).toContain("function SearchModal(");
+            expect(src).toContain("postRaidSearch(ctx.csrfToken, ctx.eventId, text)");
+            // the message is posted as edited, never empty and never over Discord's limit
+            expect(src).toMatch(/disabled=\{nothing \|\| !text\.trim\(\) \|\| text\.length > 2000\}/);
+            expect(src).not.toMatch(/\{r\.missing\}×/);
+            for (const key of ["kicker", "title", "hint", "open", "roleCount", "required", "helps", "buffCount", "message", "post", "posted", "failed", "none"]) {
+                expect(makeT("de")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
+                expect(makeT("en")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
+            }
+            expect(makeT("de")("setup.search.roleCount", { count: 2, role: "Heiler" })).toBe("2× Heiler");
+            expect(makeT("de")("setup.editor.search")).toBe("Suche");
+        });
+    });
+
     it("draws the lock as an overlay that takes no width from the raider's name", () => {
         const css = read("styles", "setup-editor.css");
         expect(css).toMatch(/\.se-slot \{ position: relative;/);

@@ -13,11 +13,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
-    type ApiError, type SetupAttendance, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
+    type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, groupSearchBuffs, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -661,6 +661,81 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     );
 }
 
+/**
+ * "Suche": which classes and specs the raid still needs, worked out from the
+ * setup as it stands (the server's suggestion), and the message that looks for
+ * them — English, editable, posted into the event channel with one click.
+ */
+function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: () => void; ctx: RaidCtx; search: SetupSearch | null | undefined }) {
+    const t = useT();
+    const jobs = useJobs();
+    const [text, setText] = useState("");
+    const [posting, setPosting] = useState(false);
+    useEffect(() => {
+        if (open) setText(search?.text || "");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
+    const nothing = !search || (!search.roles.length && !search.buffs.length && !search.open);
+    const chips = (keys: string[]) => keys.map((k) => {
+        const s = search?.specInfo[k];
+        if (!s) return null;
+        return (
+            <span key={k} className="se-search-chip" style={{ borderLeftColor: s.color }} data-tip={`${s.classLabel} – ${specLabel(k, s.label)}`}>
+                <WowIcon name={s.icon || "inv_misc_questionmark"} size={18} />
+                <span className="se-search-chip-name">{specLabel(k, s.label)}<small>{s.classLabel}</small></span>
+            </span>
+        );
+    });
+    const post = async () => {
+        setPosting(true);
+        try {
+            const r = await postRaidSearch(ctx.csrfToken, ctx.eventId, text);
+            jobs.notify(r.message || t("setup.search.posted"), "ok");
+            onClose();
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.search.failed"), "err");
+        } finally {
+            setPosting(false);
+        }
+    };
+    return (
+        <Modal
+            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={760}
+            hint={t("setup.search.hint")}
+            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={nothing || !text.trim() || text.length > 2000} onClick={post}>{t("setup.search.post")}</Button>}
+        >
+            {nothing || !search ? <p className="se-note">{t("setup.search.none")}</p> : (
+                <div className="se-search">
+                    <p className="se-search-open">{t("setup.search.open", { open: search.open, size: search.size })}</p>
+                    {search.roles.map((r) => (
+                        <div key={r.role} className="se-search-row">
+                            <span className="se-search-need">{t("setup.search.roleCount", { count: r.missing, role: r.missing > 1 ? rolePluralLabel(r.role) : roleLabel(r.role) })}</span>
+                            <span className="se-search-chips">{chips(r.specs)}</span>
+                        </div>
+                    ))}
+                    {groupSearchBuffs(search.buffs).map((g) => (
+                        <div key={g.id} className="se-search-row">
+                            <span className="se-search-need" data-tip={g.buffs.map((b) => b.label).join(", ")}>
+                                <span className="se-search-icons">{g.buffs.map((b) => <WowIcon key={b.key} name={b.icon || "inv_misc_questionmark"} size={20} />)}</span>
+                                <span>
+                                    {g.buffs.length > 2 ? t("setup.search.buffCount", { count: g.buffs.length }) : g.buffs.map((b) => b.label).join(", ")}
+                                    <small className={g.required ? "se-search-req" : ""}>{g.required ? t("setup.search.required") : t("setup.search.helps")}</small>
+                                </span>
+                            </span>
+                            <span className="se-search-chips">{chips(g.specs)}</span>
+                        </div>
+                    ))}
+                    <label className="se-search-msg">
+                        <span className="se-tip-k">{t("setup.search.message")}</span>
+                        <textarea value={text} maxLength={2000} rows={Math.min(16, text.split("\n").length + 3)} onChange={(e) => setText(e.target.value)} aria-label={t("setup.search.message")} />
+                        <span className="se-search-count">{text.length}/2000</span>
+                    </label>
+                </div>
+            )}
+        </Modal>
+    );
+}
+
 const clock = (ms: number) => {
     if (!ms) return "";
     const d = new Date(ms);
@@ -787,7 +862,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [dragging, setDragging] = useState<string | null>(null);
     // the raider the docked panel shows: the one the pointer touched last
     const [inspected, setInspected] = useState<string | null>(null);
-    const [dialog, setDialog] = useState<"weights" | "explain" | null>(null);
+    const [dialog, setDialog] = useState<"weights" | "explain" | "search" | null>(null);
     const [posting, setPosting] = useState(false);
     const [compact, setCompact] = useState(readCompact);
     const toggleCompact = () => setCompact((on) => {
@@ -1059,6 +1134,13 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     >
                         {t("setup.editor.compact")}
                     </Button>
+                    <Button
+                        variant="ghost" size="sm" icon="inv_misc_spyglass_02" disabled={!data.search}
+                        data-tip={t("setup.editor.search")} data-tip-sub={t("setup.editor.searchSub")}
+                        onClick={() => setDialog("search")}
+                    >
+                        {t("setup.editor.search")}
+                    </Button>
                     <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
                     <Button variant="ghost" size="sm" icon="inv_misc_gear_01" disabled={busy} onClick={() => setDialog("weights")}>{t("setup.summary.weights")}</Button>
                     <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
@@ -1095,6 +1177,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             </div>
 
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
+            <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={ctx} search={data.search} />
             <ExplainModal open={dialog === "explain"} onClose={() => setDialog(null)} ctx={ctx} data={data} setup={setup} onDone={load} />
         </div>
     );
