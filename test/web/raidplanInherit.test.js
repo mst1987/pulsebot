@@ -133,3 +133,21 @@ describe("validation", () => {
         expect(plans.applyTemplate("e2", t, { version: 0, bossKeys: [BOSS], roster, userId: "o" }).plan.bosses).toEqual({});
     });
 });
+
+describe("template -> event: what the boss icon's auto facing needs", () => {
+    it("the event's board has the placed tank slot, the boss icon and the resolved 'Tank -> boss of this section' row, so the facing follows from the rows alone", () => {
+        const icon = { id: "i1", iconKey: "boss:601", label: "", showLabel: false, x: 0.5, y: 0.5, size: 48, rotation: 0, mobId: "", autoFace: true, opacity: 1, lock: false, hidden: false };
+        const tank = { id: "s1", kind: "tank", n: 1, x: 0.2, y: 0.8, label: "", userId: "", size: 38, hideMembers: false, split: false, offsets: {}, placed: true, opacity: 1, lock: false, hidden: false };
+        const t = template(DEFAULT_ROWS, { [BOSS]: { icons: [icon], slots: [tank] } });
+        const plan = apply(t).plan;
+        const b = plan.bosses[BOSS];
+        expect(b.icons).toHaveLength(1);
+        expect(b.slots.some((s) => s.kind === "tank" && s.n === 1 && s.placed !== false)).toBe(true);
+        const inherited = b.assignments.find((a) => a.type === "tank" && a.origin === "default");
+        expect(inherited.assignees).toEqual(["slot:tank:1"]);
+        expect(inherited.targets).toEqual([expect.objectContaining({ kind: "mob", ref: `b:${BOSS}` })]);
+        // the other boss gets its own boss as the target, not this one's
+        const o = plan.bosses[OTHER].assignments.find((a) => a.type === "tank");
+        expect(o.targets[0].ref).toBe(`b:${OTHER}`);
+    });
+});

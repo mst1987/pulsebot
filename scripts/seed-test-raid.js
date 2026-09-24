@@ -75,6 +75,13 @@ function seedPlan(eventId, event) {
         const onMap = key === DEMO_BOSSES[0] ? slots.filter((s) => s.kind === "tank" || s.kind === "healer") : [];
         bosses[key] = { slots: onMap, assignments: list, notes: trash ? "Trash: Tank 1 Totenkopf, Tank 2 Kreuz, Tank 3 Quadrat." : "" };
     }
+    // the second boss: tanks on the map and the boss icon, but NO own tank row - the Standard below (Tank 1 -> boss of this section) makes the icon face the tank in every boss
+    {
+        const second = DEMO_BOSSES[1];
+        const icon = (key) => ({ id: "seedicon", iconKey: "boss:601", label: "", showLabel: false, x: 0.5, y: 0.25, size: 48, rotation: 0, mobId: `b:${key}`, autoFace: true, opacity: 1, lock: false, hidden: false });
+        bosses[second] = { ...bosses[second], slots: slots.filter((s) => s.kind === "tank"), icons: [icon(second)], assignments: bosses[second].assignments.filter((a) => a.type !== "tank") };
+        bosses.defaults = { slots: [], assignments: [{ id: "stdtank1", type: "tank", title: "", spell: null, assignees: ["slot:tank:1"], targets: [{ kind: "mob", ref: "b:this", name: "Boss", icon: "" }], note: "", suggested: false }] };
+    }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 
     let tpl = templates.listTemplates().find((t) => t.name === TEMPLATE_NAME);

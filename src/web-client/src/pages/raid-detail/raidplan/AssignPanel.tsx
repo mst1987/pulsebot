@@ -53,7 +53,7 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
         </>
     );
     return (
-        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} data-tip={r.kind === "slot" && r.player ? r.label : r.kind === "group" && ctx ? groupMembersTip(ctx, r.group) : undefined}>
+        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} style={r.kind === "group" ? { borderColor: groupColor(ctx ? ctx.groupColors : undefined, r.group), borderWidth: 2 } : undefined} data-tip={r.kind === "slot" && r.player ? r.label : r.kind === "group" && ctx ? groupMembersTip(ctx, r.group) : undefined}>
             {extra}{body}
             {onRemove && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={onRemove}><X size={12} /></button>}
         </span>

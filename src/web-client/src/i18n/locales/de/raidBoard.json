@@ -193,7 +193,8 @@
         "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer.",
         "melee": "Melee {n}",
         "ranged": "Ranged {n}",
-        "allPlaced": "Alle {what} sind schon auf der Map. Neue Slots entstehen nur über + / − in der Besetzung."
+        "allPlaced": "Alle {what} sind schon auf der Map. Neue Slots entstehen nur über + / − in der Besetzung.",
+        "groupRange": "Gruppe {a}–{b}"
     },
     "mark": {
         "skull": "Totenkopf",
@@ -332,7 +333,8 @@
         "relativeHint": "Ein Faktor für alle Ausgewählten (100 % = unverändert).",
         "showBorder": "Rand anzeigen",
         "showRingObj": "Ring / Rand anzeigen",
-        "showName": "Name anzeigen"
+        "showName": "Name anzeigen",
+        "nameAuto": "Der Name ist ausgeblendet: das Icon ist auf dem Bild zu klein dafür (größeres Board, Zoom oder größere Symbole zeigen ihn wieder)."
     },
     "panel": {
         "props": "Eigenschaften",
@@ -685,7 +687,8 @@
             "warrior": "Thunder Clap / Demo Shout",
             "other": "Sonstiges"
         },
-        "yourGroup": "Deine Gruppe ({n})"
+        "yourGroup": "Deine Gruppe ({n})",
+        "preview": "Vorschau: Meine Aufgaben (so sieht es das Sheet für dich)"
     },
     "group": {
         "style": "Aussehen von Gruppe {n}",

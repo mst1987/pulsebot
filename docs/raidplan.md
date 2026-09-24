@@ -229,3 +229,11 @@ The dev auto-login user (the first admin id of `.env.dev`, or `--me <userId>`) i
 ## Map upload size (proxy limit)
 
 A map is sent as it is when it is at most 900 KB; a bigger one is shrunk in the browser (WebP, JPEG without WebP; longest edge 2560, then 2048, 1600 ... with falling quality) until it is under 900 KB - under the 1 MB default `client_max_body_size` of an nginx reverse proxy, which would otherwise answer with an HTML 413. The toast says "Verkleinert: 6,3 MB -> 0,8 MB". The server limit (3 MB) stays as a safety net. A raised proxy limit (`client_max_body_size 4m;` for `/api/raidplan/`) is possible, see `docs/deployment.md`; the shrinking stays below it. A 413 / 502 / 503 / 504 without JSON is shown as a sentence (`common.errors.*`), never as the proxy's HTML.
+
+## Follow-up 4
+
+- **"Gruppe 1-3"**: three or more consecutive groups among the targets of a card in "Meine Aufgaben" / "Wirkt auf dich" become one chip (`mergeGroupRuns`); pairs and singles stay single.
+- **Editor preview "Meine Aufgaben"**: a foldable block under the Einteilungen (event plans, when the organiser is in the setup) shows his tasks and what acts on him, from the effective rows.
+- **Inspector**: a note when the board hides an icon's name by itself (too small on screen, `lib/labelScale.ts`); the Heilen card's group chips carry the group colour as their border.
+- **Catalog**: Shield Bash, Cure Poison (druid and shaman), Remove Curse (mage and druid) checked against Wowhead TBC / Warcraft Wiki: all exist in 2.4.3, nothing changed (sources in the defaults file).
+- **Seed**: the second demo boss has tanks on the map and the boss icon but no own tank row; the template's Standard row (Tank 1 -> boss of this section) makes the icon face the tank after "apply".
