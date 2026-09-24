@@ -28,7 +28,7 @@ const { refreshEventMessage } = require("../eventMessage");
 const setupMessage = require("../setupMessage");
 const { saveSetupPingText } = require("../setupPing");
 const { setupAttendance } = require("../setupAttendance");
-const { postSearch } = require("../raidSearch");
+const { postSearch, textForNeeds } = require("../raidSearch");
 const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
@@ -203,6 +203,19 @@ async function postPingText(req, res) {
     await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
 }
 
+/** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */
+async function postSearchText(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user || !requireWrite(res, user)) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const result = textForNeeds(event, body);
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, result);
+}
+
 /** POST /api/raids/setup/search — body `{ event, text? }`: post the "we are looking for …" message into the event channel. */
 async function postSearchMessage(req, res) {
     const user = requireAdmin(req, res);
@@ -253,4 +266,4 @@ async function getExplain(req, res, url) {
     });
 }
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postSearchMessage, postExplain, getExplain, EXPLAIN_SECTION };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION };

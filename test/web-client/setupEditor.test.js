@@ -553,15 +553,33 @@ describe("the raider tooltip and the drag glow", () => {
             expect(src).toContain('setDialog("search")');
             expect(src).toContain("function SearchModal(");
             expect(src).toContain("postRaidSearch(ctx.csrfToken, ctx.eventId, text)");
-            // the message is posted as edited, never empty and never over Discord's limit
-            expect(src).toMatch(/disabled=\{nothing \|\| !text\.trim\(\) \|\| text\.length > 2000\}/);
+            expect(src).toContain("previewRaidSearch(ctx.csrfToken, ctx.eventId,");
+            for (const fn of ["stepRole(", "toggleSpec(", "addRole(", "removeBuffs("]) expect(src).toContain(fn);
+            // the message is posted as edited, never empty, never over Discord's limit, not while it is being written
+            expect(src).toContain("disabled={!search || !text.trim() || text.length > 2000 || writing}");
             expect(src).not.toMatch(/\{r\.missing\}×/);
-            for (const key of ["kicker", "title", "hint", "open", "roleCount", "required", "helps", "buffCount", "message", "post", "posted", "failed", "none"]) {
+            for (const key of ["kicker", "title", "hint", "open", "required", "helps", "buffCount", "message", "post", "posted", "failed", "none", "fewer", "more", "drop", "dropSub", "add", "regenerate", "writing"]) {
                 expect(makeT("de")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
                 expect(makeT("en")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
             }
-            expect(makeT("de")("setup.search.roleCount", { count: 2, role: "Heiler" })).toBe("2× Heiler");
             expect(makeT("de")("setup.editor.search")).toBe("Suche");
+        });
+
+        it("edits the needs without touching the suggestion: count 1-40, a role at 0 drops out, specs in and out, a role added once, buffs dropped", () => {
+            const search = { roles: [{ role: "tank", missing: 1, specs: ["A-Tank"] }], buffs: [buff("kings", ["P-Holy"]), buff("wf", ["S-Enh"], true)] };
+            const needs = lib.searchNeedsFrom(search);
+            expect(needs).toEqual({ roles: search.roles, buffs: search.buffs });
+            expect(needs.roles[0]).not.toBe(search.roles[0]);
+            expect(lib.stepRole(needs, "tank", 2).roles[0].missing).toBe(3);
+            expect(lib.stepRole(needs, "tank", 100).roles[0].missing).toBe(40);
+            expect(lib.stepRole(needs, "tank", -1).roles).toEqual([]);
+            expect(lib.toggleSpec(needs, "tank", "B-Tank").roles[0].specs).toEqual(["A-Tank", "B-Tank"]);
+            expect(lib.toggleSpec(needs, "tank", "A-Tank").roles[0].specs).toEqual([]);
+            const added = lib.addRole(needs, "healer", ["H-1", "H-2"]);
+            expect(added.roles[1]).toEqual({ role: "healer", missing: 1, specs: ["H-1", "H-2"] });
+            expect(lib.addRole(added, "healer", ["H-1"])).toBe(added);
+            expect(lib.removeBuffs(needs, ["kings"]).buffs.map((b) => b.key)).toEqual(["wf"]);
+            expect(search.roles[0].missing).toBe(1);
         });
     });
 

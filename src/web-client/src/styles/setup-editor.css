@@ -283,3 +283,19 @@
     .se-tip-buffs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; }
     .se-tip-name { font-size: 18px; }
 }
+
+/* editing the search: a count with - / +, specs that can be taken in or out, buffs that can be dropped, roles that can be added */
+.se-search-step { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.se-search-step b { min-width: 22px; text-align: center; font-size: 16px; }
+.se-search-step button { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--text); font-size: 16px; line-height: 1; cursor: pointer; }
+.se-search-step button:hover { border-color: var(--accent); }
+.se-search-pick { font: inherit; color: var(--text); cursor: pointer; opacity: .45; }
+.se-search-pick.is-on { opacity: 1; background: var(--accent-soft); border-color: var(--accent); }
+.se-search-pick:hover { opacity: 1; }
+.se-search-drop { margin-left: auto; }
+.se-search-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.se-search-addrole { padding: 4px 12px; border: 1px dashed var(--accent); border-radius: 8px; background: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.se-search-addrole:hover { background: var(--accent-soft); }
+.se-search-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.se-search-regen { padding: 3px 10px; border: 1px solid var(--accent); border-radius: 8px; background: none; color: var(--accent); font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.se-search-foot .se-search-count { margin-left: auto; }

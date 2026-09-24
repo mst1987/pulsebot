@@ -13,12 +13,12 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, previewRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, groupSearchBuffs, respecRaider, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
-    type SetupTarget,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, addRole, groupSearchBuffs, removeBuffs, respecRaider, searchNeedsFrom, stepRole, suggestGroup, toggleSpec, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    type SearchNeeds, type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { roleLabel, rolePluralLabel, specLabel } from "../../lib/wowNames";
@@ -29,7 +29,7 @@ import { Modal, useConfirm } from "../../components/ui/Modal";
 import RaidLoader from "../../components/ui/RaidLoader";
 import WowIcon from "../../components/ui/WowIcon";
 import { useJobs } from "../../components/Jobs";
-import { CheckIcon, LockIcon, UnlockIcon } from "../../components/icons";
+import { CheckIcon, LockIcon, UnlockIcon, XIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import SpecTile from "./SpecTile";
 import type { RaidCtx } from "./meta";
@@ -681,29 +681,61 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
 
 /**
  * "Suche": which classes and specs the raid still needs, worked out from the
- * setup as it stands (the server's suggestion), and the message that looks for
- * them — English, editable, posted into the event channel with one click.
+ * setup as it stands (the server's suggestion) — and the orga edits it: more or
+ * fewer of a role, specs taken in or out, a role added, a buff dropped. The
+ * English message for the channel follows the changes (the server writes it),
+ * stays editable by hand, and is posted into the event channel with one click.
  */
 function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: () => void; ctx: RaidCtx; search: SetupSearch | null | undefined }) {
     const t = useT();
     const jobs = useJobs();
+    const [needs, setNeeds] = useState<SearchNeeds>({ roles: [], buffs: [] });
     const [text, setText] = useState("");
+    // the orga typed in the message: a change of the needs no longer rewrites it, "neu erzeugen" does
+    const [touched, setTouched] = useState(false);
+    const [writing, setWriting] = useState(false);
     const [posting, setPosting] = useState(false);
     useEffect(() => {
-        if (open) setText(search?.text || "");
+        if (!open || !search) return;
+        setNeeds(searchNeedsFrom(search));
+        setText(search.text);
+        setTouched(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
-    const nothing = !search || (!search.roles.length && !search.buffs.length && !search.open);
-    const chips = (keys: string[]) => keys.map((k) => {
-        const s = search?.specInfo[k];
+
+    const regenerate = async (next: SearchNeeds) => {
+        setWriting(true);
+        try {
+            const r = await previewRaidSearch(ctx.csrfToken, ctx.eventId, { roles: next.roles, buffs: next.buffs.map((b) => ({ key: b.key, required: b.required, specs: b.specs })) });
+            setText(r.text);
+            setTouched(false);
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.search.failed"), "err");
+        } finally {
+            setWriting(false);
+        }
+    };
+    const change = (next: SearchNeeds) => {
+        setNeeds(next);
+        if (!touched) void regenerate(next);
+    };
+
+    const nothing = !search || (!needs.roles.length && !needs.buffs.length && !search.open);
+    const chip = (key: string, on: boolean, toggle?: () => void) => {
+        const s = search?.specInfo[key];
         if (!s) return null;
-        return (
-            <span key={k} className="se-search-chip" style={{ borderLeftColor: s.color }} data-tip={`${s.classLabel} – ${specLabel(k, s.label)}`}>
+        const inner = (
+            <>
                 <WowIcon name={s.icon || "inv_misc_questionmark"} size={18} />
-                <span className="se-search-chip-name">{specLabel(k, s.label)}<small>{s.classLabel}</small></span>
-            </span>
+                <span className="se-search-chip-name">{specLabel(key, s.label)}<small>{s.classLabel}</small></span>
+            </>
         );
-    });
+        return toggle
+            ? <button key={key} type="button" className={`se-search-chip se-search-pick${on ? " is-on" : ""}`} style={{ borderLeftColor: s.color }} aria-pressed={on} onClick={toggle}>{inner}</button>
+            : <span key={key} className="se-search-chip" style={{ borderLeftColor: s.color }}>{inner}</span>;
+    };
+    const chips = (keys: string[]) => keys.map((k) => chip(k, true));
+    const missingRoles = Object.keys(search?.roleSpecs || {}).filter((r) => !needs.roles.some((x) => x.role === r));
     const post = async () => {
         setPosting(true);
         try {
@@ -718,20 +750,27 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
     };
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={760}
+            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={780}
             hint={t("setup.search.hint")}
-            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={nothing || !text.trim() || text.length > 2000} onClick={post}>{t("setup.search.post")}</Button>}
+            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={!search || !text.trim() || text.length > 2000 || writing} onClick={post}>{t("setup.search.post")}</Button>}
         >
-            {nothing || !search ? <p className="se-note">{t("setup.search.none")}</p> : (
+            {!search ? <p className="se-note">{t("setup.search.none")}</p> : (
                 <div className="se-search">
                     <p className="se-search-open">{t("setup.search.open", { open: search.open, size: search.size })}</p>
-                    {search.roles.map((r) => (
+                    {needs.roles.map((r) => (
                         <div key={r.role} className="se-search-row">
-                            <span className="se-search-need">{t("setup.search.roleCount", { count: r.missing, role: r.missing > 1 ? rolePluralLabel(r.role) : roleLabel(r.role) })}</span>
-                            <span className="se-search-chips">{chips(r.specs)}</span>
+                            <span className="se-search-need">
+                                <span className="se-search-step" role="group" aria-label={roleLabel(r.role)}>
+                                    <button type="button" onClick={() => change(stepRole(needs, r.role, -1))} aria-label={t("setup.search.fewer")}>-</button>
+                                    <b>{r.missing}</b>
+                                    <button type="button" onClick={() => change(stepRole(needs, r.role, 1))} aria-label={t("setup.search.more")}>+</button>
+                                </span>
+                                {r.missing > 1 ? rolePluralLabel(r.role) : roleLabel(r.role)}
+                            </span>
+                            <span className="se-search-chips">{(search.roleSpecs[r.role] || []).map((k) => chip(k, r.specs.includes(k), () => change(toggleSpec(needs, r.role, k))))}</span>
                         </div>
                     ))}
-                    {groupSearchBuffs(search.buffs).map((g) => (
+                    {groupSearchBuffs(needs.buffs).map((g) => (
                         <div key={g.id} className="se-search-row">
                             <span className="se-search-need" data-tip={g.buffs.map((b) => b.label).join(", ")}>
                                 <span className="se-search-icons">{g.buffs.map((b) => <WowIcon key={b.key} name={b.icon || "inv_misc_questionmark"} size={20} />)}</span>
@@ -740,13 +779,34 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
                                     <small className={g.required ? "se-search-req" : ""}>{g.required ? t("setup.search.required") : t("setup.search.helps")}</small>
                                 </span>
                             </span>
-                            <span className="se-search-chips">{chips(g.specs)}</span>
+                            <span className="se-search-chips">
+                                {chips(g.specs)}
+                                <IconButton
+                                    className="se-search-drop" size="sm" icon={<XIcon />} tip={t("setup.search.drop")} tipSub={t("setup.search.dropSub")}
+                                    onClick={() => change(removeBuffs(needs, g.buffs.map((b) => b.key)))}
+                                />
+                            </span>
                         </div>
                     ))}
+                    {missingRoles.length > 0 && (
+                        <div className="se-search-add">
+                            <span className="se-tip-k">{t("setup.search.add")}</span>
+                            {missingRoles.map((r) => (
+                                <button key={r} type="button" className="se-search-addrole" onClick={() => change(addRole(needs, r, search.roleSpecs[r] || []))}>+ {roleLabel(r)}</button>
+                            ))}
+                        </div>
+                    )}
+                    {nothing && <p className="se-note">{t("setup.search.none")}</p>}
                     <label className="se-search-msg">
                         <span className="se-tip-k">{t("setup.search.message")}</span>
-                        <textarea value={text} maxLength={2000} rows={Math.min(16, text.split("\n").length + 3)} onChange={(e) => setText(e.target.value)} aria-label={t("setup.search.message")} />
-                        <span className="se-search-count">{text.length}/2000</span>
+                        <textarea
+                            value={text} maxLength={2000} rows={Math.min(16, text.split("\n").length + 3)} aria-label={t("setup.search.message")}
+                            onChange={(e) => { setText(e.target.value); setTouched(true); }}
+                        />
+                        <span className="se-search-foot">
+                            {touched && <button type="button" className="se-search-regen" onClick={() => void regenerate(needs)}>{t("setup.search.regenerate")}</button>}
+                            <span className="se-search-count">{writing ? t("setup.search.writing") : `${text.length}/2000`}</span>
+                        </span>
                     </label>
                 </div>
             )}

@@ -139,6 +139,7 @@ const AREA_BY_PATH = {
     "/api/raids/setup/ping-text": "raids",
     // Post "we are looking for …" (the classes and specs the setup still needs) into the event channel.
     "/api/raids/setup/search": "raids",
+    "/api/raids/setup/search/text": "raids",
     "/api/raids/setup/explain": "raids",
     // Event verwalten (#288): the POSTs are writes by method; the two GETs only
     // prepare an action and check write access in the handler as well.
