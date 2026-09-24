@@ -33,7 +33,7 @@ const ME_CHARACTER = "Heilbert";
 const TEMPLATE_NAME = "BT Demo";
 // DPS as one number (15) that the demo splits into 8 melee + 7 ranged slots, so both ways of filling can be tried
 const DEMO_COUNTS = { tank: 3, healer: 7, dps: 15, melee: 8, ranged: 7 };
-const DEMO_BOSSES = ["bt/high-warlord-najentus", "bt/supremus", "bt/gurtogg-bloodboil", "bt/illidan-stormrage", "bt/trash"];
+const DEMO_BOSSES = ["bt/high-warlord-najentus", "bt/supremus", "bt/gurtogg-bloodboil", "bt/the-illidari-council", "bt/illidan-stormrage", "bt/trash"];
 
 /** The placeholder slots of a raid: 3 tanks, 7 healers, 8 melee, 7 ranged, five group markers. */
 function demoSlots() {
@@ -54,12 +54,23 @@ function seedPlan(eventId, event) {
     const templates = require("../src/web/raidplanTemplateStore");
     const assign = require("../src/web/raidplanAssign");
 
+    const catalog = require("../src/web/raidplanCatalogStore");
+    const btBosses = planStore.bossesForInstances(["bt"]);
+    const mobTarget = (m) => ({ kind: "mob", ref: m.id, name: m.name, icon: m.icon });
+    // tanking: the boss is the target; at the Illidari Council each tank takes one of the four council members from the catalog
+    const tankRows = (key) => {
+        const row = (n, target) => ({ id: assign.newRowId ? assign.newRowId() : `t${n}${key.length}`, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [target], note: "", suggested: false });
+        if (key === "bt/trash") return [];
+        if (key === "bt/the-illidari-council") return catalog.listMobs().filter((m) => m.bossKey === key).slice(0, 3).map((m, i) => row(i + 1, mobTarget(m)));
+        const boss = btBosses.find((b) => b.key === key);
+        return boss ? [row(1, { kind: "mob", ref: `b:${key}`, name: boss.name, icon: "" })] : [];
+    };
     const slots = demoSlots();
     const groups = [1, 2, 3, 4, 5];
     const bosses = {};
     for (const key of DEMO_BOSSES) {
         const trash = key.endsWith("/trash");
-        const list = [...assign.suggest("heal", { slots, groups }), ...(trash ? assign.suggest("trashtank", { slots }) : [])].map((a) => ({ ...a, suggested: false }));
+        const list = [...tankRows(key), ...assign.suggest("heal", { slots, groups }), ...(trash ? assign.suggest("trashtank", { slots }) : [])].map((a) => ({ ...a, suggested: false }));
         // the Besetzung (all role slots) exists by itself in the editor; the first boss shows tanks and healers on the map as an example
         const onMap = key === DEMO_BOSSES[0] ? slots.filter((s) => s.kind === "tank" || s.kind === "healer") : [];
         bosses[key] = { slots: onMap, assignments: list, notes: trash ? "Trash: Tank 1 Totenkopf, Tank 2 Kreuz, Tank 3 Quadrat." : "" };
@@ -95,6 +106,7 @@ function seedPlan(eventId, event) {
     add("bt/high-warlord-najentus", ["kick", "md"]);
     add("bt/supremus", ["md", "fearward"]);
     add("bt/gurtogg-bloodboil", ["md", "ss"]);
+    add("bt/the-illidari-council", ["kick", "md"]);
     add("bt/illidan-stormrage", ["kick", "md", "ss", "fearward"]);
     add("bt/trash", ["kick"]);
     add("general", ["curse", "thunderclap", "demoshout"]);

@@ -1,0 +1,108 @@
+// The defaults of the raid plan catalog (docs/raidplan.md): mobs (adds, council members, trash) and the spells that
+// are handed out as assignments. They are code, not data: the admin can override, hide or extend them in
+// "Raidplan-Katalog" and reset an entry to its default — no migration ever touches them.
+//
+// Only what is certain is in here. Names are the TBC (Classic Anniversary) names from Wowhead TBC / the Warcraft
+// Wiki (warcraft.wiki.gg: the encounter pages of Black Temple, Hyjal Summit, Karazhan, Serpentshrine Cavern,
+// Tempest Keep and the Sunwell Plateau; the spell pages of the classes). What is not sure is left out and can be
+// added by the admin. A mob's `icon` is empty: the page shows the generic enemy icon until an icon name (the
+// Wowhead icon CDN, as everywhere in the menu) or a boss icon (`boss:<encounter id>`) is set.
+//
+// A mob: { id, name, kind: boss | add | trash | other, instanceId, bossKey ("" = none, else "<instance>/<boss slug>"), icon, note }
+// A spell: { id, name, nameEn, icon, type (an assignment type), classes: [class ids], note }
+
+const mob = (slug, name, kind, instanceId, bossKey = "") => ({ id: `d:${slug}`, name, kind, instanceId, bossKey, icon: "", note: "" });
+
+const MOBS = [
+    // Black Temple
+    mob("gathios", "Gathios the Shatterer", "add", "bt", "bt/the-illidari-council"),
+    mob("zerevor", "High Nethermancer Zerevor", "add", "bt", "bt/the-illidari-council"),
+    mob("malande", "Lady Malande", "add", "bt", "bt/the-illidari-council"),
+    mob("veras", "Veras Darkshadow", "add", "bt", "bt/the-illidari-council"),
+    mob("flame-of-azzinoth", "Flame of Azzinoth", "add", "bt", "bt/illidan-stormrage"),
+    mob("shadow-demon", "Shadow Demon", "add", "bt", "bt/illidan-stormrage"),
+    mob("parasitic-shadowfiend", "Parasitic Shadowfiend", "add", "bt", "bt/illidan-stormrage"),
+    mob("maiev", "Maiev Shadowsong", "add", "bt", "bt/illidan-stormrage"),
+    mob("ashtongue-channeler", "Ashtongue Channeler", "add", "bt", "bt/shade-of-akama"),
+    mob("ashtongue-sorcerer", "Ashtongue Sorcerer", "add", "bt", "bt/shade-of-akama"),
+    mob("ashtongue-defender", "Ashtongue Defender", "add", "bt", "bt/shade-of-akama"),
+    mob("ashtongue-elementalist", "Ashtongue Elementalist", "add", "bt", "bt/shade-of-akama"),
+    mob("ashtongue-rogue", "Ashtongue Rogue", "add", "bt", "bt/shade-of-akama"),
+    mob("essence-of-suffering", "Essence of Suffering", "add", "bt", "bt/reliquary-of-the-lost"),
+    mob("essence-of-desire", "Essence of Desire", "add", "bt", "bt/reliquary-of-the-lost"),
+    mob("essence-of-anger", "Essence of Anger", "add", "bt", "bt/reliquary-of-the-lost"),
+    mob("shadowy-construct", "Shadowy Construct", "add", "bt", "bt/teron-gorefiend"),
+    mob("vengeful-spirit", "Vengeful Spirit", "add", "bt", "bt/teron-gorefiend"),
+    mob("illidari-nightlord", "Illidari Nightlord", "trash", "bt"),
+    mob("illidari-fearbringer", "Illidari Fearbringer", "trash", "bt"),
+    mob("illidari-defiler", "Illidari Defiler", "trash", "bt"),
+    mob("illidari-heartseeker", "Illidari Heartseeker", "trash", "bt"),
+    // Hyjal Summit
+    mob("towering-infernal", "Towering Infernal", "add", "hyjal", "hyjal/anetheron"),
+    mob("lesser-doomguard", "Lesser Doomguard", "add", "hyjal", "hyjal/azgalor"),
+    mob("doomfire-spirit", "Doomfire Spirit", "add", "hyjal", "hyjal/archimonde"),
+    mob("hyjal-abomination", "Abomination", "trash", "hyjal"),
+    mob("hyjal-ghoul", "Ghoul", "trash", "hyjal"),
+    mob("hyjal-necromancer", "Necromancer", "trash", "hyjal"),
+    mob("hyjal-crypt-fiend", "Crypt Fiend", "trash", "hyjal"),
+    mob("hyjal-giant-infernal", "Giant Infernal", "trash", "hyjal"),
+    // Karazhan
+    mob("midnight", "Midnight", "add", "kara", "kara/attumen-the-huntsman"),
+    mob("netherspite-infernal", "Netherspite Infernal", "add", "kara", "kara/prince-malchezaar"),
+    // Serpentshrine Cavern
+    mob("pure-spawn", "Pure Spawn of Hydross", "add", "ssc", "ssc/hydross-the-unstable"),
+    mob("tainted-spawn", "Tainted Spawn of Hydross", "add", "ssc", "ssc/hydross-the-unstable"),
+    mob("fathom-guard-sharkkis", "Fathom-Guard Sharkkis", "add", "ssc", "ssc/fathom-lord-karathress"),
+    mob("fathom-guard-tidalvess", "Fathom-Guard Tidalvess", "add", "ssc", "ssc/fathom-lord-karathress"),
+    mob("fathom-guard-caribdis", "Fathom-Guard Caribdis", "add", "ssc", "ssc/fathom-lord-karathress"),
+    mob("tainted-elemental", "Tainted Elemental", "add", "ssc", "ssc/lady-vashj"),
+    mob("coilfang-strider", "Coilfang Strider", "add", "ssc", "ssc/lady-vashj"),
+    mob("enchanted-elemental", "Enchanted Elemental", "add", "ssc", "ssc/lady-vashj"),
+    // Tempest Keep: The Eye
+    mob("thaladred", "Thaladred the Darkener", "add", "tk", "tk/kaelthas-sunstrider"),
+    mob("sanguinar", "Lord Sanguinar", "add", "tk", "tk/kaelthas-sunstrider"),
+    mob("capernian", "Grand Astromancer Capernian", "add", "tk", "tk/kaelthas-sunstrider"),
+    mob("telonicus", "Master Engineer Telonicus", "add", "tk", "tk/kaelthas-sunstrider"),
+    // Sunwell Plateau
+    mob("sathrovarr", "Sathrovarr the Corruptor", "add", "swp", "swp/kalecgos"),
+    mob("void-sentinel", "Void Sentinel", "add", "swp", "swp/muru"),
+];
+
+const spell = (slug, name, icon, type, classes, nameEn = "") => ({ id: `d:${slug}`, name, nameEn, icon, type, classes, note: "" });
+
+const SPELLS = [
+    spell("curse-of-the-elements", "Curse of the Elements", "spell_shadow_chilltouch", "curse", ["Warlock"]),
+    spell("curse-of-recklessness", "Curse of Recklessness", "spell_shadow_unholystrength", "curse", ["Warlock"]),
+    spell("curse-of-doom", "Curse of Doom", "spell_shadow_auraofdarkness", "curse", ["Warlock"]),
+    spell("curse-of-agony", "Curse of Agony", "spell_shadow_curseofsargeras", "curse", ["Warlock"]),
+    spell("curse-of-tongues", "Curse of Tongues", "spell_shadow_curseoftounges", "curse", ["Warlock"]),
+    spell("curse-of-weakness", "Curse of Weakness", "spell_shadow_curseofmannoroth", "curse", ["Warlock"]),
+    spell("thunder-clap", "Thunder Clap", "spell_nature_thunderclap", "thunderclap", ["Warrior"], "Thunder Clap"),
+    spell("demoralizing-shout", "Demoralizing Shout", "ability_warrior_warcry", "demoshout", ["Warrior"]),
+    spell("misdirection", "Misdirection", "ability_hunter_misdirection", "md", ["Hunter"]),
+    spell("tricks-of-the-trade", "Tricks of the Trade", "ability_rogue_tricksofthetrade", "md", ["Rogue"]),
+    spell("soulstone","Soulstone Resurrection", "spell_shadow_soulgem", "ss", ["Warlock"]),
+    spell("fear-ward", "Fear Ward", "spell_holy_excorcism", "fearward", ["Priest"]),
+    spell("kick", "Kick", "ability_kick", "kick", ["Rogue"]),
+    spell("pummel", "Pummel", "inv_gauntlets_04", "kick", ["Warrior"]),
+    spell("shield-bash", "Shield Bash", "ability_warrior_shieldbash", "kick", ["Warrior"]),
+    spell("earth-shock", "Earth Shock", "spell_nature_earthshock", "kick", ["Shaman"]),
+    spell("counterspell", "Counterspell", "spell_frost_iceshock", "kick", ["Mage"]),
+    spell("dispel-magic", "Dispel Magic", "spell_holy_dispelmagic", "dispel", ["Priest"]),
+    spell("cleanse", "Cleanse", "spell_holy_renew", "dispel", ["Paladin"]),
+    spell("purge", "Purge", "spell_nature_purge", "dispel", ["Shaman"]),
+    spell("remove-curse", "Remove Curse", "spell_nature_removecurse", "dispel", ["Mage", "Druid"]),
+    spell("cure-poison", "Cure Poison", "spell_nature_nullifypoison", "dispel", ["Druid", "Shaman"]),
+    spell("innervate", "Innervate", "spell_nature_lightning", "buff", ["Druid"]),
+    spell("bloodlust", "Bloodlust", "spell_nature_bloodlust", "buff", ["Shaman"]),
+    spell("heroism", "Heroism", "spell_holy_heroism", "buff", ["Shaman"]),
+    spell("power-infusion", "Power Infusion", "spell_holy_powerinfusion", "buff", ["Priest"]),
+    spell("shackle-undead", "Shackle Undead", "spell_nature_slow", "cc", ["Priest"]),
+    spell("polymorph", "Polymorph", "spell_nature_polymorph", "cc", ["Mage"]),
+    spell("hibernate", "Hibernate", "spell_nature_sleep", "cc", ["Druid"]),
+    spell("banish", "Banish", "spell_shadow_cripple", "cc", ["Warlock"]),
+    spell("taunt", "Taunt", "spell_nature_reincarnation", "tank", ["Warrior"]),
+    spell("growl", "Growl", "ability_physical_taunt", "tank", ["Druid"]),
+];
+
+module.exports = { MOBS, SPELLS };

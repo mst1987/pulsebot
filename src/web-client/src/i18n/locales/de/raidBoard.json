@@ -440,12 +440,14 @@
             "tank": "Tankt {targets}"
         },
         "pickCurses": "Flüche",
-        "pickSpells": "Fähigkeiten",
+        "pickSpells": "Spells",
         "view": "Ansicht",
         "viewCards": "Karten",
         "viewPlayers": "Aufgaben nach Spieler",
         "yourTasks": "Deine Aufgaben",
-        "byPlayer": "Aufgaben nach Spieler"
+        "byPlayer": "Aufgaben nach Spieler",
+        "pickMobs": "Mobs",
+        "pickSpell": "Spell wählen"
     },
     "bes": {
         "title": "Besetzung",
@@ -465,5 +467,14 @@
         "own": "nur dieser Boss",
         "ownTip": "Diese Zahlen gelten nur für diesen Boss.",
         "reset": "Zurück auf die Zahlen des Raidtyps"
+    },
+    "mobs": {
+        "title": "Mobs",
+        "tip": "Alles, was sich in diesem Abschnitt tanken oder markieren lässt: der Boss, seine Adds aus dem Katalog und die Mobs, die du hinzufügst. Sie sind in den Einteilungen immer als Tankziel wählbar.",
+        "ofBoss": "Zu diesem Boss",
+        "ofInstance": "Diese Instanz",
+        "all": "Alle Mobs",
+        "add": "Mobs hinzufügen",
+        "onMap": "{name} als Icon auf die Map setzen"
     }
 }

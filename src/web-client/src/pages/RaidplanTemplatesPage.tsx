@@ -524,7 +524,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
 
             {boss && (
                 <BoardWorkspace
-                    mode="template" eventId="" besetzung={tpl.besetzung} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

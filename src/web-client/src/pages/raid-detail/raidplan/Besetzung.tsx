@@ -4,7 +4,7 @@ import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, Raidpla
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON } from "../../../lib/assign";
-import { assignSlot, besetzungSlots, countOf, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
+import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
 /**
@@ -41,7 +41,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     }, [open]);
 
     const all = besetzungSlots(board);
-    const counts = board.counts || besetzung.counts;
+    const counts = effectiveCounts(board, besetzung, roster);
     const split = showSplit || counts.melee > 0 || counts.ranged > 0;
     const clusters = split ? ["tank", "healer", "dps", "melee", "ranged", "group"] : ["tank", "healer", "dps", "group"];
     const own = board.counts !== null;
@@ -125,11 +125,11 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     <div key={kind} className={`rp-bes-role rp-bes-${kind}`} role="group" aria-label={label}>
                         <span className="rp-bes-roleicon" data-tip={label}>{isGroup ? <Users size={17} /> : <WowIcon name={ROLE_ICON[kind]} size={22} />}</span>
                         {!isGroup && canWrite && (
-                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: label })} disabled={n <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, n - 1))}><Minus size={12} /></button>
+                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: label })} disabled={n <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, n - 1, roster))}><Minus size={12} /></button>
                         )}
                         <span className="rp-bes-count">{n}</span>
                         {!isGroup && canWrite && (
-                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.more", { role: label })} disabled={n >= 40} onClick={() => edit((b) => setCount(b, besetzung, kind, n + 1))}><Plus size={12} /></button>
+                            <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.more", { role: label })} disabled={n >= 40} onClick={() => edit((b) => setCount(b, besetzung, kind, n + 1, roster))}><Plus size={12} /></button>
                         )}
                         <span className="rp-bes-chips">{list.map(chip)}</span>
                     </div>

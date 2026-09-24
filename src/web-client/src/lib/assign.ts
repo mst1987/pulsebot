@@ -6,7 +6,7 @@
 //
 // Written to be strippable (test/web-client/assign.test.js runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
-import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../api";
+import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../api";
 import { t } from "../i18n";
 
 /** Per type: its icon, where it is offered and which classes can do it (a filter for the picker, never a rule). */
@@ -109,6 +109,7 @@ export function iconForText(text: string): string {
 
 /** The icon of a row: what its task text or a text target names, else the icon of its type. */
 export function iconForTask(a: RaidplanAssignment): string {
+    if (a.spell && a.spell.icon) return a.spell.icon;
     const fromTitle = iconForText(a.title || "");
     if (fromTitle) return fromTitle;
     for (const tg of a.targets) {
@@ -135,8 +136,8 @@ const SENTENCE_TYPES = ["heal", "md", "ss", "fearward", "tank"];
 /** The sentence of a row for one of its assignees (`index` = the place in a rotation, 0 = first). */
 export function taskText(a: RaidplanAssignment, index: number, ctx: AssignCtx): string {
     const targets = a.targets.map((tg) => resolveTarget(tg, ctx).label).join(" + ");
-    if (!a.title && SENTENCE_TYPES.indexOf(a.type) >= 0 && targets) return t(`raidBoard.assign.sentence.${a.type}`, { targets });
-    const head = a.title || t(`raidBoard.assign.type.${a.type}`);
+    if (!a.title && !a.spell && SENTENCE_TYPES.indexOf(a.type) >= 0 && targets) return t(`raidBoard.assign.sentence.${a.type}`, { targets });
+    const head = a.title || (a.spell ? a.spell.name : t(`raidBoard.assign.type.${a.type}`));
     const rot = a.type === "kick" && a.assignees.length > 1 ? ` #${index + 1}` : "";
     return `${head}${rot}${targets ? ` \u2192 ${targets}` : ""}`;
 }
@@ -175,9 +176,84 @@ export function assignTypes(scope: string): string[] {
 }
 
 /** Whether a player's class is one the type suggests (no class list = everybody). */
-export function fitsType(type: string, player: RaidplanPlayer): boolean {
-    const classes = (ASSIGN_META[type] || ASSIGN_META.other).classes;
+export function fitsType(type: string, player: RaidplanPlayer, catalog?: Catalog | null): boolean {
+    const classes = classesForType(type, catalog);
     return classes.length === 0 || classes.indexOf(player.classId) >= 0;
+}
+
+/** The classes that can do a type: the catalog's spells of that type say it, else the built in list (none = everybody). */
+export function classesForType(type: string, catalog?: Catalog | null): string[] {
+    const own = [];
+    if (catalog) for (const s of catalog.spells) if (s.type === type) for (const c of s.classes) if (own.indexOf(c) < 0) own.push(c);
+    return own.length > 0 ? own : (ASSIGN_META[type] || ASSIGN_META.other).classes;
+}
+
+/** The spells a row of a type can pick: the catalog's of that type; `classIds` (the assignees' classes) put the fitting ones first. */
+export function spellsFor(type: string, catalog: Catalog | null | undefined, classIds: string[]): CatalogSpell[] {
+    const list = catalog ? catalog.spells.filter((s) => s.type === type) : [];
+    return [...list.filter((s) => spellFits(s, classIds)), ...list.filter((s) => !spellFits(s, classIds))];
+}
+
+function spellFits(s: CatalogSpell, classIds: string[]): boolean {
+    return classIds.length === 0 || s.classes.length === 0 || s.classes.some((c) => classIds.indexOf(c) >= 0);
+}
+
+/** The reference a row keeps for a catalog spell: id and a snapshot of name and icon. */
+export function spellRef(spell: CatalogSpell): RaidplanSpellRef {
+    return { id: spell.id, name: spell.name, icon: spell.icon };
+}
+
+/** The reference a section keeps for a mob: id and a snapshot of name and icon. */
+export function mobRef(mob: CatalogMob): RaidplanMobRef {
+    return { id: mob.id, name: mob.name, icon: mob.icon };
+}
+
+/** The icon key of a boss image url (/bosses/601.jpg -> boss:601, an icon CDN url -> its name), "" for none. */
+export function bossIconOf(url: string): string {
+    const boss = url.match(/\/bosses\/(\d+)\.jpg/);
+    if (boss) return `boss:${boss[1]}`;
+    const wow = url.match(/\/icons\/[a-z]+\/([a-z0-9_'-]+)\.jpg/);
+    return wow ? wow[1] : "";
+}
+
+/** The icon object a mob makes on the map: the boss image (boss:N), a spell icon (wow:name) or the built in enemy symbol. */
+export function mobIconKey(icon: string): string {
+    return icon.indexOf("boss:") === 0 ? icon : icon ? `wow:${icon}` : "enemy";
+}
+
+/** Adds mobs to the section (each once) and takes one away again. */
+export function addMobs(board: RaidplanBoard, mobs: RaidplanMobRef[]): RaidplanBoard {
+    return { ...board, mobs: [...board.mobs, ...mobs.filter((m) => board.mobs.every((x) => x.id !== m.id))] };
+}
+
+export function removeMob(board: RaidplanBoard, id: string): RaidplanBoard {
+    return { ...board, mobs: board.mobs.filter((m) => m.id !== id) };
+}
+
+function pushUnique(out: RaidplanMobRef[], m: RaidplanMobRef): void {
+    if (out.every((x) => x.id !== m.id)) out.push(m);
+}
+
+/** The target a mob makes (the id with a snapshot). */
+export function mobTarget(m: RaidplanMobRef): RaidplanAssignTarget {
+    return { kind: "mob", ref: m.id, name: m.name, icon: m.icon };
+}
+
+/**
+ * Everything that can be tanked or marked in a section, as tank targets: the boss (a boss section always has
+ * it; `bossIcon` is its icon key), the catalog's mobs that belong to the boss (a trash section: the trash mobs of
+ * the instance) and the mobs added to the board — each once, in that order.
+ */
+export function sectionMobs(scope: string, bossKey: string, bossName: string, bossIcon: string, instanceId: string, board: RaidplanBoard, catalog: Catalog | null | undefined): RaidplanMobRef[] {
+    const out = [];
+    if (scope === "boss") pushUnique(out, { id: `b:${bossKey}`, name: bossName, icon: bossIcon });
+    if (catalog && scope !== "general") {
+        for (const m of catalog.mobs) {
+            if (scope === "boss" ? m.bossKey === bossKey : m.kind === "trash" && m.instanceId === instanceId && m.bossKey === "") pushUnique(out, mobRef(m));
+        }
+    }
+    for (const m of board.mobs) pushUnique(out, m);
+    return out;
 }
 
 /** The slot placeholders a board can be referred by, in role order: `{ ref: "healer:2", kind, n }`. */
@@ -194,11 +270,11 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer> };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
-export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string };
+export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string };
 
-const NONE = { kind: "", ref: "", label: "", player: null, open: false, mark: "", group: 0, role: "" };
+const NONE = { kind: "", ref: "", label: "", player: null, open: false, mark: "", group: 0, role: "", icon: "" };
 
 function slotLabel(kind: string, n: number): string {
     return t(`raidBoard.slot.${kind}`, { n });
@@ -236,6 +312,11 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
         const player = ctx.players.get(target.ref) || null;
         return { ...NONE, kind: "player", ref: target.ref, label: player ? player.character : "?", player, open: !player };
     }
+    if (target.kind === "mob") {
+        // the live catalog entry when there is one, else the snapshot the plan keeps
+        const live = ctx.catalog ? ctx.catalog.mobs.find((m) => m.id === target.ref) : undefined;
+        return { ...NONE, kind: "mob", ref: target.ref, label: live ? live.name : target.name || "?", icon: live ? live.icon : target.icon || "" };
+    }
     if (target.kind === "mark") return { ...NONE, kind: "mark", ref: target.ref, label: t(`raidBoard.mark.${target.ref}`), mark: target.ref };
     return { ...NONE, kind: "text", ref: target.ref, label: target.ref };
 }
@@ -265,7 +346,7 @@ function newRowId(): string {
 
 export function addAssignment(board: RaidplanBoard, type: string): { board: RaidplanBoard; id: string } {
     const id = newRowId();
-    const row = { id, type: type as RaidplanAssignType, title: "", assignees: [], targets: [], note: "", suggested: false };
+    const row = { id, type: type as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [], note: "", suggested: false };
     return { board: { ...board, assignments: [...board.assignments, row] }, id };
 }
 

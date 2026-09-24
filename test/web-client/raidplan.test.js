@@ -36,7 +36,7 @@ describe("roles and clamping", () => {
 
 describe("boards", () => {
     it("completes the board of an untouched boss", () => {
-        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
+        expect(lib.boardOf({}, "bt/supremus")).toEqual({ tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 });
         expect(lib.boardOf({ "bt/supremus": { notes: "x" } }, "bt/supremus")).toMatchObject({ notes: "x", tokens: [] });
         expect(lib.boardOf({ a: { mapOpacity: 0.4 } }, "a").mapOpacity).toBe(0.4);
     });
@@ -1212,17 +1212,17 @@ describe("the Besetzung", () => {
     });
     it("+/- set the numbers of this boss, the DPS is one number, melee + ranged stay within it, reset goes back to the type", () => {
         let b = lib.ensureBesetzung(lib.emptyBoard(), bes, []);
-        b = lib.setCount(b, bes, "healer", 6);
+        b = lib.setCount(b, bes, "healer", 6, []);
         expect(b.counts).toEqual({ tank: 3, healer: 6, dps: 15, melee: 0, ranged: 0 });
         expect(kinds(b, "healer")).toHaveLength(6);
         expect(lib.ensureBesetzung(b, bes, [])).toBe(b);
-        b = lib.setCount(b, bes, "dps", 16);
+        b = lib.setCount(b, bes, "dps", 16, []);
         expect(kinds(lib.ensureBesetzung(b, bes, []), "dps")).toHaveLength(16);
-        b = lib.setCount(b, bes, "melee", 99);
+        b = lib.setCount(b, bes, "melee", 99, []);
         expect(b.counts.melee).toBe(16);
-        b = lib.setCount(b, bes, "ranged", 5);
+        b = lib.setCount(b, bes, "ranged", 5, []);
         expect(b.counts.ranged).toBe(0);
-        expect(lib.setCount(b, bes, "tank", -4).counts.tank).toBe(0);
+        expect(lib.setCount(b, bes, "tank", -4, []).counts.tank).toBe(0);
         expect(lib.resetCounts(b, bes).counts).toBeNull();
         expect(kinds(lib.ensureBesetzung(lib.resetCounts(b, bes), bes, []), "dps")).toHaveLength(15);
     });
@@ -1263,5 +1263,27 @@ describe("the Besetzung", () => {
         expect(ten.groups).toBe(2);
         expect(lib.besetzungFor([], 40).counts.tank).toBe(4);
         expect(lib.besetzungFor([bt, kara], 25).counts.tank).toBe(3);
+    });
+});
+
+describe("the numbers of a board in an event", () => {
+    const bes = { size: 25, counts: { tank: 2, healer: 5, dps: 18, melee: 0, ranged: 0 }, groups: 5, split: false };
+    const p = (userId, role) => ({ ...player(userId), role });
+    const roster = [...Array.from({ length: 3 }, (_, i) => p("t" + i, "tank")), ...Array.from({ length: 7 }, (_, i) => p("h" + i, "healer")), ...Array.from({ length: 15 }, (_, i) => p("d" + i, "dps"))];
+    it("at least what the lineup really has: more tanks and healers than the type give extra slots, fewer DPS leave slots open", () => {
+        const c = lib.effectiveCounts(lib.emptyBoard(), bes, roster);
+        expect(c).toMatchObject({ tank: 3, healer: 7, dps: 18 });
+        const b = lib.ensureBesetzung(lib.emptyBoard(), bes, roster);
+        expect(b.slots.filter((s) => s.kind === "dps")).toHaveLength(18);
+        expect(b.slots.filter((s) => s.kind === "dps" && !s.userId)).toHaveLength(3);
+    });
+    it("+/- start from those numbers and then make the boss's own", () => {
+        const b = lib.setCount(lib.ensureBesetzung(lib.emptyBoard(), bes, roster), bes, "tank", 4, roster);
+        expect(b.counts).toMatchObject({ tank: 4, healer: 7, dps: 18 });
+        expect(lib.effectiveCounts(b, bes, roster).tank).toBe(4);
+    });
+    it("a flex role counts: a healer who plays DPS is one healer less and one DPS more", () => {
+        const flexed = { ...lib.emptyBoard(), roles: { h0: "dps" } };
+        expect(lib.effectiveCounts(flexed, { ...bes, counts: { tank: 3, healer: 5, dps: 10, melee: 0, ranged: 0 } }, roster)).toMatchObject({ healer: 6, dps: 16 });
     });
 });

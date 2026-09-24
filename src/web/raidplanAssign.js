@@ -11,6 +11,9 @@
 //                  { kind: "player", ref: "<userId>" }   one raider (event plans only)
 //                  { kind: "mark",   ref: "skull" }      a raid mark (also "who takes which target" on trash)
 //                  { kind: "text",   ref: "Fear" }       free text: an ability, an enemy, a curse
+//                  { kind: "mob",    ref: "d:gathios", name, icon }  a mob of the catalog or the section's boss ("b:<boss key>"); name and icon are
+//                                    a snapshot, shown when the catalog entry is gone
+//   spell        { id, name, icon } | null   the catalog spell the row is about (a curse, a kick ...), with the same kind of snapshot
 //
 // Only references are stored, never names or icons: those are looked up live from the setup.
 // A slot reference is a placeholder in a template and points at whoever stands in that
@@ -21,7 +24,11 @@
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
 const ASSIGN_TYPES = ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
-const TARGET_KINDS = ["slot", "group", "player", "mark", "text"];
+const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob"];
+// a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
+const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
+const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
+const ICON = /^([a-z0-9_'\-]{2,64}|boss:\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
@@ -80,13 +87,17 @@ function cleanAssignments(raw, allowed = new Set()) {
             else if (kind === "player") good = ID_REF.test(ref) && allowed.has(ref);
             else if (kind === "mark") good = MARKS.includes(ref);
             else if (kind === "text") { ref = ref.slice(0, LIMITS.text); good = ref !== ""; }
+            else if (kind === "mob") good = MOB_REF.test(ref);
             if (!good || targets.some((x) => x.kind === kind && x.ref === ref)) { dropped += 1; continue; }
             if (targets.length >= LIMITS.targets) break;
-            targets.push({ kind, ref });
+            targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "" } : { kind, ref });
         }
 
+        const sp = o.spell && typeof o.spell === "object" ? o.spell : null;
+        const spell = sp && SPELL_ID.test(str(sp.id)) && str(sp.name) ? { id: str(sp.id), name: str(sp.name).slice(0, LIMITS.text), icon: ICON.test(str(sp.icon)) ? str(sp.icon) : "" } : null;
+
         out.push({
-            id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", title: str(o.title).slice(0, LIMITS.title), assignees, targets,
+            id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", title: str(o.title).slice(0, LIMITS.title), spell, assignees, targets,
             note: str(o.note).slice(0, LIMITS.note), suggested: o.suggested === true,
         });
     }
@@ -102,7 +113,27 @@ function reidAssignments(list) {
 
 const slotsOf = (slots, kind) => (slots || []).filter((s) => s.kind === kind).sort((a, b) => a.n - b.n);
 const refOf = (s) => `slot:${s.kind}:${s.n}`;
-const make = (type, assignees, targets) => ({ id: newId(), type, title: "", assignees, targets, note: "", suggested: true });
+const make = (type, assignees, targets, spell = null) => ({ id: newId(), type, title: "", spell, assignees, targets, note: "", suggested: true });
+
+// The catalog is read lazily (the catalog store needs this module's type list).
+const catalog = () => require("./raidplanCatalogStore");
+
+/** The classes that fit a type: the catalog's spells of that type say it; without any, the built in rules. */
+function classesFor(type) {
+    const fromCatalog = catalog().classesOf(type);
+    const rules = CLASS_RULES[type] || [];
+    if (!fromCatalog.length) return rules;
+    // the built in order (rogue before mage ...) first, then what the admin added
+    return [...rules.filter((c) => fromCatalog.includes(c)), ...fromCatalog.filter((c) => !rules.includes(c))];
+}
+
+/** A row's spell as it is stored: the catalog entry with a snapshot of name and icon; one of the class first, else the first of the type. */
+function spellFor(type, classId, index = 0) {
+    const list = catalog().spellsOfType(type);
+    const of = classId ? list.filter((x) => x.classes.includes(classId)) : list;
+    const hit = (of.length ? of : list)[index] || (of.length ? of : list)[0];
+    return hit ? { id: hit.id, name: hit.name, icon: hit.icon } : null;
+}
 
 /**
  * Heal assignments: every tank gets a healer (healer 1 to tank 1, healer 2 to tank 2 ...),
@@ -128,7 +159,7 @@ function suggestHeal({ slots = [], roster = [], groups = [] }) {
         targets[best].push({ kind: "group", ref: String(g) });
         load[best] += 1;
     }
-    return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i]) : null)).filter(Boolean);
+    return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", "")) : null)).filter(Boolean);
 }
 
 const players = (roster, classIds) => roster.filter((p) => classIds.includes(p.classId));
@@ -142,27 +173,30 @@ function suggest(type, { slots = [], roster = [], groups = [] } = {}) {
     }
     if (type === "kick") {
         // rogues first, then shaman, warriors, mages; a rotation of at most three
-        const order = ["Rogue", "Shaman", "Warrior", "Mage"];
+        const order = classesFor("kick");
         const c = roster.filter((p) => order.includes(p.classId)).sort((a, b) => order.indexOf(a.classId) - order.indexOf(b.classId)).slice(0, 3);
         return c.length ? [make("kick", c.map((p) => `user:${p.userId}`), [])] : [];
     }
     if (type === "md" || type === "fearward") {
         // hunters first (a rogue's Tricks of the Trade is the second choice)
-        const pool = players(roster, CLASS_RULES[type]).sort((a, b) => CLASS_RULES[type].indexOf(a.classId) - CLASS_RULES[type].indexOf(b.classId));
-        return pool.slice(0, tanks.length).map((p, i) => make(type, [`user:${p.userId}`], [{ kind: "slot", ref: `tank:${tanks[i].n}` }]));
+        const cls = classesFor(type);
+        const pool = players(roster, cls).sort((a, b) => cls.indexOf(a.classId) - cls.indexOf(b.classId));
+        return pool.slice(0, tanks.length).map((p, i) => make(type, [`user:${p.userId}`], [{ kind: "slot", ref: `tank:${tanks[i].n}` }], spellFor(type, p.classId)));
     }
     if (type === "ss") {
         const healers = roster.filter((p) => p.role === "healer");
-        return players(roster, CLASS_RULES.ss).slice(0, healers.length).map((p, i) => make("ss", [`user:${p.userId}`], [{ kind: "player", ref: healers[i].userId }]));
+        return players(roster, classesFor("ss")).slice(0, healers.length).map((p, i) => make("ss", [`user:${p.userId}`], [{ kind: "player", ref: healers[i].userId }], spellFor("ss", p.classId)));
     }
     if (type === "curse") {
-        return players(roster, CLASS_RULES.curse).slice(0, CURSES.length).map((p, i) => make("curse", [`user:${p.userId}`], [{ kind: "text", ref: CURSES[i] }]));
+        // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
+        const curses = catalog().spellsOfType("curse");
+        return players(roster, classesFor("curse")).slice(0, Math.min(3, curses.length || CURSES.length)).map((p, i) => make("curse", [`user:${p.userId}`], [], curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null));
     }
     if (type === "thunderclap" || type === "demoshout") {
-        const w = players(roster, CLASS_RULES[type]);
+        const w = players(roster, classesFor(type));
         const tanksFirst = type === "thunderclap" ? [...w.filter((p) => p.role === "tank"), ...w.filter((p) => p.role !== "tank")] : w;
         const pick = tanksFirst.slice(0, type === "thunderclap" ? 2 : 3);
-        return pick.length ? [make(type, pick.map((p) => `user:${p.userId}`), [])] : [];
+        return pick.length ? [make(type, pick.map((p) => `user:${p.userId}`), [], spellFor(type, "Warrior"))] : [];
     }
     return [];
 }
@@ -186,5 +220,5 @@ function targetsToAssignments(targets, known) {
 
 module.exports = {
     ASSIGN_TYPES, TARGET_KINDS, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal,
+    cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

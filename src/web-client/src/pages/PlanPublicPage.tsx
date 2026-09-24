@@ -96,8 +96,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     )}
                     {boss && (
                         <div className="rp-read-assign">
-                            <PlayerTasksList assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.meIds} yours />
-                            <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players }} me={data.meIds} />
+                            <PlayerTasksList assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} yours />
+                            <AssignTable assignments={boss.assignments} ctx={{ slots: boss.slots, players, catalog: data.catalog }} me={data.meIds} />
                         </div>
                     )}
                 </>

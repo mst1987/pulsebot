@@ -232,3 +232,83 @@ describe("tasks derived from the assignments", () => {
         expect(lib.tasksByAssignee(one, ctx)[0].tasks[0].text).toBe("Elements");
     });
 });
+
+describe("mobs and spells of the catalog", () => {
+    const catalog = {
+        mobs: [
+            { id: "d:gathios", name: "Gathios the Shatterer", kind: "add", instanceId: "bt", bossKey: "bt/the-illidari-council", icon: "", note: "", source: "default" },
+            { id: "d:zerevor", name: "High Nethermancer Zerevor", kind: "add", instanceId: "bt", bossKey: "bt/the-illidari-council", icon: "spell_fire_flamebolt", note: "", source: "default" },
+            { id: "d:nightlord", name: "Illidari Nightlord", kind: "trash", instanceId: "bt", bossKey: "", icon: "", note: "", source: "default" },
+            { id: "d:infernal", name: "Towering Infernal", kind: "add", instanceId: "hyjal", bossKey: "hyjal/anetheron", icon: "", note: "", source: "default" },
+        ],
+        spells: [
+            { id: "d:curse-of-doom", name: "Curse of Doom", nameEn: "", icon: "spell_shadow_auraofdarkness", type: "curse", classes: ["Warlock"], note: "", source: "default" },
+            { id: "d:curse-of-agony", name: "Curse of Agony", nameEn: "", icon: "spell_shadow_curseofsargeras", type: "curse", classes: ["Warlock"], note: "", source: "default" },
+            { id: "d:kick", name: "Kick", nameEn: "", icon: "ability_kick", type: "kick", classes: ["Rogue"], note: "", source: "default" },
+            { id: "d:counterspell", name: "Counterspell", nameEn: "", icon: "spell_frost_iceshock", type: "kick", classes: ["Mage"], note: "", source: "default" },
+        ],
+    };
+    const noBoard = () => ({ mobs: [] });
+    it("tank targets of a boss: the boss first, its catalog adds, then the mobs added by hand, each once", () => {
+        const list = lib.sectionMobs("boss", "bt/the-illidari-council", "The Illidari Council", "boss:608", "bt", { mobs: [{ id: "d:infernal", name: "Towering Infernal", icon: "" }, { id: "d:gathios", name: "Gathios the Shatterer", icon: "" }] }, catalog);
+        expect(list.map((m) => m.id)).toEqual(["b:bt/the-illidari-council", "d:gathios", "d:zerevor", "d:infernal"]);
+        expect(list[0]).toEqual({ id: "b:bt/the-illidari-council", name: "The Illidari Council", icon: "boss:608" });
+    });
+    it("trash: the trash mobs of the instance, no boss; the whole raid has none", () => {
+        expect(lib.sectionMobs("trash", "bt/trash", "Trash", "", "bt", noBoard(), catalog).map((m) => m.id)).toEqual(["d:nightlord"]);
+        expect(lib.sectionMobs("general", "general", "", "", "", noBoard(), catalog)).toEqual([]);
+        expect(lib.sectionMobs("boss", "hyjal/anetheron", "Anetheron", "", "hyjal", noBoard(), null).map((m) => m.id)).toEqual(["b:hyjal/anetheron"]);
+    });
+    it("adds and removes mobs on the board, each once", () => {
+        let b = lib.addMobs({ mobs: [] }, [{ id: "d:infernal", name: "Towering Infernal", icon: "" }]);
+        b = lib.addMobs(b, [{ id: "d:infernal", name: "x", icon: "" }, { id: "d:gathios", name: "Gathios", icon: "" }]);
+        expect(b.mobs.map((m) => m.id)).toEqual(["d:infernal", "d:gathios"]);
+        expect(lib.removeMob(b, "d:infernal").mobs.map((m) => m.id)).toEqual(["d:gathios"]);
+    });
+    it("a mob target shows the live catalog entry, else the snapshot the plan kept", () => {
+        const ctx = { slots: [], players: new Map(), catalog };
+        const live = lib.resolveTarget(lib.mobTarget({ id: "d:zerevor", name: "old name", icon: "old" }), ctx);
+        expect(live).toMatchObject({ kind: "mob", label: "High Nethermancer Zerevor", icon: "spell_fire_flamebolt" });
+        const gone = lib.resolveTarget({ kind: "mob", ref: "c:deleted", name: "Wave 1", icon: "boss:601" }, ctx);
+        expect(gone).toMatchObject({ label: "Wave 1", icon: "boss:601" });
+        expect(lib.resolveTarget({ kind: "mob", ref: "c:x" }, { slots: [], players: new Map() }).label).toBe("?");
+    });
+    it("icon keys of a boss image and of a mob on the map", () => {
+        expect(lib.bossIconOf("/bosses/608.jpg")).toBe("boss:608");
+        expect(lib.bossIconOf("https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg")).toBe("achievement_boss_illidan");
+        expect(lib.bossIconOf("")).toBe("");
+        expect(lib.mobIconKey("boss:608")).toBe("boss:608");
+        expect(lib.mobIconKey("spell_fire_flamebolt")).toBe("wow:spell_fire_flamebolt");
+        expect(lib.mobIconKey("")).toBe("enemy");
+    });
+    it("the spells of a type, the ones that fit the classes of the assignees first; a reference keeps a snapshot", () => {
+        expect(lib.spellsFor("kick", catalog, ["Mage"]).map((s) => s.name)).toEqual(["Counterspell", "Kick"]);
+        expect(lib.spellsFor("kick", catalog, []).map((s) => s.name)).toEqual(["Kick", "Counterspell"]);
+        expect(lib.spellsFor("md", catalog, [])).toEqual([]);
+        expect(lib.spellsFor("kick", null, [])).toEqual([]);
+        expect(lib.spellRef(catalog.spells[0])).toEqual({ id: "d:curse-of-doom", name: "Curse of Doom", icon: "spell_shadow_auraofdarkness" });
+    });
+    it("the classes of a type come from the spells of the catalog, else from the built in list", () => {
+        expect(lib.classesForType("kick", catalog)).toEqual(["Rogue", "Mage"]);
+        expect(lib.classesForType("md", catalog)).toEqual(lib.ASSIGN_META.md.classes);
+        expect(lib.fitsType("kick", { classId: "Rogue" }, catalog)).toBe(true);
+        expect(lib.fitsType("kick", { classId: "Warrior" }, catalog)).toBe(false);
+    });
+    it("the icon and the text of a row come from its spell", () => {
+        const row = { id: "a", type: "curse", title: "", spell: { id: "d:curse-of-doom", name: "Curse of Doom", icon: "spell_shadow_auraofdarkness" }, assignees: ["user:x"], targets: [], note: "", suggested: false };
+        expect(lib.iconForTask(row)).toBe("spell_shadow_auraofdarkness");
+        expect(lib.taskText(row, 0, { slots: [], players: new Map() })).toBe("Curse of Doom");
+        expect(lib.taskText({ ...row, title: "on the boss" }, 0, { slots: [], players: new Map() })).toBe("on the boss");
+    });
+    it("has the catalog texts in both languages", () => {
+        const root = path.join(__dirname, "../../src/web-client/src/i18n/locales");
+        for (const lang of ["de", "en"]) {
+            const d = JSON.parse(fs.readFileSync(path.join(root, lang, "catalog.json"), "utf8"));
+            for (const k of ["title", "intro", "newMob", "newSpell", "hide", "delete", "restore", "reset"]) expect(typeof d[k]).toBe("string");
+            for (const k of ["default", "override", "custom", "hidden"]) expect(typeof d.source[k]).toBe("string");
+            for (const k of ["boss", "add", "trash", "other"]) expect(typeof d.kind[k]).toBe("string");
+            const b = JSON.parse(fs.readFileSync(path.join(root, lang, "raidBoard.json"), "utf8"));
+            for (const k of ["title", "tip", "ofBoss", "ofInstance", "all", "add", "onMap"]) expect(typeof b.mobs[k]).toBe("string");
+        }
+    });
+});

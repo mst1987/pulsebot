@@ -30,7 +30,8 @@
         "series": "Serien",
         "eventLoot": "Event-Loot",
         "character": "Charakter",
-        "editPost": "Nachricht bearbeiten"
+        "editPost": "Nachricht bearbeiten",
+        "planCatalog": "Raidplan-Katalog"
     },
     "noArea": {
         "label": "Kein Bereich freigegeben",

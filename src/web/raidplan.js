@@ -16,6 +16,7 @@ const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 const assign = require("./raidplanAssign");
 const besetzungOf = require("./raidplanBesetzung");
+const catalogStore = require("./raidplanCatalogStore");
 const raiderProfiles = require("./raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
@@ -114,7 +115,7 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    return { ...t, bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
+    return { ...t, catalog: catalogStore.catalogView(), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
 /** What a template picker needs of a template (no boards). */
@@ -156,6 +157,7 @@ function editorView(event, { canWrite }) {
         hasApprovedSetup: !!approvedSetupOf(event),
         profiles: profileStore.listProfiles(),
         templates: templatesFor(event).map(templateSummary),
+        catalog: catalogStore.catalogView(),
         limits: { ...store.LIMITS, profileName: profileStore.LIMITS.name, profileCategory: profileStore.LIMITS.category },
     };
 }
@@ -206,6 +208,7 @@ function publicView(plan, event, { me = "" } = {}) {
                 mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
                 // the old task rows are shown as assignments (above)
                 targets: [],
+                mobs: board.mobs || [],
                 // assignments: a raider who is not in the approved setup is left out, a slot reference stays (it resolves to nobody = open)
                 assignments: [...assign.targetsToAssignments(board.targets, known), ...(board.assignments || [])].map((a) => ({
                     ...a,
@@ -234,6 +237,7 @@ function publicView(plan, event, { me = "" } = {}) {
         roster: roster.filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
+        catalog: catalogStore.catalogView(),
         loggedIn: !!me,
     };
 }

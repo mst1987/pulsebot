@@ -2,6 +2,10 @@
 const assign = require("../../src/web/raidplanAssign");
 const board = require("../../src/web/raidplanBoard");
 const raidplan = require("../../src/web/raidplan");
+const catalogStore = require("../../src/web/raidplanCatalogStore");
+const { tempStoreFile } = require("../helpers/tempStore");
+
+beforeAll(() => catalogStore.useFile(tempStoreFile("assign-catalog.json")));
 
 const slot = (kind, n, userId = "") => ({ kind, n, userId });
 const person = (userId, classId, role, group = 1) => ({ userId, classId, role, group });
@@ -103,7 +107,11 @@ describe("suggest: class based, never wrong, empty when nobody fits", () => {
         expect(refs(assign.suggest("md", { roster, slots }))).toEqual(["user:h1>slot:tank:1", "user:h2>slot:tank:2", "user:r1>slot:tank:3"]);
         expect(refs(assign.suggest("fearward", { roster, slots }))).toEqual(["user:p1>slot:tank:1"]);
         expect(refs(assign.suggest("ss", { roster }))).toEqual(["user:l1>player:p1", "user:l2>player:p2"]);
-        expect(refs(assign.suggest("curse", { roster }))).toEqual(["user:l1>text:Curse of the Elements", "user:l2>text:Curse of Recklessness"]);
+        // one curse per warlock, the spell comes from the catalog (with a snapshot of its name and icon)
+        const curses = assign.suggest("curse", { roster });
+        expect(curses.map((a) => a.assignees[0])).toEqual(["user:l1", "user:l2"]);
+        expect(curses.map((a) => a.spell.name)).toEqual(["Curse of the Elements", "Curse of Recklessness"]);
+        expect(curses[0].spell).toMatchObject({ id: "d:curse-of-the-elements", icon: "spell_shadow_chilltouch" });
     });
     it("thunder clap: warrior tanks first; demoralizing shout: the warriors", () => {
         expect(refs(assign.suggest("thunderclap", { roster }))).toEqual(["user:t1+user:w1>"]);

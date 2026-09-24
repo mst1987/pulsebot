@@ -1,16 +1,24 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
-import { suggestRaidplan, type ApiError, type RaidplanAssignment, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanPlayer } from "../../../api";
+import { ArrowRight, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanSpellRef, type RaidplanPlayer } from "../../../api";
 import { Badge, IconButton } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, ASSIGN_META, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, quickTexts, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
+import { wowIconUrl } from "../../../lib/wowIcon";
 import { useT } from "../../../i18n";
+
+/** A mob's icon: a boss image (boss:N), a WoW icon by name, or the generic enemy symbol. */
+export function MobIcon({ icon, size = 18 }: { icon: string; size?: number }) {
+    if (icon.indexOf("boss:") === 0) return <img className="rp-mobicon" src={`/bosses/${icon.slice(5)}.jpg`} alt="" width={size} height={size} draggable={false} />;
+    if (icon) return <img className="rp-mobicon" src={wowIconUrl(icon, size > 24 ? 56 : 36)} alt="" width={size} height={size} draggable={false} />;
+    return <span className="rp-mobicon rp-mobicon-generic" style={{ width: size, height: size }} aria-hidden="true"><Swords size={Math.round(size * 0.66)} /></span>;
+}
 
 /** One assignee or target as a small chip: who it is now (icon and name), or the placeholder / mark / text. */
 export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: boolean; onRemove?: () => void; extra?: ReactNode }) {
@@ -23,6 +31,8 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
         </>
     ) : r.kind === "mark" ? (
         <><MarkIcon mark={r.mark as never} size={18} /><span>{r.label}</span></>
+    ) : r.kind === "mob" ? (
+        <><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></>
     ) : r.kind === "group" ? (
         <><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
     ) : r.kind === "text" ? (
@@ -41,10 +51,10 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
     );
 }
 
-type Option = { key: string; label: string; node: ReactNode; on: boolean; group: string };
+export type Option = { key: string; label: string; node: ReactNode; on: boolean; group: string };
 
 /** A "+" that opens a small list to tick from (several at once); closes on a click outside or Esc. */
-function ChipPicker({ options, onToggle, textPlaceholder, onText, label }: {
+export function ChipPicker({ options, onToggle, textPlaceholder, onText, label }: {
     options: Option[];
     onToggle: (key: string) => void;
     textPlaceholder?: string;
@@ -91,13 +101,19 @@ function ChipPicker({ options, onToggle, textPlaceholder, onText, label }: {
 }
 
 /** One row inside a card: two compact lines — the task and its buttons, then who -> what. */
-function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, noteOpen, onNote }: {
+const SPELL_TYPES = ["curse", "thunderclap", "demoshout", "md", "ss", "fearward", "kick", "dispel", "cc", "buff", "tank"];
+const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "other"];
+
+function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, spellOptions, spellRefOf, sectionMobs, noteOpen, onNote }: {
     a: RaidplanAssignment;
     canWrite: boolean;
     ctx: AssignCtx;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
     assigneeOptions: (a: RaidplanAssignment) => Option[];
     targetOptions: (a: RaidplanAssignment) => Option[];
+    spellOptions: (a: RaidplanAssignment) => Option[];
+    spellRefOf: (id: string) => RaidplanSpellRef | null;
+    sectionMobs: RaidplanMobRef[];
     noteOpen: boolean;
     onNote: () => void;
 }) {
@@ -108,6 +124,14 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, not
         <li className={`rp-arow${a.suggested ? " is-suggested" : ""}`}>
             <div className="rp-arow-top">
                 <WowIcon name={iconForTask(a)} size={22} />
+                {SPELL_TYPES.indexOf(a.type) >= 0 && (a.spell ? (
+                    <span className="rp-achip rp-spellchip" data-tip={a.spell.name}>
+                        <WowIcon name={a.spell.icon || iconForTask({ ...a, spell: null })} size={18} /><span>{a.spell.name}</span>
+                        {canWrite && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={() => edit((b) => patchAssignment(b, a.id, { spell: null }))}><X size={12} /></button>}
+                    </span>
+                ) : canWrite && spellOptions(a).length > 0 && (
+                    <ChipPicker label={t("raidBoard.assign.pickSpell")} options={spellOptions(a)} onToggle={(k) => edit((b) => patchAssignment(b, a.id, { spell: spellOptions(a).length ? spellRefOf(k) : null }))} />
+                ))}
                 {canWrite ? (
                     <input
                         className="rp-atitle" value={a.title} maxLength={80} placeholder={t(`raidBoard.assign.type.${a.type}`)} aria-label={t("raidBoard.assign.task")}
@@ -147,7 +171,7 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, not
                     {canWrite && (
                         <ChipPicker
                             label={t("raidBoard.assign.addTarget")} options={targetOptions(a)}
-                            onToggle={(k) => { const i = k.indexOf("|"); edit((b) => toggleTarget(b, a.id, { kind: k.slice(0, i) as RaidplanAssignTarget["kind"], ref: k.slice(i + 1) })); }}
+                            onToggle={(k) => { const i = k.indexOf("|"); const kind = k.slice(0, i) as RaidplanAssignTarget["kind"]; const ref = k.slice(i + 1); const mob = kind === "mob" ? sectionMobs.find((m) => m.id === ref) : undefined; edit((b) => toggleTarget(b, a.id, mob ? mobTarget(mob) : { kind, ref })); }}
                             textPlaceholder={t("raidBoard.assign.textTarget")}
                             onText={(text) => edit((b) => (a.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, a.id, { kind: "text", ref: text })))}
                         />
@@ -172,7 +196,7 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, not
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile, catalog, sectionMobs }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -187,6 +211,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     onLinks: (on: boolean) => void;
     profileName: string;
     onPickProfile: () => void;
+    catalog: Catalog | null;
+    sectionMobs: RaidplanMobRef[];
 }) {
     const t = useT();
     const toast = useToast();
@@ -195,14 +221,22 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [extra, setExtra] = useState<string[]>([]);
     const [folded, setFolded] = useState<string[]>([]);
     const [view, setView] = useState<"cards" | "players">("cards");
-    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players }), [board.slots, players]);
+    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog }), [board.slots, players, catalog]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
+    const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
     // another boss brings its own hand-added cards
     useEffect(() => { setExtra([]); setFolded([]); }, [scope, eventId]);
 
     const shown = cardTypes(scope, board.assignments, extra, !canWrite);
     const addable = addableCards(scope, shown);
+
+    /** A new row of a card's type; a tanking row of a boss starts with the boss as its target. */
+    const newRow = (b: RaidplanBoard, type: string): RaidplanBoard => {
+        const made = addRowOfType(b, type);
+        const boss = scope === "boss" && type === "tank" ? sectionMobs.find((m) => m.id.indexOf("b:") === 0) : undefined;
+        return boss ? toggleTarget(made.board, made.id, mobTarget(boss)) : made.board;
+    };
 
     const suggest = async (type: string) => {
         setBusy(type);
@@ -226,8 +260,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             out.push({ key: ref, label: r.label, on: a.assignees.indexOf(ref) >= 0, group: slotTitle, node: <AssignChip r={r} /> });
         }
         if (isEvent) {
-            const fit = roster.filter((p) => fitsType(a.type, p));
-            const rest = roster.filter((p) => !fitsType(a.type, p));
+            const fit = roster.filter((p) => fitsType(a.type, p, catalog));
+            const rest = roster.filter((p) => !fitsType(a.type, p, catalog));
             const add = (list: RaidplanPlayer[], group: string) => {
                 for (const p of list) {
                     const ref = `user:${p.userId}`;
@@ -240,6 +274,15 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         return out;
     };
 
+    /** The spells a row can pick: the catalog's of its type, the ones that fit the assignees' classes first. */
+    const spellOptions = (a: RaidplanAssignment): Option[] => {
+        const classIds = a.assignees.map((r) => resolveAssignee(r, ctx).player).filter((p) => !!p).map((p) => (p ? p.classId : ""));
+        return spellsFor(a.type, catalog, classIds).map((sp) => ({
+            key: sp.id, label: sp.name, on: !!a.spell && a.spell.id === sp.id, group: t("raidBoard.assign.pickSpells"),
+            node: <span className="rp-achip"><WowIcon name={sp.icon} size={18} /><span>{sp.name}</span></span>,
+        }));
+    };
+
     const targetOptions = (a: RaidplanAssignment): Option[] => {
         const out: Option[] = [];
         const has = (tg: RaidplanAssignTarget) => a.targets.some((x) => x.kind === tg.kind && x.ref === tg.ref);
@@ -247,7 +290,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             const r = resolveTarget(tg, ctx);
             out.push({ key: `${tg.kind}|${tg.ref}`, label: r.label, on: has(tg), group, node: <AssignChip r={r} /> });
         };
-        for (const x of quickTexts(a.type)) push({ kind: "text", ref: x }, t(a.type === "curse" ? "raidBoard.assign.pickCurses" : "raidBoard.assign.pickSpells"));
+        if (MOB_TYPES.indexOf(a.type) >= 0) for (const m of sectionMobs) push(mobTarget(m), t("raidBoard.assign.pickMobs"));
         for (const s of slots) push({ kind: "slot", ref: s.ref }, t("raidBoard.assign.pickSlots"));
         for (const g of groups) push({ kind: "group", ref: String(g) }, t("raidBoard.assign.pickGroups"));
         for (const m of ALL_MARKS) push({ kind: "mark", ref: m }, t("raidBoard.assign.pickMarks"));
@@ -300,7 +343,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     {canWrite && SUGGESTABLE.indexOf(type) >= 0 && (
                                         <IconButton size="sm" icon={<Wand2 size={15} />} tip={t("raidBoard.assign.suggestOne", { type: t(`raidBoard.assign.type.${type}`) })} disabled={busy === type} onClick={() => suggest(type)} />
                                     )}
-                                    {canWrite && <IconButton size="sm" icon={<Plus size={15} />} tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => addRowOfType(b, type).board); setFolded(folded.filter((x) => x !== type)); }} />}
+                                    {canWrite && <IconButton size="sm" icon={<Plus size={15} />} tip={t("raidBoard.assign.addRowTo", { type: t(`raidBoard.assign.type.${type}`) })} onClick={() => { edit((b) => newRow(b, type)); setFolded(folded.filter((x) => x !== type)); }} />}
                                     <IconButton size="sm" icon={<ChevronDown size={15} className={fold ? "rp-rot-90" : ""} />} tip={t(fold ? "raidBoard.assign.unfold" : "raidBoard.assign.fold")} aria-expanded={!fold} onClick={() => setFolded(fold ? folded.filter((x) => x !== type) : [...folded, type])} />
                                 </span>
                             </header>
@@ -309,7 +352,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     {rows.length === 0 && <li className="rp-muted rp-acard-empty">{t("raidBoard.assign.cardEmpty")}</li>}
                                     {rows.map((a) => (
                                         <AssignRow
-                                            key={a.id} a={a} canWrite={canWrite} ctx={ctx} edit={edit} assigneeOptions={assigneeOptions} targetOptions={targetOptions}
+                                            key={a.id} a={a} canWrite={canWrite} ctx={ctx} edit={edit} assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions} spellRefOf={spellRefOf} sectionMobs={sectionMobs}
                                             noteOpen={noteOpen.indexOf(a.id) >= 0} onNote={() => setNoteOpen([...noteOpen, a.id])}
                                         />
                                     ))}
@@ -345,7 +388,7 @@ export function AssignTable({ assignments, ctx, me }: { assignments: RaidplanAss
                         <ul className="rp-alist">
                             {rowsOfType(assignments, type).map((a) => (
                                 <li key={a.id} className={`rp-arow${isMine(a, ctx, me) ? " is-own" : ""}`}>
-                                    {a.title && <div className="rp-atitle-read"><WowIcon name={iconForTask(a)} size={20} />{a.title}</div>}
+                                    {(a.title || a.spell) && <div className="rp-atitle-read"><WowIcon name={iconForTask(a)} size={20} />{[a.spell ? a.spell.name : "", a.title].filter(Boolean).join(": ")}</div>}
                                     <div className="rp-arow-main">
                                         <span className="rp-achips">
                                             {a.assignees.map((ref, i) => {

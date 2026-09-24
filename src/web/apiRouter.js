@@ -464,6 +464,38 @@ async function route(pathname, req, res, url) {
         await raidplanRoutes.postMapDelete(req, res);
         return true;
     }
+    if (pathname === "/api/raidplan/catalog" && req.method === "GET") {
+        raidplanRoutes.getCatalog(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "POST") {
+        await raidplanRoutes.postMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "PATCH") {
+        await raidplanRoutes.patchMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/mobs" && req.method === "DELETE") {
+        await raidplanRoutes.deleteMob(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "POST") {
+        await raidplanRoutes.postSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "PATCH") {
+        await raidplanRoutes.patchSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/spells" && req.method === "DELETE") {
+        await raidplanRoutes.deleteSpell(req, res);
+        return true;
+    }
+    if (pathname === "/api/raidplan/catalog/reset" && req.method === "POST") {
+        await raidplanRoutes.postCatalogReset(req, res);
+        return true;
+    }
     if (pathname === "/api/raidplan/profiles" && req.method === "GET") {
         raidplanRoutes.getProfiles(req, res);
         return true;

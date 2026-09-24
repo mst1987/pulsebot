@@ -20,7 +20,8 @@
         "notifyTemplates": "Call templates",
         "newEvent": "New event",
         "categoryAria": "Category",
-        "all": "All"
+        "all": "All",
+        "planCatalog": "Raid plan catalog"
     },
     "list": {
         "openEvent": "Open event",

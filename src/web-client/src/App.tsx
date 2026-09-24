@@ -10,6 +10,7 @@ import RaidDetailPage from "./pages/RaidDetailPage";
 import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
 import RaidTemplatesPage from "./pages/RaidTemplatesPage";
 import RaidplanTemplatesPage from "./pages/RaidplanTemplatesPage";
+import RaidplanCatalogPage from "./pages/RaidplanCatalogPage";
 import EventSeriesPage from "./pages/EventSeriesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -166,6 +167,7 @@ function MenuApp() {
                         <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
                         <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
                         <Route path="raids/plan-templates" element={<Guard user={user} areas={["raids"]}><RaidplanTemplatesPage /></Guard>} />
+                        <Route path="raids/plan-catalog" element={<Guard user={user} areas={["raids"]}><RaidplanCatalogPage /></Guard>} />
                         <Route path="raids/series" element={<Guard user={user} areas={["raids"]}><EventSeriesPage /></Guard>} />
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}

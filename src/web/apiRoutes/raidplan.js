@@ -32,6 +32,7 @@ const profileStore = require("../raidplanProfileStore");
 const templateStore = require("../raidplanTemplateStore");
 const raidplan = require("../raidplan");
 const assign = require("../raidplanAssign");
+const catalog = require("../raidplanCatalogStore");
 
 const HTTP = { not_found: 404, conflict: 409, invalid: 400, too_large: 413 };
 
@@ -257,6 +258,41 @@ async function deleteProfile(req, res) {
     ok(res, profileList());
 }
 
+/** What the catalog page needs: every visible entry, the hidden defaults, and the choices of the forms. */
+function catalogAnswer() {
+    const { bossesForInstances } = store;
+    const instances = require("../../config/gameVersions").rulesFor("tbc").instances;
+    return {
+        ...catalog.catalogView(),
+        hidden: catalog.hiddenEntries(),
+        kinds: catalog.KINDS,
+        classes: catalog.CLASS_IDS,
+        types: assign.ASSIGN_TYPES,
+        instances: instances.map((i) => ({ id: i.id, name: i.name, short: i.short, bosses: bossesForInstances([i.id]).filter((b) => !b.trash && !b.general).map((b) => ({ key: b.key, name: b.name })) })),
+        limits: catalog.LIMITS,
+    };
+}
+
+/** GET /api/raidplan/catalog */
+function getCatalog(req, res) {
+    if (!requireAdmin(req, res)) return;
+    ok(res, catalogAnswer());
+}
+
+/** POST / PATCH / DELETE /api/raidplan/catalog/<mobs|spells> and POST /api/raidplan/catalog/reset — all answer the whole catalog. */
+function catalogWrite(kind, how) {
+    return async function handler(req, res) {
+        if (!writer(req, res)) return;
+        const body = await readJsonBody(req);
+        let r;
+        if (how === "save") r = catalog.save(kind, how === "save" && req.method === "POST" ? { ...body, id: "" } : body);
+        else if (how === "remove") r = catalog.remove(kind, body.id);
+        else r = catalog.reset(body.kind === "spells" ? "spells" : "mobs", body.id);
+        if (r.error) return sendFailure(res, r);
+        ok(res, { ...catalogAnswer(), entry: r.entry || null });
+    };
+}
+
 /**
  * GET /api/raidplan/public?token=<token> — no login. An unknown token, an
  * unpublished plan and a plan whose event is gone all answer the same 404.
@@ -272,6 +308,8 @@ function getPublic(req, res, url) {
 
 module.exports = {
     getPlan, putPlan, postSuggest, postPublish, postMap, postMapDelete,
+    getCatalog, postMob: catalogWrite("mobs", "save"), patchMob: catalogWrite("mobs", "save"), deleteMob: catalogWrite("mobs", "remove"),
+    postSpell: catalogWrite("spells", "save"), patchSpell: catalogWrite("spells", "save"), deleteSpell: catalogWrite("spells", "remove"), postCatalogReset: catalogWrite("mobs", "reset"),
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
     postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate, postTemplateDuplicate,
 };

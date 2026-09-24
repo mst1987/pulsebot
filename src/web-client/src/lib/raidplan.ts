@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -103,11 +103,12 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         // the old task rows are read as assignments (title = the task, the players = who does it)
         targets: [],
         assignments: [
-            ...(b.targets || []).map((r) => ({ id: r.id, type: "other" as RaidplanAssignType, title: r.title, assignees: (r.userIds || []).map((u) => `user:${u}`), targets: [], note: "", suggested: false })),
-            ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "" })),
+            ...(b.targets || []).map((r) => ({ id: r.id, type: "other" as RaidplanAssignType, title: r.title, spell: null, assignees: (r.userIds || []).map((u) => `user:${u}`), targets: [], note: "", suggested: false })),
+            ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "", spell: a.spell || null })),
         ],
         counts: b.counts || null,
         roles: b.roles || {},
+        mobs: b.mobs || [],
         notes: b.notes || "",
         profileId: b.profileId || "",
         mapOpacity: b.mapOpacity || 1,
@@ -905,6 +906,22 @@ function rosterCounts(board: RaidplanBoard, roster: RaidplanPlayer[]): Besetzung
 }
 
 /**
+ * The numbers this board has: its own when it has set some (+/-), else the raid type's — and, in an event, at
+ * least as many tanks, healers and DPS as the lineup really has on this boss (a lineup with more than the type
+ * gets extra slots, one with fewer leaves slots open).
+ */
+export function effectiveCounts(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): BesetzungCounts {
+    const counts = { ...(board.counts || besetzung.counts) };
+    if (!board.counts && roster.length > 0) {
+        const real = rosterCounts(board, roster);
+        counts.tank = Math.max(counts.tank, real.tank);
+        counts.healer = Math.max(counts.healer, real.healer);
+        counts.dps = Math.max(counts.dps, real.dps);
+    }
+    return counts;
+}
+
+/**
  * The board with every role slot its Besetzung has: Tank 1..n, Heiler 1..n, DPS 1..n (melee / ranged only
  * when they were split), and the groups. What is missing is added (not on the map, `placed: false`);
  * what is there is never changed or removed. In an event the setup's players fill the new slots by role
@@ -913,14 +930,7 @@ function rosterCounts(board: RaidplanBoard, roster: RaidplanPlayer[]): Besetzung
  */
 export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
     if (!besetzung) return board;
-    const counts = { ...(board.counts || besetzung.counts) };
-    if (!board.counts && roster.length > 0) {
-        const real = rosterCounts(board, roster);
-        counts.tank = Math.max(counts.tank, real.tank);
-        counts.healer = Math.max(counts.healer, real.healer);
-        counts.dps = Math.max(counts.dps, real.dps);
-    }
-    const want = slotCounts(counts);
+    const want = slotCounts(effectiveCounts(board, besetzung, roster));
     const missing = [];
     for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
         for (let n = 1; n <= countOf(want, kind); n += 1) if (!board.slots.some((s) => s.kind === kind && s.n === n)) missing.push({ kind, n });
@@ -941,8 +951,8 @@ export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | nul
 }
 
 /** The counts as this board sets them (its own, else the type's) with one role changed (+/-); melee + ranged stay within the DPS. */
-export function countsWith(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number): BesetzungCounts {
-    const cur = { ...(board.counts || besetzung.counts) };
+export function countsWith(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number, roster: RaidplanPlayer[]): BesetzungCounts {
+    const cur = effectiveCounts(board, besetzung, roster);
     const v = Math.max(0, Math.min(40, Math.round(n)));
     if (kind === "dps") cur.dps = Math.max(v, cur.melee + cur.ranged);
     else if (kind === "melee") cur.melee = Math.min(v, cur.dps - cur.ranged);
@@ -952,8 +962,8 @@ export function countsWith(board: RaidplanBoard, besetzung: Besetzung, kind: str
 }
 
 /** Sets how many slots of a role this board has (+/-): more are added by ensureBesetzung, fewer are removed from the end. */
-export function setCount(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number): RaidplanBoard {
-    const counts = countsWith(board, besetzung, kind, n);
+export function setCount(board: RaidplanBoard, besetzung: Besetzung, kind: string, n: number, roster: RaidplanPlayer[]): RaidplanBoard {
+    const counts = countsWith(board, besetzung, kind, n, roster);
     return { ...board, counts, slots: trimSlots(board.slots, counts) };
 }
 
@@ -1030,7 +1040,7 @@ export function applyProfile(board: RaidplanBoard, profile: RaidplanProfile): Ra
     const kept = new Map(own.map((a) => [a.title.trim().toLowerCase(), a]));
     const rows = profile.targets.map((r) => {
         const old = kept.get(r.title.trim().toLowerCase());
-        return old ? { ...old, title: r.title } : { id: newRowId(), type: "other" as RaidplanAssignType, title: r.title, assignees: [], targets: [], note: "", suggested: false };
+        return old ? { ...old, title: r.title } : { id: newRowId(), type: "other" as RaidplanAssignType, title: r.title, spell: null, assignees: [], targets: [], note: "", suggested: false };
     });
     return { ...board, assignments: [...board.assignments.filter((a) => a.type !== "other"), ...rows], notes: profile.notes || board.notes, profileId: profile.id };
 }

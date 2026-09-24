@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2 } from "lucide-react";
-import type { RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
+import type { Catalog, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
@@ -18,7 +18,8 @@ import MapPanel, { type MapRow } from "./MapPanel";
 import ContextMenu from "./ContextMenu";
 import AssignPanel from "./AssignPanel";
 import Besetzung from "./Besetzung";
-import { assignmentLinks, scopeOf } from "../../../lib/assign";
+import MobsBar from "./MobsBar";
+import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/assign";
 
 type Drag = {
     kind: ObjectKind | "tray" | "palette";
@@ -74,13 +75,15 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
     eventId: string;
     /** the role slots of this raid (Tank 1..n ...): shown as the Besetzung, assignable without being on the map */
     besetzung: BesetzungData;
+    /** the mobs and spells the assignments can name */
+    catalog: Catalog | null;
     boss: RaidplanBoss;
     /** every boss of the plan: the palette offers their icons */
     allBosses: RaidplanBoss[];
@@ -121,6 +124,7 @@ export default function BoardWorkspace({
     const isEvent = mode === "event";
     const scope = scopeOf(boss);
     const links = useMemo(() => (showLinks ? assignmentLinks(board) : []), [showLinks, board]);
+    const mobs = useMemo(() => sectionMobsOf(scope, boss.key, boss.name, bossIconOf(boss.iconUrl), boss.instanceId, board, catalog), [scope, boss.key, boss.name, boss.iconUrl, boss.instanceId, board, catalog]);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
@@ -545,11 +549,12 @@ export default function BoardWorkspace({
                     board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
                     onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
                 />
+                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
                 <div className="rp-below-grid">
                     <AssignPanel
                         scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
                         eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
-                        profileName={profileName} onPickProfile={onPickProfile}
+                        profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
                     />
                     <aside className="rp-below-side">
                         <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />

@@ -4119,6 +4119,8 @@ export type RaidplanBoard = {
     assignments: RaidplanAssignment[];
     /** how many role slots the Besetzung has on this board (null = the raid type's) */
     counts: BesetzungCounts | null;
+    /** mobs added to this section: always tank targets */
+    mobs: RaidplanMobRef[];
     /** who plays another role on this boss than in the setup: { userId: role } */
     roles: Record<string, string>;
     /** the default size of tokens, slots, marks and icons, 0.5..2 */
@@ -4140,13 +4142,27 @@ export type RaidplanPlayer = {
     group: number;
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
-export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text"; ref: string };
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string };
+/** The catalog spell a row is about, with a snapshot of its name and icon. */
+export type RaidplanSpellRef = { id: string; name: string; icon: string };
+/** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */
+export type RaidplanMobRef = { id: string; name: string; icon: string };
 export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
-/** An assignment: assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
+/** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
+export type CatalogSource = "default" | "override" | "custom" | "hidden";
+export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; note: string; source: CatalogSource };
+export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; source: CatalogSource };
+export type Catalog = { mobs: CatalogMob[]; spells: CatalogSpell[] };
+export type CatalogAdmin = Catalog & {
+    hidden: Catalog; kinds: string[]; classes: string[]; types: string[];
+    instances: { id: string; name: string; short: string; bosses: { key: string; name: string }[] }[];
+    limits: { mobs: number; spells: number; name: number; note: number };
+    entry?: CatalogMob | CatalogSpell | null;
+};
 export type RaidplanBoss = {
     /** "Trash" of an instance / "Allgemein" for the whole raid: no boss, but a board (trash) or only assignments (general) */
     trash?: boolean;
@@ -4170,6 +4186,7 @@ export type RaidplanTemplateSummary = { id: string; name: string; category: stri
 export type RaidplanTemplate = {
     id: string; name: string; category: string; description: string; guildId: string; instanceIds: string[];
     bosses: Record<string, Partial<RaidplanBoard>>; version: number; updatedAt: number; bossList: RaidplanBoss[];
+    catalog: Catalog;
     /** the raid type: its size (0 = the instances' default) and the role counts (null = derived) */
     size: number; counts: BesetzungCounts | null;
     /** what the type comes to: size, counts and number of groups */
@@ -4186,6 +4203,7 @@ export type RaidplanView = {
     plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
     bosses: RaidplanBoss[];
     besetzung: Besetzung;
+    catalog: Catalog;
     roster: RaidplanPlayer[];
     hasApprovedSetup: boolean;
     profiles: RaidplanProfile[];
@@ -4206,6 +4224,7 @@ export type RaidplanPublic = {
     me: string;
     /** every player of the approved setup that is the visitor's: their own account and the characters of their raider profile */
     meIds: string[];
+    catalog: Catalog;
     loggedIn: boolean;
 };
 
@@ -4220,6 +4239,25 @@ export function saveRaidplan(csrfToken: string | null, input: { event: string; v
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
 export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string> }): Promise<{ assignments: RaidplanAssignment[] }> {
     return send("POST", "/api/raidplan/suggest", csrfToken, input);
+}
+
+export function getRaidplanCatalog(): Promise<CatalogAdmin> {
+    return get<CatalogAdmin>("/api/raidplan/catalog");
+}
+
+/** Creates (no id) or changes (id; a default's id makes an override) a mob or a spell; answers the whole catalog. */
+export function saveCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", input: Partial<CatalogMob & CatalogSpell>): Promise<CatalogAdmin> {
+    return send(input.id ? "PATCH" : "POST", `/api/raidplan/catalog/${kind}`, csrfToken, input);
+}
+
+/** Deletes an own entry; a default is hidden instead. */
+export function deleteCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
+    return send("DELETE", `/api/raidplan/catalog/${kind}`, csrfToken, { id });
+}
+
+/** A default entry back to what the code says (its override goes, a hidden one is shown again). */
+export function resetCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
+    return send("POST", "/api/raidplan/catalog/reset", csrfToken, { kind, id });
 }
 
 export function publishRaidplan(csrfToken: string | null, input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {

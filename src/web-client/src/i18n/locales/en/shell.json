@@ -30,7 +30,8 @@
         "series": "Series",
         "eventLoot": "Event loot",
         "character": "Character",
-        "editPost": "Edit message"
+        "editPost": "Edit message",
+        "planCatalog": "Raid plan catalog"
     },
     "noArea": {
         "label": "No area unlocked",

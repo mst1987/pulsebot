@@ -544,3 +544,31 @@
 .rp-seg button.is-on { background: var(--accent); color: #fff; }
 .rp-achip .wi { border-radius: 4px; flex: 0 0 auto; }
 @media (max-width: 700px) { .rp-read-assign { font-size: 15px; } .rp-bytasks li { align-items: flex-start; } }
+
+/* ---- mobs of a section, the catalog page ---- */
+.rp-mobs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.rp-mobchip { display: inline-flex; align-items: center; gap: 2px; }
+.rp-mobchip.is-added .rp-achip { border-style: solid; }
+.rp-mobchip:not(.is-added) .rp-achip { border-style: dashed; }
+.rp-mobchip-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--panel2); color: var(--muted); cursor: pointer; }
+.rp-mobchip-btn:hover { color: var(--text); border-color: var(--accent); }
+.rp-mobicon { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: inline-block; }
+.rp-mobicon-generic { display: inline-flex; align-items: center; justify-content: center; background: #b91c1c; color: #fff; }
+.rp-spellchip { border-color: var(--accent); }
+.rp-catalog { display: flex; flex-direction: column; gap: 12px; max-width: 980px; }
+.rp-cgroup { display: flex; flex-direction: column; gap: 6px; }
+.rp-cgroup .rp-kicker { display: flex; align-items: center; gap: 6px; margin: 0; }
+.rp-clist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rp-crow { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.rp-crow .wi { border-radius: 6px; }
+.rp-crow-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rp-crow-main strong { font-size: 14px; }
+.rp-crow-tools { display: inline-flex; gap: 2px; }
+.rp-crow.is-hidden { opacity: .75; border-style: dashed; }
+.rp-segtext { height: var(--ctl-h-sm, 32px); padding: 0 12px; border: 0; background: var(--panel2); color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; }
+.rp-segtext.is-on { background: var(--accent); color: #fff; }
+.rp-classpick { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.rp-classbtn { padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.rp-classbtn.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.rp-iconfield { display: flex; align-items: center; gap: 8px; }
+.rp-iconfield input { flex: 1; }

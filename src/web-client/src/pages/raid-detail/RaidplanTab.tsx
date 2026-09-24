@@ -181,7 +181,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
             {boss && (
                 <BoardWorkspace
-                    mode="event" eventId={eventId} besetzung={view.besetzung} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
+                    mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

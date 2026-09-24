@@ -21,6 +21,7 @@
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
 //   counts   { tank, healer, dps, melee, ranged } | null   how many role slots the Besetzung has on this board (null = the raid type's)
+//   mobs     [{ id, name, icon }]   mobs added to this section (tank targets, optionally also icons on the map)
 //   roles    { [userId]: role }   who plays another role on this boss than in the setup (flex)
 //   slots may carry placed:false = in the Besetzung, not on the map
 //   assignments [{ id, type, title, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
@@ -46,6 +47,7 @@ const LIMITS = {
     textsPerBoss: 40,
     iconsPerBoss: 60,
     offsetsPerGroup: 30,
+    mobsPerBoss: 40,
     text: 60,
     targetsPerBoss: 30,
     usersPerTarget: 25,
@@ -271,14 +273,24 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         if (!allowed.has(str(uid)) || !FLEX_ROLES.includes(role) || Object.keys(roles).length >= LIMITS.tokensPerBoss) { dropped += 1; continue; }
         roles[str(uid)] = role;
     }
+    // the mobs added to this section (a boss's adds, trash mobs): they are always there as tank targets; the entry is
+    // a snapshot of the catalog's (name and icon) so it still shows when the catalog entry is gone
+    const mobs = [];
+    for (const m of Array.isArray(input.mobs) ? input.mobs : []) {
+        const o = m && typeof m === "object" ? m : {};
+        const id = str(o.id);
+        if (!/^[dcb]:[\w\-/']{1,70}$/.test(id) || !str(o.name) || mobs.some((x) => x.id === id)) { dropped += 1; continue; }
+        if (mobs.length >= LIMITS.mobsPerBoss) break;
+        mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|boss:\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
+    }
     const counts = besetzung.cleanCounts(input.counts);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
