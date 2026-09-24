@@ -183,6 +183,25 @@ describe("saveEventSetup", () => {
         for (const g of view.setup.groups) expect(g.slots.map((s) => s.pos)).toEqual(g.slots.map((_, i) => i + 1));
     });
 
+    it("counts a raider put in as another spec of their class — a retribution paladin as the third tank", () => {
+        mockSignups = [...mockSignups, su("palret", "Paladin-Retribution")];
+        const { setup: first } = editor.proposeEventSetup(ID);
+        const asRet = editor.saveEventSetup(ID, { version: first.version, groups: [{ index: 1, slots: [{ userId: "palret", spec: "Paladin-Retribution", role: "melee", locked: true }] }], bench: [] }).setup;
+        expect(asRet.checks.roles.tank.count).toBe(0);
+        const asProt = editor.saveEventSetup(ID, { version: asRet.version, groups: [{ index: 1, slots: [{ userId: "palret", spec: "Paladin-Protection", role: "tank", locked: true }] }], bench: [] }).setup;
+        expect(asProt.groups[0].slots[0]).toMatchObject({ userId: "palret", spec: "Paladin-Protection", role: "tank", locked: true, main: false });
+        expect(asProt.checks.roles.tank.count).toBe(1);
+        expect(asProt.groups[0].slots[0].reasons).toContain("Zweitspec als Tank");
+    });
+
+    it("sends every raider the specs of their class, so the panel can offer them", () => {
+        editor.proposeEventSetup(ID);
+        const view = editor.editorView(mockEvents.get(ID), { canWrite: true, signups: mockSignups });
+        const mage = view.setup.groups.flatMap((g) => g.slots).find((s) => s.spec.startsWith("Mage-"));
+        expect(mage.classSpecs.map((x) => x.key)).toEqual(expect.arrayContaining(["Mage-Fire", "Mage-Frost", "Mage-Arcane"]));
+        expect(mage.classSpecs[0]).toEqual({ key: expect.any(String), label: expect.any(String), icon: expect.any(String), role: "ranged" });
+    });
+
     it("refuses a lineup built on an outdated version", () => {
         editor.proposeEventSetup(ID);
         editor.proposeEventSetup(ID, { weights: { mainSpec: 0, status: 0 } });

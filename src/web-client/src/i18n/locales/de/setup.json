@@ -4,6 +4,8 @@
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceDetails": "Details",
+            "playsAs": "Im Setup als",
+            "playsAsSub": "Für Raider, die mehrere Specs spielen: der dritte Tank, ein zusätzlicher Heiler. Der Platz wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",
             "attendanceCount": "{attended} von {total} Raids",
             "lastBench": "Zuletzt auf der Bank: {date}",
             "benchNever": "Nicht auf der Bank in den letzten {count} Raids",
@@ -210,6 +212,7 @@
         "sizeFailed": "Größe konnte nicht geändert werden."
     },
     "moves": {
+        "respecBench": "Wer auf der Bank steht, hat noch keinen Platz – erst in eine Gruppe ziehen, dann die Spec wählen.",
         "notInSetup": "Raider nicht im Setup.",
         "targetNotInSetup": "Ziel nicht im Setup.",
         "groupFull": "Gruppe {group} ist voll – auf einen Raider ziehen, um zu tauschen.",
