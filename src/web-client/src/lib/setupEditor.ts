@@ -12,8 +12,41 @@ import { t } from "../i18n";
 
 export const GROUP_SIZE = 5;
 
-/** Where a raider can be dropped: a group, the bench, or onto another raider (swap). */
-export type SetupTarget = { group: number } | { bench: true } | { userId: string };
+/** Where a raider can be dropped: a group (with `pos`: onto that free place 1…5), the bench, or onto another raider (swap). */
+export type SetupTarget = { group: number; pos?: number } | { bench: true } | { userId: string };
+
+/**
+ * Every slot of a group with a place of its own, 1…5: a slot that has a free one
+ * keeps it, the others take the lowest free places in their order; sorted by place.
+ * The places are where the orga put somebody — a group of two may stand on 1 and 5.
+ */
+export function withPlaces<T extends { pos?: number }>(slots: T[]): T[] {
+    const used = new Set();
+    const out = slots.map((s) => {
+        const p = Math.floor(Number(s.pos));
+        if (p >= 1 && p <= GROUP_SIZE && !used.has(p)) {
+            used.add(p);
+            return { ...s, pos: p };
+        }
+        return { ...s, pos: 0 };
+    });
+    for (const s of out) {
+        if (s.pos) continue;
+        let p = 1;
+        while (used.has(p)) p++;
+        used.add(p);
+        s.pos = p;
+    }
+    return out.sort((a, b) => a.pos - b.pos);
+}
+
+/** A group's five places as drawn: the raider on each, or null for a free one. */
+export function placeGrid<T extends { pos?: number }>(slots: T[]): (T | null)[] {
+    const placed = withPlaces(slots);
+    const grid = [];
+    for (let p = 1; p <= GROUP_SIZE; p++) grid.push(placed.find((s) => s.pos === p) || null);
+    return grid;
+}
 
 /** A stored setup with everything the editor reads: what a hand-written or older setup lacks gets a neutral default (the server does the same). */
 export function withSetupDefaults(setup: StoredSetup): StoredSetup {
@@ -45,7 +78,7 @@ export function toInput(setup: StoredSetup): SetupPlacementInput {
         version: setup.version,
         groups: setup.groups.map((g) => ({
             index: g.index,
-            slots: g.slots.map((s) => ({ userId: s.userId, character: s.character, spec: s.spec, role: s.role, locked: !!s.locked })),
+            slots: withPlaces(g.slots.map((s) => ({ userId: s.userId, character: s.character, spec: s.spec, role: s.role, locked: !!s.locked, pos: s.pos }))),
         })),
         bench: setup.bench.map((b) => ({ userId: b.userId, locked: !!b.locked })),
     };
@@ -73,7 +106,7 @@ export function positionOf(input: SetupPlacementInput, userId: string) {
 function cloneInput(input: SetupPlacementInput): SetupPlacementInput {
     return {
         ...input,
-        groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ ...s })) })),
+        groups: input.groups.map((g) => ({ index: g.index, slots: withPlaces(g.slots) })),
         bench: input.bench.map((b) => ({ ...b })),
     };
 }
@@ -94,7 +127,8 @@ function takeOut(input: SetupPlacementInput, userId: string, people: Map<string,
 /** A bench entry as a group slot: the person's own spec and role. */
 function slotFromBench(entry: { userId: string; locked: boolean }, people: Map<string, SetupPerson>) {
     const person = people.get(entry.userId);
-    return { userId: entry.userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked };
+    // pos 0 = no place yet: withPlaces gives it the lowest free one (or the swapped raider's)
+    return { userId: entry.userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked, pos: 0 };
 }
 
 /** Where a raider stands: their group's slots (null on the bench) and the position there. */
@@ -117,9 +151,10 @@ function swapInPlace(input: SetupPlacementInput, a: string, b: string, people: M
     if (!pa || !pb) return false;
     const ea = pa.slots ? pa.slots[pa.i] : slotFromBench(input.bench[pa.i], people);
     const eb = pb.slots ? pb.slots[pb.i] : slotFromBench(input.bench[pb.i], people);
-    if (pa.slots) pa.slots[pa.i] = eb;
+    // each takes the other's exact place (number) too
+    if (pa.slots) pa.slots[pa.i] = { ...eb, pos: ea.pos };
     else input.bench[pa.i] = { userId: eb.userId, locked: eb.locked };
-    if (pb.slots) pb.slots[pb.i] = ea;
+    if (pb.slots) pb.slots[pb.i] = { ...ea, pos: eb.pos };
     else input.bench[pb.i] = { userId: ea.userId, locked: ea.locked };
     return true;
 }
@@ -165,9 +200,20 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
 
     if ("group" in from && from.group === target.group) {
         const own = groupFor(input, target.group);
+        const me = own.slots.find((s) => s.userId === userId);
+        if (!me) return { error: t("setup.moves.notInSetup") };
+        // onto a free place of the own group: just change the place
+        if (target.pos) {
+            if (me.pos === target.pos || own.slots.some((s) => s.pos === target.pos)) return { input: null };
+            me.pos = target.pos;
+            own.slots = withPlaces(own.slots);
+            return { input };
+        }
+        // onto the group itself: to the end (the places close up)
         if (own.slots[own.slots.length - 1].userId === userId) return { input: null };
         const moved = takeOut(input, userId, people);
         if (moved) own.slots.push(moved);
+        own.slots.forEach((s, i) => { s.pos = i + 1; });
         return { input };
     }
     const dest = groupFor(input, target.group);
@@ -176,7 +222,10 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
     if ("bench" in from && size > 0 && placed >= size) return { error: t("setup.moves.raidFull", { size }) };
     const slot = takeOut(input, userId, people);
     if (!slot) return { error: t("setup.moves.notInSetup") };
-    groupFor(input, target.group).slots.push(slot);
+    // the wanted place if it is free, else the lowest free one (withPlaces)
+    slot.pos = target.pos && !dest.slots.some((s) => s.pos === target.pos) ? target.pos : 0;
+    dest.slots.push(slot);
+    dest.slots = withPlaces(dest.slots);
     return { input };
 }
 
@@ -269,7 +318,7 @@ export function applyLocal(setup: StoredSetup, input: SetupPlacementInput): Stor
     const people = peopleOf(setup);
     return {
         ...setup,
-        groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => personFrom(people, s.userId, s.locked)) })),
+        groups: input.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ ...personFrom(people, s.userId, s.locked), pos: s.pos })) })),
         bench: input.bench.map((b) => personFrom(people, b.userId, b.locked)),
     };
 }

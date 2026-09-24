@@ -17,7 +17,7 @@ import {
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -91,12 +91,12 @@ function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
                 {known && a ? (
                     <>
                         <span className="se-tip-att">
-                            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
                             <b className="se-num">{a.pct} %</b>
                             {a.link === "manual"
                                 ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
                                 : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
                         </span>
+                        <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
                         <span className="se-tip-sub">{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>
                         <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>
                     </>
@@ -121,7 +121,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
     const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
     return (
         <aside className="se-tip" aria-label={t("setup.person.tip.aria")} aria-live="polite">
-            {/* left: who they are and how often they came; right: what they bring and why they stand here */}
+            {/* three columns: who they are and how often they came · what they bring · why they stand here */}
             <div className="se-tip-col">
                 <div className="se-tip-head">
                     <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
@@ -156,6 +156,8 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                         ))}
                     </div>
                 )}
+            </div>
+            <div className="se-tip-col">
                 {reasons.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.why")}</span>
@@ -363,6 +365,34 @@ function GroupHeader({ title, count, full, buffs }: { title: string; count: numb
     );
 }
 
+/**
+ * One free place of a group. A raider dropped on it (or picked and then chosen
+ * with "Hierher") stands exactly there — not just somewhere in the group.
+ */
+function FreePlace({ group, pos, pickable, ui }: { group: number; pos: number; pickable: boolean; ui: Interaction }) {
+    const t = useT();
+    const [over, setOver] = useState(false);
+    if (pickable) {
+        return (
+            <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ group, pos })}>
+                {t("setup.group.here")} <small>{pos}</small>
+            </button>
+        );
+    }
+    if (!ui.editable) return <span className="se-ph" aria-hidden="true">{pos}</span>;
+    return (
+        <span
+            className={`se-ph${over ? " se-ph-over" : ""}`}
+            aria-hidden="true"
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); ui.onDrop({ group, pos }, e.dataTransfer.getData("text/plain")); }}
+        >
+            {pos}
+        </span>
+    );
+}
+
 function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key: string; label: string; icon: string }[]; ui: Interaction }) {
     const t = useT();
     const zone = useZone({ group: group.index }, ui);
@@ -371,16 +401,11 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
     return (
         <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}${ui.suggest === group.index ? " se-suggest" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
             <GroupHeader title={t("setup.group.title", { index: group.index })} count={group.slots.length} full={full} buffs={buffs} />
-            {/* always five places: the raiders in their order, then an empty box per free place */}
+            {/* always five places, each where the orga put its raider — a free one takes a drop of its own (place 5 of a group of two) */}
             <div className="se-slots">
-                {group.slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
-                {Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }, (_, i) => (canTake
-                    ? (
-                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ group: group.index })}>
-                            {i === 0 ? t("setup.group.here") : ""}
-                        </button>
-                    )
-                    : <span key={`free-${i}`} className="se-ph" aria-hidden="true">{group.slots.length + i + 1}</span>))}
+                {placeGrid(group.slots).map((p, i) => (p
+                    ? <Slot key={p.userId} p={p} ui={ui} />
+                    : <FreePlace key={`free-${i + 1}`} group={group.index} pos={i + 1} pickable={ui.editable && !!ui.selected} ui={ui} />))}
             </div>
         </section>
     );
@@ -674,7 +699,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
     return (
         <div className="se-pingtext">
             <span className="se-pingtext-label" data-tip={t("setup.pingText.tip")}>
-                📢 {t("setup.pingText.label")}
+                📢 {t("setup.pingText.title")}
             </span>
             <input
                 type="text"
@@ -687,6 +712,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
                 onBlur={commit}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
             />
+            <span className="se-pingtext-hint">{t("setup.pingText.hint")}</span>
         </div>
     );
 }
@@ -1019,15 +1045,17 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 </div>
             </div>
             <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
-            {/* three boxes in one row: the ping message, the evening's numbers, and the raider panel (the one the pointer touched last) */}
+            {/* the top area: left the ping message over the evening's numbers, right the raider panel (the one the pointer touched last) — one fixed height */}
             <div className="se-topline">
-                <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
-                <Summary
-                    data={data} setup={setup} busy={busy}
-                    onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
-                    onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                    onWeights={() => setDialog("weights")}
-                />
+                <div className="se-topleft">
+                    <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
+                    <Summary
+                        data={data} setup={setup} busy={busy}
+                        onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                        onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
+                        onWeights={() => setDialog("weights")}
+                    />
+                </div>
                 {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
             </div>
 

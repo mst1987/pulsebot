@@ -3859,6 +3859,8 @@ export type SetupPerson = {
     main?: boolean;
     status?: SignupStatus | "";
     locked?: boolean;
+    /** The place 1…5 in the group the orga put them on (a group of two may stand on 1 and 5). */
+    pos?: number;
     /** Why they are where they are — shown in the tooltip only. */
     reasons?: string[];
     brings?: SetupBuff[];
@@ -3978,7 +3980,7 @@ export function saveSetupPingText(csrfToken: string | null, eventId: string, tex
 export type SetupPlacementInput = {
     version: number;
     /** `character`: which of the raider's named characters (#293) plays the spec. */
-    groups: { index: number; slots: { userId: string; character?: string; spec: string; role: string; locked: boolean }[] }[];
+    groups: { index: number; slots: { userId: string; character?: string; spec: string; role: string; locked: boolean; pos?: number }[] }[];
     bench: { userId: string; locked: boolean }[];
     fairness?: boolean;
     wishes?: boolean;

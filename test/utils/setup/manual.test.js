@@ -1,6 +1,6 @@
 // A setup the orga changed by hand (#263): validatePlacement() refuses what
 // breaks a hard rule, evaluateSetup() values the rest without moving anybody.
-const { validatePlacement } = require("../../../src/utils/setup/manual");
+const { validatePlacement, placeSlots } = require("../../../src/utils/setup/manual");
 const { buildSetupProposal, evaluateSetup } = require("../../../src/utils/setup/proposal");
 const { su, roster } = require("./fixtures");
 
@@ -35,8 +35,31 @@ describe("validatePlacement", () => {
         }, ctx);
         expect(out.error).toBeUndefined();
         expect(out.value.groups.map((g) => g.index)).toEqual([1, 2]);
-        expect(out.value.groups[0].slots[0]).toEqual({ userId: "tank", character: "Tank", spec: "Warrior-Protection", role: "tank", locked: true });
+        expect(out.value.groups[0].slots[0]).toEqual({ userId: "tank", character: "Tank", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 });
         expect(out.value.bench).toEqual([{ userId: "extra", locked: true }]);
+    });
+
+    it("keeps the place (1–5) a raider was put on — a group of two may stand on 1 and 5 — and sorts by it", () => {
+        const out = validatePlacement({
+            groups: [{ index: 1, slots: [slot("sham", { pos: 5 }), slot("tank", { pos: 1 })] }],
+            bench: [],
+        }, ctx);
+        expect(out.error).toBeUndefined();
+        expect(out.value.groups[0].slots.map((s) => `${s.userId}@${s.pos}`)).toEqual(["tank@1", "sham@5"]);
+    });
+
+    it("fills places that are missing, taken twice or out of range with the lowest free ones", () => {
+        const out = validatePlacement({
+            groups: [{ index: 1, slots: [slot("tank"), slot("heal1", { pos: 1 }), slot("mage", { pos: 7 }), slot("rogue", { pos: 4 })] }],
+            bench: [],
+        }, ctx);
+        // heal1 keeps 1, rogue 4; tank and mage take the lowest free ones in their order
+        expect(out.value.groups[0].slots.map((s) => `${s.userId}@${s.pos}`)).toEqual(["heal1@1", "tank@2", "mage@3", "rogue@4"]);
+    });
+
+    it("gives a lineup without places (an old draft, a proposal) the places 1, 2, 3 …", () => {
+        expect(placeSlots([{ userId: "a" }, { userId: "b" }, { userId: "c" }]).map((s) => s.pos)).toEqual([1, 2, 3]);
+        expect(placeSlots(undefined)).toEqual([]);
     });
 
     it.each([

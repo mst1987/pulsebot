@@ -162,6 +162,27 @@ describe("saveEventSetup", () => {
         expect(saved).toMatchObject({ status: "draft", changedSinceApproval: true, version: 2 });
     });
 
+    it("keeps the place a raider was put on — a group of two on places 1 and 5 — through save, view and approval", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const p = placementOf(first);
+        const group = p.groups.find((g) => g.slots.length >= 2);
+        group.slots = group.slots.slice(0, 2);
+        group.slots[0].pos = 1;
+        group.slots[1].pos = 5;
+        const saved = editor.saveEventSetup(ID, p).setup;
+        const stored = (setup) => setup.groups.find((g) => g.index === group.index).slots.map((s) => s.pos);
+        expect(stored(saved)).toEqual([1, 5]);
+        expect(stored(editor.editorView(mockEvents.get(ID), { canWrite: true, signups: mockSignups }).setup)).toEqual([1, 5]);
+        editor.approveEventSetup(ID, { version: saved.version });
+        expect(stored(mockEvents.get(ID).setup.approved)).toEqual([1, 5]);
+    });
+
+    it("shows a proposal — which has no places yet — on places 1, 2, 3 …", () => {
+        editor.proposeEventSetup(ID);
+        const view = editor.editorView(mockEvents.get(ID), { canWrite: true, signups: mockSignups });
+        for (const g of view.setup.groups) expect(g.slots.map((s) => s.pos)).toEqual(g.slots.map((_, i) => i + 1));
+    });
+
     it("refuses a lineup built on an outdated version", () => {
         editor.proposeEventSetup(ID);
         editor.proposeEventSetup(ID, { weights: { mainSpec: 0, status: 0 } });

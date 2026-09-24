@@ -26,7 +26,7 @@ const eventStore = require("./eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
 const { specNameFor } = require("./eventSources");
 const { evaluateSetup } = require("../utils/setup/proposal");
-const { validatePlacement } = require("../utils/setup/manual");
+const { validatePlacement, placeSlots } = require("../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../utils/setup/score");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 
@@ -102,7 +102,7 @@ function lineupSignature(setup) {
 
 /** The frozen, raider-facing copy of a lineup: names, specs, groups — no reasons, no wishes. */
 function snapshotOf(setup, { at, by }) {
-    const person = (x) => ({ userId: String(x.userId), character: x.character || "", classId: x.classId || "", spec: x.spec || "", role: x.role || "" });
+    const person = (x) => ({ userId: String(x.userId), character: x.character || "", classId: x.classId || "", spec: x.spec || "", role: x.role || "", ...(x.pos ? { pos: x.pos } : {}) });
     return {
         version: setup.version,
         approvedAt: at,
@@ -180,13 +180,24 @@ function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() }
 
 /**
  * The valued groups in the order the orga placed them: the evaluation sorts a
- * group by role, but the orga may have arranged it (the editor's places 1–5).
+ * group by role, but the orga may have arranged it (the editor's places 1–5) —
+ * and each raider keeps the place (`pos`) they were put on.
  */
 function inPlacedOrder(groups, placed) {
     const rank = new Map();
-    for (const g of placed || []) (g.slots || []).forEach((s, i) => rank.set(`${g.index}:${String(s.userId)}`, i));
-    const at = (index, s) => { const key = `${index}:${String(s.userId)}`; return rank.has(key) ? rank.get(key) : Infinity; };
-    return (groups || []).map((g) => ({ ...g, slots: (g.slots || []).slice().sort((a, b) => at(g.index, a) - at(g.index, b)) }));
+    const place = new Map();
+    for (const g of placed || []) {
+        (g.slots || []).forEach((s, i) => {
+            rank.set(`${g.index}:${String(s.userId)}`, i);
+            place.set(`${g.index}:${String(s.userId)}`, s.pos);
+        });
+    }
+    const key = (index, s) => `${index}:${String(s.userId)}`;
+    const at = (index, s) => (rank.has(key(index, s)) ? rank.get(key(index, s)) : Infinity);
+    return (groups || []).map((g) => ({
+        ...g,
+        slots: (g.slots || []).slice().sort((a, b) => at(g.index, a) - at(g.index, b)).map((s) => ({ ...s, pos: place.get(key(g.index, s)) })),
+    }));
 }
 
 /**
@@ -445,7 +456,8 @@ function decorateLineup(setup, table, names) {
     if (!setup) return null;
     return {
         ...setup,
-        groups: (setup.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map((s) => decoratePerson(s, table, names)) })),
+        // every slot with a place of its own (a proposal or an old draft has none: 1, 2, 3 …)
+        groups: (setup.groups || []).map((g) => ({ ...g, slots: placeSlots((g.slots || []).map((s) => decoratePerson(s, table, names))) })),
         bench: (setup.bench || []).map((b) => decoratePerson(b, table, names)),
     };
 }
