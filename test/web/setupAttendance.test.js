@@ -16,6 +16,9 @@ jest.mock("../../src/web/rosterAttendance", () => ({
     attendanceForAccounts: (...a) => mockCounted(...a),
 }));
 
+let mockHistory = [];
+jest.mock("../../src/web/setupInput", () => ({ benchHistory: () => ({ source: "setups", history: mockHistory }) }));
+
 const { setupAttendance, accountCharacters, comparableTo } = require("../../src/web/setupAttendance");
 
 describe("comparableTo — the same kind of raid", () => {
@@ -77,6 +80,28 @@ describe("setupAttendance", () => {
         const [, category, accounts] = mockCounted.mock.calls[0];
         expect(category).toBe("cat");
         expect(accounts.map((a) => a.userId)).toEqual(["u1"]);
+    });
+
+    it("says when a raider last signed up but stood on the bench — the newest night that benched them", () => {
+        mockSignups.e1 = [
+            { userId: "u1", character: "Anna", spec: "Priest-Holy", status: "signed" },
+            { userId: "u2", character: "Bob", spec: "Mage-Fire", status: "signed" },
+        ];
+        mockCounted.mockReturnValue(new Map([
+            ["u1", { pct: 80, attended: 8, total: 10, link: "auto", inferred: 0, missed: [] }],
+            ["u2", { pct: 90, attended: 9, total: 10, link: "auto", inferred: 0, missed: [] }],
+        ]));
+        // newest first: u1 was benched on the second-newest night and on an older one — the newer counts
+        mockHistory = [
+            { eventId: "h3", startTime: 3000, placed: ["u1", "u2"], bench: [] },
+            { eventId: "h2", startTime: 2000, placed: ["u2"], bench: ["u1"] },
+            { eventId: "h1", startTime: 1000, placed: [], bench: ["u1"] },
+        ];
+        const out = setupAttendance([{ id: "e1", categoryId: "cat", guildId: "g" }]);
+        expect(out.u1).toMatchObject({ lastBench: 2000, benchNights: 3 });
+        // never benched in the nights looked at: 0, with the number of nights so the page can say "in the last 3 raids"
+        expect(out.u2).toMatchObject({ lastBench: 0, benchNights: 3 });
+        mockHistory = [];
     });
 
     it("does nothing for events without a category", () => {

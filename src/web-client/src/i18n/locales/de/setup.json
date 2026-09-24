@@ -4,6 +4,8 @@
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceCount": "{attended} von {total} Raids",
+            "lastBench": "Zuletzt auf der Bank: {date}",
+            "benchNever": "Nicht auf der Bank in den letzten {count} Raids",
             "linkManual": "Char-Zuordnung bestätigt",
             "linkAuto": "Automatisch zugeordnet, nicht bestätigt",
             "autoBadge": "Auto",

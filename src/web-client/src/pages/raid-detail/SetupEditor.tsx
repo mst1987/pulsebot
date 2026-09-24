@@ -71,6 +71,14 @@ const dateTime = (ms: number) => (ms
     : "");
 
 
+/** "Zuletzt auf der Bank: 12.09.2026" — or that they were not on it in the nights looked at; "" without any earlier night. */
+function benchText(a: SetupAttendance | undefined): string {
+    if (!a || !a.benchNights) return "";
+    if (!a.lastBench) return t("setup.person.tip.benchNever", { count: a.benchNights });
+    const date = new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
+    return t("setup.person.tip.lastBench", { date });
+}
+
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
 const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "mid" : "bad");
 
@@ -95,6 +103,7 @@ function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
                         <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>
                     </>
                 ) : <span className="se-tip-sub">{t("setup.person.tip.attendanceNone")}</span>}
+                {benchText(a) && <span className="se-tip-sub se-tip-bench">{benchText(a)}</span>}
             </div>
         </div>
     );

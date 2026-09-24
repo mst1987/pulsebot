@@ -3846,6 +3846,9 @@ export type SetupAttendance = {
     link: "manual" | "auto";
     inferred: number;
     missed: { eventId: string; title: string; startTime: number; reason: string }[];
+    /** Start (unix seconds) of the last earlier night they signed up but stood on the bench; 0 = not in the `benchNights` nights looked at. */
+    lastBench?: number;
+    benchNights?: number;
 };
 
 /** A raider in a group or on the bench, decorated for the page. */

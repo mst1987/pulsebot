@@ -12,6 +12,7 @@ const characterStore = require("./characterStore");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("./rosterAttendance");
 const { raidContentIds, raidSize } = require("./raidListing");
+const { benchHistory } = require("./setupInput");
 
 /** "Druid-Feral" -> "Druid". */
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
@@ -76,7 +77,9 @@ function comparableTo(event) {
  *
  * @param {object[]} events  stored own events (`categoryId`, `guildId`)
  * @returns {Object<string, {pct: number|null, attended: number, total: number,
- *            link: "manual"|"auto", inferred: number, missed: object[]}>} by user id
+ *            link: "manual"|"auto", inferred: number, missed: object[],
+ *            lastBench: number, benchNights: number}>} by user id — `lastBench` = start (unix seconds) of the
+ *            last earlier night the raider stood on the bench (0 = none in the `benchNights` nights looked at)
  */
 function setupAttendance(events, { now = Date.now() } = {}) {
     const out = {};
@@ -103,6 +106,19 @@ function setupAttendance(events, { now = Date.now() } = {}) {
         for (const [userId, result] of attendanceForAccounts(ctx, categoryId, accounts, comparable ? { comparable } : {})) {
             if (!out[userId]) out[userId] = result;
         }
+    }
+    // Last time somebody signed up but stood on the bench instead of in the setup — the fairness history
+    // (approved setups, else the stored signups), newest night first.
+    let history = [];
+    try {
+        history = benchHistory(list, { guildId: list[0].guildId, now }).history || [];
+    } catch {
+        history = [];
+    }
+    for (const [userId, result] of Object.entries(out)) {
+        const hit = history.find((h) => (h.bench || []).includes(userId));
+        result.lastBench = hit ? Number(hit.startTime) || 0 : 0;
+        result.benchNights = history.length;
     }
     return out;
 }
