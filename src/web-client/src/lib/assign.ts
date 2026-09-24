@@ -150,52 +150,6 @@ export function quickTexts(type: string): string[] {
     return [];
 }
 
-/** One thing somebody has to do: its icon and a short sentence ("Heilt Tank 1 + Gruppe 3"). */
-export type Task = { id: string; type: string; icon: string; text: string };
-/** What one assignee has to do in a section: the assignee (a player, or a placeholder slot) and their tasks. */
-export type PlayerTasks = { key: string; who: Resolved; tasks: Task[] };
-
-const SENTENCE_TYPES = ["heal", "md", "ss", "fearward", "tank"];
-
-/** The sentence of a row for one of its assignees (`index` = the place in a rotation, 0 = first). */
-/** What a resolved reference is called in a sentence: the player who stands in a slot, else the slot / group / mob / mark / text. */
-export function nameOf(r: Resolved): string {
-    return r.player ? r.player.character : r.label;
-}
-
-export function taskText(a: RaidplanAssignment, index: number, ctx: AssignCtx): string {
-    const targets = a.targets.map((tg) => nameOf(resolveTarget(tg, ctx))).join(" + ");
-    if (!a.title && !a.spell && SENTENCE_TYPES.indexOf(a.type) >= 0 && targets) return t(`raidBoard.assign.sentence.${a.type}`, { targets });
-    const head = a.title || (a.spell ? a.spell.name : t(`raidBoard.assign.type.${a.type}`));
-    const rot = a.type === "kick" && a.assignees.length > 1 ? ` #${index + 1}` : "";
-    return `${head}${rot}${targets ? ` \u2192 ${targets}` : ""}`;
-}
-
-/** The tasks of a section derived from its assignments, per assignee (a filled slot counts as its player), in the order they first appear. */
-export function tasksByAssignee(assignments: RaidplanAssignment[], ctx: AssignCtx): PlayerTasks[] {
-    const out = [];
-    for (const a of assignments) {
-        a.assignees.forEach((ref, i) => {
-            const who = resolveAssignee(ref, ctx);
-            const key = who.player ? `u:${who.player.userId}` : ref;
-            let row = out.find((x) => x.key === key);
-            if (!row) { row = { key, who, tasks: [] }; out.push(row); }
-            row.tasks.push({ id: `${a.id}:${i}`, type: a.type, icon: iconForTask(a), text: taskText(a, i, ctx) });
-        });
-    }
-    return out;
-}
-
-/** The tasks of the visitor's own players, in the order of the rows. */
-export function myTasks(assignments: RaidplanAssignment[], ctx: AssignCtx, me: string[], names: string[] = []): Task[] {
-    const own = tasksByAssignee(assignments, ctx).filter((x) => isMe(x.who, me)).flatMap((x) => x.tasks);
-    if (names.length === 0 || me.length === 0) return own;
-    // rows that name the visitor in words (a note, a free-text target) although they are not the assignee: a task of their own, once
-    const seen = own.map((k) => k.id.split(":")[0]);
-    const extra = assignments.filter((a) => seen.indexOf(a.id) < 0 && mentionsInRow(a, names)).map((a) => ({ id: `${a.id}:m`, type: a.type, icon: iconForTask(a), text: taskText(a, 0, ctx) }));
-    return [...own, ...extra];
-}
-
 export const SLOT_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
 export const HEAL_COLOR = "#35d6c4";
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];

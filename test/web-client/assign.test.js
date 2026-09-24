@@ -168,7 +168,7 @@ describe("wiring and texts", () => {
     it("the workspace shows the panel right at the board, the read view the table", () => {
         expect(read("pages/raid-detail/raidplan/BoardWorkspace.tsx")).toContain("<AssignPanel");
         expect(read("pages/PlanPublicPage.tsx")).toContain("<ReadTables");
-        expect(read("pages/PlanPublicPage.tsx")).toContain("<ByPlayerLog");
+        expect(read("pages/PlanPublicPage.tsx")).not.toContain("ByPlayerLog");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-links");
     });
     it("has every type and picker text in both languages", () => {
@@ -203,44 +203,6 @@ describe("icons of tasks", () => {
     });
 });
 
-describe("tasks derived from the assignments", () => {
-    const players = [player("h1", "Heilbert", "Priest", 1), player("t1", "Tank", "Warrior", 1), player("r1", "Schleich", "Rogue", 2)];
-    const ctx = ctxOf([slot("healer", 1, "h1"), slot("tank", 1, "t1"), slot("healer", 2)], players);
-    const list = [
-        { id: "a", type: "heal", title: "", assignees: ["slot:healer:1", "slot:healer:2"], targets: [{ kind: "slot", ref: "tank:1" }, { kind: "group", ref: "3" }], note: "", suggested: false },
-        { id: "b", type: "kick", title: "Fear", assignees: ["user:r1", "user:h1"], targets: [], note: "", suggested: false },
-        { id: "c", type: "ss", title: "", assignees: ["user:r1"], targets: [{ kind: "player", ref: "h1" }], note: "", suggested: false },
-    ];
-    it("one entry per assignee, a filled slot counts as its player, sentences read like a person would say them", () => {
-        const all = lib.tasksByAssignee(list, ctx);
-        expect(all.map((x) => x.who.label)).toEqual(["Heiler 1", "Heiler 2", "Schleich"]);
-        const heilbert = all.find((x) => x.who.player && x.who.player.userId === "h1");
-        // the tank slot is filled: the sentence names the PLAYER, a group stays "Gruppe 3"
-        expect(heilbert.tasks.map((k) => k.text)).toEqual(["Heilt Tank + Gruppe 3", "Fear #2"]);
-        const open = all.find((x) => x.who.open && x.who.ref === "slot:healer:2");
-        expect(open.tasks[0].text).toBe("Heilt Tank + Gruppe 3");
-        // an OPEN slot keeps its label
-        const openTank = lib.taskText({ id: "z", type: "heal", title: "", spell: null, assignees: ["slot:healer:1"], targets: [{ kind: "slot", ref: "tank:2" }, { kind: "group", ref: "3" }], note: "", suggested: false }, 0, ctx);
-        expect(openTank).toBe("Heilt Tank 2 + Gruppe 3");
-        expect(lib.nameOf(lib.resolveTarget({ kind: "slot", ref: "tank:1" }, ctx))).toBe("Tank");
-        expect(lib.nameOf(lib.resolveTarget({ kind: "slot", ref: "tank:2" }, ctx))).toBe("Tank 2");
-        expect(lib.nameOf(lib.resolveTarget({ kind: "group", ref: "3" }, ctx))).toBe("Gruppe 3");
-        expect(lib.nameOf(lib.resolveTarget({ kind: "text", ref: "Fear" }, ctx))).toBe("Fear");
-        const rogue = all.find((x) => x.who.player && x.who.player.userId === "r1");
-        expect(rogue.tasks.map((k) => k.text)).toEqual(["Fear #1", "Soulstone auf Heilbert"]);
-        expect(rogue.tasks[0].icon).toBe("ability_kick");
-    });
-    it("your tasks are the tasks of your players, an alt included; nothing when you are not in it", () => {
-        expect(lib.myTasks(list, ctx, ["r1"]).map((k) => k.text)).toEqual(["Fear #1", "Soulstone auf Heilbert"]);
-        expect(lib.myTasks(list, ctx, ["r1", "h1"])).toHaveLength(4);
-        expect(lib.myTasks(list, ctx, ["nobody"])).toEqual([]);
-        expect(lib.myTasks(list, ctx, [])).toEqual([]);
-    });
-    it("a row with a title uses it, without a target there is no arrow", () => {
-        const one = [{ id: "z", type: "curse", title: "Elements", assignees: ["user:r1"], targets: [], note: "", suggested: false }];
-        expect(lib.tasksByAssignee(one, ctx)[0].tasks[0].text).toBe("Elements");
-    });
-});
 
 describe("mobs and spells of the catalog", () => {
     const catalog = {
@@ -306,8 +268,6 @@ describe("mobs and spells of the catalog", () => {
     it("the icon and the text of a row come from its spell", () => {
         const row = { id: "a", type: "curse", title: "", spell: { id: "d:curse-of-doom", name: "Curse of Doom", icon: "spell_shadow_auraofdarkness" }, assignees: ["user:x"], targets: [], note: "", suggested: false };
         expect(lib.iconForTask(row)).toBe("spell_shadow_auraofdarkness");
-        expect(lib.taskText(row, 0, { slots: [], players: new Map() })).toBe("Curse of Doom");
-        expect(lib.taskText({ ...row, title: "on the boss" }, 0, { slots: [], players: new Map() })).toBe("on the boss");
     });
     it("has the catalog texts in both languages", () => {
         const root = path.join(__dirname, "../../src/web-client/src/i18n/locales");

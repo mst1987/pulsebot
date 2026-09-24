@@ -25,15 +25,6 @@ describe("isMine also finds the visitor named in words", () => {
     });
 });
 
-describe("my tasks", () => {
-    it("include a row that only names the visitor in words, once, and keep the assignee's own tasks", () => {
-        const list = [row("a", "heal", ["slot:healer:1"], [{ kind: "slot", ref: "tank:1" }]), row("n", "other", ["slot:tank:1"], [], { title: "Achtung", note: "Heilbert wechselt" })];
-        const mine = assign.myTasks(list, ctx, ["h1"], ["Heilbert"]);
-        expect(mine.map((k) => k.id.split(":")[0])).toEqual(["a", "n"]);
-        expect(assign.myTasks(list, ctx, ["h1"]).map((k) => k.id.split(":")[0])).toEqual(["a"]);
-        expect(assign.myTasks(list, ctx, [], ["Heilbert"])).toEqual([]);
-    });
-});
 
 describe("lines that concern the visitor", () => {
     const board = { slots: [slot("healer", 1, "h1", 0.2, 0.2), slot("healer", 2, "h2", 0.3, 0.2), slot("tank", 1, "t1", 0.5, 0.5), slot("tank", 2, "t2", 0.6, 0.5)], tokens: [], marks: [], assignments: [

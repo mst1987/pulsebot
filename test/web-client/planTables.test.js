@@ -79,15 +79,3 @@ describe("the slim tables", () => {
     });
 });
 
-describe("my assignments", () => {
-    it("are the tasks of the visitor's players, none for someone who is not in the plan", () => {
-        const a = [row("t", "tank", ["slot:tank:1"], [mob]), row("h", "heal", ["slot:healer:1"], [{ kind: "slot", ref: "tank:1" }, { kind: "group", ref: "3" }])];
-        const mine = assign.myTasks(a, ctx, ["h1"]);
-        expect(mine).toHaveLength(1);
-        expect(mine[0].type).toBe("heal");
-        expect(mine[0].text).toContain("Tankwart");
-        expect(mine[0].text).not.toContain("Tank 1");
-        expect(assign.myTasks(a, ctx, ["nobody"])).toEqual([]);
-        expect(assign.myTasks(a, ctx, [])).toEqual([]);
-    });
-});

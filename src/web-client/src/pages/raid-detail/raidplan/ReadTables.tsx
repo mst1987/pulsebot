@@ -4,7 +4,7 @@ import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { ASSIGN_META, ROLE_ICON, iconForText, isMe, isMine, resolveAssignee, resolveTarget, tasksByAssignee, type AssignCtx, type Resolved } from "../../../lib/assign";
+import { ROLE_ICON, iconForText, isMe, isMine, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/assign";
 import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
 import { groupHealTable, simpleTables, tankTable } from "../../../lib/planTables";
@@ -151,28 +151,5 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                 </section>
             ))}
         </div>
-    );
-}
-
-/** "Tasks by player" as a log at the end of a section: a grid of player chips with their task badges, foldable. */
-export function ByPlayerLog({ assignments, ctx, me }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[] }) {
-    const t = useT();
-    const all = useMemo(() => tasksByAssignee(assignments, ctx), [assignments, ctx]);
-    const names = useMemo(() => cleanNames(me.map((id) => (ctx.players.get(id) || { character: "" }).character)), [me, ctx.players]);
-    if (all.length === 0) return null;
-    return (
-        <details className="rp-bylog" open>
-            <summary>{t("raidBoard.assign.byPlayer")} · {all.length}</summary>
-            <ul className="rp-bylog-grid">
-                {all.map((row) => (
-                    <li key={row.key} className={isMe(row.who, me) ? "is-own" : ""}>
-                        <Who r={row.who} mine={isMe(row.who, me)} names={names} />
-                        <span className="rp-bylog-tasks">
-                            {row.tasks.map((k) => <span key={k.id} className={`rp-tbadge rp-tb-${k.type in ASSIGN_META ? k.type : "other"} is-small`} data-tip={k.text}><WowIcon name={k.icon} size={18} /><span><Mentions text={k.text} names={names} /></span></span>)}
-                        </span>
-                    </li>
-                ))}
-            </ul>
-        </details>
     );
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
 import TypeBadge from "./TypeBadge";
-import { AlertTriangle, ArrowRight, Copy, Link2, Pencil, RotateCcw, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Copy, Link2, Pencil, RotateCcw, EyeOff, Swords, ChevronDown, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -10,7 +10,7 @@ import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -208,7 +208,6 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [noteOpen, setNoteOpen] = useState<string[]>([]);
     const [extra, setExtra] = useState<string[]>([]);
     const [folded, setFolded] = useState<string[]>([]);
-    const [view, setView] = useState<"cards" | "players">("cards");
     const [editing, setEditing] = useState("");
     const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
     const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog }), [board.slots, players, catalog]);
@@ -364,10 +363,6 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                             <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.assign.addCard")}</span>
                         </button>
                     )}
-                    <span className="rp-seg" role="group" aria-label={t("raidBoard.assign.view")}>
-                        <button type="button" className={view === "cards" ? "is-on" : ""} aria-pressed={view === "cards"} data-tip={t("raidBoard.assign.viewCards")} onClick={() => setView("cards")}><LayoutGrid size={15} /></button>
-                        <button type="button" className={view === "players" ? "is-on" : ""} aria-pressed={view === "players"} data-tip={t("raidBoard.assign.viewPlayers")} onClick={() => setView("players")}><Users size={15} /></button>
-                    </span>
                     {scope !== "general" && board.assignments.some((a) => a.type === "heal") && (
                         <label className="rp-check rp-assign-links"><input type="checkbox" checked={links} onChange={(e) => onLinks(e.target.checked)} /> {t("raidBoard.assign.links")}</label>
                     )}
@@ -375,8 +370,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             </div>
             {scope === "defaults" && <p className="rp-muted rp-defaults-explain">{t("raidBoard.defaults.explain")}</p>}
             {shown.length === 0 && <p className="rp-muted rp-assign-empty">{t("raidBoard.assign.emptyRead")}</p>}
-            {view === "players" && <PlayerTasksList assignments={board.assignments} ctx={ctx} me={[]} yours={false} />}
-            {view === "cards" && <div className="rp-cards">
+            <div className="rp-cards">
                 {shown.map((type) => {
                     const rows = rowsOfType(board.assignments, type);
                     const inh = rowsOfType(inherited, type);
@@ -427,7 +421,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                         </section>
                     );
                 })}
-            </div>}
+            </div>
         </section>
     );
 }
@@ -477,46 +471,6 @@ export function AssignTable({ assignments, ctx, me }: { assignments: RaidplanAss
                     </section>
                 );
             })}
-        </div>
-    );
-}
-
-/**
- * The tasks of a section per person, derived from the assignments (nothing to maintain): first "your
- * tasks" as short lines with icons (for a visitor whose player was recognised), then one line per
- * player — the player, then their tasks as icon chips. Players without a task are not listed. In a
- * template the "player" is the slot ("Heiler 1").
- */
-export function PlayerTasksList({ assignments, ctx, me, yours }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; yours: boolean }) {
-    const t = useT();
-    const mine = yours ? myTasks(assignments, ctx, me) : [];
-    const all = tasksByAssignee(assignments, ctx);
-    if (all.length === 0) return null;
-    return (
-        <div className="rp-tasks">
-            {mine.length > 0 && (
-                <section className="rp-mytasks" aria-label={t("raidBoard.assign.yourTasks")}>
-                    <h3 className="rp-kicker">{t("raidBoard.assign.yourTasks")}</h3>
-                    <ul>
-                        {mine.map((k) => <li key={k.id}><WowIcon name={k.icon} size={26} /><span>{k.text}</span></li>)}
-                    </ul>
-                </section>
-            )}
-            <section className="rp-bytasks" aria-label={t("raidBoard.assign.byPlayer")}>
-                <h3 className="rp-kicker">{t("raidBoard.assign.byPlayer")}</h3>
-                <ul>
-                    {all.map((row) => (
-                        <li key={row.key} className={isMe(row.who, me) ? "is-own" : ""}>
-                            <AssignChip r={row.who} mine={isMe(row.who, me)} />
-                            <span className="rp-achips">
-                                {row.tasks.map((k) => (
-                                    <span key={k.id} className="rp-taskchip" data-tip={k.text}><WowIcon name={k.icon} size={20} /><span>{k.text}</span></span>
-                                ))}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            </section>
         </div>
     );
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
-import ReadTables, { ByPlayerLog } from "./raid-detail/raidplan/ReadTables";
+import ReadTables from "./raid-detail/raidplan/ReadTables";
 import { assignmentLinks, isMine } from "../lib/assign";
 import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
@@ -124,7 +124,6 @@ export default function PlanPublicPage({ token }: { token: string }) {
                             )}
                         </div>
                     )}
-                    {boss && ctx && !mapOnly && <ByPlayerLog assignments={boss.assignments} ctx={ctx} me={data.meIds} />}
                 </>
             )}
         </div>
