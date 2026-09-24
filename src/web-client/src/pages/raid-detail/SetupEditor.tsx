@@ -17,7 +17,7 @@ import {
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -363,6 +363,34 @@ function GroupHeader({ title, count, full, buffs }: { title: string; count: numb
     );
 }
 
+/**
+ * One free place of a group. A raider dropped on it (or picked and then chosen
+ * with "Hierher") stands exactly there — not just somewhere in the group.
+ */
+function FreePlace({ group, pos, pickable, ui }: { group: number; pos: number; pickable: boolean; ui: Interaction }) {
+    const t = useT();
+    const [over, setOver] = useState(false);
+    if (pickable) {
+        return (
+            <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ group, pos })}>
+                {t("setup.group.here")} <small>{pos}</small>
+            </button>
+        );
+    }
+    if (!ui.editable) return <span className="se-ph" aria-hidden="true">{pos}</span>;
+    return (
+        <span
+            className={`se-ph${over ? " se-ph-over" : ""}`}
+            aria-hidden="true"
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); ui.onDrop({ group, pos }, e.dataTransfer.getData("text/plain")); }}
+        >
+            {pos}
+        </span>
+    );
+}
+
 function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key: string; label: string; icon: string }[]; ui: Interaction }) {
     const t = useT();
     const zone = useZone({ group: group.index }, ui);
@@ -371,16 +399,11 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
     return (
         <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}${ui.suggest === group.index ? " se-suggest" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
             <GroupHeader title={t("setup.group.title", { index: group.index })} count={group.slots.length} full={full} buffs={buffs} />
-            {/* always five places: the raiders in their order, then an empty box per free place */}
+            {/* always five places, each where the orga put its raider — a free one takes a drop of its own (place 5 of a group of two) */}
             <div className="se-slots">
-                {group.slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
-                {Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }, (_, i) => (canTake
-                    ? (
-                        <button key={`free-${i}`} type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop({ group: group.index })}>
-                            {i === 0 ? t("setup.group.here") : ""}
-                        </button>
-                    )
-                    : <span key={`free-${i}`} className="se-ph" aria-hidden="true">{group.slots.length + i + 1}</span>))}
+                {placeGrid(group.slots).map((p, i) => (p
+                    ? <Slot key={p.userId} p={p} ui={ui} />
+                    : <FreePlace key={`free-${i + 1}`} group={group.index} pos={i + 1} pickable={ui.editable && !!ui.selected} ui={ui} />))}
             </div>
         </section>
     );

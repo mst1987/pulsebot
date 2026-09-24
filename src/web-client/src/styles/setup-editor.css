@@ -112,6 +112,9 @@
 /* a free place: an empty box as high as a raider line */
 .se-ph { box-sizing: border-box; min-height: 40px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
 .se-ph-take { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-family: inherit; font-size: 13px; opacity: 1; cursor: pointer; }
+.se-ph-take small { margin-left: 6px; font: 700 11px var(--mono); opacity: .8; }
+/* a raider dragged over exactly this free place */
+.se-ph.se-ph-over { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--accent); opacity: 1; }
 .se-ph-take:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .se-group.se-over .se-ph { border-color: var(--accent); }
 /* #358: header is two rows so a group's buff count never affects the title row's height —

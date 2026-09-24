@@ -19,6 +19,32 @@ const { GROUP_SIZE, signupCharacters } = require("./model");
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 /**
+ * Every slot of a group with a place of its own, 1…5 (`pos`): a slot that names
+ * a free one keeps it, the others take the lowest free places in their order —
+ * so a group of two may stand on places 1 and 5. Sorted by place. Slots from
+ * before the places existed (a proposal, an old draft) come out 1, 2, 3 …
+ */
+function placeSlots(slots) {
+    const used = new Set();
+    const out = (slots || []).map((s) => {
+        const p = Math.floor(Number(s.pos));
+        if (p >= 1 && p <= GROUP_SIZE && !used.has(p)) {
+            used.add(p);
+            return { ...s, pos: p };
+        }
+        return { ...s, pos: 0 };
+    });
+    for (const s of out) {
+        if (s.pos) continue;
+        let p = 1;
+        while (used.has(p)) p++;
+        used.add(p);
+        s.pos = p;
+    }
+    return out.sort((a, b) => a.pos - b.pos);
+}
+
+/**
  * @param {object} raw     `{ groups: [{ index, slots: [{ userId, spec?, role?, locked? }] }], bench: [{ userId, locked? }] }`
  * @param {object} ctx     `{ event: { size, versionId }, signups: signupStore rows of the event }`
  * @returns {{ value?: { groups: object[], bench: object[] }, error?: string }}
@@ -82,11 +108,11 @@ function validatePlacement(raw, { event, signups } = {}) {
             if (!ROLES.includes(role)) return { error: `${label(userId)}: unbekannte Rolle „${role}“.` };
             const fits = role === spec.role || (role === "tank" && spec.canTank) || (role === "healer" && spec.canHeal);
             if (!fits) role = spec.role;
-            slots.push({ userId, character, spec: spec.key, role, locked: s.locked === true });
+            slots.push({ userId, character, spec: spec.key, role, locked: s.locked === true, pos: s.pos });
         }
         if (slots.length > GROUP_SIZE) return { error: `Gruppe ${index} hat mehr als ${GROUP_SIZE} Plätze.` };
         placed += slots.length;
-        groups.push({ index, slots });
+        groups.push({ index, slots: placeSlots(slots) });
     }
     if (placed > size) return { error: `Mehr Raider (${placed}) als der Raid Plätze hat (${size}).` };
 
@@ -101,4 +127,4 @@ function validatePlacement(raw, { event, signups } = {}) {
     return { value: { groups, bench } };
 }
 
-module.exports = { validatePlacement };
+module.exports = { validatePlacement, placeSlots };

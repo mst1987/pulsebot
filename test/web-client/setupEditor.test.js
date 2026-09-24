@@ -33,7 +33,7 @@ describe("setup editor moves (client)", () => {
 
     it("turns the stored setup into the save request", () => {
         expect(input.version).toBe(3);
-        expect(input.groups[0].slots[0]).toEqual({ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true });
+        expect(input.groups[0].slots[0]).toEqual({ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 });
         expect(input.bench).toEqual([{ userId: "b", locked: false }]);
     });
 
@@ -48,7 +48,7 @@ describe("setup editor moves (client)", () => {
 
     it("brings a bench raider in with their spec, into a new group", () => {
         const out = lib.moveRaider(input, "b", { group: 3 }, people, 25);
-        expect(out.input.groups.find((g) => g.index === 3).slots).toEqual([{ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false }]);
+        expect(out.input.groups.find((g) => g.index === 3).slots).toEqual([{ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false, pos: 1 }]);
         expect(out.input.bench).toEqual([]);
     });
 
@@ -58,11 +58,47 @@ describe("setup editor moves (client)", () => {
         // a swap keeps both positions: the bench raider takes the healer's place 2
         const swap = lib.moveRaider(input, "b", { userId: "h" }, people, 6);
         expect(swap.input.groups[0].slots.map((x) => x.userId)).toEqual(["t", "b", "m1", "m2", "r"]);
-        expect(swap.input.groups[0].slots[1]).toEqual({ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false });
+        expect(swap.input.groups[0].slots[1]).toEqual({ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false, pos: 2 });
         expect(swap.input.bench).toEqual([{ userId: "h", locked: false }]);
         const across = lib.moveRaider(input, "w", { userId: "t" }, people, 25);
         expect(across.input.groups[0].slots.map((x) => x.userId)).toEqual(["w", "h", "m1", "m2", "r"]);
-        expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true }]);
+        expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 }]);
+    });
+
+    describe("places inside a group (a group of two can stand on places 1 and 5)", () => {
+        const places = (slots) => slots.map((x) => `${x.userId}@${x.pos}`);
+
+        it("gives every slot a place of its own and keeps them sorted, gaps and all", () => {
+            const placed = lib.withPlaces([{ userId: "a", pos: 5 }, { userId: "b" }, { userId: "c", pos: 5 }, { userId: "d", pos: 9 }]);
+            // "a" keeps 5; "c" wants the taken 5, "d" an impossible 9, "b" none: the rest take the lowest free ones in order
+            expect(places(placed)).toEqual(["b@1", "c@2", "d@3", "a@5"]);
+            expect(lib.placeGrid([{ userId: "a", pos: 5 }, { userId: "b", pos: 1 }]).map((p) => p && p.userId)).toEqual(["b", null, null, null, "a"]);
+        });
+
+        it("drops a raider onto a free place of a group that is not full — from the bench, from another group, from inside", () => {
+            const fromBench = lib.moveRaider(input, "b", { group: 2, pos: 5 }, people, 25).input;
+            expect(places(fromBench.groups[1].slots)).toEqual(["w@1", "b@5"]);
+            expect(fromBench.bench).toEqual([]);
+            const fromGroup = lib.moveRaider(input, "r", { group: 2, pos: 4 }, people, 25).input;
+            expect(places(fromGroup.groups[1].slots)).toEqual(["w@1", "r@4"]);
+            // inside the own group: the sham stands alone on place 1 and moves to place 5
+            const alone = lib.moveRaider(input, "w", { group: 2, pos: 5 }, people, 25).input;
+            expect(places(alone.groups[1].slots)).toEqual(["w@5"]);
+        });
+
+        it("takes the lowest free place when the wanted one is taken, and does nothing for the place already held", () => {
+            const taken = lib.moveRaider(input, "b", { group: 2, pos: 1 }, people, 25).input;
+            expect(places(taken.groups[1].slots)).toEqual(["w@1", "b@2"]);
+            expect(lib.moveRaider(input, "w", { group: 2, pos: 1 }, people, 25)).toEqual({ input: null });
+        });
+
+        it("swaps the places too, and the places survive into the save request and the redraw", () => {
+            const gapped = lib.moveRaider(input, "b", { group: 2, pos: 5 }, people, 25).input;
+            const swapped = lib.moveRaider(gapped, "w", { userId: "b" }, people, 25).input;
+            expect(places(swapped.groups[1].slots)).toEqual(["b@1", "w@5"]);
+            expect(places(lib.applyLocal(s, gapped).groups[1].slots)).toEqual(["w@1", "b@5"]);
+            expect(lib.toInput(lib.applyLocal(s, gapped)).groups[1].slots.map((x) => x.pos)).toEqual([1, 5]);
+        });
     });
 
     it("reorders a group: swap inside it, or drop on its free places to go last", () => {
@@ -112,16 +148,17 @@ describe("setup editor moves (client)", () => {
             "b1", "g4s1", "g4s2", "g4s3", "g4s4", "g4s5", "g5s1", "g5s2", "g5s3", "g5s4", "g5s5", "g3s5", "g3s4", "g3s3",
         ]);
 
-        // growing touches nothing that already fits
+        // growing touches nothing that already fits (the slots only gain their places)
+        const bare = (groups) => groups.map((g) => ({ ...g, slots: g.slots.map(({ pos, ...rest }) => rest) }));
         const grown = lib.resizeLineup(big(), 30);
-        expect(grown.groups).toEqual(big().groups);
+        expect(bare(grown.groups)).toEqual(big().groups);
         expect(grown.bench).toEqual(big().bench);
 
         // locked is not special-cased here (a raw capacity trim, not a proposal re-run): a locked raider can still be bumped
         const withLock = big();
         withLock.groups[4].slots[0].locked = true;
         const shrunk = lib.resizeLineup(withLock, 5);
-        expect(shrunk.groups).toEqual([{ index: 1, slots: withLock.groups[0].slots }]);
+        expect(bare(shrunk.groups)).toEqual([{ index: 1, slots: withLock.groups[0].slots }]);
         expect(shrunk.bench.find((b) => b.userId === "g5s1")).toEqual({ userId: "g5s1", locked: true });
 
         // the original input is never mutated
@@ -180,7 +217,9 @@ describe("setup editor page", () => {
     });
 
     it("shows every group's five places — empty ones as boxes — and the bench under the setup", () => {
-        expect(editor).toContain("Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }");
+        // each free place is a drop target of its own (place 5 of a group of two), not just "somewhere in the group"
+        expect(editor).toContain("placeGrid(group.slots).map(");
+        expect(editor).toContain("ui.onDrop({ group, pos }, e.dataTransfer.getData(\"text/plain\"))");
         expect(editor).toContain("className=\"se-ph se-ph-take\"");
         expect(editor).not.toContain(">leer<");
         // groups and bench share one column across the full width — the summary sits in the top row above
