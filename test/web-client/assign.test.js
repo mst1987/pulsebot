@@ -167,7 +167,8 @@ describe("wiring and texts", () => {
     const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
     it("the workspace shows the panel right at the board, the read view the table", () => {
         expect(read("pages/raid-detail/raidplan/BoardWorkspace.tsx")).toContain("<AssignPanel");
-        expect(read("pages/PlanPublicPage.tsx")).toContain("<AssignTable");
+        expect(read("pages/PlanPublicPage.tsx")).toContain("<ReadTables");
+        expect(read("pages/PlanPublicPage.tsx")).toContain("<ByPlayerLog");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-links");
     });
     it("has every type and picker text in both languages", () => {
