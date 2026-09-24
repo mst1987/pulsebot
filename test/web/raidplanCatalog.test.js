@@ -56,7 +56,7 @@ describe("the defaults", () => {
         const council = catalog.listMobs().filter((m) => m.bossKey === "bt/the-illidari-council");
         expect(council).toHaveLength(4);
         const spells = catalog.listSpells().map((s) => s.name);
-        for (const n of ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom", "Curse of Agony", "Curse of Tongues", "Curse of Weakness", "Thunder Clap", "Demoralizing Shout", "Misdirection", "Fear Ward", "Kick", "Pummel", "Earth Shock", "Counterspell", "Dispel Magic", "Cleanse", "Purge", "Remove Curse", "Cure Poison", "Innervate", "Bloodlust", "Heroism", "Power Infusion", "Shackle Undead", "Polymorph", "Hibernate", "Banish"]) expect(spells).toContain(n);
+        for (const n of ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom", "Curse of Agony", "Curse of Tongues", "Curse of Weakness", "Thunder Clap", "Demoralizing Shout", "Misdirection", "Fear Ward", "Kick", "Pummel", "Earth Shock", "Counterspell", "Dispel Magic", "Cleanse", "Purge", "Remove Curse", "Cure Poison", "Innervate", "Bloodlust (Horde)", "Heroism (Alliance)", "Power Infusion", "Shackle Undead", "Polymorph", "Hibernate", "Banish"]) expect(spells).toContain(n);
     });
 });
 

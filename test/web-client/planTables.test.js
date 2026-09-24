@@ -95,3 +95,12 @@ describe("the slim tables", () => {
     });
 });
 
+
+describe("group healing by healer", () => {
+    it("lists each healer once with his groups in group order", () => {
+        const h = (ref) => ({ ref, label: ref });
+        const rows = [{ group: 1, members: [], healers: [h("a")] }, { group: 2, members: [], healers: [h("b"), h("a")] }, { group: 3, members: [], healers: [] }, { group: 4, members: [], healers: [h("b")] }];
+        expect(tables.healerGroups(rows).map((x) => [x.healer.ref, x.groups])).toEqual([["a", [1, 2]], ["b", [2, 4]]]);
+        expect(tables.healerGroups([])).toEqual([]);
+    });
+});

@@ -264,7 +264,8 @@
         "panel": "Eigenschaften ein-/ausblenden",
         "bes": "Besetzung ein-/ausblenden",
         "select": "Auswahlmodus (Antippen fügt hinzu / nimmt heraus, Gummiband auf leerer Fläche)",
-        "rings": "Gruppenrahmen ein-/ausblenden (alle auf einmal)"
+        "rings": "Gruppenrahmen ein-/ausblenden (alle auf einmal)",
+        "preview": "Sheet-Vorschau: so sieht es die Lese-Ansicht (ohne Griffe und Auswahl)"
     },
     "palette": {
         "title": "Elemente",
@@ -592,7 +593,12 @@
         "colMembers": "Mitglieder",
         "colHealedBy": "Geheilt von",
         "yourGroup": "Deine Gruppe",
-        "nobody": "– niemand –"
+        "nobody": "– niemand –",
+        "ghView": "Ansicht der Gruppenheilung",
+        "byGroup": "Nach Gruppe",
+        "byHealer": "Nach Heiler",
+        "onlyMine": "Nur für mich",
+        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen"
     },
     "multi": {
         "count": "{n} ausgewählt",

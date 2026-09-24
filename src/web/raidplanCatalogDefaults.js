@@ -110,8 +110,9 @@ const SPELLS = [
     spell("remove-curse", "Remove Curse", "spell_nature_removecurse", "dispel", ["Mage", "Druid"]),
     spell("cure-poison", "Cure Poison", "spell_nature_nullifypoison", "dispel", ["Druid", "Shaman"]),
     spell("innervate", "Innervate", "spell_nature_lightning", "buff", ["Druid"]),
-    spell("bloodlust", "Bloodlust", "spell_nature_bloodlust", "buff", ["Shaman"]),
-    spell("heroism", "Heroism", "spell_holy_heroism", "buff", ["Shaman"]),
+    // faction spells (Warcraft Wiki: Bloodlust Horde, Heroism Alliance; same effect): named with their faction so the plan says which shaman it means
+    spell("bloodlust", "Bloodlust (Horde)", "spell_nature_bloodlust", "buff", ["Shaman"], "Bloodlust (Horde)"),
+    spell("heroism", "Heroism (Alliance)", "spell_holy_heroism", "buff", ["Shaman"], "Heroism (Alliance)"),
     spell("power-infusion", "Power Infusion", "spell_holy_powerinfusion", "buff", ["Priest"]),
     spell("shackle-undead", "Shackle Undead", "spell_nature_slow", "cc", ["Priest"]),
     spell("polymorph", "Polymorph", "spell_nature_polymorph", "cc", ["Mage"]),

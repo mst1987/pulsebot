@@ -69,6 +69,19 @@ export function groupHealByGroup(assignments: RaidplanAssignment[], ctx: AssignC
     return rows;
 }
 
+/** The same table seen from the healers: each healer once with the groups he heals (in group order), healers in the order they first appear. */
+export function healerGroups(rows: GroupRow[]): { healer: Resolved; groups: number[] }[] {
+    const out = [];
+    for (const r of rows) {
+        for (const h of r.healers) {
+            const hit = out.find((x) => x.healer.ref === h.ref);
+            if (hit) hit.groups.push(r.group);
+            else out.push({ healer: h, groups: [r.group] });
+        }
+    }
+    return out;
+}
+
 /** The types with their own small table, in the order they are shown. */
 export const SIMPLE_ORDER = ["kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
 

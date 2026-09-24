@@ -1107,3 +1107,9 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-mygroup-label { white-space: nowrap; }
 .rp-gcell { flex-wrap: wrap; }
 .rp-gnum { font-size: 16px; white-space: nowrap; }
+
+.rp-onlymine { font-size: 12px; font-weight: 800; padding: 0 12px; width: auto; }
+.rp-gheal .rp-seg { display: inline-flex; align-self: flex-start; width: auto; gap: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--panel2); }
+.rp-gheal .rp-seg button { width: auto; height: auto; padding: 4px 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.rp-gheal .rp-seg button.is-on { background: var(--accent); color: var(--accent-ink); }
+.rp-gmember { white-space: nowrap; }

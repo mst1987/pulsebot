@@ -205,6 +205,8 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
     const tanks = slotsOf(slots, "tank");
     const pc = cleanClasses(preferredClasses);
     const classes = (t) => classesFor(t, pc, allowOthers, versionId);
+    // a template has no players: the suggestion names classes instead ("the first free Hunter"), resolved from the setup when the template is applied
+    if (roster.length === 0 && ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"].includes(type)) return suggestClassRows(type, tanks, classes(type), pc, allowOthers);
     if (type === "heal") return suggestHeal({ slots, roster, groups, preferredClasses: pc, allowOthers });
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
@@ -237,6 +239,18 @@ function suggest(type, { slots = [], roster = [], groups = [], preferredClasses 
         return pick.length ? [make(type, pick.map((p) => `user:${p.userId}`), [], spellFor(type, "Warrior", 0, versionId))] : [];
     }
     return [];
+}
+
+
+/** The class-reference rows of a suggestion without a setup (a template): one class reference per class of the task, in the order of the classes. */
+function suggestClassRows(type, tanks, cls, pc, allowOthers) {
+    const ref = (c, n = 1) => `class:${c}:${n}`;
+    if (!cls.length) return [];
+    if (type === "md" || type === "fearward") return tanks.slice(0, 3).map((s) => make(type, cls.slice(0, 2).map((c) => ref(c)), [{ kind: "slot", ref: `tank:${s.n}` }], null, pc, allowOthers));
+    if (type === "kick") return [make("kick", cls.slice(0, 3).map((c) => ref(c)), [], null, pc, allowOthers)];
+    if (type === "curse") return Array.from({ length: 3 }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], null, pc, allowOthers));
+    if (type === "thunderclap") return [make(type, [ref(cls[0], 1), ref(cls[0], 2)], [], null, pc, allowOthers)];
+    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
 }
 
 /** Whether a suggestion of this type exists (the button is offered). */

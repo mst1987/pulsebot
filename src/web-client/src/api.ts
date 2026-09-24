@@ -4214,8 +4214,8 @@ export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
 export type CatalogSource = "default" | "override" | "custom" | "hidden";
-export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; source: CatalogSource };
-export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; source: CatalogSource };
+export type CatalogMob = { id: string; name: string; kind: "boss" | "add" | "trash" | "other"; instanceId: string; bossKey: string; icon: string; /** the icon is a similar one, a placeholder */ similar?: boolean; note: string; /** the game versions that have it (missing = all) */ versions?: string[]; source: CatalogSource };
+export type CatalogSpell = { id: string; name: string; nameEn: string; icon: string; type: RaidplanAssignType; classes: string[]; note: string; versions?: string[]; source: CatalogSource };
 export type Catalog = { mobs: CatalogMob[]; spells: CatalogSpell[] };
 export type CatalogAdmin = Catalog & {
     hidden: Catalog; iconChoices: Record<string, string[]>; kinds: string[]; classes: string[]; types: string[];

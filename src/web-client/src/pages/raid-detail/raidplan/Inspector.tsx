@@ -46,7 +46,7 @@ export function SizeField({ label, value, min, max, step = 1, unit = "px", onCha
  * and player), opacity for every kind, and the actions — lock, duplicate, front /
  * back, delete — as icon buttons. Nothing selected: a hint.
  */
-export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, onSelect, focusGroup = 0, onFocusGroup }: {
+export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, editAll, onSelect, focusGroup = 0, onFocusGroup }: {
     board: RaidplanBoard;
     selection: Selection;
     /** several objects selected: only what they share is shown */
@@ -58,6 +58,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
     canWrite: boolean;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     onSelect: (sel: Selection) => void;
+    editAll?: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     /** the group the map highlights (0 = none) and the switch for it */
     focusGroup?: number;
     onFocusGroup?: (n: number) => void;
@@ -263,7 +264,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
 
             {slot && slot.kind === "group" && (
                 <div className="rp-field">
-                    <GroupStyle board={board} n={slot.n} canWrite={canWrite} edit={edit} focused={focusGroup === slot.n} onFocus={onFocusGroup ? () => onFocusGroup(focusGroup === slot.n ? 0 : slot.n) : undefined} />
+                    <GroupStyle board={board} n={slot.n} canWrite={canWrite} edit={editAll || edit} focused={focusGroup === slot.n} onFocus={onFocusGroup ? () => onFocusGroup(focusGroup === slot.n ? 0 : slot.n) : undefined} />
                     <label className="rp-check"><input type="checkbox" checked={!slot.hideMembers} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { hideMembers: !e.target.checked }))} /> {t("raidBoard.insp.showMembers")}</label>
                     <label className="rp-check"><input type="checkbox" checked={slot.split} disabled={dis} onChange={(e) => edit((b) => updateSlot(b, id, { split: e.target.checked }))} /> {t("raidBoard.insp.split")}</label>
                     {slot.split && Object.keys(slot.offsets || {}).length > 0 && (

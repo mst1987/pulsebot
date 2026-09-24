@@ -148,3 +148,5 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Gruppen:** eigene Farben (Standard: acht gut unterscheidbare) und Raid-Marker, "Gruppe hervorheben". Gruppenheilung: eine Zeile je Gruppe mit Mitgliedern und Heilern.
 - **Klassen als Zustaendige:** in der Zeile unter "Klasse" waehlen (z. B. Jaeger fuer Misdirect); beim Anwenden auf ein Event wird der erste freie Spieler der Klasse eingesetzt, fehlt die Klasse, bleibt es offen ("Jaeger fehlt"). Misdirect ist in TBC nur Jaeger.
 - **Sheet:** "Meine Aufgaben" und "Wirkt auf dich" als Karten je Einteilung, darunter "Alle Einteilungen".
+
+- **Gruppenfarben und Marker** gelten jetzt fuer den ganzen Plan (nicht nur einen Boss). **Sheet-Vorschau** (Auge in der Werkzeugleiste) zeigt das Board wie die Lese-Ansicht. Im Sheet: "Nur fuer mich" und "Nach Heiler" bei der Gruppenheilung.

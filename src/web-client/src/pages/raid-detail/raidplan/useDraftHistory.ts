@@ -24,8 +24,15 @@ export function useDraftHistory() {
         lastCoalesced.current = coalesce ? now : 0;
         setH((prev) => historyRecord(prev, withBoard(prev.present, key, fn(boardOf(prev.present, key))), merge));
     }, []);
+    /** One change on several boards at once (one undo step): what is plan-wide, like the colours of the groups. */
+    const editAll = useCallback((keys: string[], fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
+        const now = Date.now();
+        const merge = coalesce && lastCoalesced.current > 0 && now - lastCoalesced.current < COALESCE_MS;
+        lastCoalesced.current = coalesce ? now : 0;
+        setH((prev) => historyRecord(prev, keys.reduce((acc, k) => withBoard(acc, k, fn(boardOf(acc, k))), prev.present), merge));
+    }, []);
     const reset = useCallback((bosses: Bosses) => { lastCoalesced.current = 0; setH(historyInit(bosses)); }, []);
     const undo = useCallback(() => { lastCoalesced.current = 0; setH((prev) => historyUndo(prev)); }, []);
     const redo = useCallback(() => { lastCoalesced.current = 0; setH((prev) => historyRedo(prev)); }, []);
-    return { draft: h.present, edit, reset, undo, redo, canUndo: h.past.length > 0, canRedo: h.future.length > 0 };
+    return { draft: h.present, edit, editAll, reset, undo, redo, canUndo: h.past.length > 0, canRedo: h.future.length > 0 };
 }

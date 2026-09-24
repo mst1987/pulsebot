@@ -264,7 +264,8 @@
         "panel": "Show / hide properties",
         "bes": "Show or hide the roster slots",
         "select": "Selection mode (tap adds / removes, rubber band on empty ground)",
-        "rings": "Show or hide the group rings (all at once)"
+        "rings": "Show or hide the group rings (all at once)",
+        "preview": "Read-view preview: how the sheet shows it (no grips or selection)"
     },
     "palette": {
         "title": "Elements",
@@ -592,7 +593,12 @@
         "colMembers": "Members",
         "colHealedBy": "Healed by",
         "yourGroup": "Your group",
-        "nobody": "– nobody –"
+        "nobody": "– nobody –",
+        "ghView": "Group healing view",
+        "byGroup": "By group",
+        "byHealer": "By healer",
+        "onlyMine": "Only for me",
+        "onlyMineTip": "Only the sections and tasks that concern you"
     },
     "multi": {
         "count": "{n} selected",

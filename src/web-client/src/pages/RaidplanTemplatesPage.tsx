@@ -425,7 +425,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const toast = useToast();
     const ask = useConfirm();
     const [tpl, setTpl] = useState(template);
-    const { draft, edit: histEdit, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
+    const { draft, edit: histEdit, editAll: histEditAll, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
     const [selected, setSelected] = useState((template.bossList[0] && template.bossList[0].key) || "");
     const [modal, setModal] = useState<"" | "fields" | "pick" | "profiles" | "save">("");
     const [saving, setSaving] = useState(false);
@@ -439,6 +439,9 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const besetzung = tpl.besetzung;
     const board = useMemo(() => ensureBesetzung(boardOf(draft, selected), besetzung, []), [draft, selected, besetzung]);
     const dirty = !sameBosses(draft, tpl.bosses, bossKeys);
+    const editAllBoards = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
+        histEditAll(template.bossList.filter((b) => !b.general && !b.defaults).map((b) => b.key), fn, coalesce);
+    }, [histEditAll, template.bossList]);
     const edit = useCallback((fn: (b: RaidplanBoard) => RaidplanBoard, coalesce = false) => {
         histEdit(selectedRef.current, (b) => fn(ensureBesetzung(b, besetzung, [])), coalesce);
     }, [histEdit, besetzung]);
@@ -545,7 +548,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
             {boss && (
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
-                    mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
+                    mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} editAll={editAllBoards} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}

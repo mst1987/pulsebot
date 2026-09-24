@@ -252,6 +252,13 @@ function EntryModal({ which, data, initial, onClose, onSave }: {
                         </div>
                     </>
                 )}
+                <div>
+                    <span className="rp-kicker">{t("catalog.versions")}</span>
+                    <div className="rp-classpick" role="group" aria-label={t("catalog.versions")}>
+                        {["classic", "tbc", "wotlk"].map((v) => <button key={v} type="button" className={`rp-classbtn${(f.versions || []).includes(v) ? " is-on" : ""}`} aria-pressed={(f.versions || []).includes(v)} onClick={() => setF((cur) => ({ ...cur, versions: (cur.versions || []).includes(v) ? (cur.versions || []).filter((x) => x !== v) : [...(cur.versions || []), v] }))}>{v.toUpperCase()}</button>)}
+                    </div>
+                    <span className="rp-muted">{t("catalog.versionsHint")}</span>
+                </div>
                 <label>
                     <span className="rp-kicker">{t("catalog.icon")}</span>
                     {which === "mobs" && <IconPicker choices={data.iconChoices} value={(f.icon || "").toLowerCase()} onPick={(n) => setF({ ...f, icon: n })} />}

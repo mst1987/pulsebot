@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
-import { BoxSelect, Circle, CircleDashed, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
+import { Eye, BoxSelect, Circle, CircleDashed, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -87,7 +87,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -105,6 +105,8 @@ export default function BoardWorkspace({
     /** The players of the setup (empty in a template). */
     roster: RaidplanPlayer[];
     canWrite: boolean;
+    /** the same change on every board of the plan (colours and marks of the groups are plan-wide); without it only this board */
+    editAll?: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     limits: { targetsPerBoss: number; title: number; notes: number };
     profileName: string;
     onPickProfile: () => void;
@@ -166,6 +168,10 @@ export default function BoardWorkspace({
     const [multi, setMulti] = useState<SelItem[]>([]);
     const [band, setBand] = useState<Box | null>(null);
     const [banding, setBanding] = useState(false);
+    // a long press on empty ground with a finger arms the rubber band; released without moving it opens the menu
+    const menuTapRef = useRef<{ x: number; y: number } | null>(null);
+    // the read view's picture without editor chrome (no grips, chips, selection): a check of how the sheet will look
+    const [preview, setPreview] = useState(false);
     const [scaling, setScaling] = useState(false);
     const [selectMode, setSelectMode] = useState(false);
     const bandRef = useRef<{ x0: number; y0: number; add: boolean; base: SelItem[]; moved: boolean; cx: number; cy: number }>({ x0: 0, y0: 0, add: false, base: [], moved: false, cx: 0, cy: 0 });
@@ -504,7 +510,9 @@ export default function BoardWorkspace({
             const b = bandRef.current;
             setBanding(false);
             setBand(null);
-            if (!b.moved) return;
+            const tap = menuTapRef.current;
+            menuTapRef.current = null;
+            if (!b.moved) { if (tap) openMenu(tap.x, tap.y, "board"); return; }
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
             const box = bandBox(b.x0, b.y0, Math.max(0, Math.min(1, p.x)), Math.max(0, Math.min(1, p.y)));
@@ -745,6 +753,13 @@ export default function BoardWorkspace({
                     pressRef.current = null;
                     dragRef.current = null;
                     setDrag(null);
+                    const p = !target && canWrite && !noBoard ? toBoard(x, y) : null;
+                    if (p && p.inside) {
+                        bandRef.current = { x0: p.x, y0: p.y, add: false, base: [], moved: false, cx: x, cy: y };
+                        menuTapRef.current = { x, y };
+                        setBanding(true);
+                        return;
+                    }
                     openMenu(x, y, target || "board");
                 }, LONG_PRESS_MS),
             };
@@ -789,6 +804,7 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
+                    {!noBoard && <IconButton size="sm" icon={<Eye size={17} />} tip={t("raidBoard.tool.preview")} aria-pressed={preview} className={preview ? "is-on" : ""} onClick={() => setPreview((v) => !v)} />}
                     {!noBoard && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} hand={bv.hand} setHand={bv.setHand} />}
                     {!noBoard && <ViewOptions board={board} canWrite={canWrite} edit={edit} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} />}
                     {!noBoard && (
@@ -811,7 +827,7 @@ export default function BoardWorkspace({
                     )}
                     {showBes && (
                         <Besetzung
-                            board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit}
+                            board={board} besetzung={besetzung} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit}
                             onPlaceDown={(e, slotId) => startPalette(e, { type: "place", slotId })}
                             onChipDown={(e, slotId) => startPalette(e, { type: "place", slotId }, true)}
                             onShow={showSlot} onAssign={() => setRosterOpen(true)}
@@ -846,14 +862,14 @@ export default function BoardWorkspace({
                         roster={roster}
                         selected={selected}
                         dragKey={dragKey}
-                        onObjectDown={canWrite ? (e, kind, id, handle) => startDrag(e, kind, id, handle) : undefined}
-                        onObjectKey={canWrite ? onKey : undefined}
-                        onObjectOpen={canWrite ? (kind, id) => { setSelected({ kind, id }); focusProperties(); } : undefined}
-                        onContext={canWrite ? onContext : undefined}
+                        onObjectDown={canWrite && !preview ? (e, kind, id, handle) => startDrag(e, kind, id, handle) : undefined}
+                        onObjectKey={canWrite && !preview ? onKey : undefined}
+                        onObjectOpen={canWrite && !preview ? (kind, id) => { setSelected({ kind, id }); focusProperties(); } : undefined}
+                        onContext={canWrite && !preview ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
                         me={me} showRings={board.showRings !== false} groupColors={board.groupColors} groupMarks={board.groupMarks} focusGroup={focusGroup}
-                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined} onMultiMove={canWrite ? startFrameDrag : undefined}
+                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite && !preview ? startScale : undefined} onMultiMove={canWrite && !preview ? startFrameDrag : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>
@@ -887,7 +903,7 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
+                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
                             {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">

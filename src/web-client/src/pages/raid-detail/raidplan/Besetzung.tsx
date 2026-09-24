@@ -21,7 +21,7 @@ import { useT } from "../../../i18n";
  * boss only ("nur dieser Boss", back to the raid type's numbers with the arrow). The pin puts a slot on the
  * map (click, or drag it onto the board); everything can be assigned unplaced.
  */
-export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, players, onPlaceDown, onChipDown, onShow, onAssign }: {
+export default function Besetzung({ board, besetzung, roster, isEvent, canWrite, edit, editAll, players, onPlaceDown, onChipDown, onShow, onAssign }: {
     board: RaidplanBoard;
     besetzung: BesetzungData;
     roster: RaidplanPlayer[];
@@ -29,6 +29,8 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     isEvent: boolean;
     canWrite: boolean;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
+    /** plan-wide edit (group colours and marks) */
+    editAll: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
     /** Pointer down on a slot's pin: the workspace drags it onto the board (no move = put it near the middle). */
     onPlaceDown: (e: PointerEvent<HTMLElement>, slotId: string) => void;
     /** Pointer down on a chip itself: the workspace drags it onto the board (or, when it is placed, back onto the bar to take it off). */
@@ -101,7 +103,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                 onToggle={(id) => edit((b) => assignSlot(b, s.id, id))} onClose={() => setOpenSlot(null)}
                 top={canWrite ? (
                     <>
-                        {s.kind === "group" && <GroupStyle board={board} n={s.n} canWrite={canWrite} edit={edit} />}
+                        {s.kind === "group" && <GroupStyle board={board} n={s.n} canWrite={canWrite} edit={editAll} />}
                         <button type="button" className="rp-pop-act" onClick={() => { edit((b) => (on ? unplaceSlot(b, s.id) : placeSlot(b, s.id, null))); setOpenSlot(null); }}>
                             <MapPin size={14} /> {on ? t("raidBoard.bes.unplace") : t("raidBoard.bes.placeNow")}
                         </button>

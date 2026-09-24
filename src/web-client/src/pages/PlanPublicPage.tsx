@@ -10,6 +10,7 @@ import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPub
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
 import { assignmentLinks, isMine } from "../lib/assign";
+import { splitMine } from "../lib/mineView";
 import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
@@ -37,6 +38,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const [selected, setSelected] = useState("");
     const [mapOnly, setMapOnly] = useState(false);
     const [focusGroup, setFocusGroup] = useState(0);
+    const [onlyMine, setOnlyMine] = useState(false);
     const bv = useBoardView();
     const [prefs, setPref] = useViewPrefs("eh.raidplan.sheetPrefs");
     // another section starts fitted again
@@ -76,6 +78,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
     const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks } : null;
     /** the groups of this section, for the legend that highlights one (the others dim on the map) */
     const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
+    // "Only for me": the sections that concern the visitor (he does something, or something acts on him), and in them only his blocks
+    const concerns = (b: RaidplanPublicBoss) => {
+        const c = { slots: b.slots, players, catalog: data.catalog, groupColors: b.groupColors, groupMarks: b.groupMarks };
+        const sp = splitMine(b.assignments, c, data.meIds, names);
+        return sp.mine.length > 0 || sp.onMe.length > 0;
+    };
+    const shownBosses = onlyMine && data.meIds.length > 0 ? data.bosses.filter((b) => concerns(b)) : data.bosses;
     const label = (b: RaidplanPublicBoss) => (b.general ? t("raidBoard.assign.general") : b.trash ? t("raidBoard.assign.trash") : b.name);
 
     return (
@@ -99,10 +108,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
             {data.bosses.length > 0 && (
                 <>
                     <nav className="rp-bossnav rp-public-nav" aria-label={t("raidBoard.bosses.title")}>
-                        {data.bosses.map((b, idx) => {
+                        {data.me && data.meIds.length > 0 && (
+                            <button type="button" className={`rp-bosschip rp-onlymine${onlyMine ? " is-on" : ""}`} aria-pressed={onlyMine} data-tip={t("raidBoard.read.onlyMineTip")} onClick={() => setOnlyMine((v) => !v)}>{t("raidBoard.read.onlyMine")}</button>
+                        )}
+                        {shownBosses.map((b, idx) => {
                             const on = boss !== null && b.key === boss.key;
                             const special = b.trash || b.general;
-                            const i = data.bosses.slice(0, idx).filter((x) => !x.trash && !x.general).length;
+                            const i = shownBosses.slice(0, idx).filter((x) => !x.trash && !x.general).length;
                             return (
                                 <button key={b.key} type="button" className={`rp-bosschip${on ? " is-on" : ""}`} aria-current={on ? "true" : undefined} aria-label={label(b)} data-tip={label(b)} onClick={() => setSelected(b.key)}>
                                     <img src={b.iconUrl} alt="" width={24} height={24} />
@@ -118,7 +130,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                             {!mapOnly && (
                                 <div className="rp-read-left">
                                     {boss.notes.trim() && <p className="rp-notes-text"><Mentions text={boss.notes} names={names} /></p>}
-                                    <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />
+                                    <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} focusGroup={focusGroup} onFocusGroup={setFocusGroup} onlyMine={onlyMine} />
                                 </div>
                             )}
                             {!boss.general && (

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, ListChecks, Users } from "lucide-react";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -7,7 +7,7 @@ import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ROLE_ICON, iconForTask, iconForText, isMe, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/assign";
 import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
-import { groupHealByGroup, simpleTables, tankTable } from "../../../lib/planTables";
+import { groupHealByGroup, healerGroups, simpleTables, tankTable } from "../../../lib/planTables";
 import { mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
@@ -99,7 +99,7 @@ function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ctx: Assi
  * The read view's assignments as real tables: first "Meine Einteilungen" (for a visitor who was recognised), then
  * Tank | Ziel | Heiler, Heiler | Gruppen, and a slim table per other type. Rows of the visitor are highlighted.
  */
-export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, focusGroup = 0, onFocusGroup }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string; focusGroup?: number; onFocusGroup?: (n: number) => void }) {
+export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, focusGroup = 0, onFocusGroup, onlyMine = false }: { assignments: RaidplanAssignment[]; ctx: AssignCtx; me: string[]; loggedIn: boolean; loginHref: string; focusGroup?: number; onFocusGroup?: (n: number) => void; onlyMine?: boolean }) {
     const t = useT();
     // the visitor's own characters by name: for the names in words (notes, free text)
     const names = useMemo(() => cleanNames(me.map((id) => (ctx.players.get(id) || { character: "" }).character)), [me, ctx.players]);
@@ -108,6 +108,8 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
     /** how a row of a table concerns the visitor: his own task, or something that acts on him */
     const rowCls = (id: string) => (split.modes[id] === "do" ? "is-own" : split.modes[id] === "on" ? "is-onme" : "");
     const groups = useMemo(() => (assignments.some((a) => a.type === "heal" && a.targets.some((tg) => tg.kind === "group")) ? groupHealByGroup(assignments, ctx, 5) : []), [assignments, ctx]);
+    const [ghView, setGhView] = useState("group");
+    const byHealer = useMemo(() => healerGroups(groups), [groups]);
     const myGroups = useMemo(() => me.map((id) => (ctx.players.get(id) || { group: -1 }).group), [me, ctx.players]);
     const others = useMemo(() => simpleTables(assignments, ctx), [assignments, ctx]);
     return (
@@ -135,7 +137,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
             )}
             </div>
 
-            {(tanks.length > 0 || groups.length > 0 || others.length > 0) && (
+            {!onlyMine && (tanks.length > 0 || groups.length > 0 || others.length > 0) && (
             <details className="rp-allzone" open>
                 <summary><ListChecks size={18} aria-hidden="true" /><h2>{t("raidBoard.mine.all")}</h2></summary>
                 <div className="rp-rgrid">
@@ -161,6 +163,23 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                 <section className="rp-rsec rp-gheal" aria-label={t("raidBoard.read.groupHeal")}>
                     <h3><TypeBadge type="heal" label={t("raidBoard.read.groupHeal")} /></h3>
                     <p className="rp-muted rp-gheal-sub">{t("raidBoard.read.groupHealSub")}</p>
+                    <span className="rp-seg" role="group" aria-label={t("raidBoard.read.ghView")}>
+                        <button type="button" className={ghView === "group" ? "is-on" : ""} aria-pressed={ghView === "group"} onClick={() => setGhView("group")}>{t("raidBoard.read.byGroup")}</button>
+                        <button type="button" className={ghView === "healer" ? "is-on" : ""} aria-pressed={ghView === "healer"} onClick={() => setGhView("healer")}>{t("raidBoard.read.byHealer")}</button>
+                    </span>
+                    {ghView === "healer" ? (
+                        <table className="rp-rtable">
+                            <thead><tr><th>{t("raidBoard.read.colHealer")}</th><th>{t("raidBoard.read.colGroups")}</th></tr></thead>
+                            <tbody>
+                                {byHealer.map((h) => (
+                                    <tr key={h.healer.ref} className={isMe(h.healer, me) ? "is-own" : h.groups.some((g) => myGroups.indexOf(g) >= 0) ? "is-mygroup" : ""}>
+                                        <td><Who r={h.healer} mine={isMe(h.healer, me)} names={names} ctx={ctx} /></td>
+                                        <td><span className="rp-who-list">{h.groups.map((g) => <span key={g} className="rp-gtag" style={{ "--gc": groupColor(ctx.groupColors, g) } as React.CSSProperties}><strong>{t("raidBoard.slot.group", { n: g })}</strong></span>)}</span></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
                     <table className="rp-rtable">
                         <thead><tr><th>{t("raidBoard.read.colGroup")}</th><th>{t("raidBoard.read.colMembers")}</th><th>{t("raidBoard.read.colHealedBy")}</th></tr></thead>
                         <tbody>
@@ -190,6 +209,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                             })}
                         </tbody>
                     </table>
+                    )}
                 </section>
             )}
 

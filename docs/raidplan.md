@@ -213,3 +213,12 @@ The dev auto-login user (the first admin id of `.env.dev`, or `--me <userId>`) i
 - **Read view.** "Meine Aufgaben" and "Wirkt auf dich" (`lib/mineView.ts`) are blocks per kind of task with one card per assignment (icon | who | arrow | at whom | extras); "Alle Einteilungen" is its own zone with the tables. "Tasks by player" is gone.
 - **TBC correctness.** Catalog entries may carry `versions` (default: all); the catalog, the pickers and the suggestions filter by the event's game version. Misdirection is a hunter's; Tricks of the Trade (Patch 3.0.2) is limited to `wotlk` (`SINCE` + `test/web/raidplanCatalogAudit.test.js`). Fear Ward is a spell of all priests since Patch 2.3.0 (Warcraft Wiki). Only the nine TBC classes exist.
 - **Crash guard.** `RaidplanBoundary` wraps the editors: a render error shows "Etwas ist schiefgelaufen" with reload / retry / details instead of a white page. The crash "assignments is not iterable" came from the icon-facing code getting a board without `assignments`; those reads are defensive now (`boardHardening.test.js`).
+
+## Follow-up (feature/raidplan-2)
+
+- Group colours and marks are **plan-wide**: changing one edits every board of the plan/template in one undo step (`useDraftHistory.editAll`, `editAll` prop of the workspace).
+- **Read-view preview** (eye button in the editor toolbar): the same picture as the sheet, without grips, chips or selection (the board is rendered without handlers).
+- **Touch**: a long press on empty ground arms the rubber band; released without moving it opens the context menu.
+- **Suggestions in a template** ("wand") name classes (`class:Hunter:1` ...) because a template has no players (`suggestClassRows`).
+- **Read view**: "Nur f\u00fcr mich" chip in the section nav (only sections that concern the visitor, only his blocks), group healing "Nach Gruppe / Nach Heiler" (`healerGroups`).
+- **Catalog**: `versions` of an entry can be set in the catalog form (Klassik / TBC / WotLK); Bloodlust (Horde) and Heroism (Alliance) are separate entries.
