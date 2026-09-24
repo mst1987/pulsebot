@@ -492,7 +492,8 @@
             "thunderclap": "DONNERKNALL",
             "demoshout": "DEMO-RUF",
             "other": "AUFGABE"
-        }
+        },
+        "cardTypes": "Kartentypen"
     },
     "bes": {
         "title": "Besetzung",

@@ -73,50 +73,63 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
     const ordered = [...real.filter((b) => b.key === currentBoss), ...real.filter((b) => b.key !== currentBoss)];
     return (
         <aside className="rp-palette" aria-label={t("raidBoard.palette.title")}>
-            <h3 className="rp-kicker">{t("raidBoard.palette.marks")}</h3>
-            <div className="rp-pal-grid rp-pal-marks">
-                {RAID_MARKS.map((m) => entry(m, { type: "mark", mark: m }, t(`raidBoard.mark.${m}`), <MarkIcon mark={m as RaidplanMarkName} size={22} />))}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.marks")}</h3>
+                <div className="rp-pal-grid rp-pal-marks">
+                    {RAID_MARKS.map((m) => entry(m, { type: "mark", mark: m }, t(`raidBoard.mark.${m}`), <MarkIcon mark={m as RaidplanMarkName} size={22} />))}
+                </div>
             </div>
-            <h3 className="rp-kicker">{t("raidBoard.palette.slots")}</h3>
-            <div className="rp-pal-grid">
-                {SLOT_ICONS.map((s) => slotEntry(s.kind, s.icon))}
-                {entry("label", { type: "slot", kind: "label", label: t("raidBoard.slot.kind.label") }, t("raidBoard.slot.kind.label"), <span className="rp-pal-text">Abc</span>)}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.slots")}</h3>
+                <div className="rp-pal-grid">
+                    {SLOT_ICONS.map((s) => slotEntry(s.kind, s.icon))}
+                    {entry("label", { type: "slot", kind: "label", label: t("raidBoard.slot.kind.label") }, t("raidBoard.slot.kind.label"), <span className="rp-pal-text">Abc</span>)}
+                </div>
             </div>
-            <h3 className="rp-kicker">{t("raidBoard.palette.encounter")}</h3>
-            <div className="rp-pal-grid">
-                {ordered.map((b) => entry(`boss-${b.key}`, { type: "icon", iconKey: iconKeyForBoss(b.iconUrl), label: b.name, mobId: `b:${b.key}` }, b.name, <img className="rp-pal-boss" src={b.iconUrl} alt="" width={28} height={28} draggable={false} />))}
-                {entry("enemy", { type: "icon", iconKey: "enemy", label: "" }, t("raidBoard.icon.enemy"), <Swords size={22} />)}
-                {entry("bosspos", { type: "icon", iconKey: "bosspos", label: "" }, t("raidBoard.icon.bosspos"), <Crosshair size={22} />)}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.encounter")}</h3>
+                <div className="rp-pal-grid">
+                    {ordered.map((b) => entry(`boss-${b.key}`, { type: "icon", iconKey: iconKeyForBoss(b.iconUrl), label: b.name, mobId: `b:${b.key}` }, b.name, <img className="rp-pal-boss" src={b.iconUrl} alt="" width={28} height={28} draggable={false} />))}
+                    {entry("enemy", { type: "icon", iconKey: "enemy", label: "" }, t("raidBoard.icon.enemy"), <Swords size={22} />)}
+                    {entry("bosspos", { type: "icon", iconKey: "bosspos", label: "" }, t("raidBoard.icon.bosspos"), <Crosshair size={22} />)}
+                </div>
             </div>
-            <h3 className="rp-kicker">{t("raidBoard.palette.iconByName")}</h3>
-            <div className="rp-pal-name">
-                <input
-                    value={name} placeholder="spell_fire_fireball" aria-label={t("raidBoard.palette.iconByName")}
-                    onChange={(e) => { setName(e.target.value); setFound(false); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" && found) { onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
-                />
-                {clean.length >= 2 && (
-                    <button
-                        type="button" className="rp-pal-item rp-pal-preview" disabled={!found} aria-label={t("raidBoard.palette.iconInsert")} data-tip={found ? t("raidBoard.palette.iconInsert") : t("raidBoard.palette.iconUnknown")}
-                        onPointerDown={(e) => found && onStart(e, { type: "icon", iconKey: `wow:${clean}`, label: "" })}
-                        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && found) { e.preventDefault(); onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
-                    >
-                        <img key={clean} src={wowIconUrl(clean, 56)} alt="" width={28} height={28} draggable={false} onLoad={() => setFound(true)} onError={() => setFound(false)} />
-                    </button>
-                )}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.iconByName")}</h3>
+                <div className="rp-pal-name">
+                    <input
+                        value={name} placeholder="spell_fire_fireball" aria-label={t("raidBoard.palette.iconByName")}
+                        onChange={(e) => { setName(e.target.value); setFound(false); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && found) { onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
+                    />
+                    {clean.length >= 2 && (
+                        <button
+                            type="button" className="rp-pal-item rp-pal-preview" disabled={!found} aria-label={t("raidBoard.palette.iconInsert")} data-tip={found ? t("raidBoard.palette.iconInsert") : t("raidBoard.palette.iconUnknown")}
+                            onPointerDown={(e) => found && onStart(e, { type: "icon", iconKey: `wow:${clean}`, label: "" })}
+                            onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && found) { e.preventDefault(); onInsert({ type: "icon", iconKey: `wow:${clean}`, label: "" }); } }}
+                        >
+                            <img key={clean} src={wowIconUrl(clean, 56)} alt="" width={28} height={28} draggable={false} onLoad={() => setFound(true)} onError={() => setFound(false)} />
+                        </button>
+                    )}
+                </div>
             </div>
-            <h3 className="rp-kicker">{t("raidBoard.palette.zones")}</h3>
-            <div className="rp-pal-grid">
-                {ZONE_TYPES.map((z) => entry(z, { type: "zone", zoneType: z, shape: "rect" }, t(`raidBoard.zone.${z}`), (
-                    <span className="rp-pal-swatch" style={{ background: ZONE_COLORS[z as RaidplanZoneType] }} aria-hidden="true">{ZONE_GLYPHS[z]}</span>
-                )))}
-                {entry("ellipse", { type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <span className="rp-pal-swatch rp-pal-round" style={{ background: ZONE_COLORS.neutral }} aria-hidden="true" />)}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.zones")}</h3>
+                <div className="rp-pal-grid">
+                    {ZONE_TYPES.map((z) => entry(z, { type: "zone", zoneType: z, shape: "rect" }, t(`raidBoard.zone.${z}`), (
+                        <span className="rp-pal-swatch" style={{ background: ZONE_COLORS[z as RaidplanZoneType] }} aria-hidden="true">{ZONE_GLYPHS[z]}</span>
+                    )))}
+                    {entry("ellipse", { type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <span className="rp-pal-swatch rp-pal-round" style={{ background: ZONE_COLORS.neutral }} aria-hidden="true" />)}
+                </div>
             </div>
-            <h3 className="rp-kicker">{t("raidBoard.palette.shapes")}</h3>
-            <div className="rp-pal-grid">
-                {entry("arrow", { type: "line", kind: "arrow" }, t("raidBoard.line.arrow"), <MoveUpRight size={22} />)}
-                {entry("line", { type: "line", kind: "line" }, t("raidBoard.line.line"), <Minus size={22} />)}
-                {entry("text", { type: "text", text: t("raidBoard.text.default") }, t("raidBoard.tool.text"), <Type size={22} />)}
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker">{t("raidBoard.palette.shapes")}</h3>
+                <div className="rp-pal-grid">
+                    {entry("arrow", { type: "line", kind: "arrow" }, t("raidBoard.line.arrow"), <MoveUpRight size={22} />)}
+                    {entry("line", { type: "line", kind: "line" }, t("raidBoard.line.line"), <Minus size={22} />)}
+                    {entry("text", { type: "text", text: t("raidBoard.text.default") }, t("raidBoard.tool.text"), <Type size={22} />)}
+                </div>
+
             </div>
             <p className="rp-muted rp-pal-hint">{t("raidBoard.palette.hint")}</p>
         </aside>

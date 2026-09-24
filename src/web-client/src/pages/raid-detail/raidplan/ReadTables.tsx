@@ -3,8 +3,8 @@ import { Users } from "lucide-react";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
-import { PlayerName } from "../../../components/raidplan/PlanBoard";
-import { ASSIGN_META, ROLE_ICON, classIconOf, iconForText, isMe, isMine, myTasks, tasksByAssignee, type AssignCtx, type Resolved } from "../../../lib/assign";
+import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
+import { ASSIGN_META, ROLE_ICON, iconForText, isMe, isMine, myTasks, tasksByAssignee, type AssignCtx, type Resolved } from "../../../lib/assign";
 import { groupHealTable, simpleTables, tankTable } from "../../../lib/planTables";
 import { MobIcon } from "./AssignPanel";
 import TypeBadge from "./TypeBadge";
@@ -12,14 +12,12 @@ import { useT } from "../../../i18n";
 
 /** Who or what a cell names: a person with class icon and class colour, an open place with its role, a mob with its portrait, a mark, a group, a word. */
 function Who({ r, mine }: { r: Resolved; mine: boolean }) {
-    const t = useT();
     let body: ReactNode;
     if (r.player) {
         body = (
             <>
-                <WowIcon name={classIconOf(r.player.classId)} size={24} />
+                <TokenIcon player={r.player} size="sm" />
                 <PlayerName player={r.player} className={mine ? "is-me" : ""} />
-                {r.kind === "slot" && <span className="rp-who-slot">{r.label}</span>}
             </>
         );
     } else if (r.kind === "mob") body = <><MobIcon icon={r.icon} size={32} /><strong>{r.label}</strong></>;
@@ -30,7 +28,7 @@ function Who({ r, mine }: { r: Resolved; mine: boolean }) {
         body = (
             <>
                 {r.kind === "slot" && ROLE_ICON[r.role] && <WowIcon name={ROLE_ICON[r.role]} size={24} />}
-                <span className="rp-who-open">{r.label}{r.open && r.kind === "slot" ? ` (${t("raidBoard.slot.open")})` : ""}</span>
+                <span className="rp-who-open">{r.label}</span>
             </>
         );
     }
@@ -119,7 +117,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                     <table className="rp-rtable">
                         <thead>
                             <tr>
-                                {tb.type === "kick" && <th className="rp-col-no">{t("raidBoard.read.colOrder")}</th>}
+                                {tb.rows.some((r) => r.order > 0) && <th className="rp-col-no">{t("raidBoard.read.colOrder")}</th>}
                                 <th>{t("raidBoard.read.colPlayer")}</th>
                                 <th>{tb.type === "kick" ? t("raidBoard.read.colTargetAbility") : t("raidBoard.read.colTarget")}</th>
                             </tr>
@@ -127,7 +125,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref }
                         <tbody>
                             {tb.rows.map((r) => (
                                 <tr key={r.key} className={r.who.some((w) => isMe(w, me)) ? "is-own" : ""}>
-                                    {tb.type === "kick" && <td className="rp-col-no">{r.order > 0 ? <span className="rp-achip-no">{r.order}</span> : "–"}</td>}
+                                    {tb.rows.some((x) => x.order > 0) && <td className="rp-col-no">{r.order > 0 ? <span className="rp-achip-no">{r.order}</span> : "–"}</td>}
                                     <td><WhoList list={r.who} me={me} /></td>
                                     <td>
                                         {(r.spell || r.task) && <span className="rp-rtask">{[r.spell, r.task].filter(Boolean).join(": ")}</span>}

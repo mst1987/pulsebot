@@ -492,7 +492,8 @@
             "thunderclap": "THUNDER CLAP",
             "demoshout": "DEMO SHOUT",
             "other": "TASK"
-        }
+        },
+        "cardTypes": "Card types"
     },
     "bes": {
         "title": "Roster slots",

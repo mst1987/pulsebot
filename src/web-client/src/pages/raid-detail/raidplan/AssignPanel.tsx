@@ -4,13 +4,13 @@ import AssignModal from "./AssignModal";
 import TypeBadge from "./TypeBadge";
 import { AlertTriangle, ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
-import { Badge, IconButton, useConfirm } from "../../../components/ui";
+import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -105,9 +105,9 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
     const rotation = a.type === "kick" && a.assignees.length > 1;
     const showNote = a.note !== "" || noteOpen;
     return (
-        <li className={`rp-arow${a.suggested ? " is-suggested" : ""}`}>
+        <li className="rp-arow">
             <div className="rp-arow-top">
-                <WowIcon name={iconForTask(a)} size={22} />
+                {!(SPELL_TYPES.indexOf(a.type) >= 0 && a.spell) && <WowIcon name={iconForTask(a)} size={22} />}
                 {SPELL_TYPES.indexOf(a.type) >= 0 && (a.spell ? (
                     <span className="rp-achip rp-spellchip" data-tip={a.spell.name}>
                         <WowIcon name={a.spell.icon || iconForTask({ ...a, spell: null })} size={18} /><span>{a.spell.name}</span>
@@ -122,7 +122,6 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
                         onChange={(e) => edit((b) => patchAssignment(b, a.id, { title: e.target.value }))}
                     />
                 ) : <span className="rp-atitle-read">{a.title || t(`raidBoard.assign.type.${a.type}`)}</span>}
-                {a.suggested && <Badge tone="mid">{t("raidBoard.assign.suggested")}</Badge>}
                 {canWrite && !showNote && <IconButton size="sm" icon={<StickyNote size={14} />} tip={t("raidBoard.assign.addNote")} onClick={onNote} />}
                 {canWrite && <IconButton size="sm" tone="danger" icon={<Trash2 size={14} />} tip={t("raidBoard.assign.delete")} onClick={() => edit((b) => removeAssignment(b, a.id))} />}
             </div>
@@ -204,6 +203,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [folded, setFolded] = useState<string[]>([]);
     const [view, setView] = useState<"cards" | "players">("cards");
     const [editing, setEditing] = useState("");
+    const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null);
     const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog }), [board.slots, players, catalog]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
@@ -322,6 +322,13 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
 
     return (
         <section className="rp-assign" aria-label={t("raidBoard.assign.title")}>
+            {addAnchor && (
+                <Flyout
+                    anchor={addAnchor} title={t("raidBoard.assign.addCard")} multi={false} onClose={() => setAddAnchor(null)}
+                    options={CARD_ORDER.filter((x) => (SCOPE_TYPES[scope] || SCOPE_TYPES.boss).indexOf(x) >= 0).map((x) => ({ key: x, label: t(`raidBoard.assign.type.${x}`), on: shown.indexOf(x) >= 0, group: t("raidBoard.assign.cardTypes"), node: <TypeBadge type={x} label={t(`raidBoard.assign.type.${x}`)} size={22} /> }))}
+                    onToggle={(x) => { if (shown.indexOf(x) >= 0) return; if (board.hiddenCards.indexOf(x) >= 0) edit((b) => showCard(b, x)); else setExtra([...extra, x]); }}
+                />
+            )}
             {editing && board.assignments.some((x) => x.id === editing) && (
                 <AssignModal
                     board={board} rowId={editing} isEvent={isEvent} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
@@ -343,13 +350,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                         </button>
                     )}
                     {canWrite && addable.length > 0 && (
-                        <label className="rp-assign-sel">
-                            <Plus size={15} aria-hidden="true" />
-                            <select value="" aria-label={t("raidBoard.assign.addCard")} onChange={(e) => { const v = e.target.value; if (!v) return; if (board.hiddenCards.indexOf(v) >= 0) edit((b) => showCard(b, v)); else setExtra([...extra, v]); }}>
-                                <option value="">{t("raidBoard.assign.addCard")}</option>
-                                {addable.map((x) => <option key={x} value={x}>{t(`raidBoard.assign.type.${x}`)}</option>)}
-                            </select>
-                        </label>
+                        <button type="button" className="rp-assign-btn" aria-haspopup="dialog" onClick={(e) => setAddAnchor(addAnchor ? null : e.currentTarget)}>
+                            <Plus size={15} aria-hidden="true" /><span>{t("raidBoard.assign.addCard")}</span>
+                        </button>
                     )}
                     <span className="rp-seg" role="group" aria-label={t("raidBoard.assign.view")}>
                         <button type="button" className={view === "cards" ? "is-on" : ""} aria-pressed={view === "cards"} data-tip={t("raidBoard.assign.viewCards")} onClick={() => setView("cards")}><LayoutGrid size={15} /></button>

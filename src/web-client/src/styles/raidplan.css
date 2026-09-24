@@ -796,3 +796,47 @@
 .rp-token.is-multi { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 .rp-zone.is-multi { box-shadow: 0 0 0 2px var(--accent); }
 .rp-multi-insp .rp-insp-actions { flex-wrap: wrap; }
+
+/* read view, compact: tables as wide as their content, side by side when there is room; nothing wraps inside a chip */
+.rp-rtables { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
+.rp-rtables > .rp-mine, .rp-rtables > .rp-mine-hint { flex: 1 1 100%; }
+.rp-rtables > .rp-rsec { flex: 0 1 auto; max-width: 100%; }
+.rp-rtable { width: auto; max-width: 100%; }
+.rp-rtable th { padding: 5px 10px; }
+.rp-rtable td { padding: 5px 10px; }
+.rp-who { white-space: nowrap; }
+.rp-who-open { color: var(--muted); }
+.rp-who .rp-ico { flex: 0 0 auto; }
+.rp-who-list { gap: 3px 12px; }
+.rp-bylog-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 12px; }
+.rp-bylog-grid li { padding: 3px 6px; }
+.rp-tbadge > span, .rp-mine-text { white-space: nowrap; }
+.rp-tbadge.is-small > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+@media (max-width: 700px) {
+    .rp-rtables { flex-direction: column; flex-wrap: nowrap; }
+    .rp-rtables > .rp-rsec { width: 100%; }
+    .rp-rtable { width: 100%; table-layout: auto; }
+    .rp-who { white-space: normal; }
+    .rp-mine-text { white-space: normal; }
+}
+
+/* cards: no suggestion look, names never wrap inside a chip, the task field keeps a readable width, the note has its own line */
+.rp-arow.is-suggested { border-style: solid; border-color: var(--line); }
+.rp-arow-top { flex-wrap: wrap; row-gap: 4px; }
+.rp-arow-top .rp-atitle { flex: 1 1 150px; min-width: 150px; }
+.rp-arow-top .rp-spellchip { flex: 0 0 auto; }
+.rp-achip, .rp-pchip, .rp-taskchip, .rp-mobchip { white-space: nowrap; }
+.rp-achip > span, .rp-taskchip > span, .rp-mobchip .rp-achip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.rp-acard .rp-anote { flex: 1 1 100%; min-width: 200px; height: 30px; font-size: 13px; }
+.rp-below-map .rp-cards { columns: 340px 4; }
+
+/* the Besetzung: its label on its own line above, every role a block with its small label on top; nothing sticks out */
+.rp-bes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; min-width: 0; }
+.rp-bes-blocks { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 10px; min-width: 0; max-width: 100%; }
+.rp-bes-role { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 2px 8px 4px 6px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.rp-bes-rolelabel { margin: 0; font-size: 9.5px; line-height: 1.2; color: var(--muted); }
+.rp-bes-rolebody { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.rp-bes-tools { display: inline-flex; align-items: center; gap: 4px; align-self: center; }
+/* palette: every group of icons with its label above it */
+.rp-bands .rp-palette { align-items: flex-start; gap: 4px 14px; }
+.rp-palette-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

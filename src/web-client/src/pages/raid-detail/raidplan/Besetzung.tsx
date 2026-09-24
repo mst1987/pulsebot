@@ -119,6 +119,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     return (
         <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
             <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
+            <div className="rp-bes-blocks">
             {clusters.map((kind) => {
                 const list = all.filter((s) => s.kind === kind);
                 const isGroup = kind === "group";
@@ -126,6 +127,8 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                 const n = isGroup ? list.length : countOf(counts, kind);
                 return (
                     <div key={kind} className={`rp-bes-role rp-bes-${kind}`} role="group" aria-label={label}>
+                        <span className="rp-kicker rp-bes-rolelabel">{label}</span>
+                        <div className="rp-bes-rolebody">
                         <span className="rp-bes-roleicon" data-tip={label}>{isGroup ? <Users size={17} /> : <WowIcon name={ROLE_ICON[kind]} size={22} />}</span>
                         {!isGroup && canWrite && (
                             <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.less", { role: label })} disabled={n <= 0} onClick={() => edit((b) => setCount(b, besetzung, kind, n - 1, roster))}><Minus size={12} /></button>
@@ -135,6 +138,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                             <button type="button" className="rp-bes-step" aria-label={t("raidBoard.bes.more", { role: label })} disabled={n >= 40} onClick={() => edit((b) => setCount(b, besetzung, kind, n + 1, roster))}><Plus size={12} /></button>
                         )}
                         <span className="rp-bes-chips">{list.map(chip)}</span>
+                        </div>
                     </div>
                 );
             })}
@@ -149,6 +153,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                     )}
                 </span>
             )}
+            </div>
             {openSlot && flyout(openSlot)}
         </section>
     );
