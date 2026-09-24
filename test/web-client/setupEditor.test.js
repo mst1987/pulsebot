@@ -504,6 +504,17 @@ describe("the raider tooltip and the drag glow", () => {
         expect(css).not.toMatch(/\.se-lock \{[^}]*flex: 0 0 auto/);
     });
 
+    it("says in the attendance block when the raider last signed up but stood on the bench — or that they did not, in the nights looked at", () => {
+        const src = read("pages", "raid-detail", "SetupEditor.tsx");
+        expect(src).toContain("function benchText(");
+        expect(src).toContain('t("setup.person.tip.lastBench", { date })');
+        expect(src).toContain('t("setup.person.tip.benchNever", { count: a.benchNights })');
+        // nothing to say without an earlier night
+        expect(src).toMatch(/if \(!a \|\| !a\.benchNights\) return "";/);
+        expect(makeT("de")("setup.person.tip.lastBench", { date: "12.09.2026" })).toBe("Zuletzt auf der Bank: 12.09.2026");
+        expect(makeT("en")("setup.person.tip.benchNever", { count: 10 })).toBe("Not on the bench in the last 10 raids");
+    });
+
     it("shows the spec tile only (no role icon), the name in full and the auto badge not in capitals", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).not.toContain("ROLE_ICONS");
