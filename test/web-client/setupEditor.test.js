@@ -271,8 +271,13 @@ describe("setup editor page", () => {
         // two lines in a tile (label over value): a wide badge never runs into its label
         expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*grid-template-columns: minmax\(0, 1fr\); justify-items: start/);
         expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
-        // the panel in three roomy columns
-        expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.1fr\) minmax\(0, 1\.15fr\)/);
+        // the panel: a header across the whole width, three columns under it (brings · why · attendance details)
+        expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1\.15fr\) minmax\(0, 1\.2fr\) minmax\(0, \.9fr\); grid-template-rows: auto minmax\(0, 1fr\)/);
+        expect(css).toMatch(/\.se-tip-top \{ grid-column: 1 \/ -1;/);
+        expect(editor).toContain('<header className="se-tip-top">');
+        // the attendance is the big number of the header, its details are a column of their own
+        expect(editor).toMatch(/<header className="se-tip-top">[\s\S]*?<AttendanceHead a=\{attendance\} \/>[\s\S]*?<\/header>[\s\S]*?<AttendanceDetails a=\{attendance\} \/>/);
+        expect(css).toMatch(/\.se-tip-att b \{[^}]*font-size: 34px/);
         expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 14\.5px;/);
         expect(editor).toContain('<span className="se-pingtext-hint">');
         expect(css).toMatch(/\.se-bar-hint \{ display: none; \}/);
@@ -519,8 +524,8 @@ describe("the raider tooltip and the drag glow", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).not.toContain("ROLE_ICONS");
         const css = read("styles", "setup-editor.css");
-        // a long name wraps, it is never cut off with an ellipsis
-        expect(css).toMatch(/\.se-tip-name \{[^}]*white-space: normal/);
+        // the name is never wrapped and never cut off: the header across the panel gives it the width
+        expect(css).toMatch(/\.se-tip-name \{[^}]*white-space: nowrap/);
         expect(css).not.toMatch(/\.se-tip-name \{[^}]*text-overflow/);
         expect(css).not.toMatch(/\.se-tip-auto \{[^}]*text-transform: uppercase/);
         expect(de("setup.person.tip.autoBadge")).toBe("Auto");

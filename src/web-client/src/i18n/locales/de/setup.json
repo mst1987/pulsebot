@@ -3,6 +3,7 @@
         "tip": {
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
+            "attendanceDetails": "Anwesenheit im Detail",
             "attendanceCount": "{attended} von {total} Raids",
             "lastBench": "Zuletzt auf der Bank: {date}",
             "benchNever": "Nicht auf der Bank in den letzten {count} Raids",
