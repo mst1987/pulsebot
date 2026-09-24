@@ -265,6 +265,11 @@ describe("setup editor page", () => {
         expect(css).toMatch(/\.se-topline \.se-tip \{[^}]*min-height: 220px/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*overflow-y: auto/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*max-height/);
+        // a raider and a free place share one row height, so cards are equally tall whether a place is taken or not
+        expect(css).toMatch(/\.se-editor \{[^}]*--se-row: 46px/);
+        expect(css).toMatch(/\.se-slot \{[^}]*height: var\(--se-row\)/);
+        expect(css).toMatch(/\.se-ph \{[^}]*height: var\(--se-row\)/);
+        expect(css).toMatch(/\.se-compact \{ --se-row: 32px; \}/);
         expect(makeT("de")("setup.editor.compact")).toBe("Kompakt");
     });
 
