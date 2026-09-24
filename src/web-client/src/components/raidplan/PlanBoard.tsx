@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupMembers, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { facingOf, type AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
@@ -216,6 +216,7 @@ export default function PlanBoard({
         <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
     ) : null);
     const boardLike = { tokens, slots, assignments: assignments || [] } as unknown as RaidplanBoard;
+    const boardOwn = boardLike;
 
     return (
         <div
@@ -353,10 +354,11 @@ export default function PlanBoard({
                 const boardLabel = slotBoardLabel(s);
                 const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) };
                 if (s.kind === "group") {
-                    const members = groupMembers(s, roster);
+                    // who is shown in this group: its setup group minus everyone who has a place of his own (a free token, a role slot on the map): the ring closes up, the name list drops him
+                    const members = groupListMembers(boardOwn, s, roster);
                     const showList = !s.hideMembers && !s.split;
-                    const around = splitMembers(boardLike, s, roster);
-                    const everyone = s.split && !s.hideMembers ? roster.filter((p) => p.group === s.n) : [];
+                    const around = splitMembers(boardOwn, s, roster);
+                    const everyone = around;
                     // the group's own scales: as a whole (gs), the spacing of its ring (sp) and its member tokens (ts); effective size = the board's symbol size x these
                     const { gs, sp, ts } = groupScales(s);
                     const memberBase = scaled(s.size, SIZE_RANGES.member.def);
@@ -451,6 +453,7 @@ export default function PlanBoard({
                                 {player && <PlayerName player={player} />}
                             </span>
                         )}
+                        {player && showBadges && ownBadgeGroup(boardOwn, player) > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, player.group), "--gi": inkOn(groupColor(groupColors, player.group)) } as React.CSSProperties}>{player.group}</span>}
                         {sizeHandle("slot", s.id, s.lock)}
                     </div>
                 );
@@ -484,6 +487,7 @@ export default function PlanBoard({
                         </button>
                         <span className="rp-token-name"><PlayerName player={p} /></span>
                         {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
+                        {showBadges && ownBadgeGroup(boardOwn, p) > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, p.group), "--gi": inkOn(groupColor(groupColors, p.group)) } as React.CSSProperties}>{p.group}</span>}
                         {sizeHandle("token", tok.userId, tok.lock)}
                     </div>
                 );

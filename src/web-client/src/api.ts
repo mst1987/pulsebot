@@ -4179,6 +4179,8 @@ export type RaidplanBoard = {
     inheritOff: string[];
     /** the rings round split groups, all at once (default shown) */
     showRings?: boolean;
+    /** false = this section is left out of the shared sheet (default in) */
+    inSheet?: boolean;
     /** the colour ("#rrggbb") and the raid mark of the groups, by group number; missing = the default colour / no mark */
     groupColors?: Record<string, string>;
     groupMarks?: Record<string, string>;
@@ -4286,11 +4288,12 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };
     bosses: RaidplanPublicBoss[];
+    hiddenCount?: number;
     roster: RaidplanPlayer[];
     me: string;
     /** every player of the approved setup that is the visitor's: their own account and the characters of their raider profile */

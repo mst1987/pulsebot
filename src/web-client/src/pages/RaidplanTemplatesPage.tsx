@@ -553,7 +553,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
-                    bossNav={<BossNav bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} />}
+                    bossNav={<BossNav bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} />}
                     status={<Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>}
                     actions={canWrite ? (
                         <>

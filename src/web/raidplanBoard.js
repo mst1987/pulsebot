@@ -336,18 +336,20 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const showRings = input.showRings !== false;
     const { groupColors, groupMarks } = cleanGroupStyles(input.groupColors, input.groupMarks);
     const view = cleanView(input.view);
+    // false = this section (boss, trash, Allgemein) is left out of the shared sheet; it stays fully editable
+    const inSheet = input.inSheet !== false;
     const showNames = input.showNames !== false;
     const showBadges = input.showBadges !== false;
     const showRoleRings = input.showRoleRings !== false;
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */

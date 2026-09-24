@@ -1127,3 +1127,12 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-mypreview { margin: 10px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px 14px; }
 .rp-mypreview > summary { cursor: pointer; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .rp-mypreview[open] > summary { margin-bottom: 8px; }
+
+.rp-bosschip-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
+.rp-bosschip-eye { position: absolute; right: -3px; top: -5px; display: none; align-items: center; justify-content: center; width: 17px; height: 17px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--panel, var(--bg)); color: var(--muted); cursor: pointer; }
+.rp-bosschip-wrap:hover .rp-bosschip-eye, .rp-bosschip-eye:focus-visible, .rp-bosschip-wrap.is-out .rp-bosschip-eye { display: inline-flex; }
+.rp-bosschip-eye:hover { color: var(--text); border-color: var(--accent); }
+.rp-bosschip.is-out { opacity: .5; filter: grayscale(.8); }
+.rp-bosschip.is-out .rp-bosschip-no, .rp-bosschip.is-out .rp-bosschip-name { text-decoration: line-through; }
+.rp-sheetlist { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+.rp-sheetlist label { display: flex; align-items: center; gap: 8px; cursor: pointer; }

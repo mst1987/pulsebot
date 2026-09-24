@@ -196,7 +196,8 @@ function publicView(plan, event, { me = "" } = {}) {
     const profile = me ? raiderProfiles.getProfile(me) : null;
     const meIds = identify(me, profile ? profile.characters.map((c) => c.key) : [], roster);
     const bosses = bossList(event, { templateId: plan.templateId })
-        .filter((b) => plan.bosses[b.key])
+        // a section switched off for the sheet is not delivered at all (no chip, no data): filtered before anything else is built from it
+        .filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet !== false)
         .map((b) => {
             const board = plan.bosses[b.key];
             return {
@@ -248,6 +249,8 @@ function publicView(plan, event, { me = "" } = {}) {
     }
     return {
         event: { title: event.title, startTime: event.startTime },
+        // how many sections hold something but are left out of the sheet (a number only, nothing of them)
+        hiddenCount: bossList(event, { templateId: plan.templateId }).filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet === false).length,
         bosses,
         roster: roster.filter((r) => used.has(r.userId)),
         me: meIds[0] || "",

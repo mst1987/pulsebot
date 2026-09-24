@@ -150,3 +150,6 @@ Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 - **Sheet:** "Meine Aufgaben" und "Wirkt auf dich" als Karten je Einteilung, darunter "Alle Einteilungen".
 
 - **Gruppenfarben und Marker** gelten jetzt fuer den ganzen Plan (nicht nur einen Boss). **Sheet-Vorschau** (Auge in der Werkzeugleiste) zeigt das Board wie die Lese-Ansicht. Im Sheet: "Nur fuer mich" und "Nach Heiler" bei der Gruppenheilung.
+
+- **Einzeln aufgestellte Raider verschwinden aus der Gruppe.** Wer ein eigenes Token oder einen Rollen-Slot auf der Karte hat, wird in seiner Gruppe (Kranz und Namensliste) nicht doppelt gezeigt; der Kranz schliesst sich. Entfernst du ihn wieder von der Karte, ist er zurueck in der Gruppe. Per Rechtsklick auf ein Kranz-Mitglied: "Aus Gruppe herausnehmen"; am freien Token: "Zurueck in die Gruppe". Das Token traegt die Gruppennummer als Abzeichen.
+- **Bosse oder Trash aus dem Sheet ausklammern.** Am Boss-Chip (Auge, oder Rechtsklick auf den Chip) und im Dialog "Freigeben" (Haken je Abschnitt, "Alle", "Keine", "Nur Bosse", "Ohne Trash"). Ausgeklammerte Abschnitte sind im Editor grau, aber voll bearbeitbar; im geteilten Sheet kommen sie gar nicht an (auch nicht ihre Daten). Speichern nicht vergessen; auch in Vorlagen moeglich und beim Anwenden uebernommen.
