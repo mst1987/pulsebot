@@ -60,8 +60,11 @@
         "categoryTip": "Bestimmt die Standard-Vorlage, das Kanal-Schema und ob die Anmeldung über den EventHelper oder Raid-Helper läuft.",
         "categoryPick": "— Kategorie wählen —",
         "more": "Weitere Angaben",
-        "leader": "Event-Leiter (Discord-User-ID)",
-        "leaderTip": "Vorbelegt mit deiner ID.",
+        "leader": "Event-Leiter",
+        "leaderTip": "Wer das Event leitet: du, die Angemeldeten oder eine andere Discord-ID.",
+        "leaderOptionYou": "{name} (du)",
+        "leaderOther": "Andere Discord-ID …",
+        "leaderPlaceholder": "Discord-User-ID",
         "description": "Beschreibung",
         "descriptionTip": "Optional. Steht in der Event-Nachricht unter dem Titel.",
         "descriptionPlaceholder": "Weitere Infos zum Raid …"

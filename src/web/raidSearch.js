@@ -15,6 +15,7 @@
 // message. The orga edits it before it goes out.
 const eventStore = require("./eventStore");
 const discord = require("./discord");
+const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
@@ -39,6 +40,14 @@ function specTable(rules) {
 /** "Shaman (Enhancement)". */
 const specNameEn = (spec) => `${spec.classLabelEn} (${spec.labelEn || spec.id})`;
 
+/** The app emoji of a name plus a space, or "" while it is not uploaded (the text reads fine without it). */
+const icon = (name) => {
+    const e = name ? emojiFor(name) : "";
+    return e ? `${e} ` : "";
+};
+/** A spec with its icon in front: "<emoji> Shaman (Enhancement)". */
+const specWithIcon = (spec) => `${icon(specEmojiName(spec.key))}${specNameEn(spec)}`;
+
 /** The specs whose own role is `role`. */
 function specsOfRole(specs, role) {
     return [...specs.values()].filter((s) => s.role === role).map((s) => s.key);
@@ -57,7 +66,7 @@ function buildText(event, gap, specs) {
     const lines = [`**Looking for more raiders – ${event.title || "Raid"}**`];
     const when = Number(event.startTime) ? `<t:${Number(event.startTime)}:F> · ` : "";
     lines.push(`${when}${gap.placed} of ${gap.size} places filled`);
-    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map(specNameEn).join(", ");
+    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map(specWithIcon).join(", ");
     // a buff a whole class brings (a totem, a blessing) is "Shaman (any spec)", not every spec of it
     const providers = (keys) => {
         const byClass = new Map();
@@ -67,11 +76,11 @@ function buildText(event, gap, specs) {
         }
         return [...byClass.entries()].map(([classId, list]) => {
             const all = [...specs.values()].filter((s) => s.classId === classId).length;
-            return list.length === all ? `${list[0].classLabelEn} (any spec)` : list.map(specNameEn).join(", ");
+            return list.length === all ? `${icon(classEmojiName(classId))}${list[0].classLabelEn} (any spec)` : list.map(specWithIcon).join(", ");
         }).join(", ");
     };
     const need = [];
-    for (const r of gap.roles) need.push(`• ${r.missing}× ${ROLE_NAME[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
+    for (const r of gap.roles) need.push(`• ${icon(roleUiEmojiName(r.role))}${r.missing}× ${ROLE_NAME[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
     for (const b of gap.buffs.filter((x) => x.required)) need.push(`• Needed for a required buff: ${providers(b.specs)}`);
     const nice = gap.buffs.filter((x) => !x.required);
     if (nice.length) need.push(`• Would also help: ${providers([...new Set(nice.flatMap((b) => b.specs))])}`);

@@ -203,3 +203,22 @@ describe("postSearch", () => {
         expect(mockLog).toEqual([]);
     });
 });
+
+describe("the message with the spec icons", () => {
+    const appEmojis = require("../../src/web/appEmojis");
+    afterEach(() => appEmojis.resetAppEmojis());
+
+    it("puts the app emoji of a spec, of a whole class and of the role in front, and nothing while they are not uploaded", () => {
+        expect(suggestSearch(event()).text).not.toContain("<:");
+        appEmojis.setAppEmojis([
+            { id: "1", name: "eh_paladin_protection" },
+            { id: "2", name: "eh_class_shaman" },
+            { id: "3", name: "eh_ui_tank" },
+        ]);
+        const { text } = suggestSearch(event());
+        expect(text).toContain("• <:eh_ui_tank:3> 1× Tank: ");
+        expect(text).toContain("<:eh_paladin_protection:1> Paladin (Protection)");
+        expect(text).toContain("Needed for a required buff: <:eh_class_shaman:2> Shaman (any spec)");
+        expect(text.length).toBeLessThanOrEqual(1900);
+    });
+});

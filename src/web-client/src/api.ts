@@ -1599,6 +1599,8 @@ export type RaidCreateContext = {
     /** category id → Raid-Helper template id of its default raid template */
     categoryTemplates: Record<string, string>;
     leaderId: string;
+    /** who can lead: the creator first, then the signed-up people (name may be empty) */
+    leaderCandidates: { id: string; name: string }[];
     channels: Channel[];
     /** the server's voice channels, for the raid's voice channel (#305) */
     voiceChannels?: Channel[];

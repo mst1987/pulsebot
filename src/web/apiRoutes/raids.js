@@ -13,6 +13,7 @@ const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions")
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../channelNaming");
 const { signupSourceFor } = require("../eventSources");
+const { listSignups } = require("../signupStore");
 const discord = require("../discord");
 
 /**
@@ -84,6 +85,38 @@ function editEventFor(url, guildId) {
     return event && (!guildId || !event.guildId || event.guildId === guildId) ? event : null;
 }
 
+/** How many signed-up people at most the leader dropdown lists. */
+const MAX_LEADER_CANDIDATES = 60;
+
+/**
+ * Who can lead an event, for the create dialog's dropdown: the one creating it
+ * (first), the leader of the event being edited, and everybody signed up to the
+ * event being edited — or, for a new event, to the guild's own events from the
+ * lookback window on. Discord user ids with a name each, without duplicates.
+ * @param {string} guildId
+ * @param {{ id: string, name?: string }} user  the orga creating the event
+ * @param {object|null} editEvent  the own event being edited, if any
+ * @returns {Promise<{ id: string, name: string }[]>}
+ */
+async function leaderCandidates(guildId, user, editEvent) {
+    const ids = [String(user.id)];
+    if (editEvent && editEvent.leaderId) ids.push(String(editEvent.leaderId));
+    try {
+        const events = editEvent ? [editEvent] : eventStore.listEvents(guildId, { sinceSeconds: eventLookbackSince() });
+        for (const ev of events) for (const s of listSignups(ev.id)) if (s && s.userId) ids.push(String(s.userId));
+    } catch {
+        // the store is unreadable: the creator alone is still a valid answer
+    }
+    const unique = [...new Set(ids)].slice(0, MAX_LEADER_CANDIDATES);
+    let names = {};
+    try {
+        names = (await discord.resolveUserNames(guildId, unique.filter((id) => id !== String(user.id)))) || {};
+    } catch {
+        names = {};
+    }
+    return unique.map((id) => ({ id, name: id === String(user.id) ? user.name || names[id] || "" : names[id] || "" }));
+}
+
 /**
  * GET /api/raids/new — everything the create dialog needs: defaults, channels,
  * categories, raid templates, the rule set, the naming schemas and reusable
@@ -115,6 +148,7 @@ async function getRaidCreateContext(req, res, url) {
     const categoryTemplates = Object.fromEntries(Object.entries(categoryDefaults)
         .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
         .filter(([, rhId]) => rhId));
+    const editEvent = editEventFor(url, guildId);
     const channels = safeList(() => discord.listTextChannels(guildId));
     const channelId = (config.raidDefaults || {}).channelId || "";
     const defaultChannel = channels.find((c) => c.id === channelId);
@@ -125,6 +159,7 @@ async function getRaidCreateContext(req, res, url) {
         },
         categoryTemplates,
         leaderId: user.id,
+        leaderCandidates: await leaderCandidates(guildId, user, editEvent),
         channels,
         // The raid's voice channel (#305) and the preset per category.
         voiceChannels: safeList(() => discord.listVoiceChannels(guildId)),
@@ -146,7 +181,7 @@ async function getRaidCreateContext(req, res, url) {
         defaultVersion: DEFAULT_VERSION,
         channelSchemas: channelSchemas(guildId),
         defaultSchema: DEFAULT_SCHEMA,
-        editEvent: editEventFor(url, guildId),
+        editEvent,
     });
 }
 
@@ -201,4 +236,4 @@ async function updateRaid(req, res) {
     ok(res, result.body, result.status);
 }
 
-module.exports = { getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid };
+module.exports = { leaderCandidates, getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid };

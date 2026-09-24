@@ -60,8 +60,11 @@
         "categoryTip": "Decides the default template, the channel schema and whether signups run through EventHelper or Raid-Helper.",
         "categoryPick": "— Choose category —",
         "more": "More details",
-        "leader": "Event lead (Discord user ID)",
-        "leaderTip": "Prefilled with your ID.",
+        "leader": "Event leader",
+        "leaderTip": "Who leads the event: you, the people signed up, or another Discord id.",
+        "leaderOptionYou": "{name} (you)",
+        "leaderOther": "Other Discord id …",
+        "leaderPlaceholder": "Discord user id",
         "description": "Description",
         "descriptionTip": "Optional. Shown in the event message below the title.",
         "descriptionPlaceholder": "More info about the raid …"
