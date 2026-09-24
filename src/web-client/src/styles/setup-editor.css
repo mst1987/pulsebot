@@ -54,7 +54,8 @@
 .se-topline .se-stat-v { font-size: 32px; }
 .se-topline .se-stat-v small { font-size: 15px; }
 .se-topline .se-stat [class~="kicker"] { font-size: 12px; letter-spacing: .08em; }
-.se-topline .se-side-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 10px; min-height: 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+/* two lines in every setting tile: the label over its value, so a wide badge ("vollständig") never runs into the label */
+.se-topline .se-side-row { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; align-content: start; align-items: center; gap: 8px; min-height: 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
 .se-topline .se-side-row [class~="kicker"] { font-size: 12px; font-weight: 700; letter-spacing: .07em; color: var(--text); }
 .se-topline .se-side-cap { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
 /* anything else in the summary (the hints badge) takes a whole row */
