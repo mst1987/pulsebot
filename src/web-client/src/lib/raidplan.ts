@@ -143,14 +143,15 @@ export function sameBosses(a: Record<string, Partial<RaidplanBoard>>, b: Record<
 export function splitMembers(board: RaidplanBoard, slot: RaidplanSlot, roster: RaidplanPlayer[]): RaidplanPlayer[] {
     if (slot.kind !== "group" || !slot.split || slot.hideMembers) return [];
     const elsewhere = new Set(board.tokens.map((x) => x.userId));
-    for (const s of board.slots) if (s.userId) elsewhere.add(s.userId);
+    // only a slot that stands ON THE MAP shows the person; one that is only in the Besetzung bar (placed: false) does not
+    for (const s of board.slots) if (s.userId && s.placed !== false) elsewhere.add(s.userId);
     return roster.filter((p) => p.group === slot.n && !elsewhere.has(p.userId));
 }
 
 /** Everyone who already stands somewhere on the board: a free token, a slot, or a group that is split around its marker. */
 export function placedIds(board: RaidplanBoard, roster: RaidplanPlayer[] = []): Set<string> {
     const ids = new Set(board.tokens.map((x) => x.userId));
-    for (const s of board.slots) if (s.userId) ids.add(s.userId);
+    for (const s of board.slots) if (s.userId && s.placed !== false) ids.add(s.userId);
     for (const s of board.slots) for (const p of splitMembers(board, s, roster)) ids.add(p.userId);
     return ids;
 }
