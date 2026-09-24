@@ -9,6 +9,8 @@ import {
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
 import { followsTank } from "../../../lib/assign";
+import MultiInspector from "./MultiInspector";
+import type { SelItem } from "../../../lib/multiSelect";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
@@ -49,9 +51,12 @@ export function SizeField({ label, value, min, max, step = 1, onChange }: { labe
  * and player), opacity for every kind, and the actions — lock, duplicate, front /
  * back, delete — as icon buttons. Nothing selected: a hint.
  */
-export default function Inspector({ board, selection, players, roster, isEvent, canWrite, edit, onSelect }: {
+export default function Inspector({ board, selection, multi = [], boardPx, players, roster, isEvent, canWrite, edit, onSelect }: {
     board: RaidplanBoard;
     selection: Selection;
+    /** several objects selected: only what they share is shown */
+    multi?: SelItem[];
+    boardPx?: () => { w: number; h: number };
     players: Map<string, RaidplanPlayer>;
     roster: RaidplanPlayer[];
     isEvent: boolean;
@@ -61,6 +66,7 @@ export default function Inspector({ board, selection, players, roster, isEvent, 
 }) {
     const t = useT();
     const [pick, setPick] = useState<HTMLElement | null>(null);
+    if (multi.length > 1) return <MultiInspector board={board} sel={multi} px={boardPx ? boardPx() : { w: 1000, h: 625 }} canWrite={canWrite} edit={edit} />;
     if (!selection) return <p className="rp-muted rp-insp-empty">{t("raidBoard.insp.none")}</p>;
     const { kind, id } = selection;
     const look = lookOf(board, kind, id);

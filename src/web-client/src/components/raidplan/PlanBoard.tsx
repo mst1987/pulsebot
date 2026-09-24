@@ -86,6 +86,13 @@ type BoardProps = {
     onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
     /** Thin connection lines (who heals whom), in board fractions. */
     links?: AssignLink[];
+    /** The other selected objects when several are selected (`selected` is then null). */
+    multi?: { kind: ObjectKind; id: string }[];
+    /** The frame round the whole multi selection and the rubber band, in board fractions. */
+    multiBox?: { x0: number; y0: number; x1: number; y1: number } | null;
+    band?: { x0: number; y0: number; x1: number; y1: number } | null;
+    /** Pointer down on a corner grip of the shared frame: the workspace scales the whole selection. */
+    onMultiScale?: (e: PointerEvent<HTMLElement>, corner: string) => void;
     /** The map's height in px (the board is as wide as its aspect ratio makes it); without it: what fits the window. */
     maxHeight?: number;
     /** Shown on the grid when there is no map. */
@@ -132,7 +139,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", maxHeight, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", maxHeight, multi = [], multiBox = null, band = null, onMultiScale, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -147,7 +154,8 @@ export default function PlanBoard({
     const isMe = (id: string) => mineIds.indexOf(id) >= 0;
     const editable = !!onObjectDown;
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
-    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) ? "is-selected" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
+    const picked = (kind: ObjectKind, id: string) => multi.some((m) => m.kind === kind && m.id === id);
+    const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", isSel(kind, id) || picked(kind, id) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
     const handlers = (kind: ObjectKind, id: string) => (editable ? {
         onPointerDown: (e: PointerEvent<HTMLElement>) => onObjectDown!(e, kind, id),
         onKeyDown: onObjectKey ? (e: KeyboardEvent<HTMLElement>) => onObjectKey(e, kind, id) : undefined,
@@ -422,6 +430,18 @@ export default function PlanBoard({
                     </div>
                 );
             })}
+
+            {band && (
+                <div className="rp-band" aria-hidden="true" style={{ left: `${band.x0 * 100}%`, top: `${band.y0 * 100}%`, width: `${(band.x1 - band.x0) * 100}%`, height: `${(band.y1 - band.y0) * 100}%` }} />
+            )}
+            {multiBox && multi.length > 1 && (
+                <div className="rp-multibox" style={{ left: `${multiBox.x0 * 100}%`, top: `${multiBox.y0 * 100}%`, width: `${(multiBox.x1 - multiBox.x0) * 100}%`, height: `${(multiBox.y1 - multiBox.y0) * 100}%` }}>
+                    <span className="rp-multi-count">{t("raidBoard.multi.count", { n: multi.length })}</span>
+                    {editable && onMultiScale && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
+                        <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onMultiScale(e, c); }} />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

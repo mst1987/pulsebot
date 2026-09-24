@@ -258,7 +258,8 @@
         "text": "Text",
         "palette": "Show / hide elements",
         "panel": "Show / hide properties",
-        "bes": "Show or hide the roster slots"
+        "bes": "Show or hide the roster slots",
+        "select": "Selection mode (tap adds / removes, rubber band on empty ground)"
     },
     "palette": {
         "title": "Elements",
@@ -346,7 +347,22 @@
         "split_on": "Split up",
         "split_off": "Merge",
         "resetpos": "Reset position",
-        "face": "Face {dir}"
+        "face": "Face {dir}",
+        "m_duplicate": "Duplicate selection",
+        "m_front": "Bring to front",
+        "m_back": "Send to back",
+        "m_lock": "Lock selection",
+        "m_unlock": "Unlock selection",
+        "m_hide": "Hide selection",
+        "m_alignLeft": "Align left",
+        "m_alignRight": "Align right",
+        "m_alignTop": "Align top",
+        "m_alignBottom": "Align bottom",
+        "m_alignCenterH": "Center horizontally",
+        "m_alignCenterV": "Center vertically",
+        "m_distH": "Distribute horizontally",
+        "m_distV": "Distribute vertically",
+        "m_delete": "Delete selection"
     },
     "icon": {
         "boss": "Boss",
@@ -551,5 +567,13 @@
         "colOrder": "#",
         "colTargetAbility": "Target / ability",
         "groupHeal": "Group healing"
+    },
+    "multi": {
+        "count": "{n} selected",
+        "mixed": "mixed",
+        "hide": "Hide",
+        "align": "Align",
+        "skipped": "{n} object(s) skipped: slots of the roster and players are not copied.",
+        "hint": "Drag moves all, Del deletes all, +/- and the corner grips scale, Ctrl+D duplicates, Esc clears. One Ctrl+Z undoes the whole action."
     }
 }

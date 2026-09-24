@@ -9,13 +9,16 @@ import { useT } from "../../../i18n";
  * lock, one step forward / back within its kind, delete. It is the always-visible
  * list of everything on the board, including what is hidden or hard to hit.
  */
-export default function LayerList({ board, players, selection, canWrite, edit, onSelect }: {
+export default function LayerList({ board, players, selection, multi = [], canWrite, edit, onSelect }: {
     board: RaidplanBoard;
     players: Map<string, RaidplanPlayer>;
     selection: Selection;
+    /** every selected object when there are several */
+    multi?: { kind: ObjectKind; id: string }[];
     canWrite: boolean;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
-    onSelect: (sel: Selection) => void;
+    /** Ctrl / Cmd + click toggles a row, Shift + click takes the rows from the last one to this one. */
+    onSelect: (sel: Selection, mods?: { toggle: boolean; range: boolean }) => void;
 }) {
     const t = useT();
     const rows = layerList(board, players);
@@ -26,11 +29,11 @@ export default function LayerList({ board, players, selection, canWrite, edit, o
     return (
         <ul className="rp-layers" aria-label={t("raidBoard.panel.layers")}>
             {rows.map((r) => {
-                const on = !!selection && selection.kind === r.kind && selection.id === r.id;
+                const on = (!!selection && selection.kind === r.kind && selection.id === r.id) || multi.some((m) => m.kind === r.kind && m.id === r.id);
                 const kind = r.kind as ObjectKind;
                 return (
-                    <li key={`${r.kind}:${r.id}`} className={`rp-layer${on ? " is-on" : ""}${r.hidden ? " is-hidden" : ""}`} onClick={() => onSelect({ kind, id: r.id })}>
-                        <button type="button" className="rp-layer-name" aria-pressed={on} onClick={() => onSelect({ kind, id: r.id })}>
+                    <li key={`${r.kind}:${r.id}`} className={`rp-layer${on ? " is-on" : ""}${r.hidden ? " is-hidden" : ""}`} onClick={(e) => onSelect({ kind, id: r.id }, { toggle: e.ctrlKey || e.metaKey, range: e.shiftKey })}>
+                        <button type="button" className="rp-layer-name" aria-pressed={on} onClick={(e) => { e.stopPropagation(); onSelect({ kind, id: r.id }, { toggle: e.ctrlKey || e.metaKey, range: e.shiftKey }); }}>
                             <span className="rp-layer-kind">{t(`raidBoard.obj.${r.kind}`)}</span>
                             <span className="rp-layer-text">{r.name}</span>
                         </button>

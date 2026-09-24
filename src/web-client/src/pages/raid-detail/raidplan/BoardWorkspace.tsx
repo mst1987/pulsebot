@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
-import { Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
+import { BoxSelect, Circle, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
 import type { Catalog, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
+import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
 import { useT } from "../../../i18n";
 import {
-    angleTo, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
+    angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
@@ -51,6 +52,8 @@ type Drag = {
     d0?: number;
     /** Shift was held: a zone keeps its proportions */
     keepRatio?: boolean;
+    /** the whole selection is dragged: the board as it was and who moves */
+    multi?: { board0: RaidplanBoard; sel: SelItem[] };
     overTray: boolean;
 };
 
@@ -148,6 +151,14 @@ export default function BoardWorkspace({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [splitting]);
     const [showBes, setShowBes] = useState(true);
+    const [multi, setMulti] = useState<SelItem[]>([]);
+    const [band, setBand] = useState<Box | null>(null);
+    const [banding, setBanding] = useState(false);
+    const [scaling, setScaling] = useState(false);
+    const [selectMode, setSelectMode] = useState(false);
+    const bandRef = useRef<{ x0: number; y0: number; add: boolean; base: SelItem[]; moved: boolean; cx: number; cy: number }>({ x0: 0, y0: 0, add: false, base: [], moved: false, cx: 0, cy: 0 });
+    const scaleRef = useRef<{ board0: RaidplanBoard; sel: SelItem[]; center: { x: number; y: number }; d0: number; cx: number; cy: number }>({ board0: null as unknown as RaidplanBoard, sel: [], center: { x: 0, y: 0 }, d0: 1, cx: 0, cy: 0 });
+    const clip = useRef<{ snap: Snapshot; pastes: number } | null>(null);
     const [showPalette, setShowPalette] = useState(true);
     const [showPanel, setShowPanel] = useState(true);
     const [showLinks, setShowLinks] = useState(true);
@@ -172,12 +183,73 @@ export default function BoardWorkspace({
     boardNow.current = board;
 
     // Another boss: nothing is selected any more.
-    useEffect(() => { setSelected(null); setMenu(null); }, [boss.key]);
+    useEffect(() => { setSelected(null); setMulti([]); setMenu(null); }, [boss.key]);
 
     const toBoard = (x: number, y: number) => {
         const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : null;
         if (!rect || !rect.width || !rect.height) return null;
         return { x: (x - rect.left) / rect.width, y: (y - rect.top) / rect.height, w: rect.width, h: rect.height, inside: x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom };
+    };
+
+    /** The board's size in px (for the boxes of text and group markers). */
+    const boardPx = () => {
+        const r = boardRef.current ? boardRef.current.getBoundingClientRect() : null;
+        return { w: r && r.width ? r.width : 1000, h: r && r.height ? r.height : 625 };
+    };
+    /** Everything that is selected, whether it is one object or several. */
+    const currentSel = (): SelItem[] => (multi.length > 1 ? multi : selected ? [selected as SelItem] : []);
+    /** Sets the selection: none, one (the inspector shows it) or several (the shared frame). */
+    const chooseItems = (items: SelItem[]) => {
+        setMulti(items.length > 1 ? items : []);
+        setSelected(items.length === 1 ? items[0] : null);
+    };
+    // what an undo, a delete elsewhere ... took away is no longer selected
+    useEffect(() => {
+        if (multi.length === 0) return;
+        const live = liveItems(board, multi);
+        if (live.length !== multi.length) chooseItems(live);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [board]);
+    const frame = multi.length > 1 ? selectionBox(board, multi, boardPx()) : null;
+    const centerOf = (b: RaidplanBoard, sel: SelItem[]) => {
+        const box = selectionBox(b, sel, boardPx());
+        return box ? { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 } : { x: 0.5, y: 0.5 };
+    };
+    /** One undo step for whatever the selection does. */
+    const multiAction = (fn: (b: RaidplanBoard, sel: SelItem[]) => RaidplanBoard, merge = false) => {
+        const sel = currentSel();
+        if (sel.length === 0) return;
+        edit((b) => fn(b, sel), merge);
+    };
+    const doDuplicate = () => {
+        const sel = currentSel();
+        if (sel.length === 0) return;
+        const r = duplicateSelection(boardNow.current, sel);
+        if (r.skipped > 0) toast(t("raidBoard.multi.skipped", { n: r.skipped }));
+        if (r.sel.length === 0) return;
+        edit(() => r.board);
+        chooseItems(r.sel);
+    };
+    const doCopy = () => {
+        const sel = currentSel();
+        if (sel.length === 0) return;
+        const r = copySelection(boardNow.current, sel);
+        if (r.skipped > 0) toast(t("raidBoard.multi.skipped", { n: r.skipped }));
+        clip.current = { snap: r.snap, pastes: 0 };
+    };
+    const doPaste = () => {
+        if (!clip.current) return;
+        clip.current.pastes += 1;
+        const r = pasteSnapshot(boardNow.current, clip.current.snap, 0.03 * clip.current.pastes);
+        if (r.sel.length === 0) return;
+        edit(() => r.board);
+        chooseItems(r.sel);
+    };
+    const doDelete = () => {
+        const sel = currentSel();
+        if (sel.length === 0) return;
+        edit((b) => deleteSelection(b, sel));
+        chooseItems([]);
     };
 
     const specLabel = (spec: InsertSpec): string => {
@@ -219,7 +291,10 @@ export default function BoardWorkspace({
             if (d.kind === "tray" || d.kind === "palette" || !moved) return;
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
-            if (d.handle === "rot" && d.center) {
+            if (d.multi && d.p0) {
+                const m = d.multi;
+                edit(() => moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx()), true);
+            } else if (d.handle === "rot" && d.center) {
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
                 edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
             } else if (d.handle === "size" && d.size0 && d.center && d.d0) {
@@ -303,8 +378,16 @@ export default function BoardWorkspace({
         if (!canWrite || e.button !== 0) return;
         e.preventDefault();
         const target = e.currentTarget as HTMLElement;
+        const startsMulti = kind !== "tray" && kind !== "member" && !handle && multi.length > 1 && hasItem(multi, { kind, id });
+        // Ctrl / Cmd / Shift + click (or the selection mode) adds the object to the selection or takes it out again: no drag
+        if (kind !== "tray" && kind !== "member" && !handle && (e.ctrlKey || e.metaKey || e.shiftKey || selectMode)) {
+            chooseItems(toggleItem(currentSel(), { kind, id }));
+            if (target.focus) target.focus();
+            return;
+        }
         // preventDefault keeps the browser from focusing the button: do it by hand, or Delete / arrows would go nowhere
-        if (kind !== "tray") { setSelected({ kind, id }); if (target.focus) target.focus(); }
+        if (kind !== "tray" && !startsMulti) { setMulti([]); setSelected({ kind, id }); if (target.focus) target.focus(); }
+        if (startsMulti && target.focus) target.focus();
         // a locked object is selected but does not move
         if (kind !== "tray" && isLocked(board, kind, id)) return;
         let ox = 0;
@@ -339,7 +422,7 @@ export default function BoardWorkspace({
             }
         }
         const origin = kind === "slot" ? { x: (board.slots.find((s) => s.id === id) || { x: 0 }).x, y: (board.slots.find((s) => s.id === id) || { y: 0 }).y } : undefined;
-        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false };
+        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false, multi: startsMulti ? { board0: boardNow.current, sel: multi } : undefined };
         dragRef.current = d;
         setDrag(d);
     };
@@ -364,6 +447,75 @@ export default function BoardWorkspace({
         }, 30);
     };
 
+    /** A click in the layer list: one row, Ctrl adds / removes it, Shift takes the rows between it and the last one. */
+    const onLayerSelect = (sel: Selection, mods?: { toggle: boolean; range: boolean }) => {
+        if (!sel) { chooseItems([]); return; }
+        const item = sel as SelItem;
+        if (mods && mods.range && currentSel().length > 0) {
+            const rows = layerList(boardNow.current, players).map((r) => ({ kind: r.kind, id: r.id }));
+            const last = currentSel()[currentSel().length - 1];
+            const a = rows.findIndex((r) => r.kind === last.kind && r.id === last.id);
+            const b = rows.findIndex((r) => r.kind === item.kind && r.id === item.id);
+            if (a >= 0 && b >= 0) { chooseItems(addItems(currentSel(), rows.slice(Math.min(a, b), Math.max(a, b) + 1).filter((r) => r.kind !== "member"))); return; }
+        }
+        if (mods && mods.toggle) { chooseItems(toggleItem(currentSel(), item)); return; }
+        chooseItems([item]);
+    };
+
+    // the rubber band: Pointer Events on window, the hits are what it touches
+    useEffect(() => {
+        if (!banding) return undefined;
+        const move = (e: globalThis.PointerEvent) => {
+            const b = bandRef.current;
+            const p = toBoard(e.clientX, e.clientY);
+            if (!p) return;
+            if (!b.moved && Math.abs(e.clientX - b.cx) + Math.abs(e.clientY - b.cy) < 5) return;
+            b.moved = true;
+            setBand(bandBox(b.x0, b.y0, Math.max(0, Math.min(1, p.x)), Math.max(0, Math.min(1, p.y))));
+        };
+        const up = (e: globalThis.PointerEvent) => {
+            const b = bandRef.current;
+            setBanding(false);
+            setBand(null);
+            if (!b.moved) return;
+            const p = toBoard(e.clientX, e.clientY);
+            if (!p) return;
+            const box = bandBox(b.x0, b.y0, Math.max(0, Math.min(1, p.x)), Math.max(0, Math.min(1, p.y)));
+            const hits = hitObjects(boardNow.current, box, boardPx());
+            chooseItems(b.add ? addItems(b.base, hits) : hits);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [banding]);
+
+    /** A corner grip of the shared frame: scales the whole selection around the frame's middle (the pointer's distance from it decides). */
+    const startScale = (e: PointerEvent<HTMLElement>) => {
+        if (e.button !== 0 || multi.length < 2) return;
+        e.preventDefault();
+        const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : null;
+        if (!rect) return;
+        const c = centerOf(boardNow.current, multi);
+        const cx = rect.left + c.x * rect.width;
+        const cy = rect.top + c.y * rect.height;
+        scaleRef.current = { board0: boardNow.current, sel: multi, center: c, d0: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy };
+        setScaling(true);
+    };
+    useEffect(() => {
+        if (!scaling) return undefined;
+        const move = (e: globalThis.PointerEvent) => {
+            const s = scaleRef.current;
+            const f = Math.max(0.1, Math.min(8, Math.hypot(e.clientX - s.cx, e.clientY - s.cy) / s.d0));
+            edit(() => scaleSelection(s.board0, s.sel, f, s.center), true);
+        };
+        const up = () => setScaling(false);
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scaling]);
+
     // ---- the properties panel ------------------------------------------------------------
     const focusProperties = (selector = "input, select") => {
         setTab("props");
@@ -377,6 +529,14 @@ export default function BoardWorkspace({
     const onKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => {
         if (!canWrite) return;
         const step = e.shiftKey ? 0.05 : 0.01;
+        if (multi.length > 1 && hasItem(multi, { kind, id })) {
+            const dirs: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+            if (dirs[e.key]) { e.preventDefault(); multiAction((b, sel) => moveSelection(b, sel, dirs[e.key][0], dirs[e.key][1], boardPx()), true); }
+            else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); doDelete(); }
+            else if (e.key === "+" || e.key === "=") { e.preventDefault(); multiAction((b, sel) => scaleSelection(b, sel, 1.1, centerOf(b, sel)), true); }
+            else if (e.key === "-") { e.preventDefault(); multiAction((b, sel) => scaleSelection(b, sel, 1 / 1.1, centerOf(b, sel)), true); }
+            return;
+        }
         const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
         if (moves[e.key]) {
             e.preventDefault();
@@ -410,12 +570,17 @@ export default function BoardWorkspace({
             const tag = (e.target as HTMLElement).tagName;
             if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
             const mod = e.ctrlKey || e.metaKey;
-            if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); history.undo(); }
+            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && scope !== "general") { e.preventDefault(); chooseItems(selectableItems(boardNow.current)); }
+            else if (canWrite && mod && e.key.toLowerCase() === "d") { e.preventDefault(); doDuplicate(); }
+            else if (canWrite && mod && e.key.toLowerCase() === "c") { if (currentSel().length > 0) { e.preventDefault(); doCopy(); } }
+            else if (canWrite && mod && e.key.toLowerCase() === "v") { if (clip.current) { e.preventDefault(); doPaste(); } }
+            else if (e.key === "Escape" && (multi.length > 0 || selected) && !document.querySelector("dialog[open]")) { chooseItems([]); }
+            else if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); history.undo(); }
             else if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); history.redo(); }
         };
         window.addEventListener("keydown", onWindowKey);
         return () => window.removeEventListener("keydown", onWindowKey);
-    }, [history]);
+    });
 
     // Alt + mouse wheel scales the selected object (a native listener: a wheel handler of React's is passive and could not stop the page from scrolling)
     const selectedNow = useRef<Selection>(null);
@@ -437,14 +602,26 @@ export default function BoardWorkspace({
     const openMenu = (x: number, y: number, target: Selection | "board") => {
         if (!canWrite) return;
         const p = toBoard(x, y);
-        if (target !== "board" && target) setSelected(target);
-        else setSelected(null);
+        // a right click on one of several selected objects keeps the selection (the menu then acts on all of them)
+        if (target !== "board" && target && multi.length > 1 && hasItem(multi, target as SelItem)) { /* keep */ }
+        else if (target !== "board" && target) { setMulti([]); setSelected(target); }
+        else chooseItems([]);
         setMenu({ x, y, target, at: p ? { x: Math.max(0, Math.min(1, p.x)), y: Math.max(0, Math.min(1, p.y)) } : null });
     };
     const onContext = (e: MouseEvent<HTMLElement>, target: Selection) => openMenu(e.clientX, e.clientY, target || "board");
 
+    const inMulti = (target: Selection | "board") => !!target && target !== "board" && multi.length > 1 && hasItem(multi, target as SelItem);
+    const multiMenu = (): MenuItem[] => {
+        const it = (id: string, section: string, danger = false): MenuItem => ({ id, section, disabled: false, danger });
+        return [
+            it("m:duplicate", "main"), it("m:front", "order"), it("m:back", "order"), it("m:lock", "order"), it("m:unlock", "order"), it("m:hide", "order"),
+            it("m:alignLeft", "align"), it("m:alignRight", "align"), it("m:alignTop", "align"), it("m:alignBottom", "align"), it("m:alignCenterH", "align"), it("m:alignCenterV", "align"),
+            it("m:distH", "align"), it("m:distV", "align"), it("m:delete", "end", true),
+        ];
+    };
     const menuItems = (): MenuItem[] => {
         if (!menu) return [];
+        if (inMulti(menu.target)) return multiMenu();
         if (menu.target === "board") return contextMenuItems("board", { locked: false, hasPlayer: false, isEvent, kind: "" });
         const sel = menu.target;
         if (!sel) return [];
@@ -468,7 +645,22 @@ export default function BoardWorkspace({
         const target = menu.target;
         if (id === "properties") { focusProperties(); return; }
         if (id === "assign") { focusProperties("[data-insp-player]"); return; }
-        if (id === "deselect") { setSelected(null); return; }
+        if (id === "deselect") { chooseItems([]); return; }
+        if (id.startsWith("m:")) {
+            const px = boardPx();
+            const act = id.slice(2);
+            if (act === "duplicate") doDuplicate();
+            else if (act === "delete") doDelete();
+            else if (act === "front" || act === "back") multiAction((b, sel) => reorderSelection(b, sel, act));
+            else if (act === "lock") multiAction((b, sel) => setLookSelection(b, sel, { lock: true }));
+            else if (act === "unlock") multiAction((b, sel) => setLookSelection(b, sel, { lock: false }));
+            else if (act === "hide") { multiAction((b, sel) => setLookSelection(b, sel, { hidden: true })); chooseItems([]); }
+            else {
+                const modes: Record<string, string> = { alignLeft: "left", alignRight: "right", alignTop: "top", alignBottom: "bottom", alignCenterH: "centerH", alignCenterV: "centerV", distH: "distH", distV: "distV" };
+                if (modes[act]) multiAction((b, sel) => alignSelection(b, sel, modes[act], px));
+            }
+            return;
+        }
         const sel = target === "board" ? null : target;
         const r = applyMenuAction(board, id, sel ? sel.kind : "", sel ? sel.id : "", menu.at);
         if (r.blocked) { toast(t("raidBoard.slot.allPlaced", { what: t(`raidBoard.slot.kind.${r.blocked}`) })); return; }
@@ -479,7 +671,17 @@ export default function BoardWorkspace({
 
     const boardWrapDown = (e: PointerEvent<HTMLDivElement>) => {
         const el = e.target as HTMLElement;
-        if (!el.closest(".rp-token, .rp-zone, .rp-text, .rp-line-hit")) setSelected(null);
+        const onObject = !!el.closest(".rp-token, .rp-zone, .rp-text, .rp-line-hit, .rp-handle, .rp-multibox");
+        const add = e.ctrlKey || e.metaKey || e.shiftKey;
+        // a rubber band from empty ground (a finger needs the selection mode; long press stays the context menu)
+        if (!onObject && canWrite && e.button === 0 && scope !== "general" && (e.pointerType !== "touch" || selectMode)) {
+            const p = toBoard(e.clientX, e.clientY);
+            if (p && p.inside) {
+                bandRef.current = { x0: p.x, y0: p.y, add, base: add ? currentSel() : [], moved: false, cx: e.clientX, cy: e.clientY };
+                setBanding(true);
+            }
+        }
+        if (!onObject && !add) chooseItems([]);
         // long press = right click on touch
         if (e.pointerType === "touch" && canWrite) {
             const x = e.clientX;
@@ -533,6 +735,7 @@ export default function BoardWorkspace({
                     <span className="rp-tool-sep" aria-hidden="true" />
                     <div className="rp-tool-group">
                         <IconButton size="sm" icon={<PanelLeft size={17} />} tip={t("raidBoard.tool.palette")} aria-pressed={showPalette} className={showPalette ? "is-on" : ""} onClick={() => setShowPalette((v) => !v)} />
+                        <IconButton size="sm" icon={<BoxSelect size={17} />} tip={t("raidBoard.tool.select")} aria-pressed={selectMode} className={selectMode ? "is-on" : ""} disabled={!canWrite} onClick={() => setSelectMode((v) => !v)} />
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
@@ -595,6 +798,7 @@ export default function BoardWorkspace({
                         onContext={canWrite ? onContext : undefined}
                         links={links}
                         maxHeight={mapPx}
+                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite ? startScale : undefined}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>
@@ -628,8 +832,8 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && <Inspector board={board} selection={selected} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
-                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">
                                     <MapOpacityField board={board} canWrite={canWrite} edit={edit} />

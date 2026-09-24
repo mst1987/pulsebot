@@ -258,7 +258,8 @@
         "text": "Text",
         "palette": "Elemente ein-/ausblenden",
         "panel": "Eigenschaften ein-/ausblenden",
-        "bes": "Besetzung ein-/ausblenden"
+        "bes": "Besetzung ein-/ausblenden",
+        "select": "Auswahlmodus (Antippen fügt hinzu / nimmt heraus, Gummiband auf leerer Fläche)"
     },
     "palette": {
         "title": "Elemente",
@@ -346,7 +347,22 @@
         "split_on": "Aufsplitten",
         "split_off": "Zusammenfassen",
         "resetpos": "Position zurücksetzen",
-        "face": "Blick nach {dir}"
+        "face": "Blick nach {dir}",
+        "m_duplicate": "Auswahl duplizieren",
+        "m_front": "In den Vordergrund",
+        "m_back": "In den Hintergrund",
+        "m_lock": "Auswahl sperren",
+        "m_unlock": "Auswahl entsperren",
+        "m_hide": "Auswahl ausblenden",
+        "m_alignLeft": "Links ausrichten",
+        "m_alignRight": "Rechts ausrichten",
+        "m_alignTop": "Oben ausrichten",
+        "m_alignBottom": "Unten ausrichten",
+        "m_alignCenterH": "Horizontal zentrieren",
+        "m_alignCenterV": "Vertikal zentrieren",
+        "m_distH": "Horizontal verteilen",
+        "m_distV": "Vertikal verteilen",
+        "m_delete": "Auswahl löschen"
     },
     "icon": {
         "boss": "Boss",
@@ -551,5 +567,13 @@
         "colOrder": "#",
         "colTargetAbility": "Ziel / Ability",
         "groupHeal": "Gruppenheilung"
+    },
+    "multi": {
+        "count": "{n} ausgewählt",
+        "mixed": "gemischt",
+        "hide": "Ausblenden",
+        "align": "Ausrichten",
+        "skipped": "{n} Objekt(e) übersprungen: Slots der Besetzung und Spieler werden nicht kopiert.",
+        "hint": "Ziehen verschiebt alle, Entf löscht alle, +/− und die Eck-Griffe skalieren, Strg+D dupliziert, Esc hebt auf. Ein Strg+Z macht die ganze Aktion rückgängig."
     }
 }
