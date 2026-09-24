@@ -357,7 +357,9 @@
         "showLabel": "Show label",
         "facing": "Facing (°)",
         "compass": "Compass direction",
-        "facingHint": "Drag the handle above the icon to turn it (Shift = 15° steps), Q / E turn by 15°."
+        "facingHint": "Drag the handle above the icon to turn it (Shift = 15° steps), Q / E turn by 15°.",
+        "autoFace": "Face the tank automatically",
+        "autoFaceOn": "follows the tank"
     },
     "compass": {
         "N": "north",

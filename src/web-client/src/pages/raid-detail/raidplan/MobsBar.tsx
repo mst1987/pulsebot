@@ -38,7 +38,7 @@ export default function MobsBar({ mobs, board, catalog, bossKey, instanceId, can
                     <span key={m.id} className={`rp-mobchip${added.has(m.id) ? " is-added" : ""}`}>
                         <span className="rp-achip"><MobIcon icon={m.icon} size={20} /><span>{m.name}</span></span>
                         {canWrite && (
-                            <button type="button" className="rp-mobchip-btn" aria-label={t("raidBoard.mobs.onMap", { name: m.name })} data-tip={t("raidBoard.mobs.onMap", { name: m.name })} onClick={() => edit((b) => insertObject(b, { type: "icon", iconKey: mobIconKey(m.icon), label: m.name }, null).board)}>
+                            <button type="button" className="rp-mobchip-btn" aria-label={t("raidBoard.mobs.onMap", { name: m.name })} data-tip={t("raidBoard.mobs.onMap", { name: m.name })} onClick={() => edit((b) => insertObject(b, { type: "icon", iconKey: mobIconKey(m.icon), label: m.name, mobId: m.id }, null).board)}>
                                 <Crosshair size={13} />
                             </button>
                         )}

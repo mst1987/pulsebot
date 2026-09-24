@@ -7,7 +7,7 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, canFace, groupMembers, groupTag, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
-import type { AssignLink } from "../../lib/assign";
+import { facingOf, type AssignLink } from "../../lib/assign";
 import "../../styles/raidplan.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
@@ -275,7 +275,7 @@ export default function PlanBoard({
                                     </span>
                                 )}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${i.rotation || 0}deg)` }} aria-hidden="true">
+                                    <span className="rp-facing" style={{ transform: `rotate(${facingOf(boardLike, i, ar)}deg)` }} aria-hidden="true">
                                         <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
                                         {editable && !i.lock && isSel("icon", i.id) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />

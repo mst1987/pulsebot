@@ -4128,7 +4128,7 @@ export type RaidplanSlot = { id: string; kind: RaidplanSlotKind; n: number; labe
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
 /** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */
-export type RaidplanIcon = { id: string; iconKey: string; label: string; showLabel: boolean; x: number; y: number; size: number; rotation: number } & RaidplanLook;
+export type RaidplanIcon = { id: string; iconKey: string; label: string; showLabel: boolean; x: number; y: number; size: number; rotation: number; /** the mob it stands for ("" = none) */ mobId: string; /** turns to the tank of that mob by itself (default on) */ autoFace: boolean } & RaidplanLook;
 export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
 export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number } & RaidplanLook;

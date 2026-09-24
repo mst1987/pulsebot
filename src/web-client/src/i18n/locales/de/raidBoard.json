@@ -357,7 +357,9 @@
         "showLabel": "Beschriftung anzeigen",
         "facing": "Blickrichtung (°)",
         "compass": "Himmelsrichtung",
-        "facingHint": "Ziehen am Griff über dem Icon dreht (Umschalt = 15°-Schritte), Q / E drehen um 15°."
+        "facingHint": "Ziehen am Griff über dem Icon dreht (Umschalt = 15°-Schritte), Q / E drehen um 15°.",
+        "autoFace": "Automatisch zum Tank",
+        "autoFaceOn": "folgt dem Tank"
     },
     "compass": {
         "N": "Norden",

@@ -62,6 +62,7 @@ const SLOT_KINDS = ["tank", "healer", "melee", "ranged", "dps", "group", "label"
 // sizes in px: the default and the range of what can be set
 const SIZES = { token: [38, 24, 96], mark: [34, 16, 96], icon: [48, 20, 200] };
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
+const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
 const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
@@ -186,7 +187,9 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
         icons.push({
             id: cleanId(o.id, iconIds), iconKey: str(o.iconKey), label: str(o.label).slice(0, LIMITS.label),
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "icon"),
-            rotation: normAngle(o.rotation), showLabel: o.showLabel === true, ...common(o),
+            rotation: normAngle(o.rotation), showLabel: o.showLabel === true,
+            // the mob this icon stands for (b:<boss key>, d:<catalog id>, c:<custom id>) and whether it turns to the tank of that mob by itself
+            mobId: MOB_ID.test(str(o.mobId)) ? str(o.mobId) : "", autoFace: o.autoFace !== false, ...common(o),
         });
     }
 

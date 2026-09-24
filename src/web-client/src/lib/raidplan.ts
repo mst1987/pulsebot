@@ -48,7 +48,7 @@ export type InsertSpec =
     | { type: "zone"; zoneType: string; shape: string }
     | { type: "line"; kind: string }
     | { type: "text"; text: string }
-    | { type: "icon"; iconKey: string; label: string }
+    | { type: "icon"; iconKey: string; label: string; mobId?: string }
     | { type: "place"; slotId: string };
 export type MenuItem = { id: string; section: string; disabled: boolean; danger: boolean };
 export type LayerRow = { kind: ObjectKind; id: string; name: string; lock: boolean; hidden: boolean };
@@ -233,7 +233,7 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
         return { board: { ...board, marks: [...board.marks, { id, mark: spec.mark as RaidplanMarkName, x: p.x, y: p.y, size: SIZE_RANGES.mark.def, ...newLook(1) }] }, sel: { kind: "mark", id } };
     }
     if (spec.type === "icon") {
-        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, showLabel: false, ...newLook(1) };
+        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, showLabel: false, mobId: spec.mobId || "", autoFace: true, ...newLook(1) };
         return { board: { ...board, icons: [...board.icons, icon] }, sel: { kind: "icon", id } };
     }
     if (spec.type === "zone") {
@@ -976,7 +976,24 @@ export function effectiveCounts(board: RaidplanBoard, besetzung: Besetzung, rost
  */
 export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
     if (!besetzung) return board;
-    return fillBesetzung(repairSlots(board, besetzung, roster), besetzung, roster);
+    return fillBesetzung(repairSlots(dropGone(board, roster), besetzung, roster), besetzung, roster);
+}
+
+/**
+ * Whoever is no longer in the event's lineup (the setup changed after the plan was made) is taken off the board: their slot
+ * is open again and a free token of them is removed, so nothing keeps showing a player who is not there. With no roster
+ * (a template, or a setup not loaded yet) nothing is touched. Returns the same board when nobody is gone.
+ */
+export function dropGone(board: RaidplanBoard, roster: RaidplanPlayer[]): RaidplanBoard {
+    if (roster.length === 0) return board;
+    const known = new Set(roster.map((p) => p.userId));
+    const gone = board.slots.some((s) => s.userId && !known.has(s.userId)) || board.tokens.some((k) => !known.has(k.userId));
+    if (!gone) return board;
+    return {
+        ...board,
+        slots: board.slots.map((s) => (s.userId && !known.has(s.userId) ? { ...s, userId: "" } : s)),
+        tokens: board.tokens.filter((k) => known.has(k.userId)),
+    };
 }
 
 function fillBesetzung(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): RaidplanBoard {

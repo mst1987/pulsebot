@@ -6,6 +6,7 @@ import {
 } from "../../api";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
+import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
     applyProfile, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, toSave,
@@ -68,6 +69,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const reloadMaps = () => {
         getRaidplan(eventId).then((v) => setView((cur) => (cur ? { ...cur, bosses: v.bosses } : v))).catch(() => {});
     };
+
+    /** The setup may have changed elsewhere (another tab, another orga): fetch the lineup again when this window comes back, keep the draft. */
+    useOnFocus(() => {
+        getRaidplan(eventId).then((v) => setView((cur) => (cur ? { ...cur, roster: v.roster, besetzung: v.besetzung, catalog: v.catalog } : cur))).catch(() => {});
+    });
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
     const roster = useMemo(() => (view ? view.roster : []), [view]);

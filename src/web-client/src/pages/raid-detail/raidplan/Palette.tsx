@@ -84,7 +84,7 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
             </div>
             <h3 className="rp-kicker">{t("raidBoard.palette.encounter")}</h3>
             <div className="rp-pal-grid">
-                {ordered.map((b) => entry(`boss-${b.key}`, { type: "icon", iconKey: iconKeyForBoss(b.iconUrl), label: b.name }, b.name, <img className="rp-pal-boss" src={b.iconUrl} alt="" width={28} height={28} draggable={false} />))}
+                {ordered.map((b) => entry(`boss-${b.key}`, { type: "icon", iconKey: iconKeyForBoss(b.iconUrl), label: b.name, mobId: `b:${b.key}` }, b.name, <img className="rp-pal-boss" src={b.iconUrl} alt="" width={28} height={28} draggable={false} />))}
                 {entry("enemy", { type: "icon", iconKey: "enemy", label: "" }, t("raidBoard.icon.enemy"), <Swords size={22} />)}
                 {entry("bosspos", { type: "icon", iconKey: "bosspos", label: "" }, t("raidBoard.icon.bosspos"), <Crosshair size={22} />)}
             </div>

@@ -421,11 +421,11 @@ export type AssignLink = { key: string; x1: number; y1: number; x2: number; y2: 
 function position(board: RaidplanBoard, kind: string, ref: string) {
     if (kind === "slot") {
         const p = ref.split(":");
-        const s = board.slots.find((x) => x.kind === p[0] && x.n === Number(p[1]) && !x.hidden);
+        const s = board.slots.find((x) => x.kind === p[0] && x.n === Number(p[1]) && !x.hidden && x.placed !== false);
         return s ? { x: s.x, y: s.y } : null;
     }
     if (kind === "group") {
-        const s = board.slots.find((x) => x.kind === "group" && x.n === Number(ref) && !x.hidden);
+        const s = board.slots.find((x) => x.kind === "group" && x.n === Number(ref) && !x.hidden && x.placed !== false);
         return s ? { x: s.x, y: s.y } : null;
     }
     if (kind === "mark") {
@@ -433,7 +433,7 @@ function position(board: RaidplanBoard, kind: string, ref: string) {
         return m ? { x: m.x, y: m.y } : null;
     }
     if (kind === "player" || kind === "user") {
-        const s = board.slots.find((x) => x.userId === ref && !x.hidden);
+        const s = board.slots.find((x) => x.userId === ref && !x.hidden && x.placed !== false);
         if (s) return { x: s.x, y: s.y };
         const tk = board.tokens.find((x) => x.userId === ref && !x.hidden);
         return tk ? { x: tk.x, y: tk.y } : null;
@@ -441,7 +441,7 @@ function position(board: RaidplanBoard, kind: string, ref: string) {
     return null;
 }
 
-/** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are on the board. */
+/** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are ON THE MAP: a slot or group that only stands in the Besetzung (placed: false) has no place, so no line is drawn to or from it. */
 export function assignmentLinks(board: RaidplanBoard): AssignLink[] {
     const out = [];
     for (const a of board.assignments) {
@@ -457,6 +457,46 @@ export function assignmentLinks(board: RaidplanBoard): AssignLink[] {
         }
     }
     return out;
+}
+
+/**
+ * The tank a mob has: the first assignee (in the order they were picked) of a tank row that targets the mob and whose
+ * place is on the map (a slot that is placed, or a free token). Null when there is none — then nothing turns by itself.
+ */
+export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number } | null {
+    if (!mobId) return null;
+    for (const a of board.assignments) {
+        const type = a.type as string;
+        if (type !== "tank" && type !== "trashtank") continue;
+        if (!a.targets.some((tg) => tg.kind === "mob" && tg.ref === mobId)) continue;
+        for (const r of a.assignees) {
+            const p = r.split(":");
+            const at = p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : position(board, "user", p[1]);
+            if (at) return at;
+        }
+    }
+    return null;
+}
+
+/** The angle (0 = straight up, clockwise, degrees) from a point to another, on a board that is `ar` times as wide as high. */
+export function angleBetween(from: { x: number; y: number }, to: { x: number; y: number }, ar: number): number {
+    const dx = (to.x - from.x) * ar;
+    const dy = to.y - from.y;
+    if (dx === 0 && dy === 0) return 0;
+    const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
+    return Math.round(((deg % 360) + 360) % 360);
+}
+
+/** The facing an icon is drawn with: towards its mob's tank when it follows the tank and one is on the map, else its own rotation. */
+export function facingOf(board: RaidplanBoard, icon: { x: number; y: number; rotation: number; mobId?: string; autoFace?: boolean }, ar: number): number {
+    if (icon.autoFace === false || !icon.mobId) return icon.rotation || 0;
+    const tank = tankOfMob(board, icon.mobId);
+    return tank ? angleBetween(icon, tank, ar) : icon.rotation || 0;
+}
+
+/** Whether an icon is turned by its tank right now (for the inspector's hint). */
+export function followsTank(board: RaidplanBoard, icon: { mobId?: string; autoFace?: boolean }): boolean {
+    return icon.autoFace !== false && !!icon.mobId && tankOfMob(board, icon.mobId) !== null;
 }
 
 /** How many assignments a board has (the boss chip's dot counts them too). */

@@ -190,7 +190,7 @@ export default function BoardWorkspace({
             if (!p) return;
             if (d.handle === "rot" && d.center) {
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
-                edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a }), true);
+                edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
             } else if (d.handle === "size" && d.size0 && d.center && d.d0) {
                 const dist = Math.hypot(e.clientX - d.center.x, e.clientY - d.center.y);
                 const next2 = d.size0 * (dist / d.d0);

@@ -8,6 +8,7 @@ import {
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
+import { followsTank } from "../../../lib/assign";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";
@@ -214,13 +215,19 @@ export default function Inspector({ board, selection, players, roster, isEvent, 
                     <label className="rp-check"><input type="checkbox" checked={icon.showLabel} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { showLabel: e.target.checked }))} /> {t("raidBoard.icon.showLabel")}</label>
                     {canFace(icon.iconKey) && (
                         <>
-                            <SizeField label={t("raidBoard.icon.facing")} value={icon.rotation} min={0} max={359} step={1} onChange={(v) => !dis && edit((b) => updateIcon(b, id, { rotation: normAngle(v) }), true)} />
+                            {icon.mobId && (
+                                <label className="rp-check">
+                                    <input type="checkbox" checked={icon.autoFace} disabled={dis} onChange={(e) => edit((b) => updateIcon(b, id, { autoFace: e.target.checked }))} /> {t("raidBoard.icon.autoFace")}
+                                    {followsTank(board, icon) && <span className="rp-muted"> · {t("raidBoard.icon.autoFaceOn")}</span>}
+                                </label>
+                            )}
+                            <SizeField label={t("raidBoard.icon.facing")} value={icon.rotation} min={0} max={359} step={1} onChange={(v) => !dis && edit((b) => updateIcon(b, id, { rotation: normAngle(v), autoFace: false }), true)} />
                             <div className="rp-compass" role="group" aria-label={t("raidBoard.icon.compass")}>
                                 {COMPASS.map((a, n) => (
                                     <button
                                         key={a} type="button" className={`rp-compass-btn${icon.rotation === a ? " is-on" : ""}`} disabled={dis} aria-pressed={icon.rotation === a}
                                         aria-label={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)} data-tip={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)}
-                                        onClick={() => edit((b) => updateIcon(b, id, { rotation: a }))}
+                                        onClick={() => edit((b) => updateIcon(b, id, { rotation: a, autoFace: false }))}
                                     >{COMPASS_ARROWS[n]}</button>
                                 ))}
                             </div>
