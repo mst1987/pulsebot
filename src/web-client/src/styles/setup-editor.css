@@ -159,7 +159,7 @@
 .se-slots { display: flex; flex-direction: column; gap: 4px; padding: 6px; min-height: 48px; }
 
 /* one raider */
-.se-slot { box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; gap: 9px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: var(--panel2); cursor: grab; min-width: 0; }
+.se-slot { position: relative; box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; gap: 9px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: var(--panel2); cursor: grab; min-width: 0; }
 .se-slot:hover { border-color: var(--line); }
 .se-slot:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .se-slot.se-picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
@@ -170,10 +170,14 @@
 .se-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-offrole { color: var(--medium); font-weight: 700; }
-.se-lock { width: 26px; height: 26px; border: 0; background: none; color: var(--muted); opacity: 0; flex: 0 0 auto; }
+/* the lock is an overlay, not a column: it takes no width from the name. Locked = a small icon in the corner; hovering the slot brings the full button */
+.se-lock { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: var(--panel2); color: var(--muted); opacity: 0; }
 .se-lock svg { width: 14px; height: 14px; }
-.se-slot:hover .se-lock, .se-slot:focus-within .se-lock, .se-lock.is-on { opacity: 1; }
-.se-lock.is-on { color: var(--accent); }
+.se-slot:hover .se-lock, .se-slot:focus-within .se-lock { opacity: 1; }
+.se-lock.is-on { opacity: 1; top: 4px; right: 5px; transform: none; width: 14px; height: 14px; background: none; color: var(--accent); }
+.se-lock.is-on svg { width: 12px; height: 12px; }
+.se-slot:hover .se-lock.is-on, .se-slot:focus-within .se-lock.is-on { top: 50%; right: 4px; transform: translateY(-50%); width: 24px; height: 24px; background: var(--panel2); }
+.se-slot:hover .se-lock.is-on svg, .se-slot:focus-within .se-lock.is-on svg { width: 14px; height: 14px; }
 
 /* the summary column */
 .se-side { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
@@ -228,7 +232,7 @@
 .se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
 .se-compact .se-sub { display: none; }
 .se-compact .se-name { font-size: 13.5px; }
-.se-compact .se-lock { width: 20px; height: 20px; }
+.se-compact .se-slot:hover .se-lock, .se-compact .se-slot:focus-within .se-lock { width: 20px; height: 20px; }
 .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
 .se-compact .se-group-title { font-size: 13.5px; }
 .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }

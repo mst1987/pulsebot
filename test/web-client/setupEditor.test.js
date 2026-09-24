@@ -493,6 +493,15 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("se-suggest");
     });
 
+    it("draws the lock as an overlay that takes no width from the raider's name", () => {
+        const css = read("styles", "setup-editor.css");
+        expect(css).toMatch(/\.se-slot \{ position: relative;/);
+        expect(css).toMatch(/\.se-lock \{ position: absolute;/);
+        // locked: a small icon in the corner, no flex column of its own
+        expect(css).toMatch(/\.se-lock\.is-on \{[^}]*opacity: 1;[^}]*width: 14px/);
+        expect(css).not.toMatch(/\.se-lock \{[^}]*flex: 0 0 auto/);
+    });
+
     it("shows the spec tile only (no role icon), the name in full and the auto badge not in capitals", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).not.toContain("ROLE_ICONS");
