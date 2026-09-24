@@ -8,7 +8,7 @@ import { ROLE_ICON, iconForTask, iconForText, isMe, resolveAssignee, resolveTarg
 import { cleanNames } from "../../../lib/mention";
 import Mentions from "../../../components/raidplan/Mentions";
 import { groupHealByGroup, healerGroups, simpleTables, tankTable } from "../../../lib/planTables";
-import { mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
+import { mergeGroupRuns, mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
 import TypeBadge from "./TypeBadge";
@@ -55,7 +55,7 @@ function WhoList({ list, me, names = [], ctx }: { list: Resolved[]; me: string[]
  * CARD per assignment in fixed columns - [icon] | who | arrow | at whom / what | extras. All targets of a row sit in its card; what acts on the visitor
  * shows who does it and himself (or his group) as the one highlighted receiver. The columns are shared by the cards of a block (a subgrid).
  */
-function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ctx: AssignCtx; me: string[]; names: string[] }) {
+export function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ctx: AssignCtx; me: string[]; names: string[] }) {
     const t = useT();
     return (
         <>
@@ -76,7 +76,7 @@ function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ctx: Assi
                                     <ArrowRight className="rp-mcard-arrow" size={18} aria-hidden="true" />
                                     <span className="rp-mcard-to">
                                         {card.whoMe
-                                            ? (card.to.length > 0 ? <WhoList list={card.to.map((tg) => resolveTarget(tg, ctx))} me={me} names={names} ctx={ctx} /> : <span className="rp-muted">{"\u2013"}</span>)
+                                            ? (card.to.length > 0 ? <WhoList list={mergeGroupRuns(card.to.map((tg) => resolveTarget(tg, ctx)), (a, b) => t("raidBoard.slot.groupRange", { a, b }))} me={me} names={names} ctx={ctx} /> : <span className="rp-muted">{"\u2013"}</span>)
                                             : <span className="rp-recipient">{card.recipient === "group" ? t("raidBoard.mine.yourGroup", { n: card.group }) : t("raidBoard.mine.you")}</span>}
                                     </span>
                                     <span className="rp-mcard-note">

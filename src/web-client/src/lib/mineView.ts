@@ -4,7 +4,7 @@
 // Pure and tested (test/web-client/mineView.test.js); written with function declarations and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget } from "../api";
 import { isMe, resolveAssignee, resolveTarget } from "./assign";
-import type { AssignCtx } from "./assign";
+import type { AssignCtx, Resolved } from "./assign";
 import { mentionsInRow } from "./mention";
 
 /** The groups of tasks in the fixed order they are shown; `badge` = the type whose icon and colour heads the group. */
@@ -86,4 +86,28 @@ export function mineCard(r: MineRow): MineCard {
     const text = [a.spell ? a.spell.name : "", a.title].filter(Boolean).join(": ");
     if (r.mode === "do") return { id: a.id, type: a.type, text, whoMe: true, who: [], to: a.targets, recipient: "", group: 0, order: r.order, alsoOnMe: r.alsoOnMe, note: a.note };
     return { id: a.id, type: a.type, text, whoMe: false, who: a.assignees, to: [], recipient: r.via === "group" ? "group" : r.via === "text" ? "text" : "me", group: r.group, order: 0, alsoOnMe: false, note: a.note };
+}
+
+/**
+ * Runs of three or more consecutive groups among resolved targets become ONE entry ("Gruppe 1-3"): `label(from, to)` names it; single groups, pairs and
+ * everything that is no group stay as they are, in their order (a run stands where its first group stood).
+ */
+export function mergeGroupRuns(list: Resolved[], label: (from: number, to: number) => string): Resolved[] {
+    const nums = list.filter((r) => r.kind === "group").map((r) => r.group).sort((a, b) => a - b);
+    const runs = [];
+    for (const n of nums) {
+        const last = runs[runs.length - 1];
+        if (last && n === last.to + 1) last.to = n;
+        else if (!last || n > last.to + 1) runs.push({ from: n, to: n });
+    }
+    const merged = runs.filter((r) => r.to - r.from >= 2);
+    if (merged.length === 0) return list;
+    const out = [];
+    for (const r of list) {
+        if (r.kind !== "group") { out.push(r); continue; }
+        const run = merged.find((m) => r.group >= m.from && r.group <= m.to);
+        if (!run) out.push(r);
+        else if (r.group === run.from) out.push({ ...r, label: label(run.from, run.to), ref: `${run.from}-${run.to}` });
+    }
+    return out;
 }

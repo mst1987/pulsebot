@@ -99,3 +99,22 @@ describe("the card of one row", () => {
         expect(card).toMatchObject({ text: "Kick: Fear", order: 2, alsoOnMe: true });
     });
 });
+
+describe("runs of groups", () => {
+    const g = (n) => ({ kind: "group", ref: String(n), label: `Gruppe ${n}`, group: n, player: null, open: false, mark: "", role: "", icon: "" });
+    const pl = { kind: "player", ref: "u", label: "Tank", group: 0, player: null, open: false, mark: "", role: "", icon: "" };
+    const name = (a, b) => `Gruppe ${a}-${b}`;
+    it("three or more consecutive groups become one entry where the first stood; pairs and singles stay", () => {
+        const r = mv.mergeGroupRuns([g(1), g(2), g(3), pl, g(5)], name);
+        expect(r.map((x) => x.label)).toEqual(["Gruppe 1-3", "Tank", "Gruppe 5"]);
+        expect(r[0].ref).toBe("1-3");
+        const two = [g(1), g(2), g(5)];
+        expect(mv.mergeGroupRuns(two, name)).toBe(two);
+    });
+    it("works on an unordered list and several runs", () => {
+        const r = mv.mergeGroupRuns([g(5), g(1), g(4), g(2), g(3), g(6)], name);
+        expect(r.map((x) => x.label)).toEqual(["Gruppe 1-6"]);
+        const s = mv.mergeGroupRuns([g(1), g(2), g(3), g(7), g(8), g(9)], name);
+        expect(s.map((x) => x.label)).toEqual(["Gruppe 1-3", "Gruppe 7-9"]);
+    });
+});

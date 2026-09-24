@@ -193,7 +193,8 @@
         "groupHint": "Ein Gruppen-Marker nennt die Spieler der Setup-Gruppe mit dieser Nummer.",
         "melee": "Melee {n}",
         "ranged": "Ranged {n}",
-        "allPlaced": "Alle {what} sind schon auf der Map. Neue Slots entstehen nur über + / − in der Besetzung."
+        "allPlaced": "Alle {what} sind schon auf der Map. Neue Slots entstehen nur über + / − in der Besetzung.",
+        "groupRange": "Gruppe {a}–{b}"
     },
     "mark": {
         "skull": "Totenkopf",
@@ -685,7 +686,8 @@
             "warrior": "Thunder Clap / Demo Shout",
             "other": "Sonstiges"
         },
-        "yourGroup": "Deine Gruppe ({n})"
+        "yourGroup": "Deine Gruppe ({n})",
+        "preview": "Vorschau: Meine Aufgaben (so sieht es das Sheet für dich)"
     },
     "group": {
         "style": "Aussehen von Gruppe {n}",

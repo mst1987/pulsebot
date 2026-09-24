@@ -19,6 +19,7 @@ import {
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
+import MyTasksPreview from "./MyTasksPreview";
 import Palette from "./Palette";
 import Inspector, { MapOpacityField, ObjectScaleField } from "./Inspector";
 import LayerList from "./LayerList";
@@ -935,6 +936,7 @@ export default function BoardWorkspace({
                     profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
                     inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults}
                 />
+                {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
                 <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
             </div>
             {rosterOpen && <AssignRosterModal board={board} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onClose={() => setRosterOpen(false)} />}

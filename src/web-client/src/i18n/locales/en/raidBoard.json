@@ -193,7 +193,8 @@
         "groupHint": "A group marker names the players of the setup group with this number.",
         "melee": "Melee {n}",
         "ranged": "Ranged {n}",
-        "allPlaced": "All {what} are on the map already. New slots only come from + / - in the roster slots."
+        "allPlaced": "All {what} are on the map already. New slots only come from + / - in the roster slots.",
+        "groupRange": "Group {a}–{b}"
     },
     "mark": {
         "skull": "Skull",
@@ -685,7 +686,8 @@
             "warrior": "Thunder Clap / Demo Shout",
             "other": "Other"
         },
-        "yourGroup": "Your group ({n})"
+        "yourGroup": "Your group ({n})",
+        "preview": "Preview: my tasks (how the read view shows it to you)"
     },
     "group": {
         "style": "Look of group {n}",
