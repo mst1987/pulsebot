@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { SEARCH_FROM, filterItems, paginate, placeFlyout, rangeKeys, sectionsOf, ticked, toggleAllKeys, type FlyItem, type FlyPlace, type FlySection } from "../../lib/flyout";
+import { SEARCH_FROM, filterItems, paginate, rangeKeys, sectionsOf, ticked, toggleAllKeys, type FlyItem, type FlySection } from "../../lib/flyout";
 import { useT } from "../../i18n";
 
 export type FlyoutOption = FlyItem & { node: ReactNode };
@@ -32,7 +32,6 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
     const [page, setPage] = useState(0);
     const [cap, setCap] = useState(36);
     const [text, setText] = useState("");
-    const [place, setPlace] = useState<FlyPlace | null>(null);
     const panel = useRef<HTMLDivElement>(null);
     const body = useRef<HTMLDivElement>(null);
     const last = useRef("");
@@ -49,20 +48,6 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
         const el = body.current;
         if (el && el.scrollHeight > el.clientHeight + 1 && cap > 4) setCap((c) => Math.max(4, c - 2));
     }, [cap, at, visible, query, tab, shown.length]);
-
-    // Beside the card (or row) that opened it.
-    useLayoutEffect(() => {
-        const place2 = () => {
-            const el = panel.current;
-            if (!el || !anchor) return;
-            const ref = (anchor.closest(".rp-acard, .rp-mobs") || anchor).getBoundingClientRect();
-            const tr = anchor.getBoundingClientRect();
-            setPlace(placeFlyout(ref, tr, { w: el.offsetWidth, h: el.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }));
-        };
-        place2();
-        window.addEventListener("resize", place2);
-        return () => window.removeEventListener("resize", place2);
-    }, [anchor, cap, at, visible.length, tab]);
 
     useEffect(() => {
         const away = (e: Event) => {
@@ -93,6 +78,8 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
 
     const keys = (e: KeyboardEvent<HTMLElement>) => {
         if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); return; }
+        // Enter confirms (a chip or a button does its own thing with it; the search field and the dialog itself end it)
+        if (e.key === "Enter" && ((e.target as HTMLElement).tagName === "INPUT" && (e.target as HTMLElement).className.indexOf("rp-fly-search") >= 0)) { e.preventDefault(); close(); return; }
         const el = panel.current;
         if (!el) return;
         if (e.key === "Tab") {
@@ -125,13 +112,9 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
     const sectionKeys = (s: FlySection) => toggleAllKeys({ title: s.title, items: visible.filter((v) => v.group === s.title) });
     const count = ticked(options);
     return createPortal(
-        <div
-            ref={panel} className={`rp-fly${place && place.side === "sheet" ? " is-sheet" : ""}`} role="dialog" aria-label={title} aria-modal="false" tabIndex={-1}
-            style={place && place.side !== "sheet" ? { left: place.left, top: place.top } : place ? { top: place.top } : { visibility: "hidden" }}
-            onKeyDown={keys}
-        >
-            {place && place.side === "right" && <span className="rp-fly-arrow is-left" style={{ top: place.arrowTop }} aria-hidden="true" />}
-            {place && place.side === "left" && <span className="rp-fly-arrow is-right" style={{ top: place.arrowTop }} aria-hidden="true" />}
+        <>
+        <div className="rp-fly-back" onClick={close} aria-hidden="true" />
+        <div ref={panel} className="rp-fly is-modal" role="dialog" aria-label={title} aria-modal="true" tabIndex={-1} onKeyDown={keys}>
             <header className="rp-fly-head">
                 <strong>{title}</strong>
                 {count > 0 && <span className="rp-fly-count" aria-label={t("raidBoard.fly.ticked", { count })}>{count}</span>}
@@ -184,7 +167,8 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
                     )}
                 </footer>
             )}
-        </div>,
+        </div>
+        </>,
         document.body,
     );
 }

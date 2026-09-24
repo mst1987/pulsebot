@@ -458,7 +458,8 @@
         "hideCardTitle": "Hide the \"{type}\" card?",
         "removeCardTitle": "Remove the \"{type}\" card?",
         "removeCardText": "{count} rows of this card are deleted. Ctrl+Z undoes it.",
-        "hide": "Hide"
+        "hide": "Hide",
+        "outOfClass": "Not the preferred class of this assignment"
     },
     "bes": {
         "title": "Roster slots",
@@ -499,5 +500,25 @@
         "prev": "Previous page",
         "next": "Next page",
         "ticked": "{count} selected"
+    },
+    "am": {
+        "none": "Nothing found",
+        "cancel": "Cancel",
+        "done": "Done",
+        "hint": "Enter = Done, Esc = Cancel",
+        "task": "Task",
+        "search": "Search …",
+        "classes": "Preferred class",
+        "allowOthers": "Allow other classes",
+        "classHint": "Suggestions take these classes first. If nobody fits the row stays empty, unless you allow others.",
+        "suggest": "Suggest assignees"
+    },
+    "split": {
+        "label": "Map height",
+        "tip": "Drag: make the map bigger or smaller (arrow up/down)",
+        "size": "Map size",
+        "stepS": "Small map",
+        "stepM": "Medium map",
+        "stepL": "Large map"
     }
 }

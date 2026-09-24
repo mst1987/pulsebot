@@ -48,6 +48,12 @@ const CLASS_RULES = {
 // The curses handed out, in the order of the warlocks.
 const CURSES = ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom"];
 
+const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+/** A list of class ids as stored: only known classes, each once, in the order given. */
+function cleanClasses(raw) {
+    return [...new Set((Array.isArray(raw) ? raw : []).map((c) => String(c === null || c === undefined ? "" : c).trim()).filter((c) => CLASS_IDS.includes(c)))];
+}
+
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const newId = () => require("crypto").randomBytes(5).toString("hex");
 
@@ -99,6 +105,8 @@ function cleanAssignments(raw, allowed = new Set()) {
         out.push({
             id, type: ASSIGN_TYPES.includes(o.type) ? o.type : "other", title: str(o.title).slice(0, LIMITS.title), spell, assignees, targets,
             note: str(o.note).slice(0, LIMITS.note), suggested: o.suggested === true,
+            // the class(es) that should do it (only known classes, once each) and whether a suggestion may take others when none fits
+            preferredClasses: cleanClasses(o.preferredClasses), allowOthers: o.allowOthers === true,
         });
     }
     return { assignments: out, dropped };
@@ -113,18 +121,21 @@ function reidAssignments(list) {
 
 const slotsOf = (slots, kind) => (slots || []).filter((s) => s.kind === kind).sort((a, b) => a.n - b.n);
 const refOf = (s) => `slot:${s.kind}:${s.n}`;
-const make = (type, assignees, targets, spell = null) => ({ id: newId(), type, title: "", spell, assignees, targets, note: "", suggested: true });
+const make = (type, assignees, targets, spell = null, pref = [], allowOthers = false) => ({ id: newId(), type, title: "", spell, assignees, targets, note: "", suggested: true, preferredClasses: cleanClasses(pref), allowOthers: allowOthers === true });
 
 // The catalog is read lazily (the catalog store needs this module's type list).
 const catalog = () => require("./raidplanCatalogStore");
 
 /** The classes that fit a type: the catalog's spells of that type say it; without any, the built in rules. */
-function classesFor(type) {
+function classesFor(type, prefer = [], allowOthers = false) {
     const fromCatalog = catalog().classesOf(type);
     const rules = CLASS_RULES[type] || [];
-    if (!fromCatalog.length) return rules;
     // the built in order (rogue before mage ...) first, then what the admin added
-    return [...rules.filter((c) => fromCatalog.includes(c)), ...fromCatalog.filter((c) => !rules.includes(c))];
+    const base = fromCatalog.length ? [...rules.filter((c) => fromCatalog.includes(c)), ...fromCatalog.filter((c) => !rules.includes(c))] : rules;
+    const pref = cleanClasses(prefer);
+    if (!pref.length) return base;
+    // a row's own preferred classes win over the catalog's; the usual classes only follow when others are allowed
+    return allowOthers ? [...pref, ...base.filter((c) => !pref.includes(c))] : pref;
 }
 
 /** A row's spell as it is stored: the catalog entry with a snapshot of name and icon; one of the class first, else the first of the type. */
@@ -142,8 +153,15 @@ function spellFor(type, classId, index = 0) {
  * on a tie). Healers are the board's healer slots; without slots the roster's healers
  * (`user:` refs). Returns one assignment per healer that has a target.
  */
-function suggestHeal({ slots = [], roster = [], groups = [] }) {
-    const healerSlots = slotsOf(slots, "healer");
+function suggestHeal({ slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false }) {
+    let healerSlots = slotsOf(slots, "healer");
+    const pref = cleanClasses(preferredClasses);
+    if (pref.length && healerSlots.length) {
+        // healers of the preferred class first; the others only when they are allowed (an empty slot has no class and stays)
+        const cls = (s) => (roster.find((p) => p.userId === s.userId) || {}).classId;
+        const fits = healerSlots.filter((s) => !s.userId || pref.includes(cls(s)));
+        healerSlots = allowOthers ? [...fits, ...healerSlots.filter((s) => !fits.includes(s))] : fits;
+    }
     const healers = healerSlots.length ? healerSlots.map(refOf) : roster.filter((p) => p.role === "healer").map((p) => `user:${p.userId}`);
     const tanks = slotsOf(slots, "tank").map((s) => ({ kind: "slot", ref: `tank:${s.n}` }));
     if (!healers.length) return [];
@@ -159,41 +177,43 @@ function suggestHeal({ slots = [], roster = [], groups = [] }) {
         targets[best].push({ kind: "group", ref: String(g) });
         load[best] += 1;
     }
-    return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", "")) : null)).filter(Boolean);
+    return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", ""), preferredClasses, allowOthers) : null)).filter(Boolean);
 }
 
 const players = (roster, classIds) => roster.filter((p) => classIds.includes(p.classId));
 
 /** Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid. */
-function suggest(type, { slots = [], roster = [], groups = [] } = {}) {
+function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false } = {}) {
     const tanks = slotsOf(slots, "tank");
-    if (type === "heal") return suggestHeal({ slots, roster, groups });
+    const pc = cleanClasses(preferredClasses);
+    const classes = (t) => classesFor(t, pc, allowOthers);
+    if (type === "heal") return suggestHeal({ slots, roster, groups, preferredClasses: pc, allowOthers });
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
     }
     if (type === "kick") {
         // rogues first, then shaman, warriors, mages; a rotation of at most three
-        const order = classesFor("kick");
+        const order = classes("kick");
         const c = roster.filter((p) => order.includes(p.classId)).sort((a, b) => order.indexOf(a.classId) - order.indexOf(b.classId)).slice(0, 3);
-        return c.length ? [make("kick", c.map((p) => `user:${p.userId}`), [])] : [];
+        return c.length ? [make("kick", c.map((p) => `user:${p.userId}`), [], null, pc, allowOthers)] : [];
     }
     if (type === "md" || type === "fearward") {
         // hunters first (a rogue's Tricks of the Trade is the second choice)
-        const cls = classesFor(type);
+        const cls = classes(type);
         const pool = players(roster, cls).sort((a, b) => cls.indexOf(a.classId) - cls.indexOf(b.classId));
-        return pool.slice(0, tanks.length).map((p, i) => make(type, [`user:${p.userId}`], [{ kind: "slot", ref: `tank:${tanks[i].n}` }], spellFor(type, p.classId)));
+        return pool.slice(0, tanks.length).map((p, i) => make(type, [`user:${p.userId}`], [{ kind: "slot", ref: `tank:${tanks[i].n}` }], spellFor(type, p.classId), pc, allowOthers));
     }
     if (type === "ss") {
         const healers = roster.filter((p) => p.role === "healer");
-        return players(roster, classesFor("ss")).slice(0, healers.length).map((p, i) => make("ss", [`user:${p.userId}`], [{ kind: "player", ref: healers[i].userId }], spellFor("ss", p.classId)));
+        return players(roster, classes("ss")).slice(0, healers.length).map((p, i) => make("ss", [`user:${p.userId}`], [{ kind: "player", ref: healers[i].userId }], spellFor("ss", p.classId), pc, allowOthers));
     }
     if (type === "curse") {
         // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
         const curses = catalog().spellsOfType("curse");
-        return players(roster, classesFor("curse")).slice(0, Math.min(3, curses.length || CURSES.length)).map((p, i) => make("curse", [`user:${p.userId}`], [], curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null));
+        return players(roster, classes("curse")).slice(0, Math.min(3, curses.length || CURSES.length)).map((p, i) => make("curse", [`user:${p.userId}`], [], curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null));
     }
     if (type === "thunderclap" || type === "demoshout") {
-        const w = players(roster, classesFor(type));
+        const w = players(roster, classes(type));
         const tanksFirst = type === "thunderclap" ? [...w.filter((p) => p.role === "tank"), ...w.filter((p) => p.role !== "tank")] : w;
         const pick = tanksFirst.slice(0, type === "thunderclap" ? 2 : 3);
         return pick.length ? [make(type, pick.map((p) => `user:${p.userId}`), [], spellFor(type, "Warrior"))] : [];
@@ -219,6 +239,6 @@ function targetsToAssignments(targets, known) {
 }
 
 module.exports = {
-    ASSIGN_TYPES, TARGET_KINDS, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
+    ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

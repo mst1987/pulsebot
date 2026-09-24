@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../../../components/raidplan/Flyout";
-import { ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
-import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanSpellRef, type RaidplanPlayer } from "../../../api";
+import AssignModal from "./AssignModal";
+import { AlertTriangle, ArrowRight, EyeOff, Swords, ChevronDown, LayoutGrid, Users, ChevronLeft, ChevronRight, Plus, ScrollText, StickyNote, Trash2, Wand2, X } from "lucide-react";
+import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { Badge, IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, classIconOf, outOfClass, playersByClass, ASSIGN_META, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, isMe, myTasks, tasksByAssignee, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, isMine, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -88,18 +89,16 @@ export function SlotPickChip({ r, n }: { r: Resolved; n: number }) {
 const SPELL_TYPES = ["curse", "thunderclap", "demoshout", "md", "ss", "fearward", "kick", "dispel", "cc", "buff", "tank"];
 const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "other"];
 
-function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, spellOptions, spellRefOf, sectionMobs, noteOpen, onNote }: {
+function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onEdit }: {
     a: RaidplanAssignment;
     canWrite: boolean;
     ctx: AssignCtx;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
-    assigneeOptions: (a: RaidplanAssignment) => Option[];
-    targetOptions: (a: RaidplanAssignment) => Option[];
     spellOptions: (a: RaidplanAssignment) => Option[];
-    spellRefOf: (id: string) => RaidplanSpellRef | null;
-    sectionMobs: RaidplanMobRef[];
     noteOpen: boolean;
     onNote: () => void;
+    /** Opens the row's dialog (who, at what, which class). */
+    onEdit: (id: string) => void;
 }) {
     const t = useT();
     const rotation = a.type === "kick" && a.assignees.length > 1;
@@ -114,7 +113,7 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, spe
                         {canWrite && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={() => edit((b) => patchAssignment(b, a.id, { spell: null }))}><X size={12} /></button>}
                     </span>
                 ) : canWrite && spellOptions(a).length > 0 && (
-                    <ChipPicker label={t("raidBoard.assign.pickSpell")} options={spellOptions(a)} onToggle={(k) => edit((b) => patchAssignment(b, a.id, { spell: spellOptions(a).length ? spellRefOf(k) : null }))} />
+                    <IconButton size="sm" icon={<Plus size={14} />} tip={t("raidBoard.assign.pickSpell")} onClick={() => onEdit(a.id)} />
                 ))}
                 {canWrite ? (
                     <input
@@ -128,10 +127,15 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, spe
             </div>
             <div className="rp-arow-main">
                 <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.assignees")}>
+                    {(a.preferredClasses || []).length > 0 && (
+                        <span className="rp-classhint" data-tip={(a.preferredClasses || []).map((c) => t(`wow.class.${c}`)).join(", ")}>
+                            {(a.preferredClasses || []).map((c) => <WowIcon key={c} name={classIconOf(c)} size={18} />)}
+                        </span>
+                    )}
                     {a.assignees.map((ref, i) => (
                         <AssignChip
                             key={ref} r={resolveAssignee(ref, ctx)}
-                            extra={rotation ? <span className="rp-achip-no">{i + 1}</span> : undefined}
+                            extra={<>{rotation ? <span className="rp-achip-no">{i + 1}</span> : null}{outOfClass(a, resolveAssignee(ref, ctx).player) && <AlertTriangle size={12} className="rp-oop" aria-label={t("raidBoard.assign.outOfClass")} data-tip={t("raidBoard.assign.outOfClass")} />}</>}
                             onRemove={canWrite ? () => edit((b) => toggleAssignee(b, a.id, ref)) : undefined}
                         />
                     ))}
@@ -145,21 +149,14 @@ function AssignRow({ a, canWrite, ctx, edit, assigneeOptions, targetOptions, spe
                             ))}
                         </span>
                     )}
-                    {canWrite && <ChipPicker label={t("raidBoard.assign.addAssignee")} options={assigneeOptions(a)} onToggle={(k) => edit((b) => toggleAssignee(b, a.id, k))} />}
+                    {canWrite && <button type="button" className="rp-achip rp-achip-add" aria-label={t("raidBoard.assign.addAssignee")} data-tip={t("raidBoard.assign.addAssignee")} onClick={() => onEdit(a.id)}><Plus size={14} /></button>}
                 </span>
                 <span className="rp-aarrow" aria-hidden="true"><ArrowRight size={14} /></span>
                 <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.targets")}>
                     {a.targets.map((tg) => (
                         <AssignChip key={`${tg.kind}|${tg.ref}`} r={resolveTarget(tg, ctx)} onRemove={canWrite ? () => edit((b) => toggleTarget(b, a.id, tg)) : undefined} />
                     ))}
-                    {canWrite && (
-                        <ChipPicker
-                            label={t("raidBoard.assign.addTarget")} options={targetOptions(a)}
-                            onToggle={(k) => { const i = k.indexOf("|"); const kind = k.slice(0, i) as RaidplanAssignTarget["kind"]; const ref = k.slice(i + 1); const mob = kind === "mob" ? sectionMobs.find((m) => m.id === ref) : undefined; edit((b) => toggleTarget(b, a.id, mob ? mobTarget(mob) : { kind, ref })); }}
-                            textPlaceholder={t("raidBoard.assign.textTarget")}
-                            onText={(text) => edit((b) => (a.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, a.id, { kind: "text", ref: text })))}
-                        />
-                    )}
+                    {canWrite && <button type="button" className="rp-achip rp-achip-add" aria-label={t("raidBoard.assign.addTarget")} data-tip={t("raidBoard.assign.addTarget")} onClick={() => onEdit(a.id)}><Plus size={14} /></button>}
                 </span>
             </div>
             {showNote && (canWrite ? (
@@ -205,6 +202,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const [extra, setExtra] = useState<string[]>([]);
     const [folded, setFolded] = useState<string[]>([]);
     const [view, setView] = useState<"cards" | "players">("cards");
+    const [editing, setEditing] = useState("");
     const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog }), [board.slots, players, catalog]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
@@ -258,8 +256,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             out.push({ key: ref, label: r.player ? `${r.label}: ${r.player.character}` : r.label, on: a.assignees.indexOf(ref) >= 0, group: t(`raidBoard.slot.kind.${s.kind}`), node: <SlotPickChip r={r} n={s.n} /> });
         }
         if (isEvent) {
-            const fit = roster.filter((p) => fitsType(a.type, p, catalog));
-            const rest = roster.filter((p) => !fitsType(a.type, p, catalog));
+            const fits = (p: RaidplanPlayer) => (a.preferredClasses && a.preferredClasses.length > 0 ? a.preferredClasses.indexOf(p.classId) >= 0 : fitsType(a.type, p, catalog));
+            const fit = playersByClass(roster.filter(fits), a.preferredClasses || []);
+            const rest = roster.filter((p) => !fits(p));
             const add = (list: RaidplanPlayer[], group: string) => {
                 for (const p of list) {
                     const ref = `user:${p.userId}`;
@@ -300,8 +299,40 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         return out;
     };
 
+    /** A target chip of the dialog: toggles it on the dialog's copy of the board. */
+    const toggleTargetKey = (b: RaidplanBoard, id: string, k: string): RaidplanBoard => {
+        const i = k.indexOf("|");
+        const kind = k.slice(0, i) as RaidplanAssignTarget["kind"];
+        const ref = k.slice(i + 1);
+        const mob = kind === "mob" ? sectionMobs.find((m) => m.id === ref) : undefined;
+        return toggleTarget(b, id, mob ? mobTarget(mob) : { kind, ref });
+    };
+    /** The dialog's "Vorschlag": the server picks the assignees for the row's type and classes (rows are not touched until "Fertig"). */
+    const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
+        try {
+            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: a.preferredClasses || [], allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
+            if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
+            return r.assignments[0].assignees;
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+            return null;
+        }
+    };
+
     return (
         <section className="rp-assign" aria-label={t("raidBoard.assign.title")}>
+            {editing && board.assignments.some((x) => x.id === editing) && (
+                <AssignModal
+                    board={board} rowId={editing} isEvent={isEvent} title={t(`raidBoard.assign.type.${(board.assignments.find((x) => x.id === editing) || { type: "other" }).type}`)}
+                    assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions}
+                    onTarget={toggleTargetKey}
+                    onText={(b, id, text) => (b.assignments.find((x) => x.id === id)?.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, id, { kind: "text", ref: text }))}
+                    onSpell={(b, id, k) => patchAssignment(b, id, { spell: (b.assignments.find((x) => x.id === id)?.spell || { id: "" }).id === k ? null : spellRefOf(k) })}
+                    onSuggest={suggestAssignees}
+                    onDone={(row) => { edit((b) => ({ ...b, assignments: b.assignments.map((x) => (x.id === row.id ? { ...row, suggested: false } : x)) })); setEditing(""); }}
+                    onClose={() => setEditing("")}
+                />
+            )}
             <div className="rp-assign-head">
                 <h3 className="rp-kicker">{t("raidBoard.assign.title")} · {board.assignments.length}</h3>
                 <div className="rp-assign-tools">
@@ -355,8 +386,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                     {rows.length === 0 && <li className="rp-muted rp-acard-empty">{t("raidBoard.assign.cardEmpty")}</li>}
                                     {rows.map((a) => (
                                         <AssignRow
-                                            key={a.id} a={a} canWrite={canWrite} ctx={ctx} edit={edit} assigneeOptions={assigneeOptions} targetOptions={targetOptions} spellOptions={spellOptions} spellRefOf={spellRefOf} sectionMobs={sectionMobs}
-                                            noteOpen={noteOpen.indexOf(a.id) >= 0} onNote={() => setNoteOpen([...noteOpen, a.id])}
+                                            key={a.id} a={a} canWrite={canWrite} ctx={ctx} edit={edit} spellOptions={spellOptions}
+                                            noteOpen={noteOpen.indexOf(a.id) >= 0} onNote={() => setNoteOpen([...noteOpen, a.id])} onEdit={setEditing}
                                         />
                                     ))}
                                 </ul>

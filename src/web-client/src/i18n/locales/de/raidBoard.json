@@ -458,7 +458,8 @@
         "hideCardTitle": "Karte „{type}“ ausblenden?",
         "removeCardTitle": "Karte „{type}“ entfernen?",
         "removeCardText": "{count} Zeilen dieser Karte werden gelöscht. Mit Strg+Z lässt es sich rückgängig machen.",
-        "hide": "Ausblenden"
+        "hide": "Ausblenden",
+        "outOfClass": "Nicht die bevorzugte Klasse dieser Einteilung"
     },
     "bes": {
         "title": "Besetzung",
@@ -499,5 +500,25 @@
         "prev": "Vorherige Seite",
         "next": "Nächste Seite",
         "ticked": "{count} ausgewählt"
+    },
+    "am": {
+        "none": "Nichts gefunden",
+        "cancel": "Abbrechen",
+        "done": "Fertig",
+        "hint": "Enter = Fertig, Esc = Abbrechen",
+        "task": "Aufgabe",
+        "search": "Suchen …",
+        "classes": "Bevorzugte Klasse",
+        "allowOthers": "Andere Klassen zulassen",
+        "classHint": "Vorschläge nehmen zuerst diese Klassen. Passt niemand, bleibt die Zeile leer – außer du lässt andere zu.",
+        "suggest": "Zuständige vorschlagen"
+    },
+    "split": {
+        "label": "Höhe der Map",
+        "tip": "Ziehen: Map größer oder kleiner (Pfeil hoch/runter)",
+        "size": "Größe der Map",
+        "stepS": "Map klein",
+        "stepM": "Map mittel",
+        "stepL": "Map groß"
     }
 }

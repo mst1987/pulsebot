@@ -247,7 +247,7 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [], roles = {} } = {}) {
+function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false } = {}) {
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     const roster = (event ? editorRoster(event) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
@@ -256,7 +256,7 @@ function suggestFor(type, { event = null, slots = [], roles = {} } = {}) {
     let clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
     // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
-    return assign.suggest(type, { slots: clean, roster, groups });
+    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true });
 }
 
 /** The Besetzung of an event without a template: its size, the planned tanks and healers, the damage dealers split evenly. */

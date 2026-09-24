@@ -631,6 +631,29 @@ export function groupMembers(slot: RaidplanSlot, roster: RaidplanPlayer[]): Raid
     return roster.filter((p) => p.group === slot.n);
 }
 
+/** The height steps of the map (S / M / L: a share of the window's height), or a height set by hand with the splitter (C). */
+type StepShares = Record<string, number>;
+export const MAP_STEPS = { S: 0.27, M: 0.36, L: 0.52 } as StepShares;
+export type MapSize = { step: "S" | "M" | "L" | "C"; px: number };
+export const DEFAULT_MAP_SIZE = { step: "M", px: 0 } as MapSize;
+
+/** The map's height in px for a window height: a step is a share of it, a hand-set height stays (kept inside 200 px .. window - 160). */
+export function mapHeight(size: MapSize, vh: number): number {
+    const share = MAP_STEPS[size.step];
+    const px = size.step === "C" ? size.px : Math.round(vh * (share || 0.36));
+    return Math.max(200, Math.min(Math.max(200, vh - 160), Math.round(px)));
+}
+
+/** What was remembered (JSON text) as a map size; anything else is the default. */
+export function parseMapSize(raw: string | null): MapSize {
+    try {
+        const v = JSON.parse(raw || "null");
+        if (v && (v.step === "S" || v.step === "M" || v.step === "L")) return { step: v.step, px: 0 };
+        if (v && v.step === "C" && Number.isFinite(v.px)) return { step: "C", px: Math.max(200, Math.min(4000, Math.round(v.px))) };
+    } catch { /* not JSON */ }
+    return DEFAULT_MAP_SIZE;
+}
+
 /** How many placeholder tokens a split group shows in a template (no roster there): the size of a raid group. */
 export const GROUP_PLACEHOLDERS = 5;
 

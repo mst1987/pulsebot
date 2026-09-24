@@ -7,7 +7,7 @@ import { IconButton } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
 import { useT } from "../../../i18n";
 import {
-    angleTo, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
+    angleTo, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
@@ -115,7 +115,38 @@ export default function BoardWorkspace({
     const [selected, setSelected] = useState<Selection>(null);
     const [drag, setDrag] = useState<Drag | null>(null);
     const [menu, setMenu] = useState<Menu | null>(null);
-    const [tab, setTab] = useState<"assign" | "props" | "layers" | "bg">("assign");
+    const [tab, setTab] = useState<"props" | "layers" | "bg">("props");
+    const [mapSize, setMapSize] = useState<MapSize>(() => { try { return parseMapSize(window.localStorage.getItem("eh.raidplan.mapSize")); } catch { return DEFAULT_MAP_SIZE; } });
+    const [winH, setWinH] = useState(() => window.innerHeight);
+    const [splitting, setSplitting] = useState(false);
+    const splitRef = useRef({ y: 0, h: 0 });
+    const mapPx = mapHeight(mapSize, winH);
+    /** Sets and remembers the map's height. */
+    const chooseMapSize = (size: MapSize) => {
+        const next = size.step === "C" ? { step: "C" as const, px: mapHeight(size, winH) } : size;
+        setMapSize(next);
+        try { window.localStorage.setItem("eh.raidplan.mapSize", JSON.stringify(next)); } catch { /* private window */ }
+    };
+    const startSplit = (e: PointerEvent<HTMLElement>) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        splitRef.current = { y: e.clientY, h: mapPx };
+        setSplitting(true);
+    };
+    useEffect(() => {
+        const size = () => setWinH(window.innerHeight);
+        window.addEventListener("resize", size);
+        return () => window.removeEventListener("resize", size);
+    }, []);
+    useEffect(() => {
+        if (!splitting) return undefined;
+        const move = (e: globalThis.PointerEvent) => setMapSize({ step: "C", px: mapHeight({ step: "C", px: splitRef.current.h + e.clientY - splitRef.current.y }, window.innerHeight) });
+        const up = (e: globalThis.PointerEvent) => { setSplitting(false); chooseMapSize({ step: "C", px: splitRef.current.h + e.clientY - splitRef.current.y }); };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [splitting]);
     const [showBes, setShowBes] = useState(true);
     const [showPalette, setShowPalette] = useState(true);
     const [showPanel, setShowPanel] = useState(true);
@@ -505,6 +536,13 @@ export default function BoardWorkspace({
                         <IconButton size="sm" icon={<Users size={17} />} tip={t("raidBoard.tool.bes")} aria-pressed={showBes} className={showBes ? "is-on" : ""} onClick={() => setShowBes((v) => !v)} />
                         <IconButton size="sm" icon={<PanelRight size={17} />} tip={t("raidBoard.tool.panel")} aria-pressed={showPanel} className={showPanel ? "is-on" : ""} onClick={() => setShowPanel((v) => !v)} />
                     </div>
+                    {scope !== "general" && (
+                        <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>
+                            {["S", "M", "L"].map((k) => (
+                                <button key={k} type="button" className={`rp-mapsize-btn${mapSize.step === k ? " is-on" : ""}`} aria-pressed={mapSize.step === k} data-tip={t(`raidBoard.split.step${k}`)} onClick={() => chooseMapSize({ step: k as "S" | "M" | "L", px: 0 })}>{k}</button>
+                            ))}
+                        </div>
+                    )}
                     <div className="rp-tool-status">{status}</div>
                     <div className="rp-tool-group rp-tool-actions">{actions}</div>
                 </div>
@@ -527,28 +565,7 @@ export default function BoardWorkspace({
                 </div>
             )}
 
-            {isEvent && scope !== "general" && (
-                <section className={`rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
-                    <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
-                    {roster.length === 0 && <span className="rp-muted">{t("raidBoard.tray.none")}</span>}
-                    {roster.length > 0 && missing.length === 0 && <span className="rp-muted">{t("raidBoard.tray.empty")}</span>}
-                    <div className="rp-tray-list">
-                        {missing.map((p) => (
-                            <span
-                                key={p.userId}
-                                className={`rp-chip${canWrite ? " is-drag" : ""}`}
-                                data-tip={`${p.specLabel} ${p.className}`.trim()}
-                                onPointerDown={canWrite ? (e) => startDrag(e, "tray", p.userId) : undefined}
-                            >
-                                <TokenIcon player={p} size="sm" />
-                                <PlayerName player={p} />
-                            </span>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            <div className={`rp-stage2${showPanel ? "" : " no-dock"}${scope === "general" ? " is-only-dock" : ""}`}>
+            <div className={`rp-stage2${showPanel && scope !== "general" ? "" : " no-dock"}`}>
                 {scope !== "general" && (
                 <div
                     className="rp-board-wrap"
@@ -577,40 +594,69 @@ export default function BoardWorkspace({
                         onObjectOpen={canWrite ? (kind, id) => { setSelected({ kind, id }); focusProperties(); } : undefined}
                         onContext={canWrite ? onContext : undefined}
                         links={links}
+                        maxHeight={mapPx}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                 </div>
-                    )}
-                {showPanel && (
-                    <aside className="rp-dock" ref={panelRef} aria-label={t("raidBoard.panel.props")}>
-                        <div className="rp-dock-tabs" role="tablist">
-                            <button type="button" role="tab" aria-selected={tab === "assign"} className={tab === "assign" ? "is-on" : ""} onClick={() => setTab("assign")}>{t("raidBoard.assign.title")} <span className="rp-dock-n">{board.assignments.length}</span></button>
-                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>}
-                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>}
-                            {scope !== "general" && <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>}
-                        </div>
-                        {(tab === "assign" || scope === "general") && (
-                            <div className="rp-dock-assign">
-                                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
-                                <AssignPanel
-                                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
-                                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
-                                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
-                                />
-                                <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
-                            </div>
-                        )}
-                        {tab === "props" && scope !== "general" && <Inspector board={board} selection={selected} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
-                        {tab === "layers" && scope !== "general" && <LayerList board={board} players={players} selection={selected} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
-                        {tab === "bg" && scope !== "general" && (
-                            <div className="rp-bg">
-                                <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
-                                <ObjectScaleField board={board} canWrite={canWrite} edit={edit} />
-                                <MapPanel csrfToken={csrfToken} rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
-                            </div>
-                        )}
-                    </aside>
                 )}
+                {scope !== "general" && (showPanel || (isEvent && roster.length >= 0)) && (
+                    <div className="rp-side">
+                {isEvent && scope !== "general" && (
+                    <section className={`rp-tray${drag && drag.overTray ? " is-over" : ""}`} data-rp-tray aria-label={t("raidBoard.tray.title")}>
+                        <span className="rp-kicker">{t("raidBoard.tray.title")} · {missing.length}</span>
+                        {roster.length === 0 && <span className="rp-muted">{t("raidBoard.tray.none")}</span>}
+                        {roster.length > 0 && missing.length === 0 && <span className="rp-muted">{t("raidBoard.tray.empty")}</span>}
+                        <div className="rp-tray-list">
+                            {missing.map((p) => (
+                                <span
+                                    key={p.userId}
+                                    className={`rp-chip${canWrite ? " is-drag" : ""}`}
+                                    data-tip={`${p.specLabel} ${p.className}`.trim()}
+                                    onPointerDown={canWrite ? (e) => startDrag(e, "tray", p.userId) : undefined}
+                                >
+                                    <TokenIcon player={p} size="sm" />
+                                    <PlayerName player={p} />
+                                </span>
+                            ))}
+                        </div>
+                    </section>
+                )}
+                    {showPanel && scope !== "general" && (
+                        <aside className="rp-dock" ref={panelRef} aria-label={t("raidBoard.panel.props")}>
+                            <div className="rp-dock-tabs" role="tablist">
+                                <button type="button" role="tab" aria-selected={tab === "props"} className={tab === "props" ? "is-on" : ""} onClick={() => setTab("props")}>{t("raidBoard.panel.props")}</button>
+                                <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
+                                <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
+                            </div>
+                            {tab === "props" && <Inspector board={board} selection={selected} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} canWrite={canWrite} edit={edit} onSelect={setSelected} />}
+                            {tab === "bg" && (
+                                <div className="rp-bg">
+                                    <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
+                                    <ObjectScaleField board={board} canWrite={canWrite} edit={edit} />
+                                    <MapPanel csrfToken={csrfToken} rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
+                                </div>
+                            )}
+                        </aside>
+                    )}
+                    </div>
+                )}
+            </div>
+            {scope !== "general" && (
+                <div
+                    className="rp-splitter" role="separator" aria-orientation="horizontal" tabIndex={0} aria-label={t("raidBoard.split.label")} aria-valuenow={mapPx} data-tip={t("raidBoard.split.tip")}
+                    onPointerDown={startSplit}
+                    onKeyDown={(e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); chooseMapSize({ step: "C", px: mapPx + (e.key === "ArrowDown" ? 30 : -30) }); } }}
+                ><span aria-hidden="true" /></div>
+            )}
+            <div className="rp-below-map">
+                {scope !== "general" && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
+                <AssignPanel
+                    scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
+                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                    profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
+                />
+                <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
             </div>
             {canWrite && scope !== "general" && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 

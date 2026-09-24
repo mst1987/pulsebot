@@ -196,6 +196,32 @@ export function assignTypes(scope: string): string[] {
     return SCOPE_TYPES[scope] || SCOPE_TYPES.boss;
 }
 
+/** The classes a row is meant for: its own preferred classes, else the ones that can do its type (none = everybody). */
+export function rowClasses(row: { type: string; preferredClasses?: string[] }, catalog?: Catalog | null): string[] {
+    return row.preferredClasses && row.preferredClasses.length > 0 ? row.preferredClasses : classesForType(row.type, catalog);
+}
+
+/** The WoW classes a row can prefer, and a class's icon name. */
+export const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+export function classIconOf(classId: string): string {
+    return `classicon_${String(classId || "").toLowerCase()}`;
+}
+
+/** A player whose class is not among the row's preferred ones (the row names none: nobody is out of place). */
+export function outOfClass(row: { preferredClasses?: string[] }, player: { classId: string } | null): boolean {
+    return !!player && !!row.preferredClasses && row.preferredClasses.length > 0 && row.preferredClasses.indexOf(player.classId) < 0;
+}
+
+/** Players of a roster in the order a picker shows them: the preferred classes first (in the order they were chosen), then the rest. */
+export function playersByClass<T extends { classId: string }>(list: T[], preferred: string[]): T[] {
+    if (!preferred || preferred.length === 0) return list;
+    function rank(p) {
+        const i = preferred.indexOf(p.classId);
+        return i < 0 ? preferred.length : i;
+    }
+    return [...list].sort((a, b) => rank(a) - rank(b));
+}
+
 /** Whether a player's class is one the type suggests (no class list = everybody). */
 export function fitsType(type: string, player: RaidplanPlayer, catalog?: Catalog | null): boolean {
     const classes = classesForType(type, catalog);
@@ -367,7 +393,7 @@ function newRowId(): string {
 
 export function addAssignment(board: RaidplanBoard, type: string): { board: RaidplanBoard; id: string } {
     const id = newRowId();
-    const row = { id, type: type as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [], note: "", suggested: false };
+    const row = { id, type: type as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [], note: "", suggested: false, preferredClasses: [], allowOthers: false };
     return { board: { ...board, assignments: [...board.assignments, row] }, id };
 }
 

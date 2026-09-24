@@ -110,7 +110,7 @@ async function postSuggest(req, res) {
     let event = null;
     if (body.event) { event = eventOf(res, body.event); if (!event) return; }
     const type = String(body.type || "");
-    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles }) : [] });
+    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers }) : [] });
 }
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */

@@ -86,6 +86,8 @@ type BoardProps = {
     onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
     /** Thin connection lines (who heals whom), in board fractions. */
     links?: AssignLink[];
+    /** The map's height in px (the board is as wide as its aspect ratio makes it); without it: what fits the window. */
+    maxHeight?: number;
     /** Shown on the grid when there is no map. */
     emptyText?: string;
 };
@@ -130,7 +132,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", maxHeight, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -152,7 +154,7 @@ export default function PlanBoard({
         onDoubleClick: onObjectOpen ? () => onObjectOpen(kind, id) : undefined,
     } : {});
     const ar = aspect || 16 / 10;
-    const style = { aspectRatio: String(ar), maxWidth: `calc((100vh - 420px) * ${ar})` } as CSSProperties;
+    const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
