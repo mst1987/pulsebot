@@ -820,6 +820,7 @@ export default function BoardWorkspace({
                         objectScale={board.objectScale}
                         zones={board.zones}
                         lines={board.lines}
+                        assignments={board.assignments}
                         texts={board.texts}
                         players={players}
                         roster={roster}

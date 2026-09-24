@@ -19,6 +19,7 @@ import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
 import "../../styles/raidplan.css";
+import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 
 /**
  * Raid-Detail › Raidplan (an own event, docs/raidplan.md), inside the raid detail's
@@ -187,6 +188,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             )}
 
             {boss && (
+                <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
@@ -211,6 +213,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         </>
                     ) : undefined}
                 />
+                </RaidplanBoundary>
             )}
 
             <Modal open={modal === "template"} onClose={() => setModal("")} icon="inv_misc_map02" title={t("raidBoard.template.pickTitle")} width={520} hint={t("raidBoard.template.hint")}>

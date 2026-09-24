@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { Crosshair, Swords, Users } from "lucide-react";
-import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
+import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
 import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
@@ -87,6 +87,8 @@ type BoardProps = {
     onContext?: (e: MouseEvent<HTMLElement>, target: Selection) => void;
     /** Thin connection lines (who heals whom), in board fractions. */
     links?: AssignLink[];
+    /** The section's assignments: an icon that follows its tank needs the tank rows (none = nothing turns by itself). */
+    assignments?: RaidplanAssignment[];
     /** The rings round split groups: all shown (default) or all hidden. */
     showRings?: boolean;
     /** The other selected objects when several are selected (`selected` is then null). */
@@ -144,7 +146,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", maxHeight, showRings = true, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", assignments, maxHeight, showRings = true, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -178,7 +180,7 @@ export default function PlanBoard({
     const sizeHandle = (kind: ObjectKind, id: string, locked: boolean) => (editable && !locked && isSel(kind, id) ? (
         <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
     ) : null);
-    const boardLike = { tokens, slots } as unknown as RaidplanBoard;
+    const boardLike = { tokens, slots, assignments: assignments || [] } as unknown as RaidplanBoard;
 
     return (
         <div

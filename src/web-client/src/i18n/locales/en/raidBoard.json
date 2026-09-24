@@ -618,5 +618,12 @@
         "noSlots": "No slots.",
         "swapped": "Swapped: {a} <-> {b}",
         "classMissing": "{cls} is missing in the raid"
+    },
+    "crash": {
+        "title": "Something went wrong",
+        "text": "The raid plan could not be shown. Your saved data is not affected.",
+        "reload": "Reload",
+        "retry": "Try again",
+        "details": "Details"
     }
 }

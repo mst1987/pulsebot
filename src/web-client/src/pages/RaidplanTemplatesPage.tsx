@@ -32,6 +32,7 @@ import BossNav from "./raid-detail/raidplan/BossNav";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
 import "../styles/raidplan.css";
+import RaidplanBoundary from "../components/raidplan/RaidplanBoundary";
 
 type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };
 
@@ -127,7 +128,7 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
                 <div className="rp-thumb-inner" style={{ width: THUMB_W, transform: `scale(${k})` }}>
                     <PlanBoard
                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} mapOpacity={board.mapOpacity} objectScale={board.objectScale}
-                        tokens={[]} slots={board.slots} marks={board.marks} icons={board.icons} zones={board.zones} lines={board.lines} texts={board.texts}
+                        tokens={[]} assignments={board.assignments} slots={board.slots} marks={board.marks} icons={board.icons} zones={board.zones} lines={board.lines} texts={board.texts}
                         players={new Map()} roster={[]}
                     />
                 </div>
@@ -542,6 +543,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
             <p className="rp-muted">{t("planTemplates.editorHint")}</p>
 
             {boss && (
+                <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
@@ -558,6 +560,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                         </>
                     ) : undefined}
                 />
+                </RaidplanBoundary>
             )}
 
             {modal === "fields" && (

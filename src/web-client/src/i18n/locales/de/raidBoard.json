@@ -618,5 +618,12 @@
         "noSlots": "Keine Slots.",
         "swapped": "Getauscht: {a} ↔ {b}",
         "classMissing": "{cls} fehlt im Raid"
+    },
+    "crash": {
+        "title": "Etwas ist schiefgelaufen",
+        "text": "Der Raidplan konnte nicht angezeigt werden. Deine gespeicherten Daten sind nicht betroffen.",
+        "reload": "Neu laden",
+        "retry": "Erneut versuchen",
+        "details": "Details"
     }
 }

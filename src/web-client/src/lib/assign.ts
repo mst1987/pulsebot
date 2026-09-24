@@ -411,7 +411,7 @@ function newRowId(): string {
 export function addAssignment(board: RaidplanBoard, type: string): { board: RaidplanBoard; id: string } {
     const id = newRowId();
     const row = { id, type: type as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [], note: "", suggested: false, preferredClasses: [], allowOthers: false };
-    return { board: { ...board, assignments: [...board.assignments, row] }, id };
+    return { board: { ...board, assignments: [...(board.assignments || []), row] }, id };
 }
 
 /** Changes one row; touching it is an edit by hand, so it is no longer "Vorschlag". */
@@ -496,7 +496,7 @@ function linkPlayer(board: RaidplanBoard, kind: string, ref: string): string {
 /** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are ON THE MAP: a slot or group that only stands in the Besetzung (placed: false) has no place, so no line is drawn to or from it. */
 export function assignmentLinks(board: RaidplanBoard, me: string[] = []): AssignLink[] {
     const out = [];
-    for (const a of board.assignments) {
+    for (const a of board.assignments || []) {
         if (a.type !== "heal") continue;
         for (const r of a.assignees) {
             const p = r.split(":");
@@ -518,11 +518,11 @@ export function assignmentLinks(board: RaidplanBoard, me: string[] = []): Assign
  */
 export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number } | null {
     if (!mobId) return null;
-    for (const a of board.assignments) {
+    for (const a of board.assignments || []) {
         const type = a.type as string;
         if (type !== "tank" && type !== "trashtank") continue;
-        if (!a.targets.some((tg) => tg.kind === "mob" && tg.ref === mobId)) continue;
-        for (const r of a.assignees) {
+        if (!(a.targets || []).some((tg) => tg.kind === "mob" && tg.ref === mobId)) continue;
+        for (const r of a.assignees || []) {
             const p = r.split(":");
             const at = p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : position(board, "user", p[1]);
             if (at) return at;
@@ -554,7 +554,7 @@ export function followsTank(board: RaidplanBoard, icon: { mobId?: string; autoFa
 
 /** How many assignments a board has (the boss chip's dot counts them too). */
 export function assignmentCount(board: RaidplanBoard): number {
-    return board.assignments.length;
+    return (board.assignments || []).length;
 }
 
 export const ALL_MARKS = MARKS;

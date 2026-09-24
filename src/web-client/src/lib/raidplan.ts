@@ -1266,7 +1266,7 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 /** How many objects and rows a boss holds — the small dot next to it in the boss list. */
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
-    return objectCount(b) + b.assignments.length;
+    return objectCount(b) + (b.assignments || []).length;
 }
 
 /** Players by userId, for looking up who a token or an assignment is. */
