@@ -5,6 +5,7 @@ import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { sectionsOf, filterItems, type FlyItem } from "../../../lib/flyout";
 import { CLASS_IDS, classIconOf, patchAssignment, toggleAssignee } from "../../../lib/assign";
+import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
 import { useT } from "../../../i18n";
 
 export type PickOption = FlyItem & { node: ReactNode };
@@ -28,7 +29,8 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
     onSpell: (b: RaidplanBoard, id: string, key: string) => RaidplanBoard;
     /** The suggested assignees of a row for its classes (the server does the choosing). */
     onSuggest: (a: RaidplanAssignment) => Promise<string[] | null>;
-    onDone: (row: RaidplanAssignment) => void;
+    /** `slots` only when the classes were bound to slots in the dialog. */
+    onDone: (row: RaidplanAssignment, slots?: RaidplanBoard["slots"]) => void;
     onClose: () => void;
     isEvent: boolean;
 }) {
@@ -38,6 +40,7 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
     const [qTarget, setQTarget] = useState("");
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
+    const [bound, setBound] = useState(false);
     const row = tmp.assignments.find((a) => a.id === rowId);
     const set = (fn: (b: RaidplanBoard) => RaidplanBoard) => setTmp((b) => fn(b));
     const who = useMemo(() => (row ? filterItems(assigneeOptions(row), qWho, "") as PickOption[] : []), [row, qWho, assigneeOptions]);
@@ -67,11 +70,12 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
     });
     const suggest = async () => {
         setBusy(true);
-        const refs = await onSuggest(row);
+        const refs = await onSuggest({ ...row, preferredClasses: effectiveClasses(tmp, row) });
         setBusy(false);
         if (refs) set((b) => patchAssignment(b, rowId, { assignees: refs }));
     };
-    const done = () => onDone(row);
+    const done = () => onDone(row, bound ? tmp.slots : undefined);
+    const slotRefs = row.assignees.filter((r) => r.indexOf("slot:") === 0);
     return (
         <Modal
             open onClose={onClose} title={title} width={1500} initialFocus=".rp-am input"
@@ -116,6 +120,10 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                         <input type="checkbox" checked={!!row.allowOthers} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowOthers: e.target.checked }))} /> {t("raidBoard.am.allowOthers")}
                     </label>
                     <span className="rp-muted">{t("raidBoard.am.classHint")}</span>
+                    {slotRefs.length > 0 && (
+                        <Button variant="ghost" data-tip={t("raidBoard.am.bindTip")} onClick={() => { set((b) => bindClassesToSlots(b, row.assignees, row.preferredClasses || [])); setBound(true); }}>{t("raidBoard.am.bind")}</Button>
+                    )}
+                    {slotClassesOfRow(tmp, row).length > 0 && <span className="rp-muted">{t("raidBoard.am.boundTo", { cls: slotClassesOfRow(tmp, row).map((c) => t(`wow.class.${c}`)).join(", ") })}</span>}
                     {isEvent && (
                         <Button variant="ghost" onClick={suggest} disabled={busy}><Wand2 size={15} /> {t("raidBoard.am.suggest")}</Button>
                     )}

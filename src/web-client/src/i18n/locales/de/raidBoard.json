@@ -514,7 +514,9 @@
         "ownTip": "Diese Zahlen gelten nur für diesen Boss.",
         "reset": "Zurück auf die Zahlen des Raidtyps",
         "fitting": "Passende Rolle",
-        "others": "Weitere Spieler"
+        "others": "Weitere Spieler",
+        "refill": "Neu zuweisen nach Klasse",
+        "refillTip": "Klassengebundene Slots neu belegen"
     },
     "mobs": {
         "title": "Mobs",
@@ -545,7 +547,10 @@
         "classes": "Bevorzugte Klasse",
         "allowOthers": "Andere Klassen zulassen",
         "classHint": "Vorschläge nehmen zuerst diese Klassen. Passt niemand, bleibt die Zeile leer – außer du lässt andere zu.",
-        "suggest": "Zuständige vorschlagen"
+        "suggest": "Zuständige vorschlagen",
+        "bind": "Klasse an die Slots binden",
+        "bindTip": "Die gewaehlten Klassen gelten dann fuer die Slots dieser Zeile (z. B. DPS 3 = Schurke)",
+        "boundTo": "Slots verlangen: {cls}"
     },
     "split": {
         "label": "Höhe der Map",

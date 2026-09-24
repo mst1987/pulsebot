@@ -128,3 +128,37 @@ export function classStatus(slot: RaidplanSlot, roster: RaidplanPlayer[], board:
     const someone = roster.some((p) => wish.indexOf(p.classId) >= 0 && fitsSlot(slot.kind, roleOn(board, p)) && !slotOfPlayer(board, p.userId));
     return someone ? "open" : "missing";
 }
+
+/** The classes the role slots named as assignees of a row ask for (in the order of the row's assignees, each class once). */
+export function slotClassesOfRow(board: RaidplanBoard, row: { assignees: string[] }): string[] {
+    const out = [];
+    for (const ref of row.assignees || []) {
+        const p = ref.split(":");
+        if (p[0] !== "slot") continue;
+        const s = board.slots.find((x) => x.kind === p[1] && String(x.n) === p[2] && isRoleSlot(x));
+        for (const c of (s && s.preferredClasses) || []) if (out.indexOf(c) < 0) out.push(c);
+    }
+    return out;
+}
+
+/** The classes a row is suggested for: what its slots ask for wins over the row's own choice (and that over the catalog's default, decided by the caller). */
+export function effectiveClasses(board: RaidplanBoard, row: { assignees: string[]; preferredClasses?: string[] }): string[] {
+    const fromSlots = slotClassesOfRow(board, row);
+    return fromSlots.length > 0 ? fromSlots : row.preferredClasses || [];
+}
+
+/** Assigns the class-bound slots anew: a bound slot whose player is not of its class, or who was put there by class, is emptied; then the open slots are filled. */
+export function refillByClass(board: RaidplanBoard, roster: RaidplanPlayer[]): RaidplanBoard {
+    const byId = {};
+    for (const p of roster) byId[p.userId] = p;
+    const cleared = {
+        ...board,
+        slots: board.slots.map((s) => {
+            const wish = s.preferredClasses || [];
+            if (wish.length === 0 || !isRoleSlot(s) || !s.userId) return s;
+            const p = byId[s.userId];
+            return s.byClass || !p || wish.indexOf(p.classId) < 0 ? { ...s, userId: "", byClass: false } : s;
+        }),
+    };
+    return fillOpenSlots(cleared, roster);
+}

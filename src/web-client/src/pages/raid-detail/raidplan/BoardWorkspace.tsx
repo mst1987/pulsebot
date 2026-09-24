@@ -126,7 +126,7 @@ export default function BoardWorkspace({
     const [drag, setDrag] = useState<Drag | null>(null);
     const [menu, setMenu] = useState<Menu | null>(null);
     const [tab, setTab] = useState<"props" | "layers" | "bg">("props");
-    const [mapSize, setMapSize] = useState<MapSize>(() => { try { return parseMapSize(window.localStorage.getItem("eh.raidplan.mapSize")); } catch { return DEFAULT_MAP_SIZE; } });
+    const [mapSize, setMapSize] = useState<MapSize>(() => { try { const raw = window.localStorage.getItem("eh.raidplan.mapSize"); return raw === null && window.innerHeight <= 1000 ? { step: "S" as const, px: 0 } : parseMapSize(raw); } catch { return DEFAULT_MAP_SIZE; } });
     const [winH, setWinH] = useState(() => window.innerHeight);
     const [splitting, setSplitting] = useState(false);
     const splitRef = useRef({ y: 0, h: 0 });
@@ -167,7 +167,7 @@ export default function BoardWorkspace({
     const bandRef = useRef<{ x0: number; y0: number; add: boolean; base: SelItem[]; moved: boolean; cx: number; cy: number }>({ x0: 0, y0: 0, add: false, base: [], moved: false, cx: 0, cy: 0 });
     const scaleRef = useRef<{ board0: RaidplanBoard; sel: SelItem[]; center: { x: number; y: number }; d0: number; cx: number; cy: number }>({ board0: null as unknown as RaidplanBoard, sel: [], center: { x: 0, y: 0 }, d0: 1, cx: 0, cy: 0 });
     const clip = useRef<{ snap: Snapshot; pastes: number } | null>(null);
-    const [showPalette, setShowPalette] = useState(true);
+    const [showPalette, setShowPalette] = useState(() => window.innerHeight > 1000);
     const [showPanel, setShowPanel] = useState(true);
     const [showLinks, setShowLinks] = useState(true);
     const boardRef = useRef<HTMLDivElement>(null);

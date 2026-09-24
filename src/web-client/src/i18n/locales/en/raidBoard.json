@@ -514,7 +514,9 @@
         "ownTip": "These numbers only apply to this boss.",
         "reset": "Back to the raid type's numbers",
         "fitting": "Fitting role",
-        "others": "Other players"
+        "others": "Other players",
+        "refill": "Re-assign by class",
+        "refillTip": "Fill the class-bound slots anew"
     },
     "mobs": {
         "title": "Mobs",
@@ -545,7 +547,10 @@
         "classes": "Preferred class",
         "allowOthers": "Allow other classes",
         "classHint": "Suggestions take these classes first. If nobody fits the row stays empty, unless you allow others.",
-        "suggest": "Suggest assignees"
+        "suggest": "Suggest assignees",
+        "bind": "Bind the class to the slots",
+        "bindTip": "The chosen classes then apply to this row's slots (e.g. DPS 3 = Rogue)",
+        "boundTo": "Slots ask for: {cls}"
     },
     "split": {
         "label": "Map height",

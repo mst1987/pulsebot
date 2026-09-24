@@ -4,7 +4,8 @@ import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from 
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON } from "../../../lib/assign";
+import { ROLE_ICON, classIconOf } from "../../../lib/assign";
+import { classStatus, refillByClass } from "../../../lib/rosterAssign";
 import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
@@ -43,6 +44,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     const split = showSplit || counts.melee > 0 || counts.ranged > 0;
     const clusters = split ? ["tank", "healer", "dps", "melee", "ranged", "group"] : ["tank", "healer", "dps", "group"];
     const own = board.counts !== null;
+    const missing = isEvent ? all.filter((s) => classStatus(s, roster, board) === "missing").flatMap((s) => s.preferredClasses || []).filter((c, i, l) => l.indexOf(c) === i) : [];
 
     const chip = (s: RaidplanSlot) => {
         const player = s.userId ? players.get(s.userId) || null : null;
@@ -61,6 +63,7 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
                 >
                     {player ? <TokenIcon player={player} size="sm" /> : s.kind === "group" ? <Users size={15} aria-hidden="true" /> : <WowIcon name={roleIcon} size={20} />}
                     <span className="rp-bes-n">{s.n}</span>
+                    {(s.preferredClasses || []).length > 0 && <span className={`rp-bes-cls is-${classStatus(s, roster, board)}`} aria-hidden="true"><WowIcon name={classIconOf((s.preferredClasses || [])[0])} size={13} /></span>}
                 </button>
                 {canWrite && !on && (
                     <button type="button" className="rp-bes-pin" aria-label={t("raidBoard.bes.place")} data-tip={t("raidBoard.bes.placeTip")} onPointerDown={(e) => onPlaceDown(e, s.id)}>
@@ -121,6 +124,10 @@ export default function Besetzung({ board, besetzung, roster, isEvent, canWrite,
     return (
         <section className="rp-bes" data-rp-bes aria-label={t("raidBoard.bes.title")}>
             <span className="rp-kicker rp-bes-head" data-tip={t("raidBoard.bes.tip", { size: besetzung.size })}>{t("raidBoard.bes.title")} · {besetzung.size}</span>
+            {isEvent && canWrite && all.some((s) => (s.preferredClasses || []).length > 0) && (
+                <button type="button" className="rp-assign-btn rp-bes-assign" data-tip={t("raidBoard.bes.refillTip")} onClick={() => edit((b) => refillByClass(b, roster))}><RotateCcw size={15} aria-hidden="true" /><span>{t("raidBoard.bes.refill")}</span></button>
+            )}
+            {missing.length > 0 && <span className="rp-bes-missing" role="status">{missing.map((c) => t("raidBoard.roster.classMissing", { cls: t(`wow.class.${c}`) })).join(" · ")}</span>}
             <button type="button" className="rp-assign-btn rp-bes-assign" onClick={onAssign}><ListChecks size={15} aria-hidden="true" /><span>{t("raidBoard.roster.title")}</span></button>
             <div className="rp-bes-blocks">
             {clusters.map((kind) => {

@@ -16,6 +16,7 @@ import {
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
+import { effectiveClasses } from "../../../lib/rosterAssign";
 import { useT } from "../../../i18n";
 
 /** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */
@@ -31,7 +32,6 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
     const body = r.player ? (
         <>
             <TokenIcon player={r.player} size="sm" />
-            {r.kind === "slot" && <span className="rp-achip-slot">{r.label}</span>}
             <PlayerName player={r.player} />
         </>
     ) : r.kind === "mark" ? (
@@ -49,7 +49,7 @@ export function AssignChip({ r, mine, onRemove, extra }: { r: Resolved; mine?: b
         </>
     );
     return (
-        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`}>
+        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} data-tip={r.kind === "slot" && r.player ? r.label : undefined}>
             {extra}{body}
             {onRemove && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={onRemove}><X size={12} /></button>}
         </span>
@@ -103,6 +103,7 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
     onEdit: (id: string) => void;
 }) {
     const t = useT();
+    const wishCls = effectiveClasses({ slots: ctx.slots } as unknown as RaidplanBoard, a);
     const rotation = a.type === "kick" && a.assignees.length > 1;
     const showNote = a.note !== "" || noteOpen;
     return (
@@ -128,9 +129,9 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
             </div>
             <div className="rp-arow-main">
                 <span className="rp-achips" role="group" aria-label={t("raidBoard.assign.assignees")}>
-                    {(a.preferredClasses || []).length > 0 && (
-                        <span className="rp-classhint" data-tip={(a.preferredClasses || []).map((c) => t(`wow.class.${c}`)).join(", ")}>
-                            {(a.preferredClasses || []).map((c) => <WowIcon key={c} name={classIconOf(c)} size={18} />)}
+                    {wishCls.length > 0 && (
+                        <span className="rp-classhint" data-tip={wishCls.map((c) => t(`wow.class.${c}`)).join(", ")}>
+                            {wishCls.map((c) => <WowIcon key={c} name={classIconOf(c)} size={18} />)}
                         </span>
                     )}
                     {a.assignees.map((ref, i) => (
@@ -263,8 +264,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             out.push({ key: ref, label: r.player ? `${r.label}: ${r.player.character}` : r.label, on: a.assignees.indexOf(ref) >= 0, group: t(`raidBoard.slot.kind.${s.kind}`), node: <SlotPickChip r={r} n={s.n} /> });
         }
         if (isEvent) {
-            const fits = (p: RaidplanPlayer) => (a.preferredClasses && a.preferredClasses.length > 0 ? a.preferredClasses.indexOf(p.classId) >= 0 : fitsType(a.type, p, catalog));
-            const fit = playersByClass(roster.filter(fits), a.preferredClasses || []);
+            const wish = effectiveClasses(board, a);
+            const fits = (p: RaidplanPlayer) => (wish.length > 0 ? wish.indexOf(p.classId) >= 0 : fitsType(a.type, p, catalog));
+            const fit = playersByClass(roster.filter(fits), wish);
             const rest = roster.filter((p) => !fits(p));
             const add = (list: RaidplanPlayer[], group: string) => {
                 for (const p of list) {
@@ -317,7 +319,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     /** The dialog's "Vorschlag": the server picks the assignees for the row's type and classes (rows are not touched until "Fertig"). */
     const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
         try {
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: a.preferredClasses || [], allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
+            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;
         } catch (err) {
@@ -343,7 +345,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                     onText={(b, id, text) => (b.assignments.find((x) => x.id === id)?.targets.some((x) => x.kind === "text" && x.ref === text) ? b : toggleTarget(b, id, { kind: "text", ref: text }))}
                     onSpell={(b, id, k) => patchAssignment(b, id, { spell: (b.assignments.find((x) => x.id === id)?.spell || { id: "" }).id === k ? null : spellRefOf(k) })}
                     onSuggest={suggestAssignees}
-                    onDone={(row) => { edit((b) => ({ ...b, assignments: b.assignments.map((x) => (x.id === row.id ? { ...row, suggested: false } : x)) })); setEditing(""); }}
+                    onDone={(row, slots) => { edit((b) => ({ ...b, slots: slots || b.slots, assignments: b.assignments.map((x) => (x.id === row.id ? { ...row, suggested: false } : x)) })); setEditing(""); }}
                     onClose={() => setEditing("")}
                 />
             )}

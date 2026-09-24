@@ -417,7 +417,6 @@
 .rp-aarrow { color: var(--muted); }
 .rp-achip { position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 4px; min-height: 26px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 12.5px; font-weight: 600; line-height: 1.2; }
 .rp-achip .class-colored { color: var(--cc) !important; }
-.rp-achip-slot { color: var(--muted); font-size: 11px; font-weight: 700; }
 .rp-achip-open { color: var(--muted); font-style: italic; }
 .rp-achip-mark, .rp-achip-text, .rp-achip-group { padding-left: 8px; }
 .rp-achip-no { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; }
@@ -954,3 +953,14 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-crash { padding: 18px; border: 1px solid var(--high, #e0524f); border-radius: 12px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
 .rp-crash-actions { display: flex; gap: 8px; }
 .rp-crash pre { max-height: 180px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
+
+.rp-bes-chip { position: relative; }
+.rp-bes-cls { position: absolute; right: -5px; top: -5px; display: inline-flex; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); line-height: 0; }
+.rp-bes-cls.is-missing { border-color: var(--high, #e0524f); }
+.rp-bes-cls.is-filled { border-color: #22c55e; }
+.rp-bes-missing { align-self: center; padding: 2px 8px; border-radius: 8px; border: 1px solid var(--high, #e0524f); font-size: 12px; font-weight: 700; }
+
+/* one coordinate space: the canvas is laid out at the reference width (lib/boardScale.ts) and scaled as a whole to the board's width */
+.rp-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.rp-canvas .rp-handle, .rp-canvas .rp-multi-edge { transform-origin: 50% 50%; }
+.rp-canvas .rp-handle { transform: scale(max(1, calc(1 / var(--rp-k, 1)))); }

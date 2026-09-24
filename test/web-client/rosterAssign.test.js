@@ -102,3 +102,20 @@ describe("classes on slots", () => {
         expect(ra.classStatus(bound, roster, taken)).toBe("missing");
     });
 });
+
+describe("classes of a row, precedence and re-assigning by class", () => {
+    const b = board([S("d3", "dps", 3, "", { preferredClasses: ["Rogue"] }), S("d4", "dps", 4)]);
+    it("the classes of the slots a row names win over the row's own classes; none = the row's", () => {
+        expect(ra.slotClassesOfRow(b, { assignees: ["slot:dps:3", "user:x"] })).toEqual(["Rogue"]);
+        expect(ra.effectiveClasses(b, { assignees: ["slot:dps:3"], preferredClasses: ["Mage"] })).toEqual(["Rogue"]);
+        expect(ra.effectiveClasses(b, { assignees: ["slot:dps:4"], preferredClasses: ["Mage"] })).toEqual(["Mage"]);
+        expect(ra.effectiveClasses(b, { assignees: ["slot:dps:4"] })).toEqual([]);
+    });
+    it("re-assigning by class empties wrong or class-placed slots and fills again", () => {
+        const x = board([S("a", "melee", 1, "r1", { preferredClasses: ["Rogue"] })]);
+        const rr = [P("m1", "melee", "Rogue"), P("r1", "melee", "Warrior")];
+        expect(who(ra.refillByClass(x, rr))).toEqual({ a: "m1" });
+        const y = board([S("a", "melee", 1, "m1", { preferredClasses: ["Rogue"], byClass: true }), S("b", "melee", 2, "", { preferredClasses: ["Rogue"] })]);
+        expect(who(ra.refillByClass(y, [P("m1", "melee", "Rogue")]))).toEqual({ a: "m1", b: "" });
+    });
+});

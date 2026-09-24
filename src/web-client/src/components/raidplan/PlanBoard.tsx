@@ -1,3 +1,4 @@
+import { REF_W, canvasStyle } from "../../lib/boardScale";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
@@ -150,7 +151,7 @@ export default function PlanBoard({
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
-    const [setEl, size] = useElementSize();
+    const [setEl, outer] = useElementSize();
     const attach = useCallback((el: HTMLDivElement | null) => {
         setEl(el);
         if (boardRef) (boardRef as MutableRefObject<HTMLDivElement | null>).current = el;
@@ -171,6 +172,10 @@ export default function PlanBoard({
         onDoubleClick: onObjectOpen ? () => onObjectOpen(kind, id) : undefined,
     } : {});
     const ar = aspect || 16 / 10;
+    // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
+    // board's real width, so editor, template preview and read view look the same at any size (see lib/boardScale.ts)
+    const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
+    const canvas = canvasStyle(outer.w, ar) as CSSProperties;
     const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
@@ -193,6 +198,7 @@ export default function PlanBoard({
                 onContext(e, at > 0 ? { kind: raw.slice(0, at) as ObjectKind, id: raw.slice(at + 1) } : null);
             } : undefined}
         >
+            <div className="rp-canvas" style={canvas}>
             {mapUrl ? (
                 <img
                     className="rp-map" src={mapUrl} alt={t("raidBoard.board.mapAlt", { boss: bossName })} draggable={false}
@@ -456,6 +462,7 @@ export default function PlanBoard({
                     ))}
                 </div>
             )}
+            </div>
         </div>
     );
 }
