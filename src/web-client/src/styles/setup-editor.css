@@ -28,16 +28,21 @@
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
 
-/* one small row: the ping message beside the evening's numbers (roles, buffs, fairness, wishes) */
+/* three boxes in one row (one design, three roles): the ping message, the evening's numbers, the raider panel.
+   A fixed height, so hovering a raider never moves the groups below; the panel scrolls inside itself. Wraps on narrow screens. */
 .se-topline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; margin-top: 8px; }
-.se-topline .se-pingtext { flex: 1 1 340px; min-width: 0; margin-top: 0; padding: 6px 12px; gap: 4px; }
-.se-topline .se-pingtext-input { max-width: none; padding: 4px 9px; }
-.se-topline .se-side { flex: 0 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 6px 14px; }
-.se-topline .se-stats { display: flex; gap: 14px; padding: 0; border: 0; }
-.se-topline .se-stat { flex-direction: row; align-items: baseline; gap: 5px; }
-.se-topline .se-stat-v { font-size: 17px; }
-.se-topline .se-stat-v small { font-size: 11px; }
+.se-topline > * { box-sizing: border-box; min-height: 132px; margin: 0; }
+.se-topline .se-pingtext { flex: 1.1 1 250px; min-width: 0; justify-content: center; padding: 10px 14px; gap: 8px; }
+.se-topline .se-pingtext-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-topline .se-pingtext-input { max-width: none; padding: 7px 10px; }
+.se-topline .se-side { flex: 1.3 1 330px; min-width: 0; flex-direction: row; flex-wrap: wrap; align-content: space-between; align-items: center; gap: 8px 16px; padding: 12px 14px; }
+.se-topline .se-stats { flex: 1 0 60%; display: flex; justify-content: space-between; gap: 12px; padding: 0 0 8px; border: 0; border-bottom: 1px solid var(--line-soft); }
+.se-topline .se-stat { flex-direction: column; align-items: center; gap: 1px; }
+.se-topline .se-stat-v { font-size: 22px; }
+.se-topline .se-stat-v small { font-size: 12px; }
 .se-topline .se-side-row { min-height: 0; gap: 7px; }
+.se-topline .se-weights-btn { margin-left: auto; align-self: center; }
+.se-topline .se-tip { flex: 1.2 1 320px; min-width: 0; }
 
 /* the ping text sent with the posted setup: its own card, so it reads as "this is what gets posted" */
 .se-pingtext { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--panel2); }
@@ -46,11 +51,10 @@
 .se-pingtext-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .se-pingtext-input:disabled { opacity: .6; }
 
-/* the setup (groups, bench under a divider) on the left, the summary on the right */
-.se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; align-items: start; }
-.se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }
+/* the setup (groups, bench under a divider) across the full width: five groups side by side where the screen allows */
+.se-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
 .se-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 10px; }
 
 /* a group card, and every bench chunk (#354), share one look */
 .se-group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
@@ -66,12 +70,11 @@
     .se-group.se-suggest:not(.se-over) { animation: none; box-shadow: 0 0 0 2px var(--accent-soft), 0 0 14px 1px var(--accent-soft); }
 }
 
-/* the right column: the summary, and under it the raider panel — docked, so it never covers a group and is always complete */
-.se-sidecol { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; min-width: 0; }
-/* the raider panel: icon rows instead of a text block */
-.se-tip { box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; padding: 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 0 0 3px var(--accent-soft); }
-.se-tip-empty { border-color: var(--line); box-shadow: none; color: var(--muted); font-size: 13px; text-align: center; padding: 22px 14px; }
-.se-tip-head { display: flex; align-items: center; gap: 10px; padding: 2px 2px 8px; border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
+/* the raider panel, third box of the top row — always complete (it scrolls inside itself), never over a group */
+.se-tip { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 16px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; overflow-y: auto; max-height: 132px; }
+.se-tip-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.se-tip-empty { display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--accent); color: var(--muted); font-size: 13px; text-align: center; padding: 10px 14px; }
+.se-tip-head { display: flex; align-items: center; gap: 10px; }
 .se-tip-row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 2px; font-size: 13px; }
 .se-tip-row > .wi { margin-top: 1px; border-radius: 5px; flex: 0 0 auto; }
 .se-tip-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
@@ -107,7 +110,7 @@
 .se-bench-chunks { margin-top: 4px; }
 
 /* a free place: an empty box as high as a raider line */
-.se-ph { box-sizing: border-box; min-height: 48px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
+.se-ph { box-sizing: border-box; min-height: 40px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
 .se-ph-take { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-family: inherit; font-size: 13px; opacity: 1; cursor: pointer; }
 .se-ph-take:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .se-group.se-over .se-ph { border-color: var(--accent); }
@@ -183,30 +186,21 @@
 .se-start-sub { color: var(--muted); font-size: 13px; }
 .se-start .btn { margin-left: auto; }
 
-@media (max-width: 1280px) {
-    .se-layout { grid-template-columns: minmax(0, 1fr); }
-    .se-sidecol { grid-column: 1 / -1; order: -1; position: static; max-height: none; overflow: visible; }
-    .se-side { flex-direction: row; flex-wrap: wrap; align-items: center; }
-    .se-stats { border-bottom: 0; padding-bottom: 0; min-width: 220px; }
-}
 @media (max-width: 760px) {
-    .se-layout, .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr); }
     .se-bar-act { margin-left: 0; }
+    .se-topline > * { min-height: 0; }
 }
 
-/* compact view (the default, a switch in the bar): one-line raiders, narrow cards, so up to five groups fit in a row and the bench sits close beneath.
-   Only above the width where the layout collapses to one column anyway. The spec line is in the raider panel. */
-@media (min-width: 1281px) {
-    .se-compact .se-layout { grid-template-columns: minmax(0, 1fr) 330px; }
-    .se-compact .se-groups { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
-    .se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
-    .se-compact .se-slot { gap: 6px; padding: 2px 5px 2px 3px; }
-    .se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
-    .se-compact .se-sub { display: none; }
-    .se-compact .se-name { font-size: 13.5px; }
-    .se-compact .se-lock { width: 20px; height: 20px; }
-    .se-compact .se-ph { min-height: 30px; }
-    .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
-    .se-compact .se-group-title { font-size: 13.5px; }
-    .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
-}
+/* compact view (off by default, a switch in the bar): one-line raiders on narrower cards — for small screens or a very full raid.
+   The spec line is in the raider panel. */
+.se-compact .se-groups { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+.se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
+.se-compact .se-slot { gap: 6px; padding: 2px 5px 2px 3px; }
+.se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
+.se-compact .se-sub { display: none; }
+.se-compact .se-name { font-size: 13.5px; }
+.se-compact .se-lock { width: 20px; height: 20px; }
+.se-compact .se-ph { min-height: 30px; }
+.se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
+.se-compact .se-group-title { font-size: 13.5px; }
+.se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
