@@ -268,6 +268,8 @@ describe("setup editor page", () => {
         // readable: every figure and setting is a bordered tile of its own, and the quiet buttons keep a visible fill and outline
         expect(css).toMatch(/\.se-topline \.se-stats \{ display: contents; \}/);
         expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*border: 1px solid var\(--line\)/);
+        // two lines in a tile (label over value): a wide badge never runs into its label
+        expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*grid-template-columns: minmax\(0, 1fr\); justify-items: start/);
         expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
         // the panel in three roomy columns
         expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.1fr\) minmax\(0, 1\.15fr\)/);
