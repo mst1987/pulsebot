@@ -82,39 +82,54 @@ function benchText(a: SetupAttendance | undefined): string {
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
 const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "mid" : "bad");
 
-/** The tooltip's attendance row: a bar, the percentage, how many raids, and how sure the character link is (check = confirmed, "auto" = guessed). */
-function AttendanceRow({ a }: { a: SetupAttendance | undefined }) {
+/** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
+function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
     const t = useT();
-    const known = !!a && a.pct !== null;
-    return (
-        <div className="se-tip-row">
-            <div className="se-tip-body">
+    if (!a || a.pct === null) {
+        return (
+            <div className="se-tip-attn">
                 <span className="se-tip-k">{t("setup.person.tip.attendance")}</span>
-                {known && a ? (
-                    <>
-                        <span className="se-tip-att">
-                            <b className="se-num">{a.pct} %</b>
-                            {a.link === "manual"
-                                ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
-                                : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
-                        </span>
-                        <span className={`se-tip-bar se-tip-${attendanceTone(a.pct as number)}`}><i style={{ width: `${a.pct}%` }} /></span>
-                        <span className="se-tip-sub">{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>
-                        <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>
-                    </>
-                ) : <span className="se-tip-sub">{t("setup.person.tip.attendanceNone")}</span>}
-                {benchText(a) && <span className="se-tip-sub se-tip-bench">{benchText(a)}</span>}
+                <span className="se-tip-sub">{t("setup.person.tip.attendanceNone")}</span>
             </div>
+        );
+    }
+    return (
+        <div className="se-tip-attn">
+            <span className="se-tip-k">{t("setup.person.tip.attendance")}</span>
+            <span className="se-tip-att">
+                <b className="se-num">{a.pct} %</b>
+                {a.link === "manual"
+                    ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
+                    : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
+            </span>
+            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct)}`}><i style={{ width: `${a.pct}%` }} /></span>
+        </div>
+    );
+}
+
+/** The attendance details: how many raids, how sure the character link is, when the raider last stood on the bench. */
+function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
+    const t = useT();
+    if (!a) return null;
+    const bench = benchText(a);
+    if (a.pct === null && !bench) return null;
+    return (
+        <div className="se-tip-body">
+            <span className="se-tip-k">{t("setup.person.tip.attendanceDetails")}</span>
+            {a.pct !== null && <span>{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>}
+            {a.pct !== null && <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>}
+            {bench && <span className="se-tip-bench">{bench}</span>}
         </div>
     );
 }
 
 /**
- * The raider panel, docked under the summary in the right column (never over a
- * group, always complete): spec and role with icons, Discord name, signup
- * status, attendance (for everybody, badged by how sure the character link
- * is), the buffs they bring as icons, and the reasons of the proposal. It shows
- * the raider the pointer touched last.
+ * The raider panel, right of the ping message and the numbers (never over a
+ * group, always complete). A header across the whole panel — the spec tile, the
+ * name (never wrapped, it has the width), spec · role, Discord name and status,
+ * and on the right the attendance as the number that matters — and under it
+ * three columns: what the raider brings, why they stand here, the attendance in
+ * detail. It shows the raider the pointer touched last.
  */
 function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendance | undefined | null }) {
     const t = useT();
@@ -124,25 +139,18 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
     const reasons = [...new Set(tipReasons(p.reasons))].filter((r) => r !== status);
     return (
         <aside className="se-tip" aria-label={t("setup.person.tip.aria")} aria-live="polite">
-            {/* three columns: who they are and how often they came · what they bring · why they stand here */}
-            <div className="se-tip-col">
-                <div className="se-tip-head">
-                    <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
-                    <div className="se-tip-body">
-                        <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
-                        <span className="se-tip-sub">
-                            {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
-                        </span>
-                        {(p.name || status) && (
-                            <span className="se-tip-sub">
-                                {p.name && <span>@{p.name}</span>}
-                                {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
-                            </span>
-                        )}
-                    </div>
+            <header className="se-tip-top">
+                <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
+                <div className="se-tip-who">
+                    <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                    <span className="se-tip-sub">
+                        <span>{[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}</span>
+                        {p.name && <span>@{p.name}</span>}
+                        {status && <span className={`se-tip-status se-st-${p.status}`}>{status}</span>}
+                    </span>
                 </div>
-                {attendance !== null && <AttendanceRow a={attendance} />}
-            </div>
+                {attendance !== null && <AttendanceHead a={attendance} />}
+            </header>
             <div className="se-tip-col">
                 {brings.length > 0 && (
                     <div className="se-tip-body">
@@ -166,6 +174,9 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                         <ul className="se-tip-reasons">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
                     </div>
                 )}
+            </div>
+            <div className="se-tip-col">
+                {attendance !== null && <AttendanceDetails a={attendance} />}
             </div>
         </aside>
     );

@@ -3,6 +3,7 @@
         "tip": {
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
+            "attendanceDetails": "Attendance details",
             "attendanceCount": "{attended} of {total} raids",
             "lastBench": "Last on the bench: {date}",
             "benchNever": "Not on the bench in the last {count} raids",
