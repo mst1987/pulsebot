@@ -10,7 +10,7 @@ jest.mock("../../src/web/eventStore", () => ({
 const mockPost = jest.fn();
 jest.mock("../../src/web/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
 
-const { suggestSearch, postSearch } = require("../../src/web/raidSearch");
+const { suggestSearch, textForNeeds, postSearch } = require("../../src/web/raidSearch");
 
 const slots = (n) => Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
 function event(over = {}) {
@@ -88,6 +88,66 @@ describe("suggestSearch", () => {
     });
 });
 
+describe("what the page needs to let the orga edit the search", () => {
+    it("knows every spec of the rule set and which specs belong to which role", () => {
+        const s = suggestSearch(event());
+        expect(s.roleSpecs.tank).toEqual(expect.arrayContaining(["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]));
+        expect(s.roleSpecs.healer).toContain("Priest-Holy");
+        expect(s.roleSpecs.ranged).toContain("Mage-Fire");
+        // also a spec of a role that is not short (the orga may add it)
+        expect(s.specInfo["Rogue-Combat"]).toMatchObject({ classId: "Rogue", icon: expect.any(String) });
+        expect(Object.keys(s.specInfo).length).toBeGreaterThan(20);
+    });
+});
+
+describe("textForNeeds", () => {
+    it("writes the message for needs the orga edited: a changed count, fewer specs, a dropped buff, an added role", () => {
+        const { text } = textForNeeds(event(), {
+            roles: [
+                { role: "tank", missing: 3, specs: ["Paladin-Protection"] },
+                { role: "ranged", missing: 2 },
+            ],
+            buffs: [],
+        });
+        expect(text).toContain("18 of 25 places filled");
+        expect(text).toContain("• 3× Tanks: Paladin (Protection)");
+        // no specs named = every spec of the role
+        const ranged = text.split("\n").find((l) => l.startsWith("• 2× Ranged DPS:"));
+        expect(ranged).toContain("Mage (Fire)");
+        expect(ranged).toContain("Warlock (Destruction)");
+        expect(text).not.toContain("Healer");
+        expect(text).not.toContain("required buff");
+    });
+
+    it("keeps a required buff as required and names its providers, and a raid buff as \"would also help\"", () => {
+        const { text } = textForNeeds(event(), { roles: [], buffs: [{ key: "windfury", required: true }, { key: "kings", required: false }] });
+        expect(text).toContain("Needed for a required buff: Shaman (any spec)");
+        expect(text).toContain("Would also help: Paladin (any spec)");
+    });
+
+    it("cleans what the page sends: unknown roles, specs of another role, bad counts, unknown buffs, duplicates", () => {
+        const { text } = textForNeeds(event(), {
+            roles: [
+                { role: "wizard", missing: 2 },
+                { role: "tank", missing: 0 },
+                { role: "healer", missing: 2, specs: ["Mage-Fire", "Priest-Holy"] },
+                { role: "healer", missing: 5 },
+                { role: "melee", missing: "abc" },
+            ],
+            buffs: [{ key: "nonsense", required: true }, { key: "kings" }, { key: "kings" }],
+        });
+        const healers = text.split("\n").filter((l) => l.includes("Healers"));
+        expect(healers).toEqual(["• 2× Healers: Priest (Holy)"]);
+        expect(text).not.toContain("Wizard");
+        expect(text.match(/Would also help/g)).toHaveLength(1);
+    });
+
+    it("says every class is welcome when nothing specific is left, and refuses an event without a setup", () => {
+        expect(textForNeeds(event(), { roles: [], buffs: [] }).text).toContain("7 places open – every class and spec is welcome.");
+        expect(textForNeeds(event({ setup: null }), { roles: [] }).error).toMatchObject({ status: 400, code: "no_setup" });
+    });
+});
+
 describe("postSearch", () => {
     beforeEach(() => {
         mockEvents.clear();
@@ -141,5 +201,24 @@ describe("postSearch", () => {
         expect(out.error).toMatchObject({ status: 502, code: "post_failed" });
         expect(out.error.message).toContain("Missing Permissions");
         expect(mockLog).toEqual([]);
+    });
+});
+
+describe("the message with the spec icons", () => {
+    const appEmojis = require("../../src/web/appEmojis");
+    afterEach(() => appEmojis.resetAppEmojis());
+
+    it("puts the app emoji of a spec, of a whole class and of the role in front, and nothing while they are not uploaded", () => {
+        expect(suggestSearch(event()).text).not.toContain("<:");
+        appEmojis.setAppEmojis([
+            { id: "1", name: "eh_paladin_protection" },
+            { id: "2", name: "eh_class_shaman" },
+            { id: "3", name: "eh_ui_tank" },
+        ]);
+        const { text } = suggestSearch(event());
+        expect(text).toContain("• <:eh_ui_tank:3> 1× Tank: ");
+        expect(text).toContain("<:eh_paladin_protection:1> Paladin (Protection)");
+        expect(text).toContain("Needed for a required buff: <:eh_class_shaman:2> Shaman (any spec)");
+        expect(text.length).toBeLessThanOrEqual(1900);
     });
 });

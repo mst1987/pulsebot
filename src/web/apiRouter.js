@@ -41,7 +41,7 @@ const {
 const {
     getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
     postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain, postPublish: postSetupPublish,
-    postPingText: postSetupPingText, postSearchMessage: postSetupSearch,
+    postPingText: postSetupPingText, postExtraRole: postSetupExtraRole, postSearchMessage: postSetupSearch, postSearchText: postSetupSearchText,
 } = require("./apiRoutes/setup");
 const raidplanRoutes = require("./apiRoutes/raidplan");
 const eventManageRoutes = require("./apiRoutes/eventManage");
@@ -430,6 +430,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/ping-text" && req.method === "POST") {
         await postSetupPingText(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/extra-role" && req.method === "POST") {
+        await postSetupExtraRole(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/search/text" && req.method === "POST") {
+        await postSetupSearchText(req, res);
         return true;
     }
     if (pathname === "/api/raids/setup/search" && req.method === "POST") {

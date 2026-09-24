@@ -411,6 +411,8 @@ function decoratePerson(x, table, names) {
         classLabel: (cls && cls.label) || "",
         specLabel: (spec && spec.label) || "",
         specIcon: (spec && spec.icon) || (cls && cls.icon) || "",
+        // the specs of the raider's class, so the panel can offer "im Setup als Tank / Heiler / …" (a paladin who also plays protection)
+        classSpecs: ((cls && cls.specs) || []).map((x) => ({ key: x.key, label: x.label, icon: x.icon || "", role: x.role })),
     };
 }
 
@@ -519,6 +521,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
         pingText: pingTextOf(event),
+        // raiders marked as an extra tank / healer, by user id
+        extraRoles: event.extraRoles || {},
         // what the raid still needs and the message that looks for it (raidSearch.js)
         search: setup ? require("./raidSearch").suggestSearch(event) : null,
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },

@@ -507,6 +507,35 @@ describe("the raider tooltip and the drag glow", () => {
         expect(src).toContain("se-suggest");
     });
 
+    describe("im Setup als — a raider who plays several specs (the third tank, an extra healer)", () => {
+        const prot = { key: "Paladin-Protection", role: "tank" };
+        const input = lib.toInput(setup());
+
+        it("changes the slot's spec and role, keeps its place and locks it, without touching the request it came from", () => {
+            const out = lib.respecRaider(input, "h", prot).input;
+            const slot = out.groups[0].slots.find((x) => x.userId === "h");
+            expect(slot).toMatchObject({ spec: "Paladin-Protection", role: "tank", locked: true, pos: 2 });
+            expect(input.groups[0].slots.find((x) => x.userId === "h")).toMatchObject({ spec: "Priest-Holy", role: "healer", locked: false });
+        });
+
+        it("does nothing for the spec already played and locked, and refuses somebody on the bench", () => {
+            const again = lib.respecRaider(lib.respecRaider(input, "h", prot).input, "h", prot);
+            expect(again).toEqual({ input: null });
+            expect(lib.respecRaider(input, "b", prot).error).toMatch(/Bank/);
+        });
+
+        it("offers the specs in the panel's last column, as icon buttons, and saves through the usual request", () => {
+            const src = read("pages", "raid-detail", "SetupEditor.tsx");
+            expect(src).toContain("const respec = (userId: string, specKey: string) => {");
+            expect(src).toContain("respecRaider(toInput(shown.setup), userId, spec)");
+            expect(src).toMatch(/onSpec && \(p\.classSpecs \|\| \[\]\)\.length > 1/);
+            // never for somebody on the bench, and not while a save is running
+            expect(src).toContain("onSpec={busy || inspectedIsBench ? undefined :");
+            expect(read("styles", "setup-editor.css")).toMatch(/\.se-tip-spec\.is-on \{[^}]*border-color: var\(--accent\)/);
+            expect(makeT("de")("setup.person.tip.playsAs")).toBe("Im Setup als");
+        });
+    });
+
     describe("Suche — the classes and specs the raid still needs", () => {
         const buff = (key, specs, required = false) => ({ key, label: key, icon: "i", required, specs });
 
@@ -524,16 +553,46 @@ describe("the raider tooltip and the drag glow", () => {
             expect(src).toContain('setDialog("search")');
             expect(src).toContain("function SearchModal(");
             expect(src).toContain("postRaidSearch(ctx.csrfToken, ctx.eventId, text)");
-            // the message is posted as edited, never empty and never over Discord's limit
-            expect(src).toMatch(/disabled=\{nothing \|\| !text\.trim\(\) \|\| text\.length > 2000\}/);
+            expect(src).toContain("previewRaidSearch(ctx.csrfToken, ctx.eventId,");
+            for (const fn of ["stepRole(", "toggleSpec(", "addRole(", "removeBuffs("]) expect(src).toContain(fn);
+            // the message is posted as edited, never empty, never over Discord's limit, not while it is being written
+            expect(src).toContain("disabled={!search || !text.trim() || text.length > 2000 || writing}");
             expect(src).not.toMatch(/\{r\.missing\}×/);
-            for (const key of ["kicker", "title", "hint", "open", "roleCount", "required", "helps", "buffCount", "message", "post", "posted", "failed", "none"]) {
+            for (const key of ["kicker", "title", "hint", "open", "required", "helps", "buffCount", "message", "post", "posted", "failed", "none", "fewer", "more", "drop", "dropSub", "add", "regenerate", "writing"]) {
                 expect(makeT("de")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
                 expect(makeT("en")(`setup.search.${key}`)).not.toBe(`setup.search.${key}`);
             }
-            expect(makeT("de")("setup.search.roleCount", { count: 2, role: "Heiler" })).toBe("2× Heiler");
             expect(makeT("de")("setup.editor.search")).toBe("Suche");
         });
+
+        it("edits the needs without touching the suggestion: count 1-40, a role at 0 drops out, specs in and out, a role added once, buffs dropped", () => {
+            const search = { roles: [{ role: "tank", missing: 1, specs: ["A-Tank"] }], buffs: [buff("kings", ["P-Holy"]), buff("wf", ["S-Enh"], true)] };
+            const needs = lib.searchNeedsFrom(search);
+            expect(needs).toEqual({ roles: search.roles, buffs: search.buffs });
+            expect(needs.roles[0]).not.toBe(search.roles[0]);
+            expect(lib.stepRole(needs, "tank", 2).roles[0].missing).toBe(3);
+            expect(lib.stepRole(needs, "tank", 100).roles[0].missing).toBe(40);
+            expect(lib.stepRole(needs, "tank", -1).roles).toEqual([]);
+            expect(lib.toggleSpec(needs, "tank", "B-Tank").roles[0].specs).toEqual(["A-Tank", "B-Tank"]);
+            expect(lib.toggleSpec(needs, "tank", "A-Tank").roles[0].specs).toEqual([]);
+            const added = lib.addRole(needs, "healer", ["H-1", "H-2"]);
+            expect(added.roles[1]).toEqual({ role: "healer", missing: 1, specs: ["H-1", "H-2"] });
+            expect(lib.addRole(added, "healer", ["H-1"])).toBe(added);
+            expect(lib.removeBuffs(needs, ["kings"]).buffs.map((b) => b.key)).toEqual(["wf"]);
+            expect(search.roles[0].missing).toBe(1);
+        });
+    });
+
+    it("keeps the raider panel compact when the top area is stacked: two columns, the details in one row, buffs two by two on a phone", () => {
+        const css = read("styles", "setup-editor.css");
+        const stacked = css.slice(css.indexOf("@media (max-width: 1360px)"));
+        expect(stacked).toMatch(/\.se-tip \{ grid-template-columns: minmax\(0, 1\.2fr\) minmax\(0, 1fr\); min-height: 430px; \}/);
+        expect(stacked).toMatch(/\.se-tip-col:last-child \{ grid-column: 1 \/ -1; \}/);
+        expect(stacked).toMatch(/\.se-tip-col:last-child \.se-tip-body \{ flex-direction: row; flex-wrap: wrap;/);
+        // a phone: one column, the buffs in a grid of two — with a reserved height, so hovering never moves the groups under the pointer
+        expect(css).toMatch(/@media \(max-width: 600px\) \{\s*\.se-tip \{ grid-template-columns: minmax\(0, 1fr\); padding: 14px 14px; min-height: 500px; \}/);
+        expect(css).toMatch(/\.se-tip-buffs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+        expect(read("pages", "raid-detail", "SetupEditor.tsx")).toContain('<div className="se-tip-buffs">');
     });
 
     it("draws the lock as an overlay that takes no width from the raider's name", () => {
@@ -548,8 +607,13 @@ describe("the raider tooltip and the drag glow", () => {
     it("says in the attendance block when the raider last signed up but stood on the bench — or that they did not, in the nights looked at", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).toContain("function benchText(");
-        expect(src).toContain('t("setup.person.tip.lastBench", { date })');
+        // the row is an icon and the date ("–" for never); the sentence is the tooltip
+        expect(src).toContain('t("setup.person.tip.lastBench", { date: bench })');
         expect(src).toContain('t("setup.person.tip.benchNever", { count: a.benchNights })');
+        expect(src).toContain("<BenchIcon />{bench}");
+        // the character link is the Auto badge or the check mark, with the sentence as its tooltip, not a line of text
+        expect(src).toContain('data-tip={t("setup.person.tip.linkAuto")}>{t("setup.person.tip.autoBadge")}');
+        expect(src).not.toContain('<span className="se-tip-sub">{a.link === "manual"');
         // nothing to say without an earlier night
         expect(src).toMatch(/if \(!a \|\| !a\.benchNights\) return "";/);
         expect(makeT("de")("setup.person.tip.lastBench", { date: "12.09.2026" })).toBe("Zuletzt auf der Bank: 12.09.2026");
@@ -572,5 +636,21 @@ describe("the raider tooltip and the drag glow", () => {
             expect(de(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
             expect(en(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
         }
+    });
+
+    describe("Extra tank / healer", () => {
+        it("has a toggle per role the class can take besides the setup's, a pill on the tile, and texts in both languages", () => {
+            const src = read("pages", "raid-detail", "SetupEditor.tsx");
+            expect(src).toContain("saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on)");
+            expect(src).toContain('(["tank", "healer"] as const).filter((r) => r !== p.role');
+            expect(src).toContain("ui.extraRoles[p.userId]");
+            expect(src).toContain("aria-pressed={on}");
+            // the bench is not marked: only a raider in the setup can be an extra
+            expect(src).toContain("onExtra={inspectedIsBench ? undefined");
+            for (const key of ["setup.person.tip.extra", "setup.person.tip.extraSub", "setup.extra.tip", "setup.extra.short.tank", "setup.extra.short.healer"]) {
+                expect(makeT("de")(key, { role: "Tank" })).not.toBe(key);
+                expect(makeT("en")(key, { role: "Tank" })).not.toBe(key);
+            }
+        });
     });
 });

@@ -1,9 +1,17 @@
 {
+    "extra": {
+        "tip": "Extra-{role}: spielt bei manchen Bossen {role}",
+        "short": { "tank": "+Tank", "healer": "+Heiler" }
+    },
     "person": {
         "tip": {
             "attendance": "Anwesenheit",
             "attendanceNone": "noch keine Raids gezählt",
             "attendanceDetails": "Details",
+            "extra": "Zusätzlich als",
+            "extraSub": "Für Raider, die bei manchen Bossen umskillen: ein dritter Tank oder ein Extra-Heiler. Steht nur als Markierung am Raider, der Raidplan nutzt sie später.",
+            "playsAs": "Im Setup als",
+            "playsAsSub": "Für Raider, die mehrere Specs spielen: der dritte Tank, ein zusätzlicher Heiler. Der Platz wird gesperrt, damit ein neuer Vorschlag ihn nicht zurücksetzt.",
             "attendanceCount": "{attended} von {total} Raids",
             "lastBench": "Zuletzt auf der Bank: {date}",
             "benchNever": "Nicht auf der Bank in den letzten {count} Raids",
@@ -150,11 +158,18 @@
     "search": {
         "kicker": "Raid-Suche",
         "title": "Wen suchen wir noch?",
-        "hint": "Die Nachricht geht in den Event-Kanal (auf Englisch, du kannst sie ändern).",
+        "hint": "Die Nachricht geht in den Event-Kanal (auf Englisch). Anzahl, Specs und Buffs kannst du anpassen, den Text auch von Hand.",
         "open": "{open} von {size} Plätzen sind noch offen.",
         "required": "Pflicht-Buff",
         "roleCount": "{count}× {role}",
         "buffCount": "{count} Buffs",
+        "fewer": "Einen weniger",
+        "more": "Einen mehr",
+        "drop": "Nicht suchen",
+        "dropSub": "Nimmt diesen Buff aus der Suche.",
+        "add": "Zusätzlich suchen:",
+        "regenerate": "Text neu erzeugen",
+        "writing": "schreibe …",
         "helps": "wäre hilfreich",
         "message": "Nachricht für den Kanal",
         "post": "Im Kanal posten",
@@ -210,6 +225,7 @@
         "sizeFailed": "Größe konnte nicht geändert werden."
     },
     "moves": {
+        "respecBench": "Wer auf der Bank steht, hat noch keinen Platz – erst in eine Gruppe ziehen, dann die Spec wählen.",
         "notInSetup": "Raider nicht im Setup.",
         "targetNotInSetup": "Ziel nicht im Setup.",
         "groupFull": "Gruppe {group} ist voll – auf einen Raider ziehen, um zu tauschen.",

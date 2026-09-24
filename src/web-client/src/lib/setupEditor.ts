@@ -279,6 +279,31 @@ export function toggleLock(current: SetupPlacementInput, userId: string): SetupP
     return input;
 }
 
+/**
+ * Put a raider into the setup as another spec of their class — the third tank, an extra healer.
+ * The slot keeps its place, takes the spec and its role, and is locked, so the next proposal leaves it as chosen.
+ * `{ input: null }` when nothing changes, `{ error }` for somebody on the bench (they have no slot to change yet).
+ */
+export function respecRaider(current: SetupPlacementInput, userId: string, spec: { key: string; role: string }) {
+    for (const g of current.groups) {
+        if (!g.slots.some((s) => s.userId === userId)) continue;
+        const now = g.slots.find((s) => s.userId === userId);
+        if (now && now.spec === spec.key && now.locked) return { input: null };
+        const input = cloneInput(current);
+        for (const gr of input.groups) {
+            for (const s of gr.slots) {
+                if (s.userId === userId) {
+                    s.spec = spec.key;
+                    s.role = spec.role;
+                    s.locked = true;
+                }
+            }
+        }
+        return { input };
+    }
+    return { error: t("setup.moves.respecBench") };
+}
+
 /** Every raider of a stored setup by user id. */
 export function peopleOf(setup: StoredSetup): Map<string, SetupPerson> {
     const map = new Map();
@@ -413,4 +438,39 @@ export function groupSearchBuffs(buffs: SetupSearch["buffs"]): { id: string; req
         else groups.push({ id, required: b.required, specs: b.specs, buffs: [b] });
     }
     return groups;
+}
+
+/** What the orga edits in the "Suche" dialog: how many of a role and which specs, and the buffs still listed. */
+export type SearchNeeds = { roles: { role: string; missing: number; specs: string[] }[]; buffs: SetupSearch["buffs"] };
+
+/** The needs as the suggestion has them — a copy, the suggestion itself stays as it came. */
+export function searchNeedsFrom(search: SetupSearch): SearchNeeds {
+    return { roles: search.roles.map((r) => ({ role: r.role, missing: r.missing, specs: [...r.specs] })), buffs: search.buffs.map((b) => ({ ...b })) };
+}
+
+/** One more or one fewer of a role (1–40); a role that reaches 0 drops out of the list. */
+export function stepRole(needs: SearchNeeds, role: string, delta: number): SearchNeeds {
+    return {
+        ...needs,
+        roles: needs.roles.map((r) => (r.role === role ? { ...r, missing: Math.min(40, r.missing + delta) } : r)).filter((r) => r.missing > 0),
+    };
+}
+
+/** Take a spec of a role in or out of the search. */
+export function toggleSpec(needs: SearchNeeds, role: string, key: string): SearchNeeds {
+    return {
+        ...needs,
+        roles: needs.roles.map((r) => (r.role === role ? { ...r, specs: r.specs.includes(key) ? r.specs.filter((k) => k !== key) : [...r.specs, key] } : r)),
+    };
+}
+
+/** Add a role nobody was missing yet: one of it, every spec of the role. */
+export function addRole(needs: SearchNeeds, role: string, specs: string[]): SearchNeeds {
+    if (needs.roles.some((r) => r.role === role)) return needs;
+    return { ...needs, roles: [...needs.roles, { role, missing: 1, specs: [...specs] }] };
+}
+
+/** Drop buffs from the search. */
+export function removeBuffs(needs: SearchNeeds, keys: string[]): SearchNeeds {
+    return { ...needs, buffs: needs.buffs.filter((b) => !keys.includes(b.key)) };
 }

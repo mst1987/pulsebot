@@ -1599,6 +1599,8 @@ export type RaidCreateContext = {
     /** category id → Raid-Helper template id of its default raid template */
     categoryTemplates: Record<string, string>;
     leaderId: string;
+    /** who can lead: the creator first, then the signed-up people (name may be empty) */
+    leaderCandidates: { id: string; name: string }[];
     channels: Channel[];
     /** the server's voice channels, for the raid's voice channel (#305) */
     voiceChannels?: Channel[];
@@ -3864,6 +3866,8 @@ export type SetupPerson = {
     locked?: boolean;
     /** The place 1…5 in the group the orga put them on (a group of two may stand on 1 and 5). */
     pos?: number;
+    /** The specs of their class — what the panel offers to put them into the setup as. */
+    classSpecs?: { key: string; label: string; icon: string; role: GameRole }[];
     /** Why they are where they are — shown in the tooltip only. */
     reasons?: string[];
     brings?: SetupBuff[];
@@ -3941,6 +3945,8 @@ export type SetupEditorData = {
     hasApiKey?: boolean;
     /** The ping text sent with the posted setup — orga only, always the effective text (own or default, never empty). */
     pingText?: string;
+    /** Raiders marked as an extra tank / healer (they play that role on some bosses), by user id. */
+    extraRoles?: Record<string, string[]>;
     explainJob?: SetupJob;
     /** Only for the orga: where the approved setup goes and what came of it (#290). */
     publish?: SetupPublish;
@@ -3956,8 +3962,10 @@ export type SetupSearch = {
     open: number;
     roles: { role: GameRole; missing: number; specs: string[] }[];
     buffs: { key: string; label: string; icon: string; required: boolean; specs: string[] }[];
-    /** By spec key: what the page needs to draw it. */
+    /** By spec key, for EVERY spec of the rule set (the orga may add one to a role): what the page needs to draw it. */
     specInfo: Record<string, { label: string; classLabel: string; classId: string; icon: string; color: string }>;
+    /** Role -> the keys of its specs. */
+    roleSpecs: Record<string, string[]>;
     /** The message for the channel, English; "" when nothing is missing. */
     text: string;
 };
@@ -3989,6 +3997,11 @@ export function publishRaidSetup(csrfToken: string | null, eventId: string): Pro
     return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
 }
 
+/** The message for needs the orga edited — nothing is posted. */
+export function previewRaidSearch(csrfToken: string | null, eventId: string, needs: { roles: { role: string; missing: number; specs: string[] }[]; buffs: { key: string; required: boolean; specs: string[] }[] }): Promise<{ text: string }> {
+    return send("POST", "/api/raids/setup/search/text", csrfToken, { event: eventId, roles: needs.roles, buffs: needs.buffs });
+}
+
 /** Post the "we are looking for …" message into the event channel; `text` = the edited message. */
 export function postRaidSearch(csrfToken: string | null, eventId: string, text: string): Promise<{ message: string; url?: string }> {
     return send("POST", "/api/raids/setup/search", csrfToken, { event: eventId, text });
@@ -3997,6 +4010,11 @@ export function postRaidSearch(csrfToken: string | null, eventId: string, text: 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */
 export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/ping-text", csrfToken, { event: eventId, text });
+}
+
+/** Mark a raider as an extra tank / healer (`on`), or take the mark away; not part of the setup, a new proposal keeps it. */
+export function saveSetupExtraRole(csrfToken: string | null, eventId: string, userId: string, role: "tank" | "healer", on: boolean): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/extra-role", csrfToken, { event: eventId, userId, role, on });
 }
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */

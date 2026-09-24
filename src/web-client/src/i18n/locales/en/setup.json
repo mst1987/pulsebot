@@ -1,9 +1,17 @@
 {
+    "extra": {
+        "tip": "Extra {role}: plays {role} on some bosses",
+        "short": { "tank": "+Tank", "healer": "+Healer" }
+    },
     "person": {
         "tip": {
             "attendance": "Attendance",
             "attendanceNone": "no raids counted yet",
             "attendanceDetails": "Details",
+            "extra": "Also as",
+            "extraSub": "For raiders who switch on some bosses: a third tank or an extra healer. Only a mark on the raider, the raid plan uses it later.",
+            "playsAs": "In the setup as",
+            "playsAsSub": "For raiders who play several specs: the third tank, an extra healer. The place is locked so a new proposal does not undo it.",
             "attendanceCount": "{attended} of {total} raids",
             "lastBench": "Last on the bench: {date}",
             "benchNever": "Not on the bench in the last {count} raids",
@@ -150,11 +158,18 @@
     "search": {
         "kicker": "Raid search",
         "title": "Who are we still looking for?",
-        "hint": "The message goes into the event channel (in English, you can edit it).",
+        "hint": "The message goes into the event channel (in English). You can change the numbers, specs and buffs, and the text by hand.",
         "open": "{open} of {size} places are still open.",
         "required": "Required buff",
         "roleCount": "{count}× {role}",
         "buffCount": "{count} buffs",
+        "fewer": "One fewer",
+        "more": "One more",
+        "drop": "Do not look for this",
+        "dropSub": "Takes this buff out of the search.",
+        "add": "Also look for:",
+        "regenerate": "Write the text again",
+        "writing": "writing …",
         "helps": "would help",
         "message": "Message for the channel",
         "post": "Post to channel",
@@ -210,6 +225,7 @@
         "sizeFailed": "Could not change the size."
     },
     "moves": {
+        "respecBench": "Someone on the bench has no place yet – drag them into a group first, then pick the spec.",
         "notInSetup": "Raider not in the setup.",
         "targetNotInSetup": "Target not in the setup.",
         "groupFull": "Group {group} is full — drag onto a raider to swap.",

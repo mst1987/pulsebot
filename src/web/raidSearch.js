@@ -15,6 +15,7 @@
 // message. The orga edits it before it goes out.
 const eventStore = require("./eventStore");
 const discord = require("./discord");
+const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
@@ -39,6 +40,14 @@ function specTable(rules) {
 /** "Shaman (Enhancement)". */
 const specNameEn = (spec) => `${spec.classLabelEn} (${spec.labelEn || spec.id})`;
 
+/** The app emoji of a name plus a space, or "" while it is not uploaded (the text reads fine without it). */
+const icon = (name) => {
+    const e = name ? emojiFor(name) : "";
+    return e ? `${e} ` : "";
+};
+/** A spec with its icon in front: "<emoji> Shaman (Enhancement)". */
+const specWithIcon = (spec) => `${icon(specEmojiName(spec.key))}${specNameEn(spec)}`;
+
 /** The specs whose own role is `role`. */
 function specsOfRole(specs, role) {
     return [...specs.values()].filter((s) => s.role === role).map((s) => s.key);
@@ -57,7 +66,7 @@ function buildText(event, gap, specs) {
     const lines = [`**Looking for more raiders – ${event.title || "Raid"}**`];
     const when = Number(event.startTime) ? `<t:${Number(event.startTime)}:F> · ` : "";
     lines.push(`${when}${gap.placed} of ${gap.size} places filled`);
-    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map(specNameEn).join(", ");
+    const names = (keys) => keys.map((k) => specs.get(k)).filter(Boolean).map(specWithIcon).join(", ");
     // a buff a whole class brings (a totem, a blessing) is "Shaman (any spec)", not every spec of it
     const providers = (keys) => {
         const byClass = new Map();
@@ -67,11 +76,11 @@ function buildText(event, gap, specs) {
         }
         return [...byClass.entries()].map(([classId, list]) => {
             const all = [...specs.values()].filter((s) => s.classId === classId).length;
-            return list.length === all ? `${list[0].classLabelEn} (any spec)` : list.map(specNameEn).join(", ");
+            return list.length === all ? `${icon(classEmojiName(classId))}${list[0].classLabelEn} (any spec)` : list.map(specWithIcon).join(", ");
         }).join(", ");
     };
     const need = [];
-    for (const r of gap.roles) need.push(`• ${r.missing}× ${ROLE_NAME[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
+    for (const r of gap.roles) need.push(`• ${icon(roleUiEmojiName(r.role))}${r.missing}× ${ROLE_NAME[r.role][r.missing > 1 ? 1 : 0]}: ${names(r.specs)}`);
     for (const b of gap.buffs.filter((x) => x.required)) need.push(`• Needed for a required buff: ${providers(b.specs)}`);
     const nice = gap.buffs.filter((x) => !x.required);
     if (nice.length) need.push(`• Would also help: ${providers([...new Set(nice.flatMap((b) => b.specs))])}`);
@@ -88,7 +97,8 @@ function buildText(event, gap, specs) {
  * @returns {null | { size: number, placed: number, open: number,
  *   roles: { role: string, missing: number, specs: string[] }[],
  *   buffs: { key: string, label: string, icon: string, required: boolean, specs: string[] }[],
- *   specInfo: Object<string, { label, classLabel, classId, icon, color }>,
+ *   specInfo: Object<string, { label, classLabel, classId, icon, color }>,   every spec of the rule set
+ *   roleSpecs: Object<string, string[]>,   role -> the keys of its specs
  *   text: string }}  null without a setup
  */
 function suggestSearch(event) {
@@ -120,13 +130,46 @@ function suggestSearch(event) {
     add(checks.buffs && checks.buffs.raid, false);
 
     const gap = { size, placed, open: Math.max(0, size - placed), roles, buffs };
-    // what the page needs to draw a spec: its icon, name and class colour
-    const used = new Set([...roles, ...buffs].flatMap((x) => x.specs));
-    const specInfo = Object.fromEntries([...used].map((k) => {
-        const s = specs.get(k);
-        return [k, { label: s.label, classLabel: s.classLabel, classId: s.classId, icon: s.icon || "", color: s.classColor }];
-    }));
-    return { ...gap, specInfo, text: gap.open || roles.length || buffs.length ? buildText(event, gap, specs) : "" };
+    // what the page needs to draw a spec (icon, name, class colour) — every spec, so the orga can add one to a role — and which specs a role has
+    const specInfo = Object.fromEntries([...specs.values()].map((s) => [s.key, { label: s.label, classLabel: s.classLabel, classId: s.classId, icon: s.icon || "", color: s.classColor }]));
+    const roleSpecs = Object.fromEntries(ROLES.map((role) => [role, specsOfRole(specs, role)]));
+    return { ...gap, specInfo, roleSpecs, text: gap.open || roles.length || buffs.length ? buildText(event, gap, specs) : "" };
+}
+
+/**
+ * The message for needs the orga edited (more or fewer of a role, some specs
+ * left out, a buff dropped, a role added) — same words as the suggestion.
+ * Everything comes from the page, so it is cleaned first: a known role, a count
+ * of 1–40, only specs the rule set has (none left = every spec of the role),
+ * only buffs the rule set knows.
+ * @param {object} event  an eventStore event with a setup
+ * @param {{ roles?: { role, missing, specs? }[], buffs?: { key, required?, specs? }[] }} needs
+ * @returns {{ text: string } | { error: object }}
+ */
+function textForNeeds(event, needs) {
+    if (!event || !event.setup) return fail(400, "no_setup", "Es gibt noch kein Setup.");
+    const rules = rulesOf(event);
+    const specs = specTable(rules);
+    const roles = [];
+    for (const r of Array.isArray(needs && needs.roles) ? needs.roles : []) {
+        const role = String((r && r.role) || "");
+        const missing = Math.floor(Number(r && r.missing));
+        if (!ROLES.includes(role) || !(missing >= 1) || roles.some((x) => x.role === role)) continue;
+        const chosen = (Array.isArray(r.specs) ? r.specs : []).map(String).filter((k) => specs.has(k) && specs.get(k).role === role);
+        roles.push({ role, missing: Math.min(missing, 40), specs: chosen.length ? chosen : specsOfRole(specs, role) });
+    }
+    const providers = new Map([...rules.partyBuffs, ...rules.raidBuffs].map((b) => [b.key, b.providers || []]));
+    const buffs = [];
+    for (const b of Array.isArray(needs && needs.buffs) ? needs.buffs : []) {
+        const key = String((b && b.key) || "");
+        if (!providers.has(key) || buffs.some((x) => x.key === key)) continue;
+        const known = providers.get(key).filter((k) => specs.has(k));
+        const chosen = (Array.isArray(b.specs) ? b.specs : []).map(String).filter((k) => known.includes(k));
+        buffs.push({ key, required: b.required === true, specs: chosen.length ? chosen : known });
+    }
+    const placed = (event.setup.groups || []).reduce((n, g) => n + (g.slots || []).length, 0);
+    const size = Number(event.size) || Number(event.setup.checks && event.setup.checks.size && event.setup.checks.size.size) || 0;
+    return { text: buildText(event, { size, placed, open: Math.max(0, size - placed), roles, buffs }, specs) };
 }
 
 /**
@@ -154,4 +197,4 @@ async function postSearch({ guildId, eventId, userId = "", byName = "", text = "
     return { message: "Suche im Kanal gepostet.", url: posted && posted.url };
 }
 
-module.exports = { suggestSearch, postSearch, specNameEn, MAX_TEXT };
+module.exports = { suggestSearch, textForNeeds, postSearch, specNameEn, MAX_TEXT };

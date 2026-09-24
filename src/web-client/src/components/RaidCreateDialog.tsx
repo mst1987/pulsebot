@@ -178,6 +178,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
     const [leaderId, setLeaderId] = useState("");
+    // "Andere Discord-ID…" picked in the leader dropdown: the id is typed in
+    const [leaderOther, setLeaderOther] = useState(false);
     const [description, setDescription] = useState("");
     const [categoryId, setCategoryId] = useState("");
 
@@ -312,6 +314,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             .then((data) => {
                 setCtx(data);
                 setLeaderId(data.leaderId);
+                setLeaderOther(false);
                 setStartTab(data.reusableEvents.length || !(data.raidTemplates || []).length ? "events" : "templates");
                 if (editing) {
                     const ev = data.editEvent;
@@ -322,6 +325,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     setTitle(ev.title);
                     setDescription(ev.description);
                     setLeaderId(ev.leaderId || data.leaderId);
+                    setLeaderOther(!!ev.leaderId && !(data.leaderCandidates || []).some((c) => c.id === ev.leaderId));
                     setDate(berlinDay(ev.startTime));
                     setTime(clockOf(ev.startTime));
                     setCategoryId(ev.categoryId);
@@ -547,7 +551,9 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             </>
         );
     } else if (step === "termin") {
-        const leaderText = leaderId === userId ? t("raidCreate.termin.leaderYou") : leaderId ? t("raidCreate.termin.leaderId", { id: leaderId }) : t("raidCreate.termin.noLeader");
+        const candidates = ctx ? ctx.leaderCandidates || [] : [];
+        const leaderName = (candidates.find((c) => c.id === leaderId) || { name: "" }).name;
+        const leaderText = leaderId === userId ? t("raidCreate.termin.leaderYou") : leaderId ? t("raidCreate.termin.leaderId", { id: leaderName || leaderId }) : t("raidCreate.termin.noLeader");
         const descText = description.trim()
             ? (sourceEvent && description === sourceEvent.description ? t("raidCreate.termin.descTaken") : t("raidCreate.termin.descSet"))
             : t("raidCreate.termin.descNone");
@@ -615,7 +621,20 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                         <div className="re-more-body">
                             <div className="field">
                                 <Label text={t("raidCreate.termin.leader")} htmlFor="re-leader" tip={t("raidCreate.termin.leaderTip")} />
-                                <input id="re-leader" className="re-mono" type="text" value={leaderId} onChange={(e) => setLeaderId(e.target.value)} required />
+                                <select
+                                    id="re-leader" value={leaderOther ? "" : leaderId}
+                                    onChange={(e) => {
+                                        if (e.target.value) { setLeaderId(e.target.value); setLeaderOther(false); } else { setLeaderOther(true); }
+                                    }}
+                                >
+                                    {candidates.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.id === userId ? t("raidCreate.termin.leaderOptionYou", { name: c.name || c.id }) : c.name || c.id}</option>
+                                    ))}
+                                    <option value="">{t("raidCreate.termin.leaderOther")}</option>
+                                </select>
+                                {leaderOther && (
+                                    <input className="re-mono" type="text" value={leaderId} onChange={(e) => setLeaderId(e.target.value)} placeholder={t("raidCreate.termin.leaderPlaceholder")} aria-label={t("raidCreate.termin.leader")} required />
+                                )}
                             </div>
                             <div className="field">
                                 <Label text={t("raidCreate.termin.description")} htmlFor="re-desc" tip={t("raidCreate.termin.descriptionTip")} />

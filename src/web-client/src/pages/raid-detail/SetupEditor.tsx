@@ -13,12 +13,12 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupPingText, updateRaidSize,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, previewRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, updateRaidSize,
     type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, groupSearchBuffs, suggestGroup, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
-    type SetupTarget,
+    applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, addRole, groupSearchBuffs, removeBuffs, respecRaider, searchNeedsFrom, stepRole, suggestGroup, toggleSpec, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
+    type SearchNeeds, type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { roleLabel, rolePluralLabel, specLabel } from "../../lib/wowNames";
@@ -29,7 +29,7 @@ import { Modal, useConfirm } from "../../components/ui/Modal";
 import RaidLoader from "../../components/ui/RaidLoader";
 import WowIcon from "../../components/ui/WowIcon";
 import { useJobs } from "../../components/Jobs";
-import { CheckIcon, LockIcon, UnlockIcon } from "../../components/icons";
+import { BenchIcon, CheckIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import SpecTile from "./SpecTile";
 import type { RaidCtx } from "./meta";
@@ -71,12 +71,11 @@ const dateTime = (ms: number) => (ms
     : "");
 
 
-/** "Zuletzt auf der Bank: 12.09.2026" — or that they were not on it in the nights looked at; "" without any earlier night. */
+/** The date of the last night on the bench ("12.09.2026"), "–" when they were not on it in the nights looked at; "" without any earlier night. */
 function benchText(a: SetupAttendance | undefined): string {
     if (!a || !a.benchNights) return "";
-    if (!a.lastBench) return t("setup.person.tip.benchNever", { count: a.benchNights });
-    const date = new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
-    return t("setup.person.tip.lastBench", { date });
+    if (!a.lastBench) return "–";
+    return new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
@@ -116,9 +115,19 @@ function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
     return (
         <div className="se-tip-body">
             <span className="se-tip-k">{t("setup.person.tip.attendanceDetails")}</span>
-            {a.pct !== null && <span>{t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}</span>}
-            {a.pct !== null && <span className="se-tip-sub">{a.link === "manual" ? t("setup.person.tip.linkManual") : t("setup.person.tip.linkAuto")}</span>}
-            {bench && <span className="se-tip-bench">{bench}</span>}
+            {a.pct !== null && (
+                <span className="se-tip-row" data-tip={t("setup.person.tip.attendanceCount", { attended: a.attended, total: a.total })}>
+                    <SignedIcon />{a.attended}/{a.total}
+                    {a.link === "manual"
+                        ? <span className="se-tip-link se-tip-linked" data-tip={t("setup.person.tip.linkManual")}><CheckIcon /></span>
+                        : <span className="se-tip-link se-tip-auto" data-tip={t("setup.person.tip.linkAuto")}>{t("setup.person.tip.autoBadge")}</span>}
+                </span>
+            )}
+            {bench && (
+                <span className="se-tip-row" data-tip={a.lastBench ? t("setup.person.tip.lastBench", { date: bench }) : t("setup.person.tip.benchNever", { count: a.benchNights })}>
+                    <BenchIcon />{bench}
+                </span>
+            )}
         </div>
     );
 }
@@ -131,8 +140,10 @@ function AttendanceDetails({ a }: { a: SetupAttendance | undefined }) {
  * three columns: what the raider brings, why they stand here, the attendance in
  * detail. It shows the raider the pointer touched last.
  */
-function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendance | undefined | null }) {
+function SlotTip({ p, attendance, extra, onSpec, onExtra }: { p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[]; onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void }) {
     const t = useT();
+    // the roles this raider could take on besides the one in the setup: a tank or a healer spec of the class
+    const extraOffers = ((["tank", "healer"] as const).filter((r) => r !== p.role && (p.classSpecs || []).some((sp) => sp.role === r)));
     const color = classColorProps(p.classColor);
     const status = statusLabel(p.status);
     const brings = p.brings || [];
@@ -155,6 +166,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                 {brings.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.brings")}</span>
+                        <div className="se-tip-buffs">
                         {brings.map((b) => (
                             <span
                                 key={`${b.scope}-${b.key}`} className="se-tip-buff"
@@ -168,6 +180,7 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                                 </span>
                             </span>
                         ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -180,6 +193,42 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                 )}
             </div>
             <div className="se-tip-col">
+                {onSpec && (p.classSpecs || []).length > 1 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.playsAs")} data-tip-sub={t("setup.person.tip.playsAsSub")}>{t("setup.person.tip.playsAs")}</span>
+                        <div className="se-tip-specs">
+                            {(p.classSpecs || []).map((sp) => (
+                                <button
+                                    key={sp.key} type="button" className={`se-tip-spec${sp.key === p.spec ? " is-on" : ""}`} aria-pressed={sp.key === p.spec}
+                                    aria-label={`${specLabel(sp.key, sp.label)} · ${roleLabel(sp.role)}`}
+                                    data-tip={specLabel(sp.key, sp.label)} data-tip-sub={roleLabel(sp.role)} onClick={() => onSpec(sp.key)}
+                                >
+                                    <WowIcon name={sp.icon || "inv_misc_questionmark"} size={22} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {onExtra && extraOffers.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.extra")} data-tip-sub={t("setup.person.tip.extraSub")}>{t("setup.person.tip.extra")}</span>
+                        <div className="se-tip-specs">
+                            {extraOffers.map((r) => {
+                                const on = extra.includes(r);
+                                const spec = (p.classSpecs || []).find((sp) => sp.role === r);
+                                return (
+                                    <button
+                                        key={r} type="button" className={`se-tip-extra${on ? " is-on" : ""}`} aria-pressed={on}
+                                        data-tip={t("setup.extra.tip", { role: roleLabel(r) })} onClick={() => onExtra(r, !on)}
+                                    >
+                                        <WowIcon name={(spec && spec.icon) || "inv_misc_questionmark"} size={20} />
+                                        <span>{roleLabel(r)}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}
             </div>
         </aside>
@@ -272,6 +321,8 @@ type Interaction = {
     onPick: (userId: string) => void;
     onDrop: (target: SetupTarget, userId?: string) => void;
     onDrag: (userId: string | null) => void;
+    /** raiders marked as an extra tank / healer, by user id */
+    extraRoles: Record<string, string[]>;
     onLock: (userId: string) => void;
 };
 
@@ -317,6 +368,9 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
                     {specText(p)}
                     {/* an off-spec role is tinted — "Zweitspec" itself is in the tooltip */}
                     {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>}
+                    {(ui.extraRoles[p.userId] || []).map((r) => (
+                        <span key={r} className="se-extra" data-tip={t("setup.extra.tip", { role: roleLabel(r) })}>{t(`setup.extra.short.${r}`)}</span>
+                    ))}
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
@@ -663,29 +717,61 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
 
 /**
  * "Suche": which classes and specs the raid still needs, worked out from the
- * setup as it stands (the server's suggestion), and the message that looks for
- * them — English, editable, posted into the event channel with one click.
+ * setup as it stands (the server's suggestion) — and the orga edits it: more or
+ * fewer of a role, specs taken in or out, a role added, a buff dropped. The
+ * English message for the channel follows the changes (the server writes it),
+ * stays editable by hand, and is posted into the event channel with one click.
  */
 function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: () => void; ctx: RaidCtx; search: SetupSearch | null | undefined }) {
     const t = useT();
     const jobs = useJobs();
+    const [needs, setNeeds] = useState<SearchNeeds>({ roles: [], buffs: [] });
     const [text, setText] = useState("");
+    // the orga typed in the message: a change of the needs no longer rewrites it, "neu erzeugen" does
+    const [touched, setTouched] = useState(false);
+    const [writing, setWriting] = useState(false);
     const [posting, setPosting] = useState(false);
     useEffect(() => {
-        if (open) setText(search?.text || "");
+        if (!open || !search) return;
+        setNeeds(searchNeedsFrom(search));
+        setText(search.text);
+        setTouched(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
-    const nothing = !search || (!search.roles.length && !search.buffs.length && !search.open);
-    const chips = (keys: string[]) => keys.map((k) => {
-        const s = search?.specInfo[k];
+
+    const regenerate = async (next: SearchNeeds) => {
+        setWriting(true);
+        try {
+            const r = await previewRaidSearch(ctx.csrfToken, ctx.eventId, { roles: next.roles, buffs: next.buffs.map((b) => ({ key: b.key, required: b.required, specs: b.specs })) });
+            setText(r.text);
+            setTouched(false);
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.search.failed"), "err");
+        } finally {
+            setWriting(false);
+        }
+    };
+    const change = (next: SearchNeeds) => {
+        setNeeds(next);
+        if (!touched) void regenerate(next);
+    };
+
+    const nothing = !search || (!needs.roles.length && !needs.buffs.length && !search.open);
+    const chip = (key: string, on: boolean, toggle?: () => void) => {
+        const s = search?.specInfo[key];
         if (!s) return null;
-        return (
-            <span key={k} className="se-search-chip" style={{ borderLeftColor: s.color }} data-tip={`${s.classLabel} – ${specLabel(k, s.label)}`}>
+        const inner = (
+            <>
                 <WowIcon name={s.icon || "inv_misc_questionmark"} size={18} />
-                <span className="se-search-chip-name">{specLabel(k, s.label)}<small>{s.classLabel}</small></span>
-            </span>
+                <span className="se-search-chip-name">{specLabel(key, s.label)}<small>{s.classLabel}</small></span>
+            </>
         );
-    });
+        return toggle
+            ? <button key={key} type="button" className={`se-search-chip se-search-pick${on ? " is-on" : ""}`} style={{ borderLeftColor: s.color }} aria-pressed={on} onClick={toggle}>{inner}</button>
+            : <span key={key} className="se-search-chip" style={{ borderLeftColor: s.color }}>{inner}</span>;
+    };
+    const chips = (keys: string[]) => keys.map((k) => chip(k, true));
+    const missingRoles = Object.keys(search?.roleSpecs || {}).filter((r) => !needs.roles.some((x) => x.role === r));
     const post = async () => {
         setPosting(true);
         try {
@@ -700,20 +786,27 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
     };
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={760}
+            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={780}
             hint={t("setup.search.hint")}
-            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={nothing || !text.trim() || text.length > 2000} onClick={post}>{t("setup.search.post")}</Button>}
+            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={!search || !text.trim() || text.length > 2000 || writing} onClick={post}>{t("setup.search.post")}</Button>}
         >
-            {nothing || !search ? <p className="se-note">{t("setup.search.none")}</p> : (
+            {!search ? <p className="se-note">{t("setup.search.none")}</p> : (
                 <div className="se-search">
                     <p className="se-search-open">{t("setup.search.open", { open: search.open, size: search.size })}</p>
-                    {search.roles.map((r) => (
+                    {needs.roles.map((r) => (
                         <div key={r.role} className="se-search-row">
-                            <span className="se-search-need">{t("setup.search.roleCount", { count: r.missing, role: r.missing > 1 ? rolePluralLabel(r.role) : roleLabel(r.role) })}</span>
-                            <span className="se-search-chips">{chips(r.specs)}</span>
+                            <span className="se-search-need">
+                                <span className="se-search-step" role="group" aria-label={roleLabel(r.role)}>
+                                    <button type="button" onClick={() => change(stepRole(needs, r.role, -1))} aria-label={t("setup.search.fewer")}>-</button>
+                                    <b>{r.missing}</b>
+                                    <button type="button" onClick={() => change(stepRole(needs, r.role, 1))} aria-label={t("setup.search.more")}>+</button>
+                                </span>
+                                {r.missing > 1 ? rolePluralLabel(r.role) : roleLabel(r.role)}
+                            </span>
+                            <span className="se-search-chips">{(search.roleSpecs[r.role] || []).map((k) => chip(k, r.specs.includes(k), () => change(toggleSpec(needs, r.role, k))))}</span>
                         </div>
                     ))}
-                    {groupSearchBuffs(search.buffs).map((g) => (
+                    {groupSearchBuffs(needs.buffs).map((g) => (
                         <div key={g.id} className="se-search-row">
                             <span className="se-search-need" data-tip={g.buffs.map((b) => b.label).join(", ")}>
                                 <span className="se-search-icons">{g.buffs.map((b) => <WowIcon key={b.key} name={b.icon || "inv_misc_questionmark"} size={20} />)}</span>
@@ -722,13 +815,34 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
                                     <small className={g.required ? "se-search-req" : ""}>{g.required ? t("setup.search.required") : t("setup.search.helps")}</small>
                                 </span>
                             </span>
-                            <span className="se-search-chips">{chips(g.specs)}</span>
+                            <span className="se-search-chips">
+                                {chips(g.specs)}
+                                <IconButton
+                                    className="se-search-drop" size="sm" icon={<XIcon />} tip={t("setup.search.drop")} tipSub={t("setup.search.dropSub")}
+                                    onClick={() => change(removeBuffs(needs, g.buffs.map((b) => b.key)))}
+                                />
+                            </span>
                         </div>
                     ))}
+                    {missingRoles.length > 0 && (
+                        <div className="se-search-add">
+                            <span className="se-tip-k">{t("setup.search.add")}</span>
+                            {missingRoles.map((r) => (
+                                <button key={r} type="button" className="se-search-addrole" onClick={() => change(addRole(needs, r, search.roleSpecs[r] || []))}>+ {roleLabel(r)}</button>
+                            ))}
+                        </div>
+                    )}
+                    {nothing && <p className="se-note">{t("setup.search.none")}</p>}
                     <label className="se-search-msg">
                         <span className="se-tip-k">{t("setup.search.message")}</span>
-                        <textarea value={text} maxLength={2000} rows={Math.min(16, text.split("\n").length + 3)} onChange={(e) => setText(e.target.value)} aria-label={t("setup.search.message")} />
-                        <span className="se-search-count">{text.length}/2000</span>
+                        <textarea
+                            value={text} maxLength={2000} rows={Math.min(16, text.split("\n").length + 3)} aria-label={t("setup.search.message")}
+                            onChange={(e) => { setText(e.target.value); setTouched(true); }}
+                        />
+                        <span className="se-search-foot">
+                            {touched && <button type="button" className="se-search-regen" onClick={() => void regenerate(needs)}>{t("setup.search.regenerate")}</button>}
+                            <span className="se-search-count">{writing ? t("setup.search.writing") : `${text.length}/2000`}</span>
+                        </span>
                     </label>
                 </div>
             )}
@@ -818,7 +932,7 @@ function PingTextField({ value, disabled, onSave }: { value: string; disabled: b
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
@@ -951,6 +1065,18 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         return chain.current;
     };
 
+    /** Put a raider into the setup as another spec of their class (the third tank, an extra healer) — saved like any move. */
+    const respec = (userId: string, specKey: string) => {
+        const shown = current.current;
+        if (!shown?.setup) return;
+        const person = peopleOf(shown.setup).get(userId);
+        const spec = person?.classSpecs?.find((x) => x.key === specKey);
+        if (!spec) return;
+        const result = respecRaider(toInput(shown.setup), userId, spec);
+        if ("error" in result && result.error) return jobs.notify(result.error, "err");
+        if (result.input) save(result.input);
+    };
+
     const move = (target: SetupTarget, userId?: string) => {
         const who = userId || selected;
         setSelected(null);
@@ -1063,6 +1189,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    const toggleExtra = async (userId: string, role: "tank" | "healer", on: boolean) => {
+        try {
+            const next = await saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on);
+            setData((prev) => (prev ? { ...prev, extraRoles: next.extraRoles } : prev));
+        } catch (e) {
+            jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
+        }
+    };
+
     const savePingText = async (text: string) => {
         try {
             const next = await saveSetupPingText(ctx.csrfToken, ctx.eventId, text);
@@ -1101,7 +1236,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
     // looked up fresh every render, so a move redraws the panel's group and buffs
     const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
+    const inspectedIsBench = !!inspectedPerson && setup.bench.some((b) => b.userId === inspectedPerson.userId);
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -1161,7 +1297,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
                     />
                 </div>
-                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
+                {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} extra={(data.extraRoles || {})[inspectedPerson.userId] || []} onExtra={inspectedIsBench ? undefined : (role, on) => void toggleExtra(inspectedPerson.userId, role, on)} onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)} /> : <TipEmpty />}
             </div>
 
             <div className="se-layout">
