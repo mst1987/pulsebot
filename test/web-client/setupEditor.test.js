@@ -255,14 +255,16 @@ describe("setup editor page", () => {
     it("has an optional compact view (off by default, remembered per browser) and a top row of three boxes", () => {
         expect(editor).toContain('localStorage.getItem(COMPACT_KEY) === "1"');
         expect(editor).toMatch(/se-editor\$\{compact \? " se-compact" : ""\}/);
-        // left: the ping message with the summary under it; right: the raider panel
-        expect(editor).toMatch(/className="se-topline">\s*<div className="se-topleft">\s*<PingTextField[\s\S]*?<Summary[\s\S]*?<\/div>\s*\{inspectedPerson \? <SlotTip[\s\S]*?<TipEmpty/);
+        // left: the bar, the channel line, the ping message and the summary; right: the raider panel
+        expect(editor).toMatch(/className="se-topline">\s*<div className="se-topleft">\s*<div className="se-bar">[\s\S]*?<PublishLine[\s\S]*?<PingTextField[\s\S]*?<Summary[\s\S]*?<\/div>\s*\{inspectedPerson \? <SlotTip[\s\S]*?<TipEmpty/);
         const css = read("styles", "setup-editor.css");
         // five groups side by side: the cards are ~190 px wide, the compact ones narrower
         expect(css).toMatch(/\.se-groups \{[^}]*minmax\(188px/);
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
-        // the raider panel is as tall as its content needs — never a scrollbar — with a reserved minimum against jumping groups
-        expect(css).toMatch(/\.se-topline \.se-tip \{[^}]*min-height: 220px/);
+        // the raider panel is as tall as the left block, at least 300 px — never a scrollbar, and no jumping groups
+        expect(css).toMatch(/\.se-topline \.se-tip \{[^}]*min-height: 300px/);
+        // one font size throughout the panel
+        expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 13px;/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*overflow-y: auto/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*max-height/);
         // a raider and a free place share one row height, so cards are equally tall whether a place is taken or not
