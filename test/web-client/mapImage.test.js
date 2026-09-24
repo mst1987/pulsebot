@@ -8,15 +8,17 @@ const lib = loadTs("lib/mapImage.ts", { t: makeT("de") });
 const MB = 1024 * 1024;
 
 describe("needsCompression", () => {
-    it("leaves a small file of normal size alone", () => {
-        expect(lib.needsCompression(1 * MB, 1920, 1080)).toBe(false);
-        expect(lib.needsCompression(lib.MAP_TARGET_BYTES, 2560, 1600)).toBe(false);
+    it("leaves a file that is already small enough alone, whatever its pixels", () => {
+        expect(lib.needsCompression(600 * 1024)).toBe(false);
+        expect(lib.needsCompression(lib.MAP_TARGET_BYTES)).toBe(false);
     });
-    it("shrinks a file over 2.8 MB or an edge over 2560 px", () => {
-        expect(lib.needsCompression(4.8 * MB, 1000, 1000)).toBe(true);
-        expect(lib.needsCompression(1 * MB, 4000, 2000)).toBe(true);
+    it("shrinks a file over 900 KB", () => {
+        expect(lib.needsCompression(lib.MAP_TARGET_BYTES + 1)).toBe(true);
+        expect(lib.needsCompression(6.3 * MB)).toBe(true);
     });
-    it("aims below the server's 3 MB limit", () => {
+    it("aims below the 1 MB default of a reverse proxy, which is below the server's 3 MB limit", () => {
+        expect(lib.MAP_TARGET_BYTES).toBe(900 * 1024);
+        expect(lib.MAP_TARGET_BYTES).toBeLessThan(1 * MB);
         expect(lib.MAP_TARGET_BYTES).toBeLessThan(lib.MAP_LIMIT_BYTES);
         expect(lib.MAP_LIMIT_BYTES).toBe(3 * MB);
     });
@@ -35,12 +37,13 @@ describe("scaledSize", () => {
 });
 
 describe("attempts", () => {
-    it("tries the best quality first and a smaller picture only after every quality failed", () => {
+    it("starts at 2560 px with the best quality, goes 2048 then 1600 px only after every quality failed", () => {
         const a = lib.attempts();
-        expect(a[0]).toEqual({ factor: 1, quality: 0.92 });
-        expect(a[lib.MAP_QUALITIES.length - 1]).toEqual({ factor: 1, quality: 0.6 });
-        expect(a[lib.MAP_QUALITIES.length]).toEqual({ factor: 0.85, quality: 0.92 });
-        expect(a).toHaveLength(lib.MAP_QUALITIES.length * lib.MAP_SHRINK_FACTORS.length);
+        expect(a[0]).toEqual({ edge: 2560, quality: 0.92 });
+        expect(a[lib.MAP_QUALITIES.length - 1]).toEqual({ edge: 2560, quality: 0.6 });
+        expect(a[lib.MAP_QUALITIES.length]).toEqual({ edge: 2048, quality: 0.92 });
+        expect(lib.MAP_EDGES.slice(0, 3)).toEqual([2560, 2048, 1600]);
+        expect(a).toHaveLength(lib.MAP_QUALITIES.length * lib.MAP_EDGES.length);
         const q = lib.MAP_QUALITIES;
         expect([...q].sort((x, y) => y - x)).toEqual(q);
     });

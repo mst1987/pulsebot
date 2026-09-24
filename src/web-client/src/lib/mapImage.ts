@@ -1,6 +1,7 @@
 // Room map images (docs/raidplan.md), pure: when an upload is too big or too large
 // it is shrunk in the browser before it is sent, so the orga is not turned away by
-// the server's 3 MB limit. Only the numbers live here (sizes, steps, the text shown);
+// the server's 3 MB limit - or, in front of it, by a reverse proxy: nginx refuses a body
+// over its default client_max_body_size of 1 MB with an HTML "413 Request Entity Too Large". Only the numbers live here (sizes, steps, the text shown);
 // the canvas work is in pages/raid-detail/raidplan/mapUpload.ts. The server still
 // checks the type by its first bytes and the size (the safety net stays).
 //
@@ -9,14 +10,14 @@
 
 /** What the server accepts (raidplanStore.LIMITS.mapBytes = 3 MB). */
 export const MAP_LIMIT_BYTES = 3 * 1024 * 1024;
-/** What a shrunk map is aimed below: 2.8 MB, a little under the limit. */
-export const MAP_TARGET_BYTES = Math.floor(2.8 * 1024 * 1024);
+/** What a map is sent as at most: 900 KB, under the 1 MB default limit of a reverse proxy (nginx) with room for the multipart overhead. */
+export const MAP_TARGET_BYTES = 900 * 1024;
+/** The longest edges tried, biggest first (a smaller picture only when the quality alone does not get it under the target). */
+export const MAP_EDGES = [2560, 2048, 1600, 1280, 1024];
 /** The longest edge a map keeps. */
 export const MAP_MAX_EDGE = 2560;
 /** Encoder qualities tried one after the other, best first. */
 export const MAP_QUALITIES = [0.92, 0.85, 0.78, 0.7, 0.6];
-/** When even the lowest quality is too big the picture is made smaller by these factors, one after the other. */
-export const MAP_SHRINK_FACTORS = [1, 0.85, 0.7, 0.55, 0.4];
 export const MAP_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 /** Whether the file is one of the accepted image types (an animated GIF, an SVG or any other file is not). */
@@ -24,9 +25,9 @@ export function isMapType(type: string): boolean {
     return MAP_TYPES.indexOf(type) >= 0;
 }
 
-/** A small file of a sensible size is sent as it is (no needless loss of quality). */
-export function needsCompression(bytes: number, width: number, height: number): boolean {
-    return bytes > MAP_TARGET_BYTES || Math.max(width, height) > MAP_MAX_EDGE;
+/** A file that is already small enough is sent as it is (no needless loss of quality), whatever its pixels. */
+export function needsCompression(bytes: number): boolean {
+    return bytes > MAP_TARGET_BYTES;
 }
 
 /** The size in px of a picture whose longest edge is at most `maxEdge`, proportions kept (never enlarged). */
@@ -37,10 +38,10 @@ export function scaledSize(width: number, height: number, maxEdge: number): { wi
     return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)) };
 }
 
-/** Every (size factor, quality) the encoder is tried with, in order: lots of quality first, smaller picture only when needed. */
-export function attempts(): { factor: number; quality: number }[] {
+/** Every (longest edge, quality) the encoder is tried with, in order: the biggest picture with the best quality first, smaller only when needed. */
+export function attempts(): { edge: number; quality: number }[] {
     const out = [];
-    for (const factor of MAP_SHRINK_FACTORS) for (const quality of MAP_QUALITIES) out.push({ factor, quality });
+    for (const edge of MAP_EDGES) for (const quality of MAP_QUALITIES) out.push({ edge, quality });
     return out;
 }
 

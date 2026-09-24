@@ -57,7 +57,7 @@
         "mapResetText": "Diese Karte wird gelöscht, das Board zeigt wieder die Karte der Vorlage oder die Standard-Karte.",
         "mapWasReset": "Auf Standard zurückgesetzt.",
         "mapCompressed": "Verkleinert: {from} → {to}, {w}×{h}.",
-        "mapCannotShrink": "Das Bild lässt sich nicht unter 3 MB verkleinern. Nimm ein kleineres oder weniger detailreiches Bild.",
+        "mapCannotShrink": "Das Bild lässt sich nicht unter 0,9 MB verkleinern. Nimm ein kleineres oder weniger detailreiches Bild.",
         "mapNotImage": "Nur PNG, JPG oder WebP sind erlaubt (kein GIF, SVG oder anderes).",
         "mapUnreadable": "Die Datei lässt sich nicht als Bild lesen."
     },

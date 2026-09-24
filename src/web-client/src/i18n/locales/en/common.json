@@ -12,5 +12,11 @@
         "inDays": "in {count} days",
         "daysAgo": "{count} days ago"
     },
-    "quoted": "“{text}”"
+    "quoted": "“{text}”",
+    "errors": {
+        "badResponse": "Unexpected answer from the server.",
+        "tooLarge": "The file is too large for the server (proxy limit). Please choose a smaller image.",
+        "gateway": "The server is not answering right now (HTTP {status}). Please try again in a moment.",
+        "server": "Server error (HTTP {status})."
+    }
 }

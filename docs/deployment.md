@@ -101,3 +101,7 @@ Der `commit` dort muss der sein, der gerade auf `main` steht.
 3. Solange das nicht behoben ist, hilft ein Deploy von Hand (oben) — der
    Rückstand verschwindet danach aus Menü und Übersicht, sobald der Cache von
    10 Minuten abgelaufen ist oder die Seite neu geladen wird.
+
+## Reverse proxy: upload size
+
+A reverse proxy in front of the bot (nginx) has its own body limit: `client_max_body_size` defaults to **1 MB** and answers larger uploads with an HTML "413 Request Entity Too Large" before the bot ever sees them. The bot's own limit for room maps is 3 MB, so the browser shrinks every map to at most 900 KB first (`lib/mapImage.ts`, `MAP_TARGET_BYTES`), and the client turns a 413 / 502 / 503 / 504 answer without JSON into a readable message (the HTML only goes to the browser console). If bigger files should get through, raise the limit **in the proxy config** (outside this repo), e.g. `location /api/raidplan/ { client_max_body_size 4m; }`; the client-side shrinking stays below it either way.
