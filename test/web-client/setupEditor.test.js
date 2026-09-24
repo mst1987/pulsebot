@@ -263,8 +263,14 @@ describe("setup editor page", () => {
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
         // the whole top row has ONE fixed height, so the panel never grows or shrinks with its content and the groups never jump;
         // whatever would not fit is cut off inside its own box, never spilled into the next
-        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 330px/);
+        expect(css).toMatch(/\.se-topline \{[^}]*grid-template-rows: 384px/);
         expect(css).toMatch(/\.se-topline > \* \{[^}]*overflow: hidden/);
+        // readable: every figure and setting is a bordered tile of its own, and the quiet buttons keep a visible fill and outline
+        expect(css).toMatch(/\.se-topline \.se-stats \{ display: contents; \}/);
+        expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*border: 1px solid var\(--line\)/);
+        // two lines in a tile (label over value): a wide badge never runs into its label
+        expect(css).toMatch(/\.se-topline \.se-side-row \{[^}]*grid-template-columns: minmax\(0, 1fr\); justify-items: start/);
+        expect(css).toMatch(/\.se-bar-act \.btn\[class\*="ghost"\] \{[^}]*border: 1px solid color-mix/);
         // the panel in three roomy columns
         expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1\.1fr\) minmax\(0, 1\.15fr\)/);
         expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 14\.5px;/);
@@ -292,9 +298,14 @@ describe("setup editor page", () => {
 
     it("keeps the side column to roles, buffs, fairness and wishes — weights and the explanation in dialogs", () => {
         const summary = editor.match(/function Summary\([\s\S]*?\n}\n/)[0];
-        for (const label of ["label={rolePluralLabel(\"tank\")}", "label={rolePluralLabel(\"healer\")}", "label={t(\"setup.summary.dps\")}", "{t(\"setup.summary.buffs\")}<", "{t(\"setup.summary.fairness\")}<", "{t(\"setup.summary.wishes\")}<", "{t(\"setup.summary.weights\")}"]) {
+        for (const label of ["label={rolePluralLabel(\"tank\")}", "label={rolePluralLabel(\"healer\")}", "label={t(\"setup.summary.dps\")}", "{t(\"setup.summary.buffs\")}<", "{t(\"setup.summary.fairness\")}<", "{t(\"setup.summary.wishes\")}<"]) {
             expect({ label, found: summary.includes(label) }).toEqual({ label, found: true });
         }
+        // wishes are a switch of their own (like fairness), saved through the same request; "Gewichte…" sits with the actions in the bar
+        expect(summary).toContain("onChange={() => onWishes(!wishesOn)}");
+        expect(editor).toContain("{ wishes: on }");
+        expect(editor).toMatch(/onClick=\{\(\) => setDialog\("weights"\)\}>\{t\("setup\.summary\.weights"\)\}<\/Button>/);
+        expect(makeT("de")("setup.summary.wishesCapOff")).toBe("Aus – hier einschalten");
         const de = makeT("de");
         expect([de("setup.summary.dps"), de("setup.summary.wishes"), de("setup.summary.weights")]).toEqual(["DD", "Wünsche", "Gewichte…"]);
         expect(summary).not.toContain("type=\"range\"");
@@ -482,6 +493,26 @@ describe("the raider tooltip and the drag glow", () => {
         const css = read("styles", "setup-editor.css");
         // the glow rides on the group card
         expect(src).toContain("se-suggest");
+    });
+
+    it("draws the lock as an overlay that takes no width from the raider's name", () => {
+        const css = read("styles", "setup-editor.css");
+        expect(css).toMatch(/\.se-slot \{ position: relative;/);
+        expect(css).toMatch(/\.se-lock \{ position: absolute;/);
+        // locked: a small icon in the corner, no flex column of its own
+        expect(css).toMatch(/\.se-lock\.is-on \{[^}]*opacity: 1;[^}]*width: 14px/);
+        expect(css).not.toMatch(/\.se-lock \{[^}]*flex: 0 0 auto/);
+    });
+
+    it("shows the spec tile only (no role icon), the name in full and the auto badge not in capitals", () => {
+        const src = read("pages", "raid-detail", "SetupEditor.tsx");
+        expect(src).not.toContain("ROLE_ICONS");
+        const css = read("styles", "setup-editor.css");
+        // a long name wraps, it is never cut off with an ellipsis
+        expect(css).toMatch(/\.se-tip-name \{[^}]*white-space: normal/);
+        expect(css).not.toMatch(/\.se-tip-name \{[^}]*text-overflow/);
+        expect(css).not.toMatch(/\.se-tip-auto \{[^}]*text-transform: uppercase/);
+        expect(de("setup.person.tip.autoBadge")).toBe("Auto");
     });
 
     it("has the tooltip's texts in German and English", () => {

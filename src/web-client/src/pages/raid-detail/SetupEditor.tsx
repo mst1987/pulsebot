@@ -70,12 +70,6 @@ const dateTime = (ms: number) => (ms
     ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
 
-const ROLE_ICONS: Record<string, string> = {
-    tank: "ability_warrior_defensivestance",
-    healer: "spell_holy_flashheal",
-    melee: "ability_meleedamage",
-    ranged: "ability_marksmanship",
-};
 
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
 const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "mid" : "bad");
@@ -128,7 +122,6 @@ function SlotTip({ p, attendance }: { p: SetupPerson; attendance: SetupAttendanc
                     <div className="se-tip-body">
                         <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                         <span className="se-tip-sub">
-                            {p.role && <WowIcon name={ROLE_ICONS[p.role] || "inv_misc_questionmark"} size={14} />}
                             {[specText(p), p.role ? roleLabel(p.role) : "", p.main === false ? t("setup.person.offSpec") : ""].filter(Boolean).join(" · ")}
                         </span>
                         {(p.name || status) && (
@@ -460,13 +453,13 @@ function Stat({ label, value, target, ok, tip }: { label: string; value: number;
     );
 }
 
-function Summary({ data, setup, busy, onFairness, onAvoid, onWeights }: {
+function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
     data: SetupEditorData;
     setup: StoredSetup;
     busy: boolean;
     onFairness: (on: boolean) => void;
+    onWishes: (on: boolean) => void;
     onAvoid: (on: boolean) => void;
-    onWeights: () => void;
 }) {
     const t = useT();
     const { checks } = setup;
@@ -515,12 +508,18 @@ function Summary({ data, setup, busy, onFairness, onAvoid, onWeights }: {
                     <input type="checkbox" checked={fairness} disabled={busy} onChange={() => onFairness(!fairness)} aria-label={t("setup.summary.fairnessAria")} />
                     <span className="switch-track"><span className="switch-thumb" /></span>
                 </label>
+                <span className="se-side-cap">{t("setup.summary.fairnessCap")}</span>
             </div>
+            {/* wishes are a switch of their own: the raiders' "gerne zusammen mit" from their profiles, considered only while it is on */}
             <div className="se-side-row">
-                <span className="kicker">{t("setup.summary.wishes")}</span>
-                {wishesOn
-                    ? <span className="se-side-v" data-tip={t("setup.summary.wishesMet")} data-tip-sub={t("setup.summary.wishesMetSub")}>{checks.wishes.met}<small>/{checks.wishes.total}</small></span>
-                    : <span className="se-side-off" data-tip={t("setup.summary.wishesOff")} data-tip-sub={t("setup.summary.wishesOffSub")}>{t("setup.summary.off")}</span>}
+                <span className="kicker" data-tip={t("setup.summary.wishes")} data-tip-sub={t("setup.summary.wishesSub")}>{t("setup.summary.wishes")}</span>
+                <label className="switch">
+                    <input type="checkbox" checked={wishesOn} disabled={busy} onChange={() => onWishes(!wishesOn)} aria-label={t("setup.summary.wishesAria")} />
+                    <span className="switch-track"><span className="switch-thumb" /></span>
+                </label>
+                <span className="se-side-cap">
+                    {wishesOn ? t("setup.summary.wishesCapOn", { met: checks.wishes.met, total: checks.wishes.total }) : t("setup.summary.wishesCapOff")}
+                </span>
             </div>
             {avoidTotal > 0 && (
                 <div className="se-side-row">
@@ -536,7 +535,6 @@ function Summary({ data, setup, busy, onFairness, onAvoid, onWeights }: {
                     </label>
                 </div>
             )}
-            <button type="button" className="se-weights-btn" onClick={onWeights} disabled={busy}>{t("setup.summary.weights")}</button>
             {!!setup.warnings.length && (
                 <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
             )}
@@ -831,7 +829,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     // `patch`: other top-level fields to redraw at once alongside the lineup —
     // only the resize uses it, to show the new size/group count instantly
     // instead of waiting for the server's answer.
-    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; avoid?: boolean } = {}, patch: Partial<SetupEditorData> = {}) => {
+    const save = (input: SetupPlacementInput, extra: { fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}, patch: Partial<SetupEditorData> = {}) => {
         const shown = current.current;
         if (!shown?.setup) return chain.current;
         const ticket = ++saving.current;
@@ -1038,6 +1036,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                         {t("setup.editor.compact")}
                     </Button>
                     <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
+                    <Button variant="ghost" size="sm" icon="inv_misc_gear_01" disabled={busy} onClick={() => setDialog("weights")}>{t("setup.summary.weights")}</Button>
                     <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
                     <Button size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy || setup.status === "approved"} onClick={approve}>
                         {setup.status === "approved" ? t("setup.editor.approved") : t("setup.editor.approve")}
@@ -1052,8 +1051,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     <Summary
                         data={data} setup={setup} busy={busy}
                         onFairness={(on) => save(toInput(current.current?.setup || setup), { fairness: on })}
+                        onWishes={(on) => save(toInput(current.current?.setup || setup), { wishes: on })}
                         onAvoid={(on) => save(toInput(current.current?.setup || setup), { avoid: on })}
-                        onWeights={() => setDialog("weights")}
                     />
                 </div>
                 {inspectedPerson ? <SlotTip p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined} /> : <TipEmpty />}
