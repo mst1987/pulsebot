@@ -2,7 +2,8 @@
    Calm on purpose: one line per raider, the name the largest thing in it,
    everything else in the tooltip or behind a dialog. Own namespace: se-. */
 
-.se-editor { display: flex; flex-direction: column; gap: 14px; }
+/* one row height for a raider and for a free place, so cards never differ in height whether a place is taken or not */
+.se-editor { --se-row: 46px; display: flex; flex-direction: column; gap: 14px; }
 
 /* the bar: state badges on the left, the three actions on the right */
 .se-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; }
@@ -113,7 +114,7 @@
 .se-bench-chunks { margin-top: 4px; }
 
 /* a free place: an empty box as high as a raider line */
-.se-ph { box-sizing: border-box; min-height: 40px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
+.se-ph { box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }
 .se-ph-take { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-family: inherit; font-size: 13px; opacity: 1; cursor: pointer; }
 .se-ph-take small { margin-left: 6px; font: 700 11px var(--mono); opacity: .8; }
 /* a raider dragged over exactly this free place */
@@ -142,7 +143,7 @@
 .se-slots { display: flex; flex-direction: column; gap: 4px; padding: 6px; min-height: 48px; }
 
 /* one raider */
-.se-slot { display: flex; align-items: center; gap: 9px; padding: 5px 6px 5px 6px; border-radius: 8px; border: 1px solid transparent; background: var(--panel2); cursor: grab; min-width: 0; }
+.se-slot { box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; gap: 9px; padding: 0 6px; border-radius: 8px; border: 1px solid transparent; background: var(--panel2); cursor: grab; min-width: 0; }
 .se-slot:hover { border-color: var(--line); }
 .se-slot:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .se-slot.se-picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
@@ -203,13 +204,13 @@
 /* compact view (off by default, a switch in the bar): one-line raiders on narrower cards — for small screens or a very full raid.
    The spec line is in the raider panel. */
 .se-compact .se-groups { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+.se-compact { --se-row: 32px; }
 .se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
-.se-compact .se-slot { gap: 6px; padding: 2px 5px 2px 3px; }
+.se-compact .se-slot { gap: 6px; padding: 0 5px 0 3px; }
 .se-compact .se-slot img, .se-compact .se-slot [class*="spec-ph"] { width: 20px; height: 20px; }
 .se-compact .se-sub { display: none; }
 .se-compact .se-name { font-size: 13.5px; }
 .se-compact .se-lock { width: 20px; height: 20px; }
-.se-compact .se-ph { min-height: 30px; }
 .se-compact .se-group-head-top { min-height: 28px; padding: 5px 38px; }
 .se-compact .se-group-title { font-size: 13.5px; }
 .se-compact .se-group-head-top .se-count.se-num { font-size: 15px; }
