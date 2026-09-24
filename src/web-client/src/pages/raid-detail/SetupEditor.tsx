@@ -1008,6 +1008,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
     return (
         <div className={`se-editor${compact ? " se-compact" : ""}`}>
+            {/* top area: left the bar, the channel line, the ping message and the evening's numbers; right the raider panel (the one the pointer touched last) */}
+            <div className="se-topline">
+                <div className="se-topleft">
             <div className="se-bar">
                 <StatusBadge setup={setup} />
                 <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
@@ -1040,10 +1043,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </Button>
                 </div>
             </div>
-            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
-            {/* top row: left the ping message with the evening's numbers under it, right the raider panel (the one the pointer touched last) */}
-            <div className="se-topline">
-                <div className="se-topleft">
+                    <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
                     <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
                     <Summary
                         data={data} setup={setup} busy={busy}
