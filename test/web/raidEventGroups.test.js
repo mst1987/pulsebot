@@ -309,6 +309,18 @@ describe("web/raidEventGroups", () => {
         }]);
     });
 
+    it("keeps the upcoming list upcoming when Raid-Helper is down: persisted events that already started stay out", async () => {
+        mockGetAllEvents.mockRejectedValue(new Error("Raid-Helper down"));
+        const now = Math.floor(Date.now() / 1000);
+        const row = (id, startTime) => ({ id, guildId: "g1", title: id, channelId: "c", channelName: "c", categoryId: "cat", categoryName: "Raids", startTime });
+        listRaidEvents.mockReturnValue([row("past", now - 60 * 86400), row("later", now + 3 * 86400)]);
+
+        const { groups, error } = await loadEventGroups("g1");
+
+        expect(error).toBe("Raid-Helper down");
+        expect(groups.flatMap((g) => g.events.map((e) => e.id))).toEqual(["later"]);
+    });
+
     it("returns an empty result with the error when Raid-Helper fails and nothing was ever persisted", async () => {
         mockGetAllEvents.mockRejectedValue(new Error("Raid-Helper down"));
         listRaidEvents.mockReturnValue([]);
