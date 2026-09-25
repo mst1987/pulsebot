@@ -1083,7 +1083,19 @@
         "showNames": "Show the setup's players of this role (event)",
         "hint": "A placeholder for a whole role group – no single players, always visible in the sheet.",
         "refHint": "A whole role group, not split into players – shown as a role chip in the sheet.",
-        "rotation": "Rotation (°)"
+        "rotation": "Rotation (°)",
+        "rotationReset": "Reset rotation",
+        "rotationHint": "Turn it at the round grip above the zone (Shift = 15° steps). Symbol, names and label stay upright.",
+        "iconScale": "Symbol size",
+        "iconAuto": "Automatic",
+        "labelPos": "Label",
+        "pos": {
+            "in": "Inside",
+            "top": "Above",
+            "bottom": "Below",
+            "left": "Left",
+            "right": "Right"
+        }
     },
     "arrow": {
         "size": "Arrow size",

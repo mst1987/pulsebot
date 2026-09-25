@@ -73,6 +73,8 @@
 .rp-zone-label.is-glyph { padding: 1px 5px; }
 .rp-zone.is-editable { cursor: move; touch-action: none; }
 .rp-zone.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+/* a selected zone in the editor lies above tokens and icons: its grips (corners, edges, turning) must be reachable (#raidplan-16) */
+.rp-canvas .rp-zone.is-selected.is-editable { z-index: 6; }
 .rp-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rp-zone.is-drag { opacity: .85; }
 .rp-handle { position: absolute; width: 14px; height: 14px; border-radius: 4px; background: var(--accent); border: 2px solid #fff; touch-action: none; }
@@ -1594,12 +1596,27 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
    the zone (lib/raidplan.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
 .rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
 .rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
-.rp-rg-body { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; align-content: center; gap: 3px; pointer-events: none; overflow: hidden; }
+/* the content of a role group stands UPRIGHT over its (possibly turned) outline: a box of the turned zone's upright size (.rp-rg-up), in it the
+   inner area (--rp-iw x --rp-ih) with the symbol as its head and the names below; the label inside (in the flow) or outside on one side.
+   Nothing of it turns with the zone, so it stays readable (#raidplan-16) */
+.rp-rg-up { position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
+.rp-rg-inner { position: absolute; left: 50%; top: 50%; width: var(--rp-iw, 60px); height: var(--rp-ih, 60px); transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--rp-zn, 11px) * .3); overflow: hidden; }
+.rp-rg-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; flex: 0 0 auto; }
 .rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); aspect-ratio: 1; border-radius: 50%; background: rgba(15, 17, 21, .55); box-sizing: border-box; }
 .rp-rg-ico img { width: 72%; height: 72%; border-radius: 50%; }
-.rp-rg-label { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 6px; background: rgba(15, 17, 21, .78); color: #f1f3f8; font-size: 11.5px; font-weight: 700; pointer-events: none; }
-.rp-rg-count { position: absolute; right: 3px; top: 3px; min-width: 20px; padding: 0 5px; border-radius: 999px; background: var(--zc); color: #121212; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; pointer-events: none; }
-.rp-rg-names { position: absolute; left: 0; right: 0; top: calc(100% + 3px); display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 6px; padding: 2px 6px; border-radius: 6px; background: rgba(15, 17, 21, .8); font-size: 11px; pointer-events: none; }
+.rp-rg-label { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--rp-zl, 11.5px); padding: calc(var(--rp-zl, 11.5px) * .1) calc(var(--rp-zl, 11.5px) * .55); border-radius: calc(var(--rp-zl, 11.5px) * .5); background: rgba(15, 17, 21, .78); color: #f1f3f8; font-weight: 700; }
+/* the label outside: next to the upright box of the zone, on the side chosen (labelPos) */
+.rp-rg-label.is-out { position: absolute; max-width: none; }
+.rp-rg-label.is-top { left: 50%; bottom: calc(100% + var(--rp-zl, 11.5px) * .35); transform: translateX(-50%); }
+.rp-rg-label.is-bottom { left: 50%; top: calc(100% + var(--rp-zl, 11.5px) * .35); transform: translateX(-50%); }
+.rp-rg-label.is-left { right: calc(100% + var(--rp-zl, 11.5px) * .35); top: 50%; transform: translateY(-50%); }
+.rp-rg-label.is-right { left: calc(100% + var(--rp-zl, 11.5px) * .35); top: 50%; transform: translateY(-50%); }
+/* the count badge sits at the symbol's upper right */
+.rp-rg-count { position: absolute; right: calc(var(--rp-zk, 12px) * -.55); top: calc(var(--rp-zk, 12px) * -.45); min-width: calc(var(--rp-zk, 12px) * 1.65); padding: 0 calc(var(--rp-zk, 12px) * .4); border-radius: 999px; background: var(--zc); color: #121212; font-size: var(--rp-zk, 12px); font-weight: 800; line-height: calc(var(--rp-zk, 12px) * 1.65); text-align: center; }
+/* the names INSIDE: small class-coloured chips in lines of the inner width, a name never split; what does not fit is one "+N" chip */
+.rp-rg-names { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: calc(var(--rp-zn, 11px) * .25) calc(var(--rp-zn, 11px) * .35); max-width: 92%; font-size: var(--rp-zn, 11px); line-height: 1.4; }
+.rp-rg-names > * { white-space: nowrap; padding: 0 calc(var(--rp-zn, 11px) * .35); border-radius: calc(var(--rp-zn, 11px) * .5); background: rgba(15, 17, 21, .72); font-weight: 600; }
+.rp-rg-names > .rp-rg-more { background: var(--zc); color: #121212; font-weight: 800; }
 .rp-lc.is-role, .rp-achip-role { border-color: var(--rc, var(--line)); }
 .rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }
 /* the grip that turns a role group, above its top edge */
@@ -1614,11 +1631,6 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-pname-rh { font-style: italic; }
 .rp-pname-gone { opacity: .5; text-decoration: line-through; }
 
-/* role group: label, count and names at their share of the zone (set on the zone), the names in lines of the zone's width, a name never split */
-.rp-zone-role .rp-rg-label { font-size: var(--rp-zl, 11.5px); padding: calc(var(--rp-zl, 11.5px) * .1) calc(var(--rp-zl, 11.5px) * .55); bottom: calc(var(--rp-zl, 11.5px) * .3); }
-.rp-zone-role .rp-rg-count { font-size: var(--rp-zk, 12px); line-height: calc(var(--rp-zk, 12px) * 1.65); min-width: calc(var(--rp-zk, 12px) * 1.65); padding: 0 calc(var(--rp-zk, 12px) * .4); right: calc(var(--rp-zk, 12px) * .3); top: calc(var(--rp-zk, 12px) * .3); }
-.rp-zone-role .rp-rg-names { font-size: var(--rp-zn, 11px); top: calc(100% + var(--rp-zn, 11px) * .3); gap: calc(var(--rp-zn, 11px) * .1) calc(var(--rp-zn, 11px) * .55); padding: calc(var(--rp-zn, 11px) * .2) calc(var(--rp-zn, 11px) * .5); border-radius: calc(var(--rp-zn, 11px) * .5); }
-.rp-zone-role .rp-rg-names > * { white-space: nowrap; }
 
 /* a group's chip: as wide as its longest name needs (up to 220 reference px) or the width set for it; a name is never split, a name longer
    than the chip ends in "…" (#raidplan-15) */

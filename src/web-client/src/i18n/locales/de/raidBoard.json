@@ -1083,7 +1083,19 @@
         "showNames": "Spieler dieser Rolle aus dem Setup anzeigen (Event)",
         "hint": "Platzhalter für eine ganze Rollengruppe – ohne einzelne Spieler, im Sheet immer sichtbar.",
         "refHint": "Eine ganze Rollengruppe, ohne Aufteilung auf Spieler – im Sheet als Rollen-Chip.",
-        "rotation": "Drehung (°)"
+        "rotation": "Drehung (°)",
+        "rotationReset": "Drehung zurücksetzen",
+        "rotationHint": "Am runden Griff über der Zone drehen (Umschalt = 15°-Schritte). Symbol, Namen und Beschriftung bleiben aufrecht.",
+        "iconScale": "Symbolgröße",
+        "iconAuto": "Automatisch",
+        "labelPos": "Beschriftung",
+        "pos": {
+            "in": "Innen",
+            "top": "Oben",
+            "bottom": "Unten",
+            "left": "Links",
+            "right": "Rechts"
+        }
     },
     "arrow": {
         "size": "Pfeilgröße",

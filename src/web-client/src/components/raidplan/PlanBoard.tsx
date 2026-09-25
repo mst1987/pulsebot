@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
 import { ANY } from "../../lib/classRefs";
@@ -272,21 +272,48 @@ export default function PlanBoard({
         const role = z.role || "melee";
         const cluster = z.shape === "cluster";
         const n = cluster ? Math.max(3, Math.min(8, z.count || 5)) : 1;
-        // everything of the placeholder is a share of the zone (lib/raidplan.ts roleZoneMetrics): it scales as one piece, never distorted
-        const m = roleZoneMetrics(z.w * size.w, z.h * size.h, cluster, z.count || 0);
+        const zw = z.w * size.w;
+        const zh = z.h * size.h;
+        const deg = z.rotation || 0;
+        // the content stands upright over the (turned) outline: the upright box of the turned zone, the area inside it for the content
+        const box = turnedBox(zw, zh, deg, z.shape);
+        const inner = uprightInner(zw, zh, deg, z.shape);
+        const iconScale = z.iconScale && z.iconScale > 0 ? z.iconScale : 1;
+        // everything of the placeholder is a share of the zone (lib/raidplan.ts): it scales as one piece, never distorted
+        const m = roleZoneMetrics(inner.w, inner.h, cluster, z.count || 0);
         const members = z.showNames ? roster.filter((p) => (role === "dps" ? p.role !== "tank" && p.role !== "healer" : p.role === role)) : [];
-        // the names under it: at their share of the zone; too small on screen = not shown (never enlarged, like a token's name)
-        const namesShown = members.length > 0 && !(screenScale > 0 && m.names * screenScale < HIDE_SCREEN_FONT);
+        // the names INSIDE the zone, packed in lines; what does not fit is one "+N" chip (all names in its tooltip); too small on screen = not shown
+        const lay = members.length > 0 ? roleNamesLayout(inner.w, inner.h, members.map((p) => p.character), iconScale) : null;
+        const namesShown = !!lay && lay.shown > 0 && !(screenScale > 0 && lay.font * screenScale < HIDE_SCREEN_FONT);
+        const icon = namesShown && lay ? lay.icon : Math.min(m.icon * iconScale, Math.min(inner.w, inner.h) * 0.95);
         const label = zoneBoardLabel(z);
+        const pos = z.labelPos || "in";
+        const rest = lay && namesShown ? members.slice(lay.shown) : [];
+        // the names do not fit at all (a thin strip turned diagonally): one chip with their number, the names in its tooltip - never silently gone
+        const noRoom = !!lay && lay.shown === 0 && !(screenScale > 0 && lay.font * screenScale < HIDE_SCREEN_FONT);
+        const style = {
+            left: `${(z.x + z.w / 2) * 100}%`, top: `${(z.y + z.h / 2) * 100}%`, width: `${(box.w / (size.w || 1)) * 100}%`, height: `${(box.h / (size.h || 1)) * 100}%`,
+            "--zc": z.color, "--rp-iw": `${Math.round(inner.w)}px`, "--rp-ih": `${Math.round(inner.h)}px`, "--rp-rg": `${Math.round(cluster ? m.icon * iconScale : icon)}px`,
+            "--rp-zl": `${m.label}px`, "--rp-zk": `${m.badge}px`, "--rp-zn": `${lay ? lay.font : m.names}px`,
+        } as CSSProperties;
         return (
-            <>
-                <span className="rp-rg-body">
-                    {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round(m.icon * 0.72))} /></span>)}
-                </span>
-                {label && <span className="rp-rg-label">{label}</span>}
-                {(z.count || 0) > 0 && <span className="rp-rg-count">{z.count}</span>}
-                {namesShown && <span className="rp-rg-names">{members.map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}</span>}
-            </>
+            <div key={`up-${z.id}`} className="rp-rg-up" style={style} aria-hidden="true">
+                <div className="rp-rg-inner">
+                    <span className="rp-rg-head">
+                        {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round((cluster ? m.icon * iconScale : icon) * 0.72))} /></span>)}
+                        {(z.count || 0) > 0 && <span className="rp-rg-count">{z.count}</span>}
+                    </span>
+                    {label && pos === "in" && <span className="rp-rg-label">{label}</span>}
+                    {noRoom && <span className="rp-rg-names"><span className="rp-rg-more" data-tip={members.map((p) => p.character).join(", ")}>{members.length}</span></span>}
+                    {namesShown && lay && (
+                        <span className="rp-rg-names">
+                            {members.slice(0, lay.shown).map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}
+                            {rest.length > 0 && <span className="rp-rg-more" data-tip={rest.map((p) => p.character).join(", ")}>+{rest.length}</span>}
+                        </span>
+                    )}
+                </div>
+                {label && pos !== "in" && <span className={`rp-rg-label is-out is-${pos}`}>{label}</span>}
+            </div>
         );
     };
     const mobName = (key: string) => { const m = auto ? auto.mobs.find((x) => x.key === key) : undefined; return m ? (m.count > 1 ? `${m.name} ${m.inst}` : m.name) : ""; };
@@ -330,7 +357,7 @@ export default function PlanBoard({
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
-                        {z.type === "role" ? roleBody(z) : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
+                        {z.type === "role" ? null : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
                         {editable && !z.lock && isSel("zone", z.id) && z.type === "role" && <span className="rp-handle rp-h-zrot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, "rot"); }} />}
                         {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se", "n", "e", "s", "w"] as Handle[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
@@ -338,6 +365,8 @@ export default function PlanBoard({
                     </div>
                 );
             })}
+            {/* the content of the role groups, upright over their outlines (after all zones, so a turned neighbour never covers it) */}
+            {size.w > 0 && zones.filter((z) => !z.hidden && z.type === "role").map((z) => roleBody(z))}
 
             {size.w > 0 && links && links.length > 0 && (
                 <svg className="rp-links" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">

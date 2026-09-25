@@ -2,7 +2,7 @@
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
 // Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../api";
-import { MIN_ZONE, SIZE_RANGES, arrowOf, autoStyleOf, canFace, clamp01, normAngle, patchArrow, patchAutoStyle, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateIcon, updateLine, updateText, updateZone } from "./raidplan";
+import { MIN_ZONE, SIZE_RANGES, turnedBox, arrowOf, autoStyleOf, canFace, clamp01, normAngle, patchArrow, patchAutoStyle, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateIcon, updateLine, updateText, updateZone } from "./raidplan";
 import type { ObjectKind } from "./raidplan";
 
 export type SelItem = { kind: ObjectKind; id: string };
@@ -67,7 +67,13 @@ export function objectBox(board: RaidplanBoard, it: SelItem, px: BoardPx): Box |
     const h = Math.max(1, px.h);
     if (it.kind === "zone") {
         const z = board.zones.find((o) => o.id === it.id);
-        return z ? { x0: z.x, y0: z.y, x1: z.x + z.w, y1: z.y + z.h } : null;
+        if (!z) return null;
+        if (!z.rotation) return { x0: z.x, y0: z.y, x1: z.x + z.w, y1: z.y + z.h };
+        // a turned role group covers the upright box of its turned rectangle (the rubber band and the selection frame use that)
+        const t = turnedBox(z.w * w, z.h * h, z.rotation, z.shape);
+        const cx = z.x + z.w / 2;
+        const cy = z.y + z.h / 2;
+        return { x0: cx - t.w / w / 2, y0: cy - t.h / h / 2, x1: cx + t.w / w / 2, y1: cy + t.h / h / 2 };
     }
     if (it.kind === "line") {
         const l = board.lines.find((o) => o.id === it.id);
@@ -439,5 +445,36 @@ export function setFacingSelection(board: RaidplanBoard, sel: SelItem[], patch: 
         if (!facesAt(out, it) || isLocked(out, it.kind, it.id)) continue;
         out = it.kind === "auto" ? patchAutoStyle(out, it.id, p) : updateIcon(out, it.id, p);
     }
+    return out;
+}
+
+// ---- role groups in a multi-selection: their angle, their symbol's scale and their label's place (feature/raidplan-16) ----
+
+/** The role groups of a selection (an empty list when anything else is in it: then these options are not offered). */
+export function roleZonesOf(board: RaidplanBoard, sel: SelItem[]): RaidplanZone[] {
+    const out = [];
+    for (const it of sel) {
+        const z = it.kind === "zone" ? board.zones.find((o) => o.id === it.id) : undefined;
+        if (!z || z.type !== "role") return [];
+        out.push(z);
+    }
+    return out;
+}
+
+/** What the role groups of a selection share: a value when all agree, null ("gemischt") otherwise. */
+export function roleZoneSummary(board: RaidplanBoard, sel: SelItem[]): { rotation: number | null; iconScale: number | null; labelPos: string | null } {
+    const zs = roleZonesOf(board, sel);
+    const same = (list) => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
+    return { rotation: same(zs.map((z) => z.rotation || 0)), iconScale: same(zs.map((z) => z.iconScale || 1)), labelPos: same(zs.map((z) => z.labelPos || "in")) };
+}
+
+/** Sets the angle (0 .. 359), the symbol's scale (0.25 .. 3) and / or the label's place of every role group of the selection; locked ones keep theirs. */
+export function setRoleZoneSelection(board: RaidplanBoard, sel: SelItem[], patch: { rotation?: number; iconScale?: number; labelPos?: "in" | "top" | "bottom" | "left" | "right" }): RaidplanBoard {
+    const p = {};
+    if (patch.rotation !== undefined) p["rotation"] = normAngle(patch.rotation);
+    if (patch.iconScale !== undefined) p["iconScale"] = Math.max(0.25, Math.min(3, Math.round(patch.iconScale * 100) / 100));
+    if (patch.labelPos !== undefined) p["labelPos"] = patch.labelPos;
+    let out = board;
+    for (const z of roleZonesOf(board, sel)) if (!isLocked(out, "zone", z.id)) out = updateZone(out, z.id, p);
     return out;
 }

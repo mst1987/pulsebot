@@ -18,7 +18,7 @@ import { addItems, scaleArrowSelection, alignSelection, bandBox, copySelection, 
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, type InsertSpec, type MenuItem, type ZoneGrip,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, resizeTurned, type InsertSpec, type MenuItem, type ZoneGrip,
     type ObjectKind, type Rect, type Selection, rhNote,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -468,7 +468,10 @@ export default function BoardWorkspace({
                     const ratio = d.rect0.h / d.rect0.w;
                     dy = (d.handle === "nw" || d.handle === "se" ? 1 : -1) * dx * ratio;
                 }
-                const r = d.handle ? resizeRect(d.rect0, d.handle as ZoneGrip, dx, dy) : moveRect(d.rect0, dx, dy);
+                // a turned role group: its grips work along its own axes, the opposite side stays where it is (lib/raidplan.ts resizeTurned)
+                const turned = d.handle ? (board.zones.find((z) => z.id === d.id) || { rotation: 0 }).rotation || 0 : 0;
+                const bp = boardPx();
+                const r = d.handle ? (turned ? resizeTurned(d.rect0, d.handle as ZoneGrip, dx * bp.w, dy * bp.h, turned, bp.w, bp.h) : resizeRect(d.rect0, d.handle as ZoneGrip, dx, dy)) : moveRect(d.rect0, dx, dy);
                 edit((b) => updateZone(b, d.id, r), true);
             } else if (d.kind === "line" && d.line0 && d.p0) {
                 if (d.handle === "end1" || d.handle === "end2") edit((b) => moveLineEnd(b, d.id, d.handle === "end1" ? 1 : 2, p.x, p.y), true);
@@ -574,8 +577,10 @@ export default function BoardWorkspace({
             const wrap = target.closest(".rp-token, .rp-text, .rp-zone");
             const cr = wrap ? wrap.getBoundingClientRect() : null;
             const cur = sizeOf(board, kind as ObjectKind, id);
-            if (cr && cur) {
-                size0 = cur;
+            // turning needs only the middle: a zone has no size of its own (sizeOf is null), and without a middle the grip MOVED the
+            // role group instead of turning it (#raidplan-16)
+            if (cr && (cur || handle === "rot")) {
+                size0 = cur || undefined;
                 center = { x: cr.left + cr.width / 2, y: cr.top + cr.height / 2 };
                 d0 = Math.max(8, Math.hypot(e.clientX - center.x, e.clientY - center.y));
             }

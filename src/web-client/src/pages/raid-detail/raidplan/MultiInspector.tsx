@@ -3,8 +3,8 @@ import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEn
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/multiSelect";
-import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, clampOpacity } from "../../../lib/raidplan";
+import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/multiSelect";
+import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
 /** A checkbox that can say "mixed" (some of the selection have it, some not). */
@@ -38,6 +38,8 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
     const has = sharedOptions(board, sel);
     const opt = optionSummary(board, sel);
     const mixed = (label: string, v: unknown) => (v === null ? `${label} (${t("raidBoard.multi.mixed")})` : label);
+    // only role groups selected: their angle, their symbol's scale and their label's place, for all of them at once
+    const roles = roleZonesOf(board, sel).length > 0 ? roleZoneSummary(board, sel) : null;
     const dis = !canWrite;
     const box = selectionBox(board, sel, px);
     const groups = board.slots.filter((s) => s.kind === "group" && sel.some((it) => it.kind === "slot" && it.id === s.id));
@@ -96,6 +98,16 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
                         {opt.arrowColor !== ARROW_COLOR && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => patchArrowSelection(b, sel, { color: ARROW_COLOR }))}>{t("raidBoard.arrow.reset")}</button>}
                     </div>
                     <SliderField label={mixed(t("raidBoard.arrow.opacity"), opt.arrowOpacity)} value={Math.round((opt.arrowOpacity === null ? 1 : opt.arrowOpacity) * 100)} min={10} max={100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => patchArrowSelection(b, sel, { opacity: clampOpacity(v / 100, 1) }), true)} />
+                </div>
+            )}
+            {roles && (
+                <div className="rp-field">
+                    <SliderField label={mixed(t("raidBoard.roleGroupUi.rotation"), roles.rotation)} value={roles.rotation === null ? 0 : roles.rotation} min={0} max={359} step={1} unit="°" disabled={dis} onChange={(v) => edit((b) => setRoleZoneSelection(b, sel, { rotation: v }), true)} />
+                    <SliderField label={mixed(t("raidBoard.roleGroupUi.iconScale"), roles.iconScale)} value={Math.round((roles.iconScale === null ? 1 : roles.iconScale) * 100)} min={25} max={300} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => setRoleZoneSelection(b, sel, { iconScale: v / 100 }), true)} />
+                    <span className="rp-kicker">{mixed(t("raidBoard.roleGroupUi.labelPos"), roles.labelPos)}</span>
+                    <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.labelPos")}>
+                        {LABEL_POS.map((p) => <button key={p} type="button" role="radio" aria-checked={roles.labelPos === p} className={roles.labelPos === p ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => setRoleZoneSelection(b, sel, { labelPos: p as "in" }))}>{t(`raidBoard.roleGroupUi.pos.${p}`)}</button>)}
+                    </span>
                 </div>
             )}
             <TriCheck label={t("raidBoard.insp.lock")} value={sum.lock} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { lock: v }))} />
