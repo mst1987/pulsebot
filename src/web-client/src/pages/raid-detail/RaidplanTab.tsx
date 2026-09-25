@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LayoutTemplate, RotateCw, Save, Share2 } from "lucide-react";
+import { AlertTriangle, LayoutTemplate, RotateCw, Save, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
     type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
@@ -12,6 +12,7 @@ import {
     applyProfile, boardCount, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
+import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
 import { ProfilePickerModal, ProfilesModal } from "./raidplan/ProfileModals";
@@ -47,7 +48,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const [selected, setSelected] = useState("");
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);
-    const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "template">("");
+    const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "template" | "open">("");
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
     const selectedRef = useRef("");
     selectedRef.current = selected;
@@ -83,6 +84,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const mine = useMemo(() => (view ? view.meIds || [] : []), [view]);
     const board = useMemo(() => ensureBesetzung(boardOf(draft, selected), besetzung, roster), [draft, selected, besetzung, roster]);
     const dirty = !!view && !sameBosses(draft, view.plan.bosses, bossKeys);
+    // every row of the plan with a place the setup does not fill (a class missing in the raid, or all of it already on the task)
+    const openSummary = (list: OpenRow[]) => { const names = missingNames(list).join(", "); return list.length === 1 ? t("raidBoard.aline.openSummaryOne", { names }) : t("raidBoard.aline.openSummary", { n: list.length, names }); };
+    // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot)
+    const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster) : []), [view, draft, besetzung, roster]);
     const canWrite = !!view && view.canWrite;
 
     /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
@@ -147,6 +152,9 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             setConflict(false);
             setModal("");
             toast(t("raidBoard.template.applied", { name: tpl.name }));
+            // what the setup could not fill, in one sentence ("2 Einteilungen offen: Magier, Jäger fehlen")
+            const open = openAssignments(v.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(v.plan.bosses, b.key), v.besetzung, v.roster) })), v.roster);
+            if (open.length > 0) toast(openSummary(open), "err");
         } catch (err) {
             const e = err as ApiError;
             if (e.code === "conflict") setConflict(true); else toast(e.message, "err");
@@ -212,6 +220,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                             <Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>
                             {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
                             {canWrite && open > 0 && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
+                            {canWrite && openRows.length > 0 && (
+                                <button type="button" className="rp-openbadge" data-tip={t("raidBoard.aline.openHint")} onClick={() => setModal("open")}>
+                                    <AlertTriangle size={14} aria-hidden="true" />{openRows.length === 1 ? t("raidBoard.aline.openPlanOne") : t("raidBoard.aline.openPlan", { n: openRows.length })}
+                                </button>
+                            )}
                             {view.plan.templateName && <span className="rp-muted rp-bar-template">{t("raidBoard.template.current", { name: view.plan.templateName })}</span>}
                             {canWrite && empty && !view.plan.templateName && view.templates.length > 0 && <span className="rp-muted">{t("raidBoard.template.hintEmpty")}</span>}
                         </>
@@ -226,6 +239,19 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 />
                 </RaidplanBoundary>
             )}
+
+            <Modal open={modal === "open"} onClose={() => setModal("")} icon={<AlertTriangle size={20} />} tone="mid" title={t("raidBoard.aline.openTitle")} width={560} hint={t("raidBoard.aline.openHint")}>
+                <ul className="rp-openlist">
+                    {groupOpen(openRows).map((sec) => (
+                        <li key={sec.key}>
+                            <button type="button" className="rp-openlist-sec" onClick={() => { setSelected(sec.key); setModal(""); }}>{sec.name}</button>
+                            <ul>
+                                {sec.rows.map((o) => <li key={o.rowId}><span className="rp-openlist-type">{t(`raidBoard.assign.type.${o.type}`)}</span> {t("raidBoard.aline.missing", { what: o.missing.join(", ") })}</li>)}
+                            </ul>
+                        </li>
+                    ))}
+                </ul>
+            </Modal>
 
             <Modal open={modal === "template"} onClose={() => setModal("")} icon="inv_misc_map02" title={t("raidBoard.template.pickTitle")} width={520} hint={t("raidBoard.template.hint")}>
                 <ul className="rp-pick">
@@ -270,4 +296,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             />
         </div>
     );
+}
+
+/** The open rows grouped by their section, in the plan's order. */
+function groupOpen(list: OpenRow[]): { key: string; name: string; rows: OpenRow[] }[] {
+    const out: { key: string; name: string; rows: OpenRow[] }[] = [];
+    for (const o of list) {
+        let sec = out.find((x) => x.key === o.key);
+        if (!sec) { sec = { key: o.key, name: o.name, rows: [] }; out.push(sec); }
+        sec.rows.push(o);
+    }
+    return out;
 }

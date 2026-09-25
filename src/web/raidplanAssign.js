@@ -33,8 +33,9 @@ const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 // a class as who does it / at whom: "class:Hunter:1" = the 1st free Hunter (n counts per class and kind of task); an optional last part limits the role.
 // "class:Any:<n>:<role>" = any raider of that SPEC role ("Beliebiger Tank"); it always names the role (no class, no role = no guess).
-const CLASS_ASSIGNEE = /^class:(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged))?$|^class:Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
-const CLASS_TARGET = /^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged))?$|^Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
+// "any" as the role = ANY spec of the class, chosen on purpose ("a mage tanks the council"): the role the task implies is not applied
+const CLASS_ASSIGNEE = /^class:(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged|any))?$|^class:Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
+const CLASS_TARGET = /^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged|any))?$|^Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
 /** The "class" of a reference that means any raider of a role. */
 const ANY = "Any";
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
@@ -336,7 +337,8 @@ const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !==
  * any role it means nobody (the class alone would be a guess).
  */
 function poolOf(q, type, roster, roles) {
-    const want = q.role || impliedRole(type);
+    // "any" = every spec of the class, on purpose; no role = the one the task implies
+    const want = q.role === "any" ? "" : q.role || impliedRole(type);
     if (q.classId === ANY && !want) return [];
     return roster.filter((p) => (q.classId === ANY || p.classId === q.classId) && roleFits(want, roles[p.userId] || p.role));
 }

@@ -69,6 +69,29 @@ describe("general tank", () => {
     });
 });
 
+describe("a class of any spec, chosen on purpose (a mage tank)", () => {
+    const raid = [...tanks, P("mage", "Mage", "ranged"), P("lock", "Warlock", "ranged")];
+    it("'any' takes any spec of the class on a tanking row; without it the tank role applies and nobody fills it", () => {
+        expect(who(expand([row("a", "tank", ["class:Mage:1:any"])], raid))).toEqual([["user:mage"]]);
+        expect(who(expand([row("a", "tank", ["class:Mage:1"])], raid))).toEqual([["class:Mage:1"]]);
+        // the fury warrior as a tank on purpose: the prot warrior already tanks, "any spec" takes the next warrior
+        expect(who(expand([row("a", "tank", ["class:Warrior:1:tank"]), row("b", "tank", ["class:Warrior:1:any"])], raid))).toEqual([["user:war"], ["user:fury"]]);
+    });
+    it("no mage in the raid: the place stays open, no other class stands in", () => {
+        expect(who(expand([row("a", "tank", ["class:Mage:1:any"])], tanks))).toEqual([["class:Mage:1:any"]]);
+    });
+    it("a healing row keeps its role unless 'any' is chosen", () => {
+        const noHoly = raid.filter((p) => p.userId !== "holy");
+        expect(who(expand([row("a", "heal", ["class:Paladin:1"])], noHoly))).toEqual([["class:Paladin:1"]]);
+        expect(who(expand([row("a", "heal", ["class:Paladin:1:any"])], noHoly))).toEqual([["user:pal"]]);
+    });
+    it("'any' is kept on save for a class; 'Any' (a role) still needs a real role", () => {
+        const c = assign.cleanAssignments([row("a", "tank", ["class:Mage:1:any", "class:Any:1:any"], [{ kind: "class", ref: "Priest:1:any" }])]);
+        expect(c.assignments[0].assignees).toEqual(["class:Mage:1:any"]);
+        expect(c.assignments[0].targets).toEqual([{ kind: "class", ref: "Priest:1:any" }]);
+    });
+});
+
 describe("renumbering (migration of stored references, nothing lost)", () => {
     it("repeated numbers over the rows of a task become 1, 2, 3; other tasks count on their own", () => {
         const out = assign.renumberClassRefs([row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:1"]), row("c", "cc", ["class:Hunter:1"]), row("d", "md", ["class:Hunter:1"])]);

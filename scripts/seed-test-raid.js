@@ -155,7 +155,14 @@ function seedPlan(eventId, event) {
             extended["bt/trash"] = { ...tb, assignments: [...(tb.assignments || []), mk("tank", ["class:Any:1:tank"], [mobTarget(trashMobs[0])]), mk("tank", ["class:Paladin:1:tank"], [mobTarget(trashMobs[1])])] };
         }
         const cb = extended["bt/the-illidari-council"] || { slots: [], assignments: [] };
-        extended["bt/the-illidari-council"] = { ...cb, assignments: [...(cb.assignments || []), mk("md", ["class:Hunter:1"], [{ kind: "slot", ref: "tank:3" }])] };
+        // a class tank on purpose: a mage of any spec tanks High Nethermancer Zerevor ("Magier-Tank"); and soulstones for three warlocks where the
+        // raid has two, one of them already on the task: two places stay open ("Hexenmeister fehlt", plan-wide "offene Einteilungen")
+        const zerevor = catalog.listMobs().find((m) => m.bossKey === "bt/the-illidari-council" && /Zerevor/.test(m.name));
+        extended["bt/the-illidari-council"] = { ...cb, assignments: [...(cb.assignments || []),
+            mk("md", ["class:Hunter:1"], [{ kind: "slot", ref: "tank:3" }]),
+            ...(zerevor ? [mk("tank", ["class:Mage:1:any"], [mobTarget(zerevor)])] : []),
+            mk("ss", ["class:Warlock:1", "class:Warlock:2", "class:Warlock:3"], [{ kind: "slot", ref: "healer:1" }]),
+        ] };
     }
     const savedPlan = planStore.savePlan(eventId, { version: plan.version, bosses: extended }, {
         bossKeys, allowedUserIds: roster.map((p) => p.userId), profileIds: [], userId: "seed",

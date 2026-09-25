@@ -87,18 +87,18 @@ describe("the client and the server resolve alike (twins)", () => {
 
 describe("the row dialog", () => {
     const src = fs.readFileSync(path.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/AssignModal.tsx"), "utf8");
-    const picker = fs.readFileSync(path.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/ClassPicker.tsx"), "utf8");
     it("shows the general tanks on tanking rows and edits counts through setClassCount", () => {
-        expect(src).toMatch(/TANK_TYPES\.indexOf\(row\.type\)/);
+        expect(src).toMatch(/TANK_TYPES\.indexOf\(type\)/);
         expect(src).toMatch(/TANK_CLASSES\.map/);
         expect(src).toMatch(/setClassCount\(/);
         expect(src).toMatch(/candidatesOf\(/);
     });
-    it("one chip per class with a count stepper (- × n +) and a remove", () => {
-        expect(picker).toMatch(/classGroups\(refs\)/);
-        expect(picker).toMatch(/onCount\(count - 1\)/);
-        expect(picker).toMatch(/onCount\(count \+ 1\)/);
-        expect(picker).toMatch(/onCount\(0\)/);
+    it("one card per class with a count stepper (- n +), a role filter and a remove", () => {
+        expect(src).toMatch(/classGroups\(own\)/);
+        expect(src).toMatch(/setCount\(g\.classId, g\.role, g\.refs\.length - 1, target\)/);
+        expect(src).toMatch(/setCount\(g\.classId, g\.role, g\.refs\.length \+ 1, target\)/);
+        expect(src).toMatch(/setCount\(g\.classId, g\.role, 0, target\)/);
+        expect(src).toMatch(/setClassRole\(/);
     });
     it("has the texts in both languages", () => {
         for (const lang of ["de", "en"]) {

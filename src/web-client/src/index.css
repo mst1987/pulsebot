@@ -1696,6 +1696,19 @@ dialog.dlg::backdrop { background: rgba(10, 11, 14, .62); }
 /* A long dialog scrolls as a whole: the foot stays on the bottom edge, so its
    buttons never scroll out of reach (e.g. the raid template's open "Mehr" part). */
 dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
+/* a dialog whose body lays itself out edge to edge (the raid plan's assignment dialog), and one that becomes a full-screen sheet on a phone */
+dialog.dlg.dlg-flush .dlg-head { padding: 10px 20px; }
+dialog.dlg.dlg-flush .dlg-body { padding: 0; }
+dialog.dlg.dlg-flush .dlg-foot { padding: 10px 20px; }
+dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
+@media (max-width: 900px) {
+    dialog.dlg.dlg-sheet { width: 100vw !important; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+    dialog.dlg.dlg-sheet .dlg-inner { display: flex; flex-direction: column; height: 100%; }
+    dialog.dlg.dlg-sheet .dlg-body { flex: 1 1 auto; }
+    dialog.dlg.dlg-sheet .dlg-head { padding: 8px 12px; }
+    dialog.dlg.dlg-sheet .dlg-foot { padding: 8px 12px; flex-wrap: nowrap; }
+    dialog.dlg.dlg-sheet .dlg-foot .dlg-hint { display: none; }
+}
 /* A button in the hint (Löschen, Archivieren …) is a button, not mono hint text. */
 .dlg-foot .dlg-hint .btn { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
 /* ---- language switch in the top bar: "DE | EN", the active part lit ---- */
