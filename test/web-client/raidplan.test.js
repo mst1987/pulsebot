@@ -1566,3 +1566,27 @@ describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
         expect(line).toContain(": readOnly ? playerLabel(r.player) : undefined}");
     });
 });
+describe("the section bar names every section (feature/raidplan-16)", () => {
+    const lib6 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("a boss by its name, Allgemein, and a trash section by its instance when the plan has several", () => {
+        expect(lib6.sectionLabel({ name: "Supremus" }, true)).toBe("Supremus");
+        expect(lib6.sectionLabel({ name: "x", general: true }, true)).toBe("Allgemein");
+        expect(lib6.sectionLabel({ name: "Trash", trash: true, instanceName: "Der Schwarze Tempel" }, true)).toBe("Trash · Der Schwarze Tempel");
+        expect(lib6.sectionLabel({ name: "Trash", trash: true, instanceName: "Der Schwarze Tempel" }, false)).toBe("Trash");
+        expect(lib6.severalInstances([{ key: "general", general: true }, { key: "bt/supremus" }, { key: "bt/trash" }])).toBe(false);
+        expect(lib6.severalInstances([{ key: "hyjal/archimonde" }, { key: "bt/supremus" }])).toBe(true);
+        expect(lib6.severalInstances([{ instanceId: "gruul" }, { instanceId: "bt" }])).toBe(true);
+    });
+    it("editor and sheet show the name on every chip, the bar wraps instead of scrolling", () => {
+        const fs = require("fs");
+        const p = require("path");
+        const nav = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/BossNav.tsx"), "utf8");
+        expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        expect(nav).not.toContain("rp-bosschip-no");
+        const sheet = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
+        expect(sheet).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
+        const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");
+    });
+});

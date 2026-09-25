@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { boardCount, boardOf, sheetIncluded, type MenuItem } from "../../../lib/raidplan";
+import { boardCount, boardOf, sectionLabel, severalInstances, sheetIncluded, type MenuItem } from "../../../lib/raidplan";
 import ContextMenu from "./ContextMenu";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { useT } from "../../../i18n";
 
 /**
- * The bosses of the plan as one compact row of chips (icon and number; the chosen
- * one also shows its name, the others carry it in the tooltip), so the board keeps
- * the width. A dot marks a boss that already holds something.
+ * The sections of the plan as chips: icon and NAME on every chip (the name tells what a section is; the icon only helps), in the raid's
+ * order, wrapping to a second line rather than cutting a name. The chosen one is filled. A dot marks a section that already holds
+ * something. The sheet's bar looks the same (PlanPublicPage).
  */
 export default function BossNav({ bosses, selected, draft, onSelect, onSheet, onMap, dirtyKeys = [] }: {
     /** the sections with unsaved changes: their chip carries an amber dot (and says so) */
@@ -40,26 +40,24 @@ export default function BossNav({ bosses, selected, draft, onSelect, onSheet, on
         if (id.indexOf("map:") === 0 && onMap) onMap(menu.key, id === "map:on");
         setMenu(null);
     };
-    const label = (b: RaidplanBoss) => (b.defaults ? t("raidBoard.defaults.title") : b.general ? t("raidBoard.assign.general") : b.trash ? `${b.instanceName ? `${b.instanceName}: ` : ""}${t("raidBoard.assign.trash")}` : b.name);
+    const several = severalInstances(bosses);
+    const label = (b: RaidplanBoss) => sectionLabel(b, several);
     return (
         <nav className="rp-bossnav" aria-label={t("raidBoard.bosses.title")}>
-            {bosses.map((b, idx) => {
+            {bosses.map((b) => {
                 const on = b.key === selected;
-                const special = !!b.trash || !!b.general || !!b.defaults;
-                const i = bosses.slice(0, idx).filter((x) => !x.trash && !x.general && !x.defaults).length;
                 const inSheet = b.defaults ? true : sheetIncluded(draft, b.key);
                 const unsaved = dirtyKeys.indexOf(b.key) >= 0;
                 return (
                     <span key={b.key} className={`rp-bosschip-wrap${inSheet ? "" : " is-out"}`}>
                     <button
                         type="button" className={`rp-bosschip${on ? " is-on" : ""}${inSheet ? "" : " is-out"}${unsaved ? " is-unsaved" : ""}`} aria-current={on ? "true" : undefined}
-                        aria-label={`${special ? label(b) : `${i + 1}. ${b.name}`}${unsaved ? ` (${t("raidBoard.save.unsavedShort")})` : ""}`} data-tip={`${special ? label(b) : `${i + 1}. ${b.name}`}${unsaved ? ` · ${t("raidBoard.save.unsavedShort")}` : ""}`}
+                        aria-label={`${label(b)}${unsaved ? ` (${t("raidBoard.save.unsavedShort")})` : ""}`} data-tip={unsaved ? t("raidBoard.save.unsavedShort") : undefined}
                         onClick={() => onSelect(b.key)}
                         onContextMenu={(onSheet || onMap) && !b.defaults ? (e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, key: b.key }); } : undefined}
                     >
                         <img src={b.iconUrl} alt="" width={24} height={24} loading="lazy" />
-                        {!special && <span className="rp-bosschip-no">{i + 1}</span>}
-                        {on && <span className="rp-bosschip-name">{special ? label(b) : b.name}</span>}
+                        <span className="rp-bosschip-name">{label(b)}</span>
                         {boardCount(draft, b.key) > 0 && <span className="rp-boss-dot" aria-hidden="true" />}
                         {unsaved && <span className="rp-boss-unsaved" aria-hidden="true" />}
                     </button>

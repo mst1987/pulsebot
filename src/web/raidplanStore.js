@@ -56,9 +56,14 @@ for (const zone of ZONES) {
     for (const enc of zone.encounters || []) ICON_ID_BY_NAME.set(slug(enc.name), Number(enc.id));
 }
 
+// bosses the rule set names differently than Warcraft Logs does (the boss key stays the rule set's, only the picture is looked up by
+// the WCL name): "Reliquary of the Lost" is WCL's encounter 606 "Reliquary of Souls" (docs/raidplan.md, "Section bar and boss icons")
+const ICON_NAME_ALIASES = { "reliquary-of-the-lost": "reliquary-of-souls" };
+
 /** The boss picture of a name (`/bosses/<id>.jpg`), "" when WCL does not know the encounter. */
 function bossIconByName(name) {
-    const id = ICON_ID_BY_NAME.get(slug(name));
+    const key = slug(name);
+    const id = ICON_ID_BY_NAME.get(ICON_NAME_ALIASES[key] || key);
     return id ? `/bosses/${id}.jpg` : "";
 }
 
@@ -519,7 +524,7 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 }
 
 module.exports = {
-    useFile, LIMITS, slug, bossKeyOf, bossesForInstances, isMapKey,
+    useFile, LIMITS, slug, bossKeyOf, bossesForInstances, bossIconByName, isMapKey,
     GENERAL_KEY, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
     setLink, normalizeLink, playersOf, knownAfter,
     sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,

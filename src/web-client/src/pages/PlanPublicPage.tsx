@@ -19,7 +19,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
 import { formatEventTime } from "../lib/format";
-import { rosterMap, startSection } from "../lib/raidplan";
+import { rosterMap, sectionLabel, severalInstances, startSection } from "../lib/raidplan";
 import { cleanNames } from "../lib/mention";
 import Mentions from "../components/raidplan/Mentions";
 import { useT } from "../i18n";
@@ -93,7 +93,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
         return sp.mine.length > 0 || sp.onMe.length > 0;
     };
     const shownBosses = onlyMine && data.meIds.length > 0 ? data.bosses.filter((b) => concerns(b)) : data.bosses;
-    const label = (b: RaidplanPublicBoss) => (b.general ? t("raidBoard.assign.general") : b.trash ? t("raidBoard.assign.trash") : b.name);
+    const several = severalInstances(data.bosses);
+    const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);
 
     return (
         <div className="rp-public rp-wide">
@@ -119,15 +120,13 @@ export default function PlanPublicPage({ token }: { token: string }) {
                         {data.me && data.meIds.length > 0 && (
                             <button type="button" className={`rp-bosschip rp-onlymine${onlyMine ? " is-on" : ""}`} aria-pressed={onlyMine} data-tip={t("raidBoard.read.onlyMineTip")} onClick={() => setOnlyMine((v) => !v)}>{t("raidBoard.read.onlyMine")}</button>
                         )}
-                        {shownBosses.map((b, idx) => {
+                        {shownBosses.map((b) => {
                             const on = boss !== null && b.key === boss.key;
-                            const special = b.trash || b.general;
-                            const i = shownBosses.slice(0, idx).filter((x) => !x.trash && !x.general).length;
+                            // icon and name on every chip (the same bar as the editor's BossNav)
                             return (
-                                <button key={b.key} type="button" className={`rp-bosschip${on ? " is-on" : ""}`} aria-current={on ? "true" : undefined} aria-label={label(b)} data-tip={label(b)} onClick={() => setSelected(b.key)}>
+                                <button key={b.key} type="button" className={`rp-bosschip${on ? " is-on" : ""}`} aria-current={on ? "true" : undefined} aria-label={label(b)} onClick={() => setSelected(b.key)}>
                                     <img src={b.iconUrl} alt="" width={24} height={24} />
-                                    {!special && <span className="rp-bosschip-no">{i + 1}</span>}
-                                    {on && <span className="rp-bosschip-name">{label(b)}</span>}
+                                    <span className="rp-bosschip-name">{label(b)}</span>
                                 </button>
                             );
                         })}

@@ -1762,3 +1762,22 @@ export function resizeTurned(start: Rect, grip: ZoneGrip, dx: number, dy: number
     const h = Math.min(bh, bottom - top);
     return { x: clamp01((cx - w / 2) / bw), y: clamp01((cy - h / 2) / bh), w: w / bw, h: h / bh };
 }
+
+/**
+ * The name a section carries in the section bar (editor, template editor and sheet alike): a boss by its name, "Allgemein", "Standard",
+ * and a trash section by its instance when the plan covers several ("Trash · Black Temple") - so every chip says what it is.
+ */
+export function sectionLabel(b: { name: string; trash?: boolean; general?: boolean; defaults?: boolean; instanceName?: string }, severalInstances: boolean): string {
+    if (b.defaults) return t("raidBoard.defaults.title");
+    if (b.general) return t("raidBoard.assign.general");
+    if (b.trash) return severalInstances && b.instanceName ? `${t("raidBoard.assign.trash")} · ${b.instanceName}` : t("raidBoard.assign.trash");
+    return b.name;
+}
+
+/** Whether a plan's sections come from more than one instance (then a trash chip names its instance). */
+export function severalInstances(bosses: { key?: string; instanceId?: string; general?: boolean; defaults?: boolean }[]): boolean {
+    const ids = [];
+    // the sheet's sections carry no instanceId: their key starts with it ("bt/supremus")
+    for (const b of bosses) { const id = b.instanceId || (b.key && b.key.indexOf("/") > 0 ? b.key.split("/")[0] : ""); if (!b.general && !b.defaults && id && ids.indexOf(id) < 0) ids.push(id); }
+    return ids.length > 1;
+}
