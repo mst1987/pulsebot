@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Copy, RotateCw, Save, Search, Settings2, Trash2 } from "lucide-react";
+import { Copy, RotateCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     canAccess, createRaidplanTemplate, deleteRaidplanTemplate, duplicateRaidplanTemplate, getGameVersions, getRaidplanProfiles, getRaidplanTemplates, getSession,
@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    boardOf, ensureBesetzung, sameBosses, toSave,
+    boardOf, dirtyKeys, ensureBesetzung, sameBosses, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -28,6 +28,7 @@ import { besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { LibraryModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
+import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raid-detail/raidplan/SaveState";
 import { applyTactic, stepsOf } from "../lib/steps";
 import BossNav from "./raid-detail/raidplan/BossNav";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
@@ -491,6 +492,11 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
         }
     };
 
+    // unsaved changes stand out: glowing tool bar and save button, a strip, marked boss chips, "● " in the tab title, Ctrl+S, a warning on leaving
+    const saveState: SaveStateKind = conflict ? "conflict" : dirty ? "dirty" : "clean";
+    const savedFlash = useUnsavedGuard(canWrite ? saveState : "clean", saving, () => { save(); });
+    const unsavedKeys = useMemo(() => (dirty ? dirtyKeys(draft, tpl.bosses, bossKeys) : []), [dirty, draft, tpl.bosses, bossKeys]);
+
     const reload = async () => {
         const r = await getRaidplanTemplates();
         onSaved(r.templates);
@@ -554,13 +560,13 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
-                    bossNav={<BossNav bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} />}
-                    status={<Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} />}
+                    saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("planTemplates.conflict")} /> : undefined}
                     actions={canWrite ? (
                         <>
                             <IconButton size="sm" icon={<Settings2 size={17} />} tip={t("planTemplates.details")} onClick={() => setModal("fields")} />
                             <IconButton size="sm" tone="danger" icon={<Trash2 size={17} />} tip={t("raidBoard.profile.delete")} onClick={remove} />
-                            <IconButton size="sm" className="rp-save" icon={<Save size={17} />} tip={saving ? t("raidBoard.bar.saving") : t("raidBoard.bar.save")} disabled={!dirty || conflict || saving} onClick={save} />
+                            <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />
                         </>
                     ) : undefined}
                 />

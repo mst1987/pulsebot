@@ -998,5 +998,14 @@
             "all": "All steps"
         },
         "parts": "Parts of the step"
+    },
+    "save": {
+        "unsaved": "Unsaved changes",
+        "unsavedShort": "unsaved",
+        "now": "Save now",
+        "oneSection": "in 1 section",
+        "sections": "in {n} sections",
+        "conflict": "Conflict",
+        "conflictText": "Conflict: somebody saved meanwhile"
     }
 }

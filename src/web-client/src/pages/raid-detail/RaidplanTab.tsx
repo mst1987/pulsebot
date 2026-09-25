@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, LayoutTemplate, RotateCw, Save, Share2 } from "lucide-react";
+import { AlertTriangle, LayoutTemplate, RotateCw, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
     type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
@@ -9,13 +9,14 @@ import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
-    boardCount, boardOf, ensureBesetzung, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
+    boardCount, boardOf, dirtyKeys, ensureBesetzung, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
 import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
+import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raidplan/SaveState";
 import { applyTactic, stepsOf } from "../../lib/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
@@ -125,6 +126,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    // unsaved changes stand out: glowing tool bar and save button, a strip, marked boss chips, "● " in the tab title, Ctrl+S, a warning on leaving
+    const saveState: SaveStateKind = conflict ? "conflict" : dirty ? "dirty" : "clean";
+    const savedFlash = useUnsavedGuard(saveState, saving, () => { save(); });
+    const unsavedKeys = useMemo(() => (view && dirty ? dirtyKeys(draft, view.plan.bosses, bossKeys) : []), [view, dirty, draft, bossKeys]);
+
     const publish = async (published: boolean, rotate = false) => {
         setSaving(true);
         try {
@@ -214,11 +220,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
-                    bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
+                    saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
                     status={(
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
-                            <Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>
                             {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
                             {canWrite && open > 0 && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
                             {canWrite && openRows.length > 0 && (
@@ -234,7 +240,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         <>
                             <IconButton size="sm" icon={<LayoutTemplate size={17} />} tip={t("raidBoard.template.pick")} onClick={() => setModal("template")} />
                             <IconButton size="sm" icon={<Share2 size={17} />} tip={t("raidBoard.bar.share")} onClick={() => setModal("share")} />
-                            <IconButton size="sm" className="rp-save" icon={<Save size={17} />} tip={saving ? t("raidBoard.bar.saving") : t("raidBoard.bar.save")} disabled={!dirty || conflict || saving} onClick={save} />
+                            <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />
                         </>
                     ) : undefined}
                 />

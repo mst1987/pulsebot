@@ -91,7 +91,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -117,6 +117,10 @@ export default function BoardWorkspace({
     onPickProfile: () => void;
     /** "Als Taktik speichern": the section's steps into the library */
     onSaveTactic?: () => void;
+    /** unsaved changes / a conflict: the sticky tool bar glows (amber / red) */
+    saveState?: "clean" | "dirty" | "conflict";
+    /** the unsaved strip at the top of the sticky tool bar */
+    notice?: ReactNode;
     history: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean };
     /** Badges at the left of the tool bar (published, unsaved …). */
     status?: ReactNode;
@@ -788,7 +792,8 @@ export default function BoardWorkspace({
 
     return (
         <div className="rp-work" ref={workRef}>
-            <div className="rp-sticky">
+            <div className={`rp-sticky${saveState && saveState !== "clean" ? ` is-${saveState}` : ""}`}>
+                {notice}
                 <div className="rp-toolbar2" role="toolbar" aria-label={t("raidBoard.tool.label")}>
                     <div className="rp-tool-group">
                         <IconButton size="sm" icon={<Undo2 size={17} />} tip={`${t("raidBoard.tool.undo")} (Ctrl+Z)`} disabled={!canWrite || !history.canUndo} onClick={history.undo} />

@@ -8,7 +8,9 @@ import { useT } from "../../../i18n";
  * one also shows its name, the others carry it in the tooltip), so the board keeps
  * the width. A dot marks a boss that already holds something.
  */
-export default function BossNav({ bosses, selected, draft, onSelect, onSheet }: {
+export default function BossNav({ bosses, selected, draft, onSelect, onSheet, dirtyKeys = [] }: {
+    /** the sections with unsaved changes: their chip carries an amber dot (and says so) */
+    dirtyKeys?: string[];
     bosses: RaidplanBoss[];
     selected: string;
     draft: Record<string, Partial<RaidplanBoard>>;
@@ -25,11 +27,12 @@ export default function BossNav({ bosses, selected, draft, onSelect, onSheet }: 
                 const special = !!b.trash || !!b.general || !!b.defaults;
                 const i = bosses.slice(0, idx).filter((x) => !x.trash && !x.general && !x.defaults).length;
                 const inSheet = b.defaults ? true : sheetIncluded(draft, b.key);
+                const unsaved = dirtyKeys.indexOf(b.key) >= 0;
                 return (
                     <span key={b.key} className={`rp-bosschip-wrap${inSheet ? "" : " is-out"}`}>
                     <button
-                        type="button" className={`rp-bosschip${on ? " is-on" : ""}${inSheet ? "" : " is-out"}`} aria-current={on ? "true" : undefined}
-                        aria-label={special ? label(b) : `${i + 1}. ${b.name}`} data-tip={special ? label(b) : `${i + 1}. ${b.name}`}
+                        type="button" className={`rp-bosschip${on ? " is-on" : ""}${inSheet ? "" : " is-out"}${unsaved ? " is-unsaved" : ""}`} aria-current={on ? "true" : undefined}
+                        aria-label={`${special ? label(b) : `${i + 1}. ${b.name}`}${unsaved ? ` (${t("raidBoard.save.unsavedShort")})` : ""}`} data-tip={`${special ? label(b) : `${i + 1}. ${b.name}`}${unsaved ? ` · ${t("raidBoard.save.unsavedShort")}` : ""}`}
                         onClick={() => onSelect(b.key)}
                         onContextMenu={onSheet && !b.defaults ? (e) => { e.preventDefault(); onSheet(b.key, !inSheet); } : undefined}
                     >
@@ -37,6 +40,7 @@ export default function BossNav({ bosses, selected, draft, onSelect, onSheet }: 
                         {!special && <span className="rp-bosschip-no">{i + 1}</span>}
                         {on && <span className="rp-bosschip-name">{special ? label(b) : b.name}</span>}
                         {boardCount(draft, b.key) > 0 && <span className="rp-boss-dot" aria-hidden="true" />}
+                        {unsaved && <span className="rp-boss-unsaved" aria-hidden="true" />}
                     </button>
                     {onSheet && !b.defaults && (
                         <button

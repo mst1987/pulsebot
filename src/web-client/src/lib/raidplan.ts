@@ -143,6 +143,13 @@ export function toSave(bosses: Record<string, Partial<RaidplanBoard>>, bossKeys:
     return out;
 }
 
+/** The sections whose board differs from the saved one (the boss chips mark them "ungespeichert"). */
+export function dirtyKeys(draft: Record<string, Partial<RaidplanBoard>>, saved: Record<string, Partial<RaidplanBoard>>, bossKeys: string[]): string[] {
+    const a = toSave(draft, bossKeys);
+    const b = toSave(saved, bossKeys);
+    return bossKeys.filter((k) => JSON.stringify(a[k] || null) !== JSON.stringify(b[k] || null));
+}
+
 /** Whether two plans' bosses differ in what a save would carry. */
 export function sameBosses(a: Record<string, Partial<RaidplanBoard>>, b: Record<string, Partial<RaidplanBoard>>, bossKeys: string[]): boolean {
     return JSON.stringify(toSave(a, bossKeys)) === JSON.stringify(toSave(b, bossKeys));

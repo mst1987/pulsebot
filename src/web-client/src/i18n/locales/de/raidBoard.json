@@ -998,5 +998,14 @@
             "all": "Alle Schritte"
         },
         "parts": "Teile des Schritts"
+    },
+    "save": {
+        "unsaved": "Ungespeicherte Änderungen",
+        "unsavedShort": "ungespeichert",
+        "now": "Jetzt speichern",
+        "oneSection": "in 1 Abschnitt",
+        "sections": "in {n} Abschnitten",
+        "conflict": "Konflikt",
+        "conflictText": "Konflikt: jemand hat inzwischen gespeichert"
     }
 }
