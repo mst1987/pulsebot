@@ -114,6 +114,8 @@ export function selectableItems(board: RaidplanBoard): SelItem[] {
     for (const s of board.slots) if (s.placed !== false && !s.hidden && !s.lock) out.push({ kind: "slot", id: s.id });
     for (const x of board.texts) if (!x.hidden && !x.lock) out.push({ kind: "text", id: x.id });
     for (const k of board.tokens) if (!k.hidden && !k.lock) out.push({ kind: "token", id: k.userId });
+    // the objects of the tank rows where they stand now (the editor hands them over as autoAt)
+    for (const key of Object.keys(board.autoAt || {})) { const s = (board.autoStyle || {})[key] || {}; if (!s.hidden && !s.lock) out.push({ kind: "auto", id: key }); }
     return out;
 }
 
@@ -189,7 +191,8 @@ export function scaleSelection(board: RaidplanBoard, sel: SelItem[], factor: num
 export function deleteSelection(board: RaidplanBoard, sel: SelItem[]): RaidplanBoard {
     let out = board;
     for (const it of sel) {
-        if (isLocked(out, it.kind, it.id)) continue;
+        // an object of the tank rows goes with its row, never with a selection
+        if (isLocked(out, it.kind, it.id) || it.kind === "auto") continue;
         if (it.kind === "slot") {
             const s = out.slots.find((o) => o.id === it.id);
             out = s && (isRoleKind(s.kind) || s.kind === "group") ? unplaceSlot(out, it.id) : removeObject(out, it.kind, it.id);

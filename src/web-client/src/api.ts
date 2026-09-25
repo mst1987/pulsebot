@@ -4139,6 +4139,8 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
+/** What the orga changed about an object the tank rows put on the map (lib/autoPlace.ts); missing = the default. */
+export type RaidplanAutoStyle = { size?: number; opacity?: number; ring?: boolean; showName?: boolean; label?: string; showLabel?: boolean; rotation?: number; autoFace?: boolean; hidden?: boolean; lock?: boolean; z?: number };
 export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean; /** false = no ring / border round it (missing = shown) */ ring?: boolean; /** false = no name label at this object (missing = shown) */ showName?: boolean };
 export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
@@ -4173,6 +4175,18 @@ export type RaidplanBoard = {
     steps?: RaidplanStep[];
     /** false = this boss / trash section is shown without its map (the objects stay stored) */
     showMap?: boolean;
+    /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/autoPlace.ts) */
+    autoPlace?: boolean;
+    /** where an auto-placed object was moved to by hand, by its key ("t:<row>:<n>" / "m:<mob>#<n>") */
+    autoPos?: Record<string, { x: number; y: number }>;
+    /** not stored: the raiders the tank rows put on the map (they are placed, their group ring closes up) */
+    autoUsers?: string[];
+    /** how an auto-placed object looks where it was changed, by its key (size, opacity, ring, name, label, facing, hidden, lock, order) */
+    autoStyle?: Record<string, RaidplanAutoStyle>;
+    /** all auto-placed objects of the section together, 0.4..2 (on top of objectScale) */
+    autoScale?: number;
+    /** not stored: where the auto-placed objects stand right now (the editor hands it to the selection code) */
+    autoAt?: Record<string, { x: number; y: number }>;
     /** how many role slots the Besetzung has on this board (null = the raid type's) */
     counts: BesetzungCounts | null;
     /** mobs added to this section: always tank targets */
@@ -4217,7 +4231,7 @@ export type RaidplanPlayer = {
     group: number;
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
-export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string };
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number };
 /** The catalog spell a row is about, with a snapshot of its name and icon. */
 export type RaidplanSpellRef = { id: string; name: string; icon: string };
 /** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */
@@ -4298,7 +4312,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

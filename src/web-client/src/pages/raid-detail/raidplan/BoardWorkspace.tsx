@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Eye, BoxSelect, Circle, CircleDashed, Image as ImageIcon, ImageOff, ListChecks, Minus, MoveUpRight, PanelLeft, PanelRight, Redo2, Square, Type, Undo2, Users } from "lucide-react";
-import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
+import type { Catalog, RaidplanAssignment, RaidplanAssignType, RaidplanBoard, RaidplanBoss, RaidplanMobRef, RaidplanPlayer, Besetzung as BesetzungData } from "../../../api";
 import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../components/raidplan/PlanBoard";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
@@ -10,12 +10,14 @@ import MiniMap from "../../../components/raidplan/MiniMap";
 import { useViewPrefs } from "../../../lib/useViewPrefs";
 import { ViewOptions, ZoomControls } from "./ViewControls";
 import { useToast } from "../../../components/Jobs";
-import { inheritedRows } from "../../../lib/inherit";
+import { deviate, inheritedRows } from "../../../lib/inherit";
+import { autoPlaces, deriveAuto, mobOfIcon, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../lib/autoPlace";
+import AutoInfo from "./AutoInfo";
 import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, type Corner, type InsertSpec, type MenuItem,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -31,7 +33,11 @@ import Besetzung from "./Besetzung";
 import MobsBar from "./MobsBar";
 import AssignRosterModal from "./AssignRosterModal";
 import { expandClassRefs } from "../../../lib/classRefs";
-import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/assign";
+import { assignmentLinks, bossIconOf, classPlaceNameFor, mobTarget, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/assign";
+import { ANY } from "../../../lib/classRefs";
+
+/** Nothing the tank rows put on the map (no map, "Allgemein", the Standard). */
+const NO_AUTO: AutoPlan = { mobs: [], tanks: [], users: [] };
 
 type Drag = {
     kind: ObjectKind | "tray" | "palette";
@@ -210,7 +216,6 @@ export default function BoardWorkspace({
     const dragRef = useRef<Drag | null>(null);
     const pressRef = useRef<{ timer: number; x: number; y: number } | null>(null);
     const players = useMemo(() => rosterMap(roster), [roster]);
-    const missing = useMemo(() => unplaced(roster, board), [roster, board]);
     const isEvent = mode === "event";
     const scope = scopeOf(boss);
     /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */
@@ -223,10 +228,99 @@ export default function BoardWorkspace({
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
     // the EFFECTIVE rows of the section: its own and the ones it inherits from the Standard, class references resolved - what the lines and the facing of icons follow
     const filledRows = useMemo(() => expandClassRefs([...board.assignments, ...inherited], board.slots, roster, board.roles), [board.assignments, inherited, board.slots, board.roles, roster]);
-    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows }, me || []) : []), [showLinks, board, filledRows, me]);
+    // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/autoPlace.ts); nothing without a map
+    const auto = useMemo(() => (noMap ? NO_AUTO : deriveAuto(filledRows, board, { template: !isEvent, roster })), [noMap, filledRows, board, isEvent, roster]);
+    // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
+    const missing = useMemo(() => unplaced(roster, { ...board, autoUsers: auto.users }), [roster, board, auto]);
+    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows, places: autoPlaces(auto) }, me || []) : []), [showLinks, board, filledRows, me, auto]);
+    // where the objects of the tank rows stand now: handed to the selection code (rubber band, Ctrl+A, moving / scaling / aligning a selection)
+    // as the transient `autoAt`, and taken off again before the board is kept
+    const autoAt = useMemo(() => {
+        const at: Record<string, { x: number; y: number }> = {};
+        for (const m of auto.mobs) if (!m.iconId) at[m.key] = { x: m.x, y: m.y };
+        for (const k of auto.tanks) if (!k.existing) at[k.key] = { x: k.x, y: k.y };
+        return at;
+    }, [auto]);
+    const withAuto = (b: RaidplanBoard): RaidplanBoard => ({ ...b, autoAt });
+    const noAuto = (b: RaidplanBoard): RaidplanBoard => { const out = { ...b }; delete out.autoAt; return out; };
+    /** a request to AssignPanel to open a row's dialog (from the map: "Tank wählen …", "Zeile bearbeiten …") */
+    const [rowReq, setRowReq] = useState<{ id: string; n: number } | null>(null);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
     const boardNow = useRef(board);
     boardNow.current = board;
+
+    /** Opens a row's dialog from the map; a row inherited from the Standard becomes the section's own first (a copy that keeps its key). */
+    const openRowFromMap = (rowId: string) => {
+        const inh = inherited.find((a) => a.id === rowId);
+        if (inh && !board.assignments.some((a) => a.id === rowId)) {
+            const id = `a${Math.random().toString(36).slice(2, 9)}`;
+            edit((b) => { const nb = deviate(b, inh); const list = nb.assignments.slice(); list[list.length - 1] = { ...list[list.length - 1], id }; return { ...nb, assignments: list }; });
+            setRowReq({ id, n: Date.now() });
+            return;
+        }
+        setRowReq({ id: rowId, n: Date.now() });
+    };
+    /** "Tank wählen …" of a mob: its tank row, else a new tank row with the mob as its target. */
+    const pickTankFor = (mobKey: string, fallback: RaidplanMobRef | null) => {
+        const rowId = mobKey ? rowOfMob(auto, mobKey) : "";
+        if (rowId) { openRowFromMap(rowId); return; }
+        const m = mobKey ? auto.mobs.find((x) => x.key === mobKey) : undefined;
+        const target = m ? { ...mobTarget({ id: m.ref, name: m.name, icon: m.icon }), ...(m.count > 1 ? { n: m.inst } : {}) } : fallback ? mobTarget(fallback) : null;
+        if (!target) return;
+        const id = `a${Math.random().toString(36).slice(2, 9)}`;
+        edit((b) => ({ ...b, assignments: [...b.assignments, { id, type: (scope === "trash" ? "trashtank" : "tank") as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [target], note: "", suggested: false, preferredClasses: [], allowOthers: false }] }));
+        setRowReq({ id, n: Date.now() });
+    };
+    /** The own row of a tank of the rows (an inherited one becomes the section's own first) and the tank's reference in it as stored. */
+    const ownRowOf = (b: RaidplanBoard, k: AutoTank): { board: RaidplanBoard; ref: string } => {
+        let row = b.assignments.find((a) => a.id === k.rowId);
+        let nb = b;
+        if (!row) {
+            const inh = inherited.find((a) => a.id === k.rowId);
+            if (!inh) return { board: b, ref: "" };
+            nb = deviate(b, inh);
+            row = nb.assignments[nb.assignments.length - 1];
+        }
+        return { board: nb, ref: row.assignees[k.j - 1] || "" };
+    };
+    /** The assignee reference an object of the map stands for: a raider (token, group member) or a role slot; "" for anything else. */
+    const refOfObject = (b: RaidplanBoard, sel: { kind: ObjectKind; id: string }): string => {
+        if (sel.kind === "token") return `user:${sel.id}`;
+        if (sel.kind === "member") return `user:${parseMemberId(sel.id).userId}`;
+        if (sel.kind !== "slot") return "";
+        const s = b.slots.find((x) => x.id === sel.id);
+        return s && isRoleKind(s.kind) ? `slot:${s.kind}:${s.n}` : "";
+    };
+    /** "Tankt → <mob>" / "Tankt nicht mehr" (mobId "") from the right-click menu: writes the tank rows (lib/autoPlace.ts tankTo / untank). */
+    const tankAction = (sel: { kind: ObjectKind; id: string }, mobId: string) => {
+        const m = mobs.find((x) => x.id === mobId);
+        const type = (scope === "trash" ? "trashtank" : "tank") as RaidplanAssignType;
+        edit((b) => {
+            let nb = b;
+            let ref = "";
+            if (sel.kind === "auto") {
+                const k = auto.tanks.find((x) => x.key === sel.id);
+                if (!k) return b;
+                const r = ownRowOf(b, k);
+                nb = r.board;
+                ref = r.ref;
+            } else ref = refOfObject(b, sel);
+            if (!ref) return b;
+            return m ? tankTo(nb, ref, mobTarget(m), type) : untank(nb, ref);
+        });
+    };
+    /** What an auto object is called (the menu's title). */
+    const autoName = (key: string): string => {
+        const k = auto.tanks.find((x) => x.key === key);
+        if (k) {
+            const p = k.userId ? players.get(k.userId) : undefined;
+            if (p) return p.character;
+            if (k.classId) return k.classId === ANY ? t(`raidBoard.class.roles.${k.role || "tank"}`) : classPlaceNameFor(k.classId, k.role, k.type);
+            return t(`raidBoard.slot.${k.slotKind || "tank"}`, { n: k.slotN || 1 });
+        }
+        const m = auto.mobs.find((x) => x.key === key);
+        return m ? (m.count > 1 ? `${m.name} ${m.inst}` : m.name) : "";
+    };
 
     // Another boss: nothing is selected any more.
     useEffect(() => { setSelected(null); setMulti([]); setMenu(null); }, [boss.key]);
@@ -254,20 +348,20 @@ export default function BoardWorkspace({
     // what an undo, a delete elsewhere ... took away is no longer selected
     useEffect(() => {
         if (multi.length === 0) return;
-        const live = liveItems(board, multi);
+        const live = liveItems(withAuto(board), multi);
         if (live.length !== multi.length) chooseItems(live);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [board]);
-    const frame = multi.length > 1 ? selectionBox(board, multi, boardPx()) : null;
+    const frame = multi.length > 1 ? selectionBox(withAuto(board), multi, boardPx()) : null;
     const centerOf = (b: RaidplanBoard, sel: SelItem[]) => {
-        const box = selectionBox(b, sel, boardPx());
+        const box = selectionBox(withAuto(b), sel, boardPx());
         return box ? { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 } : { x: 0.5, y: 0.5 };
     };
     /** One undo step for whatever the selection does. */
     const multiAction = (fn: (b: RaidplanBoard, sel: SelItem[]) => RaidplanBoard, merge = false) => {
         const sel = currentSel();
         if (sel.length === 0) return;
-        edit((b) => fn(b, sel), merge);
+        edit((b) => noAuto(fn(withAuto(b), sel)), merge);
     };
     const doDuplicate = () => {
         const sel = currentSel();
@@ -341,7 +435,11 @@ export default function BoardWorkspace({
             if (!p) return;
             if (d.multi && d.p0) {
                 const m = d.multi;
-                edit(() => moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx()), true);
+                edit(() => noAuto(moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx())), true);
+            } else if (d.handle === "rot" && d.center && d.kind === "auto") {
+                // an auto mob turned by hand: its facing is its own from now on
+                const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
+                edit((b) => patchAutoStyle(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
             } else if (d.handle === "rot" && d.center) {
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
                 edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
@@ -470,7 +568,7 @@ export default function BoardWorkspace({
             }
         }
         const origin = kind === "slot" ? { x: (board.slots.find((s) => s.id === id) || { x: 0 }).x, y: (board.slots.find((s) => s.id === id) || { y: 0 }).y } : undefined;
-        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false, multi: startsMulti ? { board0: boardNow.current, sel: multi } : undefined };
+        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false, multi: startsMulti ? { board0: withAuto(boardNow.current), sel: multi } : undefined };
         dragRef.current = d;
         setDrag(d);
     };
@@ -531,7 +629,7 @@ export default function BoardWorkspace({
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
             const box = bandBox(b.x0, b.y0, Math.max(0, Math.min(1, p.x)), Math.max(0, Math.min(1, p.y)));
-            const hits = hitObjects(boardNow.current, box, boardPx());
+            const hits = hitObjects(withAuto(boardNow.current), box, boardPx());
             chooseItems(b.add ? addItems(b.base, hits) : hits);
         };
         window.addEventListener("pointermove", move);
@@ -546,7 +644,7 @@ export default function BoardWorkspace({
         e.preventDefault();
         const p = toBoard(e.clientX, e.clientY);
         if (!p) return;
-        const d: Drag = { kind: "zone", id: "", x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, p0: { x: p.x, y: p.y }, overTray: false, multi: { board0: boardNow.current, sel: multi } };
+        const d: Drag = { kind: "zone", id: "", x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, p0: { x: p.x, y: p.y }, overTray: false, multi: { board0: withAuto(boardNow.current), sel: multi } };
         dragRef.current = d;
         setDrag(d);
     };
@@ -560,7 +658,7 @@ export default function BoardWorkspace({
         const c = centerOf(boardNow.current, multi);
         const cx = rect.left + c.x * rect.width;
         const cy = rect.top + c.y * rect.height;
-        scaleRef.current = { board0: boardNow.current, sel: multi, center: c, d0: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy };
+        scaleRef.current = { board0: withAuto(boardNow.current), sel: multi, center: c, d0: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy };
         setScaling(true);
     };
     useEffect(() => {
@@ -568,7 +666,7 @@ export default function BoardWorkspace({
         const move = (e: globalThis.PointerEvent) => {
             const s = scaleRef.current;
             const f = Math.max(0.1, Math.min(8, Math.hypot(e.clientX - s.cx, e.clientY - s.cy) / s.d0));
-            edit(() => scaleSelection(s.board0, s.sel, f, s.center), true);
+            edit(() => noAuto(scaleSelection(s.board0, s.sel, f, s.center)), true);
         };
         const up = () => setScaling(false);
         window.addEventListener("pointermove", move);
@@ -590,6 +688,24 @@ export default function BoardWorkspace({
     const onKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => {
         if (!canWrite) return;
         const step = e.shiftKey ? 0.05 : 0.01;
+        if (kind === "auto") {
+            // an object of the tank rows: the arrows move it (its place is kept), it cannot be deleted on its own
+            const dirs: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+            const o = auto.tanks.find((x) => x.key === id) || auto.mobs.find((x) => x.key === id);
+            if (dirs[e.key] && o) { e.preventDefault(); edit((b) => moveObject(b, "auto", id, o.x + dirs[e.key][0], o.y + dirs[e.key][1]), true); }
+            else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); toast(t("raidBoard.auto.noDelete")); }
+            else if (e.key === "Enter") { setSelected({ kind, id }); focusProperties(); }
+            else if (e.key === "+" || e.key === "=") { e.preventDefault(); edit((b) => scaleObject(b, "auto", id, 1.1), true); }
+            else if (e.key === "-") { e.preventDefault(); edit((b) => scaleObject(b, "auto", id, 1 / 1.1), true); }
+            else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && id.indexOf("m:") === 0) {
+                // an auto mob turned by hand (Q / E): from where it faces now, its own facing from then on
+                e.preventDefault();
+                const now = autoStyleOf(boardNow.current, id);
+                const dir = e.key === "q" || e.key === "Q" ? -1 : 1;
+                edit((b) => patchAutoStyle(b, id, { rotation: (((now.rotation || 0) + dir * (e.shiftKey ? 45 : 15)) % 360 + 360) % 360, autoFace: false }), true);
+            }
+            return;
+        }
         if (multi.length > 1 && hasItem(multi, { kind, id })) {
             const dirs: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
             if (dirs[e.key]) { e.preventDefault(); multiAction((b, sel) => moveSelection(b, sel, dirs[e.key][0], dirs[e.key][1], boardPx()), true); }
@@ -631,7 +747,7 @@ export default function BoardWorkspace({
             const tag = (e.target as HTMLElement).tagName;
             if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
             const mod = e.ctrlKey || e.metaKey;
-            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && !noMap) { e.preventDefault(); chooseItems(selectableItems(boardNow.current)); }
+            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && !noMap) { e.preventDefault(); chooseItems(selectableItems(withAuto(boardNow.current))); }
             else if (canWrite && mod && e.key.toLowerCase() === "d") { e.preventDefault(); doDuplicate(); }
             else if (canWrite && mod && e.key.toLowerCase() === "c") { if (currentSel().length > 0) { e.preventDefault(); doCopy(); } }
             else if (canWrite && mod && e.key.toLowerCase() === "v") { if (clip.current) { e.preventDefault(); doPaste(); } }
@@ -693,12 +809,29 @@ export default function BoardWorkspace({
         if (menu.target === "board") return contextMenuItems("board", { locked: false, hasPlayer: false, isEvent, kind: "" });
         const sel = menu.target;
         if (!sel) return [];
+        const it = (id: string, section: string): MenuItem => ({ id, section, disabled: false, danger: false });
+        // "Tankt → <mob>" for everything that can tank, "Tankt nicht mehr" when it does
+        const tankItems = (tanksNow: boolean): MenuItem[] => [...mobs.map((m) => it(`tankt:${m.id}`, "tank")), ...(tanksNow ? [it("tankt:", "tank")] : [])];
+        if (sel.kind === "auto") {
+            const k = auto.tanks.find((x) => x.key === sel.id);
+            const moved = !!(board.autoPos || {})[sel.id];
+            const styled = !!(board.autoStyle || {})[sel.id];
+            const locked = !!autoStyleOf(board, sel.id).lock;
+            // like any object: order, lock, the size steps; plus its row, and back to its own place / look
+            return [it("properties", "main"), ...(k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")]),
+                it("front", "order"), it("back", "order"), it(locked ? "unlock" : "lock", "order"), ...(locked ? [] : SIZE_STEPS.map((p) => it(`size:${p}`, "size"))),
+                ...(moved ? [it("auto:reset", "end")] : []), ...(moved || styled ? [it("auto:resetAll", "end")] : [])];
+        }
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
         const ic = sel.kind === "icon" ? board.icons.find((s) => s.id === sel.id) : undefined;
-        return contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 });
+        const ref = refOfObject(board, sel);
+        const extra = ref ? tankItems(board.assignments.some((a) => (a.type === "tank" || a.type === "trashtank" || a.type === "special") && a.assignees.indexOf(ref) >= 0)) : ic && (ic.mobId || mobOfIcon(auto, ic.id)) ? [it("auto:tank", "tank")] : [];
+        return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...extra];
     };
     const menuLabel = (item: MenuItem): string => {
+        if (item.id.startsWith("tankt:")) { const m = mobs.find((x) => x.id === item.id.slice(6)); return m ? t("raidBoard.auto.tanksMob", { mob: m.name }) : t("raidBoard.auto.untank"); }
+        if (item.id.startsWith("auto:")) return t(`raidBoard.auto.menu.${item.id.slice(5)}`);
         const parts = item.id.split(":");
         if (parts[0] === "size") return t("raidBoard.ctx.sizeTo", { pct: parts[1] });
         if (parts[0] === "face") return t("raidBoard.ctx.face", { dir: t(`raidBoard.compass.${compassName(Number(parts[1]))}`) });
@@ -715,6 +848,16 @@ export default function BoardWorkspace({
         if (id === "properties") { focusProperties(); return; }
         if (id === "assign") { focusProperties("[data-insp-player]"); return; }
         if (id === "deselect") { chooseItems([]); return; }
+        const one = target && target !== "board" ? target : null;
+        if (id === "auto:reset" && one) { edit((b) => resetAutoPos(b, one.id)); return; }
+        if (id === "auto:resetAll" && one) { edit((b) => resetAutoAll(b, one.id)); return; }
+        if (id === "auto:row" && one) { const k = auto.tanks.find((x) => x.key === one.id); if (k) openRowFromMap(k.rowId); return; }
+        if (id === "auto:tank" && one) {
+            if (one.kind === "auto") pickTankFor(one.id, null);
+            else { const m = mobOfIcon(auto, one.id); const ic = board.icons.find((x) => x.id === one.id); pickTankFor(m ? m.key : "", ic && ic.mobId ? mobs.find((x) => x.id === ic.mobId) || null : null); }
+            return;
+        }
+        if (id.startsWith("tankt:") && one) { tankAction(one, id.slice(6)); return; }
         if (id.startsWith("m:")) {
             const px = boardPx();
             const act = id.slice(2);
@@ -893,7 +1036,7 @@ export default function BoardWorkspace({
                         links={links}
                         maxHeight={mapPx}
                         me={me} showRings={board.showRings !== false} groupColors={board.groupColors} groupMarks={board.groupMarks} focusGroup={focusGroup}
-                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite && !preview ? startScale : undefined} onMultiMove={canWrite && !preview ? startFrameDrag : undefined}
+                        multi={multi} multiBox={frame} band={band} onMultiScale={canWrite && !preview ? startScale : undefined} onMultiMove={canWrite && !preview ? startFrameDrag : undefined} auto={auto}
                         emptyText={canWrite ? `${t("raidBoard.board.noMapTitle")} · ${t("raidBoard.board.noMapText")}` : t("raidBoard.board.noMapTitle")}
                     />
                     {prefs.minimap && bv.view.z > 1 && <MiniMap mapUrl={boss.mapUrl} view={bv.view} onCenter={bv.centerAt} label={t("raidBoard.zoom.minimap")} />}
@@ -928,8 +1071,9 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit} rows={filledRows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
-                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} />}
+                            {tab === "props" && selected && selected.kind === "auto" && multi.length < 2 && <AutoInfo plan={auto} id={selected.id} board={board} players={players} canWrite={canWrite} edit={edit} onRow={(k, mobKey) => (k ? openRowFromMap(k.rowId) : pickTankFor(mobKey, null))} />}
+                            {tab === "props" && !(selected && selected.kind === "auto" && multi.length < 2) && <Inspector board={withAuto(board)} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={(fn, m) => edit((b) => noAuto(fn(withAuto(b))), m)} editAll={editAll || edit} rows={filledRows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
+                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} autoRows={[...auto.mobs.filter((m) => !m.iconId).map((m) => m.key), ...auto.tanks.filter((k) => !k.existing).map((k) => k.key)].map((key) => ({ id: key, name: autoName(key), moved: !!(board.autoPos || {})[key], hidden: !!autoStyleOf(board, key).hidden, lock: !!autoStyleOf(board, key).lock }))} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">
                                     <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
@@ -956,7 +1100,7 @@ export default function BoardWorkspace({
                     scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
                     eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
                     profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
-                    inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults}
+                    inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
                 />
                 {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
                 <StepsCard
@@ -981,7 +1125,7 @@ export default function BoardWorkspace({
             {menu && (
                 <ContextMenu
                     x={menu.x} y={menu.y}
-                    title={menu.target === "board" || !menu.target ? t("raidBoard.ctx.board") : objectName(board, menu.target.kind, menu.target.id, players) || t(`raidBoard.obj.${menu.target.kind}`)}
+                    title={menu.target === "board" || !menu.target ? t("raidBoard.ctx.board") : menu.target.kind === "auto" ? autoName(menu.target.id) : objectName(board, menu.target.kind, menu.target.id, players) || t(`raidBoard.obj.${menu.target.kind}`)}
                     items={menuItems()} labelFor={menuLabel} onPick={pickMenu} onClose={() => setMenu(null)}
                 />
             )}

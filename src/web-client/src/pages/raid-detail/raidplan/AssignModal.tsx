@@ -9,6 +9,8 @@ import { CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, cla
 import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
+import { mobCountOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/autoPlace";
+import { MobIcon } from "./AssignPanel";
 import { groupColor } from "../../../lib/groupStyle";
 import { AssignChip } from "./AssignPanel";
 import { useT } from "../../../i18n";
@@ -197,7 +199,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             if (plain.length === 0 && groups.length === 0) return <span className="rp-muted">{t("raidBoard.amb.empty")}</span>;
             return (
                 <>
-                    {plain.map((tg) => <AssignChip key={`${tg.kind}|${tg.ref}`} ctx={ctx} r={resolveTarget(tg, ctx)} onRemove={() => set((b) => toggleTarget(b, rowId, tg))} />)}
+                    {plain.map((tg) => <AssignChip key={`${tg.kind}|${tg.ref}|${tg.n || 0}`} ctx={ctx} r={resolveTarget(tg, ctx)} onRemove={() => set((b) => (tg.kind === "mob" && tg.n ? patchAssignment(b, rowId, { targets: row.targets.filter((x) => x !== tg) }) : toggleTarget(b, rowId, tg)))} />)}
                     {groups.map((g) => classChip(g, true))}
                 </>
             );
@@ -402,13 +404,50 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             </label>
         </div>
     );
+    /**
+     * Several mobs of one kind ("Flame of Azzinoth" x2): per chosen mob of a tank row its "Anzahl" (numbered targets, one tank each) and,
+     * for a single one, its "Nr." (which of them; "eigene" = the row's own, numbered by the rows in order). What the map puts there follows.
+     */
+    const mobCounts = () => {
+        const refs = row.targets.filter((x) => x.kind === "mob").map((x) => x.ref).filter((r, i, all) => all.indexOf(r) === i);
+        if (refs.length === 0 || TANK_TYPES.indexOf(type) < 0) return null;
+        return (
+            <div className="rp-amb-block rp-amb-mobcount">
+                <span className="rp-kicker" data-tip={t("raidBoard.auto.severalTip")}>{t("raidBoard.auto.several")}</span>
+                {refs.map((ref) => {
+                    const tg = row.targets.find((x) => x.kind === "mob" && x.ref === ref);
+                    const count = mobCountOf(row, ref);
+                    const inst = mobInstanceOf(row, ref);
+                    const name = (tg && tg.name) || ref;
+                    return (
+                        <div key={ref} className="rp-amb-mobline">
+                            <MobIcon icon={(tg && tg.icon) || ""} size={22} />
+                            <b className="rp-amb-card-name">{name}</b>
+                            <span className="rp-amb-step" role="group" aria-label={`${t("raidBoard.auto.count")}: ${name}`}>
+                                <button type="button" aria-label={t("raidBoard.class.fewer")} disabled={count <= 1} onClick={() => set((b) => ({ ...b, assignments: setMobCount(b.assignments, rowId, ref, count - 1) }))}><Minus size={14} /></button>
+                                <b aria-live="polite">{count}</b>
+                                <button type="button" aria-label={t("raidBoard.class.more")} disabled={count >= 20} onClick={() => set((b) => ({ ...b, assignments: setMobCount(b.assignments, rowId, ref, count + 1) }))}><Plus size={14} /></button>
+                            </span>
+                            {count === 1 && ref.indexOf("b:") !== 0 && (
+                                <span className="rp-amb-seg sm" role="radiogroup" aria-label={`${t("raidBoard.auto.inst")}: ${name}`}>
+                                    <span className="rp-muted">{t("raidBoard.auto.inst")}</span>
+                                    {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" role="radio" aria-checked={inst === n} className={inst === n ? "is-on" : ""} onClick={() => set((b) => ({ ...b, assignments: setMobInstance(b.assignments, rowId, ref, n) }))}>{n === 0 ? t("raidBoard.auto.instOwn") : n}</button>)}
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
     const byPrefix = (c: string) => targetOpts.filter((o) => o.key.indexOf(c === "groups" ? "group|" : c === "marks" ? "mark|" : "mob|") === 0);
     const panel = () => {
         if (cat === "people") return peoplePanel();
         if (cat === "classes") return classesPanel();
         if (cat === "spells") return optionsPanel(spells, "rp-amb-grid-wide");
         if (cat === "text") return textPanel();
-        return optionsPanel(byPrefix(cat), cat === "mobs" ? "rp-amb-grid-wide" : cat === "marks" ? "rp-amb-grid-marks" : "");
+        if (cat === "mobs") return <>{optionsPanel(byPrefix(cat), "rp-amb-grid-wide")}{mobCounts()}</>;
+        return optionsPanel(byPrefix(cat), cat === "marks" ? "rp-amb-grid-marks" : "");
     };
     const catCount = (c: string): string => {
         if (c === "people") return String(isEvent && mode === "player" ? roster.length : peopleEntries(tmp.slots, roster, "slot", slot).length);

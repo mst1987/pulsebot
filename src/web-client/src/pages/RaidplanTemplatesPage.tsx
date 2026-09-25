@@ -562,7 +562,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
-                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} />}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} onMap={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, showMap: on })) : undefined} />}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("planTemplates.conflict")} /> : undefined}
                     actions={canWrite ? (
                         <>

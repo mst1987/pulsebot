@@ -297,7 +297,8 @@
         "line": "Line",
         "text": "Text",
         "member": "Raider",
-        "icon": "Icon"
+        "icon": "Icon",
+        "auto": "From the assignments"
     },
     "insp": {
         "none": "Nothing selected. Click an object on the board or in the layer list, or drag something from the elements onto the board.",
@@ -1013,5 +1014,40 @@
         "hide": "Hide map (assignments only)",
         "hiddenKept": "Map hidden – the objects on the map stay stored.",
         "offNote": "This section is planned without a map. The objects on the map stay stored and come back as soon as the map is shown."
+    },
+    "auto": {
+        "fromRow": "from the assignments",
+        "missing": "{cls} missing",
+        "missingHint": "This class is not in the raid: the place stays empty (never another class), the mob's wedge does not follow it.",
+        "ruleHint": "A placeholder of the template: in the event this is the player the rule takes from the setup.",
+        "tanks": "Tanks",
+        "noMob": "no mob (a mark or no target)",
+        "tankedBy": "Tanked by",
+        "noTank": "no tank yet",
+        "editRow": "Edit row …",
+        "pickTank": "Choose tank …",
+        "reset": "Reset position",
+        "moved": "Moved by hand: this position stays, also when the assignments change.",
+        "explain": "Comes from the tank assignments and is placed automatically. It can be moved; it goes with its row or with “Place automatically from the tank assignments” off.",
+        "place": "Place automatically from the tank assignments",
+        "noDelete": "Comes from the tank assignments: delete the row or switch “Place automatically” off.",
+        "tanksMob": "Tanks → {mob}",
+        "untank": "No longer tanks",
+        "several": "Several of this kind",
+        "severalTip": "Count = that many mobs of this kind, each gets a tank (tank 1 → no. 1, tank 2 → no. 2). No. = which of them; “own” numbers the rows in order.",
+        "count": "Count",
+        "inst": "No.",
+        "instOwn": "own",
+        "menu": {
+            "row": "Edit row …",
+            "tank": "Choose tank …",
+            "reset": "Reset position",
+            "resetAll": "Reset everything (position + look)"
+        },
+        "label": "Label",
+        "labelHint": "optional, e.g. “wall”",
+        "resetAll": "Reset everything (position + look)",
+        "section": "This section",
+        "scale": "Size of tanks/mobs (all from the assignments)"
     }
 }

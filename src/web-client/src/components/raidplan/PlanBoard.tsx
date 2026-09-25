@@ -5,7 +5,7 @@ import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
 import { groupScales } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
-import { Crosshair, Swords, Users } from "lucide-react";
+import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../ClassSpec";
 import Mentions from "./Mentions";
@@ -14,7 +14,9 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
-import { facingOf, type AssignLink } from "../../lib/assign";
+import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
+import { ANY } from "../../lib/classRefs";
+import { autoFacing, type AutoPlan, type AutoTank } from "../../lib/autoPlace";
 import "../../styles/raidplan.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
@@ -124,6 +126,8 @@ type BoardProps = {
     maxHeight?: number;
     /** Shown on the grid when there is no map. */
     emptyText?: string;
+    /** what the tank rows put on the map (lib/autoPlace.ts): the mobs and tanks nobody placed by hand */
+    auto?: AutoPlan;
 };
 
 /** The pixel size of an element, kept up to date (the lines are drawn in pixels so an arrow head never stretches). */
@@ -166,7 +170,7 @@ function arrowHead(x1: number, y1: number, x2: number, y2: number, width: number
  */
 export default function PlanBoard({
     boardRef, bossName, bossIcon, mapUrl, mapOpacity = 1, tokens, slots = [], marks = [], icons = [], objectScale = 1, zones = [], lines = [], texts = [], players, roster = [],
-    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText,
+    me = "", assignments, maxHeight, showRings = true, view = FIT, frameRef, showNames = true, showBadges = true, showRoleRings = true, highlightMe = true, showSelection = true, groupColors, groupMarks, focusGroup = 0, multi = [], multiBox = null, band = null, onMultiScale, onMultiMove, selected = null, dragKey = "", onObjectDown, onObjectKey, onObjectOpen, onContext, links, emptyText, auto,
 }: BoardProps) {
     const t = useT();
     const [aspect, setAspect] = useState(0);
@@ -217,7 +221,8 @@ export default function PlanBoard({
     const sizeHandle = (kind: ObjectKind, id: string, locked: boolean) => (editable && !locked && isSel(kind, id) ? (
         <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
     ) : null);
-    const boardOwn = { tokens, slots, assignments: assignments || [] } as unknown as RaidplanBoard;
+    // a raider the tank rows put on the map stands there on his own: his group ring closes up
+    const boardOwn = { tokens, slots, assignments: assignments || [], autoUsers: auto ? auto.users : [] } as unknown as RaidplanBoard;
     // where the raiders of split group markers stand (the ring the board draws), so an icon that faces "its tank" also finds a tank who is in a ring
     const places: Record<string, { x: number; y: number }> = {};
     if (size.w > 0) {
@@ -234,6 +239,19 @@ export default function PlanBoard({
         }
     }
     const boardLike = { tokens, slots, icons, assignments: assignments || [], places } as unknown as RaidplanBoard;
+    /** An icon's facing: the tank rows' tank of its mob when they know it (auto placement), else the older rule (lib/assign.ts facingOf). */
+    const faceOf = (i: { id: string; x: number; y: number; rotation: number; autoFace?: boolean; mobId?: string; iconKey?: string }) => {
+        if (auto && i.autoFace !== false) {
+            const a = autoFacing(auto, i.id, i, boardLike, places, ar);
+            if (a >= 0) return a;
+            if (a === -2) return i.rotation || 0;
+        }
+        return facingOf(boardLike, i, ar);
+    };
+    /** What a tank of the rows is called: the class place ("Tank (Paladin)", "Magier-Tank", "Tank") or the slot. */
+    const ruleName = (k: AutoTank) => (k.classId ? (k.classId === ANY ? t(`raidBoard.class.roles.${k.role || "tank"}`) : classPlaceNameFor(k.classId, k.role, k.type)) : k.slotKind ? t(`raidBoard.slot.${k.slotKind}`, { n: k.slotN }) : "");
+    const mobName = (key: string) => { const m = auto ? auto.mobs.find((x) => x.key === key) : undefined; return m ? (m.count > 1 ? `${m.name} ${m.inst}` : m.name) : ""; };
+    const autoTip = (k: AutoTank, who: string) => `${who}${k.mobKey ? ` → ${mobName(k.mobKey)}` : ""} · ${t("raidBoard.auto.fromRow")}`;
 
     return (
         <div
@@ -348,7 +366,7 @@ export default function PlanBoard({
                                     </span>
                                 )}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${facingOf(boardLike, i, ar)}deg)` }} aria-hidden="true">
+                                    <span className="rp-facing" style={{ transform: `rotate(${faceOf(i)}deg)` }} aria-hidden="true">
                                         <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
                                         {editable && !i.lock && isSel("icon", i.id) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />
@@ -359,6 +377,37 @@ export default function PlanBoard({
                         </button>
                         {iconBoardLabel(i) && <span className="rp-token-name">{iconBoardLabel(i)}</span>}
                         {sizeHandle("icon", i.id, i.lock)}
+                    </div>
+                );
+            })}
+
+            {auto && auto.mobs.filter((m) => !m.iconId && !m.style.hidden).sort((a, b) => (a.style.z || 0) - (b.style.z || 0)).map((m) => {
+                // a mob the tank rows put on the map: like a hand-placed icon (size, opacity, ring, label, facing of its own look), marked as coming from the rows
+                const st = m.style;
+                const type = iconKeyType(m.iconKey);
+                const ipx = scaled(m.size, SIZE_RANGES.icon.def);
+                const face = canFace(m.iconKey);
+                const src = type === "boss" ? portraitUrl(m.iconKey) : type === "wow" ? wowIconUrl(m.iconKey.slice(4), ipx) : "";
+                const name = m.count > 1 ? `${m.name} ${m.inst}` : m.name;
+                const a = st.autoFace === false ? st.rotation || 0 : autoFacing(auto, `auto:${m.key}`, m, boardLike, places, ar);
+                const label = st.showLabel && st.label ? st.label : "";
+                return (
+                    <div key={`auto:${m.key}`} data-obj={`auto:${m.key}`} className={cls("rp-token rp-iconobj is-auto", "auto", m.key, `${ringShownFor(showRoleRings, st.ring) ? "" : "is-noring"}${label ? noName(m.size, SIZE_RANGES.icon.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(m.size, SIZE_RANGES.icon.def) }}>
+                        <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={`${label || name} · ${t("raidBoard.auto.fromRow")}`} data-tip={`${label || name} · ${t("raidBoard.auto.fromRow")}`} {...handlers("auto", m.key)}>
+                            <span className={`rp-icon-face${face ? " is-round" : ""}`}>
+                                {src ? <img src={src} alt="" draggable={false} /> : <span className="rp-icon-builtin rp-icon-enemy" aria-hidden="true"><Swords size={Math.round(ipx * 0.62)} /></span>}
+                                {face && (
+                                    <span className="rp-facing" style={{ transform: `rotate(${a >= 0 ? a : st.rotation || 0}deg)` }} aria-hidden="true">
+                                        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+                                        {editable && !st.lock && isSel("auto", m.key) && (
+                                            <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "auto", m.key, "rot"); }} />
+                                        )}
+                                    </span>
+                                )}
+                            </span>
+                        </button>
+                        {label && <span className="rp-token-name">{label}</span>}
+                        {sizeHandle("auto", m.key, !!st.lock)}
                     </div>
                 );
             })}
@@ -506,6 +555,47 @@ export default function PlanBoard({
                         {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
                         {showBadges && ownBadgeGroup(boardOwn, p) > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, p.group), "--gi": inkOn(groupColor(groupColors, p.group)) } as React.CSSProperties}>{p.group}</span>}
                         {sizeHandle("token", tok.userId, tok.lock)}
+                    </div>
+                );
+            })}
+
+            {auto && auto.tanks.filter((k) => !k.existing && !k.style.hidden).sort((a, b) => (a.style.z || 0) - (b.style.z || 0)).map((k) => {
+                // a tank the tank rows put on the map: the raider (like his own token), the class place of a template ("Tank (Paladin)"), a
+                // class nobody in the raid has ("Paladin fehlt", dimmed, never another class) or an open slot; size, opacity, ring, name and label of its own look
+                const st = k.style;
+                const p = k.state === "player" && k.userId ? players.get(k.userId) || null : null;
+                const mine = !!p && isMe(p.userId);
+                const base = `rp-token rp-autotank is-${k.state}${mine ? " is-me" : ""}`;
+                const style = { left: `${k.x * 100}%`, top: `${k.y * 100}%`, opacity: st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(k.size, SIZE_RANGES.token.def) };
+                const ring = ringShownFor(showRoleRings, st.ring) ? "" : " is-noring";
+                const label = st.label || "";
+                if (p) {
+                    const tip = autoTip(k, `${playerLabel(p)}${offRole(k.type, p) ? ` (${t("raidBoard.class.asTank")})` : ""}`);
+                    return (
+                        <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto`, "auto", k.key, `${ring}${noName(k.size, SIZE_RANGES.token.def, 1, st.showName)}`, !!st.lock)} style={style}>
+                            <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
+                                <TokenIcon player={p} />
+                            </button>
+                            <span className="rp-token-name rp-slot-name">{label && <span className="rp-slot-title">{label}</span>}<PlayerName player={p} /></span>
+                            {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
+                            {sizeHandle("auto", k.key, !!st.lock)}
+                        </div>
+                    );
+                }
+                const who = ruleName(k);
+                const missing = k.state === "missing";
+                const miss = missing ? t("raidBoard.auto.missing", { cls: k.classId === ANY ? who : t(`wow.class.${k.classId}`) }) : "";
+                const tip = autoTip(k, missing ? miss : who);
+                const icon = k.classId ? classRefIcon(k.classId, k.role || "tank") : ROLE_ICONS[k.slotKind] || ROLE_ICONS.tank;
+                const shown = missing || !!label;
+                return (
+                    <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto is-open`, "auto", k.key, `${ring}${shown ? noName(k.size, SIZE_RANGES.token.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={style}>
+                        <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
+                            <span className="rp-ico rp-ico-open rp-role-tank" aria-hidden="true"><WowIcon name={icon} size={Math.max(14, Math.round(scaled(k.size, SIZE_RANGES.token.def) * 0.58))} /></span>
+                            {missing && <span className="rp-autowarn" aria-hidden="true"><AlertTriangle size={11} /></span>}
+                        </button>
+                        {shown && <span className={`rp-token-name${missing ? " rp-autotank-miss" : ""}`}>{label && <span className="rp-slot-title">{label}</span>}{miss}</span>}
+                        {sizeHandle("auto", k.key, !!st.lock)}
                     </div>
                 );
             })}
