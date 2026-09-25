@@ -900,6 +900,10 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 
 /* layout v2: map (height adjustable) with a narrow dock, the splitter, and the assignments in columns underneath */
 .rp-stage2 { grid-template-columns: minmax(0, 1fr) 300px; }
+/* up to 1000 px the dock goes under the map (this rule came after the older media query and kept two columns: the map shrank to ~50 px on a phone) */
+@media (max-width: 1000px) {
+    .rp-stage2, .rp-stage2.no-dock { grid-template-columns: minmax(0, 1fr); }
+}
 .rp-stage2.no-dock { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1001px) {
     .rp-stage2:not(.is-only-dock) .rp-board-wrap { position: static; }
@@ -1585,3 +1589,5 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-rg-names { position: absolute; left: 0; right: 0; top: calc(100% + 3px); display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 6px; padding: 2px 6px; border-radius: 6px; background: rgba(15, 17, 21, .8); font-size: 11px; pointer-events: none; }
 .rp-lc.is-role, .rp-achip-role { border-color: var(--rc, var(--line)); }
 .rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }
+/* the grip that turns a role group, above its top edge */
+.rp-zone .rp-h-zrot { left: calc(50% - 7px); top: -26px; width: 14px; height: 14px; border-radius: 50%; cursor: grab; }

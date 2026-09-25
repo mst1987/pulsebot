@@ -1071,7 +1071,8 @@
         "count": "Anzahl (Badge, 0 = keins)",
         "showNames": "Spieler dieser Rolle aus dem Setup anzeigen (Event)",
         "hint": "Platzhalter für eine ganze Rollengruppe – ohne einzelne Spieler, im Sheet immer sichtbar.",
-        "refHint": "Eine ganze Rollengruppe, ohne Aufteilung auf Spieler – im Sheet als Rollen-Chip."
+        "refHint": "Eine ganze Rollengruppe, ohne Aufteilung auf Spieler – im Sheet als Rollen-Chip.",
+        "rotation": "Drehung (°)"
     },
     "arrow": {
         "size": "Pfeilgröße",

@@ -1071,7 +1071,8 @@
         "count": "Count (badge, 0 = none)",
         "showNames": "Show the setup's players of this role (event)",
         "hint": "A placeholder for a whole role group – no single players, always visible in the sheet.",
-        "refHint": "A whole role group, not split into players – shown as a role chip in the sheet."
+        "refHint": "A whole role group, not split into players – shown as a role chip in the sheet.",
+        "rotation": "Rotation (°)"
     },
     "arrow": {
         "size": "Arrow size",

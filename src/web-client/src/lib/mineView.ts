@@ -3,7 +3,7 @@
 // targets him, marked "auch auf dich"); a row of somebody else that targets him, his group, his slot or names him in words acts ON him.
 // Pure and tested (test/web-client/mineView.test.js); written with function declarations and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget } from "../api";
-import { isMe, resolveAssignee, resolveTarget } from "./assign";
+import { isMe, meInRole, resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx, Resolved } from "./assign";
 import { mentionsInRow } from "./mention";
 
@@ -40,16 +40,18 @@ export function myGroups(ctx: AssignCtx, me: string[]): number[] {
 export function rowMode(a: RaidplanAssignment, ctx: AssignCtx, me: string[], names: string[]): MineRow | null {
     if (me.length === 0) return null;
     const groups = myGroups(ctx, me);
-    const at = a.assignees.findIndex((r) => isMe(resolveAssignee(r, ctx), me));
+    // a role group ("Melees -> Boss") is a task of every raider of that role (no names are split out)
+    const at = a.assignees.findIndex((r) => isMe(resolveAssignee(r, ctx), me) || (r.indexOf("role:") === 0 && meInRole(r.slice(5), ctx, me)));
     let via = "";
     let group = 0;
     for (const tg of a.targets) {
         const r = resolveTarget(tg, ctx);
         if (isMe(r, me)) { via = "player"; group = 0; break; }
         if (r.kind === "group" && groups.indexOf(r.group) >= 0 && via === "") { via = "group"; group = r.group; }
+        if (r.kind === "role" && via === "" && meInRole(r.role, ctx, me)) via = "role";
     }
     if (via === "" && names.length > 0 && mentionsInRow(a, names)) via = "text";
-    if (at >= 0) return { a, mode: "do", via, group, order: a.type === "kick" && a.assignees.length > 1 ? at + 1 : 0, alsoOnMe: via === "player" || via === "group" };
+    if (at >= 0) return { a, mode: "do", via, group, order: a.type === "kick" && a.assignees.length > 1 ? at + 1 : 0, alsoOnMe: via === "player" || via === "group" || via === "role" };
     if (via !== "") return { a, mode: "on", via, group, order: 0, alsoOnMe: false };
     return null;
 }

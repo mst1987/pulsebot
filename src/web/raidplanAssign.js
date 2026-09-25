@@ -32,6 +32,14 @@ const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class",
 // a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
 const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
+/**
+ * Whether a raider belongs to a role group ("Melees" ...): his spec role from the setup, a flex role on this boss wins; "dps" = everybody
+ * who is neither tank nor healer. The client twin is lib/assign.ts inRoleGroup (kept in step by the tests).
+ */
+function inRoleGroup(role, playerRole) {
+    if (!role || !playerRole) return false;
+    return role === "dps" ? playerRole !== "tank" && playerRole !== "healer" : playerRole === role;
+}
 // a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
@@ -454,7 +462,7 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY, CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, mobInstance,
+    impliedRole, ANY, CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, mobInstance,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

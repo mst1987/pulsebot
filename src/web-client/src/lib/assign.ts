@@ -287,7 +287,7 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[] };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[]; /** who plays another role on this boss (flex): the role groups follow it */ roles?: Record<string, string> };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
 export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string; /** a class reference: the class */ classId?: string };
 
@@ -402,14 +402,28 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
     return { ...NONE, kind: "text", ref: target.ref, label: target.ref };
 }
 
-/** Whether the viewer (`me`: their own players' userIds) is part of an assignment: as assignee, as a target, or in a targeted group. */
+/**
+ * Whether a raider belongs to a role group ("Melees" ...): his spec role from the setup, a flex role on this boss wins; "dps" = everybody
+ * who is neither tank nor healer. The server twin is src/web/raidplanAssign.js inRoleGroup (kept in step by the tests).
+ */
+export function inRoleGroup(role: string, playerRole: string): boolean {
+    if (!role || !playerRole) return false;
+    return role === "dps" ? playerRole !== "tank" && playerRole !== "healer" : playerRole === role;
+}
+
+/** Whether one of the viewer's own players is in a role group (his role on this boss). */
+export function meInRole(role: string, ctx: AssignCtx, me: string[]): boolean {
+    return me.some((id) => { const p = ctx.players.get(id); return !!p && inRoleGroup(role, (ctx.roles || {})[id] || p.role); });
+}
+
+/** Whether the viewer (`me`: their own players' userIds) is part of an assignment: as assignee, as a target, in a targeted group or role group. */
 export function isMine(a: RaidplanAssignment, ctx: AssignCtx, me: string[], names: string[] = []): boolean {
     if (me.length === 0) return false;
-    if (a.assignees.some((r) => isMe(resolveAssignee(r, ctx), me))) return true;
+    if (a.assignees.some((r) => isMe(resolveAssignee(r, ctx), me) || (r.indexOf("role:") === 0 && meInRole(r.slice(5), ctx, me)))) return true;
     // named in words: the title, the note or a free-text target
     if (names.length > 0 && mentionsInRow(a, names)) return true;
     const groups = me.map((id) => (ctx.players.get(id) || { group: -1 }).group);
-    return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && groups.indexOf(r.group) >= 0); });
+    return a.targets.some((tg) => { const r = resolveTarget(tg, ctx); return isMe(r, me) || (r.kind === "group" && groups.indexOf(r.group) >= 0) || (r.kind === "role" && meInRole(r.role, ctx, me)); });
 }
 
 /** Whether a resolved reference is one of the visitor's own players. */

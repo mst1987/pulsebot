@@ -185,6 +185,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                         <NumberField label={t("raidBoard.roleGroupUi.count")} value={zone.count || 0} min={0} max={40} disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { count: v }), true)} />
                     </label>
                     <label className="rp-check"><input type="checkbox" checked={!!zone.showNames} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { showNames: e.target.checked }))} /> {t("raidBoard.roleGroupUi.showNames")}</label>
+                    <SizeField label={t("raidBoard.roleGroupUi.rotation")} value={zone.rotation || 0} min={0} max={359} step={1} unit="°" onChange={(v) => !dis && edit((b) => updateZone(b, id, { rotation: normAngle(v) }), true)} />
                     <div className="rp-field-row">
                         <label className="rp-field">
                             <span className="rp-kicker">{t("raidBoard.zone.color")}</span>

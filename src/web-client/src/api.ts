@@ -4162,7 +4162,7 @@ export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom" | "ro
 /** The role of a role group placeholder ("Melees", "Ranged" ...). */
 export type RaidplanRoleGroup = "melee" | "ranged" | "healer" | "tank" | "dps";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
-export type RaidplanZone = { id: string; shape: "rect" | "ellipse" | "cluster"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number; /** a role group (type "role"): its role, a count badge (0 = none), the setup's players of that role shown in the event */ role?: RaidplanRoleGroup; count?: number; showNames?: boolean } & RaidplanLook;
+export type RaidplanZone = { id: string; shape: "rect" | "ellipse" | "cluster"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number; /** a role group (type "role"): its role, a count badge (0 = none), the setup's players of that role shown in the event */ role?: RaidplanRoleGroup; count?: number; showNames?: boolean; /** a role group turned (degrees, 0 = as drawn) */ rotation?: number } & RaidplanLook;
 /** An arrow or a plain line from (x1, y1) to (x2, y2), relative to the board; `width` in px. */
 export type RaidplanLine = { id: string; kind: "arrow" | "line"; x1: number; y1: number; x2: number; y2: number; color: string; width: number } & RaidplanLook;
 /** Free text on the board; `size` is the font size in px. */
@@ -4314,7 +4314,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; autoPlace?: boolean; autoPos?: Record<string, { x: number; y: number }>; autoStyle?: Record<string, RaidplanAutoStyle>; autoScale?: number; /** who plays another role on this boss (flex): role groups follow it */ roles?: Record<string, string>; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

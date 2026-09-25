@@ -76,19 +76,19 @@ export default function PlanPublicPage({ token }: { token: string }) {
     if (!data) return <RaidLoader text={t("raidBoard.public.loading")} />;
 
     const boss: RaidplanPublicBoss | null = data.bosses.find((b) => b.key === selected) || data.bosses[0] || null;
-    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players }, data.meIds)));
+    const mineHere = !!boss && !!data.me && (boss.tokens.some((k) => k.userId === data.me) || boss.slots.some((sl) => sl.userId === data.me) || boss.assignments.some((a) => isMine(a, { slots: boss.slots, players, roles: boss.roles || {} }, data.meIds)));
     const wide = win.w >= 1100;
     const names = cleanNames(data.meIds.map((id) => (players.get(id) || { character: "" }).character));
     // the map's height: the window minus the head, the chips and some air (wide); a small part of the window when it is on top (narrow)
     const mapHeight = mapOnly ? Math.max(300, win.h - 96) : wide ? Math.max(320, win.h - 108) : Math.round(win.h * 0.45);
-    const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks } : null;
+    const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks, roles: boss.roles || {} } : null;
     // what the tank rows put on the map, exactly as the editor derives it (the rows arrive resolved from the approved setup)
     const auto = boss && !boss.general && boss.showMap !== false ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: data.roster }) : undefined;
     /** the groups of this section, for the legend that highlights one (the others dim on the map) */
     const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
     // "Only for me": the sections that concern the visitor (he does something, or something acts on him), and in them only his blocks
     const concerns = (b: RaidplanPublicBoss) => {
-        const c = { slots: b.slots, players, catalog: data.catalog, groupColors: b.groupColors, groupMarks: b.groupMarks };
+        const c = { slots: b.slots, players, catalog: data.catalog, groupColors: b.groupColors, groupMarks: b.groupMarks, roles: b.roles || {} };
         const sp = splitMine(b.assignments, c, data.meIds, names);
         return sp.mine.length > 0 || sp.onMe.length > 0;
     };
