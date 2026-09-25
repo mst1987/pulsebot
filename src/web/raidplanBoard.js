@@ -38,6 +38,7 @@
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
 const crypto = require("crypto");
 const assign = require("./raidplanAssign");
+const steps = require("./raidplanSteps");
 const besetzung = require("./raidplanBesetzung");
 
 const LIMITS = {
@@ -308,6 +309,11 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     if (cleanedAssign.error) return cleanedAssign;
     dropped += cleanedAssign.dropped;
 
+    // the tactic: ordered steps (who does what, when and how); a player outside the lineup is dropped like everywhere
+    const cleanedSteps = steps.cleanSteps(input.steps, allowed);
+    if (cleanedSteps.error) return cleanedSteps;
+    dropped += cleanedSteps.dropped;
+
     const notes = String(input.notes === undefined || input.notes === null ? "" : input.notes).slice(0, LIMITS.notes);
     // The tactic profile the rows were taken from; one that was deleted since is forgotten.
     const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
@@ -338,18 +344,20 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const view = cleanView(input.view);
     // false = this section (boss, trash, Allgemein) is left out of the shared sheet; it stays fully editable
     const inSheet = input.inSheet !== false;
+    // false = the section is shown without its map (the objects are kept); missing = shown (old boards keep their map)
+    const showMap = input.showMap !== false;
     const showNames = input.showNames !== false;
     const showBadges = input.showBadges !== false;
     const showRoleRings = input.showRoleRings !== false;
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, steps: cleanedSteps.steps, showMap, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || (b.steps || []).length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showMap === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
@@ -366,6 +374,7 @@ function reidBoard(board) {
         texts: (board.texts || []).map(fresh),
         targets: (board.targets || []).map((t) => ({ ...fresh(t), userIds: [] })),
         assignments: assign.reidAssignments(board.assignments),
+        steps: steps.reidSteps(board.steps),
     };
 }
 

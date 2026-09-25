@@ -16,6 +16,7 @@ const { approvedSetupOf } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 const assign = require("./raidplanAssign");
+const stepsOf = require("./raidplanSteps");
 const besetzungOf = require("./raidplanBesetzung");
 const catalogStore = require("./raidplanCatalogStore");
 const raiderProfiles = require("./raiderProfileStore");
@@ -116,8 +117,8 @@ function templateView(t) {
             instanceMap: !!store.mapVersion(b.instanceId),
         };
     });
-    // the Standard: one more "boss" at the end of the list (its own board: the tank / healer basics of every boss)
-    if (bosses.length > 0) bosses.push({ key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", templateMap: false, ownMap: false, instanceMap: false });
+    // the Standard: one more section right after "Allgemein" (its own board: the tank / healer basics of every boss)
+    if (bosses.length > 0) bosses.splice(bosses[0] && bosses[0].general ? 1 : 0, 0, { key: inherit.DEFAULTS_KEY, instanceId: "", instanceName: "", name: "Standard", defaults: true, iconUrl: wowIconUrl("inv_misc_gear_01", 56), mapUrl: "", mapSource: "", templateMap: false, ownMap: false, instanceMap: false });
     return { ...t, catalog: catalogStore.catalogView("tbc"), bossList: bosses, besetzung: besetzungOf.effectiveBesetzung(t.instanceIds, t.size, t.counts) };
 }
 
@@ -200,17 +201,21 @@ function publicView(plan, event, { me = "" } = {}) {
         .filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet !== false)
         .map((b) => {
             const board = plan.bosses[b.key];
+            // a section switched to "no map" sends no map and no objects of the map (like a section left out of the sheet): only its Besetzung,
+            // the slots, which the assignments resolve against, and they are not drawn
+            const mapOn = board.showMap !== false && !b.general;
+            const onMap = (list) => (mapOn ? list : []);
             return {
-                key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: b.mapUrl, trash: !!b.trash, general: !!b.general,
+                key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: mapOn ? b.mapUrl : "", trash: !!b.trash, general: !!b.general, showMap: mapOn,
                 // objects switched off in the editor's layer list are not drawn here either
-                tokens: board.tokens.filter((t) => known.has(t.userId) && !t.hidden),
-                slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })),
-                marks: (board.marks || []).filter((m) => !m.hidden),
-                icons: (board.icons || []).filter((i) => !i.hidden),
+                tokens: onMap(board.tokens.filter((t) => known.has(t.userId) && !t.hidden)),
+                slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "", ...(mapOn ? {} : { placed: false }) })),
+                marks: onMap((board.marks || []).filter((m) => !m.hidden)),
+                icons: onMap((board.icons || []).filter((i) => !i.hidden)),
                 objectScale: board.objectScale === undefined ? 1 : board.objectScale,
-                zones: (board.zones || []).filter((z) => !z.hidden),
-                lines: (board.lines || []).filter((l) => !l.hidden),
-                texts: (board.texts || []).filter((x) => !x.hidden),
+                zones: onMap((board.zones || []).filter((z) => !z.hidden)),
+                lines: onMap((board.lines || []).filter((l) => !l.hidden)),
+                texts: onMap((board.texts || []).filter((x) => !x.hidden)),
                 mapOpacity: board.mapOpacity === undefined ? 1 : board.mapOpacity,
                 showRings: board.showRings !== false,
                 groupColors: board.groupColors || {},
@@ -229,6 +234,8 @@ function publicView(plan, event, { me = "" } = {}) {
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
                 })), (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, board.roles || {}),
+                // the tactic: each step resolved on its own from the approved setup (a missing class stays its reference: an open chip)
+                steps: stepsOf.resolveSteps(board.steps || [], { slots: (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, roles: board.roles || {}, known }),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };
@@ -239,6 +246,8 @@ function publicView(plan, event, { me = "" } = {}) {
         for (const sl of b.slots) if (sl.userId) used.add(sl.userId);
         for (const tg of b.targets) for (const u of tg.userIds) used.add(u);
         // a group marker names the players of that setup group
+        for (const u of stepsOf.stepUsers(b.steps)) used.add(u);
+        for (const s of b.steps) for (const r of s.participants) if (r.startsWith("group:")) for (const p of roster) if (p.group === Number(r.slice(6))) used.add(p.userId);
         for (const a of b.assignments) {
             for (const r of a.assignees) if (r.startsWith("user:")) used.add(r.slice(5));
             for (const t of a.targets) if (t.kind === "player") used.add(t.ref);

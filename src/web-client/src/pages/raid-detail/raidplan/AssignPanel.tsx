@@ -3,7 +3,7 @@ import Flyout from "../../../components/raidplan/Flyout";
 import AssignModal from "./AssignModal";
 import TypeBadge from "./TypeBadge";
 import AssignLine from "./AssignLine";
-import { Copy, RotateCcw, EyeOff, Swords, ChevronDown, Users, Plus, ScrollText, Trash2, Wand2, X } from "lucide-react";
+import { Copy, RotateCcw, EyeOff, Swords, ChevronDown, Users, Plus, Trash2, Wand2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../api";
 import { IconButton, useConfirm } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -103,7 +103,7 @@ const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "othe
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, profileName, onPickProfile, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -116,8 +116,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     groupCount: number;
     links: boolean;
     onLinks: (on: boolean) => void;
-    profileName: string;
-    onPickProfile: () => void;
+    /** kept for the callers: the tactic library moved to the "Taktik" card (StepsCard) */
+    profileName?: string;
+    onPickProfile?: () => void;
     catalog: Catalog | null;
     sectionMobs: RaidplanMobRef[];
     /** the rows this section inherits from the template's Standard (resolved for it), shown in their cards and not editable in place */
@@ -303,11 +304,6 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
             <div className="rp-assign-head">
                 <h3 className="rp-kicker">{t("raidBoard.assign.title")} · {board.assignments.length}</h3>
                 <div className="rp-assign-tools">
-                    {canWrite && (
-                        <button type="button" className="rp-assign-btn" onClick={onPickProfile} data-tip={t("raidBoard.profile.pick")}>
-                            <ScrollText size={15} aria-hidden="true" /><span>{profileName || t("raidBoard.profile.pickShort")}</span>
-                        </button>
-                    )}
                     {canWrite && scope === "defaults" && onCopyDefaults && (
                         <button type="button" className="rp-assign-btn" data-tip={t("raidBoard.defaults.copyTip")} onClick={onCopyDefaults}><Copy size={15} aria-hidden="true" /><span>{t("raidBoard.defaults.copy")}</span></button>
                     )}

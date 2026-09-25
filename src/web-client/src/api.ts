@@ -4169,6 +4169,10 @@ export type RaidplanBoard = {
     targets: RaidplanTarget[]; notes: string; profileId: string;
     /** who heals whom, kicks, curses ... (references only, names come from the setup) */
     assignments: RaidplanAssignment[];
+    /** the tactic: ordered steps, who does what, when and how (references only) */
+    steps?: RaidplanStep[];
+    /** false = this boss / trash section is shown without its map (the objects stay stored) */
+    showMap?: boolean;
     /** how many role slots the Besetzung has on this board (null = the raid type's) */
     counts: BesetzungCounts | null;
     /** mobs added to this section: always tank targets */
@@ -4218,7 +4222,7 @@ export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" 
 export type RaidplanSpellRef = { id: string; name: string; icon: string };
 /** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */
 export type RaidplanMobRef = { id: string; name: string; icon: string };
-export type RaidplanAssignType = "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
+export type RaidplanAssignType = "tank" | "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
 /** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
 export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
@@ -4266,8 +4270,12 @@ export type RaidplanTemplate = {
     besetzung: Besetzung;
 };
 /** A named, categorised set of target rows (bossKey: "" = every boss, an instance id, or one boss). */
-export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; targets: { title: string }[]; notes: string; updatedAt: number };
-export type RaidplanProfileInput = { name?: string; category?: string; bossKey?: string; targets?: { title: string }[]; notes?: string };
+/** One step of a tactic (docs/raidplan.md, "Taktik"). */
+export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group"; ref: string; name?: string; icon?: string };
+export type RaidplanTiming = { kind: "" | "pull" | "phase" | "hp" | "interval" | "now" | "text"; from: number | null; to: number | null; text: string };
+export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
+export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
+export type RaidplanProfileInput = { name?: string; category?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
 export type RaidplanProfiles = { profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
 export type RaidplanView = {
     /** the players of the lineup the logged-in user is (own account + raider profile characters) */
@@ -4290,7 +4298,7 @@ export type RaidplanView = {
 export type RaidplanPublicBoss = {
     key: string; name: string; instanceName: string; iconUrl: string; mapUrl: string; trash: boolean; general: boolean;
     tokens: RaidplanToken[]; slots: RaidplanSlot[]; marks: RaidplanMark[]; icons: RaidplanIcon[]; zones: RaidplanZone[]; lines: RaidplanLine[]; texts: RaidplanText[];
-    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
+    targets: RaidplanTarget[]; assignments: RaidplanAssignment[]; steps?: RaidplanStep[]; showMap?: boolean; notes: string; profileName: string; mapOpacity: number; objectScale: number; showRings?: boolean; inSheet?: boolean; groupColors?: Record<string, string>; groupMarks?: Record<string, string>; showNames?: boolean; showBadges?: boolean; showRoleRings?: boolean; view?: { zoom: number; cx: number; cy: number } | null;
 };
 export type RaidplanPublic = {
     event: { title: string; startTime: number };

@@ -11,13 +11,14 @@ import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
+import ReadSteps from "./raid-detail/raidplan/ReadSteps";
 import { assignmentLinks, isMine } from "../lib/assign";
 import { splitMine } from "../lib/mineView";
 import RaidLoader from "../components/ui/RaidLoader";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
 import { formatEventTime } from "../lib/format";
-import { rosterMap } from "../lib/raidplan";
+import { rosterMap, startSection } from "../lib/raidplan";
 import { cleanNames } from "../lib/mention";
 import Mentions from "../components/raidplan/Mentions";
 import { useT } from "../i18n";
@@ -50,7 +51,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
 
     useEffect(() => {
         getRaidplanPublic(token)
-            .then((d) => { setData(d); setSelected(d.bosses[0] ? d.bosses[0].key : ""); })
+            // a deep link (?section=<key>) first, else "Allgemein", else the first section (left-out ones are not sent at all)
+            .then((d) => { setData(d); setSelected(startSection(d.bosses, new URLSearchParams(window.location.search).get("section") || "", "", [])); })
             .catch((err: ApiError) => setError(err));
     }, [token]);
     useEffect(() => {
@@ -129,14 +131,15 @@ export default function PlanPublicPage({ token }: { token: string }) {
                     </nav>
 
                     {boss && ctx && (
-                        <div className={`rp-read-2col${boss.general ? " no-board" : ""}${mapOnly ? " is-map-only" : ""}`}>
+                        <div className={`rp-read-2col${boss.general || boss.showMap === false ? " no-board" : ""}${boss.showMap === false && !boss.general ? " no-map" : ""}${mapOnly ? " is-map-only" : ""}`}>
                             {!mapOnly && (
                                 <div className="rp-read-left">
                                     {boss.notes.trim() && <p className="rp-notes-text"><Mentions text={boss.notes} names={names} /></p>}
                                     <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} focusGroup={focusGroup} onFocusGroup={setFocusGroup} onlyMine={onlyMine} />
+                                    <ReadSteps steps={boss.steps || []} ctx={ctx} me={data.meIds} onlyMine={onlyMine} />
                                 </div>
                             )}
-                            {!boss.general && (
+                            {!boss.general && boss.showMap !== false && (
                                 <div className="rp-read-right">
                                     {groupNs.length > 0 && (
                                         <div className="rp-glegend" role="group" aria-label={t("raidBoard.group.legend")}>

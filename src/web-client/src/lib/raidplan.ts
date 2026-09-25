@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -106,6 +106,10 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
             ...(b.targets || []).map((r) => ({ id: r.id, type: "other" as RaidplanAssignType, title: r.title, spell: null, assignees: (r.userIds || []).map((u) => `user:${u}`), targets: [], note: "", suggested: false })),
             ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "", spell: a.spell || null })),
         ],
+        // the tactic: ordered steps (an old board has none)
+        steps: b.steps || [],
+        // the section shows its map (a board from before the switch: yes, its objects and map stay)
+        showMap: b.showMap !== false,
         counts: b.counts || null,
         roles: b.roles || {},
         mobs: b.mobs || [],
@@ -139,6 +143,37 @@ export function toSave(bosses: Record<string, Partial<RaidplanBoard>>, bossKeys:
         out[key] = boardOf(bosses, key);
     }
     return out;
+}
+
+/**
+ * The section a raid plan opens on: a deep link (`?section=<key>`) when it names one, else the one the editor remembered for this plan,
+ * else "Allgemein" when it is there and not left out, else the first section not left out, else the first. `hidden` = left out of the
+ * sheet (the read view passes them; the editor shows every section).
+ */
+export function startSection(keys: { key: string; general?: boolean }[], wanted: string, remembered: string, hidden: string[]): string {
+    if (wanted && keys.some((b) => b.key === wanted)) return wanted;
+    if (remembered && keys.some((b) => b.key === remembered)) return remembered;
+    const shown = keys.filter((b) => hidden.indexOf(b.key) < 0);
+    const general = shown.find((b) => b.general);
+    if (general) return general.key;
+    if (shown.length > 0) return shown[0].key;
+    return keys.length > 0 ? keys[0].key : "";
+}
+
+/** The section last open in a plan / template (this browser only); "" when none or the storage is blocked. */
+export function rememberedSection(planId: string): string {
+    try { return window.localStorage.getItem(`eh.raidplan.section.${planId}`) || ""; } catch { return ""; }
+}
+
+export function rememberSection(planId: string, key: string): void {
+    try { window.localStorage.setItem(`eh.raidplan.section.${planId}`, key); } catch { /* private window */ }
+}
+
+/** The sections whose board differs from the saved one (the boss chips mark them "ungespeichert"). */
+export function dirtyKeys(draft: Record<string, Partial<RaidplanBoard>>, saved: Record<string, Partial<RaidplanBoard>>, bossKeys: string[]): string[] {
+    const a = toSave(draft, bossKeys);
+    const b = toSave(saved, bossKeys);
+    return bossKeys.filter((k) => JSON.stringify(a[k] || null) !== JSON.stringify(b[k] || null));
 }
 
 /** Whether two plans' bosses differ in what a save would carry. */
@@ -1325,7 +1360,7 @@ export function besetzungSlots(board: RaidplanBoard): RaidplanSlot[] {
 
 /** Whether applying a profile or a template would overwrite something the orga already made (asks first). */
 export function hasContent(board: RaidplanBoard): boolean {
-    return board.assignments.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
+    return board.assignments.length > 0 || (board.steps || []).length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
 }
 
 /** Whether any board of a plan holds something. */
@@ -1379,7 +1414,7 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 /** How many objects and rows a boss holds — the small dot next to it in the boss list. */
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
-    return objectCount(b) + (b.assignments || []).length;
+    return objectCount(b) + (b.assignments || []).length + (b.steps || []).length;
 }
 
 /** Whether a section (boss, trash, Allgemein) comes with the shared sheet: every one does unless its board says inSheet: false. */

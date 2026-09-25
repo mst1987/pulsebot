@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, LayoutTemplate, RotateCw, Save, Share2 } from "lucide-react";
+import { AlertTriangle, LayoutTemplate, RotateCw, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
     type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
@@ -9,13 +9,15 @@ import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
-    applyProfile, boardCount, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, sheetIncluded, toSave,
+    boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
-import { ProfilePickerModal, ProfilesModal } from "./raidplan/ProfileModals";
+import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
+import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raidplan/SaveState";
+import { applyTactic, stepsOf } from "../../lib/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
@@ -61,7 +63,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 reset(v.plan.bosses);
                 setProfiles(v.profiles);
                 setConflict(false);
-                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : (v.bosses[0] && v.bosses[0].key) || ""));
+                // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
+                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
             })
             .catch((err: ApiError) => setError(err));
     }, [eventId, reset]);
@@ -78,6 +81,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     });
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
+    // remember the open section per plan (this browser)
+    useEffect(() => { if (selected) rememberSection(eventId, selected); }, [eventId, selected]);
     const roster = useMemo(() => (view ? view.roster : []), [view]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
     const besetzung = view ? view.besetzung : null;
@@ -124,6 +129,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    // unsaved changes stand out: glowing tool bar and save button, a strip, marked boss chips, "● " in the tab title, Ctrl+S, a warning on leaving
+    const saveState: SaveStateKind = conflict ? "conflict" : dirty ? "dirty" : "clean";
+    const savedFlash = useUnsavedGuard(saveState, saving, () => { save(); });
+    const unsavedKeys = useMemo(() => (view && dirty ? dirtyKeys(draft, view.plan.bosses, bossKeys) : []), [view, dirty, draft, bossKeys]);
+
     const publish = async (published: boolean, rotate = false) => {
         setSaving(true);
         try {
@@ -165,11 +175,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     };
 
     // ---- tactic profiles ----------------------------------------------------------------------
-    const pickProfile = async (profile: RaidplanProfile) => {
-        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], assignments: board.assignments.filter((a) => a.type === "other"), mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
-        editBoard((b) => applyProfile(b, profile));
+    // a library tactic ADDS its steps under the section's (nothing is replaced, so nothing to ask)
+    const pickProfile = (profile: RaidplanProfile) => {
+        editBoard((b) => applyTactic(b, profile));
         setModal("");
-        toast(t("raidBoard.profile.applied", { name: profile.name }));
+        toast(t("raidBoard.steps.library.applied", { name: profile.name, n: (profile.steps || []).length }));
     };
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
@@ -210,14 +220,14 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
-                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
+                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
-                    bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
+                    saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
+                    bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
                     status={(
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
-                            <Badge tone={dirty ? "mid" : "ok"}>{dirty ? t("raidBoard.bar.dirty") : t("raidBoard.bar.savedState")}</Badge>
                             {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
                             {canWrite && open > 0 && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
                             {canWrite && openRows.length > 0 && (
@@ -233,7 +243,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         <>
                             <IconButton size="sm" icon={<LayoutTemplate size={17} />} tip={t("raidBoard.template.pick")} onClick={() => setModal("template")} />
                             <IconButton size="sm" icon={<Share2 size={17} />} tip={t("raidBoard.bar.share")} onClick={() => setModal("share")} />
-                            <IconButton size="sm" className="rp-save" icon={<Save size={17} />} tip={saving ? t("raidBoard.bar.saving") : t("raidBoard.bar.save")} disabled={!dirty || conflict || saving} onClick={save} />
+                            <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />
                         </>
                     ) : undefined}
                 />
@@ -272,10 +282,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     {view.templates.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneYet")}</li>}
                 </ul>
             </Modal>
-            <ProfilePickerModal
-                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected}
-                currentId={board.profileId} onPick={pickProfile}
-                onSaveAs={() => setModal(profileRows(board).length ? "save" : "profiles")}
+            <LibraryModal
+                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected} bossName={boss ? boss.name : ""}
+                onPick={pickProfile} canSave={stepsOf(board).length > 0}
+                onSaveAs={() => setModal("save")}
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
