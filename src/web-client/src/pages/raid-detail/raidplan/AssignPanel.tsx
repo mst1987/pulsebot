@@ -12,7 +12,7 @@ import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
     ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
-    resolveAssignee, resolveTarget, slotChoices, toggleTarget, type AssignCtx, type Resolved,
+    resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { cardSummary } from "../../../lib/assignLine";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -38,6 +38,8 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
             <TokenIcon player={r.player} size="sm" />
             <PlayerName player={r.player} />
         </>
+    ) : r.kind === "role" ? (
+        <><span className="rp-rolechip-ico" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}><WowIcon name={r.icon} size={18} /></span><span>{r.label}</span></>
     ) : r.kind === "class" ? (
         <><WowIcon name={r.icon} size={18} /><span className="rp-achip-open">{r.label} ({t("raidBoard.class.missing")})</span></>
     ) : r.kind === "mark" ? (

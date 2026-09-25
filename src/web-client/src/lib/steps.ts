@@ -114,10 +114,11 @@ export function moveStepTo(board: RaidplanBoard, id: string, index: number): Rai
  * Same length and order as the step's participants.
  */
 export function resolveParticipants(step: RaidplanStep, slots: { kind: string; n: number; userId: string }[], roster: RaidplanPlayer[], roles: Record<string, string>): string[] {
-    const people = step.participants.filter((r) => r.indexOf("group:") !== 0);
+    // groups and role groups ("role:melee") stay as they are: never split into players
+    const people = step.participants.filter((r) => r.indexOf("group:") !== 0 && r.indexOf("role:") !== 0);
     const filled = expandClassRefs([{ id: step.id, type: TASK_OF[step.action] || "other", title: "", spell: null, assignees: people, targets: [], note: "", suggested: false }], slots, roster, roles || {})[0];
     let i = 0;
-    return step.participants.map((r) => (r.indexOf("group:") === 0 ? r : filled.assignees[i++]));
+    return step.participants.map((r) => (r.indexOf("group:") === 0 || r.indexOf("role:") === 0 ? r : filled.assignees[i++]));
 }
 
 /** The timing as a word: "Pull", "Phase 2", "bei 50 %", "50 → 30 %", "Pull → 30 %", "alle 30 s", "sofort", or its free text; "" for none. */

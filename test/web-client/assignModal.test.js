@@ -23,13 +23,13 @@ const row = (over) => ({ id: "r", type: "md", title: "", spell: null, assignees:
 
 describe("categories of the assignment bar", () => {
     it("who = people and classes; task = spells (when there are any) and free text", () => {
-        expect(am.categoriesFor("who", "heal", true, true)).toEqual(["people", "classes"]);
+        expect(am.categoriesFor("who", "heal", true, true)).toEqual(["people", "classes", "roles"]);
         expect(am.categoriesFor("task", "md", false, true)).toEqual(["spells", "text"]);
         expect(am.categoriesFor("task", "other", false, false)).toEqual(["text"]);
     });
     it("at whom: mobs first for tanking / kicks / CC when the section has mobs, never an empty mob category", () => {
         expect(am.categoriesFor("at", "tank", true, false)[0]).toBe("mobs");
-        expect(am.categoriesFor("at", "heal", true, false)).toEqual(["people", "groups", "classes", "marks", "mobs", "text"]);
+        expect(am.categoriesFor("at", "heal", true, false)).toEqual(["people", "groups", "roles", "classes", "marks", "mobs", "text"]);
         expect(am.categoriesFor("at", "heal", false, false)).not.toContain("mobs");
         expect(am.firstCategory("at", "kick", true, false)).toBe("mobs");
     });

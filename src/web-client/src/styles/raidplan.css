@@ -1300,7 +1300,8 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-canvas .rp-token .rp-ico { border-width: calc(var(--rp-s, 38px) * .079); }
 .rp-canvas .rp-token-me { top: calc(var(--rp-s, 38px) * -.9); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .18); font-size: calc(var(--rp-s, 38px) * .29); }
 .rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); bottom: calc(var(--rp-s, 38px) * -.13); min-width: calc(var(--rp-s, 38px) * .42); height: calc(var(--rp-s, 38px) * .42); padding: 0 calc(var(--rp-s, 38px) * .08); border-radius: calc(var(--rp-s, 38px) * .21); font-size: calc(var(--rp-s, 38px) * .26); line-height: calc(var(--rp-s, 38px) * .38); }
-.rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46); height: calc(var(--rp-s, 48px) * .42); left: calc(var(--rp-s, 48px) * -.23); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52); }
+/* the facing wedge grows with its own factor (--rp-ar, "Pfeilgröße", 0.25..3): its width, height and the air to the icon's edge together */
+.rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46 * var(--rp-ar, 1)); height: calc(var(--rp-s, 48px) * .42 * var(--rp-ar, 1)); left: calc(var(--rp-s, 48px) * -.23 * var(--rp-ar, 1)); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52 * var(--rp-ar, 1)); }
 .rp-zoomctl { width: auto !important; }
 
 /* group healing: one row per group */
@@ -1573,3 +1574,14 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-amb-mobcount { margin-top: 10px; }
 .rp-amb-mobline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 0; }
 .rp-layer.is-auto .rp-layer-kind { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
+/* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with a double ring, the role icon, an optional label and count; never players */
+.rp-zone-role { border-style: double; border-width: 4px; background-image: none; }
+.rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
+.rp-rg-body { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; align-content: center; gap: 3px; pointer-events: none; overflow: hidden; }
+.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); border-radius: 50%; border: 3px double var(--zc); background: rgba(15, 17, 21, .72); box-sizing: border-box; }
+.rp-rg-ico img { width: 72%; height: 72%; border-radius: 50%; }
+.rp-rg-label { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 6px; background: rgba(15, 17, 21, .78); color: #f1f3f8; font-size: 11.5px; font-weight: 700; pointer-events: none; }
+.rp-rg-count { position: absolute; right: 3px; top: 3px; min-width: 20px; padding: 0 5px; border-radius: 999px; background: var(--zc); color: #121212; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; pointer-events: none; }
+.rp-rg-names { position: absolute; left: 0; right: 0; top: calc(100% + 3px); display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 6px; padding: 2px 6px; border-radius: 6px; background: rgba(15, 17, 21, .8); font-size: 11px; pointer-events: none; }
+.rp-lc.is-role, .rp-achip-role { border-color: var(--rc, var(--line)); }
+.rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }

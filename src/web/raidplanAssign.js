@@ -7,8 +7,10 @@
 //   assignee ref   "class:<Class>:<n>[:<role>]"  the n-th free raider of that class (resolved from the setup, never stored; `picks` = a hand-made choice)
 //                  "slot:<kind>:<n>"  a placeholder slot of the board (tank/healer/melee/ranged/dps n)
 //                  "user:<userId>"    one raider (event plans only)
+//                  "role:<role>"      a whole role group (melee, ranged, healer, tank, dps): never split into players, no count, no fallback
 //   target         { kind: "slot",   ref: "tank:1" }     a slot of the board
 //                  { kind: "group",  ref: "3" }          setup group 3
+//                  { kind: "role",   ref: "melee" }      all melees (a role group, like the map's placeholder)
 //                  { kind: "player", ref: "<userId>" }   one raider (event plans only)
 //                  { kind: "mark",   ref: "skull" }      a raid mark (also "who takes which target" on trash)
 //                  { kind: "text",   ref: "Fear" }       free text: an ability, an enemy, a curse
@@ -26,7 +28,10 @@
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
 const ASSIGN_TYPES = ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
-const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class"];
+const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class", "role"];
+// a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
+const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
+const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
 // a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
@@ -92,7 +97,7 @@ function cleanAssignments(raw, allowed = new Set()) {
         for (const ref of Array.isArray(o.assignees) ? o.assignees : []) {
             const r = str(ref);
             const isUser = r.startsWith("user:") && ID_REF.test(r.slice(5)) && allowed.has(r.slice(5));
-            if ((!SLOT_REF.test(r) && !isUser && !CLASS_ASSIGNEE.test(r)) || assignees.includes(r)) { dropped += 1; continue; }
+            if ((!SLOT_REF.test(r) && !isUser && !CLASS_ASSIGNEE.test(r) && !ROLE_ASSIGNEE.test(r)) || assignees.includes(r)) { dropped += 1; continue; }
             if (assignees.length >= LIMITS.assignees) break;
             assignees.push(r);
         }
@@ -109,6 +114,7 @@ function cleanAssignments(raw, allowed = new Set()) {
             else if (kind === "text") { ref = ref.slice(0, LIMITS.text); good = ref !== ""; }
             else if (kind === "mob") good = MOB_REF.test(ref);
             else if (kind === "class") good = CLASS_TARGET.test(ref);
+            else if (kind === "role") good = ROLE_REFS.includes(ref);
             // several mobs of one kind: the instance number (1..20); none = the row's own mob
             const inst = kind === "mob" ? mobInstance(t.n) : 0;
             if (!good || targets.some((x) => x.kind === kind && x.ref === ref && (x.n || 0) === inst)) { dropped += 1; continue; }
@@ -448,7 +454,7 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY, CLASS_ASSIGNEE, mobInstance,
+    impliedRole, ANY, CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, mobInstance,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

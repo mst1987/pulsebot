@@ -220,7 +220,8 @@
         "color": "Farbe",
         "presetColor": "Farbe des Typs",
         "opacity": "Deckkraft",
-        "patternHint": "Der Typ steht auch als Symbol und Beschriftung in der Zone, nicht nur in der Farbe."
+        "patternHint": "Der Typ steht auch als Symbol und Beschriftung in der Zone, nicht nur in der Farbe.",
+        "role": "Rollen-Gruppe"
     },
     "add": {
         "button": "Objekt hinzufügen",
@@ -280,7 +281,8 @@
         "iconByName": "Icon-Name",
         "iconInsert": "Icon einfügen",
         "iconUnknown": "Diesen Icon-Namen gibt es nicht.",
-        "allPlaced": "alle platziert"
+        "allPlaced": "alle platziert",
+        "roleGroups": "Rollen-Gruppen"
     },
     "line": {
         "arrow": "Pfeil",
@@ -394,7 +396,9 @@
         "ring_show": "Rahmen einblenden",
         "m_ringHide": "Gruppenrahmen ausblenden",
         "m_ringShow": "Gruppenrahmen einblenden",
-        "sizeTo": "Größe {pct} %"
+        "sizeTo": "Größe {pct} %",
+        "m_arrowUp": "Pfeile größer",
+        "m_arrowDown": "Pfeile kleiner"
     },
     "icon": {
         "boss": "Boss",
@@ -592,7 +596,8 @@
             "marks": "Marker",
             "mobs": "Mobs",
             "spells": "Spells",
-            "text": "Freitext"
+            "text": "Freitext",
+            "roles": "Rollen"
         },
         "chosen": "{n} gewählt",
         "tabs": {
@@ -1049,5 +1054,32 @@
         "resetAll": "Alles zurücksetzen (Position + Stil)",
         "section": "Dieser Abschnitt",
         "scale": "Größe Tanks/Mobs (alle aus Einteilung)"
+    },
+    "roleGroup": {
+        "melee": "Melees",
+        "ranged": "Ranged",
+        "healer": "Heiler",
+        "tank": "Tanks",
+        "dps": "DPS"
+    },
+    "roleGroupUi": {
+        "role": "Rolle",
+        "shape": "Form",
+        "ellipse": "Fläche",
+        "rect": "Rechteck",
+        "cluster": "Symbole",
+        "count": "Anzahl (Badge, 0 = keins)",
+        "showNames": "Spieler dieser Rolle aus dem Setup anzeigen (Event)",
+        "hint": "Platzhalter für eine ganze Rollengruppe – ohne einzelne Spieler, im Sheet immer sichtbar.",
+        "refHint": "Eine ganze Rollengruppe, ohne Aufteilung auf Spieler – im Sheet als Rollen-Chip."
+    },
+    "arrow": {
+        "size": "Pfeilgröße",
+        "hide": "Pfeil ausblenden (Blickrichtung bleibt)",
+        "color": "Pfeilfarbe",
+        "reset": "Standardfarbe",
+        "opacity": "Pfeil-Deckkraft",
+        "up": "Pfeil größer",
+        "down": "Pfeil kleiner"
     }
 }

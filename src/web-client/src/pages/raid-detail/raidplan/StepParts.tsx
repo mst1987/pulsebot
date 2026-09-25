@@ -8,6 +8,7 @@ import { LineChip } from "./AssignLine";
 /** A participant of a step as a resolved chip: a group reference is "Gruppe n", a class nobody fills keeps its name ("Magier-Tank 1"). */
 export function participantResolved(ref: string, filled: string, action: string, ctx: AssignCtx): Resolved {
     if (ref.indexOf("group:") === 0) return resolveTarget({ kind: "group", ref: ref.slice(6) }, ctx);
+    if (ref.indexOf("role:") === 0) return resolveTarget({ kind: "role", ref: ref.slice(5) }, ctx);
     const r = resolveAssignee(filled || ref, ctx);
     return r.kind === "class" ? { ...r, label: classRefLabelFor(r.ref, TASK_OF[action] || "other") } : r;
 }

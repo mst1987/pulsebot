@@ -8,6 +8,7 @@ import { ROLE_ICON, classPlaceNameFor, classRefIcon, iconForTask, iconForText, o
 import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/assignLine";
 import { groupColor } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
+import { ROLE_TONE } from "../../../lib/assign";
 import { useT } from "../../../i18n";
 
 /** One chip of a row container: it only shows (no "+", no "x"); a missing place is the one yellow mark, the viewer's own chip carries "DU". */
@@ -20,6 +21,7 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
     }
     if (r.kind === "class") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}<WowIcon name={r.icon} size={16} /><span>{open ? t("raidBoard.aline.missing", { what: r.label }) : r.label}</span>{open && <AlertTriangle size={12} aria-hidden="true" />}</span>;
     if (r.kind === "slot") return <span className={`rp-lc ${open ? "is-open" : "is-slot"}`}>{no}<WowIcon name={ROLE_ICON[r.role] || ROLE_ICON.dps} size={16} /><span>{r.label}</span>{open && <AlertTriangle size={12} aria-label={t("raidBoard.slot.open")} />}</span>;
+    if (r.kind === "role") return <span className="rp-lc is-role" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}>{no}<span className="rp-rolechip-ico"><WowIcon name={r.icon} size={16} /></span><span>{r.label}</span></span>;
     if (r.kind === "group") return <span className="rp-lc is-grp" style={{ borderLeftColor: groupColor(ctx.groupColors, r.group) }}><span>{r.label}</span></span>;
     if (r.kind === "mob") return <span className="rp-lc is-mk"><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></span>;
     if (r.kind === "mark") return <span className="rp-lc is-mk"><MarkIcon mark={r.mark as never} size={16} /><span>{r.label}</span></span>;

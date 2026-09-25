@@ -220,7 +220,8 @@
         "color": "Colour",
         "presetColor": "Colour of the type",
         "opacity": "Opacity",
-        "patternHint": "The type is also shown as a symbol and a label inside the zone, not by colour alone."
+        "patternHint": "The type is also shown as a symbol and a label inside the zone, not by colour alone.",
+        "role": "Role group"
     },
     "add": {
         "button": "Add object",
@@ -280,7 +281,8 @@
         "iconByName": "Icon name",
         "iconInsert": "Insert icon",
         "iconUnknown": "There is no icon with this name.",
-        "allPlaced": "all placed"
+        "allPlaced": "all placed",
+        "roleGroups": "Role groups"
     },
     "line": {
         "arrow": "Arrow",
@@ -394,7 +396,9 @@
         "ring_show": "Show the ring",
         "m_ringHide": "Hide group rings",
         "m_ringShow": "Show group rings",
-        "sizeTo": "Size {pct} %"
+        "sizeTo": "Size {pct} %",
+        "m_arrowUp": "Bigger arrows",
+        "m_arrowDown": "Smaller arrows"
     },
     "icon": {
         "boss": "Boss",
@@ -592,7 +596,8 @@
             "marks": "Marks",
             "mobs": "Mobs",
             "spells": "Spells",
-            "text": "Free text"
+            "text": "Free text",
+            "roles": "Roles"
         },
         "chosen": "{n} chosen",
         "tabs": {
@@ -1049,5 +1054,32 @@
         "resetAll": "Reset everything (position + look)",
         "section": "This section",
         "scale": "Size of tanks/mobs (all from the assignments)"
+    },
+    "roleGroup": {
+        "melee": "Melees",
+        "ranged": "Ranged",
+        "healer": "Healers",
+        "tank": "Tanks",
+        "dps": "DPS"
+    },
+    "roleGroupUi": {
+        "role": "Role",
+        "shape": "Shape",
+        "ellipse": "Area",
+        "rect": "Rectangle",
+        "cluster": "Symbols",
+        "count": "Count (badge, 0 = none)",
+        "showNames": "Show the setup's players of this role (event)",
+        "hint": "A placeholder for a whole role group – no single players, always visible in the sheet.",
+        "refHint": "A whole role group, not split into players – shown as a role chip in the sheet."
+    },
+    "arrow": {
+        "size": "Arrow size",
+        "hide": "Hide arrow (the facing stays)",
+        "color": "Arrow colour",
+        "reset": "Default colour",
+        "opacity": "Arrow opacity",
+        "up": "Bigger arrow",
+        "down": "Smaller arrow"
     }
 }

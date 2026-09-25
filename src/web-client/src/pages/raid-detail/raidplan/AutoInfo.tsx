@@ -7,7 +7,7 @@ import { classPlaceNameFor } from "../../../lib/assign";
 import { ANY } from "../../../lib/classRefs";
 import type { AutoPlan, AutoTank } from "../../../lib/autoPlace";
 import { COMPASS, COMPASS_NAMES, autoStyleOf, normAngle, objectPercent, patchAutoStyle, reorderObject, resetAutoAll, resetAutoPos, setAutoScale, setObjectPercent } from "../../../lib/raidplan";
-import { OpacityField, SizeField } from "./Inspector";
+import { ArrowFields, OpacityField, SizeField } from "./Inspector";
 import { useT } from "../../../i18n";
 
 // the compass arrows (up, up-right ... as in the inspector), written as code points: no glyph characters in the source
@@ -87,6 +87,7 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
             {mob && (
                 <>
                     <label className="rp-check"><input type="checkbox" checked={st.autoFace !== false} disabled={dis} onChange={(e) => set({ autoFace: e.target.checked })} /> {t("raidBoard.icon.autoFace")}</label>
+                    <ArrowFields board={board} kind="auto" id={id} dis={dis} edit={edit} />
                     {st.autoFace === false && (
                         <>
                             <SizeField label={t("raidBoard.icon.facing")} value={rotation} min={0} max={359} step={1} onChange={(v) => !dis && set({ rotation: normAngle(v), autoFace: false }, true)} />

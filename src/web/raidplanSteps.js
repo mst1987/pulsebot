@@ -5,7 +5,7 @@
 //
 //   action        one of ACTIONS (13 fixed ones: icon and sentence suggestions follow from it)
 //   participants  who does it, the references of the assignments: "slot:<kind>:<n>", "user:<id>" (event plans only),
-//                 "class:<Class>:<n>[:<role>|:any]" / "class:Any:<n>:<role>", or "group:<n>" (setup group n)
+//                 "class:<Class>:<n>[:<role>|:any]" / "class:Any:<n>:<role>", "group:<n>" (setup group n) or "role:<role>" (all melees ...)
 //   sentence      free text, at most 160 characters ("kitet den Boss um die Arena")
 //   targets       what it is aimed at: a mob ({ kind: "mob", ref: "d:…" | "b:<boss>", name, icon } — a snapshot like the
 //                 assignments), a zone of the map ({ kind: "zone", ref: "Arena" }, its name), a raid mark, a group ("3")
@@ -71,7 +71,7 @@ function cleanSteps(raw, allowed = new Set()) {
         for (const ref of Array.isArray(o.participants) ? o.participants : []) {
             const r = str(ref);
             const isUser = r.startsWith("user:") && ID_REF.test(r.slice(5)) && allowed.has(r.slice(5));
-            const ok = SLOT_REF.test(r) || isUser || GROUP_REF.test(r) || assign.CLASS_ASSIGNEE.test(r);
+            const ok = SLOT_REF.test(r) || isUser || GROUP_REF.test(r) || assign.CLASS_ASSIGNEE.test(r) || assign.ROLE_ASSIGNEE.test(r);
             if (!ok || participants.includes(r)) { dropped += 1; continue; }
             if (participants.length >= LIMITS.participants) break;
             participants.push(r);
@@ -84,6 +84,7 @@ function cleanSteps(raw, allowed = new Set()) {
             if (kind === "mob") good = MOB_REF.test(ref);
             else if (kind === "mark") good = MARKS.includes(ref);
             else if (kind === "group") good = /^([1-9]|1\d|20)$/.test(ref);
+            else if (kind === "role") good = assign.ROLE_REFS.includes(ref);
             else if (kind === "zone") { ref = ref.slice(0, LIMITS.zone); good = ref !== ""; }
             if (!good || targets.some((x) => x.kind === kind && x.ref === ref)) { dropped += 1; continue; }
             if (targets.length >= LIMITS.targets) break;
@@ -122,12 +123,14 @@ function stepsFromTitles(titles) {
  */
 function resolveSteps(steps, { slots = [], roster = [], roles = {}, known = null } = {}) {
     return (Array.isArray(steps) ? steps : []).map((s) => {
-        const people = s.participants.filter((r) => !r.startsWith("group:") && (!known || !r.startsWith("user:") || known.has(r.slice(5))));
+        // groups and role groups stay as they are (never split into players)
+        const fixed = (r) => r.startsWith("group:") || r.startsWith("role:");
+        const people = s.participants.filter((r) => !fixed(r) && (!known || !r.startsWith("user:") || known.has(r.slice(5))));
         const filled = assign.expandClassRefs([{ id: s.id, type: TASK_OF[s.action] || "other", assignees: people, targets: [] }], slots, roster, roles)[0];
         let i = 0;
         const participants = s.participants
-            .filter((r) => r.startsWith("group:") || people.includes(r))
-            .map((r) => (r.startsWith("group:") ? r : filled.assignees[i++]));
+            .filter((r) => fixed(r) || people.includes(r))
+            .map((r) => (fixed(r) ? r : filled.assignees[i++]));
         return { ...s, participants };
     });
 }

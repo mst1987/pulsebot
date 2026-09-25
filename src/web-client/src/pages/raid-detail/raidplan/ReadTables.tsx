@@ -11,6 +11,7 @@ import { groupHealByGroup, healerGroups, simpleTables, tankTable } from "../../.
 import { mergeGroupRuns, mineCard, splitMine, type MineBlock } from "../../../lib/mineView";
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
+import { ROLE_TONE } from "../../../lib/assign";
 import TypeBadge from "./TypeBadge";
 import AssignLine from "./AssignLine";
 import { useT } from "../../../i18n";
@@ -28,6 +29,7 @@ function Who({ r, mine, names = [], ctx }: { r: Resolved; mine: boolean; names?:
         );
     } else if (r.kind === "mob") body = <><MobIcon icon={r.icon} size={32} /><strong>{r.label}</strong></>;
     else if (r.kind === "mark") body = <><MarkIcon mark={r.mark as never} size={28} /><span>{r.label}</span></>;
+    else if (r.kind === "role") body = <><span className="rp-rolechip-ico" style={{ "--rc": ROLE_TONE[r.role] } as React.CSSProperties}><WowIcon name={r.icon} size={24} /></span><strong>{r.label}</strong></>;
     else if (r.kind === "class") body = <><WowIcon name={r.icon} size={24} /><span className="rp-who-open">{r.label} ({t("raidBoard.class.missing")})</span></>;
     else if (r.kind === "group") {
         const col = groupColor(ctx ? ctx.groupColors : undefined, r.group);

@@ -2,7 +2,7 @@
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
 // Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../api";
-import { MIN_ZONE, SIZE_RANGES, clamp01, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateLine, updateZone } from "./raidplan";
+import { MIN_ZONE, SIZE_RANGES, clamp01, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateLine, updateZone } from "./raidplan";
 import type { ObjectKind } from "./raidplan";
 
 export type SelItem = { kind: ObjectKind; id: string };
@@ -319,6 +319,13 @@ export function alignSelection(board: RaidplanBoard, sel: SelItem[], mode: strin
 export function setLookSelection(board: RaidplanBoard, sel: SelItem[], patch: { opacity?: number; lock?: boolean; hidden?: boolean }): RaidplanBoard {
     let out = board;
     for (const it of sel) out = patchLook(out, it.kind, it.id, patch);
+    return out;
+}
+
+/** The wedges of every icon of the selection, each relative to its own size ("Pfeil größer / kleiner" on several at once); anything else stays. */
+export function scaleArrowSelection(board: RaidplanBoard, sel: SelItem[], factor: number): RaidplanBoard {
+    let out = board;
+    for (const it of sel) out = scaleArrow(out, it.kind, it.id, factor);
     return out;
 }
 

@@ -11,7 +11,7 @@ import type { RaidplanAssignment, RaidplanPlayer, RaidplanSlot } from "../api";
 /** The three slots of the assignment bar: who does it, at whom / what, and the task (text and spell). */
 export const BAR_SLOTS = ["who", "at", "task"];
 /** Every category of the navigation, in its order. */
-export const CATEGORY_ORDER = ["people", "classes", "groups", "marks", "mobs", "spells", "text"];
+export const CATEGORY_ORDER = ["people", "classes", "roles", "groups", "marks", "mobs", "spells", "text"];
 /** The filter tabs of the people list. */
 export const PEOPLE_TABS = ["all", "tank", "healer", "dps"];
 /** The roles a class can play in TBC (the spec role of the setup; classes with one role have none to pick). */
@@ -22,10 +22,10 @@ export type PreviewLine = { who: Resolved; targets: Resolved[]; open: boolean; o
 
 /** The categories a slot of the bar offers: who = people and classes; at = people, groups, classes, marks, mobs (tanking and CC rows first), free text; task = the spells (when the type has any) and the free text. */
 export function categoriesFor(slot: string, type: string, hasMobs: boolean, hasSpells: boolean): string[] {
-    if (slot === "who") return ["people", "classes"];
+    if (slot === "who") return ["people", "classes", "roles"];
     if (slot === "task") return hasSpells ? ["spells", "text"] : ["text"];
     const mobFirst = hasMobs && ["tank", "trashtank", "special", "cc", "kick", "dispel"].indexOf(type) >= 0;
-    const out = mobFirst ? ["mobs", "people", "groups", "classes", "marks", "text"] : ["people", "groups", "classes", "marks", "mobs", "text"];
+    const out = mobFirst ? ["mobs", "people", "groups", "roles", "classes", "marks", "text"] : ["people", "groups", "roles", "classes", "marks", "mobs", "text"];
     return hasMobs ? out : out.filter((c) => c !== "mobs");
 }
 
@@ -93,10 +93,11 @@ export function chosenKeys(row: RaidplanAssignment, slot: string): string[] {
 /** The category a chosen key belongs to (for the counters of the navigation). */
 export function categoryOfKey(slot: string, key: string): string {
     if (slot === "task") return "spells";
-    if (slot === "who") return isClassRef(key) ? "classes" : "people";
+    if (slot === "who") return isClassRef(key) ? "classes" : key.indexOf("role:") === 0 ? "roles" : "people";
     const kind = key.slice(0, key.indexOf("|"));
     if (kind === "slot" || kind === "player") return "people";
     if (kind === "group") return "groups";
+    if (kind === "role") return "roles";
     if (kind === "class") return "classes";
     if (kind === "mark") return "marks";
     if (kind === "mob") return "mobs";

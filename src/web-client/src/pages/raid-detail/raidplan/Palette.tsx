@@ -1,9 +1,9 @@
-import { useState, type PointerEvent, type ReactNode } from "react";
+import { useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { Crosshair, Minus, MoveUpRight, Swords, Type } from "lucide-react";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
-import { RAID_MARKS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
+import { RAID_MARKS, ROLE_GROUP_COLORS, ZONE_COLORS, ZONE_TYPES, iconKeyForBoss, type InsertSpec } from "../../../lib/raidplan";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import type { RaidplanBoss, RaidplanMarkName, RaidplanZoneType } from "../../../api";
 import { useT } from "../../../i18n";
@@ -15,6 +15,15 @@ const SLOT_ICONS: { kind: "tank" | "healer" | "melee" | "ranged" | "dps" | "grou
     { kind: "ranged", icon: "inv_weapon_bow_07" },
     { kind: "dps", icon: "inv_misc_questionmark" },
     { kind: "group", icon: "achievement_guildperk_everybodysfriend" },
+];
+
+// the role group placeholders ("Melees", "Ranged" first): a whole role, never players
+const ROLE_GROUP_ICONS: { role: "melee" | "ranged" | "healer" | "tank" | "dps"; icon: string }[] = [
+    { role: "melee", icon: "ability_dualwield" },
+    { role: "ranged", icon: "inv_weapon_bow_07" },
+    { role: "healer", icon: "spell_holy_flashheal" },
+    { role: "tank", icon: "ability_warrior_defensivestance" },
+    { role: "dps", icon: "inv_misc_questionmark" },
 ];
 
 /** What is typed as an icon name, cleaned the way the server checks it (lower case, underscores). */
@@ -120,6 +129,12 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
                         <span className="rp-pal-swatch" style={{ background: ZONE_COLORS[z as RaidplanZoneType] }} aria-hidden="true">{ZONE_GLYPHS[z]}</span>
                     )))}
                     {entry("ellipse", { type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <span className="rp-pal-swatch rp-pal-round" style={{ background: ZONE_COLORS.neutral }} aria-hidden="true" />)}
+                </div>
+            </div>
+            <div className="rp-palette-group">
+                <h3 className="rp-kicker" data-tip={t("raidBoard.roleGroupUi.hint")}>{t("raidBoard.palette.roleGroups")}</h3>
+                <div className="rp-pal-grid">
+                    {ROLE_GROUP_ICONS.map((r) => entry(`role-${r.role}`, { type: "zone", zoneType: "role", shape: "ellipse", role: r.role }, t(`raidBoard.roleGroup.${r.role}`), <span className={`rp-rolechip-ico rp-role-${r.role}`} style={{ "--rc": ROLE_GROUP_COLORS[r.role] } as CSSProperties}><WowIcon name={r.icon} size={24} /></span>))}
                 </div>
             </div>
             <div className="rp-palette-group">
