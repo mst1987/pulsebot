@@ -338,7 +338,10 @@
         "showBorder": "Rand anzeigen",
         "showRingObj": "Ring / Rand anzeigen",
         "showName": "Name anzeigen",
-        "nameAuto": "Der Name ist ausgeblendet: das Icon ist auf dem Bild zu klein dafür (größeres Board, Zoom oder größere Symbole zeigen ihn wieder)."
+        "nameAuto": "Der Name ist ausgeblendet: das Icon ist auf dem Bild zu klein dafür (größeres Board, Zoom oder größere Symbole zeigen ihn wieder).",
+        "chipWidth": "Breite des Gruppen-Chips (0 = automatisch)",
+        "chipAuto": "Automatisch",
+        "chipAutoTip": "Wieder so breit wie der längste Name (höchstens 220 px)"
     },
     "panel": {
         "props": "Eigenschaften",

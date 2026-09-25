@@ -80,6 +80,11 @@
 .rp-h-ne { right: -8px; top: -8px; cursor: nesw-resize; }
 .rp-h-sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
 .rp-h-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+/* the middle of a zone's edge: only that side (a narrow melee strip gets taller or wider on its own) */
+.rp-h-n { left: calc(50% - 7px); top: -8px; cursor: ns-resize; border-radius: 50%; }
+.rp-h-s { left: calc(50% - 7px); bottom: -8px; cursor: ns-resize; border-radius: 50%; }
+.rp-h-e { right: -8px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 50%; }
+.rp-h-w { left: -8px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 50%; }
 
 /* the spec icon on a tile tinted in the class colour, ringed in the role colour */
 .rp-ico { --ring: var(--rp-dps); position: relative; display: inline-flex; box-sizing: border-box; width: var(--rp-s, 38px); height: var(--rp-s, 38px); border-radius: 50%; border: 3px solid var(--ring); overflow: hidden; background: color-mix(in srgb, var(--cc, #4a5060) 42%, #10131a); }
@@ -1584,11 +1589,13 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-amb-mobcount { margin-top: 10px; }
 .rp-amb-mobline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 0; }
 .rp-layer.is-auto .rp-layer-kind { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
-/* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with a double ring, the role icon, an optional label and count; never players */
-.rp-zone-role { border-style: double; border-width: 4px; background-image: none; }
+/* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with ONE outline, the role icon, an optional label and count; never players */
+/* a role group ("Melees" ...): ONE clean outline and a light fill in its colour, its icon once in the middle, unscaled - every measure a share of
+   the zone (lib/raidplan.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
+.rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
 .rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
 .rp-rg-body { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; align-content: center; gap: 3px; pointer-events: none; overflow: hidden; }
-.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); border-radius: 50%; border: 3px double var(--zc); background: rgba(15, 17, 21, .72); box-sizing: border-box; }
+.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); aspect-ratio: 1; border-radius: 50%; background: rgba(15, 17, 21, .55); box-sizing: border-box; }
 .rp-rg-ico img { width: 72%; height: 72%; border-radius: 50%; }
 .rp-rg-label { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 6px; background: rgba(15, 17, 21, .78); color: #f1f3f8; font-size: 11.5px; font-weight: 700; pointer-events: none; }
 .rp-rg-count { position: absolute; right: 3px; top: 3px; min-width: 20px; padding: 0 5px; border-radius: 999px; background: var(--zc); color: #121212; font-size: 12px; font-weight: 800; line-height: 20px; text-align: center; pointer-events: none; }
@@ -1606,3 +1613,16 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-rhsrc-note { font-size: 12px; color: var(--muted); padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; }
 .rp-pname-rh { font-style: italic; }
 .rp-pname-gone { opacity: .5; text-decoration: line-through; }
+
+/* role group: label, count and names at their share of the zone (set on the zone), the names in lines of the zone's width, a name never split */
+.rp-zone-role .rp-rg-label { font-size: var(--rp-zl, 11.5px); padding: calc(var(--rp-zl, 11.5px) * .1) calc(var(--rp-zl, 11.5px) * .55); bottom: calc(var(--rp-zl, 11.5px) * .3); }
+.rp-zone-role .rp-rg-count { font-size: var(--rp-zk, 12px); line-height: calc(var(--rp-zk, 12px) * 1.65); min-width: calc(var(--rp-zk, 12px) * 1.65); padding: 0 calc(var(--rp-zk, 12px) * .4); right: calc(var(--rp-zk, 12px) * .3); top: calc(var(--rp-zk, 12px) * .3); }
+.rp-zone-role .rp-rg-names { font-size: var(--rp-zn, 11px); top: calc(100% + var(--rp-zn, 11px) * .3); gap: calc(var(--rp-zn, 11px) * .1) calc(var(--rp-zn, 11px) * .55); padding: calc(var(--rp-zn, 11px) * .2) calc(var(--rp-zn, 11px) * .5); border-radius: calc(var(--rp-zn, 11px) * .5); }
+.rp-zone-role .rp-rg-names > * { white-space: nowrap; }
+
+/* a group's chip: as wide as its longest name needs (up to 220 reference px) or the width set for it; a name is never split, a name longer
+   than the chip ends in "…" (#raidplan-15) */
+.rp-canvas .rp-groupchip { width: max-content; max-width: 220px; }
+.rp-canvas .rp-groupchip.is-sized { width: var(--rp-cw); max-width: var(--rp-cw); }
+.rp-canvas .rp-groupchip-names { align-self: stretch; min-width: 0; }
+.rp-canvas .rp-groupchip-names > * { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

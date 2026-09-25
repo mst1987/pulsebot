@@ -1430,3 +1430,52 @@ describe("a group's own token size (feature/raidplan-15)", () => {
         expect(css).toContain(".rp-canvas .rp-token > .rp-token-btn:not(.rp-groupchip) { display: block; width: var(--rp-s, 38px); height: var(--rp-s, 38px); line-height: 0; font-size: 0; }");
     });
 });
+describe("role groups and group chips scale with themselves (feature/raidplan-15)", () => {
+    const lib4 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("a role group's icon, outline, label, count and names are shares of the zone: twice the zone, twice everything (within limits)", () => {
+        const a = lib4.roleZoneMetrics(100, 100, false, 0);
+        const b = lib4.roleZoneMetrics(200, 200, false, 0);
+        expect(b.icon / a.icon).toBeCloseTo(2, 5);
+        expect(b.label).toBeGreaterThan(a.label);
+        expect(b.border).toBeGreaterThan(a.border);
+        expect(b.names).toBeGreaterThan(a.names);
+        // the icon is a circle of the zone's smaller side: a narrow strip gets an undistorted, smaller icon
+        const strip = lib4.roleZoneMetrics(50, 250, false, 0);
+        expect(strip.icon).toBeLessThanOrEqual(50 * 0.45 + 1e-9);
+        // names go by the area: the strip still has readable names, never more than a token name (11.4)
+        expect(strip.names).toBeGreaterThan(8);
+        expect(lib4.roleZoneMetrics(900, 900, false, 0).names).toBe(11.4);
+        expect(lib4.roleZoneMetrics(900, 900, false, 0).icon).toBe(96);
+        // limits of the outline
+        expect(lib4.roleZoneMetrics(10, 10, false, 0).border).toBe(1);
+        expect(lib4.roleZoneMetrics(900, 900, false, 0).border).toBe(4);
+        // a cluster: several smaller icons
+        expect(lib4.roleZoneMetrics(200, 200, true, 5).icon).toBeLessThan(lib4.roleZoneMetrics(200, 200, false, 0).icon);
+    });
+    it("a zone's edge grips move one side only; the corners two", () => {
+        const r = { x: 0.2, y: 0.2, w: 0.2, h: 0.2 };
+        expect(lib4.resizeRect(r, "e", 0.1, 0.3)).toEqual({ x: 0.2, y: 0.2, w: expect.closeTo(0.3, 9), h: 0.2 });
+        expect(lib4.resizeRect(r, "s", 0.3, 0.1)).toEqual({ x: 0.2, y: 0.2, w: 0.2, h: expect.closeTo(0.3, 9) });
+        expect(lib4.resizeRect(r, "n", 0, -0.1).y).toBeCloseTo(0.1, 9);
+        expect(lib4.resizeRect(r, "w", -0.1, 0).x).toBeCloseTo(0.1, 9);
+        expect(lib4.resizeRect(r, "se", 0.1, 0.1)).toEqual({ x: 0.2, y: 0.2, w: expect.closeTo(0.3, 9), h: expect.closeTo(0.3, 9) });
+    });
+    it("a group chip: automatic width (0) or the width set for it, 60 .. 400", () => {
+        expect(lib4.chipWidthOf({})).toBe(0);
+        expect(lib4.chipWidthOf({ chipWidth: 0 })).toBe(0);
+        expect(lib4.chipWidthOf({ chipWidth: 30 })).toBe(60);
+        expect(lib4.chipWidthOf({ chipWidth: 150.4 })).toBe(150);
+        expect(lib4.chipWidthOf({ chipWidth: 999 })).toBe(400);
+    });
+    it("the stylesheet: ONE solid outline for a role group (no double lines), the icon without a ring of its own, names never split", () => {
+        const fs = require("fs");
+        const css = fs.readFileSync(require("path").join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }");
+        // no zone draws double / parallel lines any more (the double ring of a RANGED TOKEN is its role mark, not a zone)
+        expect(css).not.toMatch(/\.rp-zone[^{]*\{[^}]*double/);
+        expect(css).not.toMatch(/\.rp-rg-ico[^{]*\{[^}]*double/);
+        expect(css).toContain(".rp-zone-role .rp-rg-names > * { white-space: nowrap; }");
+        expect(css).toContain(".rp-canvas .rp-groupchip-names > * { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }");
+        expect(css).toContain(".rp-canvas .rp-groupchip { width: max-content; max-width: 220px; }");
+    });
+});

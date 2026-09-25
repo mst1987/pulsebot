@@ -18,7 +18,7 @@ import { addItems, scaleArrowSelection, alignSelection, bandBox, copySelection, 
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, type Corner, type InsertSpec, type MenuItem,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, type InsertSpec, type MenuItem, type ZoneGrip,
     type ObjectKind, type Rect, type Selection, rhNote,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -463,12 +463,12 @@ export default function BoardWorkspace({
             } else if (d.kind === "zone" && d.rect0 && d.p0) {
                 const dx = p.x - d.p0.x;
                 let dy = p.y - d.p0.y;
-                if (d.keepRatio && d.handle) {
+                if (d.keepRatio && d.handle && d.handle.length === 2) {
                     // proportions kept: the height follows the width
                     const ratio = d.rect0.h / d.rect0.w;
                     dy = (d.handle === "nw" || d.handle === "se" ? 1 : -1) * dx * ratio;
                 }
-                const r = d.handle ? resizeRect(d.rect0, d.handle as Corner, dx, dy) : moveRect(d.rect0, dx, dy);
+                const r = d.handle ? resizeRect(d.rect0, d.handle as ZoneGrip, dx, dy) : moveRect(d.rect0, dx, dy);
                 edit((b) => updateZone(b, d.id, r), true);
             } else if (d.kind === "line" && d.line0 && d.p0) {
                 if (d.handle === "end1" || d.handle === "end2") edit((b) => moveLineEnd(b, d.id, d.handle === "end1" ? 1 : 2, p.x, p.y), true);

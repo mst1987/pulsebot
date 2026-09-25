@@ -238,6 +238,8 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             showRing: o.kind !== "group" || o.showRing !== false,
             ringColor: o.kind === "group" ? cleanColor(o.ringColor, "") : "",
             ringOpacity: o.kind === "group" ? cleanOpacity(o.ringOpacity, 0.55) : 0.55,
+            // the width of a group's chip with its name list (reference px, 60 .. 400); 0 = as wide as its longest name needs (up to 220)
+            chipWidth: o.kind === "group" && Number.isFinite(Number(o.chipWidth)) && Number(o.chipWidth) > 0 ? Math.max(60, Math.min(400, Math.round(Number(o.chipWidth)))) : 0,
             // a role slot can ask for a class (priority = order): a template fills it from the setup's players of that class only;
             // byClass = it was filled that way (shown as a small class badge in the event)
             preferredClasses: assign.SLOT_ROLES.includes(o.kind) ? assign.cleanClasses(o.preferredClasses) : [],
