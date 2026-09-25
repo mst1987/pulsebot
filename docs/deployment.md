@@ -102,6 +102,29 @@ Der `commit` dort muss der sein, der gerade auf `main` steht.
    Rückstand verschwindet danach aus Menü und Übersicht, sobald der Cache von
    10 Minuten abgelaufen ist oder die Seite neu geladen wird.
 
+## Agenten-Übersicht (`npm run agents`)
+
+Wenn mehrere Agenten parallel in Worktrees arbeiten, zeigt `npm run agents`
+pro Worktree: die Agenten (Aufgabe, „läuft“ = Transkript in den letzten
+3 Minuten geschrieben), was sich gegenüber `origin/main` geändert hat
+(Commits, Dateien, Uncommittetes, Rückstand), die Testinstanz und **was man
+testen kann**.
+
+- **Agenten** kommen aus den Subagent-Transkripten unter
+  `~/.claude/projects/<repo>/<session>/subagents/` (nur `meta.json` und die
+  ersten 24 KB, nie die ganze Datei). Sie werden dem Worktree zugeordnet, dessen
+  Pfad (sonst Branch) im ersten Prompt steht; alles andere landet unter
+  „(ohne Worktree)“.
+- **Testinstanz**: `WEB_PORT` aus der `.env.dev` des Worktrees, dann `GET /health`
+  auf diesem Port. Der dort gemeldete Commit wird mit dem Branch-Stand
+  verglichen — „Instanz neu starten“ heißt: sie läuft auf einem älteren Stand.
+- **Was testen**: der Abschnitt „Test…“ aus dem PR-Text (`gh`, mit `--no-pr`
+  übersprungen) plus Hinweise je geänderter Bereich (Tabelle `AREAS` in
+  `scripts/agent-overview.js`).
+- `--html` schreibt zusätzlich `data/agent-overview.html`, `--json` gibt die
+  Rohdaten aus, `--all` zeigt auch Worktrees ohne Änderungen und Agenten,
+  `--hours N` bestimmt, wie weit zurück Agenten zählen (Standard 24).
+
 ## Reverse proxy: upload size
 
 A reverse proxy in front of the bot (nginx) has its own body limit: `client_max_body_size` defaults to **1 MB** and answers larger uploads with an HTML "413 Request Entity Too Large" before the bot ever sees them. The bot's own limit for room maps is 3 MB, so the browser shrinks every map to at most 900 KB first (`lib/mapImage.ts`, `MAP_TARGET_BYTES`), and the client turns a 413 / 502 / 503 / 504 answer without JSON into a readable message (the HTML only goes to the browser console). If bigger files should get through, raise the limit **in the proxy config** (outside this repo), e.g. `location /api/raidplan/ { client_max_body_size 4m; }`; the client-side shrinking stays below it either way.
