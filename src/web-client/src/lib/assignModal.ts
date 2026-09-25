@@ -68,7 +68,8 @@ export function filterPeople(list: PeopleEntry[], tab: string, query: string): P
     return list.filter((e) => {
         if (tab && tab !== "all" && e.group !== tab) return false;
         if (!q) return true;
-        const hay = [e.label, e.kind, String(e.n || ""), e.player ? e.player.className : "", e.player ? e.player.spec : ""].join(" ").toLowerCase();
+        // a Raid-Helper raider is found under his character and under the name Raid-Helper shows (a nickname, maybe)
+        const hay = [e.label, e.kind, String(e.n || ""), e.player ? e.player.className : "", e.player ? e.player.spec : "", e.player && e.player.rhName ? e.player.rhName : ""].join(" ").toLowerCase();
         return hay.indexOf(q) >= 0;
     });
 }

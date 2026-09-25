@@ -606,9 +606,10 @@ describe("the pages", () => {
     const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
 
-    it("is a tab of an own event only, after the setup", () => {
+    it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
-        expect(detail).toMatch(/\(t !== "setup" && t !== "plan"\) \|\| ownEvent/);
+        expect(detail).toContain("const hasPlan = ownEvent || !!data.event.raidplanEnabled;");
+        expect(detail).toContain("t === \"plan\" ? hasPlan");
         expect(detail).toContain("{shown === \"plan\" && <RaidplanTab ctx={ctx} />}");
     });
 

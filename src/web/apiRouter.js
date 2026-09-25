@@ -453,7 +453,7 @@ async function route(pathname, req, res, url) {
         return true;
     }
     if (pathname === "/api/raidplan" && req.method === "GET") {
-        raidplanRoutes.getPlan(req, res, url);
+        await raidplanRoutes.getPlan(req, res, url);
         return true;
     }
     if (pathname === "/api/raidplan" && req.method === "PUT") {
@@ -548,8 +548,16 @@ async function route(pathname, req, res, url) {
         await raidplanRoutes.postTemplateDuplicate(req, res);
         return true;
     }
+    if (pathname === "/api/raidplan/link" && req.method === "GET") {
+        await raidplanRoutes.getLink(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raidplan/link" && req.method === "POST") {
+        await raidplanRoutes.postLink(req, res);
+        return true;
+    }
     if (pathname === "/api/raidplan/public" && req.method === "GET") {
-        raidplanRoutes.getPublic(req, res, url);
+        await raidplanRoutes.getPublic(req, res, url);
         return true;
     }
     const manageHandler = eventManageHandler(pathname, req.method);

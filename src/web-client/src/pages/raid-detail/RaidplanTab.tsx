@@ -23,6 +23,7 @@ import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
 import "../../styles/raidplan.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
+import RhSource from "./raidplan/RhSource";
 
 /**
  * Raid-Detail › Raidplan (an own event, docs/raidplan.md), inside the raid detail's
@@ -52,6 +53,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const [conflict, setConflict] = useState(false);
     const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "template" | "open">("");
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
+    const [reloading, setReloading] = useState(false);
     const selectedRef = useRef("");
     selectedRef.current = selected;
 
@@ -77,8 +79,20 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
 
     /** The setup may have changed elsewhere (another tab, another orga): fetch the lineup again when this window comes back, keep the draft. */
     useOnFocus(() => {
-        getRaidplan(eventId).then((v) => setView((cur) => (cur ? { ...cur, roster: v.roster, besetzung: v.besetzung, catalog: v.catalog } : cur))).catch(() => {});
+        getRaidplan(eventId).then((v) => setView((cur) => (cur ? { ...cur, roster: v.roster, besetzung: v.besetzung, catalog: v.catalog, rosterSource: v.rosterSource, meIds: v.meIds, hasApprovedSetup: v.hasApprovedSetup } : cur))).catch(() => {});
     });
+
+    /** A Raid-Helper event: ask Raid-Helper again now ("Neu laden"); the draft stays. */
+    const reloadRoster = () => {
+        setReloading(true);
+        getRaidplan(eventId, true)
+            .then((v) => {
+                setView((cur) => (cur ? { ...cur, roster: v.roster, rosterSource: v.rosterSource, meIds: v.meIds, hasApprovedSetup: v.hasApprovedSetup } : v));
+                toast(v.rosterSource && v.rosterSource.stale ? t("raidBoard.rh.reloadStale") : t("raidBoard.rh.reloaded"), v.rosterSource && v.rosterSource.stale ? "err" : undefined);
+            })
+            .catch((err: ApiError) => toast(err.message, "err"))
+            .finally(() => setReloading(false));
+    };
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
     // remember the open section per plan (this browser)
@@ -212,7 +226,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={load} />
                 </div>
             )}
-            {canWrite && !view.hasApprovedSetup && (
+            {view.rosterSource && <RhSource src={view.rosterSource} busy={reloading} onReload={reloadRoster} />}
+            {canWrite && !view.rosterSource && !view.hasApprovedSetup && (
                 <p className="rp-warn">{roster.length === 0 ? t("raidBoard.setupHint.none") : t("raidBoard.setupHint.notApproved")}</p>
             )}
 

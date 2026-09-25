@@ -3,7 +3,7 @@ import { ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../.
 import { FIT, type BoardView } from "../../lib/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
-import { groupScales } from "../../lib/raidplan";
+import { groupScales, rhNote } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
@@ -47,15 +47,21 @@ export function TokenIcon({ player, size = "md" }: { player: RaidplanPlayer; siz
     );
 }
 
-/** The player's name in the class colour. */
+/**
+ * The player's name in the class colour. A Raid-Helper raider whose name no raider profile explains (a nickname, maybe) is set in
+ * italics, one Raid-Helper no longer lists is dimmed ("nicht mehr im Setup", docs/raidplan.md).
+ */
 export function PlayerName({ player, className = "" }: { player: RaidplanPlayer; className?: string }) {
     const colored = classColorProps(player.classColor);
-    return <span className={[colored.className, className].filter(Boolean).join(" ")} style={colored.style}>{player.character || "?"}</span>;
+    const marks = [player.nameFromRh ? "rp-pname-rh" : "", player.gone ? "rp-pname-gone" : ""];
+    return <span className={[colored.className, className, ...marks].filter(Boolean).join(" ")} style={colored.style}>{player.character || "?"}</span>;
 }
 
-/** One line of text describing a player for tooltips and screen readers: "Tanky, Protection Warrior". */
+/** One line of text describing a player for tooltips and screen readers: "Tanky, Protection Warrior" (+ what Raid-Helper calls him). */
 export function playerLabel(player: RaidplanPlayer): string {
-    return [player.character, [player.specLabel, player.className].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    const base = [player.character, [player.specLabel, player.className].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+    const note = rhNote(player);
+    return note ? `${base} · ${note}` : base;
 }
 
 /** What a drag can grab on an object: a zone's corner, or one end of a line. */

@@ -376,3 +376,15 @@ describe("saved default view", () => {
         expect(clean({}).board.view).toBe(null);
     });
 });
+
+describe("ANY_PLAYER", () => {
+    it("keeps every well-formed player id (a Raid-Helper line-up that could not be loaded) and still drops malformed ones", () => {
+        const r = board.cleanBoard({
+            tokens: [{ userId: "123456789012345678", x: 0.2, y: 0.2 }, { userId: "x y", x: 0, y: 0 }],
+            slots: [{ id: "s", kind: "tank", n: 1, userId: "u77" }],
+        }, { allowedUserIds: board.ANY_PLAYER });
+        expect(r.board.tokens.map((t) => t.userId)).toEqual(["123456789012345678"]);
+        expect(r.board.slots[0].userId).toBe("u77");
+        expect(r.dropped).toBe(1);
+    });
+});

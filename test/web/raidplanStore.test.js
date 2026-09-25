@@ -218,3 +218,47 @@ describe("room maps", () => {
         expect(fs.readdirSync(dir)).toEqual(["bt__supremus.png"]);
     });
 });
+
+describe("Raid-Helper events: the switch and the remembered line-up", () => {
+    const EV = "1400000000000000009";
+
+    it("normalizeLink keeps only a Raid-Helper switch with known instances, sane size and composition", () => {
+        expect(store.normalizeLink(null)).toBeNull();
+        expect(store.normalizeLink({ source: "own" })).toBeNull();
+        expect(store.normalizeLink({ source: "raidhelper", enabled: true, instanceIds: ["bt", "nope", "bt"], size: 99, composition: { tank: 3, healer: "x", foo: 1 }, versionId: "!!", guildId: "abc" }))
+            .toMatchObject({ enabled: true, instanceIds: ["bt"], size: 0, composition: { tank: 3 }, versionId: "tbc", guildId: "" });
+    });
+
+    it("setLink creates the record, refuses no instance, switching off keeps the bosses and withdraws the link", () => {
+        expect(store.setLink(EV, { enabled: true, instanceIds: [] })).toMatchObject({ code: "invalid" });
+        expect(store.setLink("x", { enabled: true, instanceIds: ["bt"] })).toMatchObject({ code: "invalid" });
+        const on = store.setLink(EV, { enabled: true, instanceIds: ["bt"], size: 25, title: "BT" }, { userId: "orga", knownRoster: [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }] });
+        expect(on.plan.link).toMatchObject({ source: "raidhelper", enabled: true, instanceIds: ["bt"], size: 25, title: "BT", changedBy: "orga" });
+        expect(on.plan.known).toEqual({ u1: { character: "Tanky", spec: "Warrior-Protection", rhName: "", group: 1 } });
+        store.savePlan(EV, { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0.1, y: 0.1 }] } } }, { ...CTX, allowedUserIds: ["u1"] });
+        store.setPublished(EV, true);
+        const off = store.setLink(EV, { enabled: false });
+        expect(off.plan).toMatchObject({ status: "draft", link: { enabled: false, instanceIds: ["bt"] } });
+        expect(off.plan.bosses[BOSS].tokens).toHaveLength(1);
+        expect(store.getPublishedByToken(off.plan.publicToken)).toBeNull();
+    });
+
+    it("a save with ANY_PLAYER keeps every well-formed player id; with a known roster it remembers the line-up and the gone players it still names", () => {
+        const { ANY_PLAYER } = require("../../src/web/raidplanBoard");
+        const r = store.savePlan(EV, { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0, y: 0 }, { userId: "u-gone", x: 0, y: 0 }, { userId: "bad id!", x: 0, y: 0 }] } } }, { ...CTX, allowedUserIds: ANY_PLAYER });
+        expect(r.plan.bosses[BOSS].tokens.map((t) => t.userId)).toEqual(["u1", "u-gone"]);
+        expect(r.dropped).toBe(1);
+        const before = { "u-gone": { character: "Weg", spec: "Mage-Fire", rhName: "", group: 2 } };
+        expect(store.knownAfter(r.plan.bosses, [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }, { userId: "u2", character: "Gone", gone: true }], before))
+            .toEqual({ u1: { character: "Tanky", spec: "Warrior-Protection", rhName: "", group: 1 }, "u-gone": before["u-gone"] });
+    });
+
+    it("playersOf finds a player wherever the plan names one", () => {
+        const ids = store.playersOf({
+            a: { tokens: [{ userId: "t1" }], slots: [{ userId: "s1" }], roles: { f1: "melee" } },
+            b: { assignments: [{ assignees: ["user:a1", "slot:tank:1"], targets: [{ kind: "player", ref: "p1" }, { kind: "group", ref: "2" }], picks: { "class:Mage:1": "k1" } }] },
+            c: { steps: [{ participants: ["user:st1"] }] },
+        });
+        expect([...ids].sort()).toEqual(["a1", "f1", "k1", "p1", "s1", "st1", "t1"]);
+    });
+});

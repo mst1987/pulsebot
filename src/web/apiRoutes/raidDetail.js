@@ -35,7 +35,7 @@ const { summarizePlayers } = require("../raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
 const { backfillLogTitles } = require("../logChannel");
-const { createRaidhelperClient } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelperClient");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
@@ -44,6 +44,7 @@ const discord = require("../discord");
 const { listSignups } = require("../signupStore");
 const { eventSignupList } = require("../signupView");
 const { getEvent } = require("../eventStore");
+const raidplanStore = require("../raidplanStore");
 const { setupSummary, raidHelperSlots } = require("../setupEditor");
 const { invitePlan, callInvite } = require("../inviteCall");
 const {
@@ -64,6 +65,12 @@ function manageState(eventId) {
         // without one": a proposal is still coming while autoSuggest is on.
         autoSuggest: !!ev.autoSuggest,
     };
+}
+
+/** Whether a Raid-Helper event's raid plan is switched on (raidplanStore `link`). */
+function raidplanSwitchedOn(eventId) {
+    const plan = raidplanStore.getPlan(eventId);
+    return !!(plan && plan.link && plan.link.enabled);
 }
 
 /**
@@ -245,6 +252,11 @@ async function getRaidDetail(req, res, url) {
                 size: Number(found.e.size) || 0,
                 signupDeadline: Number(found.e.signupDeadline) || 0,
             } : {}),
+            // a Raid-Helper event whose raid plan the orga switched on (docs/raidplan.md, "Raid-Helper-Events"): the page shows the
+            // "Raidplan" tab; an own event always has it
+            raidplanEnabled: found.e.source === "eventhelper" || raidplanSwitchedOn(eventId),
+            // Raid-Helper switched off in the settings: the menu says the plan works from its saved line-up only
+            ...(found.e.source === "eventhelper" ? {} : { raidhelperDisabled: raidhelperDisabled() }),
         },
         setupFromSnapshot,
         categoryName: found.g.categoryName,

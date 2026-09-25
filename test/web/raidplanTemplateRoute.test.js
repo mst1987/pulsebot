@@ -184,7 +184,7 @@ describe("the public view", () => {
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
         mockViewer = { id: "u1" };
         const r = res();
-        route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
+        await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         const d = body(r);
         expect(d.me).toBe("u1");
         const b = d.bosses[0];
@@ -201,7 +201,7 @@ describe("the public view", () => {
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
         mockEvents["eh-1"].setup = { approved: { ...APPROVED, groups: [{ index: 1, slots: [person("u2", "Heally", "Priest-Holy", "healer")] }] } };
         const r = res();
-        route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
+        await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         expect(body(r).bosses[0].slots.map((s) => s.userId)).toEqual(["", "u2", "", ""]);
     });
 });
@@ -222,7 +222,7 @@ describe("the public view of the newer objects", () => {
         });
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
         const r = res();
-        route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
+        await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         const b = body(r).bosses[0];
         expect(b.mapOpacity).toBe(0.4);
         expect(b.lines).toHaveLength(1);

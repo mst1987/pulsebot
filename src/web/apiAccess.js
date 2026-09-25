@@ -174,6 +174,7 @@ const AREA_BY_PATH = {
     "/api/raidplan/templates": "raids",
     "/api/raidplan/templates/duplicate": "raids",
     "/api/raidplan/apply": "raids",
+    "/api/raidplan/link": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid
     // templates are one path for GET/POST/PATCH/DELETE — the method sets the level.
     "/api/notify-templates": "raids",

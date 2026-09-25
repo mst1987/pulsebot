@@ -257,16 +257,16 @@ describe("GET /api/raidplan/public", () => {
         return on.plan.publicPath.replace("/p/", "");
     }
 
-    const publicGet = (token, viewer = null) => {
+    const publicGet = async (token, viewer = null) => {
         mockViewer = viewer;
         const r = res();
-        route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${token}`));
+        await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${token}`));
         return r;
     };
 
     it("needs no login and names only what the approved setup knows (never a draft)", async () => {
         const token = await publish();
-        const r = publicGet(token);
+        const r = await publicGet(token);
         expect(status(r)).toBe(200);
         const d = body(r);
         expect(d.event).toEqual({ title: "Black Temple", startTime: 1800000000 });
@@ -284,26 +284,26 @@ describe("GET /api/raidplan/public", () => {
 
     it("marks the viewer's own token when they are logged in and in the plan", async () => {
         const token = await publish();
-        expect(body(publicGet(token, { id: "u1" }))).toMatchObject({ me: "u1", loggedIn: true });
-        expect(body(publicGet(token, { id: "outsider" }))).toMatchObject({ me: "", loggedIn: true });
+        expect(body(await publicGet(token, { id: "u1" }))).toMatchObject({ me: "u1", loggedIn: true });
+        expect(body(await publicGet(token, { id: "outsider" }))).toMatchObject({ me: "", loggedIn: true });
     });
 
     it("shows the name of the profile the board was built from", async () => {
         const { profile } = profiles.createProfile({ name: "Tanks P1" });
         await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: { "bt/supremus": { profileId: profile.id, notes: "x" } } });
         const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
-        expect(body(publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0].profileName).toBe("Tanks P1");
+        expect(body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0].profileName).toBe("Tanks P1");
     });
 
     it("answers one and the same 404 for unknown, malformed, withdrawn and orphaned tokens", async () => {
         const token = await publish();
-        for (const bad of ["", "x", "aaaaaaaaaaaaaaaaaaaaaaaa"]) expect(status(publicGet(bad))).toBe(404);
+        for (const bad of ["", "x", "aaaaaaaaaaaaaaaaaaaaaaaa"]) expect(status(await publicGet(bad))).toBe(404);
         await call(route.postPublish, ORGA, { event: "eh_1", published: false });
-        const withdrawn = publicGet(token);
+        const withdrawn = await publicGet(token);
         expect(status(withdrawn)).toBe(404);
         await call(route.postPublish, ORGA, { event: "eh_1", published: true });
         delete mockEvents.eh_1;
-        const orphan = publicGet(token);
+        const orphan = await publicGet(token);
         expect(status(orphan)).toBe(404);
         expect(orphan.end.mock.calls[0][0]).toBe(withdrawn.end.mock.calls[0][0]);
     });
@@ -322,13 +322,13 @@ describe("GET /api/raidplan/public", () => {
         }
 
         it("delivers every section by default (a plan from before the switch: all in)", async () => {
-            const d = body(publicGet(await publishTwo({})));
+            const d = body(await publicGet(await publishTwo({})));
             expect(d.bosses.map((b) => b.key)).toEqual(["bt/supremus", "bt/trash"]);
             expect(d.hiddenCount).toBe(0);
         });
 
         it("does not deliver an excluded section at all: no chip, no notes, no objects, no players", async () => {
-            const d = body(publicGet(await publishTwo({ trash: { inSheet: false } })));
+            const d = body(await publicGet(await publishTwo({ trash: { inSheet: false } })));
             expect(d.bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
             expect(d.hiddenCount).toBe(1);
             const text = JSON.stringify(d);
@@ -338,14 +338,14 @@ describe("GET /api/raidplan/public", () => {
         });
 
         it("a player only an excluded section names is not in the public roster", async () => {
-            const d = body(publicGet(await publishTwo({ boss: { inSheet: false } })));
+            const d = body(await publicGet(await publishTwo({ boss: { inSheet: false } })));
             expect(d.bosses.map((b) => b.key)).toEqual(["bt/trash"]);
             expect(d.roster).toEqual([]);
             expect(JSON.stringify(d)).not.toContain("BOSS-SECRET-NOTE");
         });
 
         it("all sections excluded: nothing is delivered, only how many are held back", async () => {
-            const d = body(publicGet(await publishTwo({ boss: { inSheet: false }, trash: { inSheet: false } })));
+            const d = body(await publicGet(await publishTwo({ boss: { inSheet: false }, trash: { inSheet: false } })));
             expect(d.bosses).toEqual([]);
             expect(d.roster).toEqual([]);
             expect(d.hiddenCount).toBe(2);
@@ -366,7 +366,7 @@ describe("GET /api/raidplan/public", () => {
                 bosses: { "bt/supremus": { showMap, tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], texts: [{ text: "MAP-TEXT", x: 0.5, y: 0.5 }], notes: "Hi", autoPos: { "t:r1:1": { x: 0.25, y: 0.75 } }, autoStyle: { "t:r1:1": { size: 19 } }, autoScale: 0.5 } },
             });
             const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
-            return body(publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
+            return body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
         }
 
         it("sends the map and its objects while it is shown", async () => {
@@ -391,7 +391,7 @@ describe("GET /api/raidplan/public", () => {
     it("a role group names every raider of that role for the page (\"Meine Aufgaben\"), a flex role on the boss wins; the flex roles go along", async () => {
         await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: { "bt/supremus": { assignments: [{ id: "a", type: "other", assignees: ["role:ranged"], targets: [] }], roles: { u1: "ranged" } } } });
         const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
-        const d = body(publicGet(on.plan.publicPath.replace("/p/", "")));
+        const d = body(await publicGet(on.plan.publicPath.replace("/p/", "")));
         // u3 is ranged by spec, u1 a tank who plays ranged here; u2 (healer) is not named
         expect(d.roster.map((p) => p.userId).sort()).toEqual(["u1", "u3"]);
         expect(d.bosses[0].roles).toEqual({ u1: "ranged" });
@@ -400,7 +400,7 @@ describe("GET /api/raidplan/public", () => {
 
     it("leaves out bosses nobody planned", async () => {
         const token = await publish();
-        expect(body(publicGet(token)).bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
+        expect(body(await publicGet(token)).bosses.map((b) => b.key)).toEqual(["bt/supremus"]);
     });
 });
 

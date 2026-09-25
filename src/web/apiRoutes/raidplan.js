@@ -18,6 +18,11 @@
 //   PATCH  /api/raidplan/profiles             raids write: change / rename a profile
 //   DELETE /api/raidplan/profiles             raids write: delete a profile
 //   GET    /api/raidplan/public?token=<token> NO login — the token is the authentication
+//   GET    /api/raidplan/link?event=<id>      raids read: a Raid-Helper event's switch and what its title suggests
+//   POST   /api/raidplan/link                 raids write: switch a Raid-Helper event's plan on / off (instances, size, version)
+//
+// A Raid-Helper event has a plan once the orga switched it on (docs/raidplan.md, "Raid-Helper-Events"); its players come from
+// Raid-Helper (raidplanRosterSource.js, read only), everything else works as for an own event.
 //
 // The area gate (apiAccess.js) decides read vs. write by method. The public route
 // is listed in UNGATED there; it hands out only what /p/<token> shows.
@@ -33,6 +38,12 @@ const templateStore = require("../raidplanTemplateStore");
 const raidplan = require("../raidplan");
 const assign = require("../raidplanAssign");
 const catalog = require("../raidplanCatalogStore");
+const rosterSource = require("../raidplanRosterSource");
+const { instancesFromTitle } = require("../raidplanTitle");
+const { activeGuildFor } = require("../activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
+const { rulesFor } = require("../../config/gameVersions");
+const { raidhelperDisabled } = require("../../utils/raidhelperClient");
 
 const HTTP = { not_found: 404, conflict: 409, invalid: 400, too_large: 413 };
 
@@ -42,19 +53,25 @@ function sendFailure(res, result) {
     return error(res, HTTP[result.code] || 400, result.code || "failed", result.error || "Fehlgeschlagen.");
 }
 
-/** The own event of a request, or a sent error. */
-function eventOf(res, id) {
+/**
+ * The event of a request's plan (raidplanRosterSource.planEventFor): an own event, or a Raid-Helper event whose plan is switched on -
+ * `{ kind, event, ... }`. A Raid-Helper event without the switch answers 409, an unknown event 404; null then (the error is sent).
+ */
+async function eventOf(res, id, opts) {
     const eventId = String(id || "").trim();
-    if (!isOwnEventId(eventId)) {
-        error(res, 409, "raidhelper", "Der Raidplan gibt es nur für eigene Events.");
+    const found = await rosterSource.planEventFor(eventId, opts);
+    if (found && found.event) return found;
+    if (!isOwnEventId(eventId) && /^[\w-]{3,40}$/.test(eventId)) {
+        error(res, 409, "raidhelper", "Der Raidplan ist für dieses Raid-Helper-Event nicht aktiviert (Verwalten → Raidplan aktivieren).");
         return null;
     }
-    const event = getEvent(eventId);
-    if (!event) {
-        error(res, 404, "not_found", "Event nicht gefunden.");
-        return null;
-    }
-    return event;
+    error(res, 404, "not_found", "Event nicht gefunden.");
+    return null;
+}
+
+/** A Raid-Helper plan's save remembers the line-up it was saved with - only when Raid-Helper just answered (see rosterSource). */
+function knownRosterOf(found) {
+    return found.kind === "raidhelper" && found.info.authoritative ? found.loaded : null;
 }
 
 /** Refused for a caller without `raids` write — the area gate does this already; kept for direct calls. */
@@ -72,13 +89,13 @@ function writer(req, res) {
     return user;
 }
 
-/** GET /api/raidplan?event=<id> */
-function getPlan(req, res, url) {
+/** GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache. */
+async function getPlan(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
-    const event = eventOf(res, url.searchParams.get("event"));
-    if (!event) return;
-    ok(res, raidplan.editorView(event, { canWrite: canWrite(user), me: user && user.id ? String(user.id) : "" }));
+    const found = await eventOf(res, url.searchParams.get("event"), { fresh: url.searchParams.get("fresh") === "1" });
+    if (!found) return;
+    ok(res, raidplan.editorView(found.event, { canWrite: canWrite(user), me: user && user.id ? String(user.id) : "" }));
 }
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */
@@ -86,16 +103,19 @@ async function putPlan(req, res) {
     const user = writer(req, res);
     if (!user) return;
     const body = await readJsonBody(req);
-    const event = eventOf(res, body.event);
-    if (!event) return;
+    const found = await eventOf(res, body.event);
+    if (!found) return;
+    const event = found.event;
     const result = store.savePlan(event.id, { version: body.version, bosses: body.bosses }, {
         bossKeys: raidplan.bossList(event).map((b) => b.key),
-        allowedUserIds: raidplan.editorRoster(event).map((p) => p.userId),
+        // a Raid-Helper line-up that could not be loaded right now drops nobody
+        allowedUserIds: rosterSource.allowedFor(found),
         profileIds: profileStore.listProfiles().map((p) => p.id),
         userId: user.id,
+        knownRoster: knownRosterOf(found),
     });
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...raidplan.editorView(event, { canWrite: true }), dropped: result.dropped });
+    ok(res, { ...raidplan.editorView(await refreshed(found), { canWrite: true }), dropped: result.dropped });
 }
 
 /**
@@ -109,7 +129,7 @@ async function postSuggest(req, res) {
     if (!user) return;
     const body = await readJsonBody(req);
     let event = null;
-    if (body.event) { event = eventOf(res, body.event); if (!event) return; }
+    if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
     ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep }) : [] });
 }
@@ -119,21 +139,35 @@ async function postPublish(req, res) {
     const user = writer(req, res);
     if (!user) return;
     const body = await readJsonBody(req);
-    const event = eventOf(res, body.event);
-    if (!event) return;
-    store.setPublished(event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
-    ok(res, raidplan.editorView(event, { canWrite: true }));
+    const found = await eventOf(res, body.event);
+    if (!found) return;
+    store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
+    ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
+}
+
+/** The event of a request again after a write: the plan changed (a Raid-Helper event's gone raiders are read from it). */
+async function refreshed(found) {
+    if (found.kind !== "raidhelper") return found.event;
+    const again = await rosterSource.planEventFor(found.event.id);
+    return again && again.event ? again.event : found.event;
+}
+
+/** Whether an event may have a plan's own maps: an own event that exists, a Raid-Helper event whose plan is switched on. */
+function eventHasPlan(id) {
+    if (isOwnEventId(id)) return !!getEvent(id);
+    const plan = store.getPlan(id);
+    return !!(plan && plan.link && plan.link.enabled);
 }
 
 /**
  * Whether a map key may be written: a default map always, a template's map only for
- * a template that exists, an event plan's map only for an own event. Sends the error.
+ * a template that exists, an event plan's map only for an event that has a plan. Sends the error.
  */
 function mapKeyOk(res, key) {
     if (!store.isMapKey(key)) { error(res, 400, "invalid", "Unbekannter Boss oder Instanz."); return false; }
     const scope = store.mapScope(key);
     if (!scope) return true;
-    const found = scope.scope === "t" ? templateStore.getTemplate(scope.id) : isOwnEventId(scope.id) && getEvent(scope.id);
+    const found = scope.scope === "t" ? templateStore.getTemplate(scope.id) : eventHasPlan(scope.id);
     if (!found) { error(res, 404, "not_found", scope.scope === "t" ? "Vorlage nicht gefunden." : "Event nicht gefunden."); return false; }
     return true;
 }
@@ -166,18 +200,21 @@ async function postApply(req, res) {
     const user = writer(req, res);
     if (!user) return;
     const body = await readJsonBody(req);
-    const event = eventOf(res, body.event);
-    if (!event) return;
+    const found = await eventOf(res, body.event);
+    if (!found) return;
+    const event = found.event;
     const template = templateStore.getTemplate(body.templateId);
     if (!template || !raidplan.templatesFor(event).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     const result = store.applyTemplate(event.id, template, {
         version: body.version,
         bossKeys: raidplan.bossList(event).map((b) => b.key),
-        roster: raidplan.editorRoster(event),
+        // the open slots are filled from who is in the line-up now (a raider Raid-Helper no longer lists is not placed anew)
+        roster: found.kind === "raidhelper" ? found.loaded : raidplan.editorRoster(event),
         userId: user.id,
+        trackKnown: !!knownRosterOf(found),
     });
     if (result.error) return sendFailure(res, result);
-    ok(res, raidplan.editorView(event, { canWrite: true }));
+    ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
 }
 
 function templateList() {
@@ -305,15 +342,97 @@ function catalogWrite(kind, how) {
  * unpublished plan and a plan whose event is gone all answer the same 404.
  * A logged-in viewer's own userId only marks their token; it grants nothing.
  */
-function getPublic(req, res, url) {
+async function getPublic(req, res, url) {
     const plan = store.getPublishedByToken(url.searchParams.get("token"));
-    const event = plan && getEvent(plan.eventId);
+    // an own event from its record; a Raid-Helper event through its plan record (switched off = the link is withdrawn)
+    const found = plan ? await rosterSource.planEventFor(plan.eventId) : null;
+    const event = found && found.event;
     if (!plan || !event) return error(res, 404, "not_found", "Diesen Raidplan gibt es nicht (mehr).");
     const viewer = auth.getUser(req);
     ok(res, raidplan.publicView(plan, event, { me: viewer ? viewer.id : "" }));
 }
 
+/** The Raid-Helper event `id` of the active server (loadEventGroups, with past raids), or null. */
+async function raidhelperEventOf(req, id) {
+    const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+    for (const g of groups) for (const e of g.events) if (e.id === id && e.source === "raidhelper") return e;
+    return null;
+}
+
+/** The instances the activation dialog offers (the rule set's, with their sizes). */
+function instanceChoices(versionId) {
+    const rules = rulesFor(versionId || "tbc") || rulesFor("tbc");
+    return rules.instances.map((i) => ({ id: i.id, name: i.name, short: i.short, sizes: i.sizes, defaultSize: i.defaultSize }));
+}
+
+/** What the activation dialog and the menu need of a Raid-Helper event's switch. */
+function linkView(eventId, ev, plan) {
+    const link = plan && plan.link;
+    const suggestion = instancesFromTitle(ev ? ev.title : (link && link.title) || "", "tbc");
+    return {
+        eventId,
+        title: ev ? ev.title : (link ? link.title : ""),
+        enabled: !!(link && link.enabled),
+        link: link || null,
+        suggestion,
+        instances: instanceChoices(link ? link.versionId : suggestion.versionId),
+        hasPlan: !!(plan && plan.version > 0),
+        published: !!(plan && plan.status === "published"),
+        // Raid-Helper switched off in the settings: the plan still works, from the line-up it saved last
+        raidhelperDisabled: raidhelperDisabled(),
+    };
+}
+
+/** GET /api/raidplan/link?event=<id> */
+async function getLink(req, res, url) {
+    if (!requireAdmin(req, res)) return;
+    const id = String(url.searchParams.get("event") || "").trim();
+    if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
+    const plan = store.getPlan(id);
+    const ev = await raidhelperEventOf(req, id);
+    if (!ev && !(plan && plan.link)) return error(res, 404, "not_found", "Event nicht gefunden.");
+    const view = linkView(id, ev, plan);
+    // what Raid-Helper lists right now (read only, cached a minute): the dialog warns when the groups are only blocks of five
+    const probe = await rosterSource.raidhelperPlanEvent({ ...(plan || store.emptyPlan(id)), link: { ...(plan && plan.link ? plan.link : {}), versionId: view.suggestion.versionId, instanceIds: view.suggestion.instanceIds } });
+    ok(res, { ...view, lineup: { count: probe.loaded.length, available: probe.info.available, hasGroups: probe.info.hasGroups, origin: probe.info.origin, unmatchedNames: probe.info.unmatchedNames, unknown: probe.info.unknown } });
+}
+
+/** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
+async function postLink(req, res) {
+    const user = writer(req, res);
+    if (!user) return;
+    const body = await readJsonBody(req);
+    const id = String(body.event || "").trim();
+    if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
+    const before = store.getPlan(id);
+    const ev = await raidhelperEventOf(req, id);
+    // switching on needs the event on this server; switching off also works for one Raid-Helper no longer lists
+    if (!ev && !(before && before.link)) return error(res, 404, "not_found", "Event nicht gefunden.");
+    const input = { enabled: body.enabled === true };
+    if (body.enabled === true) {
+        const sug = instancesFromTitle(ev ? ev.title : "", "tbc");
+        const ids = Array.isArray(body.instanceIds) ? body.instanceIds : (before && before.link ? before.link.instanceIds : sug.instanceIds);
+        Object.assign(input, {
+            instanceIds: ids,
+            size: body.size !== undefined ? body.size : (before && before.link ? before.link.size : sug.size),
+            versionId: body.versionId || (before && before.link ? before.link.versionId : sug.versionId),
+            composition: body.composition !== undefined ? body.composition : (before && before.link ? before.link.composition : null),
+        });
+        if (ev) Object.assign(input, { title: ev.title, startTime: ev.startTime, guildId: activeGuildFor(req) });
+    }
+    let knownRoster = null;
+    if (input.enabled) {
+        // what Raid-Helper lists right now is remembered at once: switched off later, the plan still knows its raiders
+        const r = await rosterSource.raidhelperPlanEvent({ ...(before || store.emptyPlan(id)), link: { ...(before && before.link ? before.link : {}), ...input, versionId: input.versionId || "tbc" } });
+        if (r.info.authoritative) knownRoster = r.loaded;
+    }
+    const result = store.setLink(id, input, { userId: user.id, knownRoster });
+    if (result.error) return sendFailure(res, result);
+    ok(res, linkView(id, ev, result.plan));
+}
+
 module.exports = {
+    getLink, postLink,
     getPlan, putPlan, postSuggest, postPublish, postMap, postMapDelete,
     getCatalog, postMob: catalogWrite("mobs", "save"), patchMob: catalogWrite("mobs", "save"), deleteMob: catalogWrite("mobs", "remove"),
     postSpell: catalogWrite("spells", "save"), patchSpell: catalogWrite("spells", "save"), deleteSpell: catalogWrite("spells", "remove"), postCatalogReset: catalogWrite("mobs", "reset"),

@@ -19,7 +19,7 @@ import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
     placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, type Corner, type InsertSpec, type MenuItem,
-    type ObjectKind, type Rect, type Selection,
+    type ObjectKind, type Rect, type Selection, rhNote,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
 import StepsCard from "./StepsCard";
@@ -1083,7 +1083,7 @@ export default function BoardWorkspace({
                                 <span
                                     key={p.userId}
                                     className={`rp-chip${canWrite ? " is-drag" : ""}`}
-                                    data-tip={`${p.specLabel} ${p.className}`.trim()}
+                                    data-tip={[`${p.specLabel} ${p.className}`.trim(), rhNote(p)].filter(Boolean).join(" · ")}
                                     onPointerDown={canWrite ? (e) => startDrag(e, "tray", p.userId) : undefined}
                                 >
                                     <TokenIcon player={p} size="sm" />

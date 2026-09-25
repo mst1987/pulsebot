@@ -1591,3 +1591,12 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }
 /* the grip that turns a role group, above its top edge */
 .rp-zone .rp-h-zrot { left: calc(50% - 7px); top: -26px; width: 14px; height: 14px; border-radius: 50%; cursor: grab; }
+
+/* A Raid-Helper event's plan (docs/raidplan.md, "Raid-Helper-Events"): where the players come from, and how a name reads */
+.rp-rhsrc { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.rp-rhsrc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 13px; }
+.rp-rhsrc-main { font-weight: 700; }
+.rp-rhsrc.is-stale .rp-rhsrc-main { color: var(--medium); }
+.rp-rhsrc-note { font-size: 12px; color: var(--muted); padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.rp-pname-rh { font-style: italic; }
+.rp-pname-gone { opacity: .5; text-decoration: line-through; }

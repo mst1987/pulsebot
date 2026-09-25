@@ -53,6 +53,9 @@ function disabledClient(config) {
 function createRaidhelperClient() {
     const config = getConfig();
     if (raidhelperDisabled(config)) return disabledClient(config);
+    // DEV ONLY (utils/raidhelperFixture.js): a made-up Raid-Helper event for local test instances; never in production
+    const fixture = require("./raidhelperFixture");
+    if (fixture.fixtureEnabled()) return fixture.fixtureClient();
     return new Raidhelper({ serverId: config.raidhelperServerId });
 }
 

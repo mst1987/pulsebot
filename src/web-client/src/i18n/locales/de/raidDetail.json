@@ -288,7 +288,13 @@
         },
         "eventRemoved": "Event wird entfernt",
         "invite": "Invite callen",
-        "inviteSub": "Gruppe 1–5 pingen: /w dein Charakter inv"
+        "inviteSub": "Gruppe 1–5 pingen: /w dein Charakter inv",
+        "raidplanOn": "Raidplan aktivieren",
+        "raidplanOnSub": "Boards je Boss – die Aufstellung kommt aus Raid-Helper",
+        "raidplanOff": "Raidplan aktiv ✓ – deaktivieren",
+        "raidplanOffSub": "Der Plan bleibt gespeichert, der öffentliche Link wird zurückgezogen",
+        "raidplanDisabled": "Raid-Helper ist abgeschaltet – Aufstellung nur aus gespeichertem Stand",
+        "tipSubRaidhelper": "Raidplan für dieses Raid-Helper-Event an- oder abschalten"
     },
     "classSource": {
         "export": "Loot-Export",
@@ -321,5 +327,25 @@
             "other": "{names} stehen noch."
         },
         "evalAnyway": "„Auswerten“ fragt vorher nach – ein abgebrochener Raid lässt sich trotzdem auswerten."
+    },
+    "raidplanLink": {
+        "title": "Raidplan aktivieren",
+        "readOnly": "Die Aufstellung kommt aus Raid-Helper und ist hier schreibgeschützt. Du legst nur fest, welcher Raid gespielt wird.",
+        "instances": "Instanz",
+        "detected": "aus dem Eventnamen erkannt – bitte prüfen",
+        "noneDetected": "im Eventnamen nicht sicher erkannt – bitte wählen",
+        "size": "Größe",
+        "sizeNone": "erst Instanz wählen",
+        "sizeValue": "{size} Spieler",
+        "version": "Spielversion",
+        "versionTbc": "TBC",
+        "players": "{count} Spieler in Raid-Helper",
+        "noPlayers": "Raid-Helper nennt gerade keine Spieler – der Plan geht trotzdem, die Spieler kommen beim nächsten Laden.",
+        "confirm": "Aktivieren",
+        "activated": "Raidplan aktiviert.",
+        "offTitle": "Raidplan deaktivieren?",
+        "offText": "Der Plan bleibt gespeichert und ist beim erneuten Aktivieren wieder da. Der öffentliche Link wird zurückgezogen.",
+        "offAction": "Deaktivieren",
+        "deactivated": "Raidplan deaktiviert."
     }
 }

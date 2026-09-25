@@ -1939,6 +1939,8 @@ describe("web/apiRouter", () => {
                 id: "e1", source: "raidhelper", title: "GDKP Kara", startTime: 1753500000,
                 channelId: "chan1", channelName: "kara-channel", signupCount: 1,
                 isPast: true, signupsKnown: true, signUpsFromSnapshot: false,
+                // a Raid-Helper event: its raid plan is off until the orga switches it on (docs/raidplan.md)
+                raidplanEnabled: false, raidhelperDisabled: false,
             });
             expect(data.categoryName).toBe("Raids");
             expect(data.guildId).toBe("guild-1");

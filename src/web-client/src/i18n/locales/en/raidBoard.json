@@ -1082,5 +1082,29 @@
         "opacity": "Arrow opacity",
         "up": "Bigger arrow",
         "down": "Smaller arrow"
+    },
+    "rh": {
+        "source": "Line-up from Raid-Helper",
+        "sourceSignups": "Line-up from the Raid-Helper signups",
+        "readOnlyTip": "Read-only: change the line-up in Raid-Helper.",
+        "at": "as of {time}",
+        "reloadTip": "Fetch the line-up from Raid-Helper again now (your draft stays)",
+        "reloaded": "Line-up reloaded.",
+        "reloadStale": "Raid-Helper is not answering – the last state stays.",
+        "unavailable": "Setup not available right now – Raid-Helper is not answering and there is no saved state.",
+        "stale": {
+            "last": "Raid-Helper is not answering – showing the last state.",
+            "snapshot": "Raid-Helper no longer lists a line-up – showing the raid's saved state.",
+            "saved": "Raid-Helper unreachable – line-up from the saved state only.",
+            "disabled": "Raid-Helper is switched off – line-up from the saved state only.",
+            "keep": "Saving loses no player."
+        },
+        "noGroups": "Groups are blocks of five in order – group assignments are unreliable.",
+        "unmatched": "{count} Raid-Helper names not matched",
+        "unknown": "{count}× unknown: {names}",
+        "gone": "{count} no longer in the setup",
+        "goneMark": "no longer in the setup",
+        "nameFromRh": "Name from Raid-Helper",
+        "rhName": "Raid-Helper: {name}"
     }
 }

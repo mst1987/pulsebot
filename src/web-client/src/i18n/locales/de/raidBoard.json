@@ -1082,5 +1082,29 @@
         "opacity": "Pfeil-Deckkraft",
         "up": "Pfeil größer",
         "down": "Pfeil kleiner"
+    },
+    "rh": {
+        "source": "Aufstellung aus Raid-Helper",
+        "sourceSignups": "Aufstellung aus den Raid-Helper-Anmeldungen",
+        "readOnlyTip": "Schreibgeschützt: Änderungen an der Aufstellung macht ihr in Raid-Helper.",
+        "at": "Stand {time}",
+        "reloadTip": "Aufstellung jetzt neu aus Raid-Helper holen (dein Entwurf bleibt)",
+        "reloaded": "Aufstellung neu geladen.",
+        "reloadStale": "Raid-Helper antwortet gerade nicht – es bleibt beim letzten Stand.",
+        "unavailable": "Setup gerade nicht verfügbar – Raid-Helper antwortet nicht und es gibt keinen gespeicherten Stand.",
+        "stale": {
+            "last": "Raid-Helper antwortet gerade nicht – angezeigt wird der letzte Stand.",
+            "snapshot": "Raid-Helper nennt keine Aufstellung mehr – angezeigt wird der gespeicherte Stand des Raids.",
+            "saved": "Raid-Helper nicht erreichbar – Aufstellung nur aus gespeichertem Stand.",
+            "disabled": "Raid-Helper ist abgeschaltet – Aufstellung nur aus gespeichertem Stand.",
+            "keep": "Beim Speichern geht kein Spieler verloren."
+        },
+        "noGroups": "Gruppen sind 5er-Blöcke in Reihenfolge – Gruppen-Einteilungen unzuverlässig.",
+        "unmatched": "{count} Namen aus Raid-Helper nicht zuordenbar",
+        "unknown": "{count}× unbekannt: {names}",
+        "gone": "{count} nicht mehr im Setup",
+        "goneMark": "nicht mehr im Setup",
+        "nameFromRh": "Name aus Raid-Helper",
+        "rhName": "Raid-Helper: {name}"
     }
 }

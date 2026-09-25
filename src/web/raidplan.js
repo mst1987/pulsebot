@@ -65,6 +65,11 @@ function rosterFrom(lineup, versionId) {
             role: resolveRole(p.role, spec),
             iconUrl: wowIconUrl((spec && spec.icon) || (cls && cls.icon) || "", 56),
             group,
+            // a Raid-Helper raider (raidhelperRoster.js): the name Raid-Helper shows, and whether no profile character was found for it
+            ...(p.rhName ? { rhName: String(p.rhName) } : {}),
+            ...(p.nameFromRh ? { nameFromRh: true } : {}),
+            // a raider Raid-Helper no longer lists: he keeps his places until the next save with a loaded line-up
+            ...(p.gone ? { gone: true } : {}),
         });
     };
     for (const g of (lineup && lineup.groups) || []) for (const s of g.slots || []) add(s, Number(g.index) || 0);
@@ -72,8 +77,12 @@ function rosterFrom(lineup, versionId) {
     return out;
 }
 
-/** The players the editor offers: the current lineup, else the approved one. */
+/**
+ * The players the editor offers: the current lineup, else the approved one. A Raid-Helper event (raidplanRosterSource.js) brings its
+ * line-up along as `event.roster` - loaded from Raid-Helper, with the raiders it no longer lists marked `gone`.
+ */
 function editorRoster(event) {
+    if (Array.isArray(event.roster)) return event.roster;
     const setup = event.setup;
     const hasDraft = setup && Array.isArray(setup.groups) && (setup.groups.length || (setup.bench || []).length);
     return rosterFrom(hasDraft ? setup : approvedSetupOf(event), event.versionId);
@@ -81,6 +90,8 @@ function editorRoster(event) {
 
 /** The players a public page names: the approved setup only. */
 function publicRoster(event) {
+    // a raider Raid-Helper no longer lists is not named on the public page (like one who is not in an own event's approved setup)
+    if (Array.isArray(event.roster)) return event.roster.filter((p) => !p.gone);
     return rosterFrom(approvedSetupOf(event), event.versionId);
 }
 
@@ -160,7 +171,10 @@ function editorView(event, { canWrite, me = "" }) {
         roster: editorRoster(event),
         // which players of the lineup the logged-in user is (account + the characters of the raider profile): highlighted on the board
         meIds: identify(me, (me ? (raiderProfiles.getProfile(me) || { characters: [] }).characters : []).map((c) => c.key), editorRoster(event)),
-        hasApprovedSetup: !!approvedSetupOf(event),
+        // a Raid-Helper event has no approval: what Raid-Helper lists counts
+        hasApprovedSetup: event.rosterSource ? !!event.rosterSource.available : !!approvedSetupOf(event),
+        // where the players of a Raid-Helper event come from (the header shows it); null for an own event
+        rosterSource: event.rosterSource || null,
         profiles: profileStore.listProfiles(),
         templates: templatesFor(event).map(templateSummary),
         catalog: catalogStore.catalogView(event.versionId || "tbc"),
