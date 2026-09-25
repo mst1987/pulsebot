@@ -1546,3 +1546,23 @@ describe("role groups turned, their names inside (feature/raidplan-16)", () => {
         expect(css).toContain(".rp-rg-label.is-left {");
     });
 });
+describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
+    const fs = require("fs");
+    const p = require("path");
+    const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+    it("a read-only card's columns are as wide as their longest chip (up to 320 px), a card at least 240 px", () => {
+        expect(css).toContain(".rp-alist.rp-linelist.is-ro.rp-read-lines { grid-template-columns: 26px fit-content(320px) 18px fit-content(320px); }");
+        expect(css).toContain(".rp-rgrid > .rp-rsec { min-width: min(100%, 240px); }");
+    });
+    it("a name in a table is never broken; on a phone the tank and group heal tables become blocks (no sideways scrolling)", () => {
+        expect(css).toContain(".rp-rtable .rp-who .class-colored, .rp-rtable .rp-who > strong, .rp-rtable .rp-who-open { white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }");
+        expect(css).toMatch(/@media \(max-width: 560px\) \{[\s\S]*\.rp-gheal \.rp-rtable thead \{ display: none; \}[\s\S]*\.rp-tanktable thead \{ display: none; \}/);
+        const read = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/ReadTables.tsx"), "utf8");
+        expect(read).toContain("<td data-label={t(\"raidBoard.read.colHealedBy\")}>");
+        expect(read).toContain("<table className=\"rp-rtable rp-tanktable\">");
+    });
+    it("the sheet's chips carry the full name in their tooltip", () => {
+        const line = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/AssignLine.tsx"), "utf8");
+        expect(line).toContain(": readOnly ? playerLabel(r.player) : undefined}");
+    });
+});

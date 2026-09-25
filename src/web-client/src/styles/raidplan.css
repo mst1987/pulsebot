@@ -857,6 +857,12 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-mtype { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .rp-read-lines .rp-line { min-height: 44px; }
 .rp-read-lines .rp-lc { height: 30px; font-size: 15px; }
+/* "Alle Einteilungen" (sheet): a card is as wide as its content needs. The "who" column used to be fit-content(45%) of a card that sizes
+   itself by its content - 45 % of the spell line's width - so a name was cut to "Cos…" while room was left on the right (#raidplan-16).
+   Now each column is as wide as its longest chip, up to 320 px (a longer one ends in "…", the full name in its tooltip); a card is at
+   least 240 px (or the whole width), and the cards wrap to the next line when they do not fit side by side */
+.rp-alist.rp-linelist.is-ro.rp-read-lines { grid-template-columns: 26px fit-content(320px) 18px fit-content(320px); }
+.rp-rgrid > .rp-rsec { min-width: min(100%, 240px); }
 
 /* class colours stay readable on the light theme (yellow rogue, white priest): the same darkening as .class-colored */
 @media (prefers-color-scheme: light) {
@@ -1239,6 +1245,10 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-allzone > summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
 .rp-allzone[open] > summary::after { transform: rotate(-135deg); }
 .rp-rtable .rp-rtask, .rp-rtable .rp-who, .rp-rtable .rp-rnote { white-space: normal; overflow-wrap: anywhere; }
+/* a NAME is never broken ("Tankwar" + "t" in a narrow tank table, #raidplan-16): the list wraps between names, a name stays whole; the "YOU"
+   mark sits beside it (a pill of its own), never on it */
+.rp-rtable .rp-who .class-colored, .rp-rtable .rp-who > strong, .rp-rtable .rp-who-open { white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }
+.rp-rtable .rp-who { flex-wrap: nowrap; }
 .rp-rtable td .rp-who-list { flex-wrap: wrap; }
 .rp-rtable td { min-width: 0; }
 .rp-read-right { flex-direction: column; align-items: center; }
@@ -1340,6 +1350,22 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-gheal .rp-rtable { width: 100%; }
 .rp-gheal .rp-rtable td .rp-who, .rp-gheal .rp-rtable td .rp-who * { white-space: nowrap; overflow-wrap: normal; }
 .rp-gheal .rp-rtable td:last-child { min-width: 128px; }
+/* narrow (a phone): a table row of three columns does not fit - each group becomes a block: the group, its members, "Geheilt von: ..." under
+   them (the same for the tank table's healers); no sideways scrolling (#raidplan-16) */
+@media (max-width: 560px) {
+    .rp-gheal .rp-rtable thead { display: none; }
+    .rp-gheal .rp-rtable, .rp-gheal .rp-rtable tbody, .rp-gheal .rp-rtable tr { display: block; width: 100%; }
+    .rp-gheal .rp-rtable td { display: block; border-bottom: 0; padding: 3px 10px; }
+    .rp-gheal .rp-rtable td:last-child { min-width: 0; padding-bottom: 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+    .rp-rtable td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    /* the tank table the same way: "Tank -> target" in one line, the healers under it */
+    .rp-tanktable thead { display: none; }
+    .rp-tanktable, .rp-tanktable tbody { display: block; width: 100%; }
+    .rp-tanktable tr { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+    .rp-tanktable td { display: block; padding: 0; border-bottom: 0; }
+    .rp-tanktable td.rp-tank-at::before { content: "\2192"; margin-right: 8px; color: var(--muted); }
+    .rp-tanktable td[data-label] { flex: 1 0 100%; }
+}
 .rp-mygroup-label { white-space: nowrap; }
 .rp-gcell { flex-wrap: wrap; }
 .rp-gnum { font-size: 16px; white-space: nowrap; }
