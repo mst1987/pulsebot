@@ -111,17 +111,28 @@ pro Worktree: die Agenten (Aufgabe, „läuft“ = Transkript in den letzten
 testen kann**.
 
 - **Agenten** kommen aus den Subagent-Transkripten unter
-  `~/.claude/projects/<repo>/<session>/subagents/` (nur `meta.json` und die
-  ersten 24 KB, nie die ganze Datei). Sie werden dem Worktree zugeordnet, dessen
-  Pfad (sonst Branch) im ersten Prompt steht; alles andere landet unter
-  „(ohne Worktree)“.
+  `~/.claude/projects/<repo>/<session>/subagents/` (`meta.json`, die ersten
+  24 KB für den Prompt und die letzten 512 KB fürs Aktuelle — nie die ganze,
+  oft 50 MB große Datei). Sie werden dem Worktree zugeordnet, dessen Pfad (sonst
+  Branch) im ersten Prompt steht; alles andere landet unter „(ohne Worktree)“.
+- **Was gemacht wurde**: je Agent die letzten Handgriffe („bearbeitet …“,
+  „führt aus: …“) und seine letzte Textnachricht (bei laufenden „Zuletzt
+  geschrieben“, bei beendeten „Ergebnis“); je Worktree die Commit-Texte samt
+  Beschreibung, die PR-Beschreibung und eine Dateiliste mit `+/-` Zeilen
+  (committet, uncommittet und neu zusammengezählt).
 - **Testinstanz**: `WEB_PORT` aus der `.env.dev` des Worktrees, dann `GET /health`
   auf diesem Port. Der dort gemeldete Commit wird mit dem Branch-Stand
   verglichen — „Instanz neu starten“ heißt: sie läuft auf einem älteren Stand.
 - **Was testen**: der Abschnitt „Test…“ aus dem PR-Text (`gh`, mit `--no-pr`
   übersprungen) plus Hinweise je geänderter Bereich (Tabelle `AREAS` in
   `scripts/agent-overview.js`).
-- `--html` schreibt zusätzlich `data/agent-overview.html`, `--json` gibt die
+- **Aktualisieren**: `--serve [port]` startet eine Seite auf
+  `http://localhost:3099/` (nur 127.0.0.1), die sich alle 10 s selbst neu lädt und
+  aufgeklappte Abschnitte offen lässt; `/data.json` liefert die Rohdaten.
+  `--watch [sekunden]` zeichnet den Text im Terminal neu. Beide fragen `gh`
+  höchstens einmal pro Minute.
+- `--html` schreibt zusätzlich `data/agent-overview.html` (Schnappschuss ohne
+  Aktualisierung), `--json` gibt die
   Rohdaten aus, `--all` zeigt auch Worktrees ohne Änderungen und Agenten,
   `--hours N` bestimmt, wie weit zurück Agenten zählen (Standard 24).
 
