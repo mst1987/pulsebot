@@ -348,7 +348,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                 </span>
                             </header>
                             {!fold && (
-                                <ul className="rp-alist">
+                                <ul className="rp-alist rp-linelist">
                                     {rows.length === 0 && inh.length === 0 && <li className="rp-muted rp-acard-empty">{t(type === "heal" ? "raidBoard.assign.cardEmptyHeal" : "raidBoard.assign.cardEmpty")}</li>}
                                     {inh.map((a) => (
                                         <AssignLine

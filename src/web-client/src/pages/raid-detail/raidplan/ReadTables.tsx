@@ -221,7 +221,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                 <section key={tb.type} className="rp-rsec" aria-label={t(`raidBoard.assign.type.${tb.type}`)}>
                     <h3><TypeBadge type={tb.type} /></h3>
                     {/* the same row container as the editor, read-only: who -> at whom, the viewer's own chip carries "DU" */}
-                    <ul className="rp-alist rp-read-lines">
+                    <ul className="rp-alist rp-linelist is-ro rp-read-lines">
                         {assignments.filter((a) => String(a.type) === tb.type).map((a) => <AssignLine key={a.id} a={a} filled={a} ctx={ctx} isEvent readOnly me={me} />)}
                     </ul>
                 </section>
