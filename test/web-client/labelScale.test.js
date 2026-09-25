@@ -22,16 +22,19 @@ describe("label metrics", () => {
     it("an icon (bigger default) uses a smaller share", () => {
         expect(ls.labelMetrics(48, ls.ICON_NAME_FACTOR, 1).font).toBeCloseTo(11.52, 9);
     });
-    it("below the legibility limit the font stops shrinking, and a label that would then dwarf its icon is hidden", () => {
-        // a 38-unit icon at 0.3 px per unit: font 11.4 units = 3.4 px on screen -> clamped to 7 px = 23.3 units, wider than 2.2 icons
-        const tiny = ls.labelMetrics(38, ls.NAME_FACTOR, 0.3);
-        expect(tiny.clamped).toBe(true);
-        expect(tiny.font).toBeCloseTo(7 / 0.3, 9);
-        expect(tiny.show).toBe(false);
-        // clamped but the label still fits (a big icon on a small board): shown at the minimum
-        const ok = ls.labelMetrics(152, ls.NAME_FACTOR, 0.15);
-        expect(ok.clamped).toBe(true);
-        expect(ok.show).toBe(true);
+    it("the ratio to the icon never changes with the zoom: too small on screen = hidden, never enlarged (names lay on the next raider)", () => {
+        // a 38-unit icon at every zoom: always 11.4 units, whatever the board's scale on screen
+        for (const scale of [0.2, 0.36, 0.58, 1, 3]) {
+            const m = ls.labelMetrics(38, ls.NAME_FACTOR, scale);
+            expect(m.font).toBeCloseTo(38 * ls.NAME_FACTOR, 9);
+            expect(m.clamped).toBe(false);
+        }
+        // 11.4 units x 0.3 px per unit = 3.4 px on screen: hidden
+        expect(ls.labelMetrics(38, ls.NAME_FACTOR, 0.3).show).toBe(false);
+        // 11.4 x 0.5 = 5.7 px: shown, at its share
+        expect(ls.labelMetrics(38, ls.NAME_FACTOR, 0.5).show).toBe(true);
+        // a big icon on a small board: shown
+        expect(ls.labelMetrics(152, ls.NAME_FACTOR, 0.15).show).toBe(true);
         expect(ls.labelMetrics(38, ls.NAME_FACTOR, 0).show).toBe(true);
     });
 });

@@ -1379,3 +1379,34 @@ describe("sections in or out of the sheet", () => {
         expect(lib.sheetKeysFor(sections, "noTrash")).toEqual(["bt/a", "bt/b", "bt/general"]);
     });
 });
+
+describe("names on a group ring (feature/raidplan-14)", () => {
+    const lib2 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("neighbours on a ring stand at least RING_CHORD tokens apart, whatever their number", () => {
+        for (const n of [2, 3, 4, 5, 6, 8]) {
+            const r = lib2.ringRadius(n, 38);
+            expect(2 * r * Math.sin(Math.PI / n)).toBeGreaterThanOrEqual(lib2.RING_CHORD * 38 - 1e-9);
+        }
+        expect(lib2.ringRadius(0, 38)).toBe(0);
+        // few raiders keep the old minimum radius
+        expect(lib2.ringRadius(3, 38)).toBeCloseTo(38 * 1.7, 9);
+    });
+    it("a member's name is never wider than the room to its neighbour (and never more than 2.6 icons)", () => {
+        for (const n of [2, 3, 5, 8]) {
+            const w = lib2.ringNameWidth(n, 38, 38);
+            const chord = 2 * lib2.ringRadius(n, 38) * Math.sin(Math.PI / n);
+            expect(w).toBeLessThanOrEqual(chord - 38 * 0.25 + 1e-9);
+            expect(w).toBeLessThanOrEqual(38 * 2.6);
+        }
+        expect(lib2.ringNameWidth(1, 38, 38)).toBe(38 * 2.6);
+        // members drawn bigger than the ring spacing: the name gets at least a little room
+        expect(lib2.ringNameWidth(5, 20, 60)).toBeGreaterThanOrEqual(60 * 1.2);
+    });
+    it("the stylesheet: the name hangs under its icon at a share of it, the ring caps its width, the group badge sits at the top", () => {
+        const css = require("fs").readFileSync(require("path").join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-canvas .rp-token .rp-token-name { font-size: var(--rp-nf, calc(var(--rp-s, 38px) * .3)); top: calc(var(--rp-s, 38px) * .58); max-width: var(--rp-nw, calc(var(--rp-s, 38px) * 2.6));");
+        expect(css).toContain(".rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); top: calc(var(--rp-s, 38px) * -.13); bottom: auto;");
+        const board = require("fs").readFileSync(require("path").join(__dirname, "../../src/web-client/src/components/raidplan/PlanBoard.tsx"), "utf8");
+        expect(board).toContain("\"--rp-nw\": `${Math.round(nameRoom)}px`");
+    });
+});

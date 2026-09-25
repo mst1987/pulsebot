@@ -388,3 +388,12 @@ A board's saved cutout (`board.view` = `{ zoom, cx, cy }`, "Ausschnitt als Stand
 ### Options of a multi-selection
 
 The inspector of several selected objects (`MultiInspector`) shows, besides size, opacity, lock, hide, align and the actions, every option ALL of them have (`lib/multiSelect.ts sharedOptions`): ring / border (tokens, slots, icons, zones, the tank rows' objects), name (tokens, slots, icons, auto objects), colour (zones, lines, texts), and for boss / mob / enemy icons and the mobs of the tank rows the **facing target** ("Zum eigenen Tank drehen" or one of the eight directions for all) and the **arrow** (size, hidden, colour, opacity). `optionSummary` shows a value when all agree, else "gemischt" (in the label, a tri-state checkbox); `setLookSelection`, `setColorSelection`, `setFacingSelection`, `patchArrowSelection` apply a change to every selected object that has the option (locked ones keep theirs) — one board change, so one undo step. "Zum eigenen Tank" follows the rule above: with several Flames each turns to the tank of that very icon. No native selects; the compass is buttons. Tests: `test/web-client/multiOptions.test.js`.
+
+## Names on the map (feature/raidplan-14)
+
+"Die Namen sind verschoben beim Zoom": the name under a token is a share of its icon (`lib/labelScale.ts` NAME_FACTOR 0.3, ICON_NAME_FACTOR 0.24) and hangs under it, centred (`.rp-canvas .rp-token .rp-token-name`: top 0.58 icons). Until round 14 `labelMetrics` **enlarged** a name whose font would be under 7 px on screen - so on a small board (the sheet on a phone, zoomed out) the names grew to up to 0.5 icons, wider than the room between two raiders of a group ring, and lay on the next raider; zooming in shrank them back. Now the share never changes: a name smaller than `HIDE_SCREEN_FONT` (5.5 px) on screen is hidden, never blown up - the same picture at every zoom, in the editor and the sheet (one reference space, one scale: the canvas transform). Besides:
+
+- **Group rings** keep neighbours at least `RING_CHORD` (2.2) tokens apart (`ringRadius`), and a ring member's name is never wider than the room to its neighbour (`ringNameWidth` -> `--rp-nw`, a long name ends in "…").
+- **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so they never meet (before it sat at the lower right, on the name's first line).
+
+Tests: `test/web-client/labelScale.test.js`, "names on a group ring" in `test/web-client/raidplan.test.js`.
