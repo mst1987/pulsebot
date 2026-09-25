@@ -25,7 +25,13 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 ## Raidplan
 
-*Tab der Raid-Detailseite eines eigenen Events, Bereich "Raids" (lesen/schreiben)*
+*Tab der Raid-Detailseite, Bereich "Raids" (lesen/schreiben) — bei eigenen Events immer, bei Raid-Helper-Events sobald der Raidplan aktiviert ist*
+
+- **Raid-Helper-Events:** Über **Verwalten → "Raidplan aktivieren"** bekommt auch ein Raid-Helper-Event einen Raidplan. Der Dialog schlägt Instanz und Größe aus dem Eventnamen vor ("BT 25er" → Black Temple, 25); du prüfst und korrigierst sie. Die **Aufstellung kommt aus Raid-Helper und ist schreibgeschützt** — Änderungen machst du in Raid-Helper, im Plan holt **Neu laden** sie sofort (sonst höchstens einmal pro Minute). Oben im Plan steht, woher die Spieler kommen und von wann der Stand ist.
+  - Namen: Raid-Helper zeigt oft Discord-Namen. Der Plan sucht im Raider-Profil den Charakter der Klasse aus Raid-Helper (Main bevorzugt); findet er keinen, steht der Raid-Helper-Name **kursiv** da ("Name aus Raid-Helper"). Der Tooltip zeigt beide Namen, die Suche findet beide.
+  - Gruppen: Nennt Raid-Helper keine Gruppen, sind es 5er-Blöcke in Reihenfolge — der Plan warnt dann, Gruppen-Einteilungen sind unzuverlässig.
+  - Antwortet Raid-Helper nicht (oder ist es in den Einstellungen abgeschaltet), zeigt der Plan den letzten bzw. gespeicherten Stand; beim Speichern geht dann **kein Spieler verloren**. Wer in Raid-Helper nicht mehr steht, bleibt **durchgestrichen** ("nicht mehr im Setup") auf seinen Plätzen, bis du mit frisch geladener Aufstellung speicherst.
+  - **"Raidplan aktiv ✓ – deaktivieren"** (mit Rückfrage) blendet den Tab aus und zieht den öffentlichen Link zurück; der Plan bleibt gespeichert und ist beim erneuten Aktivieren wieder da.
 
 - Je Boss der gewählten Instanz ein **Board**: Bossraum-Karte als Hintergrund, Spieler aus dem Setup frei darauf verschieben (mit Maus oder Finger; Pfeiltasten und Entf gehen auch), rechts die **Aufgabenzeilen** mit zugewiesenen Spielern und eine Notiz. Wer noch nicht platziert ist, steht in der Liste "Nicht platziert".
 - Alles Bearbeitbare ist sofort sichtbar: oben eine **feste Werkzeugleiste** (Rückgängig/Wiederholen mit Strg+Z / Strg+Y, Pfeil, Linie, Text, Rechteck, Ellipse, Vorlage wählen, Freigeben, Speichern), darunter die Boss-Auswahl und **Nicht platziert** (Spieler von dort aufs Board oder auf einen Slot ziehen). Links die **Elemente-Palette** (Raid-Marker, Slots für Tank/Heiler/DPS/Gruppe/Label, Zonen, Pfeil/Linie/Text) zum Ziehen oder Anklicken, in der Mitte das Board, rechts **Eigenschaften** (Farbe, Deckkraft, Größe, Beschriftung, Spieler zuweisen, Sperren, Löschen), **Hintergrund** (Karte, Karte abdunkeln) und die **Ebenen**-Liste (jedes Objekt, ein-/ausblenden, sperren, Reihenfolge, löschen). Palette und Seitenleiste lassen sich für ein größeres Board ausblenden.

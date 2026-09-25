@@ -7,13 +7,36 @@ import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePl
 import { t } from "../i18n";
 
 export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
-    | "notify" | "sheet" | "softres" | "invite";
+    | "notify" | "sheet" | "softres" | "invite" | "raidplanOn" | "raidplanOff";
 export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
 /**
  * `softres` false = the raid's loot system has no softres list (Loot-Council, …): no menu entry for it.
  * `invite` = an approved setup exists, so "Invite callen" has groups to ping.
  */
 export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean; invite?: boolean };
+/**
+ * A Raid-Helper event's menu (docs/raidplan.md, "Raid-Helper-Events"): only the raid plan switch. `disabled` = Raid-Helper is
+ * switched off in the settings - the entry stays, its line says the plan works from the saved line-up only.
+ */
+export type RaidhelperManageState = { planEnabled: boolean; disabled: boolean };
+
+/** The slim menu of a Raid-Helper event: switch its raid plan on, or (with a confirmation) off. */
+export function raidhelperMenu(state: RaidhelperManageState): ManageMenuEntry[] {
+    const note = state.disabled ? t("raidDetail.manage.raidplanDisabled") : "";
+    if (state.planEnabled) return [entry("raidplanOff", t("raidDetail.manage.raidplanOff"), "inv_misc_map02", note || t("raidDetail.manage.raidplanOffSub"), false)];
+    return [entry("raidplanOn", t("raidDetail.manage.raidplanOn"), "inv_misc_map02", note || t("raidDetail.manage.raidplanOnSub"), false)];
+}
+
+/** The instance chips and size a Raid-Helper event's activation dialog starts with: what the plan has, else what the title says. */
+export function linkStart(link: { instanceIds: string[]; size: number } | null, suggestion: { instanceIds: string[]; size: number }): { instanceIds: string[]; size: number } {
+    const from = link && link.instanceIds.length > 0 ? link : suggestion;
+    return { instanceIds: from.instanceIds.slice(), size: from.size || 0 };
+}
+
+/** The sizes the dialog offers for the chosen instances (each instance's own), largest last; the default when nothing is chosen. */
+export function linkSizes(instances: { id: string; sizes: number[] }[], chosen: string[]): number[] {
+    return [...new Set(instances.filter((i) => chosen.includes(i.id)).flatMap((i) => i.sizes))].sort((a, b) => a - b);
+}
 
 function entry(id: ManageAction, label: string, icon: string, sub: string, danger: boolean): ManageMenuEntry {
     return { id, label, icon, sub, danger };

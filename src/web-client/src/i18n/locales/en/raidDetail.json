@@ -288,7 +288,13 @@
         },
         "eventRemoved": "Event is removed",
         "invite": "Call invites",
-        "inviteSub": "Ping groups 1–5: /w your character inv"
+        "inviteSub": "Ping groups 1–5: /w your character inv",
+        "raidplanOn": "Activate raid plan",
+        "raidplanOnSub": "Boards per boss – the line-up comes from Raid-Helper",
+        "raidplanOff": "Raid plan active ✓ – deactivate",
+        "raidplanOffSub": "The plan is kept, the public link is withdrawn",
+        "raidplanDisabled": "Raid-Helper is switched off – line-up from the saved state only",
+        "tipSubRaidhelper": "Switch the raid plan of this Raid-Helper event on or off"
     },
     "classSource": {
         "export": "Loot export",
@@ -321,5 +327,25 @@
             "other": "{names} are still standing."
         },
         "evalAnyway": "“Evaluate” asks first – an unfinished raid can still be evaluated."
+    },
+    "raidplanLink": {
+        "title": "Activate raid plan",
+        "readOnly": "The line-up comes from Raid-Helper and is read-only here. You only set which raid is played.",
+        "instances": "Instance",
+        "detected": "detected from the event name – please check",
+        "noneDetected": "not safely detected in the event name – please choose",
+        "size": "Size",
+        "sizeNone": "choose an instance first",
+        "sizeValue": "{size} players",
+        "version": "Game version",
+        "versionTbc": "TBC",
+        "players": "{count} players in Raid-Helper",
+        "noPlayers": "Raid-Helper lists no players right now – the plan works anyway, the players come with the next load.",
+        "confirm": "Activate",
+        "activated": "Raid plan activated.",
+        "offTitle": "Deactivate raid plan?",
+        "offText": "The plan is kept and comes back when you activate it again. The public link is withdrawn.",
+        "offAction": "Deactivate",
+        "deactivated": "Raid plan deactivated."
     }
 }

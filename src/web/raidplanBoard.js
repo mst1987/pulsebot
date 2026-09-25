@@ -50,6 +50,9 @@ const assign = require("./raidplanAssign");
 const steps = require("./raidplanSteps");
 const besetzung = require("./raidplanBesetzung");
 
+// cleanBoard's llowedUserIds value that keeps every well-formed player id
+const ANY_PLAYER = "*";
+
 const LIMITS = {
     tokensPerBoss: 60,
     slotsPerBoss: 60,
@@ -179,12 +182,14 @@ function cleanId(raw, seen) {
 
 /**
  * Cleans one board. `allowedUserIds` are the players that may stand on it (empty
- * for a template); anyone else is dropped and counted. Returns `{ board, dropped }`
+ * for a template); anyone else is dropped and counted. `ANY_PLAYER` ("*") keeps every
+ * well-formed id: a Raid-Helper event whose line-up could not be loaded must not lose
+ * its players on a save (docs/raidplan.md, "Raid-Helper-Events"). Returns `{ board, dropped }`
  * or `{ code: "invalid", error }` for something over a limit.
  */
 function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = true } = {}) {
     const input = raw && typeof raw === "object" ? raw : {};
-    const allowed = new Set([...allowedUserIds].map(str));
+    const allowed = allowedUserIds === ANY_PLAYER ? { has: (u) => /^[\w-]{1,40}$/.test(str(u)) } : new Set([...allowedUserIds].map(str));
     const profiles = new Set([...profileIds].map(str));
     let dropped = 0;
 
@@ -536,5 +541,5 @@ function fillSlots(slots, roster) {
 module.exports = {
     cleanFactor, cleanView,
     LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, ZONE_ROLES, ROLE_COLORS, cleanArrow, MIN_ZONE,
-    cleanBoard, boardHasContent, reidBoard, fillSlots, newId, cleanAutoPos, cleanAutoStyle, rowKey, AUTO_KEY,
+    cleanBoard, boardHasContent, reidBoard, fillSlots, newId, cleanAutoPos, cleanAutoStyle, rowKey, AUTO_KEY, ANY_PLAYER,
 };

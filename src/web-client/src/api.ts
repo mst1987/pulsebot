@@ -1222,6 +1222,10 @@ export type RaidDetailEvent = {
     cancelReason?: string;
     cancelArchived?: boolean;
     logCount?: number;
+    /** The event has a raid plan: always an own event, a Raid-Helper event once the orga switched it on (docs/raidplan.md). */
+    raidplanEnabled?: boolean;
+    /** Raid-Helper is switched off in the settings: a Raid-Helper event's plan works from the line-up it saved last. */
+    raidhelperDisabled?: boolean;
 };
 
 // ---- Event verwalten (#288): GET/POST /api/raids/manage* ----
@@ -4231,6 +4235,44 @@ export type RaidplanPlayer = {
     role: string;
     iconUrl: string;
     group: number;
+    /** a Raid-Helper event: the name Raid-Helper shows (a nickname, maybe) - `character` is the profile's character when one was found */
+    rhName?: string;
+    /** a Raid-Helper event: no profile character was found, `character` is Raid-Helper's name */
+    nameFromRh?: boolean;
+    /** a Raid-Helper event: Raid-Helper no longer lists him; he keeps his places until the next save with a loaded line-up */
+    gone?: boolean;
+};
+/** Where a Raid-Helper event's players come from right now (raidplanRosterSource.js); null for an own event. */
+export type RaidplanRosterSource = {
+    kind: "raidhelper";
+    /** live / cache = Raid-Helper just answered; last = its last answer; snapshot = a past raid's snapshot; saved = the line-up the plan remembered; none */
+    origin: "live" | "cache" | "last" | "snapshot" | "saved" | "none";
+    fetchedAt: number;
+    available: boolean;
+    authoritative: boolean;
+    stale: boolean;
+    lineupSource: "raidplan" | "signups" | "saved" | "none";
+    hasGroups: boolean;
+    unknown: string[];
+    unmatchedNames: number;
+    goneCount: number;
+    disabled: boolean;
+    error: string;
+};
+/** A Raid-Helper event's raid plan switch and what its title suggests (GET/POST /api/raidplan/link). */
+export type RaidplanLinkInstance = { id: string; name: string; short: string; sizes: number[]; defaultSize: number };
+export type RaidplanLinkView = {
+    eventId: string;
+    title: string;
+    enabled: boolean;
+    link: { enabled: boolean; instanceIds: string[]; versionId: string; size: number; title: string } | null;
+    suggestion: { instanceIds: string[]; size: number; versionId: string };
+    instances: RaidplanLinkInstance[];
+    hasPlan: boolean;
+    published: boolean;
+    raidhelperDisabled: boolean;
+    /** only on GET: what Raid-Helper lists right now (players, whether it names the groups) */
+    lineup?: { count: number; available: boolean; hasGroups: boolean; origin: string; unmatchedNames: number; unknown: string[] };
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
 export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class" | "role"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number };
@@ -4305,6 +4347,8 @@ export type RaidplanView = {
     catalog: Catalog;
     roster: RaidplanPlayer[];
     hasApprovedSetup: boolean;
+    /** a Raid-Helper event: where its players come from (header note, reload, stale); null for an own event */
+    rosterSource?: RaidplanRosterSource | null;
     profiles: RaidplanProfile[];
     templates: RaidplanTemplateSummary[];
     limits: { tokensPerBoss: number; targetsPerBoss: number; usersPerTarget: number; title: number; notes: number; mapBytes: number; profileName: number; profileCategory: number };
@@ -4328,8 +4372,18 @@ export type RaidplanPublic = {
     loggedIn: boolean;
 };
 
-export function getRaidplan(eventId: string): Promise<RaidplanView> {
-    return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}`);
+/** `fresh`: a Raid-Helper event asks Raid-Helper again now instead of the minute's cache ("Neu laden"). */
+export function getRaidplan(eventId: string, fresh = false): Promise<RaidplanView> {
+    return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}${fresh ? "&fresh=1" : ""}`);
+}
+
+export function getRaidplanLink(eventId: string): Promise<RaidplanLinkView> {
+    return get<RaidplanLinkView>(`/api/raidplan/link?event=${encodeURIComponent(eventId)}`);
+}
+
+/** Switches a Raid-Helper event's raid plan on (with instances / size / version) or off (the plan stays, its public link goes). */
+export function setRaidplanLink(csrfToken: string | null, input: { event: string; enabled: boolean; instanceIds?: string[]; size?: number; versionId?: string }): Promise<RaidplanLinkView> {
+    return send("POST", "/api/raidplan/link", csrfToken, input);
 }
 
 export function saveRaidplan(csrfToken: string | null, input: { event: string; version: number; bosses: Record<string, RaidplanBoard> }): Promise<RaidplanView> {

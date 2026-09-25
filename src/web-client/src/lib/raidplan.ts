@@ -11,7 +11,7 @@
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
     RaidplanBoard, RaidplanBoss, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
-    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, RaidplanAutoStyle, Besetzung, BesetzungCounts,
+    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, RaidplanAutoStyle, Besetzung, BesetzungCounts, RaidplanRosterSource,
 } from "../api";
 import { t } from "../i18n";
 
@@ -1555,4 +1555,37 @@ export function sheetKeysFor(sections: RaidplanBoss[], mode: string): string[] {
 /** Players by userId, for looking up who a token or an assignment is. */
 export function rosterMap(roster: RaidplanPlayer[]): Map<string, RaidplanPlayer> {
     return new Map(roster.map((p) => [p.userId, p]));
+}
+
+/**
+ * What a Raid-Helper raider's tooltip adds (docs/raidplan.md, "Raid-Helper-Events"): the name Raid-Helper shows when the chip shows
+ * his character ("Raid-Helper: Nick"), "Name aus Raid-Helper" when no profile character was found, "nicht mehr im Setup" when
+ * Raid-Helper no longer lists him. "" for everybody else (an own event's raiders).
+ */
+export function rhNote(p: RaidplanPlayer): string {
+    const parts = [];
+    if (p.gone) parts.push(t("raidBoard.rh.goneMark"));
+    if (p.nameFromRh) parts.push(t("raidBoard.rh.nameFromRh"));
+    else if (p.rhName && p.rhName !== p.character) parts.push(t("raidBoard.rh.rhName", { name: p.rhName }));
+    return parts.join(" · ");
+}
+
+/**
+ * What the head of a Raid-Helper event's plan says about its players (docs/raidplan.md, "Raid-Helper-Events"): where they come from,
+ * the warnings (stale / not available / no groups) and the small notes (names not matched, unknown specs, raiders no longer listed).
+ */
+export function rhSourceText(src: RaidplanRosterSource): { main: string; warns: string[]; notes: string[] } {
+    const warns = [];
+    const notes = [];
+    const main = src.lineupSource === "signups" ? t("raidBoard.rh.sourceSignups") : t("raidBoard.rh.source");
+    if (!src.available) warns.push(src.disabled ? t("raidBoard.rh.stale.disabled") : t("raidBoard.rh.unavailable"));
+    else if (src.stale) {
+        const why = src.disabled ? "disabled" : src.origin === "snapshot" ? "snapshot" : src.origin === "saved" ? "saved" : "last";
+        warns.push(`${t(`raidBoard.rh.stale.${why}`)} ${t("raidBoard.rh.stale.keep")}`);
+    }
+    if (src.available && !src.hasGroups) warns.push(t("raidBoard.rh.noGroups"));
+    if (src.unmatchedNames > 0) notes.push(t("raidBoard.rh.unmatched", { count: src.unmatchedNames }));
+    if (src.unknown.length > 0) notes.push(t("raidBoard.rh.unknown", { count: src.unknown.length, names: [...new Set(src.unknown)].join(", ") }));
+    if (src.goneCount > 0) notes.push(t("raidBoard.rh.gone", { count: src.goneCount }));
+    return { main, warns, notes };
 }

@@ -13,12 +13,12 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen,
+    canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
     type ApiError, type RaidDetailData, type RaidDetailModal, type RaidEventSteps,
     type RaidPrimaryAction, type RaidStep, type RaidStepDeed,
 } from "../api";
 import { useConfirm } from "../components/ui/Modal";
-import type { ManageAction } from "../lib/eventManage";
+import { raidhelperMenu, type ManageAction } from "../lib/eventManage";
 import { withoutDeeds } from "../lib/raidSteps";
 import ManageMenu from "./raid-detail/manage/ManageMenu";
 import MoveModal from "./raid-detail/manage/MoveModal";
@@ -27,6 +27,7 @@ import DeleteModal from "./raid-detail/manage/DeleteModal";
 import RaiderModal from "./raid-detail/manage/RaiderModal";
 import HistoryModal from "./raid-detail/manage/HistoryModal";
 import InviteModal from "./raid-detail/manage/InviteModal";
+import RaidplanLinkModal from "./raid-detail/manage/RaidplanLinkModal";
 import "../styles/event-manage.css";
 import RaidCreateDialog from "../components/RaidCreateDialog";
 import { usePersistedSearchParam } from "../lib/persistedState";
@@ -98,6 +99,8 @@ export default function RaidDetailPage() {
     const [error, setError] = useState<ApiError | null>(null);
     const [modal, setModal] = useState<RaidDetailModal | null>(legacy?.modal || null);
     const [player, setPlayer] = useState<PlayerRef | null>(null);
+    // "Raidplan aktivieren" of a Raid-Helper event (docs/raidplan.md, "Raid-Helper-Events")
+    const [linkOpen, setLinkOpen] = useState(false);
 
     const load = () => {
         getRaidDetail(eventId).then(setData).catch((err: ApiError) => setError(err));
@@ -131,9 +134,11 @@ export default function RaidDetailPage() {
 
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
     const ownEvent = data.event.source === "eventhelper";
-    // The raid plan (boards per boss) belongs to an own event like the setup it takes its players from.
-    const tabs = TABS.filter((t) => (t !== "setup" && t !== "plan") || ownEvent);
-    const shown: Tab = (tab === "setup" || tab === "plan") && !ownEvent ? LEGACY_TABS.setup.tab : tab;
+    // The raid plan (boards per boss): always on an own event, on a Raid-Helper event once the orga switched it on (its players then
+    // come from Raid-Helper). The setup editor stays an own event's.
+    const hasPlan = ownEvent || !!data.event.raidplanEnabled;
+    const tabs = TABS.filter((t) => (t === "setup" ? ownEvent : t === "plan" ? hasPlan : true));
+    const shown: Tab = (tab === "setup" && !ownEvent) || (tab === "plan" && !hasPlan) ? LEGACY_TABS.setup.tab : tab;
 
     const openStep = (step: RaidStep) => {
         if (step.open.modal) setModal(step.open.modal);
@@ -160,9 +165,22 @@ export default function RaidDetailPage() {
     // Event verwalten (#288): one menu for an own event, only with raids write.
     // Editing reuses the create dialog (#261), everything else is a dialog or one question.
     const canManage = !!ctx.canManage;
+    // A Raid-Helper event's menu holds only the raid plan switch (raids write).
+    const canSwitchPlan = !ownEvent && canAccess(user, "raids", "write");
     const runManage = async (action: ManageAction) => {
         const ev = data.event;
-        if (action === "edit") setEditing(true);
+        if (action === "raidplanOn") setLinkOpen(true);
+        else if (action === "raidplanOff") {
+            const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "inv_misc_map02" });
+            if (!ok) return;
+            try {
+                await setRaidplanLink(csrfToken, { event: ev.id, enabled: false });
+                if (tab === "plan") switchTab("roster");
+                afterChange(t("raidDetail.raidplanLink.deactivated"));
+            } catch (err) {
+                jobs.notify((err as ApiError).message, "err");
+            }
+        } else if (action === "edit") setEditing(true);
         else if (action === "move") setModal("move");
         else if (action === "raider") setModal("raider");
         else if (action === "ping") setModal("ping");
@@ -236,6 +254,12 @@ export default function RaidDetailPage() {
                         state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres, invite: !!data.ownSetup?.approvedAt }}
                         onAction={runManage}
                     />
+                ) : canSwitchPlan ? (
+                    <ManageMenu
+                        entries={raidhelperMenu({ planEnabled: !!data.event.raidplanEnabled, disabled: !!data.event.raidhelperDisabled })}
+                        tipSub={t("raidDetail.manage.tipSubRaidhelper")}
+                        onAction={runManage}
+                    />
                 ) : undefined}
             />
 
@@ -273,6 +297,7 @@ export default function RaidDetailPage() {
                     <InviteModal ctx={ctx} open={modal === "invite"} onClose={close} />
                 </>
             )}
+            {canSwitchPlan && <RaidplanLinkModal ctx={ctx} open={linkOpen} onClose={() => setLinkOpen(false)} onDone={() => { load(); switchTab("plan"); }} />}
             {editing && (
                 <RaidCreateDialog
                     open sourceId="" editEventId={data.event.id} csrfToken={csrfToken} userId={user?.id || ""}

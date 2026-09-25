@@ -36,7 +36,7 @@ export default function AssignRosterModal({ board, roster, isEvent, canWrite, ed
     const players = useMemo(() => new Map(roster.map((p) => [p.userId, p])), [roster]);
     const label = (s: RaidplanSlot) => t(`raidBoard.slot.${s.kind}`, { n: s.n });
     const cands = useMemo(() => (slot ? slotCandidates(board, slot, roster) : []), [board, slot, roster]);
-    const shown = cands.filter((c) => (!cls || c.player.classId === cls) && (!query.trim() || c.player.character.toLowerCase().indexOf(query.trim().toLowerCase()) >= 0));
+    const shown = cands.filter((c) => (!cls || c.player.classId === cls) && (!query.trim() || `${c.player.character} ${c.player.rhName || ""}`.toLowerCase().indexOf(query.trim().toLowerCase()) >= 0));
 
     /** Gives the selected slot (or the one a drag ended on) to a player, swapping when he stands elsewhere; then moves on to the next slot. */
     const give = (slotId: string, userId: string) => {

@@ -8,7 +8,7 @@
 // clipped panel, and a popover inside it would be cut off after three entries.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { manageMenu, type ManageAction, type ManageState } from "../../../lib/eventManage";
+import { manageMenu, type ManageAction, type ManageMenuEntry, type ManageState } from "../../../lib/eventManage";
 import { Button } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/icons";
@@ -16,7 +16,8 @@ import { useT } from "../../../i18n";
 
 type Place = { top: number; right: number };
 
-export default function ManageMenu({ state, onAction }: { state: ManageState; onAction: (action: ManageAction) => void }) {
+/** `entries` replaces the own event's menu (a Raid-Helper event has only its raid plan switch); `tipSub` the button's second line. */
+export default function ManageMenu({ state, entries: given, tipSub, onAction }: { state?: ManageState; entries?: ManageMenuEntry[]; tipSub?: string; onAction: (action: ManageAction) => void }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const [place, setPlace] = useState<Place | null>(null);
@@ -56,14 +57,14 @@ export default function ManageMenu({ state, onAction }: { state: ManageState; on
         };
     }, [open]);
 
-    const entries = manageMenu(state);
+    const entries = given || (state ? manageMenu(state) : []);
     return (
         <div className="em-menu" ref={anchor}>
             <Button
                 variant="ghost" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
                 className={open ? "em-open" : undefined}
                 data-tip={open ? undefined : t("raidDetail.manage.tip")}
-                data-tip-sub={open ? undefined : t("raidDetail.manage.tipSub")}
+                data-tip-sub={open ? undefined : tipSub || t("raidDetail.manage.tipSub")}
                 onClick={() => setOpen((o) => !o)}
             >
                 {t("raidDetail.manage.button")}<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>

@@ -158,6 +158,49 @@ function newToken() {
     return crypto.randomBytes(18).toString("base64url");
 }
 
+/**
+ * The switch of a Raid-Helper event's plan (docs/raidplan.md, "Raid-Helper-Events"): a Raid-Helper event has no instance, size or game
+ * version of its own, so the plan record carries them - taken from the title when the orga switched the plan on and corrected there.
+ * null for an own event (its event record says all this) and for anything that is not such a switch.
+ */
+function normalizeLink(raw) {
+    const r = raw && typeof raw === "object" ? raw : null;
+    if (!r || r.source !== "raidhelper") return null;
+    const ids = Array.isArray(r.instanceIds) ? [...new Set(r.instanceIds.map(str).filter((id) => !!instanceById(id)))].slice(0, 6) : [];
+    const size = Math.floor(Number(r.size) || 0);
+    const composition = r.composition && typeof r.composition === "object" && !Array.isArray(r.composition)
+        ? Object.fromEntries(["tank", "healer", "melee", "ranged"].filter((k) => Number.isFinite(Number(r.composition[k]))).map((k) => [k, Math.max(0, Math.min(40, Math.floor(Number(r.composition[k]))))]))
+        : null;
+    return {
+        source: "raidhelper",
+        enabled: r.enabled === true,
+        instanceIds: ids,
+        versionId: /^[a-z0-9-]{2,20}$/.test(str(r.versionId)) ? str(r.versionId) : "tbc",
+        size: size >= 1 && size <= 40 ? size : 0,
+        composition: composition && Object.keys(composition).length ? composition : null,
+        title: str(r.title).slice(0, 120),
+        guildId: /^\d{5,25}$/.test(str(r.guildId)) ? str(r.guildId) : "",
+        startTime: Math.max(0, Math.floor(Number(r.startTime) || 0)),
+        changedAt: Number(r.changedAt) || 0,
+        changedBy: str(r.changedBy),
+    };
+}
+
+/**
+ * Who the players of a Raid-Helper plan were the last time its line-up was loaded: `{ [userId]: { character, spec, rhName } }`. A raider
+ * Raid-Helper no longer lists keeps his places and shows under this name ("nicht mehr im Setup") until the next save with a loaded
+ * line-up drops him. Only for players the plan names; nothing else is kept.
+ */
+function normalizeKnown(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+    for (const [uid, p] of Object.entries(raw).slice(0, 200)) {
+        if (!/^[\w-]{1,40}$/.test(uid) || !p || typeof p !== "object") continue;
+        out[uid] = { character: str(p.character).slice(0, 40), spec: str(p.spec).slice(0, 40), rhName: str(p.rhName).slice(0, 40), group: Math.max(0, Math.min(20, Math.floor(Number(p.group) || 0))) };
+    }
+    return out;
+}
+
 /** A plan as it is stored: every field present, nothing else. */
 function normalizePlan(raw, eventId) {
     const r = raw && typeof raw === "object" ? raw : {};
@@ -170,7 +213,55 @@ function normalizePlan(raw, eventId) {
         bosses: r.bosses && typeof r.bosses === "object" ? r.bosses : {},
         updatedAt: Number(r.updatedAt) || 0,
         updatedBy: str(r.updatedBy),
+        link: normalizeLink(r.link),
+        known: normalizeKnown(r.known),
     };
+}
+
+/**
+ * The userIds a plan's bosses name anywhere: tokens and slots (`userId`), `user:` references in rows and steps, player targets, a row's
+ * picks, flex roles (keys of `roles`) and lists of `users`. A walk over the stored boards, so a new place a player can stand is found too
+ * as long as it uses one of these shapes.
+ */
+function playersOf(bosses) {
+    const ids = new Set();
+    const add = (u) => { if (typeof u === "string" && /^[\w-]{1,40}$/.test(u)) ids.add(u); };
+    const walk = (v, depth) => {
+        if (depth > 8 || !v || typeof v !== "object") return;
+        if (Array.isArray(v)) {
+            for (const x of v) {
+                if (typeof x === "string" && x.startsWith("user:")) add(x.slice(5));
+                else walk(x, depth + 1);
+            }
+            return;
+        }
+        if (v.kind === "player") add(v.ref);
+        for (const [k, x] of Object.entries(v)) {
+            if (k === "userId") add(x);
+            else if (k === "picks" && x && typeof x === "object") Object.values(x).forEach(add);
+            else if (k === "roles" && x && typeof x === "object" && !Array.isArray(x)) Object.keys(x).forEach(add);
+            else if (k === "users" && Array.isArray(x)) x.forEach(add);
+            else if (typeof x === "string" && x.startsWith("user:")) add(x.slice(5));
+            else walk(x, depth + 1);
+        }
+    };
+    walk(bosses, 0);
+    return ids;
+}
+
+/**
+ * The `known` line-up of a plan after a save with a loaded one (`roster`: [{ userId, character, spec, rhName, group }]): the whole
+ * loaded line-up (a Raid-Helper that is switched off or down later still shows it, "gespeicherter Stand"), plus the raiders the plan
+ * names that it no longer lists, under the name they had (until they are dropped from the plan).
+ */
+function knownAfter(bosses, roster, before = {}) {
+    const out = {};
+    for (const p of (roster || []).filter((x) => x && !x.gone)) {
+        const uid = str(p.userId);
+        if (uid) out[uid] = { character: str(p.character || p.name), spec: str(p.spec), rhName: str(p.rhName), group: Number(p.group) || 0 };
+    }
+    for (const uid of playersOf(bosses)) if (!out[uid] && before[uid]) out[uid] = before[uid];
+    return normalizeKnown(out);
 }
 
 /** The plan of an event, or null when none was saved yet. */
@@ -226,7 +317,7 @@ function cleanBosses(input, { bossKeys, allowedUserIds, profileIds = [] }) {
  * anything else is a `conflict` (someone saved in between). Creates the plan on
  * the first save. Returns `{ plan, dropped }` or `{ code, error }`.
  */
-function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, profileIds, userId, now = Date.now() }) {
+function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, profileIds, userId, knownRoster = null, now = Date.now() }) {
     const id = str(eventId);
     const plans = readAll();
     const idx = plans.findIndex((p) => p && p.eventId === id);
@@ -237,6 +328,8 @@ function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, prof
     const cleaned = cleanBosses(bosses, { bossKeys, allowedUserIds, profileIds });
     if (cleaned.error) return cleaned;
     const next = { ...current, bosses: cleaned.bosses, version: current.version + 1, updatedAt: now, updatedBy: str(userId) };
+    // a Raid-Helper plan saved with a loaded line-up remembers who its players were (a raider who leaves keeps a name)
+    if (Array.isArray(knownRoster)) next.known = knownAfter(next.bosses, knownRoster, current.known);
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next, dropped: cleaned.dropped };
@@ -250,7 +343,7 @@ function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, prof
  * are left alone. Later changes to the template do not reach the plan. `version`
  * is checked like a save. Returns `{ plan }` or `{ code, error }`.
  */
-function applyTemplate(eventId, template, { version, bossKeys, roster, userId, now = Date.now() }) {
+function applyTemplate(eventId, template, { version, bossKeys, roster, userId, trackKnown = false, now = Date.now() }) {
     const id = str(eventId);
     const plans = readAll();
     const idx = plans.findIndex((p) => p && p.eventId === id);
@@ -281,6 +374,7 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, n
         if (board.boardHasContent(cleaned.board)) bosses[key] = cleaned.board; else delete bosses[key];
     }
     const next = { ...current, bosses, templateId: template.id, version: current.version + 1, updatedAt: now, updatedBy: str(userId) };
+    if (trackKnown) next.known = knownAfter(next.bosses, roster, current.known);
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next };
@@ -297,6 +391,27 @@ function setPublished(eventId, published, { rotate = false, userId, now = Date.n
     const current = idx === -1 ? emptyPlan(id) : normalizePlan(plans[idx], id);
     const next = { ...current, status: published ? "published" : "draft", updatedAt: now, updatedBy: str(userId) };
     if ((published && !next.publicToken) || rotate) next.publicToken = newToken();
+    if (idx === -1) plans.push(next); else plans[idx] = next;
+    writeAll(plans);
+    return { plan: next };
+}
+
+/**
+ * Switches the raid plan of a Raid-Helper event on or off and sets what the event itself does not say (instances, size, version,
+ * composition; docs/raidplan.md, "Raid-Helper-Events"). Switching off keeps the plan (a later switch-on finds it again) but withdraws the
+ * public link: the plan goes back to draft. Creates the record on the first switch-on. Returns `{ plan }` or `{ code, error }`.
+ */
+function setLink(eventId, input, { userId, knownRoster = null, now = Date.now() } = {}) {
+    const id = str(eventId);
+    if (!/^[\w-]{3,40}$/.test(id)) return { code: "invalid", error: "Unbekanntes Event." };
+    const plans = readAll();
+    const idx = plans.findIndex((p) => p && p.eventId === id);
+    const current = idx === -1 ? emptyPlan(id) : normalizePlan(plans[idx], id);
+    const link = normalizeLink({ ...(current.link || {}), ...(input || {}), source: "raidhelper", changedAt: now, changedBy: str(userId) });
+    if (link.enabled && !link.instanceIds.length) return { code: "invalid", error: "Bitte mindestens eine Instanz wählen." };
+    const next = { ...current, link };
+    if (!link.enabled) next.status = "draft";
+    if (Array.isArray(knownRoster) && knownRoster.length) next.known = knownAfter(current.bosses, knownRoster, current.known);
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next };
@@ -406,5 +521,6 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 module.exports = {
     useFile, LIMITS, slug, bossKeyOf, bossesForInstances, isMapKey,
     GENERAL_KEY, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
+    setLink, normalizeLink, playersOf, knownAfter,
     sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
 };
