@@ -35,3 +35,30 @@ describe("label metrics", () => {
         expect(ls.labelMetrics(38, ls.NAME_FACTOR, 0).show).toBe(true);
     });
 });
+
+describe("effects round an icon scale with the icon (effectMetrics)", () => {
+    it("ring, glow, selection glow, shadow and outline are constant shares of the icon size at every size", () => {
+        for (const size of [8, 19, 38, 76, 152]) {
+            const e = ls.effectMetrics(size);
+            expect(e.ring / size).toBeCloseTo(ls.RING_FACTOR, 6);
+            expect(e.glow / size).toBeCloseTo(ls.GLOW_FACTOR, 6);
+            expect(e.spread / size).toBeCloseTo(ls.GLOW_SPREAD_FACTOR, 6);
+            expect(e.select / size).toBeCloseTo(ls.SELECT_GLOW_FACTOR, 6);
+            expect(e.shadow / size).toBeCloseTo(ls.SHADOW_FACTOR, 6);
+            expect(e.outline / size).toBeCloseTo(ls.OUTLINE_FACTOR, 6);
+        }
+    });
+    it("a size of nothing has no effects, a negative size never draws a negative width", () => {
+        expect(ls.effectMetrics(0)).toEqual({ ring: 0, glow: 0, spread: 0, select: 0, shadow: 0, outline: 0 });
+        expect(ls.effectMetrics(-5).glow).toBe(0);
+    });
+    it("the stylesheet draws the me-glow, the selection glow and the shadows of the canvas from those variables, not from fixed px", () => {
+        const css = require("fs").readFileSync(require("path").join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        for (const rule of [".rp-canvas .rp-token.is-me .rp-ico {", "@keyframes rp-pulse-s", ".rp-canvas .rp-token.is-selected .rp-ico"]) {
+            const at = css.indexOf(rule);
+            expect(at).toBeGreaterThan(-1);
+            const body = css.slice(at, css.indexOf("}", at));
+            expect(body).toMatch(/var\(--rp-(ring|glow|sel)/);
+        }
+    });
+});

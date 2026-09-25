@@ -56,3 +56,42 @@ describe("facing towards the tank", () => {
         expect(assign.facingOf(t, t.icons[0], 1)).toBe(RIGHT);
     });
 });
+
+describe("facing on boards that are not square", () => {
+    // the angle a viewer sees: from the icon's centre to the tank's centre on the real (aspect-scaled) board, 0 = up, clockwise
+    const seen = (from, to, ar) => {
+        const deg = (Math.atan2((to.x - from.x) * ar, -(to.y - from.y)) * 180) / Math.PI;
+        return ((deg % 360) + 360) % 360;
+    };
+    const err = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+    const spots = { up: [0.5, 0.1], down: [0.5, 0.9], left: [0.1, 0.5], right: [0.9, 0.5], upleft: [0.2, 0.15], upright: [0.85, 0.2], downleft: [0.15, 0.8], downright: [0.7, 0.95] };
+    for (const [name, ar] of [["16:9", 16 / 9], ["3:2", 3 / 2], ["1:1", 1], ["9:16", 9 / 16]]) {
+        it(`points at the tank's centre within 1 degree on a ${name} board, in every quadrant`, () => {
+            for (const [where, [x, y]] of Object.entries(spots)) {
+                const b = board({ slots: [slot("tank", 1, x, y)], icons: [icon("i", 0.5, 0.5)], assignments: [tankRow("r", ["slot:tank:1"], "b:x")] });
+                const got = assign.facingOf(b, b.icons[0], ar);
+                expect(err(got, seen({ x: 0.5, y: 0.5 }, { x, y }, ar))).toBeLessThanOrEqual(1);
+                if (where === "up") expect(got).toBe(0);
+            }
+        });
+    }
+    it("a diagonal is 45 degrees only on a square board (the aspect is applied to dx)", () => {
+        const b = board({ slots: [slot("tank", 1, 0.7, 0.3)], icons: [icon("i", 0.5, 0.5)], assignments: [tankRow("r", ["slot:tank:1"], "b:x")] });
+        expect(assign.facingOf(b, b.icons[0], 1)).toBe(45);
+        expect(assign.facingOf(b, b.icons[0], 2)).toBe(63);
+    });
+});
+
+describe("facing: several icons of one mob and a tank in a group ring", () => {
+    it("two icons of the same mob take the tanks of that mob in the board's order (the board hands its icons over)", () => {
+        const icons = [icon("f1", 0.3, 0.5, { iconKey: "mob:9", mobId: "d:flame" }), icon("f2", 0.7, 0.5, { iconKey: "mob:9", mobId: "d:flame" })];
+        const b = board({ slots: [slot("tank", 1, 0.3, 0.1), slot("tank", 2, 0.7, 0.9)], icons, assignments: [tankRow("a", ["slot:tank:1"], "d:flame"), tankRow("b", ["slot:tank:2"], "d:flame")] });
+        expect(assign.facingOf(b, icons[0], 1)).toBe(UP);
+        expect(assign.facingOf(b, icons[1], 1)).toBe(180);
+    });
+    it("a tank who stands in the ring of a split group is found through the places the board drew", () => {
+        const b = { ...board({ icons: [icon("i", 0.5, 0.5)], assignments: [tankRow("r", ["user:u7"], "b:x")] }), places: { u7: { x: 0.5, y: 0.9 } } };
+        expect(assign.facingOf(b, b.icons[0], 1)).toBe(180);
+        expect(assign.facingOf({ ...b, places: {} }, b.icons[0], 1)).toBe(30);
+    });
+});
