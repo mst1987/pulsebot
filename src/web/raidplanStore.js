@@ -96,8 +96,9 @@ function bossesForInstances(instanceIds) {
             iconUrl: wowIconUrl("inv_misc_bone_humanskull_01", 56),
         });
     }
+    // "Allgemein" (the raid-wide assignments) comes FIRST, before the bosses and the trash
     if (out.length) {
-        out.push({ key: GENERAL_KEY, instanceId: "", instanceName: "", name: "Allgemein", general: true, iconUrl: wowIconUrl("inv_misc_note_01", 56) });
+        out.unshift({ key: GENERAL_KEY, instanceId: "", instanceName: "", name: "Allgemein", general: true, iconUrl: wowIconUrl("inv_misc_note_01", 56) });
     }
     return out;
 }

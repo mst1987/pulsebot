@@ -1007,5 +1007,11 @@
         "sections": "in {n} Abschnitten",
         "conflict": "Konflikt",
         "conflictText": "Konflikt: jemand hat inzwischen gespeichert"
+    },
+    "map": {
+        "show": "Karte anzeigen",
+        "hide": "Karte ausblenden (nur Einteilungen)",
+        "hiddenKept": "Karte ausgeblendet – die Objekte auf der Map bleiben gespeichert.",
+        "offNote": "Dieser Abschnitt wird ohne Karte geplant. Die Objekte auf der Map bleiben gespeichert und sind wieder da, sobald die Karte angezeigt wird."
     }
 }

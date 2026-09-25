@@ -1007,5 +1007,11 @@
         "sections": "in {n} sections",
         "conflict": "Conflict",
         "conflictText": "Conflict: somebody saved meanwhile"
+    },
+    "map": {
+        "show": "Show map",
+        "hide": "Hide map (assignments only)",
+        "hiddenKept": "Map hidden – the objects on the map stay stored.",
+        "offNote": "This section is planned without a map. The objects on the map stay stored and come back as soon as the map is shown."
     }
 }

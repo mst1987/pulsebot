@@ -9,7 +9,7 @@ import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
-    boardCount, boardOf, dirtyKeys, ensureBesetzung, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
+    boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
@@ -63,7 +63,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 reset(v.plan.bosses);
                 setProfiles(v.profiles);
                 setConflict(false);
-                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : (v.bosses[0] && v.bosses[0].key) || ""));
+                // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
+                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
             })
             .catch((err: ApiError) => setError(err));
     }, [eventId, reset]);
@@ -80,6 +81,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     });
 
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
+    // remember the open section per plan (this browser)
+    useEffect(() => { if (selected) rememberSection(eventId, selected); }, [eventId, selected]);
     const roster = useMemo(() => (view ? view.roster : []), [view]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
     const besetzung = view ? view.besetzung : null;

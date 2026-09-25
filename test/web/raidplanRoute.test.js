@@ -91,7 +91,8 @@ describe("GET /api/raidplan", () => {
         const d = body(r);
         expect(d.canWrite).toBe(true);
         expect(d.plan).toMatchObject({ version: 0, status: "draft", publicPath: "", bosses: {} });
-        expect(d.bosses[0]).toMatchObject({ key: "bt/high-warlord-najentus", mapUrl: "" });
+        expect(d.bosses[0]).toMatchObject({ key: "general" });
+        expect(d.bosses[1]).toMatchObject({ key: "bt/high-warlord-najentus", mapUrl: "" });
         expect(d.roster.map((p) => p.userId)).toEqual(["u1", "u9"]);
         expect(d.roster[0]).toMatchObject({ character: "Tanky", role: "tank", classColor: "#C79C6E", group: 1 });
         expect(d.roster[0].iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com\/images\/wow\/icons\//);
@@ -355,6 +356,33 @@ describe("GET /api/raidplan/public", () => {
             await publishTwo({ trash: { inSheet: false } });
             const v = body(await call(route.getPlan, ORGA, null, "event=eh_1"));
             expect(v.plan.bosses["bt/trash"]).toMatchObject({ inSheet: false, notes: "TRASH-SECRET-NOTE" });
+        });
+    });
+
+    describe("a section without its map", () => {
+        async function publishMap(showMap) {
+            await call(route.putPlan, ORGA, {
+                event: "eh_1", version: 0,
+                bosses: { "bt/supremus": { showMap, tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], texts: [{ text: "MAP-TEXT", x: 0.5, y: 0.5 }], notes: "Hi" } },
+            });
+            const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
+            return body(publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
+        }
+
+        it("sends the map and its objects while it is shown", async () => {
+            const b = await publishMap(true);
+            expect(b.showMap).toBe(true);
+            expect(b.tokens).toHaveLength(1);
+            expect(JSON.stringify(b)).toContain("MAP-TEXT");
+        });
+
+        it("sends no map url and no objects when it is hidden, the rest of the section stays", async () => {
+            const b = await publishMap(false);
+            expect(b).toMatchObject({ key: "bt/supremus", showMap: false, mapUrl: "", notes: "Hi", tokens: [], marks: [], icons: [], zones: [], lines: [], texts: [] });
+            expect(JSON.stringify(b)).not.toContain("MAP-TEXT");
+            // the editor still holds the objects
+            const v = body(await call(route.getPlan, ORGA, null, "event=eh_1"));
+            expect(v.plan.bosses["bt/supremus"]).toMatchObject({ showMap: false, tokens: [{ userId: "u1" }] });
         });
     });
 

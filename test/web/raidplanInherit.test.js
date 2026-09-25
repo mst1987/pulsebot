@@ -40,8 +40,9 @@ describe("the Standard as a board of the template", () => {
         expect(t.bosses[inherit.DEFAULTS_KEY].assignments.map((a) => a.id)).toHaveLength(2);
         expect(raidplan.templateSummary(t).bossCount).toBe(0);
         const view = raidplan.templateView(t);
-        const last = view.bossList[view.bossList.length - 1];
-        expect(last).toMatchObject({ key: "defaults", defaults: true, name: "Standard" });
+        // the Standard right after "Allgemein"
+        expect(view.bossList[0]).toMatchObject({ key: "general" });
+        expect(view.bossList[1]).toMatchObject({ key: "defaults", defaults: true, name: "Standard" });
         expect(view.bossList.filter((b) => b.defaults)).toHaveLength(1);
     });
     it("a template without a Standard is as before (nothing added to the bosses)", () => {

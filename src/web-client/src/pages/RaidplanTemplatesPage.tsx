@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    boardOf, dirtyKeys, ensureBesetzung, sameBosses, toSave,
+    boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, sameBosses, startSection, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -428,7 +428,9 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const ask = useConfirm();
     const [tpl, setTpl] = useState(template);
     const { draft, edit: histEdit, editAll: histEditAll, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
-    const [selected, setSelected] = useState((template.bossList[0] && template.bossList[0].key) || "");
+    // "Allgemein" first (or the section last open in this template, or a deep link)
+    const [selected, setSelected] = useState(() => startSection(template.bossList, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(`t:${template.id}`), []));
+    useEffect(() => { if (selected) rememberSection(`t:${template.id}`, selected); }, [template.id, selected]);
     const [modal, setModal] = useState<"" | "fields" | "pick" | "profiles" | "save">("");
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);

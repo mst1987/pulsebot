@@ -1101,6 +1101,8 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-read-2col { display: grid; grid-template-columns: clamp(560px, 40%, 640px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .rp-read-2col.no-board { grid-template-columns: minmax(0, 640px); }
 .rp-read-2col.is-map-only { grid-template-columns: minmax(0, 1fr); }
+/* a boss / trash section planned without its map: the assignments take the whole width */
+.rp-read-2col.no-board.no-map { grid-template-columns: minmax(0, 1fr); }
 .rp-read-right { position: sticky; top: 8px; min-width: 0; display: flex; justify-content: center; }
 .rp-read-right .rp-board { flex: 0 1 auto; width: 100%; }
 .rp-maponly { position: absolute; right: 8px; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--text); cursor: pointer; z-index: 5; }
@@ -1549,3 +1551,7 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
     .rp-sticky.is-dirty, .rp-savebtn.is-dirty, .rp-savebtn.is-clean.is-flash { animation: none; }
     .rp-savebtn.is-dirty { box-shadow: 0 0 0 3px rgba(245, 158, 11, .35); }
 }
+
+/* a boss / trash section planned without its map */
+.rp-mapoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13.5px; }
+.rp-mapoff > span { flex: 1 1 260px; }

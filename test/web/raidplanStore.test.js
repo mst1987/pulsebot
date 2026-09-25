@@ -18,7 +18,10 @@ afterAll(() => store.useFile());
 describe("bosses of an event", () => {
     it("lists the bosses of every instance in raid order with a stable key and an icon", () => {
         const list = store.bossesForInstances(["bt"]);
-        expect(list[0]).toMatchObject({ key: "bt/high-warlord-najentus", instanceId: "bt", name: "High Warlord Naj'entus" });
+        // "Allgemein" first, then the bosses in raid order, then the trash
+        expect(list[0]).toMatchObject({ key: "general", general: true });
+        expect(list[1]).toMatchObject({ key: "bt/high-warlord-najentus", instanceId: "bt", name: "High Warlord Naj'entus" });
+        expect(list[list.length - 1]).toMatchObject({ key: "bt/trash", trash: true });
         expect(list.map((b) => b.key)).toContain("bt/illidan-stormrage");
         expect(list.find((b) => b.key === BOSS).iconUrl).toBe("/bosses/602.jpg");
         // an encounter WCL does not list falls back to the instance icon
