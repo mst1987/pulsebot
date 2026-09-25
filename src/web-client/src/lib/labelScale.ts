@@ -19,3 +19,17 @@ export function labelMetrics(size: number, factor: number, screenScale: number):
     const clampedFont = MIN_SCREEN_FONT / screenScale;
     return { font: clampedFont, show: TYPICAL_NAME_CHARS * CHAR_WIDTH * clampedFont <= MAX_LABEL_RATIO * size, clamped: true };
 }
+
+/** Shares of an icon's size for everything drawn AROUND it (reference units, like the label): the "me" ring and glow, the selection glow, the drop shadow, the outline. */
+export const RING_FACTOR = 0.079;
+export const GLOW_FACTOR = 0.47;
+export const GLOW_SPREAD_FACTOR = 0.105;
+export const SELECT_GLOW_FACTOR = 0.105;
+export const SHADOW_FACTOR = 0.05;
+export const OUTLINE_FACTOR = 0.053;
+
+/** The ring, glow, selection glow, shadow and outline widths (reference units) of an icon of `size` units: proportional to the icon, so a small or a big icon looks the same at every zoom. */
+export function effectMetrics(size: number): { ring: number; glow: number; spread: number; select: number; shadow: number; outline: number } {
+    const s = size > 0 ? size : 0;
+    return { ring: s * RING_FACTOR, glow: s * GLOW_FACTOR, spread: s * GLOW_SPREAD_FACTOR, select: s * SELECT_GLOW_FACTOR, shadow: s * SHADOW_FACTOR, outline: s * OUTLINE_FACTOR };
+}
