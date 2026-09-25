@@ -9,7 +9,7 @@ import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceName
 import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
-import { mobCountOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/autoPlace";
+import { mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/autoPlace";
 import { MobIcon } from "./AssignPanel";
 import { groupColor } from "../../../lib/groupStyle";
 import { AssignChip } from "./AssignPanel";
@@ -83,7 +83,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const hasMobs = targetOpts.some((o) => o.key.indexOf("mob|") === 0);
     const type = row.type as string;
     const filled = filledAll.find((x) => x.id === rowId) || row;
-    const ctx: AssignCtx = { slots: tmp.slots, players: byId, catalog, groupColors: tmp.groupColors, groupMarks: tmp.groupMarks, filled: filledAll };
+    const ctx: AssignCtx = { slots: tmp.slots, players: byId, catalog, groupColors: tmp.groupColors, groupMarks: tmp.groupMarks, filled: filledAll, icons: tmp.icons };
     const set = (fn: (b: RaidplanBoard) => RaidplanBoard) => setTmp((b) => fn(b));
     const catList = categoriesFor(slot, type, hasMobs, spells.length > 0);
     const cat = cats[slot] && catList.indexOf(cats[slot]) >= 0 ? cats[slot] : catList[0];
@@ -200,7 +200,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             if (plain.length === 0 && groups.length === 0) return <span className="rp-muted">{t("raidBoard.amb.empty")}</span>;
             return (
                 <>
-                    {plain.map((tg) => <AssignChip key={`${tg.kind}|${tg.ref}|${tg.n || 0}`} ctx={ctx} r={resolveTarget(tg, ctx)} onRemove={() => set((b) => (tg.kind === "mob" && tg.n ? patchAssignment(b, rowId, { targets: row.targets.filter((x) => x !== tg) }) : toggleTarget(b, rowId, tg)))} />)}
+                    {plain.map((tg) => <AssignChip key={`${tg.kind}|${tg.ref}|${tg.n || 0}|${tg.oid || ""}`} ctx={ctx} r={resolveTarget(tg, ctx)} onRemove={() => set((b) => (tg.kind === "mob" && (tg.n || tg.oid) ? patchAssignment(b, rowId, { targets: row.targets.filter((x) => x !== tg) }) : toggleTarget(b, rowId, tg)))} />)}
                     {groups.map((g) => classChip(g, true))}
                 </>
             );
@@ -410,7 +410,8 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
      * for a single one, its "Nr." (which of them; "eigene" = the row's own, numbered by the rows in order). What the map puts there follows.
      */
     const mobCounts = () => {
-        const refs = row.targets.filter((x) => x.kind === "mob").map((x) => x.ref).filter((r, i, all) => all.indexOf(r) === i);
+        // a mob placed twice or more on the map is chosen icon by icon (its tiles say "Flame 1", "Flame 2"): no count / number of its own then
+        const refs = row.targets.filter((x) => x.kind === "mob" && !x.oid && mobIconsOf(tmp, x.ref).length < 2).map((x) => x.ref).filter((r, i, all) => all.indexOf(r) === i);
         if (refs.length === 0 || TANK_TYPES.indexOf(type) < 0) return null;
         return (
             <div className="rp-amb-block rp-amb-mobcount">

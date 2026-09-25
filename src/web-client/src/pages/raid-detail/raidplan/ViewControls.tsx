@@ -3,14 +3,19 @@ import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, L
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
-import type { BoardView } from "../../../lib/boardView";
+import { sameView, type BoardView } from "../../../lib/boardView";
 import { SCALE_MAX, SCALE_MIN, setAutoScale, setObjectScale } from "../../../lib/raidplan";
 import type { ViewPrefs } from "../../../lib/useViewPrefs";
 import { useT } from "../../../i18n";
 
 /** Zoom out / in, the zoom in percent (a click fits the picture again: what the read view shows), the hand tool. */
-export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand, canWrite, hasSaved, onSaveView, onClearView }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; actual: () => void; hand: boolean; setHand: (on: boolean) => void; canWrite: boolean; hasSaved: boolean; onSaveView: () => void; onClearView: () => void }) {
+/**
+ * `sheetView`: what the sheet opens this section with (its saved cutout, else the whole picture). The editor opens with it too; zoomed
+ * away from it only to work, ONE button says so and goes back ("Wie im Sheet").
+ */
+export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand, canWrite, hasSaved, onSaveView, onClearView, sheetView, onSheetView }: { view: BoardView; zoomIn: () => void; zoomOut: () => void; fit: () => void; actual: () => void; hand: boolean; setHand: (on: boolean) => void; canWrite: boolean; hasSaved: boolean; onSaveView: () => void; onClearView: () => void; sheetView?: BoardView; onSheetView?: () => void }) {
     const t = useT();
+    const offSheet = !!sheetView && !!onSheetView && !sameView(view, sheetView);
     return (
         <div className="rp-tool-group rp-zoom" role="group" aria-label={t("raidBoard.zoom.title")} data-tip={t("raidBoard.zoom.pan")}>
             <IconButton size="sm" icon={<ZoomOut size={17} />} tip={t("raidBoard.zoom.out")} onClick={zoomOut} />
@@ -21,6 +26,7 @@ export function ZoomControls({ view, zoomIn, zoomOut, fit, actual, hand, setHand
             <IconButton size="sm" icon={<Hand size={17} />} tip={t("raidBoard.zoom.hand")} aria-pressed={hand} className={hand ? "is-on" : ""} onClick={() => setHand(!hand)} />
             <IconButton size="sm" icon={<Bookmark size={17} />} tip={t("raidBoard.zoom.saveView")} disabled={!canWrite || !(view.z > 1)} onClick={onSaveView} />
             <IconButton size="sm" icon={<BookmarkX size={17} />} tip={t("raidBoard.zoom.clearView")} disabled={!canWrite || !hasSaved} onClick={onClearView} />
+            {offSheet && <button type="button" className="rp-zoom-pct rp-zoom-sheet" data-tip={hasSaved ? t("raidBoard.zoom.asSheetTip") : t("raidBoard.zoom.asSheetWholeTip")} onClick={onSheetView}>{t("raidBoard.zoom.asSheet")}</button>}
         </div>
     );
 }

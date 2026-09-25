@@ -16,7 +16,7 @@ import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, g
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
 import { ANY } from "../../lib/classRefs";
-import { autoFacing, type AutoPlan, type AutoTank } from "../../lib/autoPlace";
+import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/autoPlace";
 import "../../styles/raidplan.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
@@ -388,7 +388,9 @@ export default function PlanBoard({
             {icons.filter((i) => !i.hidden).map((i) => {
                 const type = iconKeyType(i.iconKey);
                 const px = scaled(i.size, SIZE_RANGES.icon.def);
-                const name = i.label || t(`raidBoard.icon.${type}`);
+                // one of several icons of a mob: its number, as the assignments call it ("Flame 2")
+                const no = mobIconNo(boardLike, i.id);
+                const name = `${i.label || t(`raidBoard.icon.${type}`)}${no ? ` ${no}` : ""}`;
                 const face = canFace(i.iconKey);
                 const src = type === "boss" ? portraitUrl(i.iconKey) : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
                 return (

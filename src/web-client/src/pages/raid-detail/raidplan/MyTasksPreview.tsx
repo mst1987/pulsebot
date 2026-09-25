@@ -11,7 +11,7 @@ import { useT } from "../../../i18n";
  */
 export default function MyTasksPreview({ rows, board, players, catalog, me }: { rows: RaidplanAssignment[]; board: RaidplanBoard; players: Map<string, RaidplanPlayer>; catalog: Catalog | null; me: string[] }) {
     const t = useT();
-    const ctx = useMemo(() => ({ slots: board.slots, players, catalog, groupColors: board.groupColors, groupMarks: board.groupMarks, roles: board.roles }), [board.slots, board.groupColors, board.groupMarks, board.roles, players, catalog]);
+    const ctx = useMemo(() => ({ slots: board.slots, players, catalog, groupColors: board.groupColors, groupMarks: board.groupMarks, roles: board.roles, icons: board.icons }), [board.slots, board.groupColors, board.groupMarks, board.roles, board.icons, players, catalog]);
     const names = useMemo(() => cleanNames(me.map((id) => (players.get(id) || { character: "" }).character)), [me, players]);
     const split = useMemo(() => splitMine(rows, ctx, me, names), [rows, ctx, me, names]);
     if (me.length === 0) return null;

@@ -85,9 +85,14 @@ export function peopleGroups(list: PeopleEntry[]): { group: string; entries: Peo
 }
 
 /** The chosen keys of a slot: who = the assignees, at = the targets as `kind|ref`, task = the spell id. */
+/** The key of a target tile: "<kind>|<ref>", a target of one placed mob icon "mob|<ref>@<icon id>" (the kind's tile stays "mob|<ref>"). */
+export function targetKey(tg: { kind: string; ref: string; oid?: string }): string {
+    return tg.kind === "mob" && tg.oid ? `mob|${tg.ref}@${tg.oid}` : `${tg.kind}|${tg.ref}`;
+}
+
 export function chosenKeys(row: RaidplanAssignment, slot: string): string[] {
     if (slot === "who") return row.assignees.slice();
-    if (slot === "at") return row.targets.map((t) => `${t.kind}|${t.ref}`);
+    if (slot === "at") return row.targets.map(targetKey);
     return row.spell ? [row.spell.id] : [];
 }
 

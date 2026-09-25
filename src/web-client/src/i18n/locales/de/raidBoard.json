@@ -693,7 +693,12 @@
         "hide": "Ausblenden",
         "align": "Ausrichten",
         "skipped": "{n} Objekt(e) übersprungen: Slots der Besetzung und Spieler werden nicht kopiert.",
-        "hint": "Ziehen verschiebt alle, Entf löscht alle, +/− und die Eck-Griffe skalieren, Strg+D dupliziert, Esc hebt auf. Ein Strg+Z macht die ganze Aktion rückgängig."
+        "hint": "Ziehen verschiebt alle, Entf löscht alle, +/− und die Eck-Griffe skalieren, Strg+D dupliziert, Esc hebt auf. Ein Strg+Z macht die ganze Aktion rückgängig.",
+        "ring": "Ring / Rahmen anzeigen",
+        "facing": "Blickrichtung",
+        "faceOwnTank": "Zum eigenen Tank drehen",
+        "faceHint": "Jedes Icon dreht sich zu seinem eigenen Tank, bei mehreren gleichen Mobs zum Tank genau dieses Icons. Eine Richtung gilt für alle markierten.",
+        "arrow": "Pfeil"
     },
     "defaults": {
         "title": "Standard",
@@ -805,7 +810,7 @@
         "title": "Zoom",
         "in": "Vergrößern (Strg + Mausrad)",
         "out": "Verkleinern",
-        "fit": "Einpassen (so sieht es das Sheet)",
+        "fit": "Ganze Karte einpassen",
         "fitTip": "Zurück auf Einpassen",
         "hand": "Hand: Bild verschieben (oder Leertaste / mittlere Maustaste)",
         "actual": "100 %",
@@ -817,7 +822,10 @@
         "cutout": "Ausschnitt",
         "cutoutTip": "Zum vorgegebenen Ausschnitt",
         "minimap": "Übersicht: Klick oder Ziehen verschiebt den Ausschnitt",
-        "pan": "Bild verschieben: auf leerem Hintergrund ziehen, Leertaste + Ziehen, Pfeiltasten. Auswahlrechteck: Umschalt + Ziehen."
+        "pan": "Bild verschieben: auf leerem Hintergrund ziehen, Leertaste + Ziehen, Pfeiltasten. Auswahlrechteck: Umschalt + Ziehen.",
+        "asSheet": "Wie im Sheet",
+        "asSheetTip": "Zurück zum gespeicherten Ausschnitt: so öffnet das Sheet diesen Abschnitt. Der Zoom davor war nur Ansicht zum Arbeiten.",
+        "asSheetWholeTip": "Zurück zur ganzen Karte: so öffnet das Sheet diesen Abschnitt (kein Ausschnitt gespeichert). Der Zoom davor war nur Ansicht zum Arbeiten."
     },
     "view": {
         "title": "Symbolgröße und Anzeige",

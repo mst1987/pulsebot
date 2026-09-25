@@ -693,7 +693,12 @@
         "hide": "Hide",
         "align": "Align",
         "skipped": "{n} object(s) skipped: slots of the roster and players are not copied.",
-        "hint": "Drag moves all, Del deletes all, +/- and the corner grips scale, Ctrl+D duplicates, Esc clears. One Ctrl+Z undoes the whole action."
+        "hint": "Drag moves all, Del deletes all, +/- and the corner grips scale, Ctrl+D duplicates, Esc clears. One Ctrl+Z undoes the whole action.",
+        "ring": "Show ring / border",
+        "facing": "Facing",
+        "faceOwnTank": "Turn to its own tank",
+        "faceHint": "Each icon turns to its own tank; with several mobs of one kind, to the tank of that very icon. A direction applies to all selected.",
+        "arrow": "Arrow"
     },
     "defaults": {
         "title": "Default",
@@ -805,7 +810,7 @@
         "title": "Zoom",
         "in": "Zoom in (Ctrl + wheel)",
         "out": "Zoom out",
-        "fit": "Fit (as the read view shows it)",
+        "fit": "Fit the whole map",
         "fitTip": "Back to fit",
         "hand": "Hand: move the picture (or hold Space / middle mouse button)",
         "actual": "100 %",
@@ -817,7 +822,10 @@
         "cutout": "Cut-out",
         "cutoutTip": "To the set cut-out",
         "minimap": "Overview: click or drag to move the cut-out",
-        "pan": "Move the picture: drag on empty ground, Space + drag, arrow keys. Selection rectangle: Shift + drag."
+        "pan": "Move the picture: drag on empty ground, Space + drag, arrow keys. Selection rectangle: Shift + drag.",
+        "asSheet": "As in the sheet",
+        "asSheetTip": "Back to the saved cutout: this is how the sheet opens this section. The zoom before was only a working view.",
+        "asSheetWholeTip": "Back to the whole map: this is how the sheet opens this section (no cutout saved). The zoom before was only a working view."
     },
     "view": {
         "title": "Icon size and display",

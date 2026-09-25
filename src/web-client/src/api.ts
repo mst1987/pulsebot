@@ -4275,7 +4275,7 @@ export type RaidplanLinkView = {
     lineup?: { count: number; available: boolean; hasGroups: boolean; origin: string; unmatchedNames: number; unknown: string[] };
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
-export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class" | "role"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number };
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class" | "role"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number; /** a mob: the one icon placed on the map it means (the icon's id; its `n` is the icon's number then) - not the kind */ oid?: string };
 /** The catalog spell a row is about, with a snapshot of its name and icon. */
 export type RaidplanSpellRef = { id: string; name: string; icon: string };
 /** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */

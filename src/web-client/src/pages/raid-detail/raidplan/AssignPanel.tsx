@@ -15,6 +15,8 @@ import {
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { cardSummary } from "../../../lib/assignLine";
+import { targetKey } from "../../../lib/assignModal";
+import { mobTargetsFor, sameTargetAs } from "../../../lib/autoPlace";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
@@ -155,7 +157,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         if (confirmFirst && !(await ask({ title: t("raidBoard.aline.deleteTitle"), text: t("raidBoard.aline.deleteText"), action: t("raidBoard.assign.delete"), tone: "danger" }))) return;
         edit((b) => removeAssignment(b, id));
     };
-    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog, filled, groupColors: board.groupColors, groupMarks: board.groupMarks }), [board.slots, players, catalog, filled, board.groupColors, board.groupMarks]);
+    const ctx: AssignCtx = useMemo(() => ({ slots: board.slots, players, catalog, filled, groupColors: board.groupColors, groupMarks: board.groupMarks, icons: board.icons }), [board.slots, players, catalog, filled, board.groupColors, board.groupMarks, board.icons]);
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
@@ -245,7 +247,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const groupSize = (g: number): string => (isEvent ? String(roster.filter((p) => p.group === g).length) : "");
     const targetOptions = (a: RaidplanAssignment): Option[] => {
         const out: Option[] = [];
-        const has = (tg: RaidplanAssignTarget) => a.targets.some((x) => x.kind === tg.kind && x.ref === tg.ref);
+        const has = (tg: RaidplanAssignTarget) => a.targets.some((x) => sameTargetAs(x, tg));
         const push = (tg: RaidplanAssignTarget, group: string) => {
             const r = resolveTarget(tg, ctx);
             const node = tg.kind === "slot" ? <SlotPickChip r={r} n={Number(tg.ref.split(":")[1])} />
@@ -253,9 +255,10 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                 : tg.kind === "mark" ? <><MarkIcon mark={tg.ref as never} size={22} /><span className="rp-amb-name">{r.label}</span></>
                 : tg.kind === "mob" ? <><MobIcon icon={r.icon} size={26} /><span className="rp-amb-name">{r.label}</span></>
                 : <AssignChip r={r} />;
-            out.push({ key: `${tg.kind}|${tg.ref}`, label: r.label, on: has(tg), group, node });
+            out.push({ key: targetKey(tg), label: r.label, on: has(tg), group, node });
         };
-        if (MOB_TYPES.indexOf(a.type) >= 0) for (const m of sectionMobs) push(mobTarget(m), t("raidBoard.assign.pickMobs"));
+        // a mob placed twice or more on the map: one tile per icon ("Flame 1", "Flame 2") - a row means that one, not the kind
+        if (MOB_TYPES.indexOf(a.type) >= 0) for (const m of sectionMobs) for (const tg of mobTargetsFor(board, mobTarget(m))) push(tg, t("raidBoard.assign.pickMobs"));
         for (const s of slots) push({ kind: "slot", ref: s.ref }, t(`raidBoard.slot.kind.${s.kind}`));
         for (const g of groups) push({ kind: "group", ref: String(g) }, t("raidBoard.assign.pickGroups"));
         for (const m of ALL_MARKS) push({ kind: "mark", ref: m }, t("raidBoard.assign.pickMarks"));
@@ -267,8 +270,14 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const toggleTargetKey = (b: RaidplanBoard, id: string, k: string): RaidplanBoard => {
         const i = k.indexOf("|");
         const kind = k.slice(0, i) as RaidplanAssignTarget["kind"];
-        const ref = k.slice(i + 1);
+        const rest = k.slice(i + 1);
+        const at = kind === "mob" ? rest.indexOf("@") : -1;
+        const ref = at >= 0 ? rest.slice(0, at) : rest;
         const mob = kind === "mob" ? sectionMobs.find((m) => m.id === ref) : undefined;
+        if (mob && at >= 0) {
+            const one = mobTargetsFor(b, mobTarget(mob)).find((x) => x.oid === rest.slice(at + 1));
+            return one ? toggleTarget(b, id, one) : b;
+        }
         return toggleTarget(b, id, mob ? mobTarget(mob) : { kind, ref });
     };
     /** The dialog's "Vorschlag": the server picks the assignees for the row's type and classes (rows are not touched until "Fertig"). */
