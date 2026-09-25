@@ -4179,6 +4179,8 @@ export type RaidplanBoard = {
     inheritOff: string[];
     /** the rings round split groups, all at once (default shown) */
     showRings?: boolean;
+    /** client only, never saved: where the raiders of split group markers are drawn (so an icon can face a tank who stands in a ring) */
+    places?: Record<string, { x: number; y: number }>;
     /** false = this section is left out of the shared sheet (default in) */
     inSheet?: boolean;
     /** the colour ("#rrggbb") and the raid mark of the groups, by group number; missing = the default colour / no mark */

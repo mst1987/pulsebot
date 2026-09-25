@@ -461,7 +461,9 @@ function position(board: RaidplanBoard, kind: string, ref: string) {
         const s = board.slots.find((x) => x.userId === ref && !x.hidden && x.placed !== false);
         if (s) return { x: s.x, y: s.y };
         const tk = board.tokens.find((x) => x.userId === ref && !x.hidden);
-        return tk ? { x: tk.x, y: tk.y } : null;
+        if (tk) return { x: tk.x, y: tk.y };
+        // a raider who stands in the ring of a split group marker: the place the board drew him at (handed over by the board as `places`)
+        return board.places && board.places[ref] ? board.places[ref] : null;
     }
     return null;
 }

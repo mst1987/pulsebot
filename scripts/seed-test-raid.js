@@ -82,6 +82,19 @@ function seedPlan(eventId, event) {
         bosses[second] = { ...bosses[second], slots: slots.filter((s) => s.kind === "tank"), icons: [icon(second)], assignments: bosses[second].assignments.filter((a) => a.type !== "tank") };
         bosses.defaults = { slots: [], assignments: [{ id: "stdtank1", type: "tank", title: "", spell: null, assignees: ["slot:tank:1"], targets: [{ kind: "mob", ref: "b:this", name: "Boss", icon: "" }], note: "", suggested: false }] };
     }
+    // Illidan: the boss icon and two Flames of Azzinoth on the map, three tanks; Tank 1 holds Illidan, Tank 2 and 3 one Flame each (the icons face their tank)
+    {
+        const key = "bt/illidan-stormrage";
+        const mk = (id, iconKey, x, y, mobId) => ({ id, iconKey, label: "", showLabel: false, x, y, size: 48, rotation: 0, mobId, autoFace: true, opacity: 1, lock: false, hidden: false });
+        const tk = (n, x, y) => ({ ...slots.find((sl) => sl.kind === "tank" && sl.n === n), x, y });
+        const row = (id, n, ref, name, icon) => ({ id, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [{ kind: "mob", ref, name, icon }], note: "", suggested: false });
+        bosses[key] = {
+            ...bosses[key],
+            slots: [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
+            icons: [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
+            assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
+        };
+    }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 
     let tpl = templates.listTemplates().find((t) => t.name === TEMPLATE_NAME);

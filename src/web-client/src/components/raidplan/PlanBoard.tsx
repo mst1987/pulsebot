@@ -1,5 +1,5 @@
 import { REF_W, boardScale, canvasStyle } from "../../lib/boardScale";
-import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../lib/labelScale";
+import { ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/labelScale";
 import { FIT, type BoardView } from "../../lib/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
@@ -208,15 +208,32 @@ export default function PlanBoard({
     const screenScale = boardScale(outer.w) * view.z;
     const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
     const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
-    const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px`, "--rp-nf": `${labelOf(scaled(size, def), def).font}px` }) as CSSProperties;
+    /** the effects round an icon (me ring and glow, selection glow, shadow, outline) as reference-unit variables: shares of the icon's size, like the label */
+    const effectVars = (px: number) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px` }; };
+    const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px`, "--rp-nf": `${labelOf(scaled(size, def), def).font}px`, ...effectVars(scaled(size, def)) }) as CSSProperties;
     /** " is-noname" when the object's name is off or would not fit its icon */
     const noName = (size: number | undefined, def: number, mult: number, show: boolean | undefined) => (show === false || !labelOf(scaled(size, def) * mult, def).show ? " is-noname" : "");
     /** The grip that scales a selected object (drag it away from / towards the object). */
     const sizeHandle = (kind: ObjectKind, id: string, locked: boolean) => (editable && !locked && isSel(kind, id) ? (
         <span className="rp-handle rp-h-size" data-handle="size" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, kind, id, "size"); }} />
     ) : null);
-    const boardLike = { tokens, slots, assignments: assignments || [] } as unknown as RaidplanBoard;
-    const boardOwn = boardLike;
+    const boardOwn = { tokens, slots, assignments: assignments || [] } as unknown as RaidplanBoard;
+    // where the raiders of split group markers stand (the ring the board draws), so an icon that faces "its tank" also finds a tank who is in a ring
+    const places: Record<string, { x: number; y: number }> = {};
+    if (size.w > 0) {
+        for (const s of slots) {
+            if (s.kind !== "group" || s.hidden || s.placed === false || !s.split || s.hideMembers) continue;
+            const members = splitMembers(boardOwn, s, roster);
+            const { gs, sp } = groupScales(s);
+            const ring = ringOffsets(members.length, size.w, size.h, scaled(s.size, SIZE_RANGES.member.def) * gs * sp);
+            members.forEach((p, i) => {
+                const off = s.offsets ? s.offsets[p.userId] : undefined;
+                const d = off ? { dx: off.dx * gs * sp, dy: off.dy * gs * sp } : ring[i] || { dx: 0, dy: 0 };
+                places[p.userId] = { x: s.x + d.dx, y: s.y + d.dy };
+            });
+        }
+    }
+    const boardLike = { tokens, slots, icons, assignments: assignments || [], places } as unknown as RaidplanBoard;
 
     return (
         <div
@@ -365,7 +382,7 @@ export default function PlanBoard({
                     const memberPx = memberBase * gs * ts;
                     const spacePx = memberBase * gs * sp;
                     const spread = gs * sp;
-                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px` }) as CSSProperties;
+                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)) }) as CSSProperties;
                     const gcol = groupColor(groupColors, s.n);
                     const gmark = groupMark(groupMarks, s.n);
                     const ring = ringOffsets(everyone.length, size.w, size.h, spacePx);
