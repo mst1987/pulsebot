@@ -772,16 +772,39 @@ export function scaleObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
     return size === null ? board : setObjectSize(board, kind, id, size * factor);
 }
 
+/** How far apart two neighbours of a group ring stand at least, in token sizes: room for a name under each of them, side by side. */
+export const RING_CHORD = 2.2;
+
+/** The radius of a group ring (reference px) for `count` raiders of `tokenPx`: it grows with their number, and neighbours are RING_CHORD tokens apart. */
+export function ringRadius(count: number, tokenPx: number): number {
+    if (count <= 0 || !(tokenPx > 0)) return 0;
+    const chord = count > 1 ? (RING_CHORD * tokenPx) / (2 * Math.sin(Math.PI / count)) : 0;
+    return Math.max(tokenPx * 1.7, (count * tokenPx * 1.3) / (2 * Math.PI), chord);
+}
+
+/**
+ * The widest a name under a ring member may be (reference px): the distance to its neighbour less a little air, never more than the
+ * usual 2.6 icons - a longer name ends in "…" instead of lying on the next raider (docs/raidplan.md, "Names on the map").
+ * `spacePx` = the ring's spacing unit, `memberPx` = the size the member tokens are drawn with.
+ */
+export function ringNameWidth(count: number, spacePx: number, memberPx: number): number {
+    const most = memberPx * 2.6;
+    if (count <= 1) return most;
+    const chord = 2 * ringRadius(count, spacePx) * Math.sin(Math.PI / count);
+    return Math.max(memberPx * 1.2, Math.min(most, chord - memberPx * 0.25));
+}
+
 /**
  * Where the raiders of a split group stand around their marker: evenly on a ring
- * whose radius grows with their number, so they never overlap. Offsets from the
- * marker in board fractions (the ring is a circle in pixels, whatever the board's
- * shape is), for a board of w × h px and tokens of tokenPx.
+ * whose radius grows with their number, so they never overlap - neither their icons
+ * nor the names under them (ringRadius). Offsets from the marker in board fractions
+ * (the ring is a circle in pixels, whatever the board's shape is), for a board of
+ * w × h px and tokens of tokenPx.
  */
 export function ringOffsets(count: number, w: number, h: number, tokenPx: number): { dx: number; dy: number }[] {
     const out = [];
     if (count <= 0 || w <= 0 || h <= 0) return out;
-    const radius = Math.max(tokenPx * 1.7, (count * tokenPx * 1.3) / (2 * Math.PI));
+    const radius = ringRadius(count, tokenPx);
     for (let i = 0; i < count; i++) {
         const angle = -Math.PI / 2 + (2 * Math.PI * i) / count;
         out.push({ dx: (Math.cos(angle) * radius) / w, dy: (Math.sin(angle) * radius) / h });

@@ -1299,11 +1299,13 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 }
 
 /* the name, the badges, the rings and the facing wedge are shares of the icon's own size (--rp-s, in reference units): every scale that changes the icon changes them by the same factor */
-.rp-canvas .rp-token .rp-token-name { font-size: var(--rp-nf, calc(var(--rp-s, 38px) * .3)); top: calc(var(--rp-s, 38px) * .58); max-width: calc(var(--rp-s, 38px) * 2.6); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .16); border-radius: calc(var(--rp-s, 38px) * .16); }
+/* the name sits under its icon, centred, at a share of the icon's size (never moved by zoom); a ring member's name is kept within the room to its neighbour (--rp-nw) */
+.rp-canvas .rp-token .rp-token-name { font-size: var(--rp-nf, calc(var(--rp-s, 38px) * .3)); top: calc(var(--rp-s, 38px) * .58); max-width: var(--rp-nw, calc(var(--rp-s, 38px) * 2.6)); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .16); border-radius: calc(var(--rp-s, 38px) * .16); }
 .rp-canvas .rp-token.is-noname .rp-token-name { display: none; }
 .rp-canvas .rp-token .rp-ico { border-width: calc(var(--rp-s, 38px) * .079); }
 .rp-canvas .rp-token-me { top: calc(var(--rp-s, 38px) * -.9); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .18); font-size: calc(var(--rp-s, 38px) * .29); }
-.rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); bottom: calc(var(--rp-s, 38px) * -.13); min-width: calc(var(--rp-s, 38px) * .42); height: calc(var(--rp-s, 38px) * .42); padding: 0 calc(var(--rp-s, 38px) * .08); border-radius: calc(var(--rp-s, 38px) * .21); font-size: calc(var(--rp-s, 38px) * .26); line-height: calc(var(--rp-s, 38px) * .38); }
+/* the group badge sits at the icon's upper right: the name hangs below the icon, so the two never meet */
+.rp-canvas .rp-token-gbadge { right: calc(var(--rp-s, 38px) * -.13); top: calc(var(--rp-s, 38px) * -.13); bottom: auto; min-width: calc(var(--rp-s, 38px) * .42); height: calc(var(--rp-s, 38px) * .42); padding: 0 calc(var(--rp-s, 38px) * .08); border-radius: calc(var(--rp-s, 38px) * .21); font-size: calc(var(--rp-s, 38px) * .26); line-height: calc(var(--rp-s, 38px) * .38); }
 /* the facing wedge grows with its own factor (--rp-ar, "Pfeilgröße", 0.25..3): its width, height and the air to the icon's edge together */
 .rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46 * var(--rp-ar, 1)); height: calc(var(--rp-s, 48px) * .42 * var(--rp-ar, 1)); left: calc(var(--rp-s, 48px) * -.23 * var(--rp-ar, 1)); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52 * var(--rp-ar, 1)); }
 .rp-zoomctl { width: auto !important; }

@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
 import { ANY } from "../../lib/classRefs";
@@ -468,7 +468,9 @@ export default function PlanBoard({
                     const memberPx = memberBase * gs * ts;
                     const spacePx = memberBase * gs * sp;
                     const spread = gs * sp;
-                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)) }) as CSSProperties;
+                    // a name under a ring member is never wider than the room to its neighbour (lib/raidplan.ts ringNameWidth): a long one ends in "…"
+                    const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);
+                    const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, "--rp-nw": `${Math.round(nameRoom)}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)) }) as CSSProperties;
                     const gcol = groupColor(groupColors, s.n);
                     const gmark = groupMark(groupMarks, s.n);
                     const ring = ringOffsets(everyone.length, size.w, size.h, spacePx);
