@@ -99,7 +99,8 @@ async function putPlan(req, res) {
 }
 
 /**
- * POST /api/raidplan/suggest — body `{ event?, type, slots }`: suggested assignments of one
+ * POST /api/raidplan/suggest — body `{ event?, type, slots, roles?, keep? }` (`keep`: the rows of that type made by hand; the
+ * raiders they name are taken, the class-based suggestions go round the others): suggested assignments of one
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
  * the editor shows them marked as a suggestion. An unknown type answers an empty list.
  */
@@ -110,7 +111,7 @@ async function postSuggest(req, res) {
     let event = null;
     if (body.event) { event = eventOf(res, body.event); if (!event) return; }
     const type = String(body.type || "");
-    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers }) : [] });
+    ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep }) : [] });
 }
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */

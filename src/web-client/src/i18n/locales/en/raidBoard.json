@@ -670,7 +670,15 @@
         "allowMulti": "Allow several (the same player may do it more than once)",
         "fills": "Who takes the class",
         "auto": "Automatic",
-        "none": "{cls} is missing in the raid"
+        "none": "{cls} is missing in the raid",
+        "tankOf": "Tank ({cls})",
+        "anyTank": "Any tank",
+        "generalTank": "General tank (filled automatically)",
+        "generalTankTip": "Takes a free tank of the setup (spec role tank) for the target. Further rows take the next tank.",
+        "count": "Count",
+        "more": "One more",
+        "fewer": "One less",
+        "chosen": "Chosen"
     },
     "mine": {
         "title": "My tasks",

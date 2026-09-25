@@ -265,7 +265,7 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false } = {}) {
+function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [] } = {}) {
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     const roster = (event ? editorRoster(event) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
@@ -275,7 +275,9 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
     // a plan of a TBC raid never offers what only later game versions have (Tricks of the Trade); a template is a TBC one
-    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc" });
+    // the rows of this type the orga keeps (made by hand): the raiders they name are taken, the suggestion goes round the others
+    const kept = Array.isArray(keep) && keep.length > 0 ? (assign.cleanAssignments(keep.slice(0, assign.LIMITS.perBoard), new Set(roster.map((p) => p.userId))).assignments || []) : [];
+    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc", keep: kept });
 }
 
 /** The Besetzung of an event without a template: its size, the planned tanks and healers, the damage dealers split evenly. */

@@ -23,7 +23,10 @@ describe("class reference parts", () => {
     it("counts on: the next free number per class", () => {
         expect(cr.nextClassN([], "Hunter")).toBe(1);
         expect(cr.nextClassN(["class:Hunter:1", "class:Rogue:1", "class:Hunter:2"], "Hunter")).toBe(3);
-        expect(cr.nextClassN(["class:Hunter:9"], "Hunter")).toBe(9);
+        // the lowest free number (a gap is filled), per role when one is given
+        expect(cr.nextClassN(["class:Hunter:2"], "Hunter")).toBe(1);
+        expect(cr.nextClassN(["class:Warrior:1:tank", "class:Warrior:1"], "Warrior", "tank")).toBe(2);
+        expect(cr.nextClassN(["class:Warrior:1:tank"], "Warrior", "")).toBe(1);
     });
     it("a role filter: dps means melee or ranged, empty means anyone", () => {
         expect(cr.roleFits("", "tank")).toBe(true);
@@ -88,8 +91,12 @@ describe("an unfilled class reference as it is shown", () => {
         const r = assign.resolveAssignee("class:Hunter:2", ctx);
         expect(r).toMatchObject({ kind: "class", open: true, classId: "Hunter", icon: "classicon_hunter", role: "" });
         expect(r.label).toBe("Jäger 2");
-        expect(assign.resolveAssignee("class:Priest:1:healer", ctx)).toMatchObject({ label: "Priester", role: "healer" });
-        expect(assign.resolveTarget({ kind: "class", ref: "Priest:1" }, ctx)).toMatchObject({ kind: "class", ref: "Priest:1", label: "Priester", open: true });
+        // the running number is always shown ("Jäger 1", "Jäger 2"), the role in brackets
+        expect(assign.resolveAssignee("class:Priest:1:healer", ctx)).toMatchObject({ label: "Priester (Heiler) 1", role: "healer" });
+        expect(assign.resolveTarget({ kind: "class", ref: "Priest:1" }, ctx)).toMatchObject({ kind: "class", ref: "Priest:1", label: "Priester 1", open: true });
+        // a general tank: "Tank (Krieger) 1", any tank "Tank 2" with the role icon
+        expect(assign.resolveAssignee("class:Warrior:1:tank", ctx)).toMatchObject({ label: "Tank (Krieger) 1", icon: "classicon_warrior" });
+        expect(assign.resolveAssignee("class:Any:2:tank", ctx)).toMatchObject({ label: "Tank 2", icon: "ability_warrior_defensivestance", classId: "Any" });
     });
 });
 

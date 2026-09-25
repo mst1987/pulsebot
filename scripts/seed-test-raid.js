@@ -144,6 +144,19 @@ function seedPlan(eventId, event) {
             mk("heal", ["user:" + me.userId], [{ kind: "slot", ref: "tank:2" }]),
         ] };
     }
+    // the round robin to try (docs/raidplan.md, "Count and round robin"): general tanks on the trash ("Tank (Paladin)" is served first, "any
+    // tank" takes the next tank of the setup) and a third misdirect row at the council that stays open (two hunters, both misdirect there)
+    {
+        const rowId = () => require("crypto").randomBytes(5).toString("hex");
+        const mk = (type, assignees, targets) => ({ id: rowId(), type, title: "", spell: null, assignees, targets, note: "", suggested: false });
+        const trashMobs = catalog.listMobs().filter((m) => m.kind === "trash" && m.instanceId === "bt" && !m.bossKey).slice(0, 2);
+        const tb = extended["bt/trash"] || { slots: [], assignments: [] };
+        if (trashMobs.length === 2) {
+            extended["bt/trash"] = { ...tb, assignments: [...(tb.assignments || []), mk("tank", ["class:Any:1:tank"], [mobTarget(trashMobs[0])]), mk("tank", ["class:Paladin:1:tank"], [mobTarget(trashMobs[1])])] };
+        }
+        const cb = extended["bt/the-illidari-council"] || { slots: [], assignments: [] };
+        extended["bt/the-illidari-council"] = { ...cb, assignments: [...(cb.assignments || []), mk("md", ["class:Hunter:1"], [{ kind: "slot", ref: "tank:3" }])] };
+    }
     const savedPlan = planStore.savePlan(eventId, { version: plan.version, bosses: extended }, {
         bossKeys, allowedUserIds: roster.map((p) => p.userId), profileIds: [], userId: "seed",
     });

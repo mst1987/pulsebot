@@ -7,7 +7,7 @@
 // Written to be strippable (test/web-client/assign.test.js runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
 import { mentionsInRow } from "./mention";
-import { parseClassRef } from "./classRefs";
+import { ANY, parseClassRef } from "./classRefs";
 import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../api";
 import { t } from "../i18n";
 
@@ -302,11 +302,29 @@ function slotPlayer(ctx: AssignCtx, kind: string, n: number): RaidplanPlayer | n
     return s ? ctx.players.get(s.userId) || null : null;
 }
 
-/** A class reference nobody fills (yet): an open place with the class icon and the class name; `role` is its role filter. */
+/** What a class (or general role) place is called, without its number: "Jäger", "Tank (Krieger)", "Tank" (any tank), "Priester (Heiler)". */
+export function classPlaceName(classId: string, role: string): string {
+    if (classId === ANY) return t(`raidBoard.class.roles.${role || "dps"}`);
+    if (role === "tank") return t("raidBoard.class.tankOf", { cls: t(`wow.class.${classId}`) });
+    return t(`wow.class.${classId}`) + (role ? ` (${t(`raidBoard.class.roles.${role}`)})` : "");
+}
+
+/** The label of a class reference with its running number: "Jäger 1", "Jäger 2", "Tank (Krieger) 1", "Tank 2". */
+export function classRefLabel(ref: string): string {
+    const q = parseClassRef(ref);
+    return q ? `${classPlaceName(q.classId, q.role)} ${q.n}` : ref;
+}
+
+/** The icon of a class reference: the class icon, for "any <role>" the role's icon. */
+export function classRefIcon(classId: string, role: string): string {
+    return classId === ANY ? ROLE_ICON[role] || ROLE_ICON.dps : classIconOf(classId);
+}
+
+/** A class reference nobody fills (yet): an open place with the class icon and its name with the running number; `role` is its role filter. */
 function classResolved(ref: string): Resolved {
     const q = parseClassRef(ref);
     if (!q) return { ...NONE, ref, label: ref };
-    return { ...NONE, kind: "class", ref, label: t(`wow.class.${q.classId}`) + (q.n > 1 ? ` ${q.n}` : ""), open: true, role: q.role, icon: classIconOf(q.classId), classId: q.classId };
+    return { ...NONE, kind: "class", ref, label: classRefLabel(ref), open: true, role: q.role, icon: classRefIcon(q.classId, q.role), classId: q.classId };
 }
 
 /** An assignee: `slot:<kind>:<n>` (the placeholder, or who stands in it) or `user:<userId>`. */
