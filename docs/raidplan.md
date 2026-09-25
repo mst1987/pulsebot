@@ -397,3 +397,10 @@ The inspector of several selected objects (`MultiInspector`) shows, besides size
 - **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so they never meet (before it sat at the lower right, on the name's first line).
 
 Tests: `test/web-client/labelScale.test.js`, "names on a group ring" in `test/web-client/raidplan.test.js`.
+
+**A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from the default:
+
+- The token's button had a text line of its own (inline icon on the baseline, a line height that did not scale): a small icon (30 %) sat lower than its anchor, and the name, measured from the anchor, lay on the icon. Now the button is exactly its icon (`.rp-canvas .rp-token > .rp-token-btn`: block, `--rp-s` wide and high, no line height) - name and badge sit where they belong at every size.
+- The ring was laid out with the group's *spacing* only (group size x ring spacing): tokens bigger than that ("Token size" 70 % with a ring spacing of 30 %) covered their neighbours and their names. `ringUnit(spacePx, memberPx)` = the bigger of the two - the ring grows with the tokens it carries (also for the places the facing finds). Raiders moved by hand keep their stored offsets.
+
+Tests: "a group's own token size" in `test/web-client/raidplan.test.js`.

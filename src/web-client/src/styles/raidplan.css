@@ -1299,6 +1299,10 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 }
 
 /* the name, the badges, the rings and the facing wedge are shares of the icon's own size (--rp-s, in reference units): every scale that changes the icon changes them by the same factor */
+/* the button of a token is exactly its icon: no line box of its own. Without this a small icon (a group's "Token size" 30 %) sat on the
+   baseline of the button's text line, lower than its anchor, and its name - measured from the anchor - lay on the icon (#raidplan-15) */
+.rp-canvas .rp-token > .rp-token-btn:not(.rp-groupchip) { display: block; width: var(--rp-s, 38px); height: var(--rp-s, 38px); line-height: 0; font-size: 0; }
+.rp-canvas .rp-token > .rp-token-btn:not(.rp-groupchip) > .rp-ico, .rp-canvas .rp-token > .rp-token-btn:not(.rp-groupchip) > .rp-icon-face { vertical-align: top; }
 /* the name sits under its icon, centred, at a share of the icon's size (never moved by zoom); a ring member's name is kept within the room to its neighbour (--rp-nw) */
 .rp-canvas .rp-token .rp-token-name { font-size: var(--rp-nf, calc(var(--rp-s, 38px) * .3)); top: calc(var(--rp-s, 38px) * .58); max-width: var(--rp-nw, calc(var(--rp-s, 38px) * 2.6)); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .16); border-radius: calc(var(--rp-s, 38px) * .16); }
 .rp-canvas .rp-token.is-noname .rp-token-name { display: none; }

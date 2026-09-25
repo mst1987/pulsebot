@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
 import { ANY } from "../../lib/classRefs";
@@ -236,7 +236,9 @@ export default function PlanBoard({
             if (s.kind !== "group" || s.hidden || s.placed === false || !s.split || s.hideMembers) continue;
             const members = splitMembers(boardOwn, s, roster);
             const { gs, sp } = groupScales(s);
-            const ring = ringOffsets(members.length, size.w, size.h, scaled(s.size, SIZE_RANGES.member.def) * gs * sp);
+            const { ts } = groupScales(s);
+            const base = scaled(s.size, SIZE_RANGES.member.def) * gs;
+            const ring = ringOffsets(members.length, size.w, size.h, ringUnit(base * sp, base * ts));
             members.forEach((p, i) => {
                 const off = s.offsets ? s.offsets[p.userId] : undefined;
                 const d = off ? { dx: off.dx * gs * sp, dy: off.dy * gs * sp } : ring[i] || { dx: 0, dy: 0 };
@@ -466,7 +468,8 @@ export default function PlanBoard({
                     const { gs, sp, ts } = groupScales(s);
                     const memberBase = scaled(s.size, SIZE_RANGES.member.def);
                     const memberPx = memberBase * gs * ts;
-                    const spacePx = memberBase * gs * sp;
+                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan.ts ringUnit)
+                    const spacePx = ringUnit(memberBase * gs * sp, memberPx);
                     const spread = gs * sp;
                     // a name under a ring member is never wider than the room to its neighbour (lib/raidplan.ts ringNameWidth): a long one ends in "…"
                     const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);

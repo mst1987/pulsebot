@@ -775,6 +775,14 @@ export function scaleObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
 /** How far apart two neighbours of a group ring stand at least, in token sizes: room for a name under each of them, side by side. */
 export const RING_CHORD = 2.2;
 
+/**
+ * The size a group ring is laid out with (reference px): its spacing (the group's size x "Ring spacing"), but never less than the tokens
+ * it carries (the group's size x "Token size") - bigger tokens push the ring out, so neighbours and their names never cover each other.
+ */
+export function ringUnit(spacePx: number, memberPx: number): number {
+    return Math.max(spacePx > 0 ? spacePx : 0, memberPx > 0 ? memberPx : 0);
+}
+
 /** The radius of a group ring (reference px) for `count` raiders of `tokenPx`: it grows with their number, and neighbours are RING_CHORD tokens apart. */
 export function ringRadius(count: number, tokenPx: number): number {
     if (count <= 0 || !(tokenPx > 0)) return 0;

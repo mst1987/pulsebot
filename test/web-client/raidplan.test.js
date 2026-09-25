@@ -1410,3 +1410,23 @@ describe("names on a group ring (feature/raidplan-14)", () => {
         expect(board).toContain("\"--rp-nw\": `${Math.round(nameRoom)}px`");
     });
 });
+describe("a group's own token size (feature/raidplan-15)", () => {
+    const lib3 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("the ring is laid out for the tokens it carries: never tighter than their size, the spacing wins when it is bigger", () => {
+        expect(lib3.ringUnit(38, 11)).toBe(38);
+        expect(lib3.ringUnit(11, 27)).toBe(27);
+        expect(lib3.ringUnit(0, 0)).toBe(0);
+        // spacing 30 %, tokens 70 %: neighbours stand 2.2 tokens of 70 % apart, not of 30 %
+        const r = lib3.ringRadius(5, lib3.ringUnit(38 * 0.3, 38 * 0.7));
+        expect(2 * r * Math.sin(Math.PI / 5)).toBeGreaterThanOrEqual(lib3.RING_CHORD * 38 * 0.7 - 1e-9);
+    });
+    it("the board uses it for the ring and for the places the facing finds; the token button is exactly its icon (no text line)", () => {
+        const fs = require("fs");
+        const p = require("path");
+        const board = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/components/raidplan/PlanBoard.tsx"), "utf8");
+        expect(board).toContain("const spacePx = ringUnit(memberBase * gs * sp, memberPx);");
+        expect(board).toContain("ringOffsets(members.length, size.w, size.h, ringUnit(base * sp, base * ts))");
+        const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-canvas .rp-token > .rp-token-btn:not(.rp-groupchip) { display: block; width: var(--rp-s, 38px); height: var(--rp-s, 38px); line-height: 0; font-size: 0; }");
+    });
+});
