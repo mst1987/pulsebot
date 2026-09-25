@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, ZoomIn, ZoomOut } from "lucide-react";
+import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, Wand2, ZoomIn, ZoomOut } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
@@ -38,7 +38,7 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
         document.addEventListener("keydown", esc);
         return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); };
     }, [open]);
-    const flag = (key: "showNames" | "showBadges" | "showRoleRings" | "showRings", label: string, icon: JSX.Element) => (
+    const flag = (key: "showNames" | "showBadges" | "showRoleRings" | "showRings" | "autoPlace", label: string, icon: JSX.Element) => (
         <label className="rp-check rp-view-row"><input type="checkbox" checked={board[key] !== false} disabled={!canWrite} onChange={(e) => edit((b) => ({ ...b, [key]: e.target.checked }))} />{icon}{label}</label>
     );
     const local = (label: string, on: boolean, set: (v: boolean) => void, icon: JSX.Element) => (
@@ -57,6 +57,7 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
                     {flag("showBadges", t("raidBoard.view.badges"), <Hash size={15} aria-hidden="true" />)}
                     {flag("showRoleRings", t("raidBoard.view.roleRings"), <CircleUser size={15} aria-hidden="true" />)}
                     {flag("showRings", t("raidBoard.view.groupRings"), <CircleDashed size={15} aria-hidden="true" />)}
+                    {flag("autoPlace", t("raidBoard.auto.place"), <Wand2 size={15} aria-hidden="true" />)}
                     <span className="rp-kicker" data-tip={t("raidBoard.view.forMe")}>{t("raidBoard.view.localHead")}</span>
                     {local(t("raidBoard.view.mine"), prefs.highlight, (v) => setPref({ highlight: v }), <Star size={15} aria-hidden="true" />)}
                     {local(t("raidBoard.view.selection"), prefs.selection, (v) => setPref({ selection: v }), <BoxSelect size={15} aria-hidden="true" />)}

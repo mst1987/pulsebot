@@ -103,7 +103,7 @@ const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "othe
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults, openRequest = null }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -127,6 +127,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     defaultRows?: RaidplanAssignment[];
     /** in the Standard's own editor: writes its rows into every boss that does not differ (asks first) */
     onCopyDefaults?: () => void;
+    /** the map asks for a row's dialog ("Tank wählen …", "Zeile bearbeiten …"); `n` makes the same row open again */
+    openRequest?: { id: string; n: number } | null;
 }) {
     const t = useT();
     const toast = useToast();
@@ -155,6 +157,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const slots = useMemo(() => slotChoices(board.slots), [board.slots]);
     const spellRefOf = (id: string) => { const sp = (catalog ? catalog.spells : []).find((x) => x.id === id); return sp ? spellRef(sp) : null; };
     const groups = Array.from({ length: Math.max(1, groupCount) }, (_, i) => i + 1);
+    // the map asked for a row's dialog ("Tank wählen …", "Zeile bearbeiten …")
+    useEffect(() => { if (openRequest && openRequest.id) openRow(openRequest.id); }, [openRequest]);
     // another boss brings its own hand-added cards
     useEffect(() => { setExtra([]); setFolded([]); }, [scope, eventId]);
 

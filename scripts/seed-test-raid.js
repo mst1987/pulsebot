@@ -6,6 +6,10 @@
 //   node scripts/seed-test-raid.js                 # event "BT Vollraid Test" (created, or rebuilt)
 //   node scripts/seed-test-raid.js --event <id>    # rebuild this own event instead
 //   node scripts/seed-test-raid.js --guild <id>    # Discord server id for a new event (default GUILD_ID / an existing event's)
+//   node scripts/seed-test-raid.js --auto-demo     # the auto placement demo (docs/raidplan.md): Illidan without hand-placed icons
+//                                                  # (boss, two Flames and their tanks come from the tank rows), the Council with
+//                                                  # "Magier-Tank -> Zerevor" and "Tank (Paladin) -> Malande", the paladin tank playing
+//                                                  # DPS there ("Paladin fehlt")
 //
 // It also fills the raid plan: a template "BT Demo" (slots, heal / trash assignments for Naj'entus,
 // Supremus, Gurtogg, Illidan and the trash) is created or updated and applied to the event, then
@@ -56,11 +60,19 @@ function seedPlan(eventId, event) {
 
     const catalog = require("../src/web/raidplanCatalogStore");
     const btBosses = planStore.bossesForInstances(["bt"]);
+    const autoDemo = process.argv.includes("--auto-demo");
+    const councilMob = (re) => catalog.listMobs().find((m) => m.bossKey === "bt/the-illidari-council" && re.test(m.name));
     const mobTarget = (m) => ({ kind: "mob", ref: m.id, name: m.name, icon: m.icon });
     // tanking: the boss is the target; at the Illidari Council each tank takes one of the four council members from the catalog
     const tankRows = (key) => {
         const row = (n, target) => ({ id: assign.newRowId ? assign.newRowId() : `t${n}${key.length}`, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [target], note: "", suggested: false });
         if (key === "bt/trash") return [];
+        if (key === "bt/the-illidari-council" && autoDemo) {
+            // rules instead of slots: a mage of any spec tanks Zerevor, the paladin tank Malande (resolved from the setup when applied)
+            const rule = (ref, m) => ({ ...row(0, mobTarget(m)), id: `c${ref.length}${m.id.length}`, assignees: [ref] });
+            const [gathios, zerevor, malande] = [councilMob(/Gathios/), councilMob(/Zerevor/), councilMob(/Malande/)];
+            return [...(gathios ? [row(1, mobTarget(gathios))] : []), ...(zerevor ? [rule("class:Mage:1:any", zerevor)] : []), ...(malande ? [rule("class:Paladin:1:tank", malande)] : [])];
+        }
         if (key === "bt/the-illidari-council") return catalog.listMobs().filter((m) => m.bossKey === key).slice(0, 3).map((m, i) => row(i + 1, mobTarget(m)));
         const boss = btBosses.find((b) => b.key === key);
         return boss ? [row(1, { kind: "mob", ref: `b:${key}`, name: boss.name, icon: "" })] : [];
@@ -90,8 +102,9 @@ function seedPlan(eventId, event) {
         const row = (id, n, ref, name, icon) => ({ id, type: "tank", title: "", spell: null, assignees: [`slot:tank:${n}`], targets: [{ kind: "mob", ref, name, icon }], note: "", suggested: false });
         bosses[key] = {
             ...bosses[key],
-            slots: [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
-            icons: [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
+            // --auto-demo: nothing placed by hand, the tank rows put Illidan, both Flames and the three tanks on the map
+            slots: autoDemo ? [] : [tk(1, 0.5, 0.86), tk(2, 0.14, 0.3), tk(3, 0.86, 0.3)],
+            icons: autoDemo ? [] : [mk("illidanb", "boss:609", 0.5, 0.5, `b:${key}`), mk("flame1", "mob:22997", 0.28, 0.42, "d:flame-of-azzinoth"), mk("flame2", "mob:22997", 0.72, 0.42, "d:flame-of-azzinoth")],
             assignments: [row("illt1", 1, `b:${key}`, "Illidan Stormrage", ""), row("illt2", 2, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), row("illt3", 3, "d:flame-of-azzinoth", "Flame of Azzinoth", "mob:22997"), ...bosses[key].assignments.filter((x) => x.type !== "tank")],
         };
     }
@@ -160,9 +173,12 @@ function seedPlan(eventId, event) {
         const zerevor = catalog.listMobs().find((m) => m.bossKey === "bt/the-illidari-council" && /Zerevor/.test(m.name));
         extended["bt/the-illidari-council"] = { ...cb, assignments: [...(cb.assignments || []),
             mk("md", ["class:Hunter:1"], [{ kind: "slot", ref: "tank:3" }]),
-            ...(zerevor ? [mk("tank", ["class:Mage:1:any"], [mobTarget(zerevor)])] : []),
+            ...(zerevor && !autoDemo ? [mk("tank", ["class:Mage:1:any"], [mobTarget(zerevor)])] : []),
             mk("ss", ["class:Warlock:1", "class:Warlock:2", "class:Warlock:3"], [{ kind: "slot", ref: "healer:1" }]),
         ] };
+        // --auto-demo: the paladin tank plays DPS at the Council, so "Tank (Paladin) -> Malande" finds nobody ("Paladin fehlt", never another class)
+        const pal = roster.find((p) => p.classId === "Paladin" && p.role === "tank");
+        if (autoDemo && pal) extended["bt/the-illidari-council"] = { ...extended["bt/the-illidari-council"], roles: { ...(extended["bt/the-illidari-council"].roles || {}), [pal.userId]: "dps" } };
     }
     const savedPlan = planStore.savePlan(eventId, { version: plan.version, bosses: extended }, {
         bossKeys, allowedUserIds: roster.map((p) => p.userId), profileIds: [], userId: "seed",

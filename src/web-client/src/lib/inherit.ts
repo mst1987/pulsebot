@@ -20,7 +20,8 @@ export function resolveInherited(row: RaidplanAssignment, section: InheritSectio
             if (section.bossMob) targets.push({ kind: "mob", ref: section.bossMob.id, name: section.bossMob.name, icon: section.bossMob.icon });
         } else {
             const m = section.mobs.find((x) => x.id === tg.ref);
-            if (m) targets.push({ kind: "mob", ref: m.id, name: m.name, icon: m.icon });
+            // the instance number ("Flame of Azzinoth 2") goes along
+            if (m) targets.push(tg.n ? { kind: "mob", ref: m.id, name: m.name, icon: m.icon, n: tg.n } : { kind: "mob", ref: m.id, name: m.name, icon: m.icon });
         }
     }
     return { ...row, targets, origin: row.id, suggested: false };

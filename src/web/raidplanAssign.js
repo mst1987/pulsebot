@@ -12,8 +12,9 @@
 //                  { kind: "player", ref: "<userId>" }   one raider (event plans only)
 //                  { kind: "mark",   ref: "skull" }      a raid mark (also "who takes which target" on trash)
 //                  { kind: "text",   ref: "Fear" }       free text: an ability, an enemy, a curse
-//                  { kind: "mob",    ref: "d:gathios", name, icon }  a mob of the catalog or the section's boss ("b:<boss key>"); name and icon are
-//                                    a snapshot, shown when the catalog entry is gone
+//                  { kind: "mob",    ref: "d:gathios", name, icon, n? }  a mob of the catalog or the section's boss ("b:<boss key>"); name and icon are
+//                                    a snapshot, shown when the catalog entry is gone; `n` (1..20) = which of several mobs of that kind
+//                                    ("Flame of Azzinoth 2"), none = the row's own one (docs/raidplan.md, auto placement)
 //   spell        { id, name, icon } | null   the catalog spell the row is about (a curse, a kick ...), with the same kind of snapshot
 //
 // Only references are stored, never names or icons: those are looked up live from the setup.
@@ -66,6 +67,8 @@ function cleanClasses(raw) {
 
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const newId = () => require("crypto").randomBytes(5).toString("hex");
+/** Which of several mobs of one kind a target means: 1..20, 0 = none given (the row's own). */
+const mobInstance = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 1 && n <= 20 ? n : 0; };
 
 /**
  * Cleans a list of assignments. `allowed` = the userIds an event plan may name (empty in
@@ -106,9 +109,11 @@ function cleanAssignments(raw, allowed = new Set()) {
             else if (kind === "text") { ref = ref.slice(0, LIMITS.text); good = ref !== ""; }
             else if (kind === "mob") good = MOB_REF.test(ref);
             else if (kind === "class") good = CLASS_TARGET.test(ref);
-            if (!good || targets.some((x) => x.kind === kind && x.ref === ref)) { dropped += 1; continue; }
+            // several mobs of one kind: the instance number (1..20); none = the row's own mob
+            const inst = kind === "mob" ? mobInstance(t.n) : 0;
+            if (!good || targets.some((x) => x.kind === kind && x.ref === ref && (x.n || 0) === inst)) { dropped += 1; continue; }
             if (targets.length >= LIMITS.targets) break;
-            targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "" } : { kind, ref });
+            targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "", ...(inst ? { n: inst } : {}) } : { kind, ref });
         }
 
         const sp = o.spell && typeof o.spell === "object" ? o.spell : null;
@@ -443,7 +448,7 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY, CLASS_ASSIGNEE,
+    impliedRole, ANY, CLASS_ASSIGNEE, mobInstance,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

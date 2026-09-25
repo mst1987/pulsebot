@@ -363,7 +363,7 @@ describe("GET /api/raidplan/public", () => {
         async function publishMap(showMap) {
             await call(route.putPlan, ORGA, {
                 event: "eh_1", version: 0,
-                bosses: { "bt/supremus": { showMap, tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], texts: [{ text: "MAP-TEXT", x: 0.5, y: 0.5 }], notes: "Hi" } },
+                bosses: { "bt/supremus": { showMap, tokens: [{ userId: "u1", x: 0.2, y: 0.3 }], texts: [{ text: "MAP-TEXT", x: 0.5, y: 0.5 }], notes: "Hi", autoPos: { "t:r1:1": { x: 0.25, y: 0.75 } } } },
             });
             const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
             return body(publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
@@ -373,12 +373,14 @@ describe("GET /api/raidplan/public", () => {
             const b = await publishMap(true);
             expect(b.showMap).toBe(true);
             expect(b.tokens).toHaveLength(1);
+            // the page derives what the tank rows put on the map: it gets the switch and the moved positions
+            expect(b).toMatchObject({ autoPlace: true, autoPos: { "t:r1:1": { x: 0.25, y: 0.75 } } });
             expect(JSON.stringify(b)).toContain("MAP-TEXT");
         });
 
         it("sends no map url and no objects when it is hidden, the rest of the section stays", async () => {
             const b = await publishMap(false);
-            expect(b).toMatchObject({ key: "bt/supremus", showMap: false, mapUrl: "", notes: "Hi", tokens: [], marks: [], icons: [], zones: [], lines: [], texts: [] });
+            expect(b).toMatchObject({ key: "bt/supremus", showMap: false, mapUrl: "", notes: "Hi", tokens: [], marks: [], icons: [], zones: [], lines: [], texts: [], autoPos: {} });
             expect(JSON.stringify(b)).not.toContain("MAP-TEXT");
             // the editor still holds the objects
             const v = body(await call(route.getPlan, ORGA, null, "event=eh_1"));

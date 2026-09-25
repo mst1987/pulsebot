@@ -381,7 +381,9 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
     if (target.kind === "mob") {
         // the live catalog entry when there is one, else the snapshot the plan keeps
         const live = ctx.catalog ? ctx.catalog.mobs.find((m) => m.id === target.ref) : undefined;
-        return { ...NONE, kind: "mob", ref: target.ref, label: live ? live.name : target.name || "?", icon: live ? live.icon : target.icon || "" };
+        // one of several of its kind: "Flame of Azzinoth 2"
+        const base = live ? live.name : target.name || "?";
+        return { ...NONE, kind: "mob", ref: target.ref, label: target.n ? `${base} ${target.n}` : base, icon: live ? live.icon : target.icon || "" };
     }
     if (target.kind === "mark") return { ...NONE, kind: "mark", ref: target.ref, label: t(`raidBoard.mark.${target.ref}`), mark: target.ref };
     return { ...NONE, kind: "text", ref: target.ref, label: target.ref };

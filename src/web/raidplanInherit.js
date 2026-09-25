@@ -46,7 +46,8 @@ function resolveRow(row, section) {
             if (section.bossMob) targets.push({ kind: "mob", ref: section.bossMob.id, name: section.bossMob.name, icon: section.bossMob.icon });
         } else if (section.mobs.has(tg.ref)) {
             const m = section.mobs.get(tg.ref);
-            targets.push({ kind: "mob", ref: m.id, name: m.name, icon: m.icon });
+            // the instance number ("Flame of Azzinoth 2") goes along
+            targets.push({ kind: "mob", ref: m.id, name: m.name, icon: m.icon, ...(tg.n ? { n: tg.n } : {}) });
         }
     }
     return { ...row, targets, origin: row.id };
@@ -63,7 +64,8 @@ function inheritedRows(defaultRows, off, section) {
  * section's own rows. Used when a template is applied.
  */
 function effectiveRows(defaultRows, boardObj, section) {
-    const inherited = inheritedRows(defaultRows, boardObj && boardObj.inheritOff, section).map((r) => ({ ...r, id: newId(), origin: "default", suggested: false }));
+    // `_key`: the id the row had in the template, so the positions of what it puts on the map (autoPos) move to the new id (raidplanBoard.reidBoard)
+    const inherited = inheritedRows(defaultRows, boardObj && boardObj.inheritOff, section).map((r) => ({ ...r, _key: r.id, id: newId(), origin: "default", suggested: false }));
     return [...inherited, ...((boardObj && boardObj.assignments) || [])];
 }
 

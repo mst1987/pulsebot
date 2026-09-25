@@ -27,6 +27,9 @@
 //   roles    { [userId]: role }   who plays another role on this boss than in the setup (flex)
 //   slots may carry placed:false = in the Besetzung, not on the map
 //   assignments [{ id, type, title, assignees, targets, note, suggested }]  who heals whom, kicks, curses ... (raidplanAssign.js)
+//   autoPlace   false = the tank rows do not put their mobs and tanks on the map (default: they do, docs/raidplan.md)
+//   autoPos     { [key]: { x, y } }   where an object the tank rows put on the map was moved to by hand; key = "t:<row>:<n>"
+//               (the n-th tank of a row) or "m:<mob>#<n>" (the n-th mob of a kind). The objects themselves are never stored.
 //   notes, profileId, mapOpacity          (mapOpacity 0.1..1: how strongly the map shows)
 //   objectScale                           (0.4..2: the default size of tokens, slots, marks and icons)
 //
@@ -51,6 +54,7 @@ const LIMITS = {
     iconsPerBoss: 60,
     offsetsPerGroup: 30,
     mobsPerBoss: 40,
+    autoPos: 80,
     text: 60,
     targetsPerBoss: 30,
     usersPerTarget: 25,
@@ -346,25 +350,62 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const inSheet = input.inSheet !== false;
     // false = the section is shown without its map (the objects are kept); missing = shown (old boards keep their map)
     const showMap = input.showMap !== false;
+    // the tank rows put their mobs and tanks on the map by themselves (off = only what was placed by hand)
+    const autoPlace = input.autoPlace !== false;
+    const autoPos = cleanAutoPos(input.autoPos);
     const showNames = input.showNames !== false;
     const showBadges = input.showBadges !== false;
     const showRoleRings = input.showRoleRings !== false;
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, steps: cleanedSteps.steps, showMap, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, steps: cleanedSteps.steps, showMap, autoPlace, autoPos, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+}
+
+// the key of an object the tank rows put on the map: the n-th tank of a row, or the n-th mob of a kind
+const AUTO_KEY = /^(t:[\w-]{1,24}:\d{1,2}|m:[dcb]:[\w\-/']{1,70}#\d{1,2})$/;
+
+/** The positions of auto-placed objects moved by hand: known keys only, a point on the board, at most LIMITS.autoPos. */
+function cleanAutoPos(raw) {
+    const out = {};
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    for (const key of Object.keys(src)) {
+        const p = src[key];
+        if (!AUTO_KEY.test(key) || !p || typeof p !== "object") continue;
+        const x = Number(p.x);
+        const y = Number(p.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (Object.keys(out).length >= LIMITS.autoPos) break;
+        out[key] = { x: round4(clamp01(x)), y: round4(clamp01(y)) };
+    }
+    return out;
+}
+
+/** The key a row's tanks are stored under: a copy of a default row keeps the default's id (its moved tanks stay where they are). */
+function rowKey(a) {
+    return a && a.origin && a.origin !== "default" ? a.origin : a ? a.id : "";
 }
 
 /** Whether a cleaned board holds anything (an untouched boss is not stored). */
 function boardHasContent(b) {
     return !!(b.tokens.length || b.slots.length || b.marks.length || b.icons.length || b.zones.length || b.lines.length || b.texts.length
-        || b.targets.length || b.assignments.length || (b.steps || []).length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showMap === false || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
+        || b.targets.length || b.assignments.length || (b.steps || []).length || Object.keys(b.roles || {}).length || (b.mobs || []).length || (b.hiddenCards || []).length || (b.inheritOff || []).length || b.view || b.showRings === false || b.inSheet === false || b.showMap === false || b.autoPlace === false || Object.keys(b.autoPos || {}).length || b.showNames === false || b.showBadges === false || b.showRoleRings === false || Object.keys(b.groupColors || {}).length || Object.keys(b.groupMarks || {}).length || b.notes.trim() || b.profileId || b.mapOpacity < 1 || b.objectScale !== 1);
 }
 
 /** The same board with every object under a new id — a template copied into a plan. */
 function reidBoard(board) {
     const fresh = (o) => ({ ...o, id: newId() });
+    const rows = assign.reidAssignments(board.assignments);
+    // the moved tanks of a row follow it to its new id (`_key` = the id a default row had in the template)
+    const moved = new Map();
+    (board.assignments || []).forEach((a, i) => { const from = a._key || rowKey(a); const to = rowKey(rows[i]); if (from && to && from !== to) moved.set(from, to); });
+    const autoPos = {};
+    for (const [key, p] of Object.entries(board.autoPos || {})) {
+        const m = key.match(/^t:([\w-]+):(\d+)$/);
+        autoPos[m && moved.has(m[1]) ? `t:${moved.get(m[1])}:${m[2]}` : key] = p;
+    }
     return {
         ...board,
+        autoPos,
         tokens: [],
         slots: (board.slots || []).map(fresh),
         marks: (board.marks || []).map(fresh),
@@ -373,7 +414,7 @@ function reidBoard(board) {
         lines: (board.lines || []).map(fresh),
         texts: (board.texts || []).map(fresh),
         targets: (board.targets || []).map((t) => ({ ...fresh(t), userIds: [] })),
-        assignments: assign.reidAssignments(board.assignments),
+        assignments: rows,
         steps: steps.reidSteps(board.steps),
     };
 }
@@ -430,5 +471,5 @@ function fillSlots(slots, roster) {
 module.exports = {
     cleanFactor, cleanView,
     LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
-    cleanBoard, boardHasContent, reidBoard, fillSlots, newId,
+    cleanBoard, boardHasContent, reidBoard, fillSlots, newId, cleanAutoPos, rowKey, AUTO_KEY,
 };

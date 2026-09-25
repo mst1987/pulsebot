@@ -297,7 +297,8 @@
         "line": "Linie",
         "text": "Text",
         "member": "Raider",
-        "icon": "Icon"
+        "icon": "Icon",
+        "auto": "Aus Einteilung"
     },
     "insp": {
         "none": "Nichts ausgewählt. Klick ein Objekt auf dem Board oder in der Ebenenliste an, oder ziehe etwas aus den Elementen aufs Board.",
@@ -1013,5 +1014,34 @@
         "hide": "Karte ausblenden (nur Einteilungen)",
         "hiddenKept": "Karte ausgeblendet – die Objekte auf der Map bleiben gespeichert.",
         "offNote": "Dieser Abschnitt wird ohne Karte geplant. Die Objekte auf der Map bleiben gespeichert und sind wieder da, sobald die Karte angezeigt wird."
+    },
+    "auto": {
+        "fromRow": "aus Einteilung",
+        "missing": "{cls} fehlt",
+        "missingHint": "Diese Klasse ist nicht im Raid: der Platz bleibt leer (kein Ersatz durch eine andere Klasse), der Keil des Mobs folgt ihm nicht.",
+        "ruleHint": "Platzhalter der Vorlage: im Event steht hier der Spieler, den die Regel aus dem Setup nimmt.",
+        "tanks": "Tankt",
+        "noMob": "kein Mob (Marker oder ohne Ziel)",
+        "tankedBy": "Getankt von",
+        "noTank": "noch kein Tank",
+        "editRow": "Zeile bearbeiten …",
+        "pickTank": "Tank wählen …",
+        "reset": "Position zurücksetzen",
+        "moved": "Von Hand verschoben: diese Position bleibt, auch wenn sich die Einteilung ändert.",
+        "explain": "Kommt aus der Tankeinteilung und wird automatisch platziert. Verschieben geht; entfernt wird es mit seiner Zeile oder mit „Automatisch aus Tankeinteilung platzieren“ aus.",
+        "place": "Automatisch aus Tankeinteilung platzieren",
+        "noDelete": "Kommt aus der Tankeinteilung: Zeile löschen oder „Automatisch platzieren“ ausschalten.",
+        "tanksMob": "Tankt → {mob}",
+        "untank": "Tankt nicht mehr",
+        "several": "Mehrere dieser Art",
+        "severalTip": "Anzahl = so viele Mobs dieser Art, je einer bekommt einen Tank (Tank 1 → Nr. 1, Tank 2 → Nr. 2). Nr. = welcher davon; „eigene“ zählt die Zeilen der Reihe nach.",
+        "count": "Anzahl",
+        "inst": "Nr.",
+        "instOwn": "eigene",
+        "menu": {
+            "row": "Zeile bearbeiten …",
+            "tank": "Tank wählen …",
+            "reset": "Position zurücksetzen"
+        }
     }
 }

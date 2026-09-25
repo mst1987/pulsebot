@@ -8,7 +8,8 @@ import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../lib/useViewPrefs";
 import { shownFor } from "../lib/viewRules";
 import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
-import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
+import { getRaidplanPublic, type ApiError, type RaidplanBoard, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
+import { autoPlaces, deriveAuto } from "../lib/autoPlace";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
 import ReadSteps from "./raid-detail/raidplan/ReadSteps";
@@ -81,6 +82,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
     // the map's height: the window minus the head, the chips and some air (wide); a small part of the window when it is on top (narrow)
     const mapHeight = mapOnly ? Math.max(300, win.h - 96) : wide ? Math.max(320, win.h - 108) : Math.round(win.h * 0.45);
     const ctx = boss ? { slots: boss.slots, players, catalog: data.catalog, groupColors: boss.groupColors, groupMarks: boss.groupMarks } : null;
+    // what the tank rows put on the map, exactly as the editor derives it (the rows arrive resolved from the approved setup)
+    const auto = boss && !boss.general && boss.showMap !== false ? deriveAuto(boss.assignments, boss as unknown as RaidplanBoard, { template: false, roster: data.roster }) : undefined;
     /** the groups of this section, for the legend that highlights one (the others dim on the map) */
     const groupNs = boss ? Array.from(new Set(boss.slots.filter((sl) => sl.kind === "group").map((sl) => sl.n))).sort((a, b) => a - b) : [];
     // "Only for me": the sections that concern the visitor (he does something, or something acts on him), and in them only his blocks
@@ -154,7 +157,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     <PlanBoard
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                        players={players} roster={data.roster} me={data.meIds} links={prefs.links ? assignmentLinks(boss as never, data.meIds) : []} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
+                                        players={players} roster={data.roster} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
                                         view={bv.view} frameRef={bv.frame} showNames={shownFor(boss.showNames, prefs.names)} showBadges={boss.showBadges !== false} showRoleRings={shownFor(boss.showRoleRings, prefs.roleRings)} highlightMe={prefs.highlight}
                                     />
                                     <div className="rp-zoomctl" role="group" aria-label={t("raidBoard.zoom.title")}>

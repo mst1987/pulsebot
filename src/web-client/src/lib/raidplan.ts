@@ -36,8 +36,8 @@ export const DEFAULT_LINE_COLOR = "#f8fafc";
 export const DEFAULT_TEXT_COLOR = "#f8fafc";
 const MAX_HISTORY = 100;
 
-/** The kinds of board objects one can select, move and delete. */
-export type ObjectKind = "token" | "slot" | "mark" | "icon" | "zone" | "line" | "text" | "member";
+/** The kinds of board objects one can select, move and delete; "auto" = one the tank rows put on the map (lib/autoPlace.ts), id = its key. */
+export type ObjectKind = "token" | "slot" | "mark" | "icon" | "zone" | "line" | "text" | "member" | "auto";
 export type Selection = { kind: ObjectKind; id: string } | null;
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Corner = "nw" | "ne" | "sw" | "se";
@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, autoPlace: true, autoPos: {}, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -110,6 +110,9 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         steps: b.steps || [],
         // the section shows its map (a board from before the switch: yes, its objects and map stay)
         showMap: b.showMap !== false,
+        // the tank rows put their mobs and tanks on the map (an old board: yes); what was moved by hand
+        autoPlace: b.autoPlace !== false,
+        autoPos: b.autoPos || {},
         counts: b.counts || null,
         roles: b.roles || {},
         mobs: b.mobs || [],
@@ -188,7 +191,8 @@ export function sameBosses(a: Record<string, Partial<RaidplanBoard>>, b: Record<
  * placed: false, does not count). A member of a group who is in here is not shown again in his group (ring or name list).
  */
 export function ownPlaceIds(board: RaidplanBoard): Set<string> {
-    const ids = new Set(board.tokens.map((x) => x.userId));
+    // a raider the tank rows put on the map (lib/autoPlace.ts) has a place of his own too
+    const ids = new Set([...board.tokens.map((x) => x.userId), ...(board.autoUsers || [])]);
     for (const s of board.slots) if (s.userId && s.placed !== false) ids.add(s.userId);
     return ids;
 }
@@ -222,7 +226,7 @@ export function takeOutOfGroup(board: RaidplanBoard, memberKey: string, at: { x:
 
 /** Everyone who already stands somewhere on the board: a free token, a slot, or a group that is split around its marker. */
 export function placedIds(board: RaidplanBoard, roster: RaidplanPlayer[] = []): Set<string> {
-    const ids = new Set(board.tokens.map((x) => x.userId));
+    const ids = new Set([...board.tokens.map((x) => x.userId), ...(board.autoUsers || [])]);
     for (const s of board.slots) if (s.userId && s.placed !== false) ids.add(s.userId);
     for (const s of board.slots) for (const p of splitMembers(board, s, roster)) ids.add(p.userId);
     return ids;
@@ -465,6 +469,8 @@ export function moveLineEnd(board: RaidplanBoard, id: string, end: number, x: nu
 
 /** Moves an object's anchor to x/y (0..1): a token, slot, mark or text by its point, a line by its middle, a zone by its top-left corner. A locked object stays. */
 export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x: number, y: number): RaidplanBoard {
+    // an object the tank rows put on the map: only where it was moved to is stored
+    if (kind === "auto") return { ...board, autoPos: { ...(board.autoPos || {}), [id]: { x: Math.round(clamp01(x) * 10000) / 10000, y: Math.round(clamp01(y) * 10000) / 10000 } } };
     if (isLocked(board, kind, id)) return board;
     if (kind === "token") return placeToken(board, id, x, y);
     if (kind === "slot") return { ...board, slots: patchIn(board.slots, (s) => s.id === id, { x: clamp01(x), y: clamp01(y) }) };
@@ -491,6 +497,7 @@ export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x
 
 /** The anchor of an object (a point object's point, a line's middle, a zone's top-left corner), or null when it is gone. */
 export function objectPoint(board: RaidplanBoard, kind: ObjectKind, id: string): { x: number; y: number } | null {
+    if (kind === "auto") return board.autoPos && board.autoPos[id] ? board.autoPos[id] : null;
     if (kind === "line") {
         const l = board.lines.find((o) => o.id === id);
         return l ? { x: (l.x1 + l.x2) / 2, y: (l.y1 + l.y2) / 2 } : null;
@@ -519,6 +526,8 @@ export function nudgeObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
 
 /** Deletes a board object. A slot's player is simply not placed any more. */
 export function removeObject(board: RaidplanBoard, kind: ObjectKind, id: string): RaidplanBoard {
+    // what the tank rows put on the map goes with its row (or with "Automatisch platzieren" off); "delete" only puts it back to its own place
+    if (kind === "auto") return resetAutoPos(board, id);
     if (kind === "token") return removeToken(board, id);
     if (kind === "slot") {
         // a role slot belongs to the Besetzung: taking it off the map keeps it (the counts remove it)
@@ -540,6 +549,13 @@ export function removeObject(board: RaidplanBoard, kind: ObjectKind, id: string)
     if (kind === "line") return { ...board, lines: board.lines.filter((l) => l.id !== id) };
     if (kind === "text") return { ...board, texts: board.texts.filter((x) => x.id !== id) };
     return { ...board, zones: board.zones.filter((z) => z.id !== id) };
+}
+
+/** "Position zurücksetzen" of an auto-placed object: it goes back to the place the layout gives it. */
+export function resetAutoPos(board: RaidplanBoard, key: string): RaidplanBoard {
+    const next = { ...(board.autoPos || {}) };
+    delete next[key];
+    return { ...board, autoPos: next };
 }
 
 /** How big an object is: px for a token, slot, mark, icon, the font size of a text, the thickness of a line; null for a zone (it has a width and a height). */
