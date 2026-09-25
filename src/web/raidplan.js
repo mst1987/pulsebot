@@ -225,6 +225,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 showBadges: board.showBadges !== false,
                 showRoleRings: board.showRoleRings !== false,
                 // the tank rows put their mobs and tanks on the map (the page derives them); without the map: nothing of it
+                // who plays another role on this boss (flex): the role groups ("Melees -> Boss") follow it
+                roles: Object.fromEntries(Object.entries(board.roles || {}).filter(([u]) => known.has(u))),
                 autoPlace: board.autoPlace !== false,
                 autoPos: mapOn ? board.autoPos || {} : {},
                 autoStyle: mapOn ? board.autoStyle || {} : {},
@@ -258,6 +260,14 @@ function publicView(plan, event, { me = "" } = {}) {
             for (const t of a.targets) if (t.kind === "player") used.add(t.ref);
         }
         for (const sl of b.slots) if (sl.kind === "group") for (const r of roster) if (r.group === sl.n) used.add(r.userId);
+        // a role group ("Melees -> Boss") concerns every raider of that role: the page needs them to show it under "Meine Aufgaben"
+        const roleRefs = new Set();
+        for (const a of b.assignments) {
+            for (const r of a.assignees) if (r.startsWith("role:")) roleRefs.add(r.slice(5));
+            for (const t of a.targets) if (t.kind === "role") roleRefs.add(t.ref);
+        }
+        for (const s of b.steps) for (const r of s.participants) if (r.startsWith("role:")) roleRefs.add(r.slice(5));
+        for (const role of roleRefs) for (const r of roster) if (assign.inRoleGroup(role, b.roles[r.userId] || r.role)) used.add(r.userId);
         // the group healing table shows every group with its members: a board that heals groups knows the whole lineup
         if (b.assignments.some((a) => a.type === "heal" && a.targets.some((t) => t.kind === "group"))) for (const r of roster) used.add(r.userId);
     }

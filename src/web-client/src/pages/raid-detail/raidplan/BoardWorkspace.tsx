@@ -437,6 +437,10 @@ export default function BoardWorkspace({
             if (d.multi && d.p0) {
                 const m = d.multi;
                 edit(() => noAuto(moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx())), true);
+            } else if (d.handle === "rot" && d.center && d.kind === "zone") {
+                // a role group turned by its grip (Shift = 15 degree steps)
+                const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
+                edit((b) => updateZone(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a }), true);
             } else if (d.handle === "rot" && d.center && d.kind === "auto") {
                 // an auto mob turned by hand: its facing is its own from now on
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
@@ -559,7 +563,7 @@ export default function BoardWorkspace({
         let center: { x: number; y: number } | undefined;
         let d0: number | undefined;
         if (handle === "size" || handle === "rot") {
-            const wrap = target.closest(".rp-token, .rp-text");
+            const wrap = target.closest(".rp-token, .rp-text, .rp-zone");
             const cr = wrap ? wrap.getBoundingClientRect() : null;
             const cur = sizeOf(board, kind as ObjectKind, id);
             if (cr && cur) {
@@ -737,6 +741,14 @@ export default function BoardWorkspace({
         } else if (e.key === "-") {
             e.preventDefault();
             edit((b) => scaleObject(b, kind, id, 1 / 1.1), true);
+        } else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && kind === "zone") {
+            // Q / E turn a role group like an icon
+            const z = boardNow.current.zones.find((k) => k.id === id);
+            if (z && z.type === "role") {
+                e.preventDefault();
+                const dir = e.key === "q" || e.key === "Q" ? -1 : 1;
+                edit((b) => updateZone(b, id, { rotation: ((((z.rotation || 0) + dir * (e.shiftKey ? 45 : 15)) % 360) + 360) % 360 }), true);
+            }
         } else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && kind === "icon") {
             const ic = boardNow.current.icons.find((k) => k.id === id);
             if (ic && canFace(ic.iconKey)) {

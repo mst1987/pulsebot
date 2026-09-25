@@ -388,6 +388,16 @@ describe("GET /api/raidplan/public", () => {
         });
     });
 
+    it("a role group names every raider of that role for the page (\"Meine Aufgaben\"), a flex role on the boss wins; the flex roles go along", async () => {
+        await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: { "bt/supremus": { assignments: [{ id: "a", type: "other", assignees: ["role:ranged"], targets: [] }], roles: { u1: "ranged" } } } });
+        const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
+        const d = body(publicGet(on.plan.publicPath.replace("/p/", "")));
+        // u3 is ranged by spec, u1 a tank who plays ranged here; u2 (healer) is not named
+        expect(d.roster.map((p) => p.userId).sort()).toEqual(["u1", "u3"]);
+        expect(d.bosses[0].roles).toEqual({ u1: "ranged" });
+        expect(d.bosses[0].assignments[0].assignees).toEqual(["role:ranged"]);
+    });
+
     it("leaves out bosses nobody planned", async () => {
         const token = await publish();
         expect(body(publicGet(token)).bosses.map((b) => b.key)).toEqual(["bt/supremus"]);

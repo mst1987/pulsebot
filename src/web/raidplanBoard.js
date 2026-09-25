@@ -283,7 +283,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             label: str(o.label).slice(0, LIMITS.label),
             color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
             // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
-            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true } : {}),
+            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation) } : {}),
             ...common(o, 0.3),
             w: round4(w), h: round4(h),
             x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),
