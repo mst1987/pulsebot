@@ -4311,7 +4311,7 @@ export function saveRaidplan(csrfToken: string | null, input: { event: string; v
 }
 
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
-export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string> }): Promise<{ assignments: RaidplanAssignment[] }> {
+export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[] }): Promise<{ assignments: RaidplanAssignment[] }> {
     return send("POST", "/api/raidplan/suggest", csrfToken, input);
 }
 

@@ -670,7 +670,15 @@
         "allowMulti": "Mehrfach erlauben (derselbe Spieler darf mehrfach)",
         "fills": "Wer nimmt die Klasse",
         "auto": "Automatisch",
-        "none": "{cls} fehlt im Raid"
+        "none": "{cls} fehlt im Raid",
+        "tankOf": "Tank ({cls})",
+        "anyTank": "Beliebiger Tank",
+        "generalTank": "Allgemeiner Tank (wird automatisch besetzt)",
+        "generalTankTip": "Nimmt für das Ziel automatisch einen freien Tank aus dem Setup (Spec-Rolle Tank). Weitere Zeilen nehmen den nächsten Tank.",
+        "count": "Anzahl",
+        "more": "Einen mehr",
+        "fewer": "Einen weniger",
+        "chosen": "Gewählt"
     },
     "mine": {
         "title": "Meine Aufgaben",

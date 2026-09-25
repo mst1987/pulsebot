@@ -10,14 +10,14 @@ import { useToast } from "../../../components/Jobs";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
-    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, outOfClass, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
+    ALL_MARKS, CARD_ORDER, SCOPE_TYPES, classIconOf, classRefIcon, outOfClass, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForTask, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, moveAssignee, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleAssignee, toggleTarget, type AssignCtx, type Resolved,
 } from "../../../lib/assign";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
 import { effectiveClasses } from "../../../lib/rosterAssign";
-import { expandClassRefs, isClassRef, parseClassRef } from "../../../lib/classRefs";
+import { carryClasses, expandClassRefs, isClassRef, parseClassRef } from "../../../lib/classRefs";
 import { groupColor } from "../../../lib/groupStyle";
 import { useT } from "../../../i18n";
 
@@ -110,7 +110,7 @@ function AssignRow({ a, canWrite, ctx, edit, spellOptions, noteOpen, onNote, onE
     const wishCls = effectiveClasses({ slots: ctx.slots } as unknown as RaidplanBoard, a);
     // what the class references mean right now (the row itself keeps the references)
     const v = (ctx.filled || []).find((x) => x.id === a.id) || a;
-    const classIcon = (ref: string) => { const q = parseClassRef(ref); return q ? <WowIcon name={classIconOf(q.classId)} size={14} /> : null; };
+    const classIcon = (ref: string) => { const q = parseClassRef(ref); return q ? <WowIcon name={classRefIcon(q.classId, q.role)} size={14} /> : null; };
     const rotation = a.type === "kick" && a.assignees.length > 1;
     const showNote = a.note !== "" || noteOpen;
     return (
@@ -230,11 +230,15 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const shown = cardTypes(scope, [...board.assignments, ...inherited], extra, !canWrite, board.hiddenCards);
     const addable = addableCards(scope, shown);
 
-    /** A new row of a card's type; a tanking row of a boss starts with the boss as its target. */
+    /**
+     * A new row of a card's type; a tanking row of a boss starts with the boss as its target. The classes of the row before it come
+     * along with the next running numbers (a second misdirect row asks for "Jäger 2", the next free hunter).
+     */
     const newRow = (b: RaidplanBoard, type: string): RaidplanBoard => {
         const made = addRowOfType(b, type);
+        const carried = { ...made.board, assignments: carryClasses(made.board.assignments, made.id) };
         const boss = (scope === "boss" || scope === "defaults") && type === "tank" ? sectionMobs.find((m) => m.id.indexOf("b:") === 0) : undefined;
-        return boss ? toggleTarget(made.board, made.id, mobTarget(boss)) : made.board;
+        return boss ? toggleTarget(carried, made.id, mobTarget(boss)) : carried;
     };
 
     /**
@@ -254,7 +258,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const suggest = async (type: string) => {
         setBusy(type);
         try {
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
+            // the rows of this type made by hand stay: the suggestion goes round the raiders they already name
+            const keep = board.assignments.filter((a) => a.type === type && !a.suggested);
+            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
             if (r.assignments.length === 0) toast(t("raidBoard.assign.noSuggestion"));
             else edit((b) => applySuggestions(b, type, r.assignments));
         } catch (err) {
@@ -327,7 +333,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     /** The dialog's "Vorschlag": the server picks the assignees for the row's type and classes (rows are not touched until "Fertig"). */
     const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
         try {
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles });
+            const keep = board.assignments.filter((x) => x.type === a.type && x.id !== a.id);
+            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;
         } catch (err) {

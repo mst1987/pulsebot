@@ -1,12 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Wand2 } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
-import ClassPicker from "./ClassPicker";
+import ClassPicker, { ClassCountChip } from "./ClassPicker";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { sectionsOf, filterItems, type FlyItem } from "../../../lib/flyout";
-import { CLASS_IDS, classIconOf, classesForType, patchAssignment, toggleAssignee, toggleTarget } from "../../../lib/assign";
-import { classRef, classTargetRef, expandClassRefs, impliedRole, isClassRef, pickKey } from "../../../lib/classRefs";
+import { CLASS_IDS, classIconOf, classRefIcon, classRefLabel, classPlaceName, classesForType, patchAssignment, toggleAssignee } from "../../../lib/assign";
+import { ANY, TANK_CLASSES, TANK_TYPES, candidatesOf, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount } from "../../../lib/classRefs";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
 import { useT } from "../../../i18n";
 
@@ -74,8 +74,13 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
         return patchAssignment(b, rowId, { preferredClasses: cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c] });
     });
     const suggested = row ? classesForType(row.type, catalog) : [];
-    const filledRow = row ? expandClassRefs([row], tmp.slots, roster, tmp.roles)[0] : null;
+    // resolved with the whole board: the other rows of this task take their raiders first (round robin), so "now" is what the plan will show
+    const filledRow = row ? expandClassRefs(tmp.assignments, tmp.slots, roster, tmp.roles).find((x) => x.id === rowId) || null : null;
     const asClasses = row.assignees.filter((r) => isClassRef(r));
+    // a tanking row offers the general tanks ("any tank", "Tank (Warrior)" ...): chosen and counted in their own block, not twice among the classes
+    const isTankRow = TANK_TYPES.indexOf(row.type) >= 0;
+    const isGeneralTank = (ref: string) => { const q = parseClassRef(ref); return !!q && q.role === "tank" && TANK_CLASSES.indexOf(q.classId) >= 0; };
+    const tankGroups = isTankRow ? classGroups(asClasses.filter(isGeneralTank)) : [];
     const atClasses = row.targets.filter((x) => x.kind === "class").map((x) => x.ref);
     /** The class references of this row with who fills them now, and who could (players of the class), for the hand-made choice. */
     const fillers = [
@@ -83,10 +88,20 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
         ...row.targets.map((x, i) => ({ x, i })).filter((o) => o.x.kind === "class").map((o) => ({ key: pickKey("class", o.x.ref), ref: o.x.ref, now: filledRow && filledRow.targets[o.i].kind === "player" ? `user:${filledRow.targets[o.i].ref}` : o.x.ref })),
     ];
     const setPick = (key: string, userId: string) => set((b) => { const cur = (b.assignments.find((x) => x.id === rowId) || { picks: {} }).picks || {}; const next = { ...cur }; if (userId) next[key] = userId; else delete next[key]; return patchAssignment(b, rowId, { picks: next }); });
+    /** How many of a class (and role) the row asks for, read from the copy itself (two quick clicks both count). */
+    const countIn = (b: RaidplanBoard, classId: string, role: string, target: boolean) => {
+        const cur = b.assignments.find((x) => x.id === rowId);
+        if (!cur) return 0;
+        return refsOfClass(target ? cur.targets.filter((x) => x.kind === "class").map((x) => x.ref) : cur.assignees.filter((r) => isClassRef(r)), classId, role).length;
+    };
+    /** "x n" of a class: more takes the next running numbers of this task (over all its rows), fewer the highest of this row. */
+    const setCount = (classId: string, role: string, count: number, target: boolean) => set((b) => ({ ...b, assignments: setClassCount(b.assignments, rowId, classId, role, count, target) }));
+    const addOne = (classId: string, role: string, target: boolean) => set((b) => ({ ...b, assignments: setClassCount(b.assignments, rowId, classId, role, countIn(b, classId, role, target) + 1, target) }));
     const suggestClasses = () => set((b) => {
-        let cur = b.assignments.find((x) => x.id === rowId);
-        for (const c of suggested) if (cur && !cur.assignees.some((r) => isClassRef(r) && r.indexOf(`class:${c}:`) === 0)) { b = toggleAssignee(b, rowId, classRef(c, 1, impliedRole(row.type))); cur = b.assignments.find((x) => x.id === rowId); }
-        return b;
+        let next = b;
+        const role = impliedRole(row.type);
+        for (const c of suggested) if (countIn(next, c, role, false) === 0) next = { ...next, assignments: setClassCount(next.assignments, rowId, c, role, 1, false) };
+        return next;
     });
     const suggest = async () => {
         setBusy(true);
@@ -117,8 +132,8 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                     <input value={qWho} placeholder={t("raidBoard.am.search")} aria-label={t("raidBoard.am.search")} onChange={(e) => setQWho(e.target.value)} />
                     {grid(who, (k) => set((b) => toggleAssignee(b, rowId, k)))}
                     <ClassPicker
-                        label={t("raidBoard.class.title")} refs={asClasses} suggested={suggested} defaultRole={impliedRole(row.type)}
-                        onAdd={(c, n, role) => set((b) => toggleAssignee(b, rowId, classRef(c, n, role)))} onRemove={(ref) => set((b) => toggleAssignee(b, rowId, ref))}
+                        label={t("raidBoard.class.title")} refs={isTankRow ? asClasses.filter((r) => !isGeneralTank(r)) : asClasses} suggested={suggested} defaultRole={impliedRole(row.type)}
+                        onAdd={(c, role) => addOne(c, role, false)} onCount={(c, role, n) => setCount(c, role, n, false)}
                     />
                     {suggested.length > 0 && <Button variant="ghost" onClick={suggestClasses}><Wand2 size={15} /> {t("raidBoard.class.addSuggested")}</Button>}
                 </section>
@@ -128,7 +143,7 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                     {grid(targets, (k) => set((b) => onTarget(b, rowId, k)))}
                     <ClassPicker
                         label={t("raidBoard.class.targetTitle")} refs={atClasses} suggested={[]}
-                        onAdd={(c, n, role) => set((b) => toggleTarget(b, rowId, { kind: "class", ref: classTargetRef(c, n, role) }))} onRemove={(ref) => set((b) => toggleTarget(b, rowId, { kind: "class", ref }))}
+                        onAdd={(c, role) => addOne(c, role, true)} onCount={(c, role, n) => setCount(c, role, n, true)}
                     />
                     <input
                         value={text} maxLength={60} placeholder={t("raidBoard.assign.textTarget")} aria-label={t("raidBoard.assign.textTarget")}
@@ -137,6 +152,23 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                     />
                 </section>
                 <section className="rp-am-col rp-am-class" aria-label={t("raidBoard.am.classes")}>
+                    {isTankRow && (
+                        <div className="rp-cpick rp-gtanks" role="group" aria-label={t("raidBoard.class.generalTank")}>
+                            <h3 className="rp-kicker" data-tip={t("raidBoard.class.generalTankTip")}>{t("raidBoard.class.generalTank")}</h3>
+                            <span className="rp-am-chips">
+                                {TANK_CLASSES.map((c) => (
+                                    <button key={c} type="button" className="rp-fchip rp-gtank" data-tip={t("raidBoard.class.generalTankTip")} onClick={() => addOne(c, "tank", false)}>
+                                        <WowIcon name={classRefIcon(c, "tank")} size={20} /><span>{c === ANY ? t("raidBoard.class.anyTank") : classPlaceName(c, "tank")}</span>
+                                    </button>
+                                ))}
+                            </span>
+                            {tankGroups.length > 0 && (
+                                <span className="rp-am-chips">
+                                    {tankGroups.map((g) => <ClassCountChip key={g.classId} classId={g.classId} role="tank" ns={g.ns} onCount={(n) => setCount(g.classId, "tank", n, false)} />)}
+                                </span>
+                            )}
+                        </div>
+                    )}
                     <h3 className="rp-kicker">{t("raidBoard.am.classes")}</h3>
                     <div className="rp-am-chips">
                         {CLASS_IDS.map((c) => (
@@ -153,17 +185,18 @@ export default function AssignModal({ board, rowId, title, assigneeOptions, targ
                         <div className="rp-cpick-fill">
                             <span className="rp-kicker">{t("raidBoard.class.fills")}</span>
                             {fillers.map((f) => {
-                                const q = f.ref.replace(/^class:/, "").split(":");
-                                const mine = roster.filter((p) => p.classId === q[0]);
+                                const q = parseClassRef(f.ref) || { classId: "", role: "" };
+                                const mine = candidatesOf(f.ref, row.type, roster, tmp.roles);
                                 const manual = (row.picks || {})[f.key] || "";
                                 const now = f.now.startsWith("user:") ? f.now.slice(5) : "";
                                 return (
                                     <div key={f.key} className="rp-cpick-one">
-                                        <span className="rp-cpick-name"><WowIcon name={classIconOf(q[0])} size={16} /> {t(`wow.class.${q[0]}`)}{Number(q[1]) > 1 ? ` ${q[1]}` : ""}</span>
+                                        <span className="rp-cpick-name"><WowIcon name={classRefIcon(q.classId, q.role)} size={16} /> {classRefLabel(f.ref)}</span>
                                         <span className="rp-am-chips">
                                             <button type="button" className={`rp-fchip${manual === "" ? " is-on" : ""}`} aria-pressed={manual === ""} onClick={() => setPick(f.key, "")}>{t("raidBoard.class.auto")}</button>
                                             {mine.map((p) => <button key={p.userId} type="button" className={`rp-fchip${manual === p.userId ? " is-on" : ""}${manual === "" && now === p.userId ? " is-auto" : ""}`} aria-pressed={manual === p.userId} onClick={() => setPick(f.key, p.userId)}>{p.character}</button>)}
-                                            {mine.length === 0 && <span className="rp-muted">{t("raidBoard.class.none", { cls: t(`wow.class.${q[0]}`) })}</span>}
+                                            {mine.length === 0 && <span className="rp-muted">{t("raidBoard.class.none", { cls: classPlaceName(q.classId, q.role) })}</span>}
+                                            {mine.length > 0 && manual === "" && now === "" && <span className="rp-muted">{t("raidBoard.class.missing")}</span>}
                                         </span>
                                     </div>
                                 );

@@ -31,9 +31,12 @@ const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
 const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
-// a class as who does it / at whom: "class:Hunter:1" = the 1st free Hunter (n counts per class and kind of task); an optional last part limits the role
-const CLASS_ASSIGNEE = /^class:(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9])(?::(tank|healer|dps|melee|ranged))?$/;
-const CLASS_TARGET = /^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9])(?::(tank|healer|dps|melee|ranged))?$/;
+// a class as who does it / at whom: "class:Hunter:1" = the 1st free Hunter (n counts per class and kind of task); an optional last part limits the role.
+// "class:Any:<n>:<role>" = any raider of that SPEC role ("Beliebiger Tank"); it always names the role (no class, no role = no guess).
+const CLASS_ASSIGNEE = /^class:(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged))?$|^class:Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
+const CLASS_TARGET = /^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid):([1-9]\d?)(?::(tank|healer|dps|melee|ranged))?$|^Any:([1-9]\d?):(tank|healer|dps|melee|ranged)$/;
+/** The "class" of a reference that means any raider of a role. */
+const ANY = "Any";
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
@@ -69,7 +72,8 @@ const newId = () => require("crypto").randomBytes(5).toString("hex");
  * `{ assignments, dropped }` or `{ code, error }`.
  */
 function cleanAssignments(raw, allowed = new Set()) {
-    const list = Array.isArray(raw) ? raw : [];
+    // older plans may hold the same class reference twice (one per row, or twice in a row): numbered on, nothing is dropped
+    const list = renumberClassRefs(Array.isArray(raw) ? raw : []);
     if (list.length > LIMITS.perBoard) return { code: "invalid", error: `Höchstens ${LIMITS.perBoard} Einteilungen je Boss.` };
     let dropped = 0;
     const ids = new Set();
@@ -199,59 +203,100 @@ function suggestHeal({ slots = [], roster = [], groups = [], preferredClasses = 
     return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", ""), preferredClasses, allowOthers) : null)).filter(Boolean);
 }
 
-const players = (roster, classIds) => roster.filter((p) => classIds.includes(p.classId));
+const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"];
 
-/** Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid. */
-function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "" } = {}) {
+/**
+ * Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid.
+ * The class-based ones (misdirect, soulstone, kicks, curses ...) are written as CLASS REFERENCES first ("Hunter 1 -> Tank 1",
+ * "Hunter 2 -> Tank 2" ...) — in a template they stay that way; in an event they go through the same round-robin resolution as
+ * every plan (`expandClassRefs`), next to the rows of that type the orga already made by hand (`keep`), so a suggestion never
+ * takes a raider the orga has already given that task. What nobody fills is left out (no suggestion is better than a stranger).
+ */
+function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "", keep = [] } = {}) {
     const tanks = slotsOf(slots, "tank");
     const pc = cleanClasses(preferredClasses);
     const classes = (t) => classesFor(t, pc, allowOthers, versionId);
-    // a template has no players: the suggestion names classes instead ("the first free Hunter"), resolved from the setup when the template is applied
-    if (roster.length === 0 && ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"].includes(type)) return suggestClassRows(type, tanks, classes(type), pc, allowOthers);
     if (type === "heal") return suggestHeal({ slots, roster, groups, preferredClasses: pc, allowOthers });
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
     }
-    if (type === "kick") {
-        // rogues first, then shaman, warriors, mages; a rotation of at most three
-        const order = classes("kick");
-        const c = roster.filter((p) => order.includes(p.classId)).sort((a, b) => order.indexOf(a.classId) - order.indexOf(b.classId)).slice(0, 3);
-        return c.length ? [make("kick", c.map((p) => `user:${p.userId}`), [], null, pc, allowOthers)] : [];
+    if (!CLASS_SUGGESTED.includes(type)) return [];
+    const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId });
+    // a template has no players: the suggestion names classes ("the first free Hunter"), resolved from the setup once the template is
+    // applied; its running numbers go on after the rows the orga keeps (a kept "Hunter 1" makes the suggestion start at Hunter 2)
+    if (roster.length === 0) {
+        const own = (keep || []).filter((a) => a && a.type === type);
+        return renumberClassRefs([...own, ...rows]).slice(own.length);
     }
+    return resolveSuggested(type, rows, { roster, slots, keep, versionId });
+}
+
+/** How many raiders of a class (and role) the roster has: a suggestion never numbers further than there are players. */
+const countOf = (roster, classId, role = "") => roster.filter((p) => p.classId === classId && roleFits(role, p.role)).length;
+
+/**
+ * The class-reference rows of a suggestion, numbered on per class ("Hunter 1", "Hunter 2" ...): one row per tank for misdirect /
+ * fear ward (several classes: the first class until its raiders are used up, then the next), one per healer for soulstones, a
+ * kick rotation over the classes in order, one row per curse, thunder clap from the warrior TANKS first. Without a roster
+ * (a template) the counts are what the task asks for.
+ */
+function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], versionId = "" }) {
+    if (!cls.length) return [];
+    const ref = (c, n, role = "") => `class:${c}:${n}${role ? `:${role}` : ""}`;
+    const withRoster = roster.length > 0;
+    /** The first `count` class references of the classes in order (with a roster: each class only as often as it is in the raid). */
+    const sequence = (count, role = "") => {
+        const out = [];
+        for (const c of cls) {
+            const have = withRoster ? countOf(roster, c, role) : count;
+            for (let n = 1; n <= have && out.length < count; n += 1) out.push({ c, ref: ref(c, n, role) });
+        }
+        return out;
+    };
     if (type === "md" || type === "fearward") {
-        // md: hunters only in TBC (and the ones the catalog names for the game version)
-        const cls = classes(type);
-        const pool = players(roster, cls).sort((a, b) => cls.indexOf(a.classId) - cls.indexOf(b.classId));
-        return pool.slice(0, tanks.length).map((p, i) => make(type, [`user:${p.userId}`], [{ kind: "slot", ref: `tank:${tanks[i].n}` }], spellFor(type, p.classId, 0, versionId), pc, allowOthers));
+        const targets = withRoster ? tanks : tanks.slice(0, 3);
+        return sequence(targets.length).map((x, i) => make(type, [x.ref], [{ kind: "slot", ref: `tank:${targets[i].n}` }], withRoster ? spellFor(type, x.c, 0, versionId) : null, pc, allowOthers));
     }
     if (type === "ss") {
-        const healers = roster.filter((p) => p.role === "healer");
-        return players(roster, classes("ss")).slice(0, healers.length).map((p, i) => make("ss", [`user:${p.userId}`], [{ kind: "player", ref: healers[i].userId }], spellFor("ss", p.classId, 0, versionId), pc, allowOthers));
+        const healers = withRoster ? roster.filter((p) => p.role === "healer") : [];
+        if (!withRoster) return [make("ss", [ref(cls[0], 1)], [], null, pc, allowOthers)];
+        return sequence(healers.length).map((x, i) => make("ss", [x.ref], [{ kind: "player", ref: healers[i].userId }], spellFor("ss", x.c, 0, versionId), pc, allowOthers));
+    }
+    if (type === "kick") {
+        // rogues first, then shaman, warriors, mages; a rotation of at most three (without a roster: one of each class)
+        const refs = withRoster ? sequence(3).map((x) => x.ref) : cls.slice(0, 3).map((c) => ref(c, 1));
+        return refs.length ? [make("kick", refs, [], null, pc, allowOthers)] : [];
     }
     if (type === "curse") {
         // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
         const curses = catalog().spellsOfType("curse");
-        return players(roster, classes("curse")).slice(0, Math.min(3, curses.length || CURSES.length)).map((p, i) => make("curse", [`user:${p.userId}`], [], curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null));
+        const count = Math.min(3, curses.length || CURSES.length);
+        return Array.from({ length: count }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], withRoster && curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null, pc, allowOthers));
     }
-    if (type === "thunderclap" || type === "demoshout") {
-        const w = players(roster, classes(type));
-        const tanksFirst = type === "thunderclap" ? [...w.filter((p) => p.role === "tank"), ...w.filter((p) => p.role !== "tank")] : w;
-        const pick = tanksFirst.slice(0, type === "thunderclap" ? 2 : 3);
-        return pick.length ? [make(type, pick.map((p) => `user:${p.userId}`), [], spellFor(type, "Warrior", 0, versionId))] : [];
+    if (type === "thunderclap") {
+        // the warrior tanks first, then the other warriors (by their spec role, never a guess)
+        if (!withRoster) return [make(type, [ref(cls[0], 1), ref(cls[0], 2)], [], null, pc, allowOthers)];
+        const refs = [...sequence(2, "tank"), ...sequence(2, "dps")].slice(0, 2).map((x) => x.ref);
+        return refs.length ? [make(type, refs, [], spellFor(type, "Warrior", 0, versionId), pc, allowOthers)] : [];
     }
-    return [];
+    if (type === "demoshout") {
+        if (!withRoster) return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
+        const refs = sequence(3).map((x) => x.ref);
+        return refs.length ? [make(type, refs, [], spellFor(type, "Warrior", 0, versionId), pc, allowOthers)] : [];
+    }
+    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
 }
 
-
-/** The class-reference rows of a suggestion without a setup (a template): one class reference per class of the task, in the order of the classes. */
-function suggestClassRows(type, tanks, cls, pc, allowOthers) {
-    const ref = (c, n = 1) => `class:${c}:${n}`;
-    if (!cls.length) return [];
-    if (type === "md" || type === "fearward") return tanks.slice(0, 3).map((s) => make(type, cls.slice(0, 2).map((c) => ref(c)), [{ kind: "slot", ref: `tank:${s.n}` }], null, pc, allowOthers));
-    if (type === "kick") return [make("kick", cls.slice(0, 3).map((c) => ref(c)), [], null, pc, allowOthers)];
-    if (type === "curse") return Array.from({ length: 3 }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], null, pc, allowOthers));
-    if (type === "thunderclap") return [make(type, [ref(cls[0], 1), ref(cls[0], 2)], [], null, pc, allowOthers)];
-    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
+/**
+ * Suggested class rows of an event, resolved like every plan: the rows the orga keeps (`keep`, of the same type) count as taken,
+ * each class reference becomes the raider it means; a reference nobody fills is dropped, a row without anybody left is dropped.
+ */
+function resolveSuggested(type, rows, { roster, slots = [], keep = [] }) {
+    const own = (keep || []).filter((a) => a && a.type === type);
+    const all = expandClassRefs([...own, ...rows], slots, roster, {});
+    return all.slice(own.length)
+        .map((a) => ({ ...a, assignees: a.assignees.filter((r) => !r.startsWith("class:")), targets: a.targets.filter((t) => t.kind !== "class") }))
+        .filter((a) => a.assignees.length > 0);
 }
 
 /** Whether a suggestion of this type exists (the button is offered). */
@@ -285,7 +330,26 @@ const parseClassRef = (ref) => {
 const impliedRole = (type) => (type === "heal" ? "healer" : type === "tank" || type === "trashtank" ? "tank" : "");
 const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !== "tank" && role !== "healer" : role === filter);
 
-/** The assignments with every class reference replaced by the raider it means (the n-th free one of the class); an unfilled one stays a reference. */
+/**
+ * The raiders a class reference can mean, in setup order: the players of the class whose spec role (a flex role on this boss wins)
+ * passes the role filter — the reference's own role, else the one the task implies. "Any" = every raider of that role; without
+ * any role it means nobody (the class alone would be a guess).
+ */
+function poolOf(q, type, roster, roles) {
+    const want = q.role || impliedRole(type);
+    if (q.classId === ANY && !want) return [];
+    return roster.filter((p) => (q.classId === ANY || p.classId === q.classId) && roleFits(want, roles[p.userId] || p.role));
+}
+
+/**
+ * THE resolution of class references (the client twin is src/web-client/src/lib/classRefs.ts, kept in step by the tests): every
+ * class reference replaced by the raider it means, round robin per kind of task. Raiders named by hand (user refs, slots, `picks`)
+ * are taken first; then the references of a named class ("Hunter", "Tank (Warrior)") in row order, then the "Any" ones ("any tank"),
+ * so an open "any tank" never takes the one warrior tank a "Tank (Warrior)" row needs. A reference starts at its own number and
+ * takes the first raider of its pool nobody of that kind of task has yet; nobody free = it stays a reference (an open place,
+ * "Hunter missing"), never a player of another class or role. `allowMulti` on the row lets it repeat a raider instead.
+ * Same length and order as the input, so a chip can be matched to its reference by index.
+ */
 function expandClassRefs(assignments, slots, roster, roles = {}) {
     const list = assignments || [];
     if (!list.some((a) => a.assignees.some((r) => r.startsWith("class:")) || a.targets.some((t) => t.kind === "class"))) return list;
@@ -309,22 +373,75 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
         if (hand && byId.has(hand)) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const want = q.role || impliedRole(a.type);
-        const pool = roster.filter((p) => p.classId === q.classId && roleFits(want, roles[p.userId] || p.role));
+        const pool = poolOf(q, a.type, roster, roles || {});
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) { take(bag, a.type, free.userId); return free.userId; }
         return a.allowMulti && pool.length ? pool[(q.n - 1) % pool.length].userId : "";
     };
-    return list.map((a) => ({
+    const got = new Map();
+    // pass 1: a named class; pass 2: "Any"
+    for (const anyPass of [false, true]) {
+        list.forEach((a, i) => {
+            a.assignees.forEach((r, j) => {
+                if (!r.startsWith("class:")) return;
+                const q = parseClassRef(r);
+                if (q && (q.classId === ANY) === anyPass) got.set(`${i}|a|${j}`, pick(used, a, r, r));
+            });
+            a.targets.forEach((t, j) => {
+                if (t.kind !== "class") return;
+                const q = parseClassRef(t.ref);
+                if (q && (q.classId === ANY) === anyPass) got.set(`${i}|t|${j}`, pick(usedAt, a, t.ref, "t:" + t.ref));
+            });
+        });
+    }
+    return list.map((a, i) => ({
         ...a,
-        assignees: a.assignees.map((r) => { if (!r.startsWith("class:")) return r; const id = pick(used, a, r, r); return id ? "user:" + id : r; }),
-        targets: a.targets.map((t) => { if (t.kind !== "class") return t; const id = pick(usedAt, a, t.ref, "t:" + t.ref); return id ? { kind: "player", ref: id } : t; }),
+        assignees: a.assignees.map((r, j) => { const id = got.get(`${i}|a|${j}`); return id ? "user:" + id : r; }),
+        targets: a.targets.map((t, j) => { const id = got.get(`${i}|t|${j}`); return id ? { kind: "player", ref: id } : t; }),
     }));
 }
 
+/**
+ * The running numbers of the class references, made unique per kind of task, class and role over all rows of a board: a reference
+ * whose number an earlier one (this row or an earlier row) already has gets the next free number ("Hunter 1" in three misdirect rows
+ * -> Hunter 1, 2, 3). What was stored before the numbers counted on is kept this way instead of dropped as a duplicate; a hand-made
+ * pick moves with its reference. Unique numbers are left exactly as they are. Pure; works on raw input (the save path).
+ */
+function renumberClassRefs(list) {
+    const seen = {};
+    const fix = (a, ref, target) => {
+        const q = parseClassRef(ref);
+        if (!q) return ref;
+        const key = `${target ? "t" : "a"}|${a && a.type}|${q.classId}|${q.role}`;
+        const taken = (seen[key] = seen[key] || new Set());
+        let n = q.n;
+        if (taken.has(n)) { n = Math.max(...taken) + 1; while (taken.has(n)) n += 1; }
+        if (n > 99) return ref;
+        taken.add(n);
+        return `${target ? "" : "class:"}${q.classId}:${n}${q.role ? `:${q.role}` : ""}`;
+    };
+    return (Array.isArray(list) ? list : []).map((a) => {
+        if (!a || typeof a !== "object") return a;
+        const own = a.picks && typeof a.picks === "object" ? a.picks : null;
+        const picks = own ? { ...own } : a.picks;
+        // a pick belongs to the reference that keeps its name in this row; only a renumbered one whose name no reference of the row keeps takes it along
+        const kept = new Set();
+        const moves = [];
+        const assignees = Array.isArray(a.assignees) ? a.assignees.map((r) => { const s = str(r); if (!s.startsWith("class:")) return r; const to = fix(a, s, false); if (to === s) kept.add(s); else moves.push([s, to]); return to; }) : a.assignees;
+        const targets = Array.isArray(a.targets) ? a.targets.map((t) => { if (!t || t.kind !== "class") return t; const s = str(t.ref); const to = fix(a, s, true); if (to === s) kept.add("t:" + s); else moves.push(["t:" + s, "t:" + to]); return { ...t, ref: to }; }) : a.targets;
+        for (const [from, to] of moves) {
+            if (!own || kept.has(from) || !Object.prototype.hasOwnProperty.call(own, from)) continue;
+            picks[to] = own[from];
+            delete picks[from];
+            kept.add(from);
+        }
+        return { ...a, assignees, targets, ...(picks ? { picks } : {}) };
+    });
+}
+
 module.exports = {
-    impliedRole,
+    impliedRole, ANY,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
+    cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };
