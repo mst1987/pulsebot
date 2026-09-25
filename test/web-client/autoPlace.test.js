@@ -236,6 +236,6 @@ describe("wiring", () => {
         expect(pb).toContain("data-obj={`auto:${k.key}`}");
         expect(pb).toContain("raidBoard.auto.missing");
         const rp = read("lib/raidplan.ts");
-        expect(rp).toContain("if (kind === \"auto\") return resetAutoPos(board, id);");
+        expect(rp).toContain("if (kind === \"auto\") return board;");
     });
 });

@@ -1041,7 +1041,13 @@
         "menu": {
             "row": "Zeile bearbeiten …",
             "tank": "Tank wählen …",
-            "reset": "Position zurücksetzen"
-        }
+            "reset": "Position zurücksetzen",
+            "resetAll": "Alles zurücksetzen (Position + Stil)"
+        },
+        "label": "Beschriftung",
+        "labelHint": "optional, z. B. „Wand“",
+        "resetAll": "Alles zurücksetzen (Position + Stil)",
+        "section": "Dieser Abschnitt",
+        "scale": "Größe Tanks/Mobs (alle aus Einteilung)"
     }
 }

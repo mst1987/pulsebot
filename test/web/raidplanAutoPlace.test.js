@@ -41,6 +41,25 @@ describe("validation", () => {
         expect(board.boardHasContent(clean({ autoPos: { "t:r1:1": { x: 0.1, y: 0.1 } } }).board)).toBe(true);
     });
 
+    it("autoStyle keeps known keys and sane values only (size in the range of a token / an icon, opacity, flags, label, facing, order), autoScale 0.4..2", () => {
+        const r = clean({ autoScale: 3, autoStyle: {
+            "t:r1:1": { size: 999, opacity: 0.05, ring: false, showName: false, label: "x".repeat(60), hidden: true, lock: true, z: 5000, junk: 1 },
+            "m:d:flame#1": { size: 1, rotation: 370, autoFace: false, showLabel: true, ring: true, opacity: "a" },
+            "m:b:bt/illidan#1": { ring: true, showName: true },
+            bad: { size: 40 },
+        } }).board;
+        expect(r.autoScale).toBe(2);
+        expect(r.autoStyle["t:r1:1"]).toEqual({ size: 152, opacity: 0.1, ring: false, showName: false, label: "x".repeat(40), hidden: true, lock: true, z: 999 });
+        expect(r.autoStyle["m:d:flame#1"]).toEqual({ size: 12, rotation: 10, autoFace: false, showLabel: true });
+        // nothing that differs from the default = no entry
+        expect(r.autoStyle["m:b:bt/illidan#1"]).toBeUndefined();
+        expect(r.autoStyle.bad).toBeUndefined();
+        expect(clean({}).board).toMatchObject({ autoStyle: {}, autoScale: 1 });
+        expect(clean({ autoScale: 0.1 }).board.autoScale).toBe(0.4);
+        expect(board.boardHasContent(clean({ autoScale: 0.5 }).board)).toBe(true);
+        expect(board.boardHasContent(clean({ autoStyle: { "t:r1:1": { opacity: 0.5 } } }).board)).toBe(true);
+    });
+
     it("a mob target can name one of several of its kind: 1..20, the same mob twice only with different numbers", () => {
         const flame = (n) => ({ kind: "mob", ref: "d:flame", name: "Flame", icon: "", ...(n !== undefined ? { n } : {}) });
         const r = assign.cleanAssignments([row("a", "tank", [], [flame(1), flame(2), flame(2), flame(), flame(0), flame(25)])]);
@@ -62,10 +81,14 @@ describe("the moved positions follow their rows", () => {
         const b = clean({
             assignments: [row("own", "tank", ["slot:tank:1"], []), row("dev", "tank", ["slot:tank:2"], [], { origin: "d1" })],
             autoPos: { "t:own:1": { x: 0.1, y: 0.2 }, "t:d1:1": { x: 0.3, y: 0.4 }, "m:d:flame#1": { x: 0.5, y: 0.6 } },
+            autoStyle: { "t:own:1": { size: 19 }, "m:d:flame#1": { opacity: 0.5 } }, autoScale: 0.6,
         }).board;
         const copy = board.reidBoard(b);
         const own = copy.assignments[0].id;
         expect(own).not.toBe("own");
+        // the look moves with the row as the position does
+        expect(copy.autoStyle).toEqual({ [`t:${own}:1`]: { size: 19 }, "m:d:flame#1": { opacity: 0.5 } });
+        expect(copy.autoScale).toBe(0.6);
         expect(copy.autoPos).toEqual({ [`t:${own}:1`]: { x: 0.1, y: 0.2 }, "t:d1:1": { x: 0.3, y: 0.4 }, "m:d:flame#1": { x: 0.5, y: 0.6 } });
     });
 
@@ -74,7 +97,7 @@ describe("the moved positions follow their rows", () => {
         const defaults = [row("d1", "tank", ["class:Paladin:1:tank"], [{ kind: "mob", ref: "b:this", name: "Boss", icon: "" }])];
         const t = templates.updateTemplate(t0.id, { version: 1, bosses: {
             [inherit.DEFAULTS_KEY]: { assignments: defaults },
-            [BOSS]: { autoPos: { "t:d1:1": { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } } },
+            [BOSS]: { autoPos: { "t:d1:1": { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } }, autoStyle: { "t:d1:1": { size: 19 }, [`m:b:${BOSS}#1`]: { size: 96 } }, autoScale: 0.8 },
             [OTHER]: { showMap: false, autoPlace: false, notes: "x" },
         } }).template;
         const plan = plans.applyTemplate("e1", t, { version: 0, bossKeys: [BOSS, OTHER], roster, userId: "orga" }).plan;
@@ -82,6 +105,9 @@ describe("the moved positions follow their rows", () => {
         const inh = b.assignments.find((a) => a.origin === "default");
         expect(inh.id).not.toBe("d1");
         expect(b.autoPos).toEqual({ [`t:${inh.id}:1`]: { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } });
+        // a boss at 200 %, the tank at 50 %, all of them at 80 %: the same in the event
+        expect(b.autoStyle).toEqual({ [`t:${inh.id}:1`]: { size: 19 }, [`m:b:${BOSS}#1`]: { size: 96 } });
+        expect(b.autoScale).toBe(0.8);
         expect(plan.bosses[OTHER]).toMatchObject({ showMap: false, autoPlace: false });
     });
 

@@ -1041,7 +1041,13 @@
         "menu": {
             "row": "Edit row …",
             "tank": "Choose tank …",
-            "reset": "Reset position"
-        }
+            "reset": "Reset position",
+            "resetAll": "Reset everything (position + look)"
+        },
+        "label": "Label",
+        "labelHint": "optional, e.g. “wall”",
+        "resetAll": "Reset everything (position + look)",
+        "section": "This section",
+        "scale": "Size of tanks/mobs (all from the assignments)"
     }
 }

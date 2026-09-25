@@ -14,7 +14,7 @@
 // board (LAYOUT_W x LAYOUT_H reference px), so the editor, the template and the sheet put everything at the same place.
 //
 // Written to be strippable (test/web-client/autoPlace.test.js runs it): imports, `export type`, tables and one-line signatures only.
-import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanPlayer } from "../api";
+import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanAutoStyle, RaidplanBoard, RaidplanPlayer } from "../api";
 
 export const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];
 export const LAYOUT_W = 1000;
@@ -22,8 +22,8 @@ export const LAYOUT_H = 625;
 // half the size of an icon / a token in reference px, the air between two objects, how far a tank stands from its mob and apart from another tank of it
 export const AUTO_SIZES = { icon: 24, token: 19, mark: 17, gap: 6, tankDist: 105, tankSpread: 62, mobSide: 200, mobRow: 125, trashCol: 140, trashRow: 150, looseCol: 70, looseRow: 215 };
 
-export type AutoMob = { key: string; ref: string; inst: number; count: number; name: string; icon: string; iconKey: string; iconId: string; x: number; y: number; moved: boolean; boss: boolean };
-export type AutoTank = { key: string; rowId: string; rowKey: string; type: string; j: number; ref: string; state: string; userId: string; classId: string; role: string; slotKind: string; slotN: number; mobKey: string; existing: string; x: number; y: number; moved: boolean };
+export type AutoMob = { key: string; ref: string; inst: number; count: number; name: string; icon: string; iconKey: string; iconId: string; x: number; y: number; moved: boolean; boss: boolean; /** the size in reference px (its own size x the section's autoScale; objectScale comes on top) */ size: number; /** what the orga changed about its look */ style: RaidplanAutoStyle };
+export type AutoTank = { key: string; rowId: string; rowKey: string; type: string; j: number; ref: string; state: string; userId: string; classId: string; role: string; slotKind: string; slotN: number; mobKey: string; existing: string; x: number; y: number; moved: boolean; size: number; style: RaidplanAutoStyle };
 export type AutoPlan = { mobs: AutoMob[]; tanks: AutoTank[]; users: string[] };
 export type AutoPoint = { x: number; y: number };
 export type AutoOptions = { template: boolean; roster: RaidplanPlayer[] };
@@ -78,7 +78,7 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
             }
             const key = `m:${tg.ref}#${n}`;
             if (keys.indexOf(key) < 0) keys.push(key);
-            if (!plan.mobs.some((m) => m.key === key)) plan.mobs.push({ key, ref: tg.ref, inst: n, count: 0, name: tg.name || "", icon: tg.icon || "", iconKey: autoIconKey(tg.icon || ""), iconId: "", x: 0, y: 0, moved: false, boss: tg.ref.indexOf("b:") === 0 });
+            if (!plan.mobs.some((m) => m.key === key)) plan.mobs.push({ key, ref: tg.ref, inst: n, count: 0, name: tg.name || "", icon: tg.icon || "", iconKey: autoIconKey(tg.icon || ""), iconId: "", x: 0, y: 0, moved: false, boss: tg.ref.indexOf("b:") === 0, size: 0, style: {} });
         }
         rowMobs.push(keys);
     }
@@ -101,7 +101,7 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     tankRows.forEach((a, i) => {
         const mobs = rowMobs[i];
         (a.assignees || []).forEach((ref, j) => {
-            const t = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false };
+            const t = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false, size: 0, style: {} };
             const p = ref.split(":");
             let uid = "";
             if (p[0] === "user") uid = p[1];
@@ -135,6 +135,11 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
         });
     });
     plan.users = plan.tanks.filter((t) => t.state === "player" && !t.existing && t.userId).map((t) => t.userId);
+    // the look the orga gave each of them (board.autoStyle) and their size: their own (default a token / an icon) x all of them together (autoScale)
+    const styles = board.autoStyle || {};
+    const together = board.autoScale || 1;
+    for (const m of plan.mobs) { m.style = styles[m.key] || {}; m.size = Math.round((m.style.size || AUTO_SIZES.icon * 2) * together * 100) / 100; }
+    for (const t of plan.tanks) { t.style = styles[t.key] || {}; t.size = Math.round((t.style.size || AUTO_SIZES.token * 2) * together * 100) / 100; }
     layoutAuto(plan.mobs, plan.tanks, board);
     return plan;
 }
@@ -157,8 +162,9 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     for (const k of board.tokens || []) if (!k.hidden) add(k.x * W, k.y * H, ((k.size || 38) * scale) / 2);
     for (const s of board.slots || []) if (!s.hidden && s.placed !== false) add(s.x * W, s.y * H, ((s.size || 38) * scale) / 2);
     for (const m of board.marks || []) if (!m.hidden) add(m.x * W, m.y * H, ((m.size || 34) * scale) / 2);
-    const iconR = S.icon * scale;
-    const tokenR = S.token * scale;
+    // the spacing grows with the objects: the board's symbol size x the size of all auto objects together (reference units)
+    const k = scale * (board.autoScale || 1);
+    const rOf = (o) => ((o.size || (o.key && o.key.indexOf("t:") === 0 ? S.token * 2 : S.icon * 2)) * scale) / 2;
     const clampTo = (v, r, max) => Math.max(r + 4, Math.min(max - r - 4, v));
     function free(x, y, r) {
         const ok = (px, py) => placed.every((c) => Math.hypot(px - c.x, py - c.y) >= r + c.r + S.gap);
@@ -177,27 +183,27 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     }
     const put = (o, p, r) => { o.x = Math.round((p.x / W) * 10000) / 10000; o.y = Math.round((p.y / H) * 10000) / 10000; add(p.x, p.y, r); };
     // what was moved by hand stays there
-    for (const m of mobs) if (!m.iconId && over[m.key]) { m.moved = true; put(m, { x: over[m.key].x * W, y: over[m.key].y * H }, iconR); }
-    for (const t of tanks) if (!t.existing && over[t.key]) { t.moved = true; put(t, { x: over[t.key].x * W, y: over[t.key].y * H }, tokenR); }
+    for (const m of mobs) if (!m.iconId && over[m.key]) { m.moved = true; put(m, { x: over[m.key].x * W, y: over[m.key].y * H }, rOf(m)); }
+    for (const t of tanks) if (!t.existing && over[t.key]) { t.moved = true; put(t, { x: over[t.key].x * W, y: over[t.key].y * H }, rOf(t)); }
     const boss = mobs.find((m) => m.boss);
     const anchor = boss && (boss.iconId || boss.moved) ? { x: boss.x * W, y: boss.y * H } : boss ? { x: W / 2, y: H * 0.4 } : { x: W / 2, y: H * 0.28 };
-    if (boss && !boss.iconId && !boss.moved) put(boss, free(anchor.x, anchor.y, iconR), iconR);
+    if (boss && !boss.iconId && !boss.moved) put(boss, free(anchor.x, anchor.y, rOf(boss)), rOf(boss));
     const rest = mobs.filter((m) => !m.boss && !m.iconId && !m.moved);
     rest.forEach((m, i) => {
         let tx = anchor.x;
         let ty = anchor.y;
         if (boss) {
             // left and right of the boss, then a row lower
-            tx = anchor.x + (i % 2 === 0 ? -1 : 1) * S.mobSide;
-            ty = anchor.y + Math.floor(i / 2) * S.mobRow;
+            tx = anchor.x + (i % 2 === 0 ? -1 : 1) * Math.max(S.mobSide * k, (boss ? rOf(boss) : 0) + rOf(m) + 40);
+            ty = anchor.y + Math.floor(i / 2) * Math.max(S.mobRow * k, rOf(m) * 2 + 30);
         } else {
             const per = 6;
             const row = Math.floor(i / per);
             const inRow = Math.min(per, rest.length - row * per);
-            tx = anchor.x + ((i % per) - (inRow - 1) / 2) * S.trashCol;
-            ty = anchor.y + row * S.trashRow;
+            tx = anchor.x + ((i % per) - (inRow - 1) / 2) * Math.max(S.trashCol * k, rOf(m) * 2 + 30);
+            ty = anchor.y + row * Math.max(S.trashRow * k, rOf(m) * 2 + 60);
         }
-        put(m, free(tx, ty, iconR), iconR);
+        put(m, free(tx, ty, rOf(m)), rOf(m));
     });
     // the tanks: in front of their mob, side by side when there are several
     const need = tanks.filter((t) => !t.existing && !t.moved);
@@ -224,11 +230,13 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
         }
         const list = byMob[key];
         list.forEach((t, q) => {
-            const off = (q - (list.length - 1) / 2) * S.tankSpread;
-            put(t, free(mx + dx * S.tankDist - dy * off, my + dy * S.tankDist + dx * off, tokenR), tokenR);
+            // in front of the mob: about two icon sizes (grows with the objects), never closer than the two touching
+            const dist = Math.max(S.tankDist * k, rOf(m) + rOf(t) + 24);
+            const off = (q - (list.length - 1) / 2) * Math.max(S.tankSpread * k, rOf(t) * 2 + 20);
+            put(t, free(mx + dx * dist - dy * off, my + dy * dist + dx * off, rOf(t)), rOf(t));
         });
     }
-    loose.forEach((t, u) => { put(t, free(anchor.x + (u - (loose.length - 1) / 2) * S.looseCol, anchor.y + S.looseRow, tokenR), tokenR); });
+    loose.forEach((t, u) => { put(t, free(anchor.x + (u - (loose.length - 1) / 2) * Math.max(S.looseCol * k, rOf(t) * 2 + 20), anchor.y + S.looseRow * k, rOf(t)), rOf(t)); });
 }
 
 /** Where a tank of the plan stands: its own auto place, or the object that already stands for him; null = nowhere (a missing class). */

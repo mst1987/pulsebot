@@ -248,4 +248,7 @@ function main() {
     console.log(`  open: /raids/detail?event=${id}&tab=setup   and   &tab=plan`);
 }
 
-main();
+// only when started as a script: a `require` (a test, a syntax check) runs nothing and writes nothing
+if (require.main === module) main();
+
+module.exports = { main, seedPlan, demoSlots, ROSTER, TEMPLATE_NAME };

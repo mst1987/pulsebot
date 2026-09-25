@@ -227,6 +227,8 @@ function publicView(plan, event, { me = "" } = {}) {
                 // the tank rows put their mobs and tanks on the map (the page derives them); without the map: nothing of it
                 autoPlace: board.autoPlace !== false,
                 autoPos: mapOn ? board.autoPos || {} : {},
+                autoStyle: mapOn ? board.autoStyle || {} : {},
+                autoScale: board.autoScale === undefined ? 1 : board.autoScale,
                 // the old task rows are shown as assignments (above)
                 targets: [],
                 mobs: board.mobs || [],

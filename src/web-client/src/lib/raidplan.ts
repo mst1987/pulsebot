@@ -11,7 +11,7 @@
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {
     RaidplanBoard, RaidplanBoss, RaidplanLook, RaidplanPlayer, RaidplanProfile, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType,
-    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, Besetzung, BesetzungCounts,
+    RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon, RaidplanAssignType, RaidplanAutoStyle, Besetzung, BesetzungCounts,
 } from "../api";
 import { t } from "../i18n";
 
@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, autoPlace: true, autoPos: {}, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], showMap: true, autoPlace: true, autoPos: {}, autoStyle: {}, autoScale: 1, mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -113,6 +113,8 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
         // the tank rows put their mobs and tanks on the map (an old board: yes); what was moved by hand
         autoPlace: b.autoPlace !== false,
         autoPos: b.autoPos || {},
+        autoStyle: b.autoStyle || {},
+        autoScale: b.autoScale || 1,
         counts: b.counts || null,
         roles: b.roles || {},
         mobs: b.mobs || [],
@@ -379,8 +381,51 @@ export function updateText(board: RaidplanBoard, id: string, patch: Partial<Raid
     return { ...board, texts: patchIn(board.texts, (x) => x.id === id, patch) };
 }
 
+// ---- objects the tank rows put on the map (lib/autoPlace.ts): only what differs is stored, by their key ----
+
+/** The size range of an auto object: a tank is a token, a mob an icon. */
+export function autoRange(key: string): { def: number; min: number; max: number } {
+    return key.indexOf("t:") === 0 ? SIZE_RANGES.token : SIZE_RANGES.icon;
+}
+
+export function autoStyleOf(board: RaidplanBoard, key: string): RaidplanAutoStyle {
+    return (board.autoStyle || {})[key] || {};
+}
+
+/** Changes the look of one auto object; a value back at its default is dropped, an entry without anything goes. */
+export function patchAutoStyle(board: RaidplanBoard, key: string, patch: Partial<RaidplanAutoStyle>): RaidplanBoard {
+    const next = { ...autoStyleOf(board, key), ...patch };
+    if (next.ring !== false) delete next.ring;
+    if (next.showName !== false) delete next.showName;
+    if (next.autoFace !== false) delete next.autoFace;
+    if (!next.hidden) delete next.hidden;
+    if (!next.lock) delete next.lock;
+    if (!next.showLabel) delete next.showLabel;
+    if (!next.label) delete next.label;
+    if (next.opacity === 1 || next.opacity === undefined) delete next.opacity;
+    if (next.size === undefined || next.size === autoRange(key).def) delete next.size;
+    if (!next.z) delete next.z;
+    if (next.rotation === undefined) delete next.rotation;
+    const all = { ...(board.autoStyle || {}) };
+    if (Object.keys(next).length > 0) all[key] = next; else delete all[key];
+    return { ...board, autoStyle: all };
+}
+
+/** "Alles zurücksetzen": the auto object goes back to its own place and its default look. */
+export function resetAutoAll(board: RaidplanBoard, key: string): RaidplanBoard {
+    const style = { ...(board.autoStyle || {}) };
+    delete style[key];
+    return { ...resetAutoPos(board, key), autoStyle: style };
+}
+
+/** All objects of the tank rows together, 40 % .. 200 %. */
+export function setAutoScale(board: RaidplanBoard, value: number): RaidplanBoard {
+    return { ...board, autoScale: Number.isFinite(value) ? Math.max(0.4, Math.min(2, Math.round(value * 100) / 100)) : 1 };
+}
+
 /** Changes what every object shares — opacity, lock, hidden — of any kind. */
 export function patchLook(board: RaidplanBoard, kind: ObjectKind, id: string, patch: Partial<RaidplanLook>): RaidplanBoard {
+    if (kind === "auto") return patchAutoStyle(board, id, patch);
     if (kind === "token") return { ...board, tokens: patchIn(board.tokens, (o) => o.userId === id, patch) };
     if (kind === "slot") return { ...board, slots: patchIn(board.slots, (o) => o.id === id, patch) };
     if (kind === "mark") return { ...board, marks: patchIn(board.marks, (o) => o.id === id, patch) };
@@ -414,6 +459,10 @@ export function setMapOpacity(board: RaidplanBoard, value: number): RaidplanBoar
 
 /** The `lock` / `hidden` / `opacity` of one object, or null when it is gone. */
 export function lookOf(board: RaidplanBoard, kind: ObjectKind, id: string): RaidplanLook | null {
+    if (kind === "auto") {
+        const s = autoStyleOf(board, id);
+        return { opacity: s.opacity === undefined ? 1 : s.opacity, lock: !!s.lock, hidden: !!s.hidden, ...(s.ring === false ? { ring: false } : {}), ...(s.showName === false ? { showName: false } : {}) };
+    }
     const list = kind === "token" ? board.tokens.filter((o) => o.userId === id)
         : kind === "slot" ? board.slots.filter((o) => o.id === id)
             : kind === "mark" ? board.marks.filter((o) => o.id === id)
@@ -422,7 +471,7 @@ export function lookOf(board: RaidplanBoard, kind: ObjectKind, id: string): Raid
                         : kind === "zone" ? board.zones.filter((o) => o.id === id)
                             : kind === "line" ? board.lines.filter((o) => o.id === id)
                                 : board.texts.filter((o) => o.id === id);
-    return list[0] ? { opacity: list[0].opacity, lock: !!list[0].lock, hidden: !!list[0].hidden } : null;
+    return list[0] ? { opacity: list[0].opacity, lock: !!list[0].lock, hidden: !!list[0].hidden, ...(list[0].ring === false ? { ring: false } : {}), ...(list[0].showName === false ? { showName: false } : {}) } : null;
 }
 
 /** A locked object cannot be moved or scaled. */
@@ -470,6 +519,7 @@ export function moveLineEnd(board: RaidplanBoard, id: string, end: number, x: nu
 /** Moves an object's anchor to x/y (0..1): a token, slot, mark or text by its point, a line by its middle, a zone by its top-left corner. A locked object stays. */
 export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x: number, y: number): RaidplanBoard {
     // an object the tank rows put on the map: only where it was moved to is stored
+    if (kind === "auto" && autoStyleOf(board, id).lock) return board;
     if (kind === "auto") return { ...board, autoPos: { ...(board.autoPos || {}), [id]: { x: Math.round(clamp01(x) * 10000) / 10000, y: Math.round(clamp01(y) * 10000) / 10000 } } };
     if (isLocked(board, kind, id)) return board;
     if (kind === "token") return placeToken(board, id, x, y);
@@ -497,7 +547,8 @@ export function moveObject(board: RaidplanBoard, kind: ObjectKind, id: string, x
 
 /** The anchor of an object (a point object's point, a line's middle, a zone's top-left corner), or null when it is gone. */
 export function objectPoint(board: RaidplanBoard, kind: ObjectKind, id: string): { x: number; y: number } | null {
-    if (kind === "auto") return board.autoPos && board.autoPos[id] ? board.autoPos[id] : null;
+    // where it stands now (the editor hands the derived places over as autoAt), else where it was moved to
+    if (kind === "auto") return board.autoAt && board.autoAt[id] ? board.autoAt[id] : board.autoPos && board.autoPos[id] ? board.autoPos[id] : null;
     if (kind === "line") {
         const l = board.lines.find((o) => o.id === id);
         return l ? { x: (l.x1 + l.x2) / 2, y: (l.y1 + l.y2) / 2 } : null;
@@ -526,8 +577,8 @@ export function nudgeObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
 
 /** Deletes a board object. A slot's player is simply not placed any more. */
 export function removeObject(board: RaidplanBoard, kind: ObjectKind, id: string): RaidplanBoard {
-    // what the tank rows put on the map goes with its row (or with "Automatisch platzieren" off); "delete" only puts it back to its own place
-    if (kind === "auto") return resetAutoPos(board, id);
+    // what the tank rows put on the map goes with its row (or with "Automatisch platzieren" off): it cannot be deleted on its own
+    if (kind === "auto") return board;
     if (kind === "token") return removeToken(board, id);
     if (kind === "slot") {
         // a role slot belongs to the Besetzung: taking it off the map keeps it (the counts remove it)
@@ -560,6 +611,7 @@ export function resetAutoPos(board: RaidplanBoard, key: string): RaidplanBoard {
 
 /** How big an object is: px for a token, slot, mark, icon, the font size of a text, the thickness of a line; null for a zone (it has a width and a height). */
 export function sizeOf(board: RaidplanBoard, kind: ObjectKind, id: string): number | null {
+    if (kind === "auto") return autoStyleOf(board, id).size || autoRange(id).def;
     if (kind === "token") { const o = board.tokens.find((k) => k.userId === id); return o ? o.size || SIZE_RANGES.token.def : null; }
     if (kind === "slot") { const o = board.slots.find((k) => k.id === id); return o ? o.size || SIZE_RANGES.slot.def : null; }
     if (kind === "mark") { const o = board.marks.find((k) => k.id === id); return o ? o.size || SIZE_RANGES.mark.def : null; }
@@ -630,7 +682,7 @@ export function objectPercent(board: RaidplanBoard, kind: ObjectKind, id: string
         if (s && s.kind === "group") return Math.round(groupScales(s).gs * 100);
     }
     const size = sizeOf(board, kind, id);
-    return size === null ? null : sizePct(size, SIZE_RANGES[kind].def);
+    return size === null ? null : sizePct(size, kind === "auto" ? autoRange(id).def : SIZE_RANGES[kind].def);
 }
 
 /** Sets that percent (25 % .. 400 %): a group scales as a whole, the rest by size. A zone is scaled relative by scaleObject(). */
@@ -640,12 +692,13 @@ export function setObjectPercent(board: RaidplanBoard, kind: ObjectKind, id: str
         const s = board.slots.find((x) => x.id === id);
         if (s && s.kind === "group") return setGroupScale(board, id, { groupScale: pct / 100 });
     }
-    return setObjectSize(board, kind, id, pctSize(Math.max(25, Math.min(400, pct)), SIZE_RANGES[kind].def));
+    return setObjectSize(board, kind, id, pctSize(Math.max(25, Math.min(400, pct)), kind === "auto" ? autoRange(id).def : SIZE_RANGES[kind].def));
 }
 
 /** Sets an object's size, kept inside the range of its kind. A locked object keeps its size. A zone is scaled by scaleObject(). */
 export function setObjectSize(board: RaidplanBoard, kind: ObjectKind, id: string, value: number): RaidplanBoard {
     if (!Number.isFinite(value) || kind === "zone" || isLocked(board, kind, id)) return board;
+    if (kind === "auto") { const ar = autoRange(id); return patchAutoStyle(board, id, { size: Math.max(ar.min, Math.min(ar.max, Math.round(value))) }); }
     const r = SIZE_RANGES[kind];
     const size = Math.max(r.min, Math.min(r.max, Math.round(value)));
     if (kind === "token") return { ...board, tokens: patchIn(board.tokens, (o) => o.userId === id, { size }) };
@@ -742,6 +795,13 @@ function moveInList<T>(list: T[], index: number, dir: string): T[] {
 
 /** Changes an object's place in its layer: "front" / "back" (all the way) or "up" / "down" (one step). Objects keep the order of their kind (zones behind lines behind marks behind slots behind texts behind tokens). */
 export function reorderObject(board: RaidplanBoard, kind: ObjectKind, id: string, dir: string): RaidplanBoard {
+    if (kind === "auto") {
+        // among the objects of the tank rows: an order number (front = above all of them, back = below)
+        const zs = Object.keys(board.autoStyle || {}).map((k) => (board.autoStyle || {})[k].z || 0);
+        const z = autoStyleOf(board, id).z || 0;
+        const to = dir === "front" ? Math.max(0, ...zs) + 1 : dir === "back" ? Math.min(0, ...zs) - 1 : dir === "up" ? z + 1 : z - 1;
+        return patchAutoStyle(board, id, { z: to });
+    }
     if (kind === "token") return { ...board, tokens: moveInList(board.tokens, board.tokens.findIndex((o) => o.userId === id), dir) };
     if (kind === "slot") return { ...board, slots: moveInList(board.slots, board.slots.findIndex((o) => o.id === id), dir) };
     if (kind === "mark") return { ...board, marks: moveInList(board.marks, board.marks.findIndex((o) => o.id === id), dir) };

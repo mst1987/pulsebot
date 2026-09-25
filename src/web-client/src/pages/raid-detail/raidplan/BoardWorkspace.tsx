@@ -17,7 +17,7 @@ import { addItems, alignSelection, bandBox, copySelection, deleteSelection, dupl
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, type Corner, type InsertSpec, type MenuItem,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -233,6 +233,16 @@ export default function BoardWorkspace({
     // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
     const missing = useMemo(() => unplaced(roster, { ...board, autoUsers: auto.users }), [roster, board, auto]);
     const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows, places: autoPlaces(auto) }, me || []) : []), [showLinks, board, filledRows, me, auto]);
+    // where the objects of the tank rows stand now: handed to the selection code (rubber band, Ctrl+A, moving / scaling / aligning a selection)
+    // as the transient `autoAt`, and taken off again before the board is kept
+    const autoAt = useMemo(() => {
+        const at: Record<string, { x: number; y: number }> = {};
+        for (const m of auto.mobs) if (!m.iconId) at[m.key] = { x: m.x, y: m.y };
+        for (const k of auto.tanks) if (!k.existing) at[k.key] = { x: k.x, y: k.y };
+        return at;
+    }, [auto]);
+    const withAuto = (b: RaidplanBoard): RaidplanBoard => ({ ...b, autoAt });
+    const noAuto = (b: RaidplanBoard): RaidplanBoard => { const out = { ...b }; delete out.autoAt; return out; };
     /** a request to AssignPanel to open a row's dialog (from the map: "Tank wählen …", "Zeile bearbeiten …") */
     const [rowReq, setRowReq] = useState<{ id: string; n: number } | null>(null);
     const groupCount = Math.max(besetzung.groups, ...roster.map((p) => p.group));
@@ -338,20 +348,20 @@ export default function BoardWorkspace({
     // what an undo, a delete elsewhere ... took away is no longer selected
     useEffect(() => {
         if (multi.length === 0) return;
-        const live = liveItems(board, multi);
+        const live = liveItems(withAuto(board), multi);
         if (live.length !== multi.length) chooseItems(live);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [board]);
-    const frame = multi.length > 1 ? selectionBox(board, multi, boardPx()) : null;
+    const frame = multi.length > 1 ? selectionBox(withAuto(board), multi, boardPx()) : null;
     const centerOf = (b: RaidplanBoard, sel: SelItem[]) => {
-        const box = selectionBox(b, sel, boardPx());
+        const box = selectionBox(withAuto(b), sel, boardPx());
         return box ? { x: (box.x0 + box.x1) / 2, y: (box.y0 + box.y1) / 2 } : { x: 0.5, y: 0.5 };
     };
     /** One undo step for whatever the selection does. */
     const multiAction = (fn: (b: RaidplanBoard, sel: SelItem[]) => RaidplanBoard, merge = false) => {
         const sel = currentSel();
         if (sel.length === 0) return;
-        edit((b) => fn(b, sel), merge);
+        edit((b) => noAuto(fn(withAuto(b), sel)), merge);
     };
     const doDuplicate = () => {
         const sel = currentSel();
@@ -425,7 +435,11 @@ export default function BoardWorkspace({
             if (!p) return;
             if (d.multi && d.p0) {
                 const m = d.multi;
-                edit(() => moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx()), true);
+                edit(() => noAuto(moveSelection(m.board0, m.sel, p.x - d.p0!.x, p.y - d.p0!.y, boardPx())), true);
+            } else if (d.handle === "rot" && d.center && d.kind === "auto") {
+                // an auto mob turned by hand: its facing is its own from now on
+                const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
+                edit((b) => patchAutoStyle(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
             } else if (d.handle === "rot" && d.center) {
                 const a = angleTo(d.center.x, d.center.y, e.clientX, e.clientY);
                 edit((b) => updateIcon(b, d.id, { rotation: e.shiftKey ? snapAngle(a, 15) : a, autoFace: false }), true);
@@ -510,10 +524,9 @@ export default function BoardWorkspace({
         if (!canWrite || e.button !== 0) return;
         e.preventDefault();
         const target = e.currentTarget as HTMLElement;
-        // an object of the tank rows is never part of a multi selection (it moves on its own)
-        const startsMulti = kind !== "tray" && kind !== "member" && kind !== "auto" && !handle && multi.length > 1 && hasItem(multi, { kind, id });
+        const startsMulti = kind !== "tray" && kind !== "member" && !handle && multi.length > 1 && hasItem(multi, { kind, id });
         // Ctrl / Cmd / Shift + click (or the selection mode) adds the object to the selection or takes it out again: no drag
-        if (kind !== "tray" && kind !== "member" && kind !== "auto" && !handle && (e.ctrlKey || e.metaKey || e.shiftKey || selectMode)) {
+        if (kind !== "tray" && kind !== "member" && !handle && (e.ctrlKey || e.metaKey || e.shiftKey || selectMode)) {
             chooseItems(toggleItem(currentSel(), { kind, id }));
             if (target.focus) target.focus();
             return;
@@ -555,7 +568,7 @@ export default function BoardWorkspace({
             }
         }
         const origin = kind === "slot" ? { x: (board.slots.find((s) => s.id === id) || { x: 0 }).x, y: (board.slots.find((s) => s.id === id) || { y: 0 }).y } : undefined;
-        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false, multi: startsMulti ? { board0: boardNow.current, sel: multi } : undefined };
+        const d: Drag = { kind, id, handle, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox, oy, rect0, line0, p0, origin, size0, center, d0, keepRatio: e.shiftKey, overTray: false, multi: startsMulti ? { board0: withAuto(boardNow.current), sel: multi } : undefined };
         dragRef.current = d;
         setDrag(d);
     };
@@ -616,7 +629,7 @@ export default function BoardWorkspace({
             const p = toBoard(e.clientX, e.clientY);
             if (!p) return;
             const box = bandBox(b.x0, b.y0, Math.max(0, Math.min(1, p.x)), Math.max(0, Math.min(1, p.y)));
-            const hits = hitObjects(boardNow.current, box, boardPx());
+            const hits = hitObjects(withAuto(boardNow.current), box, boardPx());
             chooseItems(b.add ? addItems(b.base, hits) : hits);
         };
         window.addEventListener("pointermove", move);
@@ -631,7 +644,7 @@ export default function BoardWorkspace({
         e.preventDefault();
         const p = toBoard(e.clientX, e.clientY);
         if (!p) return;
-        const d: Drag = { kind: "zone", id: "", x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, p0: { x: p.x, y: p.y }, overTray: false, multi: { board0: boardNow.current, sel: multi } };
+        const d: Drag = { kind: "zone", id: "", x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: false, ox: 0, oy: 0, p0: { x: p.x, y: p.y }, overTray: false, multi: { board0: withAuto(boardNow.current), sel: multi } };
         dragRef.current = d;
         setDrag(d);
     };
@@ -645,7 +658,7 @@ export default function BoardWorkspace({
         const c = centerOf(boardNow.current, multi);
         const cx = rect.left + c.x * rect.width;
         const cy = rect.top + c.y * rect.height;
-        scaleRef.current = { board0: boardNow.current, sel: multi, center: c, d0: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy };
+        scaleRef.current = { board0: withAuto(boardNow.current), sel: multi, center: c, d0: Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy)), cx, cy };
         setScaling(true);
     };
     useEffect(() => {
@@ -653,7 +666,7 @@ export default function BoardWorkspace({
         const move = (e: globalThis.PointerEvent) => {
             const s = scaleRef.current;
             const f = Math.max(0.1, Math.min(8, Math.hypot(e.clientX - s.cx, e.clientY - s.cy) / s.d0));
-            edit(() => scaleSelection(s.board0, s.sel, f, s.center), true);
+            edit(() => noAuto(scaleSelection(s.board0, s.sel, f, s.center)), true);
         };
         const up = () => setScaling(false);
         window.addEventListener("pointermove", move);
@@ -682,6 +695,15 @@ export default function BoardWorkspace({
             if (dirs[e.key] && o) { e.preventDefault(); edit((b) => moveObject(b, "auto", id, o.x + dirs[e.key][0], o.y + dirs[e.key][1]), true); }
             else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); toast(t("raidBoard.auto.noDelete")); }
             else if (e.key === "Enter") { setSelected({ kind, id }); focusProperties(); }
+            else if (e.key === "+" || e.key === "=") { e.preventDefault(); edit((b) => scaleObject(b, "auto", id, 1.1), true); }
+            else if (e.key === "-") { e.preventDefault(); edit((b) => scaleObject(b, "auto", id, 1 / 1.1), true); }
+            else if ((e.key === "q" || e.key === "Q" || e.key === "e" || e.key === "E") && id.indexOf("m:") === 0) {
+                // an auto mob turned by hand (Q / E): from where it faces now, its own facing from then on
+                e.preventDefault();
+                const now = autoStyleOf(boardNow.current, id);
+                const dir = e.key === "q" || e.key === "Q" ? -1 : 1;
+                edit((b) => patchAutoStyle(b, id, { rotation: (((now.rotation || 0) + dir * (e.shiftKey ? 45 : 15)) % 360 + 360) % 360, autoFace: false }), true);
+            }
             return;
         }
         if (multi.length > 1 && hasItem(multi, { kind, id })) {
@@ -725,7 +747,7 @@ export default function BoardWorkspace({
             const tag = (e.target as HTMLElement).tagName;
             if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement).isContentEditable) return;
             const mod = e.ctrlKey || e.metaKey;
-            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && !noMap) { e.preventDefault(); chooseItems(selectableItems(boardNow.current)); }
+            if (canWrite && mod && e.key.toLowerCase() === "a" && !e.shiftKey && !noMap) { e.preventDefault(); chooseItems(selectableItems(withAuto(boardNow.current))); }
             else if (canWrite && mod && e.key.toLowerCase() === "d") { e.preventDefault(); doDuplicate(); }
             else if (canWrite && mod && e.key.toLowerCase() === "c") { if (currentSel().length > 0) { e.preventDefault(); doCopy(); } }
             else if (canWrite && mod && e.key.toLowerCase() === "v") { if (clip.current) { e.preventDefault(); doPaste(); } }
@@ -793,7 +815,12 @@ export default function BoardWorkspace({
         if (sel.kind === "auto") {
             const k = auto.tanks.find((x) => x.key === sel.id);
             const moved = !!(board.autoPos || {})[sel.id];
-            return [it("properties", "main"), ...(k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")]), ...(moved ? [it("auto:reset", "end")] : [])];
+            const styled = !!(board.autoStyle || {})[sel.id];
+            const locked = !!autoStyleOf(board, sel.id).lock;
+            // like any object: order, lock, the size steps; plus its row, and back to its own place / look
+            return [it("properties", "main"), ...(k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")]),
+                it("front", "order"), it("back", "order"), it(locked ? "unlock" : "lock", "order"), ...(locked ? [] : SIZE_STEPS.map((p) => it(`size:${p}`, "size"))),
+                ...(moved ? [it("auto:reset", "end")] : []), ...(moved || styled ? [it("auto:resetAll", "end")] : [])];
         }
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
@@ -823,6 +850,7 @@ export default function BoardWorkspace({
         if (id === "deselect") { chooseItems([]); return; }
         const one = target && target !== "board" ? target : null;
         if (id === "auto:reset" && one) { edit((b) => resetAutoPos(b, one.id)); return; }
+        if (id === "auto:resetAll" && one) { edit((b) => resetAutoAll(b, one.id)); return; }
         if (id === "auto:row" && one) { const k = auto.tanks.find((x) => x.key === one.id); if (k) openRowFromMap(k.rowId); return; }
         if (id === "auto:tank" && one) {
             if (one.kind === "auto") pickTankFor(one.id, null);
@@ -1043,9 +1071,9 @@ export default function BoardWorkspace({
                                 <button type="button" role="tab" aria-selected={tab === "layers"} className={tab === "layers" ? "is-on" : ""} onClick={() => setTab("layers")}>{t("raidBoard.panel.layers")}</button>
                                 <button type="button" role="tab" aria-selected={tab === "bg"} className={tab === "bg" ? "is-on" : ""} onClick={() => setTab("bg")}>{t("raidBoard.panel.background")}</button>
                             </div>
-                            {tab === "props" && selected && selected.kind === "auto" && <AutoInfo plan={auto} id={selected.id} board={board} players={players} canWrite={canWrite} edit={edit} onRow={(k, mobKey) => (k ? openRowFromMap(k.rowId) : pickTankFor(mobKey, null))} />}
-                            {tab === "props" && !(selected && selected.kind === "auto") && <Inspector board={board} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} editAll={editAll || edit} rows={filledRows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
-                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} autoRows={[...auto.mobs.filter((m) => !m.iconId).map((m) => m.key), ...auto.tanks.filter((k) => !k.existing).map((k) => k.key)].map((key) => ({ id: key, name: autoName(key), moved: !!(board.autoPos || {})[key] }))} />}
+                            {tab === "props" && selected && selected.kind === "auto" && multi.length < 2 && <AutoInfo plan={auto} id={selected.id} board={board} players={players} canWrite={canWrite} edit={edit} onRow={(k, mobKey) => (k ? openRowFromMap(k.rowId) : pickTankFor(mobKey, null))} />}
+                            {tab === "props" && !(selected && selected.kind === "auto" && multi.length < 2) && <Inspector board={withAuto(board)} selection={selected} multi={multi} boardPx={boardPx} players={players} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={(fn, m) => edit((b) => noAuto(fn(withAuto(b))), m)} editAll={editAll || edit} rows={filledRows} onSelect={setSelected} focusGroup={focusGroup} onFocusGroup={setFocusGroup} />}
+                            {tab === "layers" && <LayerList board={board} players={players} selection={selected} multi={multi} canWrite={canWrite} edit={edit} onSelect={onLayerSelect} autoRows={[...auto.mobs.filter((m) => !m.iconId).map((m) => m.key), ...auto.tanks.filter((k) => !k.existing).map((k) => k.key)].map((key) => ({ id: key, name: autoName(key), moved: !!(board.autoPos || {})[key], hidden: !!autoStyleOf(board, key).hidden, lock: !!autoStyleOf(board, key).lock }))} />}
                             {tab === "bg" && (
                                 <div className="rp-bg">
                                     <MapOpacityField board={board} canWrite={canWrite} edit={edit} />

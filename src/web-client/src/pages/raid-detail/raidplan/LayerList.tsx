@@ -20,7 +20,7 @@ export default function LayerList({ board, players, selection, multi = [], canWr
     /** Ctrl / Cmd + click toggles a row, Shift + click takes the rows from the last one to this one. */
     onSelect: (sel: Selection, mods?: { toggle: boolean; range: boolean }) => void;
     /** what the tank rows put on the map (not deletable here: it goes with its row) */
-    autoRows?: { id: string; name: string; moved: boolean }[];
+    autoRows?: { id: string; name: string; moved: boolean; hidden?: boolean; lock?: boolean }[];
 }) {
     const t = useT();
     const rows = layerList(board, players);
@@ -50,11 +50,15 @@ export default function LayerList({ board, players, selection, multi = [], canWr
             {autoRows.map((r) => {
                 const on = !!selection && selection.kind === "auto" && selection.id === r.id;
                 return (
-                    <li key={`auto:${r.id}`} className={`rp-layer is-auto${on ? " is-on" : ""}`} onClick={() => onSelect({ kind: "auto", id: r.id })}>
+                    <li key={`auto:${r.id}`} className={`rp-layer is-auto${on ? " is-on" : ""}${r.hidden ? " is-hidden" : ""}`} onClick={() => onSelect({ kind: "auto", id: r.id })}>
                         <button type="button" className="rp-layer-name" aria-pressed={on} onClick={(e) => { e.stopPropagation(); onSelect({ kind: "auto", id: r.id }); }}>
                             <span className="rp-layer-kind"><Wand2 size={11} aria-hidden="true" /> {t("raidBoard.auto.fromRow")}</span>
                             <span className="rp-layer-text">{r.name}</span>
                         </button>
+                        {btn(r.hidden ? t("raidBoard.layers.show") : t("raidBoard.layers.hide"), r.hidden ? <EyeOff size={14} /> : <Eye size={14} />, () => edit((b) => patchLook(b, "auto", r.id, { hidden: !r.hidden })))}
+                        {btn(r.lock ? t("raidBoard.insp.unlock") : t("raidBoard.insp.lock"), r.lock ? <Lock size={14} /> : <LockOpen size={14} />, () => edit((b) => patchLook(b, "auto", r.id, { lock: !r.lock })))}
+                        {btn(t("raidBoard.layers.up"), <ChevronUp size={14} />, () => edit((b) => reorderObject(b, "auto", r.id, "up")))}
+                        {btn(t("raidBoard.layers.down"), <ChevronDown size={14} />, () => edit((b) => reorderObject(b, "auto", r.id, "down")))}
                         {r.moved && btn(t("raidBoard.auto.reset"), <RotateCcw size={14} />, () => edit((b) => resetAutoPos(b, r.id)))}
                     </li>
                 );
