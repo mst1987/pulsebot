@@ -1,5 +1,5 @@
 import { REF_W, boardScale, canvasStyle } from "../../lib/boardScale";
-import { ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/labelScale";
+import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/labelScale";
 import { FIT, type BoardView } from "../../lib/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
 import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
 import { ANY } from "../../lib/classRefs";
@@ -65,7 +65,7 @@ export function playerLabel(player: RaidplanPlayer): string {
 }
 
 /** What a drag can grab on an object: a zone's corner, or one end of a line. */
-export type Handle = Corner | "end1" | "end2" | "size" | "rot";
+export type Handle = Corner | "n" | "s" | "e" | "w" | "end1" | "end2" | "size" | "rot";
 /** How the board reports a pointer or key event on one of its objects. */
 export type ObjectDown = (e: PointerEvent<HTMLElement | SVGElement>, kind: ObjectKind, id: string, handle?: Handle) => void;
 export type ObjectKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => void;
@@ -236,7 +236,9 @@ export default function PlanBoard({
             if (s.kind !== "group" || s.hidden || s.placed === false || !s.split || s.hideMembers) continue;
             const members = splitMembers(boardOwn, s, roster);
             const { gs, sp } = groupScales(s);
-            const ring = ringOffsets(members.length, size.w, size.h, scaled(s.size, SIZE_RANGES.member.def) * gs * sp);
+            const { ts } = groupScales(s);
+            const base = scaled(s.size, SIZE_RANGES.member.def) * gs;
+            const ring = ringOffsets(members.length, size.w, size.h, ringUnit(base * sp, base * ts));
             members.forEach((p, i) => {
                 const off = s.offsets ? s.offsets[p.userId] : undefined;
                 const d = off ? { dx: off.dx * gs * sp, dy: off.dy * gs * sp } : ring[i] || { dx: 0, dy: 0 };
@@ -268,18 +270,22 @@ export default function PlanBoard({
      */
     const roleBody = (z: RaidplanZone) => {
         const role = z.role || "melee";
-        const n = z.shape === "cluster" ? Math.max(3, Math.min(8, z.count || 5)) : 1;
-        const icoPx = Math.round(scaled(undefined, SIZE_RANGES.token.def) * 0.8);
+        const cluster = z.shape === "cluster";
+        const n = cluster ? Math.max(3, Math.min(8, z.count || 5)) : 1;
+        // everything of the placeholder is a share of the zone (lib/raidplan.ts roleZoneMetrics): it scales as one piece, never distorted
+        const m = roleZoneMetrics(z.w * size.w, z.h * size.h, cluster, z.count || 0);
         const members = z.showNames ? roster.filter((p) => (role === "dps" ? p.role !== "tank" && p.role !== "healer" : p.role === role)) : [];
+        // the names under it: at their share of the zone; too small on screen = not shown (never enlarged, like a token's name)
+        const namesShown = members.length > 0 && !(screenScale > 0 && m.names * screenScale < HIDE_SCREEN_FONT);
         const label = zoneBoardLabel(z);
         return (
             <>
-                <span className="rp-rg-body" style={{ "--rp-rg": `${icoPx}px` } as CSSProperties}>
-                    {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.round(icoPx * 0.72)} /></span>)}
+                <span className="rp-rg-body">
+                    {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.max(8, Math.round(m.icon * 0.72))} /></span>)}
                 </span>
                 {label && <span className="rp-rg-label">{label}</span>}
                 {(z.count || 0) > 0 && <span className="rp-rg-count">{z.count}</span>}
-                {members.length > 0 && <span className="rp-rg-names">{members.map((m) => <PlayerName key={m.userId} player={m} className={isMe(m.userId) ? "is-me" : ""} />)}</span>}
+                {namesShown && <span className="rp-rg-names">{members.map((p) => <PlayerName key={p.userId} player={p} className={isMe(p.userId) ? "is-me" : ""} />)}</span>}
             </>
         );
     };
@@ -313,7 +319,8 @@ export default function PlanBoard({
 
             {zones.filter((z) => !z.hidden).map((z) => {
                 // a role group can be turned about its middle (degrees)
-                const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
+                const rm = z.type === "role" ? roleZoneMetrics(z.w * size.w, z.h * size.h, z.shape === "cluster", z.count || 0) : null;
+                const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
                 const name = z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`));
                 const zoneLabel = zoneBoardLabel(z);
                 return (
@@ -325,7 +332,7 @@ export default function PlanBoard({
                     >
                         {z.type === "role" ? roleBody(z) : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
                         {editable && !z.lock && isSel("zone", z.id) && z.type === "role" && <span className="rp-handle rp-h-zrot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, "rot"); }} />}
-                        {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
+                        {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se", "n", "e", "s", "w"] as Handle[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
                         ))}
                     </div>
@@ -466,7 +473,8 @@ export default function PlanBoard({
                     const { gs, sp, ts } = groupScales(s);
                     const memberBase = scaled(s.size, SIZE_RANGES.member.def);
                     const memberPx = memberBase * gs * ts;
-                    const spacePx = memberBase * gs * sp;
+                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan.ts ringUnit)
+                    const spacePx = ringUnit(memberBase * gs * sp, memberPx);
                     const spread = gs * sp;
                     // a name under a ring member is never wider than the room to its neighbour (lib/raidplan.ts ringNameWidth): a long one ends in "…"
                     const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);
@@ -487,7 +495,7 @@ export default function PlanBoard({
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, `${members.some((p) => isMe(p.userId)) ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                                 {chipMode === "text" && <span className="rp-grouptext">{gmark && <MarkIcon mark={gmark as never} size={16} />}{boardLabel}</span>}
                                 {chipMode === "chip" && (
-                                <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} {...handlers("slot", s.id)}>
+                                <button type="button" className={`rp-token-btn rp-groupchip${tag.dim ? " is-gempty" : ""}${chipWidthOf(s) ? " is-sized" : ""}`} tabIndex={editable ? 0 : -1} aria-label={title} style={chipWidthOf(s) ? ({ "--rp-cw": `${chipWidthOf(s)}px` } as CSSProperties) : undefined} {...handlers("slot", s.id)}>
                                     <span className="rp-groupchip-head">
                                         <Users size={15} aria-hidden="true" />
                                         <span className="rp-groupchip-n">{tag.number}</span>

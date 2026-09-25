@@ -338,7 +338,10 @@
         "showBorder": "Show border",
         "showRingObj": "Show ring / border",
         "showName": "Show name",
-        "nameAuto": "The name is hidden: the icon is too small on screen to carry it (a bigger board, zoom or bigger icons show it again)."
+        "nameAuto": "The name is hidden: the icon is too small on screen to carry it (a bigger board, zoom or bigger icons show it again).",
+        "chipWidth": "Width of the group chip (0 = automatic)",
+        "chipAuto": "Automatic",
+        "chipAutoTip": "As wide as the longest name again (at most 220 px)"
     },
     "panel": {
         "props": "Properties",

@@ -397,3 +397,18 @@ The inspector of several selected objects (`MultiInspector`) shows, besides size
 - **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so they never meet (before it sat at the lower right, on the name's first line).
 
 Tests: `test/web-client/labelScale.test.js`, "names on a group ring" in `test/web-client/raidplan.test.js`.
+
+**A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from the default:
+
+- The token's button had a text line of its own (inline icon on the baseline, a line height that did not scale): a small icon (30 %) sat lower than its anchor, and the name, measured from the anchor, lay on the icon. Now the button is exactly its icon (`.rp-canvas .rp-token > .rp-token-btn`: block, `--rp-s` wide and high, no line height) - name and badge sit where they belong at every size.
+- The ring was laid out with the group's *spacing* only (group size x ring spacing): tokens bigger than that ("Token size" 70 % with a ring spacing of 30 %) covered their neighbours and their names. `ringUnit(spacePx, memberPx)` = the bigger of the two - the ring grows with the tokens it carries (also for the places the facing finds). Raiders moved by hand keep their stored offsets.
+
+Tests: "a group's own token size" in `test/web-client/raidplan.test.js`.
+
+### Role groups and group chips scale with themselves (feature/raidplan-15, part 2)
+
+- **Role groups** ("Melees", "Ranged", "Healer", "Tanks": zones of type `role`) draw ONE solid outline and a light fill in their colour; the icon is there once, a circle in the middle, never distorted (a narrow strip gets a smaller circle, not an ellipse). The double border of the zone and the double ring round the icon are gone. Every measure is a share of the zone (`lib/raidplan.ts roleZoneMetrics(w, h, cluster, count)` in reference px): the icon 0.45 of the smaller side (at most 96), the outline 1 .. 4 px, the label and the count badge, and the names listed under it. The names go by the zone's area (a narrow strip still carries them), at most a token name's size (11.4); too small on screen they are hidden, never enlarged (like a token's name). The names are listed in lines of the zone's width, a name is never split. The shapes: circle (`ellipse`), rectangle (`rect`) - the same outline and icon, no concentric rings - and the cluster ("Symbole", several icons). The other zones (danger / healthy / neutral / own) keep their one line (solid, dotted, dashed); the double ring of a RANGED token is its role mark and not a zone.
+- **Grips of a zone:** the four corners (both sides; Shift keeps the proportions) and, new, the middle of each edge (`ZoneGrip` "n" / "e" / "s" / "w": only that side - a melee strip gets taller or wider on its own).
+- **Group chip with its names** (a group marker that is not split): as wide as its longest name needs, up to 220 reference px; a name is never split (`white-space: nowrap`), a name longer than the chip ends in "…". Its width can be set in the inspector ("Breite des Gruppen-Chips", `slot.chipWidth` 60 .. 400 reference px, 0 = automatic; kept by `raidplanBoard.cleanBoard` for groups only). Before, the chip was laid out in a zero-wide anchor, so every name broke at its spaces ("Darkdisi /" + "Lakunoc").
+
+Tests: "role groups and group chips scale with themselves" in `test/web-client/raidplan.test.js`, "a group chip's width" in `test/web/raidplanBoard.test.js`.

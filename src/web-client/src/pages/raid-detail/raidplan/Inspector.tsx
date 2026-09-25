@@ -5,7 +5,7 @@ import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, Rai
 import { IconButton } from "../../../components/ui";
 import {
     ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
-    setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
+    setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, chipWidthOf, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
@@ -141,6 +141,12 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.ringSpread")}</span><NumberField label={t("raidBoard.insp.ringSpread")} value={Math.round(groupScales(slot).sp * 100)} min={25} max={400} unit="%" disabled={dis} onChange={(v) => edit((b) => setGroupScale(b, id, { ringSpread: v / 100 }), true)} /></label>
                     <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.tokenSize")}</span><NumberField label={t("raidBoard.insp.tokenSize")} value={Math.round(groupScales(slot).ts * 100)} min={25} max={400} unit="%" disabled={dis} onChange={(v) => edit((b) => setGroupScale(b, id, { tokenScale: v / 100 }), true)} /></label>
                     <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => setAllGroupScale(b, groupScales(slot).gs))}>{t("raidBoard.insp.allGroups")}</button>
+                    {!slot.split && !slot.hideMembers && (
+                        <div className="rp-field-row">
+                            <label className="rp-field"><span className="rp-kicker">{t("raidBoard.insp.chipWidth")}</span><NumberField label={t("raidBoard.insp.chipWidth")} value={chipWidthOf(slot) || 0} min={0} max={400} unit="px" disabled={dis} onChange={(v) => edit((b) => updateSlot(b, id, { chipWidth: v > 0 ? Math.max(60, Math.min(400, v)) : 0 }), true)} /></label>
+                            {chipWidthOf(slot) > 0 && <button type="button" className="rp-link" disabled={dis} data-tip={t("raidBoard.insp.chipAutoTip")} onClick={() => edit((b) => updateSlot(b, id, { chipWidth: 0 }))}>{t("raidBoard.insp.chipAuto")}</button>}
+                        </div>
+                    )}
                 </div>
             )}
             {kind === "zone" && (

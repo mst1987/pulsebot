@@ -48,6 +48,9 @@ export type ObjectKind = "token" | "slot" | "mark" | "icon" | "zone" | "line" | 
 export type Selection = { kind: ObjectKind; id: string } | null;
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Corner = "nw" | "ne" | "sw" | "se";
+/** A grip of a zone: a corner (both sides) or the middle of an edge (only that side: height or width alone). */
+export type ZoneGrip = Corner | "n" | "s" | "e" | "w";
+export const ZONE_EDGES = ["n", "e", "s", "w"];
 /** What a palette entry, a tool bar button or a context-menu entry inserts. */
 export type InsertSpec =
     | { type: "slot"; kind: RaidplanSlotKind; label: string }
@@ -526,15 +529,16 @@ export function isLocked(board: RaidplanBoard, kind: ObjectKind, id: string): bo
 }
 
 /** A zone's rectangle after a resize by one corner: the opposite corner stays, the size never drops below the minimum, the zone stays on the board. */
-export function resizeRect(start: Rect, corner: Corner, dx: number, dy: number): Rect {
+export function resizeRect(start: Rect, corner: ZoneGrip, dx: number, dy: number): Rect {
     let left = start.x;
     let top = start.y;
     let right = start.x + start.w;
     let bottom = start.y + start.h;
-    if (corner === "nw" || corner === "sw") left = Math.min(clamp01(start.x + dx), right - MIN_ZONE);
-    if (corner === "ne" || corner === "se") right = Math.max(clamp01(start.x + start.w + dx), left + MIN_ZONE);
-    if (corner === "nw" || corner === "ne") top = Math.min(clamp01(start.y + dy), bottom - MIN_ZONE);
-    if (corner === "sw" || corner === "se") bottom = Math.max(clamp01(start.y + start.h + dy), top + MIN_ZONE);
+    // a corner moves two sides, an edge's middle ("n", "e", "s", "w") only its own
+    if (corner === "nw" || corner === "sw" || corner === "w") left = Math.min(clamp01(start.x + dx), right - MIN_ZONE);
+    if (corner === "ne" || corner === "se" || corner === "e") right = Math.max(clamp01(start.x + start.w + dx), left + MIN_ZONE);
+    if (corner === "nw" || corner === "ne" || corner === "n") top = Math.min(clamp01(start.y + dy), bottom - MIN_ZONE);
+    if (corner === "sw" || corner === "se" || corner === "s") bottom = Math.max(clamp01(start.y + start.h + dy), top + MIN_ZONE);
     return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
@@ -774,6 +778,14 @@ export function scaleObject(board: RaidplanBoard, kind: ObjectKind, id: string, 
 
 /** How far apart two neighbours of a group ring stand at least, in token sizes: room for a name under each of them, side by side. */
 export const RING_CHORD = 2.2;
+
+/**
+ * The size a group ring is laid out with (reference px): its spacing (the group's size x "Ring spacing"), but never less than the tokens
+ * it carries (the group's size x "Token size") - bigger tokens push the ring out, so neighbours and their names never cover each other.
+ */
+export function ringUnit(spacePx: number, memberPx: number): number {
+    return Math.max(spacePx > 0 ? spacePx : 0, memberPx > 0 ? memberPx : 0);
+}
 
 /** The radius of a group ring (reference px) for `count` raiders of `tokenPx`: it grows with their number, and neighbours are RING_CHORD tokens apart. */
 export function ringRadius(count: number, tokenPx: number): number {
@@ -1611,4 +1623,32 @@ export function rhSourceText(src: RaidplanRosterSource): { main: string; warns: 
     if (src.unknown.length > 0) notes.push(t("raidBoard.rh.unknown", { count: src.unknown.length, names: [...new Set(src.unknown)].join(", ") }));
     if (src.goneCount > 0) notes.push(t("raidBoard.rh.gone", { count: src.goneCount }));
     return { main, warns, notes };
+}
+
+// ---- role groups ("Melees" ...) and group chips: sizes derived from the object itself (feature/raidplan-15) ----
+
+/**
+ * The measures of a role group placeholder of `w` x `h` reference px (its zone): the icon (one, unscaled circle in the middle - a cluster:
+ * several, smaller), the outline width, the fonts of its label and count, and the font of the names listed under it. All shares of the
+ * zone's smaller side, so the whole placeholder scales as one piece with the zone - and with the zoom like everything on the canvas.
+ */
+export function roleZoneMetrics(w: number, h: number, cluster: boolean, count: number): { unit: number; icon: number; border: number; label: number; badge: number; names: number } {
+    const unit = Math.max(8, Math.min(w > 0 ? w : 0, h > 0 ? h : 0));
+    const n = cluster ? Math.max(3, Math.min(8, count || 5)) : 1;
+    const icon = cluster ? Math.max(8, Math.min(unit * 0.42, Math.sqrt((w * h) / n) * 0.62)) : Math.max(10, Math.min(unit * 0.45, 96));
+    return {
+        unit,
+        icon: Math.round(icon * 10) / 10,
+        border: Math.round(Math.max(1, Math.min(4, unit * 0.025)) * 10) / 10,
+        label: Math.round(Math.max(6, Math.min(16, unit * 0.12)) * 10) / 10,
+        badge: Math.round(Math.max(6, Math.min(16, unit * 0.13)) * 10) / 10,
+        // the names go by the zone's area (a narrow strip still carries readable names), at most a token name's size
+        names: Math.round(Math.max(4, Math.min(11.4, Math.sqrt(Math.max(0, w) * Math.max(0, h)) * 0.085)) * 10) / 10,
+    };
+}
+
+/** The width a group chip is drawn with (reference px): the one set for it (60 .. 400), else "auto" (as wide as its longest name, up to 220). */
+export function chipWidthOf(slot: { chipWidth?: number }): number {
+    const w = Number(slot.chipWidth);
+    return Number.isFinite(w) && w > 0 ? Math.max(60, Math.min(400, Math.round(w))) : 0;
 }

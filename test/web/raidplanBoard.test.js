@@ -411,3 +411,13 @@ describe("one mob of several: a target of one placed icon (oid)", () => {
         expect(copy.assignments[0].targets[0]).toMatchObject({ oid: second, n: 2 });
     });
 });
+describe("a group chip's width (feature/raidplan-15)", () => {
+    it("is kept for a group (60 .. 400, 0 = automatic) and dropped for anything else", () => {
+        const g = (extra) => clean({ slots: [{ id: "g", kind: "group", n: 1, x: 0.5, y: 0.5, ...extra }] }).board.slots[0].chipWidth;
+        expect(g({ chipWidth: 150 })).toBe(150);
+        expect(g({ chipWidth: 20 })).toBe(60);
+        expect(g({ chipWidth: 900 })).toBe(400);
+        expect(g({})).toBe(0);
+        expect(clean({ slots: [{ id: "t", kind: "tank", n: 1, x: 0.5, y: 0.5, chipWidth: 150 }] }).board.slots[0].chipWidth).toBe(0);
+    });
+});
