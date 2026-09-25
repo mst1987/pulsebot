@@ -19,7 +19,7 @@ npm run lint:fix       # Auto-fix lint issues
 npm run register       # Register slash commands to guild (instant)
 npm run register:global  # Register globally (takes ~1 hour)
 npm run register:clear   # Remove all guild slash commands
-npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--html, --json, --all)
+npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve = self-refreshing page, --watch, --html, --json, --all)
 node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them (the bot also does this on start)
 node scripts/render-ui-emojis.js           # redraw the flat UI icons (assets/emojis/eh_ui_*.png, checked in)
 node src/discordcommands/raidhelper.js  # Legacy command registration script
