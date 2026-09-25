@@ -4,7 +4,7 @@ import { BringToFront, Copy, Lock, LockOpen, SendToBack, Trash2, UserMinus } fro
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanPlayer, RaidplanText, RaidplanZone, RaidplanZoneType } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import {
-    COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
+    ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
     setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
@@ -22,6 +22,34 @@ import { useT } from "../../../i18n";
 /** A slider and a number field for an opacity in percent, 10..100. */
 export function OpacityField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
     return <SliderField label={label} value={Math.round(value * 100)} min={10} max={100} step={5} unit="%" onChange={(v) => onChange(clampOpacity(v / 100, value))} />;
+}
+
+/**
+ * The facing wedge of an icon (a boss / mob / enemy, also one the tank rows put on the map): "Pfeilgröße" 25 - 300 % (slider + number),
+ * "Pfeil ausblenden" (the facing stays stored), its colour (default amber) and opacity. Shared by the inspector and the auto objects' panel.
+ */
+export function ArrowFields({ board, kind, id, dis, edit }: { board: RaidplanBoard; kind: ObjectKind; id: string; dis: boolean; edit: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void }) {
+    const t = useT();
+    const a = arrowOf(board, kind, id);
+    if (!a) return null;
+    return (
+        <div className="rp-field">
+            <SliderField label={t("raidBoard.arrow.size")} value={Math.round(a.scale * 100)} min={ARROW_MIN * 100} max={ARROW_MAX * 100} step={5} unit="%" disabled={dis || a.hidden} onChange={(v) => edit((b) => patchArrow(b, kind, id, { scale: v / 100 }), true)} />
+            <label className="rp-check"><input type="checkbox" checked={a.hidden} disabled={dis} onChange={(e) => edit((b) => patchArrow(b, kind, id, { hidden: e.target.checked }))} /> {t("raidBoard.arrow.hide")}</label>
+            {!a.hidden && (
+                <>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.arrow.color")}</span>
+                            <input type="color" className="rp-color" value={a.color} disabled={dis} onChange={(e) => edit((b) => patchArrow(b, kind, id, { color: e.target.value }), true)} />
+                        </label>
+                        {a.color !== ARROW_COLOR && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => patchArrow(b, kind, id, { color: ARROW_COLOR }))}>{t("raidBoard.arrow.reset")}</button>}
+                    </div>
+                    <OpacityField label={t("raidBoard.arrow.opacity")} value={a.opacity} onChange={(v) => !dis && edit((b) => patchArrow(b, kind, id, { opacity: v }), true)} />
+                </>
+            )}
+        </div>
+    );
 }
 
 /** A slider and a number field for a size (px, or the multiplier of the whole board), between min and max. */
@@ -103,7 +131,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
         <div className="rp-insp">
             <div className="rp-insp-head">
                 <strong className="rp-insp-name">{name}</strong>
-                <span className="rp-muted">{t(`raidBoard.obj.${kind}`)}</span>
+                <span className="rp-muted">{zone && zone.type === "role" ? t("raidBoard.zone.role") : t(`raidBoard.obj.${kind}`)}</span>
             </div>
 
             {kind !== "zone" && !(slot && slot.kind === "group") && <PctField label={t("raidBoard.insp.sizePct")} board={board} kind={kind as ObjectKind} id={id} dis={dis} edit={edit} />}
@@ -133,7 +161,51 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                 <label className="rp-check"><input type="checkbox" checked={look.showName !== false} disabled={dis} onChange={(e) => edit((b) => patchLook(b, kind as ObjectKind, id, { showName: e.target.checked }))} /> {t("raidBoard.insp.showName")}</label>
             )}
 
-            {zone && (
+            {zone && zone.type === "role" && (
+                <>
+                    <p className="rp-muted">{t("raidBoard.roleGroupUi.hint")}</p>
+                    <div className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.roleGroupUi.role")}</span>
+                        <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.role")}>
+                            {ROLE_GROUPS.map((r) => <button key={r} type="button" role="radio" aria-checked={zone.role === r} className={zone.role === r ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { role: r as never, color: ROLE_GROUP_COLORS[r] }))}>{t(`raidBoard.roleGroup.${r}`)}</button>)}
+                        </span>
+                    </div>
+                    <div className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.roleGroupUi.shape")}</span>
+                        <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.shape")}>
+                            {["ellipse", "rect", "cluster"].map((sh) => <button key={sh} type="button" role="radio" aria-checked={zone.shape === sh} className={zone.shape === sh ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { shape: sh as never }))}>{t(`raidBoard.roleGroupUi.${sh}`)}</button>)}
+                        </span>
+                    </div>
+                    <label className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.zone.label")}</span>
+                        <input value={zone.label} maxLength={40} disabled={dis} placeholder={t(`raidBoard.roleGroup.${zone.role || "melee"}`)} onChange={(e) => edit((b) => updateZone(b, id, { label: e.target.value }), true)} />
+                    </label>
+                    <label className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.roleGroupUi.count")}</span>
+                        <NumberField label={t("raidBoard.roleGroupUi.count")} value={zone.count || 0} min={0} max={40} disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { count: v }), true)} />
+                    </label>
+                    <label className="rp-check"><input type="checkbox" checked={!!zone.showNames} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { showNames: e.target.checked }))} /> {t("raidBoard.roleGroupUi.showNames")}</label>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.zone.color")}</span>
+                            <input type="color" className="rp-color" value={zone.color} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { color: e.target.value }), true)} />
+                        </label>
+                        <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { color: ROLE_GROUP_COLORS[zone.role || "melee"] }))}>{t("raidBoard.zone.presetColor")}</button>
+                    </div>
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.width")}</span>
+                            <NumberField label={t("raidBoard.insp.width")} value={Math.round(zone.w * 100)} min={3} max={100} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { w: Math.max(0.03, Math.min(1 - zone.x, v / 100)) }), true)} />
+                        </label>
+                        <label className="rp-field">
+                            <span className="rp-kicker">{t("raidBoard.insp.height")}</span>
+                            <NumberField label={t("raidBoard.insp.height")} value={Math.round(zone.h * 100)} min={3} max={100} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { h: Math.max(0.03, Math.min(1 - zone.y, v / 100)) }), true)} />
+                        </label>
+                    </div>
+                </>
+            )}
+
+            {zone && zone.type !== "role" && (
                 <>
                     <label className="rp-field">
                         <span className="rp-kicker">{t("raidBoard.zone.label")}</span>
@@ -265,6 +337,7 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                                 ))}
                             </div>
                             <span className="rp-muted">{t("raidBoard.icon.facingHint")}</span>
+                            <ArrowFields board={board} kind="icon" id={id} dis={dis} edit={edit} />
                         </>
                     )}
                 </>

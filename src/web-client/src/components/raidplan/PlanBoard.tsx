@@ -250,6 +250,33 @@ export default function PlanBoard({
     };
     /** What a tank of the rows is called: the class place ("Tank (Paladin)", "Magier-Tank", "Tank") or the slot. */
     const ruleName = (k: AutoTank) => (k.classId ? (k.classId === ANY ? t(`raidBoard.class.roles.${k.role || "tank"}`) : classPlaceNameFor(k.classId, k.role, k.type)) : k.slotKind ? t(`raidBoard.slot.${k.slotKind}`, { n: k.slotN }) : "");
+    /** The facing wedge of an icon: its own size factor (--rp-ar), hidden, colour and opacity ("Pfeilgröße", "Pfeil ausblenden"). */
+    const arrowVars = (o: { arrowScale?: number }) => ({ "--rp-ar": String(o.arrowScale || 1) }) as CSSProperties;
+    const wedge = (o: { arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number }) => (o.arrowHidden ? null : (
+        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true" style={o.arrowOpacity !== undefined ? { opacity: o.arrowOpacity } : undefined}><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill={o.arrowColor || "#ffb020"} stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+    ));
+    /**
+     * A role group placeholder ("Melees", "Ranged" ...): the role's icon (a cluster of them for the shape "Symbole"), the label only when one
+     * was written, the count badge when set; with "Namen anzeigen" the setup's players of that role (spec role) below it - never needed, so the
+     * sheet shows it without anybody known.
+     */
+    const roleBody = (z: RaidplanZone) => {
+        const role = z.role || "melee";
+        const n = z.shape === "cluster" ? Math.max(3, Math.min(8, z.count || 5)) : 1;
+        const icoPx = Math.round(scaled(undefined, SIZE_RANGES.token.def) * 0.8);
+        const members = z.showNames ? roster.filter((p) => (role === "dps" ? p.role !== "tank" && p.role !== "healer" : p.role === role)) : [];
+        const label = zoneBoardLabel(z);
+        return (
+            <>
+                <span className="rp-rg-body" style={{ "--rp-rg": `${icoPx}px` } as CSSProperties}>
+                    {Array.from({ length: n }, (_, k) => <span key={k} className="rp-rg-ico"><WowIcon name={ROLE_ICONS[role] || ROLE_ICONS.dps} size={Math.round(icoPx * 0.72)} /></span>)}
+                </span>
+                {label && <span className="rp-rg-label">{label}</span>}
+                {(z.count || 0) > 0 && <span className="rp-rg-count">{z.count}</span>}
+                {members.length > 0 && <span className="rp-rg-names">{members.map((m) => <PlayerName key={m.userId} player={m} className={isMe(m.userId) ? "is-me" : ""} />)}</span>}
+            </>
+        );
+    };
     const mobName = (key: string) => { const m = auto ? auto.mobs.find((x) => x.key === key) : undefined; return m ? (m.count > 1 ? `${m.name} ${m.inst}` : m.name) : ""; };
     const autoTip = (k: AutoTank, who: string) => `${who}${k.mobKey ? ` → ${mobName(k.mobKey)}` : ""} · ${t("raidBoard.auto.fromRow")}`;
 
@@ -280,7 +307,7 @@ export default function PlanBoard({
 
             {zones.filter((z) => !z.hidden).map((z) => {
                 const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity } as CSSProperties;
-                const name = z.label || t(`raidBoard.zone.${z.type}`);
+                const name = z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`));
                 const zoneLabel = zoneBoardLabel(z);
                 return (
                     <div
@@ -289,7 +316,7 @@ export default function PlanBoard({
                         aria-label={`${t(`raidBoard.zone.${z.type}`)}: ${name}`}
                         {...handlers("zone", z.id)}
                     >
-                        <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>
+                        {z.type === "role" ? roleBody(z) : <span className={`rp-zone-label${zoneLabel ? "" : " is-glyph"}`}><span aria-hidden="true">{ZONE_GLYPHS[z.type]}</span>{zoneLabel ? ` ${zoneLabel}` : ""}</span>}
                         {editable && !z.lock && isSel("zone", z.id) && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (
                             <span key={c} className={`rp-handle rp-h-${c}`} data-handle={c} onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "zone", z.id, c); }} />
                         ))}
@@ -366,8 +393,8 @@ export default function PlanBoard({
                                     </span>
                                 )}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${faceOf(i)}deg)` }} aria-hidden="true">
-                                        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+                                    <span className="rp-facing" style={{ transform: `rotate(${faceOf(i)}deg)`, ...arrowVars(i) }} aria-hidden="true">
+                                        {wedge(i)}
                                         {editable && !i.lock && isSel("icon", i.id) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />
                                         )}
@@ -397,8 +424,8 @@ export default function PlanBoard({
                             <span className={`rp-icon-face${face ? " is-round" : ""}`}>
                                 {src ? <img src={src} alt="" draggable={false} /> : <span className="rp-icon-builtin rp-icon-enemy" aria-hidden="true"><Swords size={Math.round(ipx * 0.62)} /></span>}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${a >= 0 ? a : st.rotation || 0}deg)` }} aria-hidden="true">
-                                        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true"><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill="#ffb020" stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+                                    <span className="rp-facing" style={{ transform: `rotate(${a >= 0 ? a : st.rotation || 0}deg)`, ...arrowVars(st) }} aria-hidden="true">
+                                        {wedge(st)}
                                         {editable && !st.lock && isSel("auto", m.key) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "auto", m.key, "rot"); }} />
                                         )}

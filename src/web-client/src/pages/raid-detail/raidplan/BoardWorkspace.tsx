@@ -13,11 +13,12 @@ import { useToast } from "../../../components/Jobs";
 import { deviate, inheritedRows } from "../../../lib/inherit";
 import { autoPlaces, deriveAuto, mobOfIcon, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../lib/autoPlace";
 import AutoInfo from "./AutoInfo";
-import { addItems, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
+import WowIcon from "../../../components/ui/WowIcon";
+import { addItems, scaleArrowSelection, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
 import { useT } from "../../../i18n";
 import {
     angleTo, layerList, DEFAULT_MAP_SIZE, mapHeight, parseMapSize, type MapSize, applyMenuAction, assignSlot, placeSlot, slotTally, dropChip, canFace, compassName, snapAngle, turnIcon, updateIcon, contextMenuItems, insertObject, isLocked, lookOf, moveLineEnd, moveObject, moveRect, nudgeObject, objectName, scaleObject, setObjectSize, sizeOf,
-    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, type Corner, type InsertSpec, type MenuItem,
+    placeToken, ownBadgeGroup, removeObject, removeToken, resizeRect, rosterMap, unplaced, updateLine, updateZone, moveLine, isRoleKind, parseMemberId, resetAutoPos, resetAutoAll, patchAutoStyle, autoStyleOf, SIZE_STEPS, arrowOf, scaleArrow, type Corner, type InsertSpec, type MenuItem,
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
@@ -398,7 +399,7 @@ export default function BoardWorkspace({
         if (spec.type === "mark") return t(`raidBoard.mark.${spec.mark}`);
         if (spec.type === "place") { const s = board.slots.find((x) => x.id === spec.slotId); return s ? t(`raidBoard.slot.${s.kind}`, { n: s.n }) : ""; }
         if (spec.type === "slot") return t(`raidBoard.slot.kind.${spec.kind}`);
-        if (spec.type === "zone") return t(`raidBoard.zone.${spec.zoneType}`);
+        if (spec.type === "zone") return spec.zoneType === "role" ? t(`raidBoard.roleGroup.${spec.role || "melee"}`) : t(`raidBoard.zone.${spec.zoneType}`);
         if (spec.type === "line") return t(`raidBoard.line.${spec.kind}`);
         return t("raidBoard.tool.text");
     };
@@ -688,6 +689,14 @@ export default function BoardWorkspace({
     const onKey = (e: KeyboardEvent<HTMLElement>, kind: ObjectKind, id: string) => {
         if (!canWrite) return;
         const step = e.shiftKey ? 0.05 : 0.01;
+        // Alt + "+" / "-": the facing wedge of the icon(s) bigger / smaller (the icon itself keeps its size)
+        if (e.altKey && (e.key === "+" || e.key === "=" || e.key === "-")) {
+            const f = e.key === "-" ? 1 / 1.15 : 1.15;
+            e.preventDefault();
+            if (multi.length > 1 && hasItem(multi, { kind, id })) multiAction((b, sel) => scaleArrowSelection(b, sel, f), true);
+            else if (arrowOf(boardNow.current, kind, id)) edit((b) => scaleArrow(b, kind, id, f), true);
+            return;
+        }
         if (kind === "auto") {
             // an object of the tank rows: the arrows move it (its place is kept), it cannot be deleted on its own
             const dirs: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
@@ -800,7 +809,7 @@ export default function BoardWorkspace({
         return [
             it("m:duplicate", "main"), it("m:front", "order"), it("m:back", "order"), it("m:lock", "order"), it("m:unlock", "order"), it("m:hide", "order"),
             it("m:alignLeft", "align"), it("m:alignRight", "align"), it("m:alignTop", "align"), it("m:alignBottom", "align"), it("m:alignCenterH", "align"), it("m:alignCenterV", "align"),
-            it("m:distH", "align"), it("m:distV", "align"), it("m:ringHide", "order"), it("m:ringShow", "order"), it("m:delete", "end", true),
+            it("m:distH", "align"), it("m:distV", "align"), it("m:ringHide", "order"), it("m:ringShow", "order"), it("m:arrowUp", "size"), it("m:arrowDown", "size"), it("m:delete", "end", true),
         ];
     };
     const menuItems = (): MenuItem[] => {
@@ -820,24 +829,28 @@ export default function BoardWorkspace({
             // like any object: order, lock, the size steps; plus its row, and back to its own place / look
             return [it("properties", "main"), ...(k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")]),
                 it("front", "order"), it("back", "order"), it(locked ? "unlock" : "lock", "order"), ...(locked ? [] : SIZE_STEPS.map((p) => it(`size:${p}`, "size"))),
+                ...(!k && !locked ? [it("arrow:up", "size"), it("arrow:down", "size")] : []),
                 ...(moved ? [it("auto:reset", "end")] : []), ...(moved || styled ? [it("auto:resetAll", "end")] : [])];
         }
         const look = lookOf(board, sel.kind, sel.id);
         const slot = sel.kind === "slot" ? board.slots.find((s) => s.id === sel.id) : undefined;
         const ic = sel.kind === "icon" ? board.icons.find((s) => s.id === sel.id) : undefined;
         const ref = refOfObject(board, sel);
+        // the facing wedge of a boss / mob / enemy icon: bigger / smaller
+        const arrows = ic && canFace(ic.iconKey) && !(look && look.lock) ? [it("arrow:up", "size"), it("arrow:down", "size")] : [];
         const extra = ref ? tankItems(board.assignments.some((a) => (a.type === "tank" || a.type === "trashtank" || a.type === "special") && a.assignees.indexOf(ref) >= 0)) : ic && (ic.mobId || mobOfIcon(auto, ic.id)) ? [it("auto:tank", "tank")] : [];
-        return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...extra];
+        return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...arrows, ...extra];
     };
     const menuLabel = (item: MenuItem): string => {
         if (item.id.startsWith("tankt:")) { const m = mobs.find((x) => x.id === item.id.slice(6)); return m ? t("raidBoard.auto.tanksMob", { mob: m.name }) : t("raidBoard.auto.untank"); }
         if (item.id.startsWith("auto:")) return t(`raidBoard.auto.menu.${item.id.slice(5)}`);
+        if (item.id.startsWith("arrow:")) return t(`raidBoard.arrow.${item.id.slice(6)}`);
         const parts = item.id.split(":");
         if (parts[0] === "size") return t("raidBoard.ctx.sizeTo", { pct: parts[1] });
         if (parts[0] === "face") return t("raidBoard.ctx.face", { dir: t(`raidBoard.compass.${compassName(Number(parts[1]))}`) });
         if (parts[0] === "insert") {
             if (parts[1] === "mark") return t(`raidBoard.mark.${parts[2]}`);
-            const what = parts[1] === "slot" ? t(`raidBoard.slot.kind.${parts[2]}`) : parts[1] === "zone" ? t(`raidBoard.zone.${parts[2]}`) : parts[1] === "line" ? t(`raidBoard.line.${parts[2]}`) : parts[1] === "icon" ? t(`raidBoard.icon.${parts[2]}`) : t("raidBoard.tool.text");
+            const what = parts[1] === "slot" ? t(`raidBoard.slot.kind.${parts[2]}`) : parts[1] === "role" ? t(`raidBoard.roleGroup.${parts[2]}`) : parts[1] === "zone" ? t(`raidBoard.zone.${parts[2]}`) : parts[1] === "line" ? t(`raidBoard.line.${parts[2]}`) : parts[1] === "icon" ? t(`raidBoard.icon.${parts[2]}`) : t("raidBoard.tool.text");
             return t("raidBoard.ctx.insertHere", { what });
         }
         return t(`raidBoard.ctx.${item.id.replace(":", "_")}`);
@@ -858,6 +871,7 @@ export default function BoardWorkspace({
             return;
         }
         if (id.startsWith("tankt:") && one) { tankAction(one, id.slice(6)); return; }
+        if (id.startsWith("arrow:") && one) { const f = id === "arrow:up" ? 1.25 : 0.8; edit((b) => scaleArrow(b, one.kind, one.id, f)); return; }
         if (id.startsWith("m:")) {
             const px = boardPx();
             const act = id.slice(2);
@@ -868,6 +882,7 @@ export default function BoardWorkspace({
             else if (act === "unlock") multiAction((b, sel) => setLookSelection(b, sel, { lock: false }));
             else if (act === "ringHide") multiAction((b, sel) => setRingSelection(b, sel, false));
             else if (act === "ringShow") multiAction((b, sel) => setRingSelection(b, sel, true));
+            else if (act === "arrowUp" || act === "arrowDown") multiAction((b, sel) => scaleArrowSelection(b, sel, act === "arrowUp" ? 1.25 : 0.8));
             else if (act === "hide") { multiAction((b, sel) => setLookSelection(b, sel, { hidden: true })); chooseItems([]); }
             else {
                 const modes: Record<string, string> = { alignLeft: "left", alignRight: "right", alignTop: "top", alignBottom: "bottom", alignCenterH: "centerH", alignCenterV: "centerV", distH: "distH", distV: "distV" };
@@ -953,6 +968,8 @@ export default function BoardWorkspace({
                         {quick({ type: "text", text: t("raidBoard.text.default") }, t("raidBoard.tool.text"), <Type size={17} />)}
                         {quick({ type: "zone", zoneType: "neutral", shape: "rect" }, t("raidBoard.zone.rect"), <Square size={17} />)}
                         {quick({ type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <Circle size={17} />)}
+                        {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "melee" }, t("raidBoard.roleGroup.melee"), <WowIcon name="ability_dualwield" size={17} />)}
+                        {quick({ type: "zone", zoneType: "role", shape: "ellipse", role: "ranged" }, t("raidBoard.roleGroup.ranged"), <WowIcon name="inv_weapon_bow_07" size={17} />)}
                     </div>
                     <span className="rp-tool-sep" aria-hidden="true" />
                     <div className="rp-tool-group">

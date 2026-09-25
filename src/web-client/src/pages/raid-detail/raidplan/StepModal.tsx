@@ -6,7 +6,7 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { ActionIcon, TimingIcon } from "../../../components/raidplan/ActionIcon";
-import { ALL_MARKS, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, type AssignCtx } from "../../../lib/assign";
+import { ALL_MARKS, CLASS_IDS, ROLE_ICON, ROLE_REFS, classIconOf, classPlaceNameFor, classRefIcon, type AssignCtx } from "../../../lib/assign";
 import { ANY_SPEC, CLASS_COLOR, classGroups, classRef, defaultClassRole, effectiveRole, impliedRole, isClassRef, nextClassN, setClassCount, setClassRole, storedRole } from "../../../lib/classRefs";
 import { CLASS_ROLE_CHOICES, classCount, filterPeople, peopleEntries } from "../../../lib/assignModal";
 import { ACTIONS, MAX_SENTENCE, TASK_OF, applyMention, fillSuggestion, mentionAt, mentionMatches, resolveParticipants, suggestionsFor, type MentionEntry } from "../../../lib/steps";
@@ -63,8 +63,8 @@ export default function StepModal({ step, index, bossName, board, roster, player
     const toggle = (ref: string) => setS((cur) => ({ ...cur, participants: cur.participants.indexOf(ref) >= 0 ? cur.participants.filter((r) => r !== ref) : cur.participants.length >= MAX_PEOPLE ? cur.participants : [...cur.participants, ref] }));
     /** Class counts and roles through the same functions as the assignment dialog, on the step as a one-row list. */
     const viaRow = (fn: (rows: RaidplanAssignment[]) => RaidplanAssignment[]) => setS((cur) => {
-        const grp = cur.participants.filter((r) => r.indexOf("group:") === 0);
-        const row: RaidplanAssignment = { id: "step", type: task, title: "", spell: null, assignees: cur.participants.filter((r) => r.indexOf("group:") !== 0), targets: [], note: "", suggested: false };
+        const grp = cur.participants.filter((r) => r.indexOf("group:") === 0 || r.indexOf("role:") === 0);
+        const row: RaidplanAssignment = { id: "step", type: task, title: "", spell: null, assignees: cur.participants.filter((r) => r.indexOf("group:") !== 0 && r.indexOf("role:") !== 0), targets: [], note: "", suggested: false };
         const out = fn([row])[0];
         return { ...cur, participants: [...out.assignees, ...grp].slice(0, MAX_PEOPLE) };
     });
@@ -184,6 +184,11 @@ export default function StepModal({ step, index, bossName, board, roster, player
                             const key = `group:${g}`;
                             return <button key={key} type="button" className={`rp-amb-tile rp-st-pick${has(key) ? " is-on" : ""}`} aria-pressed={has(key)} onClick={() => toggle(key)}><span className="rp-gdot" aria-hidden="true" style={{ background: groupColor(board.groupColors, g) }} /><span className="rp-amb-name">{t("raidBoard.slot.group", { n: g })}</span>{has(key) && <Check size={13} className="rp-amb-check" aria-hidden="true" />}</button>;
                         })}
+                        {tab === "groups" && ROLE_REFS.map((r) => {
+                            // a whole role group ("Melees"): never split into players
+                            const key = `role:${r}`;
+                            return <button key={key} type="button" className={`rp-amb-tile rp-st-pick${has(key) ? " is-on" : ""}`} aria-pressed={has(key)} onClick={() => toggle(key)}><WowIcon name={ROLE_ICON[r] || ROLE_ICON.dps} size={18} /><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span>{has(key) && <Check size={13} className="rp-amb-check" aria-hidden="true" />}</button>;
+                        })}
                         {tab === "classes" && CLASS_IDS.map((c) => {
                             const on = cGroups.some((g) => g.classId === c);
                             const role = effectiveRole(defaultClassRole(c, task), task);
@@ -275,6 +280,7 @@ export default function StepModal({ step, index, bossName, board, roster, player
                             {zones.map((z) => { const tg: RaidplanStepTarget = { kind: "zone", ref: z }; return <button key={`z${z}`} type="button" aria-pressed={hasTarget(tg)} className={`rp-amb-tile rp-st-pick is-sm is-zone${hasTarget(tg) ? " is-on" : ""}`} onClick={() => toggleTarget(tg)}><span className="rp-amb-name">{z}</span></button>; })}
                             {ALL_MARKS.map((mk) => { const tg: RaidplanStepTarget = { kind: "mark", ref: mk }; return <button key={mk} type="button" aria-pressed={hasTarget(tg)} aria-label={t(`raidBoard.mark.${mk}`)} data-tip={t(`raidBoard.mark.${mk}`)} className={`rp-amb-tile rp-st-pick is-sm is-icon${hasTarget(tg) ? " is-on" : ""}`} onClick={() => toggleTarget(tg)}><MarkIcon mark={mk as never} size={18} /></button>; })}
                             {groups.map((g) => { const tg: RaidplanStepTarget = { kind: "group", ref: String(g) }; return <button key={`g${g}`} type="button" aria-pressed={hasTarget(tg)} className={`rp-amb-tile rp-st-pick is-sm${hasTarget(tg) ? " is-on" : ""}`} onClick={() => toggleTarget(tg)}><span className="rp-gdot" aria-hidden="true" style={{ background: groupColor(board.groupColors, g) }} /><span className="rp-amb-name">{t("raidBoard.slot.group", { n: g })}</span></button>; })}
+                            {ROLE_REFS.map((r) => { const tg: RaidplanStepTarget = { kind: "role", ref: r }; return <button key={`r${r}`} type="button" aria-pressed={hasTarget(tg)} className={`rp-amb-tile rp-st-pick is-sm${hasTarget(tg) ? " is-on" : ""}`} onClick={() => toggleTarget(tg)}><WowIcon name={ROLE_ICON[r] || ROLE_ICON.dps} size={16} /><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span></button>; })}
                             <input className="rp-stm-input is-short" value={zone} maxLength={40} placeholder={t("raidBoard.steps.target.zonePlaceholder")} aria-label={t("raidBoard.steps.target.zone")} onChange={(e) => setZone(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && zone.trim() && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); toggleTarget({ kind: "zone", ref: zone.trim() }); setZone(""); } }} />
                         </div>
                     </section>

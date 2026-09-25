@@ -16,7 +16,10 @@
 //   marks    [{ id, mark, x, y }]         the eight raid target marks
 //   zones    [{ id, shape, type, label, color, opacity, x, y, w, h }]
 //                                          rectangle / ellipse areas: danger, healthy,
-//                                          neutral or a custom one
+//                                          neutral or a custom one; type "role" = a placeholder for a whole role
+//                                          group ("Melees", "Ranged" ...: role, count, showNames; shape also "cluster"),
+//                                          never resolved into players
+//   icons also carry arrowScale (0.25..3, the facing wedge), arrowHidden, arrowColor, arrowOpacity - only when set
 //   lines    [{ id, kind, x1, y1, x2, y2, color, width, ... }]   arrows and plain lines
 //   texts    [{ id, text, x, y, color, size, ... }]              free text on the board
 //   targets  [{ id, title, userIds }]     task rows
@@ -104,10 +107,30 @@ function cleanGroupStyles(colors, marks) {
 }
 
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
-const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
+const ZONE_TYPES = ["danger", "healthy", "neutral", "custom", "role"];
 const ZONE_SHAPES = ["rect", "ellipse"];
 // Preset colours per zone type: what a new zone starts with, free to be overridden.
-const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa" };
+const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
+// a role group placeholder: which role and its colour (the role colours of the board: melee orange, ranged violet ...)
+const ZONE_ROLES = ["melee", "ranged", "healer", "tank", "dps"];
+const ROLE_COLORS = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
+
+/** The facing wedge of an icon, only what differs from the default: size 25 % .. 300 %, hidden, colour, opacity. */
+function cleanArrow(o) {
+    const out = {};
+    const n = Number(o.arrowScale);
+    if (o.arrowScale !== undefined && o.arrowScale !== null && o.arrowScale !== "" && Number.isFinite(n)) {
+        const v = Math.max(0.25, Math.min(3, Math.round(n * 100) / 100));
+        if (v !== 1) out.arrowScale = v;
+    }
+    if (o.arrowHidden === true) out.arrowHidden = true;
+    if (/^#[0-9a-fA-F]{6}$/.test(String(o.arrowColor || "")) && String(o.arrowColor).toLowerCase() !== "#ffb020") out.arrowColor = String(o.arrowColor).toLowerCase();
+    if (o.arrowOpacity !== undefined && o.arrowOpacity !== null && o.arrowOpacity !== "" && Number.isFinite(Number(o.arrowOpacity))) {
+        const v = Math.max(0.1, Math.min(1, Math.round(Number(o.arrowOpacity) * 100) / 100));
+        if (v !== 1) out.arrowOpacity = v;
+    }
+    return out;
+}
 const MIN_ZONE = 0.03;
 const LINE_KINDS = ["arrow", "line"];
 const DEFAULT_LINE_COLOR = "#f8fafc";
@@ -239,7 +262,7 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "icon"),
             rotation: normAngle(o.rotation), showLabel: o.showLabel === true,
             // the mob this icon stands for (b:<boss key>, d:<catalog id>, c:<custom id>) and whether it turns to the tank of that mob by itself
-            mobId: MOB_ID.test(str(o.mobId)) ? str(o.mobId) : "", autoFace: o.autoFace !== false, ...common(o),
+            mobId: MOB_ID.test(str(o.mobId)) ? str(o.mobId) : "", autoFace: o.autoFace !== false, ...common(o), ...cleanArrow(o),
         });
     }
 
@@ -249,14 +272,18 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const zones = rawZones.map((z) => {
         const o = z && typeof z === "object" ? z : {};
         const type = ZONE_TYPES.includes(o.type) ? o.type : "neutral";
+        const role = ZONE_ROLES.includes(o.role) ? o.role : "melee";
         const w = Math.max(MIN_ZONE, Math.min(1, Number(o.w) || MIN_ZONE));
         const h = Math.max(MIN_ZONE, Math.min(1, Number(o.h) || MIN_ZONE));
         return {
             id: cleanId(o.id, zoneIds),
-            shape: ZONE_SHAPES.includes(o.shape) ? o.shape : "rect",
+            // a role group may also be a cluster of role icons instead of an area
+            shape: ZONE_SHAPES.includes(o.shape) || (type === "role" && o.shape === "cluster") ? o.shape : type === "role" ? "ellipse" : "rect",
             type,
             label: str(o.label).slice(0, LIMITS.label),
-            color: cleanColor(o.color, ZONE_COLORS[type]),
+            color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
+            // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
+            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true } : {}),
             ...common(o, 0.3),
             w: round4(w), h: round4(h),
             x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),
@@ -407,6 +434,7 @@ function cleanAutoStyle(raw) {
         if (s.autoFace === false) o.autoFace = false;
         if (s.hidden === true) o.hidden = true;
         if (s.lock === true) o.lock = true;
+        Object.assign(o, cleanArrow(s));
         if (Number.isFinite(Number(s.z)) && Number(s.z) !== 0) o.z = Math.max(-999, Math.min(999, Math.round(Number(s.z))));
         if (Object.keys(o).length > 0) out[key] = o;
     }
@@ -507,6 +535,6 @@ function fillSlots(slots, roster) {
 
 module.exports = {
     cleanFactor, cleanView,
-    LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, MIN_ZONE,
+    LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, ZONE_ROLES, ROLE_COLORS, cleanArrow, MIN_ZONE,
     cleanBoard, boardHasContent, reidBoard, fillSlots, newId, cleanAutoPos, cleanAutoStyle, rowKey, AUTO_KEY,
 };

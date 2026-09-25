@@ -1,11 +1,11 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
-import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Trash2, Type, User, Wand2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Swords, Trash2, Type, User, Wand2, X } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { type FlyItem } from "../../../lib/flyout";
-import { CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/assign";
+import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/assign";
 import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
@@ -21,6 +21,7 @@ type ClassGroup = { classId: string; role: string; refs: string[]; ns: number[] 
 const CAT_ICON: Record<string, ReactNode> = {
     people: <User size={17} aria-hidden="true" />,
     classes: <Sparkles size={17} aria-hidden="true" />,
+    roles: <Swords size={17} aria-hidden="true" />,
     groups: <LayoutGrid size={17} aria-hidden="true" />,
     marks: <Star size={17} aria-hidden="true" />,
     mobs: <Skull size={17} aria-hidden="true" />,
@@ -440,10 +441,23 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             </div>
         );
     };
+    /** "Rollen": a whole role group ("Melees -> Boss", "Ranged soaken hier"), never split into players, never a count or a fallback. */
+    const rolesPanel = () => (
+        <>
+            <div className="rp-amb-grid rp-amb-grid-wide">
+                {ROLE_REFS.map((r) => {
+                    const key = slot === "who" ? `role:${r}` : `role|${r}`;
+                    return tile(key, chosen.indexOf(key) >= 0, <><span className="rp-rolechip-ico" style={{ ["--rc" as string]: ROLE_TONE[r] }}><WowIcon name={ROLE_ICON[r] || ROLE_ICON.dps} size={22} /></span><span className="rp-amb-name">{t(`raidBoard.roleGroup.${r}`)}</span></>, t(`raidBoard.roleGroup.${r}`));
+                })}
+            </div>
+            <p className="rp-muted rp-amb-note">{t("raidBoard.roleGroupUi.refHint")}</p>
+        </>
+    );
     const byPrefix = (c: string) => targetOpts.filter((o) => o.key.indexOf(c === "groups" ? "group|" : c === "marks" ? "mark|" : "mob|") === 0);
     const panel = () => {
         if (cat === "people") return peoplePanel();
         if (cat === "classes") return classesPanel();
+        if (cat === "roles") return rolesPanel();
         if (cat === "spells") return optionsPanel(spells, "rp-amb-grid-wide");
         if (cat === "text") return textPanel();
         if (cat === "mobs") return <>{optionsPanel(byPrefix(cat), "rp-amb-grid-wide")}{mobCounts()}</>;
@@ -452,6 +466,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const catCount = (c: string): string => {
         if (c === "people") return String(isEvent && mode === "player" ? roster.length : peopleEntries(tmp.slots, roster, "slot", slot).length);
         if (c === "classes") return String((impliedTank ? TANK_CLASSES.length : 0) + classTiles.length);
+        if (c === "roles") return String(ROLE_REFS.length);
         if (c === "spells") return String(spells.length);
         if (c === "text") return "";
         return String(byPrefix(c).length);
@@ -516,7 +531,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                             {lines.map((l) => (
                                 <span key={`${l.order}`} className={`rp-amb-pline${l.open ? " is-open" : ""}`} aria-label={previewText(l, openWord)}>
                                     {type === "kick" && lines.length > 1 && <span className="rp-achip-no">{l.order}</span>}
-                                    {l.who.player ? <><TokenIcon player={l.who.player} size="sm" /><PlayerName player={l.who.player} /></> : <><WowIcon name={l.who.icon || ROLE_ICON[l.who.role] || ROLE_ICON.dps} size={18} /><span>{l.who.label} · {openWord}</span></>}
+                                    {l.who.player ? <><TokenIcon player={l.who.player} size="sm" /><PlayerName player={l.who.player} /></> : <><WowIcon name={l.who.icon || ROLE_ICON[l.who.role] || ROLE_ICON.dps} size={18} /><span>{l.who.label}{l.who.kind === "role" ? "" : ` · ${openWord}`}</span></>}
                                     {l.targets.length > 0 && <ArrowRight size={14} aria-hidden="true" className="rp-muted" />}
                                     {l.targets.slice(0, 3).map((tg) => <span key={`${tg.kind}${tg.ref}`} className={`rp-amb-ptarget${tg.kind === "group" ? " is-group" : ""}`} style={tg.kind === "group" ? { borderLeftColor: groupColor(tmp.groupColors, tg.group) } : undefined}>{tg.player ? <PlayerName player={tg.player} /> : tg.label}</span>)}
                                     {l.targets.length > 3 && <span className="rp-muted">+{l.targets.length - 3}</span>}

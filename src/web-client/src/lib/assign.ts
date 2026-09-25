@@ -349,6 +349,16 @@ function classResolved(ref: string): Resolved {
     return { ...NONE, kind: "class", ref, label: classRefLabel(ref), open: true, role: q.role, icon: classRefIcon(q.classId, q.role), classId: q.classId };
 }
 
+/** A role group ("Melees", "Ranged" ...): the role's icon and the group's name; it names nobody (the sheet works without the setup). */
+function roleResolved(role: string): Resolved {
+    return { ...NONE, kind: "role", ref: role, label: t(`raidBoard.roleGroup.${role}`), role, icon: ROLE_ICON[role] || ROLE_ICON.dps };
+}
+
+/** The role groups the dialog offers, as assignee references and as targets. */
+export const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
+/** The colour of a role group chip (the board's role colours). */
+export const ROLE_TONE = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
+
 /** An assignee: `slot:<kind>:<n>` (the placeholder, or who stands in it) or `user:<userId>`. */
 export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
     const p = ref.split(":");
@@ -358,6 +368,8 @@ export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
         return { ...NONE, kind: "slot", ref, label: slotLabel(p[1], n), player, open: !player, role: p[1] };
     }
     if (p[0] === "class") return classResolved(ref);
+    // a whole role group ("Melees"): its role icon and name, never players, never open
+    if (p[0] === "role") return roleResolved(p[1]);
     if (p[0] === "user") {
         const player = ctx.players.get(p[1]) || null;
         return { ...NONE, kind: "user", ref, label: player ? player.character : "?", player, open: !player };
@@ -373,6 +385,7 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
         return { ...NONE, kind: "slot", ref: target.ref, label: slotLabel(p[0], Number(p[1])), player, open: !player, role: p[0] };
     }
     if (target.kind === "class") return { ...classResolved(target.ref), ref: target.ref };
+    if (target.kind === "role") return { ...roleResolved(target.ref), ref: target.ref };
     if (target.kind === "group") return { ...NONE, kind: "group", ref: target.ref, label: t("raidBoard.slot.group", { n: Number(target.ref) }), group: Number(target.ref) };
     if (target.kind === "player") {
         const player = ctx.players.get(target.ref) || null;

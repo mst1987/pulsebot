@@ -4140,7 +4140,7 @@ export function getEventSignups(eventId: string): Promise<{ eventId: string; cou
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
 /** What the orga changed about an object the tank rows put on the map (lib/autoPlace.ts); missing = the default. */
-export type RaidplanAutoStyle = { size?: number; opacity?: number; ring?: boolean; showName?: boolean; label?: string; showLabel?: boolean; rotation?: number; autoFace?: boolean; hidden?: boolean; lock?: boolean; z?: number };
+export type RaidplanAutoStyle = { arrowScale?: number; arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number; size?: number; opacity?: number; ring?: boolean; showName?: boolean; label?: string; showLabel?: boolean; rotation?: number; autoFace?: boolean; hidden?: boolean; lock?: boolean; z?: number };
 export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean; /** false = no ring / border round it (missing = shown) */ ring?: boolean; /** false = no name label at this object (missing = shown) */ showName?: boolean };
 export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
 export type RaidplanTarget = { id: string; title: string; userIds: string[] };
@@ -4157,10 +4157,12 @@ export type RaidplanSlot = {
 export type RaidplanMarkName = "skull" | "cross" | "square" | "moon" | "triangle" | "diamond" | "circle" | "star";
 export type RaidplanMark = { id: string; mark: RaidplanMarkName; x: number; y: number; size: number } & RaidplanLook;
 /** An icon on the board: `iconKey` is boss:<encounter id>, wow:<icon name> or enemy / bosspos; size in px, rotation = the way it faces in degrees 0..359 (0 = up, clockwise; boss / enemy / position icons only). */
-export type RaidplanIcon = { id: string; iconKey: string; label: string; showLabel: boolean; x: number; y: number; size: number; rotation: number; /** the mob it stands for ("" = none) */ mobId: string; /** turns to the tank of that mob by itself (default on) */ autoFace: boolean } & RaidplanLook;
-export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom";
+export type RaidplanIcon = { id: string; iconKey: string; label: string; showLabel: boolean; x: number; y: number; size: number; rotation: number; /** the mob it stands for ("" = none) */ mobId: string; /** turns to the tank of that mob by itself (default on) */ autoFace: boolean; /** the facing wedge: its size (0.25..3, missing = 1), hidden, colour, opacity */ arrowScale?: number; arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number } & RaidplanLook;
+export type RaidplanZoneType = "danger" | "healthy" | "neutral" | "custom" | "role";
+/** The role of a role group placeholder ("Melees", "Ranged" ...). */
+export type RaidplanRoleGroup = "melee" | "ranged" | "healer" | "tank" | "dps";
 /** A rectangle or ellipse area; x/y is its top-left corner, all relative to the board (0..1). */
-export type RaidplanZone = { id: string; shape: "rect" | "ellipse"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number } & RaidplanLook;
+export type RaidplanZone = { id: string; shape: "rect" | "ellipse" | "cluster"; type: RaidplanZoneType; label: string; color: string; x: number; y: number; w: number; h: number; /** a role group (type "role"): its role, a count badge (0 = none), the setup's players of that role shown in the event */ role?: RaidplanRoleGroup; count?: number; showNames?: boolean } & RaidplanLook;
 /** An arrow or a plain line from (x1, y1) to (x2, y2), relative to the board; `width` in px. */
 export type RaidplanLine = { id: string; kind: "arrow" | "line"; x1: number; y1: number; x2: number; y2: number; color: string; width: number } & RaidplanLook;
 /** Free text on the board; `size` is the font size in px. */
@@ -4231,7 +4233,7 @@ export type RaidplanPlayer = {
     group: number;
 };
 /** What an assignment names: a slot (`tank:1`), a group number, a raider, a raid mark or free text. */
-export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number };
+export type RaidplanAssignTarget = { kind: "slot" | "group" | "player" | "mark" | "text" | "mob" | "class" | "role"; ref: string; /** a mob: the snapshot of its name and icon (shown when the catalog entry is gone) */ name?: string; icon?: string; /** a mob: which of several of its kind (1..20; none = the row's own) */ n?: number };
 /** The catalog spell a row is about, with a snapshot of its name and icon. */
 export type RaidplanSpellRef = { id: string; name: string; icon: string };
 /** A mob added to a section (a tank target; also an icon on the map): the catalog id with a snapshot. */
@@ -4285,7 +4287,7 @@ export type RaidplanTemplate = {
 };
 /** A named, categorised set of target rows (bossKey: "" = every boss, an instance id, or one boss). */
 /** One step of a tactic (docs/raidplan.md, "Taktik"). */
-export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group"; ref: string; name?: string; icon?: string };
+export type RaidplanStepTarget = { kind: "mob" | "zone" | "mark" | "group" | "role"; ref: string; name?: string; icon?: string };
 export type RaidplanTiming = { kind: "" | "pull" | "phase" | "hp" | "interval" | "now" | "text"; from: number | null; to: number | null; text: string };
 export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
 export type RaidplanProfile = { id: string; name: string; category: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };

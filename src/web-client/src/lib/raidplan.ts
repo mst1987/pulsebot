@@ -18,7 +18,14 @@ import { t } from "../i18n";
 export const RAID_MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 export const ZONE_TYPES = ["danger", "healthy", "neutral", "custom"];
 // What a new zone of a type starts with; the orga may pick any colour.
-export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa" };
+export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
+// A role group placeholder ("Melees", "Ranged" ...): the roles in the order the palette offers them, their colours (the board's role colours).
+export const ROLE_GROUPS = ["melee", "ranged", "healer", "tank", "dps"];
+export const ROLE_GROUP_COLORS = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
+/** The facing wedge of an icon: 25 % .. 300 % of its default size. */
+export const ARROW_MIN = 0.25;
+export const ARROW_MAX = 3;
+export const ARROW_COLOR = "#ffb020";
 export const MIN_ZONE = 0.03;
 // The size of an object in px: what a new one starts with, and the range it can be set to.
 export const SIZE_RANGES = {
@@ -45,7 +52,7 @@ export type Corner = "nw" | "ne" | "sw" | "se";
 export type InsertSpec =
     | { type: "slot"; kind: RaidplanSlotKind; label: string }
     | { type: "mark"; mark: string }
-    | { type: "zone"; zoneType: string; shape: string }
+    | { type: "zone"; zoneType: string; shape: string; role?: string }
     | { type: "line"; kind: string }
     | { type: "text"; text: string }
     | { type: "icon"; iconKey: string; label: string; mobId?: string }
@@ -316,9 +323,14 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
     }
     if (spec.type === "zone") {
         const zoneType = spec.zoneType as RaidplanZoneType;
+        // a role group ("Melees") starts as a soft ellipse in its role colour, a little flatter than an area
+        const role = (zoneType === "role" ? (ROLE_GROUPS.indexOf(spec.role || "") >= 0 ? spec.role : "melee") : "") as RaidplanZone["role"];
+        const w = role ? 0.18 : 0.2;
+        const h = role ? 0.16 : 0.2;
         const zone = {
-            id, shape: spec.shape as RaidplanZone["shape"], type: zoneType, label: "", color: ZONE_COLORS[zoneType],
-            x: Math.max(0, Math.min(0.8, p.x - 0.1)), y: Math.max(0, Math.min(0.8, p.y - 0.1)), w: 0.2, h: 0.2, ...newLook(0.3),
+            id, shape: spec.shape as RaidplanZone["shape"], type: zoneType, label: "", color: role ? ROLE_GROUP_COLORS[role] : ZONE_COLORS[zoneType],
+            x: Math.max(0, Math.min(1 - w, p.x - w / 2)), y: Math.max(0, Math.min(1 - h, p.y - h / 2)), w, h, ...newLook(role ? 0.35 : 0.3),
+            ...(role ? { role, count: 0, showNames: false } : {}),
         };
         return { board: { ...board, zones: [...board.zones, zone] }, sel: { kind: "zone", id } };
     }
@@ -406,9 +418,42 @@ export function patchAutoStyle(board: RaidplanBoard, key: string, patch: Partial
     if (next.size === undefined || next.size === autoRange(key).def) delete next.size;
     if (!next.z) delete next.z;
     if (next.rotation === undefined) delete next.rotation;
+    if (next.arrowScale === undefined || next.arrowScale === 1) delete next.arrowScale;
+    if (!next.arrowHidden) delete next.arrowHidden;
+    if (!next.arrowColor || next.arrowColor === ARROW_COLOR) delete next.arrowColor;
+    if (next.arrowOpacity === undefined || next.arrowOpacity === 1) delete next.arrowOpacity;
     const all = { ...(board.autoStyle || {}) };
     if (Object.keys(next).length > 0) all[key] = next; else delete all[key];
     return { ...board, autoStyle: all };
+}
+
+// ---- the facing wedge of an icon (a boss / mob / enemy, also one the tank rows put on the map) --------------------
+
+export type ArrowLook = { scale: number; hidden: boolean; color: string; opacity: number };
+
+/** The wedge of an icon as it is drawn: its size (1 = the default), hidden, colour, opacity; null for anything without one. */
+export function arrowOf(board: RaidplanBoard, kind: ObjectKind, id: string): ArrowLook | null {
+    const o = kind === "auto" ? (id.indexOf("m:") === 0 ? autoStyleOf(board, id) : null) : kind === "icon" ? board.icons.find((x) => x.id === id) || null : null;
+    if (!o) return null;
+    return { scale: o.arrowScale || 1, hidden: !!o.arrowHidden, color: o.arrowColor || ARROW_COLOR, opacity: o.arrowOpacity === undefined ? 1 : o.arrowOpacity };
+}
+
+/** Changes an icon's wedge: size (clamped 25 % .. 300 %), hidden, colour, opacity. A locked icon keeps it; anything but an icon is left alone. */
+export function patchArrow(board: RaidplanBoard, kind: ObjectKind, id: string, patch: { scale?: number; hidden?: boolean; color?: string; opacity?: number }): RaidplanBoard {
+    if (!arrowOf(board, kind, id) || isLocked(board, kind, id)) return board;
+    const out = {};
+    if (patch.scale !== undefined) out["arrowScale"] = Number.isFinite(patch.scale) ? Math.max(ARROW_MIN, Math.min(ARROW_MAX, Math.round(patch.scale * 100) / 100)) : 1;
+    if (patch.hidden !== undefined) out["arrowHidden"] = patch.hidden;
+    if (patch.color !== undefined) out["arrowColor"] = patch.color;
+    if (patch.opacity !== undefined) out["arrowOpacity"] = clampOpacity(patch.opacity, 1);
+    if (kind === "auto") return patchAutoStyle(board, id, out);
+    return { ...board, icons: board.icons.map((x) => (x.id === id ? { ...x, ...out } : x)) };
+}
+
+/** "Pfeil größer / kleiner", Alt + "+" / "-": the wedge by a factor, relative to its own size. */
+export function scaleArrow(board: RaidplanBoard, kind: ObjectKind, id: string, factor: number): RaidplanBoard {
+    const a = arrowOf(board, kind, id);
+    return a ? patchArrow(board, kind, id, { scale: a.scale * factor }) : board;
 }
 
 /** "Alles zurücksetzen": the auto object goes back to its own place and its default look. */
@@ -934,7 +979,7 @@ export function objectName(board: RaidplanBoard, kind: ObjectKind, id: string, p
     }
     if (kind === "zone") {
         const z = board.zones.find((o) => o.id === id);
-        return z ? z.label || t(`raidBoard.zone.${z.type}`) : "";
+        return z ? z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`)) : "";
     }
     if (kind === "icon") {
         const i = board.icons.find((o) => o.id === id);
@@ -1049,6 +1094,7 @@ export function contextMenuItems(target: string, opts: { locked: boolean; hasPla
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
         for (const m of RAID_MARKS) out.push(item(`insert:mark:${m}`, "marks", false, false));
         for (const z of ZONE_TYPES) out.push(item(`insert:zone:${z}`, "zones", false, false));
+        for (const r of ["melee", "ranged"]) out.push(item(`insert:role:${r}`, "zones", false, false));
         out.push(item("insert:icon:enemy", "icons", false, false), item("insert:icon:bosspos", "icons", false, false));
         out.push(item("insert:line:arrow", "shapes", false, false), item("insert:line:line", "shapes", false, false), item("insert:text", "shapes", false, false));
         out.push(item("deselect", "end", false, false));
@@ -1083,6 +1129,7 @@ export function parseInsertId(id: string): InsertSpec | null {
     if (parts[1] === "slot") return { type: "slot", kind: parts[2] as RaidplanSlotKind, label: parts[2] === "label" ? t("raidBoard.slot.kind.label") : "" };
     if (parts[1] === "mark") return { type: "mark", mark: parts[2] };
     if (parts[1] === "zone") return { type: "zone", zoneType: parts[2], shape: "rect" };
+    if (parts[1] === "role") return { type: "zone", zoneType: "role", shape: "ellipse", role: parts[2] };
     if (parts[1] === "line") return { type: "line", kind: parts[2] };
     if (parts[1] === "icon") return { type: "icon", iconKey: parts[2], label: "" };
     if (parts[1] === "text") return { type: "text", text: t("raidBoard.text.default") };
