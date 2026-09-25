@@ -49,9 +49,9 @@ describe("agent overview - parsers", () => {
 
 describe("agent overview - agents", () => {
     const wts = [
-        { path: path.resolve("D:/p/eh"), branch: "main", head: "a" },
-        { path: path.resolve("D:/p/eh-raidplan"), branch: "feature/raidplan-6", head: "b" },
-        { path: path.resolve("D:/p/eh-raidplan-assign"), branch: "feature/raidplan-6b", head: "c" },
+        { path: "D:/p/eh", branch: "main", head: "a" },
+        { path: "D:/p/eh-raidplan", branch: "feature/raidplan-6", head: "b" },
+        { path: "D:/p/eh-raidplan-assign", branch: "feature/raidplan-6b", head: "c" },
     ];
     const assign = (a) => ov.assignAgent(a, wts);
 

@@ -54,7 +54,7 @@ function parseWorktrees(raw) {
     let cur = null;
     for (const line of String(raw || "").split(/\r?\n/)) {
         if (line.startsWith("worktree ")) {
-            cur = { path: path.resolve(line.slice(9).trim()), head: "", branch: "" };
+            cur = { path: line.slice(9).trim(), head: "", branch: "" };
             out.push(cur);
         } else if (cur && line.startsWith("HEAD ")) cur.head = line.slice(5).trim();
         else if (cur && line.startsWith("branch ")) cur.branch = line.slice(7).trim().replace(/^refs\/heads\//, "");
@@ -103,7 +103,7 @@ function testHints(files) {
 
 /** The claude project directory of a repository: every non-alphanumeric character becomes "-". */
 function projectSlug(repoPath) {
-    return path.resolve(repoPath).replace(/[^A-Za-z0-9]/g, "-");
+    return String(repoPath).replace(/[^A-Za-z0-9]/g, "-");
 }
 
 function normalize(s) {
