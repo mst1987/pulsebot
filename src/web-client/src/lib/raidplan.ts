@@ -86,7 +86,7 @@ export function newLook(opacity: number): RaidplanLook {
 
 /** A board with nothing on it. */
 export function emptyBoard(): RaidplanBoard {
-    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
+    return { tokens: [], slots: [], marks: [], icons: [], zones: [], lines: [], texts: [], targets: [], assignments: [], steps: [], mobs: [], hiddenCards: [], inheritOff: [], showRings: true, inSheet: true, groupColors: {}, groupMarks: {}, showNames: true, showBadges: true, showRoleRings: true, view: null, counts: null, roles: {}, notes: "", profileId: "", mapOpacity: 1, objectScale: 1 };
 }
 
 /** The stored board of a boss, completed — a boss nobody touched has none. */
@@ -106,6 +106,8 @@ export function boardOf(bosses: Record<string, Partial<RaidplanBoard>>, key: str
             ...(b.targets || []).map((r) => ({ id: r.id, type: "other" as RaidplanAssignType, title: r.title, spell: null, assignees: (r.userIds || []).map((u) => `user:${u}`), targets: [], note: "", suggested: false })),
             ...(b.assignments || []).map((a) => ({ ...a, title: a.title || "", spell: a.spell || null })),
         ],
+        // the tactic: ordered steps (an old board has none)
+        steps: b.steps || [],
         counts: b.counts || null,
         roles: b.roles || {},
         mobs: b.mobs || [],
@@ -1325,7 +1327,7 @@ export function besetzungSlots(board: RaidplanBoard): RaidplanSlot[] {
 
 /** Whether applying a profile or a template would overwrite something the orga already made (asks first). */
 export function hasContent(board: RaidplanBoard): boolean {
-    return board.assignments.length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
+    return board.assignments.length > 0 || (board.steps || []).length > 0 || board.notes.trim() !== "" || objectCount(board) > 0 || board.mapOpacity < 1 || board.objectScale !== 1;
 }
 
 /** Whether any board of a plan holds something. */
@@ -1379,7 +1381,7 @@ export function groupProfiles(profiles: RaidplanProfile[], query: string): { cat
 /** How many objects and rows a boss holds — the small dot next to it in the boss list. */
 export function boardCount(bosses: Record<string, Partial<RaidplanBoard>>, key: string): number {
     const b = boardOf(bosses, key);
-    return objectCount(b) + (b.assignments || []).length;
+    return objectCount(b) + (b.assignments || []).length + (b.steps || []).length;
 }
 
 /** Whether a section (boss, trash, Allgemein) comes with the shared sheet: every one does unless its board says inSheet: false. */

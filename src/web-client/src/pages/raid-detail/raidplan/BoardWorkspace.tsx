@@ -19,6 +19,7 @@ import {
     type ObjectKind, type Rect, type Selection,
 } from "../../../lib/raidplan";
 import TargetsPanel from "./TargetsPanel";
+import StepsCard from "./StepsCard";
 import MyTasksPreview from "./MyTasksPreview";
 import Palette from "./Palette";
 import Inspector, { MapOpacityField, ObjectScaleField } from "./Inspector";
@@ -90,7 +91,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -112,7 +113,10 @@ export default function BoardWorkspace({
     editAll?: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
     limits: { targetsPerBoss: number; title: number; notes: number };
     profileName: string;
+    /** opens the tactic library ("Aus Bibliothek wählen") */
     onPickProfile: () => void;
+    /** "Als Taktik speichern": the section's steps into the library */
+    onSaveTactic?: () => void;
     history: { undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean };
     /** Badges at the left of the tool bar (published, unsaved …). */
     status?: ReactNode;
@@ -937,6 +941,10 @@ export default function BoardWorkspace({
                     inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults}
                 />
                 {isEvent && !noBoard && <MyTasksPreview rows={filledRows} board={board} players={players} catalog={catalog} me={me || []} />}
+                <StepsCard
+                    board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite} catalog={catalog} sectionMobs={mobs}
+                    groupCount={groupCount} bossName={boss.name} onLibrary={onPickProfile} onSaveAs={onSaveTactic || onPickProfile}
+                />
                 <TargetsPanel board={board} canWrite={canWrite} maxNotes={limits.notes} onChange={(b) => edit(() => b)} />
             </div>
             {rosterOpen && <AssignRosterModal board={board} roster={roster} isEvent={isEvent} canWrite={canWrite} edit={edit} onClose={() => setRosterOpen(false)} />}

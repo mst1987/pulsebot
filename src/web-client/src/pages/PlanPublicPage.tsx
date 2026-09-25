@@ -11,6 +11,7 @@ import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
 import { getRaidplanPublic, type ApiError, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
+import ReadSteps from "./raid-detail/raidplan/ReadSteps";
 import { assignmentLinks, isMine } from "../lib/assign";
 import { splitMine } from "../lib/mineView";
 import RaidLoader from "../components/ui/RaidLoader";
@@ -134,6 +135,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                 <div className="rp-read-left">
                                     {boss.notes.trim() && <p className="rp-notes-text"><Mentions text={boss.notes} names={names} /></p>}
                                     <ReadTables assignments={boss.assignments} ctx={ctx} me={data.meIds} loggedIn={!!data.me} loginHref={`/auth/login?next=/p/${token}`} focusGroup={focusGroup} onFocusGroup={setFocusGroup} onlyMine={onlyMine} />
+                                    <ReadSteps steps={boss.steps || []} ctx={ctx} me={data.meIds} onlyMine={onlyMine} />
                                 </div>
                             )}
                             {!boss.general && (

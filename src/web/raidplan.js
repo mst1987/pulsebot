@@ -16,6 +16,7 @@ const { approvedSetupOf } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { wowIconUrl } = require("../config/menu");
 const assign = require("./raidplanAssign");
+const stepsOf = require("./raidplanSteps");
 const besetzungOf = require("./raidplanBesetzung");
 const catalogStore = require("./raidplanCatalogStore");
 const raiderProfiles = require("./raiderProfileStore");
@@ -229,6 +230,8 @@ function publicView(plan, event, { me = "" } = {}) {
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
                 })), (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, board.roles || {}),
+                // the tactic: each step resolved on its own from the approved setup (a missing class stays its reference: an open chip)
+                steps: stepsOf.resolveSteps(board.steps || [], { slots: (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, roles: board.roles || {}, known }),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };
@@ -239,6 +242,8 @@ function publicView(plan, event, { me = "" } = {}) {
         for (const sl of b.slots) if (sl.userId) used.add(sl.userId);
         for (const tg of b.targets) for (const u of tg.userIds) used.add(u);
         // a group marker names the players of that setup group
+        for (const u of stepsOf.stepUsers(b.steps)) used.add(u);
+        for (const s of b.steps) for (const r of s.participants) if (r.startsWith("group:")) for (const p of roster) if (p.group === Number(r.slice(6))) used.add(p.userId);
         for (const a of b.assignments) {
             for (const r of a.assignees) if (r.startsWith("user:")) used.add(r.slice(5));
             for (const t of a.targets) if (t.kind === "player") used.add(t.ref);

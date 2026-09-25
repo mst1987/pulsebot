@@ -443,7 +443,7 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY,
+    impliedRole, ANY, CLASS_ASSIGNEE,
     ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
 };

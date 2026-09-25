@@ -9,13 +9,14 @@ import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
 import { useT } from "../../i18n";
 import {
-    applyProfile, boardCount, boardOf, ensureBesetzung, hasContent, objectCount, openSlots, planHasContent, profileRows, sameBosses, sheetIncluded, toSave,
+    boardCount, boardOf, ensureBesetzung, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
 import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
-import { ProfilePickerModal, ProfilesModal } from "./raidplan/ProfileModals";
+import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
+import { applyTactic, stepsOf } from "../../lib/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
@@ -165,11 +166,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     };
 
     // ---- tactic profiles ----------------------------------------------------------------------
-    const pickProfile = async (profile: RaidplanProfile) => {
-        if (hasContent({ ...board, tokens: [], slots: [], marks: [], zones: [], lines: [], texts: [], assignments: board.assignments.filter((a) => a.type === "other"), mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: profile.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
-        editBoard((b) => applyProfile(b, profile));
+    // a library tactic ADDS its steps under the section's (nothing is replaced, so nothing to ask)
+    const pickProfile = (profile: RaidplanProfile) => {
+        editBoard((b) => applyTactic(b, profile));
         setModal("");
-        toast(t("raidBoard.profile.applied", { name: profile.name }));
+        toast(t("raidBoard.steps.library.applied", { name: profile.name, n: (profile.steps || []).length }));
     };
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
@@ -210,7 +211,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
-                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
+                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     bossNav={<BossNav bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} />}
@@ -272,10 +273,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     {view.templates.length === 0 && <li className="rp-muted">{t("raidBoard.template.noneYet")}</li>}
                 </ul>
             </Modal>
-            <ProfilePickerModal
-                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected}
-                currentId={board.profileId} onPick={pickProfile}
-                onSaveAs={() => setModal(profileRows(board).length ? "save" : "profiles")}
+            <LibraryModal
+                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={view.bosses} bossKey={selected} bossName={boss ? boss.name : ""}
+                onPick={pickProfile} canSave={stepsOf(board).length > 0}
+                onSaveAs={() => setModal("save")}
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal

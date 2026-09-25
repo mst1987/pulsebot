@@ -8,7 +8,7 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    applyProfile, boardOf, ensureBesetzung, hasContent, profileRows, sameBosses, toSave,
+    boardOf, ensureBesetzung, sameBosses, toSave,
 } from "../lib/raidplan";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -27,7 +27,8 @@ import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/inherit";
 import { besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
-import { ProfilePickerModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
+import { LibraryModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
+import { applyTactic, stepsOf } from "../lib/steps";
 import BossNav from "./raid-detail/raidplan/BossNav";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
@@ -516,11 +517,11 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
         }
     };
 
-    const pickProfile = async (p: RaidplanProfile) => {
-        if (hasContent({ ...board, slots: [], marks: [], zones: [], tokens: [], lines: [], texts: [], assignments: board.assignments.filter((a) => a.type === "other"), mapOpacity: 1 }) && !(await ask({ title: t("raidBoard.profile.applyTitle", { name: p.name }), text: t("raidBoard.profile.applyText"), action: t("raidBoard.profile.applyAction"), tone: "primary", icon: "inv_scroll_03" }))) return;
-        edit((b) => applyProfile(b, p));
+    // a library tactic ADDS its steps under the section's (nothing is replaced, so nothing to ask)
+    const pickProfile = (p: RaidplanProfile) => {
+        edit((b) => applyTactic(b, p));
         setModal("");
-        toast(t("raidBoard.profile.applied", { name: p.name }));
+        toast(t("raidBoard.steps.library.applied", { name: p.name, n: (p.steps || []).length }));
     };
 
     const mapRows: MapRow[] = boss ? [
@@ -549,7 +550,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
                     mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} editAll={editAllBoards} roster={[]} canWrite={canWrite} limits={limits}
-                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")}
+                    profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
@@ -580,10 +581,10 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     }}
                 />
             )}
-            <ProfilePickerModal
-                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={tpl.bossList} bossKey={selected}
-                currentId={board.profileId} onPick={pickProfile}
-                onSaveAs={() => setModal(profileRows(board).length ? "save" : "profiles")}
+            <LibraryModal
+                open={modal === "pick"} onClose={() => setModal("")} profiles={profiles} bosses={tpl.bossList} bossKey={selected} bossName={(tpl.bossList.find((b) => b.key === selected) || { name: "" }).name}
+                onPick={pickProfile} canSave={stepsOf(board).length > 0}
+                onSaveAs={() => setModal("save")}
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
