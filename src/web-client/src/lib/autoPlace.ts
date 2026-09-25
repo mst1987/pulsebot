@@ -4,7 +4,9 @@
 //
 //   a mob      one icon per instance: the boss is one, a mob of the catalog is one per row that names it without a number ("Tank 2 ->
 //              Flame", "Tank 3 -> Flame" = two Flames), a numbered target is that one ("Flame of Azzinoth 2"). An icon placed by hand
-//              for that mob (mobId, a boss portrait without one) plays the instance instead: nothing is doubled.
+//              for that mob (mobId, a boss portrait without one) plays the instance instead: nothing is doubled. A target that names ONE
+//              placed icon (`oid`, "Flame 2" of two Flames on the map) is exactly that icon; a target of the kind alone (older plans, a row
+//              that does not care which) takes the next icon nobody named.
 //   a tank     one token per assignee of the row: the n-th tank of a row goes to the n-th mob of the row (a row with one mob: all of them).
 //              A player who already stands on the map (a free token, a role slot, the ring of his group, an earlier row) is used as he
 //              is - a player is on the map once. A class reference is a placeholder in a template ("rule") and, when nobody of that
@@ -14,7 +16,7 @@
 // board (LAYOUT_W x LAYOUT_H reference px), so the editor, the template and the sheet put everything at the same place.
 //
 // Written to be strippable (test/web-client/autoPlace.test.js runs it): imports, `export type`, tables and one-line signatures only.
-import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanAutoStyle, RaidplanBoard, RaidplanPlayer } from "../api";
+import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanAutoStyle, RaidplanBoard, RaidplanIcon, RaidplanPlayer } from "../api";
 
 export const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];
 export const LAYOUT_W = 1000;
@@ -38,6 +40,45 @@ export function autoIconKey(icon: string): string {
     return icon.indexOf("boss:") === 0 || icon.indexOf("mob:") === 0 ? icon : icon ? `wow:${icon}` : "enemy";
 }
 
+/** The icons placed by hand for one mob, in the board's order (hidden ones left out): "Flame 1", "Flame 2" are the first and the second. */
+export function mobIconsOf(board: RaidplanBoard, ref: string): RaidplanIcon[] {
+    return (board.icons || []).filter((ic) => !ic.hidden && !!ic.mobId && ic.mobId === ref);
+}
+
+/** The number an icon carries among the placed icons of its mob (1, 2 ...); 0 = the only one of its mob, or no mob at all. */
+export function mobIconNo(board: RaidplanBoard, id: string): number {
+    const ic = (board.icons || []).find((x) => x.id === id);
+    if (!ic || !ic.mobId || ic.hidden) return 0;
+    const list = mobIconsOf(board, ic.mobId);
+    return list.length > 1 ? list.findIndex((x) => x.id === id) + 1 : 0;
+}
+
+/** The icon a mob target means, when it names one that stands on the board for that mob; null = the target means the kind. */
+export function targetIcon(board: RaidplanBoard, tg: RaidplanAssignTarget): RaidplanIcon | null {
+    if (tg.kind !== "mob" || !tg.oid) return null;
+    return mobIconsOf(board, tg.ref).find((ic) => ic.id === tg.oid) || null;
+}
+
+/** A target of one placed icon of a mob ("Flame 2"): the mob's snapshot, the icon's id and its number (for the label where the map is not at hand). */
+export function iconTarget(board: RaidplanBoard, base: RaidplanAssignTarget, oid: string): RaidplanAssignTarget {
+    const n = mobIconNo(board, oid);
+    return n > 0 ? { kind: "mob", ref: base.ref, name: base.name, icon: base.icon, n, oid } : { kind: "mob", ref: base.ref, name: base.name, icon: base.icon, oid };
+}
+
+/**
+ * The mob targets a section offers for one mob: one per placed icon when two or more of it stand on the map ("Flame 1", "Flame 2"),
+ * else the mob as such.
+ */
+export function mobTargetsFor(board: RaidplanBoard, base: RaidplanAssignTarget): RaidplanAssignTarget[] {
+    const icons = mobIconsOf(board, base.ref);
+    return icons.length > 1 ? icons.map((ic) => iconTarget(board, base, ic.id)) : [base];
+}
+
+/** Whether two targets are the same: a mob of one placed icon is only that icon. */
+export function sameTargetAs(x: RaidplanAssignTarget, y: RaidplanAssignTarget): boolean {
+    return x.kind === y.kind && x.ref === y.ref && (x.kind !== "mob" || (x.oid || "") === (y.oid || ""));
+}
+
 /** Where a raider already stands on the board: his free token, a role slot on the map, the ring of his split group; "" = nowhere. */
 export function placeOf(board: RaidplanBoard, userId: string, roster: RaidplanPlayer[]): string {
     if ((board.tokens || []).some((k) => k.userId === userId && !k.hidden)) return `token:${userId}`;
@@ -58,15 +99,24 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     if (board.autoPlace === false) return plan;
     const tankRows = (rows || []).filter((a) => AUTO_TANK_TYPES.indexOf(String(a.type)) >= 0);
     if (tankRows.length === 0) return plan;
-    // 1. the mob instances, in the order of the rows
+    // 1. the mob instances, in the order of the rows; a target of one placed icon is that icon (its number is the icon's)
     const explicit = {};
     for (const a of tankRows) for (const tg of a.targets || []) if (tg.kind === "mob" && tg.n) (explicit[tg.ref] = explicit[tg.ref] || []).push(tg.n);
     const given = {};
+    const bound = {};
     const rowMobs = [];
     for (const a of tankRows) {
         const keys = [];
         for (const tg of a.targets || []) {
             if (tg.kind !== "mob") continue;
+            const ic = targetIcon(board, tg);
+            if (ic) {
+                const ikey = `m:${tg.ref}@${ic.id}`;
+                bound[ikey] = ic.id;
+                if (keys.indexOf(ikey) < 0) keys.push(ikey);
+                if (!plan.mobs.some((m) => m.key === ikey)) plan.mobs.push({ key: ikey, ref: tg.ref, inst: mobIconNo(board, ic.id) || 1, count: 0, name: tg.name || "", icon: tg.icon || "", iconKey: autoIconKey(tg.icon || ""), iconId: "", x: 0, y: 0, moved: false, boss: tg.ref.indexOf("b:") === 0, size: 0, style: {} });
+                continue;
+            }
             let n = tg.n || 0;
             if (!n && tg.ref.indexOf("b:") === 0) n = 1;
             if (!n) {
@@ -82,18 +132,26 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
         }
         rowMobs.push(keys);
     }
-    for (const m of plan.mobs) m.count = plan.mobs.filter((x) => x.ref === m.ref).length;
-    // 2. an icon placed by hand for a mob plays its instances, in the order of the board (the first icon = the lowest number)
+    // several of a kind: numbered - as many as the rows make, at least as many as stand on the map
+    for (const m of plan.mobs) m.count = Math.max(plan.mobs.filter((x) => x.ref === m.ref).length, mobIconsOf(board, m.ref).length);
+    // 2. an icon placed by hand for a mob plays its instances: a named icon its own one, the others in the order of the board (the first
+    //    icon nobody named = the lowest number)
     const icons = (board.icons || []).filter((ic) => !ic.hidden);
     const refs = [];
     for (const m of plan.mobs) if (refs.indexOf(m.ref) < 0) refs.push(m.ref);
     let legacyBoss = false;
+    for (const m of plan.mobs) {
+        const ic = bound[m.key] ? icons.find((x) => x.id === bound[m.key]) : undefined;
+        if (ic) { m.iconId = ic.id; m.x = ic.x; m.y = ic.y; }
+    }
+    const taken = Object.keys(bound).map((k) => bound[k]);
     for (const ref of refs) {
-        let own = icons.filter((ic) => ic.mobId === ref);
+        let own = icons.filter((ic) => ic.mobId === ref && taken.indexOf(ic.id) < 0);
         // an older boss icon has no mob: the boss portrait without one plays the boss
         if (own.length === 0 && ref.indexOf("b:") === 0 && !legacyBoss) { own = icons.filter((ic) => !ic.mobId && String(ic.iconKey).indexOf("boss:") === 0); legacyBoss = true; }
-        const list = plan.mobs.filter((m) => m.ref === ref).sort((a, b) => a.inst - b.inst);
-        list.forEach((m, k) => { if (own[k]) { m.iconId = own[k].id; m.x = own[k].x; m.y = own[k].y; } });
+        const list = plan.mobs.filter((m) => m.ref === ref && !bound[m.key]).sort((a, b) => a.inst - b.inst);
+        // an instance an icon plays is called by that icon's number ("Flame 2" = the second Flame on the map)
+        list.forEach((m, k) => { if (own[k]) { m.iconId = own[k].id; m.x = own[k].x; m.y = own[k].y; m.inst = mobIconNo(board, own[k].id) || m.inst; } });
     }
     // 3. the tanks
     const roster = opts.roster || [];

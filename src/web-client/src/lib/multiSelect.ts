@@ -2,7 +2,7 @@
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
 // Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../api";
-import { MIN_ZONE, SIZE_RANGES, clamp01, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateLine, updateZone } from "./raidplan";
+import { MIN_ZONE, SIZE_RANGES, arrowOf, autoStyleOf, canFace, clamp01, normAngle, patchArrow, patchAutoStyle, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateIcon, updateLine, updateText, updateZone } from "./raidplan";
 import type { ObjectKind } from "./raidplan";
 
 export type SelItem = { kind: ObjectKind; id: string };
@@ -315,8 +315,8 @@ export function alignSelection(board: RaidplanBoard, sel: SelItem[], mode: strin
     return out;
 }
 
-/** Opacity, lock or hidden of every object of the selection. */
-export function setLookSelection(board: RaidplanBoard, sel: SelItem[], patch: { opacity?: number; lock?: boolean; hidden?: boolean }): RaidplanBoard {
+/** Opacity, lock, hidden, ring or name of every object of the selection (ring / name only where the object has one: see sharedOptions). */
+export function setLookSelection(board: RaidplanBoard, sel: SelItem[], patch: { opacity?: number; lock?: boolean; hidden?: boolean; ring?: boolean; showName?: boolean }): RaidplanBoard {
     let out = board;
     for (const it of sel) out = patchLook(out, it.kind, it.id, patch);
     return out;
@@ -349,4 +349,95 @@ export function lookSummary(board: RaidplanBoard, sel: SelItem[]): { opacity: nu
     if (looks.length === 0) return { opacity: null, lock: null, hidden: null };
     const same = (pick) => (looks.every((l) => pick(l) === pick(looks[0])) ? pick(looks[0]) : null);
     return { opacity: same((l) => l.opacity), lock: same((l) => l.lock), hidden: same((l) => l.hidden) };
+}
+
+// ---- what several selected objects share (the inspector of a multi-selection shows exactly that) ----------------------------
+
+/** Whether an object is a facing one: a boss / mob / enemy icon, or a mob the tank rows put on the map (not a WoW-icon picture, not a tank). */
+function facesAt(board: RaidplanBoard, it: SelItem): boolean {
+    if (it.kind === "auto") return it.id.indexOf("m:") === 0;
+    if (it.kind !== "icon") return false;
+    const ic = board.icons.find((x) => x.id === it.id);
+    return !!ic && canFace(ic.iconKey);
+}
+
+/** The colour an object has of its own (a zone, a line, a text), or null. */
+function colorOf(board: RaidplanBoard, it: SelItem): string | null {
+    const o = it.kind === "zone" ? board.zones.find((x) => x.id === it.id) : it.kind === "line" ? board.lines.find((x) => x.id === it.id) : it.kind === "text" ? board.texts.find((x) => x.id === it.id) : null;
+    return o ? o.color : null;
+}
+
+/** The facing of a facing object: follows its tank (auto) and its own angle. */
+function facingState(board: RaidplanBoard, it: SelItem): { auto: boolean; rotation: number } {
+    if (it.kind === "auto") { const s = autoStyleOf(board, it.id); return { auto: s.autoFace !== false, rotation: s.rotation || 0 }; }
+    const ic = board.icons.find((x) => x.id === it.id);
+    return { auto: !ic || ic.autoFace !== false, rotation: ic ? ic.rotation || 0 : 0 };
+}
+
+/**
+ * The option groups EVERY object of a selection has - the intersection of what the single inspector shows per kind: a ring (tokens,
+ * slots, icons, zones, the tank rows' objects), the name (tokens, slots, icons, the tank rows' objects), a colour (zones, lines, texts),
+ * the facing and its arrow (boss / mob / enemy icons and the mobs of the tank rows). Opacity, lock and hidden everything has.
+ */
+export function sharedOptions(board: RaidplanBoard, sel: SelItem[]): { ring: boolean; showName: boolean; color: boolean; facing: boolean } {
+    const all = (fn) => sel.length > 0 && sel.every(fn);
+    return {
+        ring: all((it) => it.kind === "token" || it.kind === "slot" || it.kind === "icon" || it.kind === "zone" || it.kind === "auto"),
+        showName: all((it) => it.kind === "token" || it.kind === "slot" || it.kind === "icon" || it.kind === "auto"),
+        color: all((it) => colorOf(board, it) !== null),
+        facing: all((it) => facesAt(board, it)),
+    };
+}
+
+/** The shared values of a selection: a value when all agree, null where they differ ("gemischt"); a group none of them has stays null. */
+export function optionSummary(board: RaidplanBoard, sel: SelItem[]): { ring: boolean | null; showName: boolean | null; color: string | null; autoFace: boolean | null; rotation: number | null; arrowScale: number | null; arrowHidden: boolean | null; arrowColor: string | null; arrowOpacity: number | null } {
+    const has = sharedOptions(board, sel);
+    const same = (list) => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
+    const looks = sel.map((it) => lookOf(board, it.kind, it.id)).filter((l) => l !== null);
+    const faces = has.facing ? sel.map((it) => facingState(board, it)) : [];
+    const arrows = has.facing ? sel.map((it) => arrowOf(board, it.kind, it.id)).filter((a) => a !== null) : [];
+    return {
+        ring: has.ring ? same(looks.map((l) => l.ring !== false)) : null,
+        showName: has.showName ? same(looks.map((l) => l.showName !== false)) : null,
+        color: has.color ? same(sel.map((it) => colorOf(board, it))) : null,
+        autoFace: has.facing ? same(faces.map((f) => f.auto)) : null,
+        rotation: has.facing ? same(faces.map((f) => f.rotation)) : null,
+        arrowScale: arrows.length > 0 ? same(arrows.map((a) => a.scale)) : null,
+        arrowHidden: arrows.length > 0 ? same(arrows.map((a) => a.hidden)) : null,
+        arrowColor: arrows.length > 0 ? same(arrows.map((a) => a.color)) : null,
+        arrowOpacity: arrows.length > 0 ? same(arrows.map((a) => a.opacity)) : null,
+    };
+}
+
+/** The colour of every zone, line and text of the selection (anything else is left alone; a locked one keeps its colour). */
+export function setColorSelection(board: RaidplanBoard, sel: SelItem[], color: string): RaidplanBoard {
+    let out = board;
+    for (const it of sel) {
+        if (isLocked(out, it.kind, it.id)) continue;
+        if (it.kind === "zone") out = updateZone(out, it.id, { color });
+        else if (it.kind === "line") out = updateLine(out, it.id, { color });
+        else if (it.kind === "text") out = updateText(out, it.id, { color });
+    }
+    return out;
+}
+
+/** The arrow (facing wedge) of every facing object of the selection: size, hidden, colour, opacity - each one only what is given. */
+export function patchArrowSelection(board: RaidplanBoard, sel: SelItem[], patch: { scale?: number; hidden?: boolean; color?: string; opacity?: number }): RaidplanBoard {
+    let out = board;
+    for (const it of sel) if (facesAt(out, it)) out = patchArrow(out, it.kind, it.id, patch);
+    return out;
+}
+
+/**
+ * The facing target of every facing object of the selection: `autoFace` true = each turns to ITS OWN tank (with several mobs of one kind:
+ * the tank of that very icon, docs/raidplan.md "One mob of several"); a `rotation` = all look that way (and stop following). Locked ones stay.
+ */
+export function setFacingSelection(board: RaidplanBoard, sel: SelItem[], patch: { autoFace?: boolean; rotation?: number }): RaidplanBoard {
+    const p = patch.rotation !== undefined ? { rotation: normAngle(patch.rotation), autoFace: false } : { autoFace: patch.autoFace !== false };
+    let out = board;
+    for (const it of sel) {
+        if (!facesAt(out, it) || isLocked(out, it.kind, it.id)) continue;
+        out = it.kind === "auto" ? patchAutoStyle(out, it.id, p) : updateIcon(out, it.id, p);
+    }
+    return out;
 }

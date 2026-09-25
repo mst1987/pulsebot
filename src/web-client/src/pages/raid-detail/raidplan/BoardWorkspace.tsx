@@ -5,13 +5,13 @@ import PlanBoard, { PlayerName, TokenIcon, type Handle } from "../../../componen
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { IconButton } from "../../../components/ui";
 import { useBoardView } from "../../../lib/useBoardView";
-import { savedView } from "../../../lib/boardView";
+import { savedView, viewFromSaved } from "../../../lib/boardView";
 import MiniMap from "../../../components/raidplan/MiniMap";
 import { useViewPrefs } from "../../../lib/useViewPrefs";
 import { ViewOptions, ZoomControls } from "./ViewControls";
 import { useToast } from "../../../components/Jobs";
 import { deviate, inheritedRows } from "../../../lib/inherit";
-import { autoPlaces, deriveAuto, mobOfIcon, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../lib/autoPlace";
+import { autoPlaces, deriveAuto, iconTarget, mobIconNo, mobIconsOf, mobOfIcon, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../lib/autoPlace";
 import AutoInfo from "./AutoInfo";
 import WowIcon from "../../../components/ui/WowIcon";
 import { addItems, scaleArrowSelection, alignSelection, bandBox, copySelection, deleteSelection, duplicateSelection, hasItem, hitObjects, liveItems, moveSelection, pasteSnapshot, reorderSelection, scaleSelection, setRingSelection, selectableItems, selectionBox, setLookSelection, toggleItem, type Box, type SelItem, type Snapshot } from "../../../lib/multiSelect";
@@ -206,7 +206,9 @@ export default function BoardWorkspace({
     const [prefs, setPref] = useViewPrefs("eh.raidplan.viewPrefs");
     const frameEl = useRef<HTMLDivElement | null>(null);
     const setFrame = useCallback((el: HTMLDivElement | null) => { frameEl.current = el; bv.frame(el); }, [bv.frame]); // eslint-disable-line react-hooks/exhaustive-deps
-    useEffect(() => { bv.fit(); }, [boss.key]); // eslint-disable-line react-hooks/exhaustive-deps
+    // the board opens with the cutout saved for it - exactly what the sheet (/p/<token>) opens with; saving, removing or undoing it shows at once
+    const savedKey = board.view ? `${board.view.zoom}:${board.view.cx}:${board.view.cy}` : "";
+    useEffect(() => { bv.set(viewFromSaved(board.view)); }, [boss.key, savedKey]); // eslint-disable-line react-hooks/exhaustive-deps
     const panelRef = useRef<HTMLElement>(null);
     const workRef = useRef<HTMLDivElement>(null);
     // The workspace is one screen: opening it scrolls the page so the tool bar sits under the header (wide screens only).
@@ -262,11 +264,13 @@ export default function BoardWorkspace({
         setRowReq({ id: rowId, n: Date.now() });
     };
     /** "Tank wählen …" of a mob: its tank row, else a new tank row with the mob as its target. */
-    const pickTankFor = (mobKey: string, fallback: RaidplanMobRef | null) => {
+    const pickTankFor = (mobKey: string, fallback: RaidplanMobRef | null, iconId = "") => {
         const rowId = mobKey ? rowOfMob(auto, mobKey) : "";
         if (rowId) { openRowFromMap(rowId); return; }
         const m = mobKey ? auto.mobs.find((x) => x.key === mobKey) : undefined;
-        const target = m ? { ...mobTarget({ id: m.ref, name: m.name, icon: m.icon }), ...(m.count > 1 ? { n: m.inst } : {}) } : fallback ? mobTarget(fallback) : null;
+        // an icon of a mob that stands on the map twice or more: the new row means THAT icon ("Flame 2"), not the kind
+        const oneOf = iconId && fallback && mobIconsOf(board, fallback.id).length > 1 ? iconTarget(board, mobTarget(fallback), iconId) : null;
+        const target = oneOf || (m ? { ...mobTarget({ id: m.ref, name: m.name, icon: m.icon }), ...(m.count > 1 ? { n: m.inst } : {}) } : fallback ? mobTarget(fallback) : null);
         if (!target) return;
         const id = `a${Math.random().toString(36).slice(2, 9)}`;
         edit((b) => ({ ...b, assignments: [...b.assignments, { id, type: (scope === "trash" ? "trashtank" : "tank") as RaidplanAssignType, title: "", spell: null, assignees: [], targets: [target], note: "", suggested: false, preferredClasses: [], allowOthers: false }] }));
@@ -293,8 +297,12 @@ export default function BoardWorkspace({
         return s && isRoleKind(s.kind) ? `slot:${s.kind}:${s.n}` : "";
     };
     /** "Tankt → <mob>" / "Tankt nicht mehr" (mobId "") from the right-click menu: writes the tank rows (lib/autoPlace.ts tankTo / untank). */
-    const tankAction = (sel: { kind: ObjectKind; id: string }, mobId: string) => {
+    const tankAction = (sel: { kind: ObjectKind; id: string }, pick: string) => {
+        // "<mob id>" = the mob as such, "<mob id>@<icon id>" = one of several icons of it on the map
+        const at = pick.indexOf("@");
+        const mobId = at >= 0 ? pick.slice(0, at) : pick;
         const m = mobs.find((x) => x.id === mobId);
+        const target = m ? (at >= 0 ? iconTarget(board, mobTarget(m), pick.slice(at + 1)) : mobTarget(m)) : null;
         const type = (scope === "trash" ? "trashtank" : "tank") as RaidplanAssignType;
         edit((b) => {
             let nb = b;
@@ -307,7 +315,7 @@ export default function BoardWorkspace({
                 ref = r.ref;
             } else ref = refOfObject(b, sel);
             if (!ref) return b;
-            return m ? tankTo(nb, ref, mobTarget(m), type) : untank(nb, ref);
+            return target ? tankTo(nb, ref, target, type) : untank(nb, ref);
         });
     };
     /** What an auto object is called (the menu's title). */
@@ -832,7 +840,8 @@ export default function BoardWorkspace({
         if (!sel) return [];
         const it = (id: string, section: string): MenuItem => ({ id, section, disabled: false, danger: false });
         // "Tankt → <mob>" for everything that can tank, "Tankt nicht mehr" when it does
-        const tankItems = (tanksNow: boolean): MenuItem[] => [...mobs.map((m) => it(`tankt:${m.id}`, "tank")), ...(tanksNow ? [it("tankt:", "tank")] : [])];
+        // one entry per mob; a mob placed twice or more on the map: one per icon ("Tankt -> Flame 2")
+        const tankItems = (tanksNow: boolean): MenuItem[] => [...mobs.flatMap((m) => { const icons = mobIconsOf(board, m.id); return icons.length > 1 ? icons.map((ic) => it(`tankt:${m.id}@${ic.id}`, "tank")) : [it(`tankt:${m.id}`, "tank")]; }), ...(tanksNow ? [it("tankt:", "tank")] : [])];
         if (sel.kind === "auto") {
             const k = auto.tanks.find((x) => x.key === sel.id);
             const moved = !!(board.autoPos || {})[sel.id];
@@ -854,7 +863,13 @@ export default function BoardWorkspace({
         return [...contextMenuItems(sel.kind, { locked: !!look && look.lock, hasPlayer: !!slot && !!slot.userId, isEvent, kind: slot ? slot.kind : "", hideMembers: !!slot && slot.hideMembers, split: !!slot && slot.split, ringOff: !!slot && slot.showRing === false, faces: !!ic && canFace(ic.iconKey), inGroup: sel.kind === "token" && ownBadgeGroup(board, players.get(sel.id) || ({ group: 0 } as RaidplanPlayer)) > 0 }), ...arrows, ...extra];
     };
     const menuLabel = (item: MenuItem): string => {
-        if (item.id.startsWith("tankt:")) { const m = mobs.find((x) => x.id === item.id.slice(6)); return m ? t("raidBoard.auto.tanksMob", { mob: m.name }) : t("raidBoard.auto.untank"); }
+        if (item.id.startsWith("tankt:")) {
+            const pick = item.id.slice(6);
+            const at = pick.indexOf("@");
+            const m = mobs.find((x) => x.id === (at >= 0 ? pick.slice(0, at) : pick));
+            const no = at >= 0 ? mobIconNo(board, pick.slice(at + 1)) : 0;
+            return m ? t("raidBoard.auto.tanksMob", { mob: no ? `${m.name} ${no}` : m.name }) : t("raidBoard.auto.untank");
+        }
         if (item.id.startsWith("auto:")) return t(`raidBoard.auto.menu.${item.id.slice(5)}`);
         if (item.id.startsWith("arrow:")) return t(`raidBoard.arrow.${item.id.slice(6)}`);
         const parts = item.id.split(":");
@@ -879,7 +894,7 @@ export default function BoardWorkspace({
         if (id === "auto:row" && one) { const k = auto.tanks.find((x) => x.key === one.id); if (k) openRowFromMap(k.rowId); return; }
         if (id === "auto:tank" && one) {
             if (one.kind === "auto") pickTankFor(one.id, null);
-            else { const m = mobOfIcon(auto, one.id); const ic = board.icons.find((x) => x.id === one.id); pickTankFor(m ? m.key : "", ic && ic.mobId ? mobs.find((x) => x.id === ic.mobId) || null : null); }
+            else { const m = mobOfIcon(auto, one.id); const ic = board.icons.find((x) => x.id === one.id); pickTankFor(m ? m.key : "", ic && ic.mobId ? mobs.find((x) => x.id === ic.mobId) || null : null, one.id); }
             return;
         }
         if (id.startsWith("tankt:") && one) { tankAction(one, id.slice(6)); return; }
@@ -994,7 +1009,7 @@ export default function BoardWorkspace({
                     </div>
                     {!noBoard && <IconButton size="sm" icon={mapOff ? <ImageOff size={17} /> : <ImageIcon size={17} />} tip={mapOff ? t("raidBoard.map.show") : t("raidBoard.map.hide")} aria-pressed={!mapOff} className={mapOff ? "" : "is-on"} disabled={!canWrite} onClick={() => { const off = !mapOff; edit((b) => ({ ...b, showMap: !off })); if (off) toast(t("raidBoard.map.hiddenKept")); }} />}
                     {!noMap && <IconButton size="sm" icon={<Eye size={17} />} tip={t("raidBoard.tool.preview")} aria-pressed={preview} className={preview ? "is-on" : ""} onClick={() => setPreview((v) => !v)} />}
-                    {!noMap && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} actual={bv.actual} hand={bv.hand} setHand={bv.setHand} canWrite={canWrite} hasSaved={!!board.view} onSaveView={() => edit((b) => ({ ...b, view: savedView(bv.view) }))} onClearView={() => { edit((b) => ({ ...b, view: null })); bv.fit(); }} />}
+                    {!noMap && <ZoomControls view={bv.view} zoomIn={bv.zoomIn} zoomOut={bv.zoomOut} fit={bv.fit} actual={bv.actual} hand={bv.hand} setHand={bv.setHand} canWrite={canWrite} hasSaved={!!board.view} onSaveView={() => edit((b) => ({ ...b, view: savedView(bv.view) }))} onClearView={() => { edit((b) => ({ ...b, view: null })); bv.fit(); }} sheetView={viewFromSaved(board.view)} onSheetView={() => bv.set(viewFromSaved(board.view))} />}
                     {!noMap && <ViewOptions board={board} canWrite={canWrite} edit={edit} prefs={prefs} setPref={setPref} links={showLinks} onLinks={setShowLinks} />}
                     {!noMap && (
                         <div className="rp-tool-group rp-mapsize" role="group" aria-label={t("raidBoard.split.size")}>

@@ -287,7 +287,7 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[]; /** who plays another role on this boss (flex): the role groups follow it */ roles?: Record<string, string> };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[]; /** who plays another role on this boss (flex): the role groups follow it */ roles?: Record<string, string>; /** the section's placed icons: a target of one of several mob icons is called by its number on the map ("Flame 2") */ icons?: { id: string; mobId?: string; hidden?: boolean }[] };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
 export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string; /** a class reference: the class */ classId?: string };
 
@@ -377,6 +377,14 @@ export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {
     return { ...NONE, ref, label: ref };
 }
 
+/** The number of a placed icon among the visible icons of its mob (1, 2 ...), 0 = the only one; -1 = it is not on the map (any more). */
+export function iconNumber(icons: { id: string; mobId?: string; hidden?: boolean }[], ref: string, id: string): number {
+    const list = icons.filter((ic) => !ic.hidden && ic.mobId === ref);
+    const at = list.findIndex((ic) => ic.id === id);
+    if (at < 0) return -1;
+    return list.length > 1 ? at + 1 : 0;
+}
+
 /** A target: a slot, a group, a raider, a raid mark or free text. */
 export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Resolved {
     if (target.kind === "slot") {
@@ -394,9 +402,11 @@ export function resolveTarget(target: RaidplanAssignTarget, ctx: AssignCtx): Res
     if (target.kind === "mob") {
         // the live catalog entry when there is one, else the snapshot the plan keeps
         const live = ctx.catalog ? ctx.catalog.mobs.find((m) => m.id === target.ref) : undefined;
-        // one of several of its kind: "Flame of Azzinoth 2"
+        // one of several of its kind: "Flame of Azzinoth 2" - a target of one placed icon by that icon's number on the map (when the map is at hand)
         const base = live ? live.name : target.name || "?";
-        return { ...NONE, kind: "mob", ref: target.ref, label: target.n ? `${base} ${target.n}` : base, icon: live ? live.icon : target.icon || "" };
+        const no = target.oid && ctx.icons ? iconNumber(ctx.icons, target.ref, target.oid) : -1;
+        const n = no >= 0 ? no : target.n || 0;
+        return { ...NONE, kind: "mob", ref: target.ref, label: n ? `${base} ${n}` : base, icon: live ? live.icon : target.icon || "" };
     }
     if (target.kind === "mark") return { ...NONE, kind: "mark", ref: target.ref, label: t(`raidBoard.mark.${target.ref}`), mark: target.ref };
     return { ...NONE, kind: "text", ref: target.ref, label: target.ref };
@@ -431,8 +441,9 @@ export function isMe(r: Resolved, me: string[]): boolean {
     return !!r.player && me.indexOf(r.player.userId) >= 0;
 }
 
+/** Two targets are the same one: a mob target of one placed icon (`oid`) is only that icon, never the kind (lib/autoPlace.ts sameTargetAs). */
 function sameTarget(x: RaidplanAssignTarget, y: RaidplanAssignTarget): boolean {
-    return x.kind === y.kind && x.ref === y.ref;
+    return x.kind === y.kind && x.ref === y.ref && (x.kind !== "mob" || (x.oid || "") === (y.oid || ""));
 }
 
 // ---- editing --------------------------------------------------------------------------------
@@ -552,13 +563,14 @@ export function assignmentLinks(board: RaidplanBoard, me: string[] = []): Assign
  * free token; an assignee that is not placed is skipped, the next one of the row counts), each place once. `board.assignments` must be the EFFECTIVE rows of the
  * section (its own rows and the ones it inherits from the Standard, class references resolved) - that is what the callers hand over.
  */
-export function tanksOfMob(board: RaidplanBoard, mobId: string): { x: number; y: number }[] {
+export function tanksOfMob(board: RaidplanBoard, mobId: string, iconId = ""): { x: number; y: number }[] {
     const out = [];
     if (!mobId) return out;
     for (const a of board.assignments || []) {
         const type = a.type as string;
         if (type !== "tank" && type !== "trashtank") continue;
-        if (!(a.targets || []).some((tg) => tg.kind === "mob" && tg.ref === mobId)) continue;
+        // `iconId` "": the rows that mean the mob as such; an icon's id: the rows that mean exactly that placed icon
+        if (!(a.targets || []).some((tg) => tg.kind === "mob" && tg.ref === mobId && (iconId ? tg.oid === iconId : !tg.oid || !placedIcon(board, tg)))) continue;
         for (const r of a.assignees || []) {
             const p = r.split(":");
             const at = p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : position(board, "user", p[1]);
@@ -575,6 +587,18 @@ export function tankOfMob(board: RaidplanBoard, mobId: string): { x: number; y: 
 }
 
 type FacingIcon = { id?: string; x: number; y: number; rotation: number; mobId?: string; iconKey?: string; autoFace?: boolean };
+
+/** Whether a mob target's placed icon (`oid`) stands on the board for that mob (else the target means the kind again). */
+function placedIcon(board: RaidplanBoard, tg: RaidplanAssignTarget): boolean {
+    return !!tg.oid && (board.icons || []).some((ic) => ic.id === tg.oid && ic.mobId === tg.ref && !ic.hidden);
+}
+
+/** The icons of a mob some row means one by one (a target with their `oid`): the kind's rows leave them alone. */
+function namedIcons(board: RaidplanBoard, mobId: string): string[] {
+    const out = [];
+    for (const a of board.assignments || []) for (const tg of a.targets || []) if (tg.kind === "mob" && tg.ref === mobId && tg.oid && placedIcon(board, tg) && out.indexOf(tg.oid) < 0) out.push(tg.oid);
+    return out;
+}
 
 /** The mobs a tank row of the section targets that an icon stands for: its own mob; a boss icon without a mob is the section's boss ("b:...", also a Standard row's resolved "boss of this section"). */
 function mobRefsOfIcon(board: RaidplanBoard, icon: FacingIcon): string[] {
@@ -607,11 +631,17 @@ export function facingOf(board: RaidplanBoard, icon: FacingIcon, ar: number): nu
     if (icon.autoFace === false) return icon.rotation || 0;
     const refs = mobRefsOfIcon(board, icon);
     if (refs.length === 0) return icon.rotation || 0;
+    // an icon a row means by itself ("Tank 2 -> Flame 2") turns to that row's tank, and only that one
+    if (icon.id && icon.mobId && namedIcons(board, icon.mobId).indexOf(icon.id) >= 0) {
+        const own = tanksOfMob(board, icon.mobId, icon.id);
+        return own.length > 0 ? angleBetween(icon, own[0], ar) : icon.rotation || 0;
+    }
     const all = [];
     for (const r of refs) for (const t of tanksOfMob(board, r)) if (!all.some((x) => x.x === t.x && x.y === t.y)) all.push(t);
     if (all.length === 0) return icon.rotation || 0;
-    // the icons that stand for the same mob, in the board's order: the n-th takes the n-th tank
-    const peers = (board.icons || []).filter((x) => !x.hidden && (icon.mobId ? x.mobId === icon.mobId : !x.mobId && String(x.iconKey || "").indexOf("boss:") === 0));
+    // the icons that stand for the same mob, in the board's order: the n-th takes the n-th tank (the ones a row means by themselves are not counted)
+    const named = icon.mobId ? namedIcons(board, icon.mobId) : [];
+    const peers = (board.icons || []).filter((x) => !x.hidden && named.indexOf(x.id) < 0 && (icon.mobId ? x.mobId === icon.mobId : !x.mobId && String(x.iconKey || "").indexOf("boss:") === 0));
     const at = icon.id ? peers.findIndex((x) => x.id === icon.id) : 0;
     const tank = all[at >= 0 && at < all.length ? at : 0];
     return angleBetween(icon, tank, ar);
@@ -620,6 +650,7 @@ export function facingOf(board: RaidplanBoard, icon: FacingIcon, ar: number): nu
 /** Whether an icon is turned by its tank right now (for the inspector's hint). */
 export function followsTank(board: RaidplanBoard, icon: FacingIcon): boolean {
     if (icon.autoFace === false) return false;
+    if (icon.id && icon.mobId && namedIcons(board, icon.mobId).indexOf(icon.id) >= 0) return tanksOfMob(board, icon.mobId, icon.id).length > 0;
     return mobRefsOfIcon(board, icon).some((r) => tanksOfMob(board, r).length > 0);
 }
 

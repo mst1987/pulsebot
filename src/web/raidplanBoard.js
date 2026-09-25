@@ -347,6 +347,10 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     const cleanedAssign = assign.cleanAssignments(input.assignments, allowed);
     if (cleanedAssign.error) return cleanedAssign;
     dropped += cleanedAssign.dropped;
+    // a target of one placed mob icon (`oid`) whose icon is gone (or stands for another mob) falls back to the kind of mob: nothing is lost
+    for (const a of cleanedAssign.assignments) {
+        a.targets = a.targets.map((tg) => (tg.kind === "mob" && tg.oid && !icons.some((ic) => ic.id === tg.oid && ic.mobId === tg.ref) ? withoutOid(tg) : tg));
+    }
 
     // the tactic: ordered steps (who does what, when and how); a player outside the lineup is dropped like everywhere
     const cleanedSteps = steps.cleanSteps(input.steps, allowed);
@@ -396,6 +400,13 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
     // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
     const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
     return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, steps: cleanedSteps.steps, showMap, autoPlace, autoPos, autoStyle, autoScale, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+}
+
+/** A mob target without its placed-icon reference (the kind of mob again; its number, if any, stays). */
+function withoutOid(tg) {
+    const out = { ...tg };
+    delete out.oid;
+    return out;
 }
 
 // the key of an object the tank rows put on the map: the n-th tank of a row, or the n-th mob of a kind
@@ -460,7 +471,13 @@ function boardHasContent(b) {
 /** The same board with every object under a new id — a template copied into a plan. */
 function reidBoard(board) {
     const fresh = (o) => ({ ...o, id: newId() });
-    const rows = assign.reidAssignments(board.assignments);
+    // the icons get new ids: a row that means one of them (a mob target's `oid`) follows it
+    const icons = (board.icons || []).map(fresh);
+    const iconIds = new Map((board.icons || []).map((ic, i) => [ic.id, icons[i].id]));
+    const rows = assign.reidAssignments(board.assignments).map((a) => ({
+        ...a,
+        targets: (a.targets || []).map((tg) => (tg.kind === "mob" && tg.oid ? (iconIds.has(tg.oid) ? { ...tg, oid: iconIds.get(tg.oid) } : withoutOid(tg)) : tg)),
+    }));
     // the moved tanks of a row follow it to its new id (`_key` = the id a default row had in the template)
     const moved = new Map();
     (board.assignments || []).forEach((a, i) => { const from = a._key || rowKey(a); const to = rowKey(rows[i]); if (from && to && from !== to) moved.set(from, to); });
@@ -479,7 +496,7 @@ function reidBoard(board) {
         tokens: [],
         slots: (board.slots || []).map(fresh),
         marks: (board.marks || []).map(fresh),
-        icons: (board.icons || []).map(fresh),
+        icons,
         zones: (board.zones || []).map(fresh),
         lines: (board.lines || []).map(fresh),
         texts: (board.texts || []).map(fresh),

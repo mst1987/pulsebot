@@ -388,3 +388,26 @@ describe("ANY_PLAYER", () => {
         expect(r.dropped).toBe(1);
     });
 });
+describe("one mob of several: a target of one placed icon (oid)", () => {
+    const ic = (id, mobId) => ({ id, iconKey: "enemy", label: "", x: 0.5, y: 0.5, size: 48, rotation: 0, mobId });
+    const mobTg = (extra) => ({ kind: "mob", ref: "d:flame", name: "Flame", icon: "", ...extra });
+    const rowOf = (targets) => ({ id: "r1", type: "tank", title: "", assignees: ["user:u1"], targets });
+
+    it("keeps the icon's id and its number; the kind and each icon are different targets", () => {
+        const r = clean({ icons: [ic("f1", "d:flame"), ic("f2", "d:flame")], assignments: [rowOf([mobTg({ oid: "f1", n: 1 }), mobTg({ oid: "f2", n: 2 }), mobTg({}), mobTg({ oid: "f2", n: 2 })])] });
+        expect(r.board.assignments[0].targets.map((t) => [t.oid || "", t.n || 0])).toEqual([["f1", 1], ["f2", 2], ["", 0]]);
+    });
+
+    it("an icon that is gone or stands for another mob: the target means the kind again (its number stays)", () => {
+        const r = clean({ icons: [ic("f1", "d:other")], assignments: [rowOf([mobTg({ oid: "f1", n: 1 }), mobTg({ oid: "nope", n: 2 })])] });
+        expect(r.board.assignments[0].targets).toEqual([mobTg({ n: 1 }), mobTg({ n: 2 })]);
+    });
+
+    it("copied with new ids (a template applied): the target follows its icon", () => {
+        const b = clean({ icons: [ic("f1", "d:flame"), ic("f2", "d:flame")], assignments: [rowOf([mobTg({ oid: "f2", n: 2 })])] }).board;
+        const copy = board.reidBoard(b);
+        const second = copy.icons[1].id;
+        expect(second).not.toBe("f2");
+        expect(copy.assignments[0].targets[0]).toMatchObject({ oid: second, n: 2 });
+    });
+});

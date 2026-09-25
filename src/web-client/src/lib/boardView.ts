@@ -97,3 +97,8 @@ export function viewFromSaved(s: SavedView | null | undefined): BoardView {
     if (!s || !(s.zoom > 1.001) || !isFinite(s.cx) || !isFinite(s.cy)) return FIT;
     return centerOn(s.zoom, Math.max(0, Math.min(1, s.cx)), Math.max(0, Math.min(1, s.cy)));
 }
+
+/** Whether two views show the same picture (zoom and offset equal to a hair): the editor tells "as in the sheet" from a working zoom. */
+export function sameView(a: BoardView, b: BoardView): boolean {
+    return Math.abs(a.z - b.z) < 0.005 && Math.abs(a.ox - b.ox) < 0.002 && Math.abs(a.oy - b.oy) < 0.002;
+}

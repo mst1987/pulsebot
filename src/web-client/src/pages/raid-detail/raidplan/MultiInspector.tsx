@@ -3,8 +3,8 @@ import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEn
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, reorderSelection, scaleSelection, setRingSelection, selectionBox, setLookSelection, type BoardPx, type SelItem } from "../../../lib/multiSelect";
-import { clampOpacity } from "../../../lib/raidplan";
+import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/multiSelect";
+import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 
 /** A checkbox that can say "mixed" (some of the selection have it, some not). */
@@ -18,9 +18,13 @@ function TriCheck({ label, value, disabled, onChange }: { label: string; value: 
     );
 }
 
+const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
+
 /**
  * What a selection of several objects shares: the count, the opacity (a mixed value says "gemischt"), lock and hide, the
- * size in steps, aligning, and the actions. Everything is one undo step (lib/multiSelect.ts); nothing single is shown.
+ * size in steps, aligning, and the actions - plus every option ALL of them have (lib/multiSelect.ts sharedOptions): ring, name, colour,
+ * and for boss / mob icons the facing target and the arrow. A value all agree on is shown, else "gemischt"; a change goes to every one of
+ * them and is one undo step. Nothing single is shown.
  */
 export default function MultiInspector({ board, sel, px, canWrite, edit }: {
     board: RaidplanBoard;
@@ -31,6 +35,9 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
 }) {
     const t = useT();
     const sum = lookSummary(board, sel);
+    const has = sharedOptions(board, sel);
+    const opt = optionSummary(board, sel);
+    const mixed = (label: string, v: unknown) => (v === null ? `${label} (${t("raidBoard.multi.mixed")})` : label);
     const dis = !canWrite;
     const box = selectionBox(board, sel, px);
     const groups = board.slots.filter((s) => s.kind === "group" && sel.some((it) => it.kind === "slot" && it.id === s.id));
@@ -56,6 +63,41 @@ export default function MultiInspector({ board, sel, px, canWrite, edit }: {
                     <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => scaleSelection(b, sel, 1.1, center), true)}>+10 %</button>
                 </div>
             </div>
+            {has.ring && <TriCheck label={t("raidBoard.multi.ring")} value={opt.ring} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { ring: v }))} />}
+            {has.showName && <TriCheck label={t("raidBoard.insp.showName")} value={opt.showName} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { showName: v }))} />}
+            {has.color && (
+                <label className="rp-field">
+                    <span className="rp-kicker">{mixed(t("raidBoard.zone.color"), opt.color)}</span>
+                    <input type="color" className="rp-color" value={opt.color || "#888888"} disabled={dis} onChange={(e) => edit((b) => setColorSelection(b, sel, e.target.value), true)} />
+                </label>
+            )}
+            {has.facing && (
+                <div className="rp-field rp-multi-facing">
+                    <span className="rp-kicker">{t("raidBoard.multi.facing")}</span>
+                    <TriCheck label={t("raidBoard.multi.faceOwnTank")} value={opt.autoFace} disabled={dis} onChange={(v) => edit((b) => setFacingSelection(b, sel, { autoFace: v }))} />
+                    <div className="rp-compass" role="group" aria-label={t("raidBoard.icon.compass")}>
+                        {COMPASS.map((a, n) => (
+                            <button
+                                key={a} type="button" className={`rp-compass-btn${opt.autoFace === false && opt.rotation === a ? " is-on" : ""}`} disabled={dis} aria-pressed={opt.autoFace === false && opt.rotation === a}
+                                aria-label={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)} data-tip={t(`raidBoard.compass.${COMPASS_NAMES[n]}`)}
+                                onClick={() => edit((b) => setFacingSelection(b, sel, { rotation: a }))}
+                            >{COMPASS_ARROWS[n]}</button>
+                        ))}
+                    </div>
+                    <span className="rp-muted">{t("raidBoard.multi.faceHint")}</span>
+                    <span className="rp-kicker">{t("raidBoard.multi.arrow")}</span>
+                    <SliderField label={mixed(t("raidBoard.arrow.size"), opt.arrowScale)} value={Math.round((opt.arrowScale || 1) * 100)} min={ARROW_MIN * 100} max={ARROW_MAX * 100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => patchArrowSelection(b, sel, { scale: v / 100 }), true)} />
+                    <TriCheck label={t("raidBoard.arrow.hide")} value={opt.arrowHidden} disabled={dis} onChange={(v) => edit((b) => patchArrowSelection(b, sel, { hidden: v }))} />
+                    <div className="rp-field-row">
+                        <label className="rp-field">
+                            <span className="rp-kicker">{mixed(t("raidBoard.arrow.color"), opt.arrowColor)}</span>
+                            <input type="color" className="rp-color" value={opt.arrowColor || ARROW_COLOR} disabled={dis} onChange={(e) => edit((b) => patchArrowSelection(b, sel, { color: e.target.value }), true)} />
+                        </label>
+                        {opt.arrowColor !== ARROW_COLOR && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => patchArrowSelection(b, sel, { color: ARROW_COLOR }))}>{t("raidBoard.arrow.reset")}</button>}
+                    </div>
+                    <SliderField label={mixed(t("raidBoard.arrow.opacity"), opt.arrowOpacity)} value={Math.round((opt.arrowOpacity === null ? 1 : opt.arrowOpacity) * 100)} min={10} max={100} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => patchArrowSelection(b, sel, { opacity: clampOpacity(v / 100, 1) }), true)} />
+                </div>
+            )}
             <TriCheck label={t("raidBoard.insp.lock")} value={sum.lock} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { lock: v }))} />
             <TriCheck label={t("raidBoard.multi.hide")} value={sum.hidden} disabled={dis} onChange={(v) => edit((b) => setLookSelection(b, sel, { hidden: v }))} />
             {groups.length > 0 && <TriCheck label={t("raidBoard.insp.showRing")} value={groups.every((g) => g.showRing !== false) ? true : groups.every((g) => g.showRing === false) ? false : null} disabled={dis} onChange={(v) => edit((b) => setRingSelection(b, sel, v))} />}

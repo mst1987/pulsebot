@@ -125,9 +125,11 @@ function cleanAssignments(raw, allowed = new Set()) {
             else if (kind === "role") good = ROLE_REFS.includes(ref);
             // several mobs of one kind: the instance number (1..20); none = the row's own mob
             const inst = kind === "mob" ? mobInstance(t.n) : 0;
-            if (!good || targets.some((x) => x.kind === kind && x.ref === ref && (x.n || 0) === inst)) { dropped += 1; continue; }
+            // one placed icon of that mob (its board id): this very one, not the kind (docs/raidplan.md, "One mob of several")
+            const oid = kind === "mob" && ID_REF.test(str(t.oid)) ? str(t.oid).slice(0, 24) : "";
+            if (!good || targets.some((x) => x.kind === kind && x.ref === ref && (x.n || 0) === inst && (x.oid || "") === oid)) { dropped += 1; continue; }
             if (targets.length >= LIMITS.targets) break;
-            targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "", ...(inst ? { n: inst } : {}) } : { kind, ref });
+            targets.push(kind === "mob" ? { kind, ref, name: str(t.name).slice(0, LIMITS.text), icon: ICON.test(str(t.icon)) ? str(t.icon) : "", ...(inst ? { n: inst } : {}), ...(oid ? { oid } : {}) } : { kind, ref });
         }
 
         const sp = o.spell && typeof o.spell === "object" ? o.spell : null;
