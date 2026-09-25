@@ -306,13 +306,35 @@ function slotPlayer(ctx: AssignCtx, kind: string, n: number): RaidplanPlayer | n
 export function classPlaceName(classId: string, role: string): string {
     if (classId === ANY) return t(`raidBoard.class.roles.${role || "dps"}`);
     if (role === "tank") return t("raidBoard.class.tankOf", { cls: t(`wow.class.${classId}`) });
+    if (role === "any") return t(`wow.class.${classId}`);
     return t(`wow.class.${classId}`) + (role ? ` (${t(`raidBoard.class.roles.${role}`)})` : "");
+}
+
+/** The kinds of task that are tanking: a class of any spec on them reads as a class tank ("Magier-Tank"). */
+const TANKING = ["tank", "trashtank", "special"];
+
+/** A class place as a row of this kind of task names it: on a tanking row a class of any spec is "Magier-Tank"; else as classPlaceName. */
+export function classPlaceNameFor(classId: string, role: string, type: string): string {
+    if (TANKING.indexOf(type) >= 0 && classId !== ANY && (role === "any" || (role === "" && type === "special"))) return t("raidBoard.class.classTank", { cls: t(`wow.class.${classId}`) });
+    if (role === "any") return t("raidBoard.class.anySpecOf", { cls: t(`wow.class.${classId}`) });
+    return classPlaceName(classId, role);
 }
 
 /** The label of a class reference with its running number: "Jäger 1", "Jäger 2", "Tank (Krieger) 1", "Tank 2". */
 export function classRefLabel(ref: string): string {
     const q = parseClassRef(ref);
     return q ? `${classPlaceName(q.classId, q.role)} ${q.n}` : ref;
+}
+
+/** The label of a class reference on a row of this kind of task: "Magier-Tank 1" on a tanking row, else as classRefLabel. */
+export function classRefLabelFor(ref: string, type: string): string {
+    const q = parseClassRef(ref);
+    return q ? `${classPlaceNameFor(q.classId, q.role, type)} ${q.n}` : ref;
+}
+
+/** Whether a player stands in a row outside his spec role: a mage on a tanking row ("als Tank"); only tanking rows say so. */
+export function offRole(type: string, player: RaidplanPlayer | null): boolean {
+    return !!player && TANKING.indexOf(type) >= 0 && player.role !== "tank";
 }
 
 /** The icon of a class reference: the class icon, for "any <role>" the role's icon. */

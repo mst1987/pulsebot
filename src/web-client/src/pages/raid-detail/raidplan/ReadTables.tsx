@@ -12,6 +12,7 @@ import { mergeGroupRuns, mineCard, splitMine, type MineBlock } from "../../../li
 import { groupColor, groupMark, inkOn } from "../../../lib/groupStyle";
 import { MobIcon } from "./AssignPanel";
 import TypeBadge from "./TypeBadge";
+import AssignLine from "./AssignLine";
 import { useT } from "../../../i18n";
 
 /** Who or what a cell names: a person with class icon and class colour, an open place with its role, a mob with its portrait, a mark, a group, a word. */
@@ -63,7 +64,9 @@ export function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ct
                 <section key={b.group} className="rp-mineblk" aria-label={t(`raidBoard.mine.group.${b.group}`)}>
                     <h3><TypeBadge type={b.badge} label={t(`raidBoard.mine.group.${b.group}`)} /></h3>
                     <ul className="rp-mgrid">
-                        {b.rows.map((r) => {
+                        {b.rows.map((r, _i, all) => {
+                            // a block that holds several kinds of task (tanking, trash tank, special tank ...) names the kind before the spell
+                            const mixed = all.some((x) => x.a.type !== all[0].a.type);
                             const card = mineCard(r);
                             const a = r.a;
                             const lead = a.spell && a.spell.icon ? a.spell.icon : iconForTask(a);
@@ -80,6 +83,7 @@ export function MineBlocks({ blocks, ctx, me, names }: { blocks: MineBlock[]; ct
                                             : <span className="rp-recipient">{card.recipient === "group" ? t("raidBoard.mine.yourGroup", { n: card.group }) : t("raidBoard.mine.you")}</span>}
                                     </span>
                                     <span className="rp-mcard-note">
+                                        {mixed && <span className="rp-mtype">{t(`raidBoard.assign.type.${a.type}`)}</span>}
                                         {card.text && <span className="rp-mine-text"><Mentions text={card.text} names={names} /></span>}
                                         {card.order > 0 && <span className="rp-achip-no">{card.order}</span>}
                                         {card.alsoOnMe && <span className="rp-also-onyou">{t("raidBoard.mine.alsoOnYou")}</span>}
@@ -216,29 +220,10 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
             {others.map((tb) => (
                 <section key={tb.type} className="rp-rsec" aria-label={t(`raidBoard.assign.type.${tb.type}`)}>
                     <h3><TypeBadge type={tb.type} /></h3>
-                    <table className="rp-rtable">
-                        <thead>
-                            <tr>
-                                {tb.rows.some((r) => r.order > 0) && <th className="rp-col-no">{t("raidBoard.read.colOrder")}</th>}
-                                <th>{t("raidBoard.read.colPlayer")}</th>
-                                <th>{tb.type === "kick" ? t("raidBoard.read.colTargetAbility") : t("raidBoard.read.colTarget")}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {tb.rows.map((r) => (
-                                <tr key={r.key} className={r.who.some((w) => isMe(w, me)) ? "is-own" : rowCls(r.rowId)}>
-                                    {tb.rows.some((x) => x.order > 0) && <td className="rp-col-no">{r.order > 0 ? <span className="rp-achip-no">{r.order}</span> : "–"}</td>}
-                                    <td><WhoList list={r.who} me={me} names={names} /></td>
-                                    <td>
-                                        {(r.spell || r.task) && <span className="rp-rtask"><Mentions text={[r.spell, r.task].filter(Boolean).join(": ")} names={names} /></span>}
-                                        {r.targets.length > 0 && <WhoList list={r.targets} me={me} names={names} />}
-                                        {!r.spell && !r.task && r.targets.length === 0 && <span className="rp-muted">–</span>}
-                                        {r.note && <span className="rp-muted rp-rnote"><Mentions text={r.note} names={names} /></span>}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    {/* the same row container as the editor, read-only: who -> at whom, the viewer's own chip carries "DU" */}
+                    <ul className="rp-alist rp-linelist is-ro rp-read-lines">
+                        {assignments.filter((a) => String(a.type) === tb.type).map((a) => <AssignLine key={a.id} a={a} filled={a} ctx={ctx} isEvent readOnly me={me} />)}
+                    </ul>
                 </section>
             ))}
                 </div>

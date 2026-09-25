@@ -14,6 +14,28 @@ import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanPlayer } from ".
 export const CLASS_ROLES = ["tank", "healer", "dps", "melee", "ranged"];
 /** The "class" of a reference that means any raider of its role. */
 export const ANY = "Any";
+/** The role filter "every spec of the class" (a mage who tanks, a warlock tank): chosen on purpose, the task's own role is not applied. */
+export const ANY_SPEC = "any";
+/** The classes that can tank by their spec; any other class on a tanking row is a class tank on purpose ("Magier-Tank"). */
+export const TANK_SPEC_CLASSES = ["Warrior", "Paladin", "Druid"];
+/**
+ * The role a class gets when it is added to a row by its tile: healing -> its healers, a tanking row -> its tanks for the three tanking
+ * classes and ANY spec for every other class (the orga chose a mage to tank on purpose), everything else -> no filter.
+ */
+export function defaultClassRole(classId: string, type: string): string {
+    const implied = impliedRole(type);
+    if (implied === "tank" && TANK_SPEC_CLASSES.indexOf(classId) < 0) return ANY_SPEC;
+    return "";
+}
+/** The role a reference really filters by on a row: its own, else the one the task implies, else any spec. */
+export function effectiveRole(role: string, type: string): string {
+    return role || impliedRole(type) || ANY_SPEC;
+}
+/** The role to store when the user picks a filter chip: "any" on a task that implies no role is stored as none (it is the same). */
+export function storedRole(picked: string, type: string): string {
+    if (picked === ANY_SPEC && !impliedRole(type)) return "";
+    return picked;
+}
 /** The highest running number a reference can have. */
 export const MAX_CLASS_N = 99;
 /** The general tanks a tanking row offers: any tank, or a tank of one of the three tanking classes (by the spec role, never the class alone). */
@@ -144,6 +166,21 @@ export function carryClasses(assignments: RaidplanAssignment[], rowId: string): 
     return out;
 }
 
+/**
+ * Changes the role filter of a class in a row ("Priester" -> "Priester (Heiler)"): the references of the class with the old role go, as
+ * many with the new role come (next free running numbers of that role); hand-made picks of the old ones are dropped. Same role: unchanged.
+ */
+export function setClassRole(assignments: RaidplanAssignment[], rowId: string, classId: string, fromRole: string, toRole: string, target: boolean): RaidplanAssignment[] {
+    if (fromRole === toRole) return assignments;
+    const row = assignments.find((a) => a.id === rowId);
+    if (!row) return assignments;
+    const own = target ? row.targets.filter((tg) => tg.kind === "class").map((tg) => tg.ref) : row.assignees.filter((r) => isClassRef(r));
+    const count = refsOfClass(own, classId, fromRole).length;
+    const have = refsOfClass(own, classId, toRole).length;
+    const cleared = setClassCount(assignments, rowId, classId, fromRole, 0, target);
+    return setClassCount(cleared, rowId, classId, toRole, have + count, target);
+}
+
 function classTarget(ref: string): RaidplanAssignTarget {
     return { kind: "class", ref };
 }
@@ -166,7 +203,8 @@ export function roleFits(filter: string, role: string): boolean {
  * role means nobody.
  */
 export function poolOf(q: { classId: string; role: string }, type: string, roster: RaidplanPlayer[], roles: Record<string, string>): RaidplanPlayer[] {
-    const want = q.role || impliedRole(type);
+    // "any" = every spec of the class, chosen on purpose (a mage tanks); no role = the one the task implies
+    const want = q.role === ANY_SPEC ? "" : q.role || impliedRole(type);
     if (q.classId === ANY && !want) return [];
     return roster.filter((p) => (q.classId === ANY || p.classId === q.classId) && roleFits(want, (roles || {})[p.userId] || p.role));
 }

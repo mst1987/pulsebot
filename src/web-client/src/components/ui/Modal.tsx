@@ -12,7 +12,9 @@ import { t } from "../../i18n";
 // (`if (!(await ask({...}))) return;`), but the page's own dialog instead of
 // the browser's grey box, with the destructive button never preselected.
 
-export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, width = 640, children, initialFocus }: {
+export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, width = 640, children, initialFocus, className = "" }: {
+    /** An extra class on the dialog (a page's own layout, e.g. the raid plan's full-height assignment dialog). */
+    className?: string;
     open: boolean;
     /** Esc, the close button and a click on the backdrop all end up here. */
     onClose: () => void;
@@ -46,7 +48,7 @@ export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, 
     return (
         <dialog
             ref={ref}
-            className="dlg"
+            className={className ? `dlg ${className}` : "dlg"}
             style={{ width: `min(${width}px, calc(100vw - 32px))` }}
             // Esc fires "cancel": turn it into the caller's close instead of
             // letting the browser close the dialog behind React's back.
