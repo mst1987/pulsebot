@@ -15,3 +15,4 @@ export { Modal, ConfirmProvider, useConfirm, type ConfirmFn, type ConfirmOptions
 export { default as Popover } from "./Popover";
 export { default as Field, FieldLabel, InfoTip } from "./Field";
 export { default as Chip } from "./Chip";
+export { default as DataTable, type Column } from "./DataTable";
