@@ -4,9 +4,9 @@ const {
     toRaidHelperDate,
     parseGermanDate,
     parseClockTime,
-} = require("../../src/utils/date.js");
+} = require("../../../src/utils/time");
 
-describe("utils/date", () => {
+describe("utils/time: German dates", () => {
     describe("formatTimestampToDateString", () => {
         it("formats a known timestamp in Europe/Paris", () => {
             // 2024-07-24T18:30:00Z == 20:30 CEST

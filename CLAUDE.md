@@ -172,7 +172,7 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 ## Testing
 
 The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
-- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/date.js` → `test/utils/date.test.js`.
+- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
 - A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
 - A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
@@ -181,7 +181,7 @@ The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
 - **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request; `test/setup/noNetwork.js` (`setupFiles`) enforces it: unmocked axios, `http(s).request/get` and `fetch` throw and fail the test, even when the code swallows the error (loopback stays open). `coverageThreshold` in `jest.config.js` sits about a point under the measured coverage, so `npm run test:coverage` fails when it sinks; console output is shown only for failing tests.
 - **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/web/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
-- Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/date.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
+- Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/time/index.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
 - ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 
 ## What NOT To Do

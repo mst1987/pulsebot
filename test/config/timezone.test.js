@@ -1,5 +1,5 @@
 const { TIMEZONE } = require("../../src/config/timezone");
-const { SERVER_ZONE } = require("../../src/utils/discordTime");
+const { SERVER_ZONE } = require("../../src/utils/time");
 
 describe("config/timezone", () => {
     it("is the realm's zone", () => {

@@ -2,7 +2,7 @@
 const { createRaidhelperClient } = require("./raidhelper/client");
 const { ownUpcomingRaw } = require("../web/eventSources");
 const { entryFor } = require("../config/classlist.js");
-const { formatTimestampToDateString } = require("./date.js");
+const { formatTimestampToDateString } = require("./time/index.js");
 const {
     defaultTimeout,
     embedAccentColor,

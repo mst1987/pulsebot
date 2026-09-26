@@ -2,7 +2,7 @@ const {
     mySetupResponse,
     setupResponse,
 } = require("../../src/utils/responses.js");
-const { formatTimestampToDateString } = require("../../src/utils/date.js");
+const { formatTimestampToDateString } = require("../../src/utils/time");
 const { entryFor } = require("../../src/config/classlist.js");
 const { mockInteraction } = require("../helpers/mockInteraction.js");
 

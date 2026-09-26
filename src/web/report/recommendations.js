@@ -3,7 +3,7 @@
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { esc } = require("./layout");
 const { expBtn, badge, LINE, ibtn, hicon } = require("./widgets");
-const { formatGermanDateTime } = require("../../utils/date");
+const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Empfehlungen: what each raider and the raid should do differently (report.recommendations) ----
 //

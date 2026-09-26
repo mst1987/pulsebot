@@ -1,7 +1,7 @@
 // The duration rule of a raid (#305): clamped minutes and the planned end.
 const {
     MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime,
-} = require("../../src/utils/eventTime");
+} = require("../../../src/utils/time");
 
 describe("clampDuration", () => {
     it("keeps a duration within bounds and floors fractions", () => {

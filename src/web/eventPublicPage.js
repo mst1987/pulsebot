@@ -23,12 +23,12 @@ const { approvedSetupOf } = require("./setupCore");
 const { getEvent } = require("./eventStore");
 const { listSignups } = require("./signupStore");
 const { instance } = require("../config/gameVersions");
-const { clampDuration, eventEndTime } = require("../utils/eventTime");
+const { clampDuration, eventEndTime } = require("../utils/time");
 const { wowIconUrl } = require("../config/menu");
 const { layout, esc } = require("./render");
 // The page is for raiders, so it is in English like the bot's Discord texts;
 // times are written out in server time (a web page cannot render a Discord timestamp).
-const { serverDateTime } = require("../utils/discordTime");
+const { serverDateTime } = require("../utils/time");
 const { ROLE_LABELS_EN } = require("../config/gameVersions/classes");
 const { str, clip } = require("../utils/text");
 

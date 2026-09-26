@@ -26,7 +26,7 @@
 //   signup-multi:<token>:m:<page>   the modal (submit)
 //   signup-multi:e:<eventId>:<code> "Mehrere Charaktere …" of one event
 const crypto = require("crypto");
-const { shortServerTime, shortServerDate, discordTimestamp } = require("../discordTime");
+const { shortServerTime, shortServerDate, discordTimestamp } = require("../time");
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const eventStore = require("../../web/eventStore");

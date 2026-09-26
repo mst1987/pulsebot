@@ -37,7 +37,7 @@ const channelNaming = require("./channelNaming");
 const { signupSourceFor, ownUpcomingRaw } = require("./eventSources");
 const { loadEventGroups } = require("./raidEventGroups");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
-const { parseClockTime } = require("../utils/date");
+const { parseClockTime } = require("../utils/time");
 
 const { TIMEZONE } = require("../config/timezone");
 const { createEvent } = require("./eventCreate");

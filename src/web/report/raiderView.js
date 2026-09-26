@@ -15,7 +15,7 @@ const { IMPACT_LABEL, IMPACT_TONE, recItem } = require("./recommendations");
 const { abilityIcon } = require("./panels/damage");
 const { RPB_ACTIVITY_HOW, spellTiles } = require("./panels/rpb");
 const { ROLE_LABEL } = require("./context");
-const { formatGermanDateTime } = require("../../utils/date");
+const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Sicht Raider: one card per raider ------------------------------------------
 

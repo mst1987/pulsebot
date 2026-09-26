@@ -10,7 +10,7 @@ const { renderFightSection } = require("./fight");
 const { tryPills, playerFights } = require("./bossView");
 const { ROLE_LABEL, reportContext } = require("./context");
 const { sendDialog, raiderSections } = require("./raiderView");
-const { formatGermanDateTime } = require("../../utils/date");
+const { formatGermanDateTime } = require("../../utils/time");
 
 /**
  * The player page: the same raider card as in Sicht Raider, opened, with the

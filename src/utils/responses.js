@@ -1,5 +1,5 @@
 const { getCharacterIcon, findServerEmoji } = require("./helper.js");
-const { formatTimestampToDateString } = require("./date.js");
+const { formatTimestampToDateString } = require("./time/index.js");
 const { entryFor } = require("../config/classlist.js");
 
 function setupResponse(interaction, event) {
