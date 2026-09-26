@@ -1,5 +1,6 @@
 const {
     formatTimestampToDateString,
+    formatGermanDateTime,
     toRaidHelperDate,
     parseGermanDate,
     parseClockTime,
@@ -11,6 +12,24 @@ describe("utils/date", () => {
             // 2024-07-24T18:30:00Z == 20:30 CEST
             const formatted = formatTimestampToDateString(Date.UTC(2024, 6, 24, 18, 30));
             expect(formatted).toBe("24.07.2024 - 20:30");
+        });
+    });
+
+    describe("formatGermanDateTime", () => {
+        it("prints a moment like toLocaleString(\"de-DE\") in the server's zone", () => {
+            // 2026-09-07T18:30:00Z == 20:30 CEST; winter time is one hour less
+            expect(formatGermanDateTime(Date.UTC(2026, 8, 7, 18, 30))).toBe("7.9.2026, 20:30:00");
+            expect(formatGermanDateTime(Date.UTC(2026, 0, 3, 6, 5, 3))).toBe("3.1.2026, 07:05:03");
+            expect(formatGermanDateTime("2026-12-31T23:59:59Z")).toBe("1.1.2027, 00:59:59");
+            expect(formatGermanDateTime(new Date(Date.UTC(2026, 8, 7, 18, 30)))).toBe("7.9.2026, 20:30:00");
+            for (const t of [Date.UTC(2026, 3, 1, 9, 0), Date.UTC(2025, 9, 26, 0, 30)]) {
+                expect(formatGermanDateTime(t)).toBe(new Date(t).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }));
+            }
+        });
+
+        it("returns '' for something that is no moment", () => {
+            expect(formatGermanDateTime("kein Datum")).toBe("");
+            expect(formatGermanDateTime(undefined)).toBe("");
         });
     });
 

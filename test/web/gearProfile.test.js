@@ -10,7 +10,7 @@ const dpsSet = gearOf(wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.i
 // WoWSims ships no healer BiS (see fetch-wowsims-data.js), so a healing set is
 // assembled from the item table: the pieces with the most healing power.
 const healSet = gearOf(
-    Object.entries(require("../../src/config/wowsims/items.json").items)
+    Object.entries(require("../../src/config/generated/wowsims/items.json").items)
         .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
         .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
         .slice(0, 16)
@@ -106,7 +106,7 @@ describe("web/gearProfile", () => {
     // ist das regelmäßig das Arenaset. Gegen einen Boss ist das nichts wert.
     describe("PvP-Gear erkennen", () => {
         const { pvpProfile, isPvpSet, isPvpItem, PVP_SHARE } = require("../../src/web/gearProfile");
-        const table = require("../../src/config/wowsims/items.json").items;
+        const table = require("../../src/config/generated/wowsims/items.json").items;
         // Ein echtes Arenaset aus der Tabelle: die Teile mit Abhärtung.
         const pvpIds = Object.entries(table)
             .filter(([, it]) => it.stats.resilience && it.ilvl >= 130)

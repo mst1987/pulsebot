@@ -15,7 +15,7 @@
  * (which trinket pair, throughput against regen).
  *
  * Run:  npm run bis:refresh   (this, then fetch-wowsims-data.js, then this again)
- * Out:  src/config/wowhead/bisSets.json  (same shape as the WoWSims one)
+ * Out:  src/config/generated/wowhead/bisSets.json  (same shape as the WoWSims one)
  *
  * Why twice: this script needs the item table to know which slot an item goes
  * in, and the item table needs this script's ids to carry a healing relic at
@@ -31,7 +31,7 @@ const https = require("https");
 
 const wowsims = require("../src/config/wowsims");
 
-const OUT_FILE = path.join(__dirname, "..", "src", "config", "wowhead", "bisSets.json");
+const OUT_FILE = path.join(__dirname, "..", "src", "config", "generated", "wowhead", "bisSets.json");
 
 // One hub page per healing spec; the hub links every phase, so the phase urls
 // are discovered rather than guessed. A hub that moves fails loudly here

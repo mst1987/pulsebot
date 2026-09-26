@@ -11,6 +11,13 @@ module.exports = {
 
         return formattedString;
     },
+    // A moment the way toLocaleString("de-DE") prints it — "7.9.2026, 20:15:03" —
+    // but always in the server's zone (TIMEZONE), never the machine's. Takes a
+    // timestamp, an ISO string or a Date; "" when it is no moment.
+    formatGermanDateTime: function(value) {
+        const dt = DateTime.fromJSDate(new Date(value), { zone: TIMEZONE });
+        return dt.isValid ? dt.toFormat("d.M.yyyy, HH:mm:ss") : "";
+    },
     // Normalize a date into the "dd-MM-yyyy" format the Raid-Helper create API
     // expects. Accepts an ISO date from an <input type="date"> ("yyyy-MM-dd") and
     // passes through an already-"dd-MM-yyyy" value unchanged. Returns "" for empty

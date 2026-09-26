@@ -1,5 +1,5 @@
 const { ok } = require("../apiResponse");
-const { requireAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 
 /**
@@ -7,10 +7,13 @@ const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions")
  * and roles, instances with sizes, bosses and suggested tanks/healers, party
  * and raid buffs). Static data from config/gameVersions; nothing is stored.
  */
-function getGameVersions(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getGameVersions = withUser({}, async ({ res }) => {
     ok(res, { versions: publicVersions(), defaultVersion: DEFAULT_VERSION });
-}
+});
 
-module.exports = { getGameVersions };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/game-versions", handler: getGameVersions, area: "raids" },
+];
+
+module.exports = { getGameVersions, routes };

@@ -48,7 +48,7 @@ describe("web/render — Empfehlungen for a reviewer", () => {
         expect(html).toContain("data-tip=\"Nicht senden\"");
         expect(html).toContain("data-tip=\"Text bearbeiten\"");
         expect(html).toContain("Nichts auszusetzen – weiter so.");
-        expect(html).toContain("window.__ehReview");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
     });
 
     it("reflects the review: state, buttons and the rewritten text", () => {
@@ -95,7 +95,6 @@ describe("web/render — Empfehlungen for everyone else", () => {
         expect(html).toContain("2 Gear-Probleme");
         expect(html).not.toContain("Essen 80 %");
         expect(html).not.toContain("data-review=");
-        expect(html).not.toContain("window.__ehReview");
         expect(html).not.toContain("dlg-rs-send");
         // a raider without approved findings gets no section, no footer
         expect(html).not.toContain("Nichts auszusetzen");
@@ -127,7 +126,7 @@ describe("web/render — player page", () => {
         const mine = renderPlayerPage(report(review), 0, admin);
         expect(mine).toContain("Essen 80 %");
         expect(mine).toContain("data-review=\"reject\"");
-        expect(mine).toContain("window.__ehReview");
+        expect(mine).toContain("<script src=\"/r-assets/report.js?v=");
         // nothing approved, nothing to show
         expect(renderPlayerPage(report(null), 0, reader)).toContain("Noch keine freigegebenen Punkte.");
         expect(renderPlayerPage(report(review), 1, admin)).toContain("Nichts auszusetzen – weiter so.");

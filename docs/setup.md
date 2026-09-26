@@ -1,5 +1,7 @@
 # Setup
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#setup-editor](guide-web-admin.md#setup-editor), [guide-discord.md#setup-gruppeneinteilung](guide-discord.md#setup-gruppeneinteilung).
+
 ## Setup-Vorschlag (`src/utils/setup/`, #262)
 
 `buildSetupProposal(input, options)` (`proposal.js`) builds raid groups and a bench from signups, profiles, attendance, earlier setups and the orga's fixed places. **It is always only a proposal — a human approves it** (the editor, the routes and the approval: "Setup-Editor" below). Pure and deterministic: no store, no clock, no randomness; ties go by signup `at`, then user id, and the input order of the signups does not matter.

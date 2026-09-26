@@ -6,8 +6,7 @@
 // characters claimed by more than one account through
 // GET /api/roster/character-claims.
 const { ok, error: apiError } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const profiles = require("../raiderProfileStore");
 const specHistory = require("../specHistoryStore");
 const { logIndex, logSuggestions } = require("../profileLogs");
@@ -46,9 +45,7 @@ function ownView(user) {
 }
 
 /** GET /api/profile — the caller's own profile plus the page context. */
-async function getProfile(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getProfile = withUser({}, async ({ user, res }) => {
     ok(res, {
         profile: ownView(user),
         isNew: !profiles.hasProfile(user.id),
@@ -56,7 +53,7 @@ async function getProfile(req, res) {
         specHistory: specHistory.specHistoryOf(user.id).slice(0, 8),
         ...pageContext(),
     });
-}
+});
 
 /**
  * PUT /api/profile — save the caller's own edits (availability, raids, wishes,
@@ -64,11 +61,7 @@ async function getProfile(req, res) {
  * profile-wide switches are not taken any more — they live on the characters. The body never
  * names an account: whatever `userId` it carries is ignored.
  */
-async function putProfile(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const putProfile = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const patch = {};
     for (const key of ["availability", "preferredRaids", "wishes", "avoidEnabled", "avoid", "note", "characters"]) {
         if (body[key] !== undefined) patch[key] = body[key];
@@ -80,15 +73,13 @@ async function putProfile(req, res) {
     }
     profiles.saveProfile(user.id, patch, { name: user.name });
     ok(res, { profile: ownView(user) });
-}
+});
 
 /** GET /api/profile/log-characters?q= — characters from the logs the caller could take over. */
-async function getLogCharacters(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLogCharacters = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
     ok(res, { characters: logSuggestions(user, { query: q }) });
-}
+});
 
 /**
  * POST /api/profile/characters — add a character to the caller's own profile,
@@ -100,12 +91,7 @@ async function getLogCharacters(req, res, url) {
  * character another account already has is added all the same — the answer
  * carries `claimedBy`, and the orga sees it on the roster.
  */
-async function postProfileCharacter(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-
+const postProfileCharacter = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     if (body.remove !== undefined) {
         const removed = profiles.removeCharacter(user.id, String(body.remove || ""));
         return ok(res, { removed, profile: ownView(user) });
@@ -143,31 +129,25 @@ async function postProfileCharacter(req, res) {
         armory: armory && { linked: !!armory.url, fetched: armory.fetched },
         profile,
     });
-}
+});
 
 /** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
-async function getRaiderSearch(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
     ok(res, { raiders: profiles.searchRaiders(q, user.id) });
-}
+});
 
 /** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. */
-async function getUserProfile(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getUserProfile = withUser({}, async ({ res, url }) => {
     const id = String(url.searchParams.get("id") || "").trim();
     if (!id || !profiles.hasProfile(id)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
     ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true }) });
-}
+});
 
 /** GET /api/roster/character-claims — characters more than one account has added. */
-async function getCharacterClaims(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getCharacterClaims = withUser({}, async ({ res }) => {
     ok(res, { claims: profiles.characterClaims() });
-}
+});
 
 // ---- Kalender-Abo (#312) ----
 //
@@ -185,22 +165,15 @@ function calendarPayload(userId) {
 }
 
 /** GET /api/profile/calendar — the caller's own subscription links, without their secrets. */
-async function getCalendarTokens(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getCalendarTokens = withUser({}, async ({ user, res }) => {
     ok(res, calendarPayload(user.id));
-}
+});
 
 /**
  * POST /api/profile/calendar — mint a link, or revoke one with `{ revoke: id }`.
  * The secret comes back exactly once, in `token`/`url`.
  */
-async function postCalendarToken(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-
+const postCalendarToken = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     if (body.revoke !== undefined) {
         // The store checks the owner, so a foreign id cannot be revoked even if
         // a caller sends one — it comes back as "not removed", like any other.
@@ -212,10 +185,24 @@ async function postCalendarToken(req, res) {
     const made = calendarTokens.createToken(user.id, String(body.name || ""));
     if (made.error) return apiError(res, 400, made.code || "invalid", made.error);
     ok(res, { token: made.token, url: userIcsUrl(made.token), record: made.record, ...calendarPayload(user.id) });
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/roster/character-claims", handler: getCharacterClaims, area: "roster" },
+    { method: "GET", path: "/api/profile", handler: getProfile, area: "signup" },
+    { method: "PUT", path: "/api/profile", handler: putProfile, area: "signup" },
+    { method: "GET", path: "/api/profile/log-characters", handler: getLogCharacters, area: "signup" },
+    { method: "POST", path: "/api/profile/characters", handler: postProfileCharacter, area: "signup" },
+    { method: "GET", path: "/api/profile/calendar", handler: getCalendarTokens, area: "signup" },
+    { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup" },
+    { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup" },
+    { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
+];
 
 module.exports = {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
     getCalendarTokens, postCalendarToken,
     pageContext,
+    routes,
 };
