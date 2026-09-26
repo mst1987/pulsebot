@@ -1,7 +1,7 @@
 # RPB reference data (extracted from the source Google Sheet)
 
 Source spreadsheet — the "Role Performance Breakdown" (RPB) by Lars Maag / "shariva",
-the sister tool of the CLA (see `reference/cla/`):
+the sister tool of the CLA (see `scripts/data-sources/cla/`):
 
 - Template/master read here: `1vTE7E1EpWu_DjwoHcVcDrWBb_A3FLYKIUO2YWMOsXQ4` (version **1.6.0b**, 28.06.2026)
 - Author: Lars Maag — Discord `Shariva#8127` / https://discord.gg/nGvt5zH — maag.lars+rpb@gmail.com
@@ -12,7 +12,7 @@ the sister tool of the CLA (see `reference/cla/`):
 Same situation as the CLA: the actual computation logic is **Google Apps Script** bound
 to the spreadsheet (Extensions → Apps Script), **not** cell formulas. The master sheet is
 read-only for everyone, so the script can only be obtained from a personal *copy* of the
-sheet via `clasp clone <scriptId>`. Cloned sources go to `reference/rpb/appsscript/`,
+sheet via `clasp clone <scriptId>`. Cloned sources go to `scripts/data-sources/rpb/appsscript/`,
 which is git-ignored (same as the CLA one).
 
 RPB pulls its raw data from the **Warcraft Logs API v1** (the "V1 Client Key" from the

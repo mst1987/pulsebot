@@ -17,7 +17,16 @@
         "register:clear": "node scripts/register-commands.js --clear",
         "register:dev": "node scripts/register-commands.js --dev",
         "agents": "node scripts/agent-overview.js",
-        "bis:refresh": "node scripts/fetch-wowhead-bis.js && node scripts/fetch-wowsims-data.js && node scripts/fetch-wowhead-bis.js"
+        "bis:refresh": "node scripts/fetch-wowhead-bis.js && node scripts/fetch-wowsims-data.js && node scripts/fetch-wowhead-bis.js",
+        "emojis:sync": "node scripts/sync-app-emojis.js",
+        "emojis:render": "node scripts/render-ui-emojis.js",
+        "data:rpb": "node scripts/build-rpb-data.js",
+        "data:cla": "node scripts/build-cla-data.js",
+        "data:loot": "node scripts/fetch-tbc-loot.js && node scripts/fetch-tbc-loot-names.js",
+        "data:icons": "node scripts/fetch-boss-icons.js && node scripts/fetch-mob-icons.js",
+        "setup:wowsimcli": "node scripts/fetch-wowsimcli.js",
+        "dev:seed": "node scripts/seed-test-raid.js",
+        "check:main": "node scripts/check-main-clean.js"
     },
     "nodemonConfig": {
         "ignore": ["data/", "src/web-client/", "test/", "coverage/"]

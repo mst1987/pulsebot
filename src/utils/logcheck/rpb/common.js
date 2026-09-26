@@ -1,6 +1,6 @@
 // Shared helpers for the RPB (Role Performance Breakdown) analyzers.
 //
-// Ported from the RPB Apps Script (reference/rpb/appsscript/). The original is one
+// Ported from the RPB Apps Script (scripts/data-sources/rpb/appsscript/). The original is one
 // 4.6k-line function that writes straight into a spreadsheet; here the analysis is
 // split per topic and returns plain data.
 const rpbData = require("../../../config/rpbData");

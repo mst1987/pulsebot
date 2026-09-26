@@ -1,5 +1,7 @@
 # Role permissions (who may see/do what)
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#einstellungen](guide-web-admin.md#einstellungen).
+
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
 
 - **Configured** in Einstellungen → *Berechtigungen*: per Discord role, a read and a write toggle per area, stored as `config.rolePermissions = { [roleId]: { [areaId]: { read, write } } }` (settingsStore). A member's rights are the **union** over all their roles.

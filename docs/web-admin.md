@@ -1,5 +1,7 @@
 # Web Admin (`src/web/`, `src/web-client/`)
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#übersicht--dashboard](guide-web-admin.md#übersicht--dashboard).
+
 The bot ships its website as a **single React SPA** — `src/web-client/` (Vite + TypeScript), built to `dist/` and served as static files by `src/web/staticClient.js` **from the site root**. The SPA talks to `src/web/apiRoutes/*.js` (`/api/*`, JSON, dispatched by `apiRouter.js`) for everything — there is no server-rendered admin UI anymore.
 
 **Why the root, and what that means for routing.** The menu used to live under `/admin` (and `/admin2` before that), but members open it to look up loot — a link reading `/admin/history` told them they were somewhere they should not be. So `server.js` matches the paths that own themselves first (`/api/*`, `/auth/*`, `/health`, the public `/r/<id>` report pages) and hands **everything else** to `staticClient.js`; `/admin/*` and `/admin2/*` 302-redirect to the same path at the root, so old bookmarks and links already posted in Discord keep working. Consequences worth knowing:
@@ -81,3 +83,7 @@ Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment
 - **Recruitment opens its editors as modals over the list** instead (design #215): same url params, but the editor is a `Modal` with the live Discord preview (`components/DiscordPreview.tsx`, markdown parsed by `lib/discordMarkdown.ts`, whose regexes are held identical to the tested twin `src/utils/discordMarkdown.js`) beside the fields, so the other templates stay in view. `?editpost=new` is the "Nachricht posten" dialog. A post remembers the `templateId` it was posted from; an application's `status` ("neu" = younger than 7 days, nothing stored) and class/spec icons come from `src/web/recruitmentApplications.js`.
 
 `test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
+
+## The help page `/docs` (`src/web/docsPage.js`)
+
+`/docs` is server-rendered (`render.js` layout, reachable without a login, linked from the topbar). Its content is **not** read from `docs/guide-discord.md` / `docs/guide-web-admin.md`: `DISCORD_GROUPS` and `WEB_GROUPS` in `docsPage.js` are a third, hand-written copy of the same outline (shorter, HTML strings). A change a raider or the orga should see belongs in the guide **and** in `docsPage.js`. `test/web/docsPage.test.js` checks that every slash command the page names is registered (the loader test does the same for the Discord guide); nothing checks the rest of the text against the guides.

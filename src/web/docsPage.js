@@ -31,7 +31,7 @@ const DISCORD_GROUPS = [
         "Status-Buttons direkt an der Nachricht: <strong>Spät · Vielleicht · Bank · Absagen</strong> — ohne den vollen Dialog.",
         "Auf der Talk-Server-Übersicht: <strong>„Für alle Raids anmelden“</strong> bzw. „Mehrere Raids wählen …“ für mehrere Termine auf einmal.",
         "Noch kein Charakter im Bot? Der Dialog fragt beim ersten Mal nach Klasse/Spec/Name und legt ihn automatisch an.",
-        "<code>/profile</code> (<code>/profil</code>) — Profil-Zusammenfassung, „kann Offtank/Heilen“-Buttons, Link zur Profilseite.",
+        "<code>/profil</code> — Profil-Zusammenfassung, „kann Offtank/Heilen“-Buttons, Link zur Profilseite.",
     ] },
     { cat: "raids", title: "Setup (Gruppeneinteilung)", items: [
         "Erst sichtbar, sobald die Orga es <strong>freigibt</strong> — vorher sieht kein Raider etwas.",
@@ -51,7 +51,7 @@ const DISCORD_GROUPS = [
     { cat: "raids", title: "Event-Verwaltung", badge: "Orga", items: [
         "<code>/event anlegen</code> — neues Event per geführtem Dialog.",
         "<code>/event verwalten [Event]</code> bzw. Rechtsklick „Event verwalten“ — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen, löschen.",
-        "<code>/saveraid</code> — Setup/Raidplan ins Sheet übernehmen.",
+        "<code>/fillsetup [Setup-ID]</code> — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).",
         "<code>/createoverview</code>, <code>/update-events</code> — ältere Befehle, durch die Talk-Übersicht ersetzt.",
     ] },
     { cat: "auto", title: "Was der Bot automatisch macht", items: [
