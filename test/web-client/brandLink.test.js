@@ -14,7 +14,7 @@ describe("brand link", () => {
         // the account may open — so the brand never needs to know either.
         const brand = shellSrc.match(/<Link className="brand"[\s\S]*?<div className="crest">/);
         expect(brand).not.toBeNull();
-        expect(brand[0]).toContain('to="/"');
+        expect(brand[0]).toContain("to=\"/\"");
         expect(brand[0]).toContain("aria-label=");
         expect(shellSrc).toContain("</Link>");
     });

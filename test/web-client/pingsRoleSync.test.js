@@ -27,11 +27,11 @@ describe("Wohin in the raid-detail modals", () => {
     it("is one compact segment, rendered only when the server offers the talk server", () => {
         expect(targetField).toContain("const options = pingTargetOptions(info);");
         expect(targetField).toContain("if (!options.length) return null;");
-        expect(targetField).toContain('<Segment size="sm" ariaLabel={t("raidModals.target.label")}');
+        expect(targetField).toContain("<Segment size=\"sm\" ariaLabel={t(\"raidModals.target.label\")}");
         expect(require("./i18nHelper").makeT("de")("raidModals.target.label")).toBe("Wohin");
         for (const modal of [pingModal, notifyModal]) {
             expect(modal).toContain("<TargetField info={data.pingTargets} value={target} onChange={setTarget} />");
-            expect(modal).toContain('useState<PingTarget>("event")');
+            expect(modal).toContain("useState<PingTarget>(\"event\")");
             // The head says where it goes; no extra line under the form.
             expect(modal).toContain("hint={targetHint(target, channel, data.pingTargets)}");
         }
@@ -40,8 +40,8 @@ describe("Wohin in the raid-detail modals", () => {
 
 describe("Rollen-Abgleich part", () => {
     it("loads from the endpoint the router serves, full-admin gated in the access table", () => {
-        expect(api).toContain('get<RoleSyncData>("/api/settings/role-sync")');
-        expect(api).toContain('get<RemindersData>("/api/settings/reminders")');
+        expect(api).toContain("get<RoleSyncData>(\"/api/settings/role-sync\")");
+        expect(api).toContain("get<RemindersData>(\"/api/settings/reminders\")");
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/role-sync"]).toBe("settings");
         expect(AREA_BY_PATH["/api/settings/reminders"]).toBe("settings");
@@ -85,6 +85,6 @@ describe("Erinnerungen part", () => {
 
 describe("dashboard task", () => {
     it("knows the role-sync task id", () => {
-        expect(api).toContain('"sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync"');
+        expect(api).toContain("\"sheet\" | \"recommendations\" | \"logs\" | \"inbox\" | \"channels\" | \"rolesync\"");
     });
 });

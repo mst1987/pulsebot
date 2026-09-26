@@ -655,8 +655,8 @@ describe("the pages", () => {
     it("shares one workspace between the event plan and the template, with no second copy of the drag", () => {
         expect(tab).toContain("<BoardWorkspace");
         expect(tpl).toContain("<BoardWorkspace");
-        expect(tab).toContain('mode="event"');
-        expect(tpl).toContain('mode="template"');
+        expect(tab).toContain("mode=\"event\"");
+        expect(tpl).toContain("mode=\"template\"");
         for (const src of [tab, tpl]) expect(stripComments(src)).not.toContain("addEventListener");
     });
 

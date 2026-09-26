@@ -253,7 +253,7 @@ describe("setup editor page", () => {
     });
 
     it("has an optional compact view (off by default, remembered per browser) and a top row of three boxes", () => {
-        expect(editor).toContain('localStorage.getItem(COMPACT_KEY) === "1"');
+        expect(editor).toContain("localStorage.getItem(COMPACT_KEY) === \"1\"");
         expect(editor).toMatch(/se-editor\$\{compact \? " se-compact" : ""\}/);
         // the bar and the channel line across the full width; under them left the ping message over the summary, right the raider panel
         expect(editor).toMatch(/<div className="se-bar">[\s\S]*?<PublishLine[\s\S]*?className="se-topline">\s*<div className="se-topleft">\s*<PingTextField[\s\S]*?<Summary[\s\S]*?<\/div>\s*\{inspectedPerson \? <SlotTip[\s\S]*?<TipEmpty/);
@@ -269,7 +269,7 @@ describe("setup editor page", () => {
         // compact enough that the worst case (7 raid buffs, 4 reasons) fits — checked in a real browser, not just here
         expect(css).toMatch(/\.se-tip \{[^}]*font-size: 13\.5px/);
         expect(css).toMatch(/\.se-tip-buff \.wi \{ width: 22px/);
-        expect(editor).toContain('t("setup.person.tip.bringsGroupShort", { count: b.count })');
+        expect(editor).toContain("t(\"setup.person.tip.bringsGroupShort\", { count: b.count })");
         expect(editor).not.toMatch(/title=\{`\$\{b\.label\}/);
         expect(css).toMatch(/\.se-topline > \* \{[^}]*overflow: hidden/);
         // readable: every figure and setting is a bordered tile of its own, and the quiet buttons keep a visible fill and outline
@@ -281,12 +281,12 @@ describe("setup editor page", () => {
         // the panel: a header across the whole width, three columns under it (brings · why · attendance details)
         expect(css).toMatch(/\.se-tip \{[^}]*grid-template-columns: minmax\(0, 1\.3fr\) minmax\(0, 1\.2fr\) minmax\(0, \.9fr\); grid-template-rows: auto minmax\(0, 1fr\)/);
         expect(css).toMatch(/\.se-tip-top \{ grid-column: 1 \/ -1;/);
-        expect(editor).toContain('<header className="se-tip-top">');
+        expect(editor).toContain("<header className=\"se-tip-top\">");
         // the attendance is the big number of the header, its details are a column of their own
         expect(editor).toMatch(/<header className="se-tip-top">[\s\S]*?<AttendanceHead a=\{attendance\} \/>[\s\S]*?<\/header>[\s\S]*?<AttendanceDetails a=\{attendance\} \/>/);
         expect(css).toMatch(/\.se-tip-att b \{[^}]*font-size: 28px/);
         expect(css).toMatch(/\.se-tip \{ font-family: inherit; font-size: 13\.5px;/);
-        expect(editor).toContain('<span className="se-pingtext-hint">');
+        expect(editor).toContain("<span className=\"se-pingtext-hint\">");
         expect(css).toMatch(/\.se-bar-hint \{ display: none; \}/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*overflow-y: auto/);
         expect(css).not.toMatch(/\.se-tip \{[^}]*max-height/);
@@ -549,7 +549,7 @@ describe("the raider tooltip and the drag glow", () => {
 
         it("has a Suche button in the bar, a dialog with the editable message and a post button, in both languages", () => {
             const src = read("pages", "raid-detail", "SetupEditor.tsx");
-            expect(src).toContain('setDialog("search")');
+            expect(src).toContain("setDialog(\"search\")");
             expect(src).toContain("function SearchModal(");
             expect(src).toContain("postRaidSearch(ctx.csrfToken, ctx.eventId, text)");
             expect(src).toContain("previewRaidSearch(ctx.csrfToken, ctx.eventId,");
@@ -591,7 +591,7 @@ describe("the raider tooltip and the drag glow", () => {
         // a phone: one column, the buffs in a grid of two — with a reserved height, so hovering never moves the groups under the pointer
         expect(css).toMatch(/@media \(max-width: 600px\) \{\s*\.se-tip \{ grid-template-columns: minmax\(0, 1fr\); padding: 14px 14px; min-height: 500px; \}/);
         expect(css).toMatch(/\.se-tip-buffs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-        expect(read("pages", "raid-detail", "SetupEditor.tsx")).toContain('<div className="se-tip-buffs">');
+        expect(read("pages", "raid-detail", "SetupEditor.tsx")).toContain("<div className=\"se-tip-buffs\">");
     });
 
     it("draws the lock as an overlay that takes no width from the raider's name", () => {
@@ -607,12 +607,12 @@ describe("the raider tooltip and the drag glow", () => {
         const src = read("pages", "raid-detail", "SetupEditor.tsx");
         expect(src).toContain("function benchText(");
         // the row is an icon and the date ("–" for never); the sentence is the tooltip
-        expect(src).toContain('t("setup.person.tip.lastBench", { date: bench })');
-        expect(src).toContain('t("setup.person.tip.benchNever", { count: a.benchNights })');
+        expect(src).toContain("t(\"setup.person.tip.lastBench\", { date: bench })");
+        expect(src).toContain("t(\"setup.person.tip.benchNever\", { count: a.benchNights })");
         expect(src).toContain("<BenchIcon />{bench}");
         // the character link is the Auto badge or the check mark, with the sentence as its tooltip, not a line of text
-        expect(src).toContain('data-tip={t("setup.person.tip.linkAuto")}>{t("setup.person.tip.autoBadge")}');
-        expect(src).not.toContain('<span className="se-tip-sub">{a.link === "manual"');
+        expect(src).toContain("data-tip={t(\"setup.person.tip.linkAuto\")}>{t(\"setup.person.tip.autoBadge\")}");
+        expect(src).not.toContain("<span className=\"se-tip-sub\">{a.link === \"manual\"");
         // nothing to say without an earlier night
         expect(src).toMatch(/if \(!a \|\| !a\.benchNights\) return "";/);
         expect(makeT("de")("setup.person.tip.lastBench", { date: "12.09.2026" })).toBe("Zuletzt auf der Bank: 12.09.2026");
@@ -641,7 +641,7 @@ describe("the raider tooltip and the drag glow", () => {
         it("has a toggle per role the class can take besides the setup's, a pill on the tile, and texts in both languages", () => {
             const src = read("pages", "raid-detail", "SetupEditor.tsx");
             expect(src).toContain("saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on)");
-            expect(src).toContain('(["tank", "healer"] as const).filter((r) => r !== p.role');
+            expect(src).toContain("([\"tank\", \"healer\"] as const).filter((r) => r !== p.role");
             expect(src).toContain("ui.extraRoles[p.userId]");
             expect(src).toContain("aria-pressed={on}");
             // the bench is not marked: only a raider in the setup can be an extra

@@ -47,8 +47,8 @@ describe("class colours", () => {
 
     it("catches the shape it is meant to catch", () => {
         // Damit der Scan nicht stillschweigend nichts mehr prüft.
-        expect(overwrittenClassNames('<button className="x" {...classColorProps(c)}>')).toHaveLength(1);
-        expect(overwrittenClassNames('<b {...classColorProps(c)}>')).toEqual([]);
-        expect(overwrittenClassNames('<b className="x" style={classColorProps(c).style}>')).toEqual([]);
+        expect(overwrittenClassNames("<button className=\"x\" {...classColorProps(c)}>")).toHaveLength(1);
+        expect(overwrittenClassNames("<b {...classColorProps(c)}>")).toEqual([]);
+        expect(overwrittenClassNames("<b className=\"x\" style={classColorProps(c).style}>")).toEqual([]);
     });
 });

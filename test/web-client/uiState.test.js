@@ -36,8 +36,8 @@ describe("persistedState hooks", () => {
     it("keeps view preferences and form drafts in separate stores", () => {
         // A draft is transient by design (sessionStorage): a loot export pasted
         // today must not greet the admin again next week, while a chosen tab must.
-        expect(persistedState).toContain('const PREFIX = "eh-";');
-        expect(persistedState).toContain('const DRAFT_PREFIX = "eh-draft-";');
+        expect(persistedState).toContain("const PREFIX = \"eh-\";");
+        expect(persistedState).toContain("const DRAFT_PREFIX = \"eh-draft-\";");
         expect(persistedState).toMatch(/session \? window\.sessionStorage : window\.localStorage/);
         // usePersistedState never touches the session store...
         const viewHook = persistedState.match(/export function usePersistedState[\s\S]*?\n}/)[0];
