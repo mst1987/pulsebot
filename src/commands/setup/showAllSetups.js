@@ -1,5 +1,5 @@
 ﻿const { getSetupsFromEvents } = require("../../utils/raidhelper");
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const { setupResponse } = require("../../utils/responses");
@@ -11,6 +11,9 @@ module.exports = {
     description: "Zeigt alle Setups dieser Kategorie",
     group: "raids",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("show-allsetups")
+        .setDescription("Show all setups for the current category"),
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

@@ -2,6 +2,7 @@
 // Other raiders' attendance is /anwesenheit-raider, a command of its own so the
 // two can carry different access: everyone may look at themselves, looking at
 // others is the raid lead's business.
+const { SlashCommandBuilder } = require("discord.js");
 const { myCharacters } = require("../../web/userCharacters");
 const { characterAttendance, overall, attendanceFields } = require("../../web/attendanceLookup");
 const { buildAttendanceContext } = require("../../web/rosterAttendance");
@@ -30,6 +31,9 @@ module.exports = {
     description: "Deine Anwesenheit in den letzten Raids je Raid-Kategorie.",
     group: "raids",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("anwesenheit")
+        .setDescription("Deine Anwesenheit in den letzten Raids"),
     attendanceReply,
     async execute(interaction) {
         const chars = myCharacters(interaction.user.id);

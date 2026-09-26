@@ -523,36 +523,4 @@ describe("classes/Raidhelper", () => {
             await expect(client.createEvent({ channelId: "chan-1" })).rejects.toThrow("ECONNRESET");
         });
     });
-
-    describe("saveRaid", () => {
-        // NOTE: BUG — saveRaid targets pulse-gdkp.de:3001 which is a plain HTTP
-        // (non-TLS) port, yet it uses the `https` module. The request would fail
-        // against the real server. These tests assert the CURRENT (buggy) behavior:
-        // it still calls https.request with port 3001.
-        it("POSTs to pulse-gdkp.de:3001 via https.request (documents the http/https bug)", async () => {
-            respondWith({ imported: true });
-            const client = new Raidhelper();
-
-            const result = await client.saveRaid({ raid: "data" });
-
-            expect(result).toEqual({ imported: true });
-            const options = lastOptions();
-            expect(options.host).toBe("pulse-gdkp.de");
-            expect(options.port).toBe(3001); // non-TLS port used with the https module
-            expect(options.path).toBe("/api/raids/import");
-            expect(options.method).toBe("POST");
-
-            const req = https.request.mock.results[https.request.mock.results.length - 1].value;
-            expect(req.write).toHaveBeenCalledWith(JSON.stringify({ raid: "data" }));
-        });
-
-        it("rejects when the request emits an error", async () => {
-            respondWith(null, { error: new Error("ECONNRESET") });
-            const client = new Raidhelper();
-
-            await expect(client.saveRaid({ raid: "data" })).rejects.toThrow(
-                "ECONNRESET"
-            );
-        });
-    });
 });

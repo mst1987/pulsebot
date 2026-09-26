@@ -1,4 +1,4 @@
-const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
 
 // Accepts a full message link or a bare message id (then read from the given fallback channel).
 function parseMessageRef(input, fallbackChannelId) {
@@ -12,6 +12,11 @@ module.exports = {
     description: "Postet eine Nachricht mit Bewerben-Button in einen Channel",
     group: "recruitment",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("createapplication")
+        .setDescription("Postet eine Nachricht mit Bewerben-Button in einen Channel")
+        .addStringOption((o) => o.setName("message_id").setDescription("Message-ID (aus diesem Channel) oder voller Nachrichten-Link").setRequired(true))
+        .addChannelOption((o) => o.setName("channel").setDescription("Ziel-Channel für die Bewerbungs-Nachricht").setRequired(true)),
     async execute(interaction, client) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

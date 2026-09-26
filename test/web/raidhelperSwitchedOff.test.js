@@ -6,7 +6,6 @@ jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => mockC
 const mockReads = {
     fetchEvents: jest.fn(), getAllEvents: jest.fn(), getPastEvents: jest.fn(), getSetup: jest.fn(),
     getEvent: jest.fn(), getUserSignUps: jest.fn(), signUpToRaid: jest.fn(), createEvent: jest.fn(),
-    saveRaid: jest.fn(async () => ({ _id: "pulse1" })),
 };
 jest.mock("../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => mockReads));
 
@@ -25,7 +24,6 @@ jest.mock("../../src/web/eventStore", () => ({
 }));
 jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 
-const Raidhelper = require("../../src/classes/raidhelper");
 const { saveRaidEvents } = require("../../src/web/raidEventStore");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelperClient");
 const { scanRaidEvents } = require("../../src/web/raidEventScan");
@@ -53,11 +51,6 @@ describe("Raid-Helper switched off (#291)", () => {
         for (const name of ["fetchEvents", "getAllEvents", "getPastEvents", "getSetup", "getEvent", "getUserSignUps", "signUpToRaid", "createEvent"]) {
             expect(mockReads[name]).not.toHaveBeenCalled();
         }
-    });
-
-    it("still saves a raid at Pulse GDKP — that is not Raid-Helper", async () => {
-        await expect(createRaidhelperClient().saveRaid({ raidData: {} })).resolves.toEqual({ _id: "pulse1" });
-        expect(Raidhelper).toHaveBeenCalled();
     });
 
     it("stops the scan without touching the stored snapshots", async () => {

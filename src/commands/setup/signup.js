@@ -1,3 +1,4 @@
+const { SlashCommandBuilder } = require("discord.js");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
 const { publicBaseUrl } = require("../../utils/publicUrl");
@@ -14,6 +15,10 @@ module.exports = {
     description: "Meldet dich zum Raid in diesem Kanal an",
     group: "signup",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("signup")
+        .setDescription("Sign up to the raid in this channel")
+        .addStringOption((o) => o.setName("specs").setDescription("Specs to sign up with, comma-separated (e.g. Combat,Fire,RestoDruid)").setRequired(true)),
     async execute(interaction, client) {
         const own = ownEventInChannel(interaction.channel && interaction.channel.id);
         if (own) {

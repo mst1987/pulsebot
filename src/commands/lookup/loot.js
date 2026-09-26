@@ -2,6 +2,7 @@
 // answer with a link to Historie & Loot (issue #265). The numbers come from the
 // same functions the web pages use (lootStore, lootStats), never from a second
 // reading of the loot file.
+const { SlashCommandBuilder } = require("discord.js");
 const { listByCharacter } = require("../../web/lootStore");
 const { itemCatalog } = require("../../web/lootStats");
 const { annotatedCharacters } = require("../../web/characterInfo");
@@ -126,6 +127,14 @@ module.exports = {
     description: "Loot nachschlagen: dein Loot, wer ein Item bekam, was ein Raider bekam.",
     group: "loot",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("loot")
+        .setDescription("Loot nachschlagen")
+        .addSubcommand((s) => s.setName("ich").setDescription("Dein Loot (über deine zugeordneten Charaktere)"))
+        .addSubcommand((s) => s.setName("item").setDescription("Wer ein Item wann bekommen hat")
+            .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true)))
+        .addSubcommand((s) => s.setName("raider").setDescription("Was ein Raider bekommen hat")
+            .addStringOption((o) => o.setName("name").setDescription("Charaktername").setRequired(true).setAutocomplete(true))),
     MAX_ROWS,
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
