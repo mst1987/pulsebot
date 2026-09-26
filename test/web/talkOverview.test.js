@@ -30,13 +30,15 @@ const {
         buildOverviewMessage, formatStart, payloadHash, overviewLinks,
     },
 } = require("../../src/web/talkOverview");
+const { event: baseEvent } = require("../factories/events");
+const { makeClient, makeChannel } = require("../helpers/discordClient");
 
 const NOW = Date.UTC(2026, 8, 16, 12, 0); // Wed 16.09.2026 14:00 Berlin
 const sec = (y, m, d, h, min) => Math.floor(Date.UTC(y, m - 1, d, h, min) / 1000);
 
-const ev = (over = {}) => ({
-    id: "e1", source: "raidhelper", title: "SSC + TK", startTime: sec(2026, 9, 17, 17, 30),
-    channelId: "c1", channelName: "mi-17-09-ssc-tk", signUps: [], ...over,
+const ev = (over = {}) => baseEvent({
+    source: "raidhelper", title: "SSC + TK", startTime: sec(2026, 9, 17, 17, 30),
+    channelName: "mi-17-09-ssc-tk", signUps: [], ...over,
 });
 const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ userId: String(i), specName: "Arcane", status }));
 
@@ -178,13 +180,14 @@ describe("web/talkOverview — buildOverviewMessage", () => {
 
 function fakeDiscord({ fetchError, sendId = "m-new" } = {}) {
     const message = { id: "m1", edit: jest.fn(), delete: jest.fn() };
-    const channel = {
+    // m1 is the overview already there; a post answers `sendId`, which later syncs fetch again
+    const channel = makeChannel({
         id: "ov",
-        isTextBased: () => true,
         send: jest.fn(() => Promise.resolve({ id: sendId })),
-        messages: { fetch: jest.fn(() => (fetchError ? Promise.reject(fetchError) : Promise.resolve(message))) },
-    };
-    discord.getClient.mockReturnValue({ channels: { fetch: jest.fn(() => Promise.resolve(channel)) } });
+        messages: [message, [sendId, message]],
+    });
+    if (fetchError) channel.messages.fetch.mockRejectedValue(fetchError);
+    discord.getClient.mockReturnValue(makeClient({ channels: [channel] }));
     return { channel, message };
 }
 

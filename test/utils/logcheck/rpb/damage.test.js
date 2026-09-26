@@ -6,6 +6,7 @@ const {
     MAX_ABILITIES,
 } = require("../../../../src/utils/logcheck/rpb/damage");
 const rpbData = require("../../../../src/config/rpbData");
+const { makeWcl: wclDouble } = require("../../../factories/wcl");
 
 const fights = {
     end: 10000,
@@ -102,7 +103,7 @@ describe("rpb/damage reflectFilter", () => {
 
 describe("rpb/damage analyzeDamage", () => {
     function makeWcl(overrides = {}) {
-        return {
+        return wclDouble({
             getDamageTaken: jest.fn(async (id, s, e, opts = {}) => {
                 if (opts.by === "ability") {
                     return {
@@ -124,7 +125,7 @@ describe("rpb/damage analyzeDamage", () => {
                     : { entries: [{ name: "Tank" }, { name: "Tank" }, { name: "Heal" }] }
             )),
             ...overrides,
-        };
+        });
     }
 
     test("builds per-player rows with avoidable totals, reflect, hostile and deaths", async () => {

@@ -1,28 +1,37 @@
 const { ChannelType } = require("discord.js");
 const discord = require("../../src/web/discord.js");
+const dc = require("../helpers/discordClient");
 
 // Build a fake channel as it appears in guild.channels.cache.
 function chan(id, name, type, { parent = null, parentId = "", rawPosition = 0 } = {}) {
-    return { id, name, type, parent, parentId, rawPosition };
+    return dc.makeChannel({ id, name, type, parent, parentId, rawPosition });
 }
 
-// Build a fake guild with a channel cache and a jest-mocked create().
+// Build a fake guild "g1" with a channel cache and a create() that echoes the name.
 function makeGuild(channels) {
-    return {
-        members: { me: null },
-        channels: {
-            cache: new Map(channels.map((c) => [c.id, c])),
-            create: jest.fn(async (payload) => ({ id: "new-chan", name: payload.name, __payload: payload })),
-        },
-    };
+    const guild = dc.makeGuild({ id: "g1", channels, me: null });
+    guild.channels.create = jest.fn(async (payload) => ({ id: "new-chan", name: payload.name, __payload: payload }));
+    return guild;
 }
 
+/** A guild "g1" whose members.fetch is `fetch` (and whose cache holds `cached`). */
+function guildWithMemberFetch(fetch, cached = []) {
+    const guild = dc.makeGuild({ id: "g1", members: cached });
+    guild.members.fetch = fetch;
+    return guild;
+}
+
+// The client on guild "g1" (or none); `channelsFetch` replaces its channels.fetch.
 function setClientWithGuild(guild, channelsFetch) {
-    const client = {
-        guilds: { cache: new Map(guild ? [["g1", guild]] : []) },
-        channels: { fetch: channelsFetch || jest.fn() },
-        user: { id: "bot" },
-    };
+    const client = dc.makeClient({ guilds: guild ? [["g1", guild]] : [] });
+    if (channelsFetch) client.channels.fetch = channelsFetch;
+    discord.setClient(client);
+    return client;
+}
+
+// The client on an empty guild "g1" with exactly these channels.
+function setClientWithChannels(...channels) {
+    const client = dc.makeClient({ guilds: [makeGuild([])], channels });
     discord.setClient(client);
     return client;
 }
@@ -40,52 +49,56 @@ describe("web/discord client access", () => {
 
         it("asks the client whether it is logged in, when it can say so", () => {
             let ready = false;
-            discord.setClient({ isReady: () => ready });
+            discord.setClient(dc.makeClient({ isReady: () => ready }));
             expect(discord.isOnline()).toBe(false);
             ready = true;
             expect(discord.isOnline()).toBe(true);
         });
 
         it("counts a client without isReady() as there", () => {
-            discord.setClient({ channels: {} });
+            discord.setClient(dc.makeClient({ isReady: undefined }));
             expect(discord.isOnline()).toBe(true);
         });
     });
 
     describe("fetchTextChannel", () => {
-        const textChannel = { id: "c1", isTextBased: () => true };
+        const textChannel = dc.makeChannel({ id: "c1" });
 
         it("throws 'Bot nicht verbunden.' without a client", async () => {
             await expect(discord.fetchTextChannel("c1")).rejects.toMatchObject({ message: "Bot nicht verbunden.", code: "bot_offline" });
         });
 
         it("returns the text channel the client fetches, the id as a string", async () => {
-            const fetch = jest.fn(async () => textChannel);
-            discord.setClient({ channels: { fetch } });
-            await expect(discord.fetchTextChannel(12345)).resolves.toBe(textChannel);
+            const channel = dc.makeChannel({ id: "12345" });
+            const { fetch } = setClientWithChannels(channel).channels;
+            await expect(discord.fetchTextChannel(12345)).resolves.toBe(channel);
             expect(fetch).toHaveBeenCalledWith("12345");
         });
 
         it("refuses a missing channel and one that holds no messages, with the caller's text", async () => {
-            const fetch = jest.fn()
-                .mockResolvedValueOnce(null)
-                .mockResolvedValueOnce({ id: "v1", isTextBased: () => false })
-                .mockResolvedValueOnce({ id: "cat" });
-            discord.setClient({ channels: { fetch } });
+            discord.setClient(dc.makeClient({
+                missing: "null",
+                channels: [
+                    dc.makeChannel({ id: "v1", type: ChannelType.GuildVoice }),
+                    dc.makeChannel({ id: "cat", type: ChannelType.GuildCategory }),
+                ],
+            }));
             await expect(discord.fetchTextChannel("x")).rejects.toMatchObject({ message: "Kanal nicht gefunden oder kein Textkanal.", code: "channel_not_found" });
             await expect(discord.fetchTextChannel("v1", "Übersichts-Kanal fehlt.")).rejects.toThrow("Übersichts-Kanal fehlt.");
             await expect(discord.fetchTextChannel("cat")).rejects.toMatchObject({ code: "channel_not_found" });
         });
 
         it("passes Discord's own errors through", async () => {
-            const unknown = Object.assign(new Error("Unknown Channel"), { code: 10003 });
-            discord.setClient({ channels: { fetch: jest.fn().mockRejectedValue(unknown) } });
+            const unknown = dc.discordError("channel");
+            const client = dc.makeClient();
+            client.channels.fetch.mockRejectedValue(unknown);
+            discord.setClient(client);
             await expect(discord.fetchTextChannel("gone")).rejects.toBe(unknown);
         });
 
         it("textChannelOf works on any client handed in", async () => {
             await expect(discord.textChannelOf(null, "c1")).rejects.toThrow("Bot nicht verbunden.");
-            await expect(discord.textChannelOf({ channels: { fetch: async () => textChannel } }, "c1")).resolves.toBe(textChannel);
+            await expect(discord.textChannelOf(dc.makeClient({ channels: [textChannel] }), "c1")).resolves.toBe(textChannel);
         });
     });
 });
@@ -244,7 +257,7 @@ describe("web/discord channel management", () => {
             return { id, name, animated, available, imageURL, url };
         }
         function guildWithEmojis(emojis) {
-            return { emojis: { cache: new Map(emojis.map((e) => [e.id, e])) } };
+            return dc.makeGuild({ id: "g1", emojis: { cache: new Map(emojis.map((e) => [e.id, e])) } });
         }
 
         it("returns custom emojis sorted by name with Discord codes and preview URLs", () => {
@@ -283,10 +296,10 @@ describe("web/discord channel management", () => {
     describe("listMembersWithRoles", () => {
         // A fake member with a roles.cache keyed by role id.
         function member(id, displayName, roleIds) {
-            return { id, displayName, user: { username: displayName }, roles: { cache: new Map(roleIds.map((r) => [r, { id: r }])) } };
+            return dc.makeMember({ id, displayName, roleIds });
         }
         function guildWithMembers(members) {
-            return { members: { fetch: jest.fn(async () => new Map(members.map((m) => [m.id, m]))) } };
+            return guildWithMemberFetch(jest.fn(async () => new Map(members.map((m) => [m.id, m]))));
         }
 
         // The member list is cached per guild across calls, so every test starts
@@ -317,7 +330,7 @@ describe("web/discord channel management", () => {
         });
 
         it("degrades gracefully with an error when the fetch fails (missing intent)", async () => {
-            const guild = { members: { fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            const guild = guildWithMemberFetch(jest.fn(async () => { throw new Error("Used disallowed intents"); }));
             setClientWithGuild(guild);
             const res = await discord.listMembersWithRoles("g1", ["r1"]);
             expect(res.members).toEqual([]);
@@ -355,7 +368,7 @@ describe("web/discord channel management", () => {
         });
 
         it("does not cache a failed fetch", async () => {
-            const guild = { members: { fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            const guild = guildWithMemberFetch(jest.fn(async () => { throw new Error("Used disallowed intents"); }));
             setClientWithGuild(guild);
 
             await discord.listMembersWithRoles("g1", ["r1"]);
@@ -369,15 +382,10 @@ describe("web/discord channel management", () => {
     describe("resolveUserNames", () => {
         // A fake member as it appears in guild.members.cache / a fetch() result.
         function fakeMember(id, displayName) {
-            return { id, displayName, user: { username: displayName } };
+            return dc.makeMember({ id, displayName });
         }
         function guildWithCacheAndFetch(cached, fetchResult) {
-            return {
-                members: {
-                    cache: new Map(cached.map((m) => [m.id, m])),
-                    fetch: jest.fn(async () => new Map(fetchResult.map((m) => [m.id, m]))),
-                },
-            };
+            return guildWithMemberFetch(jest.fn(async () => new Map(fetchResult.map((m) => [m.id, m]))), cached);
         }
 
         it("resolves a cache hit without any fetch", async () => {
@@ -408,7 +416,7 @@ describe("web/discord channel management", () => {
         });
 
         it("degrades to an empty map when the bulk fetch fails, never throws", async () => {
-            const guild = { members: { cache: new Map(), fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            const guild = guildWithMemberFetch(jest.fn(async () => { throw new Error("Used disallowed intents"); }));
             setClientWithGuild(guild);
             await expect(discord.resolveUserNames("g1", ["1"])).resolves.toEqual({});
         });
@@ -426,8 +434,7 @@ describe("web/discord channel management", () => {
     describe("postMissingPing", () => {
         it("pings exactly the given users with scoped allowedMentions", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "https://d/m1" }));
-            const channel = { id: "chan", isTextBased: () => true, send };
-            setClientWithGuild(makeGuild([]), jest.fn(async () => channel));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             const res = await discord.postMissingPing("chan", ["1", "2", "2"], "Bitte melden");
             expect(res).toEqual({ channelId: "chan", messageId: "m1", url: "https://d/m1" });
             const payload = send.mock.calls[0][0];
@@ -437,13 +444,13 @@ describe("web/discord channel management", () => {
 
         it("uses a default message when no text is given", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postMissingPing("chan", ["1"], "");
             expect(send.mock.calls[0][0].content).toMatch(/sign up or sign off/);
         });
 
         it("throws when there are no users to ping", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn());
+            setClientWithChannels();
             await expect(discord.postMissingPing("chan", [], "x")).rejects.toThrow("Keine fehlenden Raider");
         });
 
@@ -456,7 +463,7 @@ describe("web/discord channel management", () => {
     describe("postLink", () => {
         it("posts plain content with a link button and no embed", async () => {
             const send = jest.fn(async () => ({ id: "m9", url: "https://d/m9" }));
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             const res = await discord.postLink("chan", { url: "https://sheet/1", title: "Raidsheet – MC", label: "Sheet öffnen" });
             expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
             const payload = send.mock.calls[0][0];
@@ -467,20 +474,20 @@ describe("web/discord channel management", () => {
 
         it("includes the optional message under the title heading", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postLink("chan", { url: "https://sheet/1", title: "X", message: "  Bitte eintragen!  " });
             expect(send.mock.calls[0][0].content).toBe("📄 **X**\nBitte eintragen!");
         });
 
         it("posts only the heading when no message is given", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
             await discord.postLink("chan", { url: "https://sheet/1", title: "X" });
             expect(send.mock.calls[0][0].content).toBe("📄 **X**");
         });
 
         it("throws without a url", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn());
+            setClientWithChannels();
             await expect(discord.postLink("chan", { url: "" })).rejects.toThrow("Kein Link");
         });
 
@@ -497,10 +504,9 @@ describe("web/discord channel management", () => {
 
         it("edits the message in place with the rebuilt payload", async () => {
             const message = botMessage();
-            const fetchMessages = jest.fn(async () => message);
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({
-                id: "chan", isTextBased: () => true, messages: { fetch: fetchMessages },
-            })));
+            const channel = dc.makeChannel({ id: "chan", messages: [message] });
+            const fetchMessages = channel.messages.fetch;
+            setClientWithChannels(channel);
             const res = await discord.editLink("chan", "m9", { url: "https://sheet/1", title: "X", message: "Neu!" });
             expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
             expect(fetchMessages).toHaveBeenCalledWith("m9");
@@ -509,14 +515,12 @@ describe("web/discord channel management", () => {
 
         it("throws when the message wasn't posted by the bot", async () => {
             const message = botMessage({ author: { id: "someoneelse" } });
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({
-                id: "chan", isTextBased: () => true, messages: { fetch: jest.fn(async () => message) },
-            })));
+            setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));
             await expect(discord.editLink("chan", "m9", { url: "https://sheet/1" })).rejects.toThrow("stammt nicht vom Bot");
         });
 
         it("throws without a url", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn());
+            setClientWithChannels();
             await expect(discord.editLink("chan", "m9", { url: "" })).rejects.toThrow("Kein Link");
         });
 
@@ -564,10 +568,10 @@ describe("web/discord channel management", () => {
             const messages = embed
                 ? [{ embeds: [embed] }, { embeds: [{ title: "📊 Parse" }] }] // newest-first from fetch()
                 : [];
-            return {
-                id, name, guildId: "g1", createdTimestamp,
-                messages: { fetch: jest.fn(async () => new Map(messages.map((m, i) => [String(i), m]))) },
-            };
+            return dc.makeChannel({
+                id, name, type: ChannelType.PublicThread, guildId: "g1", createdTimestamp,
+                messages: messages.map((m, i) => [String(i), m]),
+            });
         }
         const embedFor = (char) => ({
             title: `Neue Bewerbung von ${char}`,
@@ -575,20 +579,20 @@ describe("web/discord channel management", () => {
         });
 
         function appChannel(active, archived) {
-            return {
+            return dc.makeChannel({
+                id: "app1",
                 threads: {
                     fetchActive: jest.fn(async () => ({ threads: new Map(active.map((t) => [t.id, t])) })),
                     fetchArchived: jest.fn(async () => ({ threads: new Map(archived.map((t) => [t.id, t])) })),
                 },
-            };
+            });
         }
 
         it("returns active + archived applications parsed and newest-first", async () => {
             const now = Date.now();
             const t1 = appThread("1", "Feuer - Alt", now - 2000, embedFor("Alt"));
             const t2 = appThread("2", "Frost - Neu", now - 1000, embedFor("Neu"));
-            const channel = appChannel([t2], [t1]);
-            setClientWithGuild(makeGuild([]), jest.fn(async () => channel));
+            setClientWithChannels(appChannel([t2], [t1]));
 
             const { applications, error } = await discord.listApplications("app1");
             expect(error).toBeNull();
@@ -604,7 +608,7 @@ describe("web/discord channel management", () => {
             const now = Date.now();
             const recent = appThread("r", "Neu", now - 1000, embedFor("Neu"));
             const old = appThread("o", "Alt", now - (7 * 7 * 24 * 60 * 60 * 1000), embedFor("Alt")); // 7 weeks
-            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel([recent, old], [])));
+            setClientWithChannels(appChannel([recent, old], []));
 
             const { applications } = await discord.listApplications("app1");
             expect(applications.map((a) => a.threadId)).toEqual(["r"]);
@@ -616,7 +620,7 @@ describe("web/discord channel management", () => {
             const base = Date.now();
             const many = Array.from({ length: 12 }, (_, i) =>
                 appThread(String(i), `App ${i}`, base - (i * 1000), embedFor(`C${i}`))); // i=0 newest
-            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel(many, [])));
+            setClientWithChannels(appChannel(many, []));
 
             const { applications } = await discord.listApplications("app1");
             expect(applications).toHaveLength(10);
@@ -629,29 +633,27 @@ describe("web/discord channel management", () => {
         });
 
         it("returns no error and no apps when no channel is configured", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn());
+            setClientWithChannels();
             expect(await discord.listApplications("")).toEqual({ applications: [], error: null });
         });
 
         it("reports an error when the channel cannot be fetched", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn(async () => { throw new Error("nope"); }));
+            setClientWithChannels(); // "app1" is unknown: the fetch rejects
             const res = await discord.listApplications("app1");
             expect(res.applications).toEqual([]);
             expect(res.error).toMatch(/nicht gefunden/);
         });
 
         it("reports an error when the channel has no thread support", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "c", name: "plain" })));
+            setClientWithChannels(dc.makeChannel({ id: "app1", name: "plain" }));
             const res = await discord.listApplications("app1");
             expect(res.error).toMatch(/keine Threads/);
         });
 
         it("still lists a thread whose messages cannot be read (name only)", async () => {
-            const bad = {
-                id: "9", name: "Kaputt", guildId: "g1", createdTimestamp: Date.now() - 1000,
-                messages: { fetch: jest.fn(async () => { throw new Error("boom"); }) },
-            };
-            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel([bad], [])));
+            const bad = appThread("9", "Kaputt", Date.now() - 1000, null);
+            bad.messages.fetch.mockRejectedValue(new Error("boom"));
+            setClientWithChannels(appChannel([bad], []));
             const { applications } = await discord.listApplications("app1");
             expect(applications).toEqual([expect.objectContaining({ threadId: "9", name: "Kaputt", applicantId: "" })]);
         });
@@ -659,12 +661,11 @@ describe("web/discord channel management", () => {
 
     describe("duplicateChannel", () => {
         it("clones the source channel with a new name (same category)", async () => {
-            const source = {
+            const source = dc.makeChannel({
                 id: "src", name: "kara-signup",
                 clone: jest.fn(async (opts) => ({ id: "clone-1", name: (opts && opts.name) || "kara-signup" })),
-            };
-            const fetch = jest.fn(async () => source);
-            setClientWithGuild(makeGuild([]), fetch);
+            });
+            const { fetch } = setClientWithChannels(source).channels;
 
             const res = await discord.duplicateChannel("src", "  kara-signup-2 ");
             expect(fetch).toHaveBeenCalledWith("src");
@@ -673,18 +674,18 @@ describe("web/discord channel management", () => {
         });
 
         it("falls back to the original's name when no new name is given", async () => {
-            const source = {
+            const source = dc.makeChannel({
                 id: "src", name: "orig",
                 clone: jest.fn(async (opts) => ({ id: "clone-1", name: (opts && opts.name) || "orig" })),
-            };
-            setClientWithGuild(makeGuild([]), jest.fn(async () => source));
+            });
+            setClientWithChannels(source);
             const res = await discord.duplicateChannel("src", "");
             expect(source.clone).toHaveBeenCalledWith({ name: "orig" });
             expect(res.name).toBe("orig");
         });
 
         it("throws when the source cannot be cloned", async () => {
-            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "x", name: "y" })));
+            setClientWithChannels(dc.makeChannel({ id: "x", name: "y" }));
             await expect(discord.duplicateChannel("x", "z")).rejects.toThrow("nicht duplizierbar");
         });
 
@@ -699,14 +700,14 @@ describe("web/discord botPermissionsIn", () => {
     const { PermissionsBitField } = require("discord.js");
 
     function withBot({ perms = [], intents = [] } = {}) {
-        const guild = {
-            members: { me: { permissions: new PermissionsBitField(perms.map((p) => PermissionsBitField.Flags[p])) } },
-            channels: { cache: new Map() },
-        };
-        discord.setClient({
-            guilds: { cache: new Map([["g1", guild]]) },
-            options: { intents: { has: (k) => intents.includes(k) } },
+        const guild = dc.makeGuild({
+            id: "g1",
+            me: { permissions: new PermissionsBitField(perms.map((p) => PermissionsBitField.Flags[p])) },
         });
+        discord.setClient(dc.makeClient({
+            guilds: [guild],
+            options: { intents: { has: (k) => intents.includes(k) } },
+        }));
     }
 
     it("lists every required right with whether the bot holds it", () => {
@@ -748,7 +749,7 @@ describe("web/discord ping helpers", () => {
 
     it("posts a long ping as several messages, the text on the last", async () => {
         const send = jest.fn(async () => ({ id: "m", url: "u" }));
-        discordMod.setClient({ channels: { fetch: jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })) } });
+        discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", send })] }));
         const users = Array.from({ length: 120 }, (_, i) => String(100000000000000000n + BigInt(i)));
         await discordMod.postMissingPing("chan", users, "Bitte melden");
         expect(send.mock.calls.length).toBeGreaterThan(1);
@@ -759,7 +760,7 @@ describe("web/discord ping helpers", () => {
 
     it("mentions single users next to the roles of an announcement", async () => {
         const send = jest.fn(async () => ({ id: "m", url: "u" }));
-        discordMod.setClient({ channels: { fetch: jest.fn(async () => ({ id: "chan", guildId: "g", isTextBased: () => true, send })) } });
+        discordMod.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "chan", guildId: "g", send })] }));
         await discordMod.postAnnouncement("chan", { title: "T", body: "B" }, ["r1"], ["u1", "u1"]);
         const payload = send.mock.calls[0][0];
         expect(payload.content).toBe("<@&r1> <@u1>");
@@ -773,9 +774,9 @@ describe("channelVisible (#335)", () => {
     const VIEW = PermissionsBitField.Flags.ViewChannel;
     const SEND = PermissionsBitField.Flags.SendMessages;
     function withChannel(channel) {
-        discord.setClient({ channels: { cache: new Map(channel ? [[channel.id, channel]] : []) } });
+        discord.setClient(dc.makeClient({ channels: channel ? [channel] : [] }));
     }
-    const text = (over = {}) => ({ id: "c1", isTextBased: () => true, guild: { members: { me: { id: "bot" } } }, permissionsFor: () => perms([VIEW, SEND]), ...over });
+    const text = (over = {}) => dc.makeChannel({ id: "c1", guild: { members: { me: { id: "bot" } } }, permissionsFor: () => perms([VIEW, SEND]), ...over });
 
     it("is true for a cached text channel the bot may write in", () => {
         withChannel(text());

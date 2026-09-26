@@ -1,8 +1,5 @@
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireFullAdmin: jest.fn(() => ({ id: "1", name: "Orga", isAdmin: true })),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn(async () => ({})) }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
@@ -21,8 +18,7 @@ const historyImport = require("../../src/web/raidhelperHistoryImport");
 const { getRetirement, postRetirement, postHistoryImport } = require("../../src/web/apiRoutes/raidhelperRetirement");
 const { AREA_BY_PATH } = require("../../src/web/apiAccess");
 
-const mockRes = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const bodyOf = (res) => JSON.parse(res.end.mock.calls[0][0]);
+const { mockRes, status, body } = require("../helpers/http");
 
 describe("apiRoutes/raidhelperRetirement (#291)", () => {
     beforeEach(() => jest.clearAllMocks());
@@ -35,7 +31,7 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
     it("GET answers with the checklist", async () => {
         const res = mockRes();
         await getRetirement({}, res);
-        expect(bodyOf(res).data).toEqual({ checklist: { ready: true, items: [] } });
+        expect(body(res)).toEqual({ checklist: { ready: true, items: [] } });
     });
 
     it("POST switches with the admin's name and answers 409 when not ready", async () => {
@@ -43,13 +39,13 @@ describe("apiRoutes/raidhelperRetirement (#291)", () => {
         const res = mockRes();
         await postRetirement({}, res);
         expect(retirement.setRaidhelperDisabled).toHaveBeenCalledWith(true, { byName: "Orga" });
-        expect(bodyOf(res).data.checklist.disabled).toBe(true);
+        expect(body(res).checklist.disabled).toBe(true);
 
         retirement.setRaidhelperDisabled.mockResolvedValueOnce({ error: "Erst die Pflichtpunkte", code: "not_ready", blockers: ["categories"] });
         readJsonBody.mockResolvedValueOnce({ disabled: true });
         const refused = mockRes();
         await postRetirement({}, refused);
-        expect(refused.writeHead.mock.calls[0][0]).toBe(409);
+        expect(status(refused)).toBe(409);
     });
 
     it("the import is a dry run unless dryRun is false, on the event server", async () => {

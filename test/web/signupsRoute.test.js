@@ -3,11 +3,8 @@
 // Kategorien nach Raider-Rollen, und die Orga-Liste mit Kommentar und „kann auch“.
 
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockGroups = [];
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
@@ -48,31 +45,27 @@ const profiles = require("../../src/web/raiderProfileStore");
 const route = require("../../src/web/apiRoutes/signups");
 const { categoryVisible } = require("../../src/web/signupView");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { mockRes, status, json } = require("../helpers/http");
+const { ownEvent: ownEventFixture } = require("../factories/events");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false, access: { signup: { read: true, write: true } } };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false, access: { signup: { read: true, write: true } } };
 const ORGA = { id: "200000000000000009", name: "Orga", isAdmin: true, access: {} };
 const future = Math.floor(Date.now() / 1000) + 3 * 86400;
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const body = (res) => JSON.parse(res.end.mock.calls[0][0]);
-const status = (res) => res.writeHead.mock.calls[0][0];
-async function call(handler, user, { json = {}, query = "" } = {}) {
+async function call(handler, user, { json: payload = {}, query = "" } = {}) {
     mockUser = user;
-    readJsonBody.mockResolvedValue(json);
+    readJsonBody.mockResolvedValue(payload);
     const res = mockRes();
     await handler({}, res, new URL(`http://x/api?${query}`));
     return res;
 }
 
-const ownEvent = {
-    id: "eh-kara", source: "eventhelper", guildId: "g1", title: "Karazhan PuG", startTime: future, channelId: "c1",
-    categoryId: "cat-kara", versionId: "tbc", instanceIds: ["kara"], size: 10,
-    composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: future - 3600, wishes: true,
+const ownEvent = ownEventFixture({
+    guildId: "g1", title: "Karazhan PuG", startTime: future, channelId: "c1",
+    categoryId: "cat-kara", instanceIds: ["kara"], signupDeadline: future - 3600, wishes: true,
     message: { channelId: "c1", messageId: "m1" },
-};
+});
 
 function groups() {
     const ownSignUps = [...mockSignups.entries()].filter(([k]) => k.startsWith("eh-kara/")).map(([, s]) => ({ ...s, specName: "Arcane" }));
@@ -103,7 +96,7 @@ beforeEach(() => {
 
 describe("GET /api/signups", () => {
     it("listet eigene Events mit Rollenständen und Raid-Helper-Events mit Discord-Link", async () => {
-        const data = body(await call(route.getSignups, ANNA)).data;
+        const data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara", "1400000000000000001"]);
         const [own, rh] = data.events;
         expect(own).toMatchObject({
@@ -120,7 +113,7 @@ describe("GET /api/signups", () => {
     it("zeigt einem Raider nie einen Setup-Entwurf, nur das freigegebene Setup (#263)", async () => {
         const slot = { userId: ANNA.id, character: "Nerathil", classId: "Mage", spec: "Mage-Arcane", role: "ranged" };
         mockEvents.set("eh-kara", { ...ownEvent, setup: { status: "draft", groups: [{ index: 3, slots: [{ ...slot, reasons: ["x"] }] }], bench: [], approved: null } });
-        let data = body(await call(route.getSignups, ANNA)).data;
+        let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toBeNull();
         expect(JSON.stringify(data)).not.toContain("\"index\":3");
 
@@ -129,25 +122,25 @@ describe("GET /api/signups", () => {
             status: "draft", changedSinceApproval: true, groups: [{ index: 3, slots: [slot] }], bench: [],
             approved: { version: 1, groups: [{ index: 2, slots: [slot] }], bench: [] },
         } });
-        data = body(await call(route.getSignups, ANNA)).data;
+        data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events[0].placement).toEqual({ group: 2, character: "Nerathil", spec: "Mage-Arcane", role: "ranged" });
     });
 
     it("zeigt den eigenen Raid-Helper-Status", async () => {
-        const data = body(await call(route.getSignups, BERT)).data;
+        const data = json(await call(route.getSignups, BERT)).data;
         expect(data.events[1].mine).toEqual({ status: "signed", specName: "Arcane" });
     });
 
     it("blendet Kategorien mit Raider-Rollen aus, die das Mitglied nicht hat", async () => {
         mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
         mockRoleIds = ["role-other"];
-        let data = body(await call(route.getSignups, ANNA)).data;
+        let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara"]);
         // …wer dort schon angemeldet ist, sieht das Event trotzdem
-        data = body(await call(route.getSignups, BERT)).data;
+        data = json(await call(route.getSignups, BERT)).data;
         expect(data.events.map((e) => e.id)).toEqual(["eh-kara", "1400000000000000001"]);
         // …und die Orga sieht alles
-        data = body(await call(route.getSignups, ORGA)).data;
+        data = json(await call(route.getSignups, ORGA)).data;
         expect(data.events).toHaveLength(2);
     });
 });
@@ -156,8 +149,8 @@ describe("PUT /api/signups", () => {
     it("schreibt nur die eigene Anmeldung, auch wenn der Body ein anderes Konto nennt", async () => {
         const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", userId: BERT.id, character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
         expect(status(res)).toBe(200);
-        expect(body(res).data.signup).toMatchObject({ character: "Nerathil", specLabel: "Arkan", status: "signed" });
-        expect(body(res).data.counts.dps).toEqual({ n: 1, target: 5 });
+        expect(json(res).data.signup).toMatchObject({ character: "Nerathil", specLabel: "Arkan", status: "signed" });
+        expect(json(res).data.counts.dps).toEqual({ n: 1, target: 5 });
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(true);
         expect(mockSignups.has(`eh-kara/${BERT.id}`)).toBe(false);
     });
@@ -165,7 +158,7 @@ describe("PUT /api/signups", () => {
     it("weist Raid-Helper-Events mit 409 ab", async () => {
         const res = await call(route.putSignup, ANNA, { json: { eventId: "1400000000000000001", character: "Nerathil", spec: "Mage-Arcane" } });
         expect(status(res)).toBe(409);
-        expect(body(res).error.code).toBe("raidhelper");
+        expect(json(res).error.code).toBe("raidhelper");
     });
 
     it("weist ohne Raider-Rolle der Kategorie mit 403 ab – die Orga nicht", async () => {
@@ -174,7 +167,7 @@ describe("PUT /api/signups", () => {
         profiles.addCharacter(ORGA.id, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Orga" });
         const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
         expect(status(res)).toBe(403);
-        expect(body(res).error).toEqual({ code: "raider_role", message: "Für diesen Raid brauchst du eine Raider-Rolle." });
+        expect(json(res).error).toEqual({ code: "raider_role", message: "Für diesen Raid brauchst du eine Raider-Rolle." });
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
 
         const orga = await call(route.putSignup, ORGA, { json: { eventId: "eh-kara", character: "Brokk", spec: "Warrior-Protection", status: "signed" } });
@@ -187,7 +180,7 @@ describe("PUT /api/signups", () => {
     it("weist einen fremden Charakter ab", async () => {
         const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane" } });
         expect(status(res)).toBe(400);
-        expect(body(res).error.code).toBe("character");
+        expect(json(res).error.code).toBe("character");
     });
 
     it("verlangt ein Event", async () => {
@@ -198,7 +191,7 @@ describe("PUT /api/signups", () => {
         mockConfig = { categorySignupNotes: { "cat-kara": "required" } };
         const bare = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", status: "absence", comment: " " } });
         expect(status(bare)).toBe(400);
-        expect(body(bare).error.code).toBe("note_required");
+        expect(json(bare).error.code).toBe("note_required");
         expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", status: "absence", comment: "Urlaub" } }))).toBe(200);
         expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } }))).toBe(200);
         expect(status(await call(route.putSignup, ORGA, { json: { eventId: "eh-kara", status: "absence" } }))).toBe(200);
@@ -207,7 +200,7 @@ describe("PUT /api/signups", () => {
     it("sagt dem Dialog, ob die Kategorie eine Nachricht verlangt", async () => {
         mockConfig = { categorySignupNotes: { "cat-kara": "none" } };
         const res = await call(route.getSignups, ANNA);
-        expect(body(res).data.events.find((e) => e.id === "eh-kara").noteMode).toBe("none");
+        expect(json(res).data.events.find((e) => e.id === "eh-kara").noteMode).toBe("none");
     });
 
     it("nimmt mehrere eigene Charaktere in Reihenfolge an (#293)", async () => {
@@ -217,7 +210,7 @@ describe("PUT /api/signups", () => {
             characters: [{ character: "Nerasol", spec: "Priest-Holy" }, { character: "Nerathil", spec: "Mage-Arcane" }],
         } });
         expect(status(res)).toBe(200);
-        const { signup } = body(res).data;
+        const { signup } = json(res).data;
         expect(signup).toMatchObject({ character: "Nerasol", specLabel: expect.any(String), role: "healer" });
         expect(signup.characters.map((c) => [c.character, c.spec, c.role])).toEqual([["Nerasol", "Priest-Holy", "healer"], ["Nerathil", "Mage-Arcane", "ranged"]]);
         expect(signup.characters[1]).toMatchObject({ className: "Mage", classColor: expect.any(String), specIcon: expect.any(String) });
@@ -226,8 +219,8 @@ describe("PUT /api/signups", () => {
             eventId: "eh-kara", status: "signed",
             characters: [{ character: "Nerasol", spec: "Priest-Holy", status: "late" }, { character: "Nerathil", spec: "Mage-Arcane" }],
         } });
-        expect(body(mixed).data.signup.status).toBe("late");
-        expect(body(mixed).data.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
+        expect(json(mixed).data.signup.status).toBe("late");
+        expect(json(mixed).data.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
     });
 });
 
@@ -243,7 +236,7 @@ describe("POST /api/signups/bulk (#293)", () => {
             characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed",
         } });
         expect(status(res)).toBe(200);
-        const { results } = body(res).data;
+        const { results } = json(res).data;
         expect(results.map((r) => [r.eventId, r.ok, r.code])).toEqual([["eh-kara", true, ""], ["eh-ssc", true, ""], ["eh-late", false, "deadline"]]);
         expect(results[0].counts).toMatchObject({ attending: 1 });
         expect(results[2]).toMatchObject({ signup: null, counts: null, error: expect.stringContaining("Anmeldeschluss") });
@@ -264,7 +257,7 @@ describe("POST /api/signups/bulk (#293)", () => {
 describe("GET /api/signups/event", () => {
     it("liefert der Orga alle Anmeldungen mit Name, Kommentar und „kann auch“", async () => {
         await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", canAlso: ["tank"], comment: "10 min später" } });
-        const data = body(await call(route.getEventSignups, ORGA, { query: "id=eh-kara" })).data;
+        const data = json(await call(route.getEventSignups, ORGA, { query: "id=eh-kara" })).data;
         expect(data.signups).toEqual([expect.objectContaining({
             userId: ANNA.id, name: "anna_discord", character: "Nerathil", className: "Mage", role: "ranged", canAlso: ["tank"], comment: "10 min später",
         })]);

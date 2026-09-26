@@ -2,11 +2,8 @@
 // every path is area `raids`, reading needs read, saving/deleting/running write,
 // and each handler hands the request to the service as it should.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../src/web/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
@@ -37,17 +34,12 @@ const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const PATHS = ["/api/raids/series", "/api/raids/series/preview", "/api/raids/series/run"];
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => {
-    const parsed = JSON.parse(r.end.mock.calls[0][0]);
-    return parsed.data || parsed;
-};
+const { mockRes, status, body } = require("../helpers/http");
 
 async function call(handler, user, payload, query) {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raids/series${query ? `?${query}` : ""}`));
     return r;
 }

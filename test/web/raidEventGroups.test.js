@@ -16,9 +16,10 @@ const { listSignups } = require("../../src/web/signupStore");
 const discord = require("../../src/web/discord");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");
+const { event: baseEvent, ownEvent } = require("../factories/events");
 
-const event = (over = {}) => ({
-    id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1", leaderId: "u1",
+const event = (over = {}) => baseEvent({
+    channelId: "chan1", leaderId: "u1",
     templateId: 3, description: "desc", signUps: [{ userId: "1", specName: "Fire" }],
     ...over,
 });
@@ -354,11 +355,10 @@ describe("web/raidEventGroups", () => {
     });
 
     describe("with the EventHelper's own events", () => {
-        const own = (over = {}) => ({
-            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
+        const own = (over = {}) => ownEvent({
+            id: "eh-1", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
             channelId: "chan9", channelName: "kara-eh", title: "Kara EH", description: "", leaderId: "u2",
-            startTime: 2000000500, versionId: "tbc", instanceIds: ["kara"], size: 10,
-            composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: 0, ...over,
+            startTime: 2000000500, instanceIds: ["kara"], signupDeadline: 0, ...over,
         });
         afterEach(() => {
             eventStore.listEvents.mockReturnValue([]);

@@ -1,12 +1,8 @@
 // The settings handlers, called directly: what the redesigned Einstellungen page
 // needs beyond the config (channel list and bot status for the connection card)
 // and that a per-account grant actually reaches the store.
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(),
-    requireFullAdmin: jest.fn(),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -46,10 +42,7 @@ const {
     getSettings, updateSettings, getDiscordServers, getRoleSync, getReminders, FULL_ADMIN_KEYS,
 } = require("../../src/web/apiRoutes/settings");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const body = (res) => JSON.parse(res.end.mock.calls[0][0]);
+const { mockRes, body } = require("../helpers/http");
 
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
 
@@ -67,7 +60,7 @@ describe("GET /api/settings for the redesigned page", () => {
         const res = mockRes();
         await getSettings({}, res);
         expect(discord.listTextChannels).toHaveBeenCalledWith("g1");
-        expect(body(res).data.channels).toEqual([{ id: "c1", name: "log-uploads", category: "Raids" }]);
+        expect(body(res).channels).toEqual([{ id: "c1", name: "log-uploads", category: "Raids" }]);
     });
 
     it("reports the bot as online with the guild name when the client is ready", async () => {
@@ -75,18 +68,18 @@ describe("GET /api/settings for the redesigned page", () => {
         discord.getGuild.mockReturnValue({ name: "Pulse" });
         const res = mockRes();
         await getSettings({}, res);
-        expect(body(res).data.bot).toEqual({ online: true, readySince: 1700000000000, guildName: "Pulse" });
+        expect(body(res).bot).toEqual({ online: true, readySince: 1700000000000, guildName: "Pulse" });
     });
 
     it("reads a missing or broken client as offline instead of failing the page", async () => {
         const res = mockRes();
         await getSettings({}, res);
-        expect(body(res).data.bot).toEqual({ online: false, readySince: 0, guildName: "" });
+        expect(body(res).bot).toEqual({ online: false, readySince: 0, guildName: "" });
 
         discord.getClient.mockImplementation(() => { throw new Error("boom"); });
         const res2 = mockRes();
         await getSettings({}, res2);
-        expect(body(res2).data.bot.online).toBe(false);
+        expect(body(res2).bot.online).toBe(false);
     });
 });
 
@@ -94,7 +87,7 @@ describe("default raid template per category (#266)", () => {
     it("lists the raid templates for the select, names only", async () => {
         const res = mockRes();
         await getSettings({}, res);
-        expect(body(res).data.raidTemplates).toEqual([{ id: "k1", name: "Kara", versionId: "tbc", size: 10 }]);
+        expect(body(res).raidTemplates).toEqual([{ id: "k1", name: "Kara", versionId: "tbc", size: 10 }]);
     });
 
     it("stores the map, dropping an id no template has", async () => {
@@ -164,7 +157,7 @@ describe("Kanal für Vielleicht/Absage je Kategorie (#335)", () => {
         requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
         const res = mockRes();
         await getSettings({}, res);
-        expect(body(res).data.noteChannels).toEqual({
+        expect(body(res).noteChannels).toEqual({
             defaultId: "2001",
             channels: [
                 { id: "2001", name: "abmeldungen", category: "Pulse Events · Raids" },
@@ -181,12 +174,12 @@ describe("Kanal für Vielleicht/Absage je Kategorie (#335)", () => {
         discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: "Raids" }]);
         const res = mockRes();
         await getSettings({}, res);
-        expect(body(res).data.noteChannels).toEqual({ defaultId: "", channels: [{ id: "2001", name: "abmeldungen", category: "Raids" }] });
+        expect(body(res).noteChannels).toEqual({ defaultId: "", channels: [{ id: "2001", name: "abmeldungen", category: "Raids" }] });
 
         discord.listTextChannels.mockReset().mockReturnValue([]);
         const res2 = mockRes();
         await getSettings({}, res2);
-        expect(body(res2).data.noteChannels).toEqual({ defaultId: "", channels: [] });
+        expect(body(res2).noteChannels).toEqual({ defaultId: "", channels: [] });
         settingsStore.getConfig.mockReturnValue({});
     });
 });
@@ -268,7 +261,7 @@ describe("Discord-Server settings", () => {
         discord.botPermissionsIn.mockReturnValue([{ key: "ManageRoles", label: "Rollen verwalten", ok: false }]);
         const res = mockRes();
         await getSettings({}, res);
-        const { servers, config } = body(res).data;
+        const { servers, config } = body(res);
         expect(servers.events[0]).toMatchObject({ role: "event", name: "Pulse Events", connected: true, missing: ["Rollen verwalten"] });
         expect(servers.talk).toMatchObject({ role: "talk", id: "300", connected: false });
         expect(config.discordServers).toEqual(stored.discordServers);
@@ -276,8 +269,8 @@ describe("Discord-Server settings", () => {
         requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
         const res2 = mockRes();
         await getSettings({}, res2);
-        expect(body(res2).data.servers).toBeNull();
-        expect(body(res2).data.config.discordServers).toBeUndefined();
+        expect(body(res2).servers).toBeNull();
+        expect(body(res2).config.discordServers).toBeUndefined();
         settingsStore.getConfig.mockReturnValue({});
     });
 
@@ -291,7 +284,7 @@ describe("Discord-Server settings", () => {
             : [{ id: "b", user: {} }]));
         const res = mockRes();
         await getDiscordServers({}, res);
-        const data = body(res).data;
+        const data = body(res);
         expect(data.discordServers).toEqual(stored.discordServers);
         expect(data.events[0].name).toBe("Pulse Events");
         expect(data.talk.name).toBe("Pulse Talk");
@@ -338,7 +331,7 @@ describe("role sync and reminder settings", () => {
         settingsStore.getConfig.mockReturnValue({ roleSync: [] });
         const res = mockRes();
         await getRoleSync({}, res);
-        expect(body(res).data).toMatchObject({ roleSync: [], drift: [], driftTotal: 0, driftError: null });
+        expect(body(res)).toMatchObject({ roleSync: [], drift: [], driftTotal: 0, driftError: null });
 
         requireFullAdmin.mockReturnValue(null);
         const res2 = mockRes();
@@ -357,7 +350,7 @@ describe("role sync and reminder settings", () => {
         discord.listCategories.mockReturnValue([{ id: "900000", name: "Raids Mittwoch" }]);
         const res = mockRes();
         getReminders({}, res);
-        const data = body(res).data;
+        const data = body(res);
         expect(discord.listCategories).toHaveBeenCalledWith("200000");
         expect(data.categories).toEqual([
             { id: "900000", name: "Raids Mittwoch", roleCount: 2 },
@@ -378,7 +371,7 @@ describe("role sync and reminder settings", () => {
         getReminders({}, res);
         expect(discord.listCategories).toHaveBeenCalledWith("200000");
         expect(discord.listCategories).toHaveBeenCalledWith("300000");
-        expect(body(res).data.categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0 }]);
+        expect(body(res).categories).toEqual([{ id: "920000", name: "PvP-Raids", roleCount: 0 }]);
         settingsStore.getConfig.mockReturnValue({});
     });
 });

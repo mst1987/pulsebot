@@ -2,11 +2,7 @@
 // the /api layer — fail(), the code→status table, sendFailure/sendResult, AppError.
 const { AppError, fail, HTTP_BY_CODE, sendFailure, sendResult } = require("../../src/web/apiResult");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const sent = (res) => JSON.parse(res.end.mock.calls[0][0]);
-const status = (res) => res.writeHead.mock.calls[0][0];
+const { mockRes, status, json } = require("../helpers/http");
 
 describe("web/apiResult", () => {
     it("fail() builds the status-carrying error shape the services answer with", () => {
@@ -18,14 +14,14 @@ describe("web/apiResult", () => {
             const res = mockRes();
             sendResult(res, fail(409, "cancelled", "Das Event ist abgesagt."));
             expect(status(res)).toBe(409);
-            expect(sent(res)).toEqual({ error: { code: "cancelled", message: "Das Event ist abgesagt." } });
+            expect(json(res)).toEqual({ error: { code: "cancelled", message: "Das Event ist abgesagt." } });
         });
 
         it("sends a success as { data } with the result's status, 200 by default", () => {
             const res = mockRes();
             sendResult(res, { body: { message: "ok" } });
             expect(status(res)).toBe(200);
-            expect(sent(res)).toEqual({ data: { message: "ok" } });
+            expect(json(res)).toEqual({ data: { message: "ok" } });
             const created = mockRes();
             sendResult(created, { status: 201, body: { id: "x" } });
             expect(status(created)).toBe(201);
@@ -55,7 +51,7 @@ describe("web/apiResult", () => {
         it("fills in a code and a message when the result has none", () => {
             const res = mockRes();
             sendFailure(res, {});
-            expect(sent(res)).toEqual({ error: { code: "failed", message: "Fehlgeschlagen." } });
+            expect(json(res)).toEqual({ error: { code: "failed", message: "Fehlgeschlagen." } });
         });
 
         it("takes a table of its own when a route needs other statuses", () => {

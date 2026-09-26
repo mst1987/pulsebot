@@ -1,7 +1,7 @@
 // The loot-sync upload endpoint, driven through the real router so the access
 // gate (apiAccess.js) is exercised together with the handler — the endpoint has
 // no Discord session behind it, and that exemption is the risky part.
-const { EventEmitter } = require("events");
+const { mockRes, status, json, jsonRequest } = require("../helpers/http");
 
 // No session user anywhere in this file: the uploader is a machine.
 jest.mock("../../src/web/auth", () => ({
@@ -82,25 +82,10 @@ const payload = (over = {}) => ({
     ...over,
 });
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-function body(res) {
-    return JSON.parse(res.end.mock.calls[0][0]);
-}
-function status(res) {
-    return res.writeHead.mock.calls[0][0];
-}
-
 async function upload(jsonBody, authorization = "Bearer ehl_good") {
-    const req = new EventEmitter();
-    req.method = "POST";
-    req.headers = authorization ? { authorization } : {};
+    const req = jsonRequest("POST", "/api/ingest/loot", jsonBody, authorization ? { authorization } : {});
     const res = mockRes();
-    const p = handle("/api/ingest/loot", req, res);
-    req.emit("data", JSON.stringify(jsonBody));
-    req.emit("end");
-    await p;
+    await handle("/api/ingest/loot", req, res);
     return res;
 }
 
@@ -118,7 +103,7 @@ describe("POST /api/ingest/loot", () => {
         it("refuses an upload without a token", async () => {
             const res = await upload(payload(), null);
             expect(status(res)).toBe(401);
-            expect(body(res).error.code).toBe("no_token");
+            expect(json(res).error.code).toBe("no_token");
             expect(upsertPending).not.toHaveBeenCalled();
         });
 
@@ -126,7 +111,7 @@ describe("POST /api/ingest/loot", () => {
             verifyToken.mockReturnValue(null);
             const res = await upload(payload());
             expect(status(res)).toBe(401);
-            expect(body(res).error.code).toBe("bad_token");
+            expect(json(res).error.code).toBe("bad_token");
             expect(upsertPending).not.toHaveBeenCalled();
         });
 
@@ -151,7 +136,7 @@ describe("POST /api/ingest/loot", () => {
         it("rejects anything that is not our envelope", async () => {
             const res = await upload({ nope: true });
             expect(status(res)).toBe(400);
-            expect(body(res).error.code).toBe("parse_failed");
+            expect(json(res).error.code).toBe("parse_failed");
         });
 
         it("puts a new session into the inbox rather than into the loot history", async () => {
@@ -166,20 +151,20 @@ describe("POST /api/ingest/loot", () => {
                 realm: "Thunderstrike", reporter: "Gemli-Thunderstrike",
                 addonVersion: "1.0.0", tokenId: "t1", tokenName: "Raidlead-PC",
             });
-            expect(body(res).data.results[0]).toMatchObject({ status: "pending", inboxId: "inbox1" });
+            expect(json(res).data.results[0]).toMatchObject({ status: "pending", inboxId: "inbox1" });
         });
 
         it("reports a re-upload as an update, not a new session", async () => {
             upsertPending.mockReturnValue({ entry: { id: "inbox1", itemCount: 3 }, added: 2, created: false });
             const res = await upload(payload());
-            expect(body(res).data.results[0]).toMatchObject({ status: "updated", added: 2, total: 3 });
+            expect(json(res).data.results[0]).toMatchObject({ status: "updated", added: 2, total: 3 });
         });
 
         it("skips a session that carries no items", async () => {
             const data = payload();
             data.sessions[0].items = [];
             const res = await upload(data);
-            expect(body(res).data.results[0]).toMatchObject({ status: "empty" });
+            expect(json(res).data.results[0]).toMatchObject({ status: "empty" });
             expect(upsertPending).not.toHaveBeenCalled();
         });
 
@@ -187,7 +172,7 @@ describe("POST /api/ingest/loot", () => {
             const data = payload();
             data.sessions.push({ ...data.sessions[0], sessionId: "eh-2-tk" });
             const res = await upload(data);
-            expect(body(res).data.received).toBe(2);
+            expect(json(res).data.received).toBe(2);
             expect(upsertPending).toHaveBeenCalledTimes(2);
         });
     });
@@ -204,7 +189,7 @@ describe("POST /api/ingest/loot", () => {
             expect(addImport).toHaveBeenCalledWith("e1", expect.any(Array), {
                 categoryId: "cat1", eventLabel: "SSC",
             });
-            expect(body(res).data.results[0]).toMatchObject({
+            expect(json(res).data.results[0]).toMatchObject({
                 status: "appended", eventId: "e1", added: 1,
             });
             // counted for the inbox's "+n nachgeliefert"
@@ -217,7 +202,7 @@ describe("POST /api/ingest/loot", () => {
             const res = await upload(payload());
             expect(upsertPending).not.toHaveBeenCalled();
             expect(addImport).not.toHaveBeenCalled();
-            expect(body(res).data.results[0]).toMatchObject({ status: "dismissed" });
+            expect(json(res).data.results[0]).toMatchObject({ status: "dismissed" });
         });
     });
 

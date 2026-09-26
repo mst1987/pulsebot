@@ -3,11 +3,8 @@
 // and zones. Stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn(), readRawBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
 jest.mock("../../src/web/eventStore", () => ({
@@ -18,6 +15,7 @@ jest.mock("../../src/web/eventStore", () => ({
 
 const { readJsonBody, readRawBody } = require("../../src/web/apiBody");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { ownEvent } = require("../factories/events");
 const plans = require("../../src/web/raidplanStore");
 const profiles = require("../../src/web/raidplanProfileStore");
 const templates = require("../../src/web/raidplanTemplateStore");
@@ -40,16 +38,12 @@ const APPROVED = {
     bench: [],
 };
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => {
-    const parsed = JSON.parse(r.end.mock.calls[0][0]);
-    return parsed.data || parsed.error;
-};
+const { mockRes, status, json } = require("../helpers/http");
+const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, query = "") {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
 }
@@ -61,7 +55,7 @@ beforeEach(() => {
     templates.useFile(tempStoreFile("templates.json"));
     mockViewer = null;
     for (const k of Object.keys(mockEvents)) delete mockEvents[k];
-    mockEvents["eh-1"] = { id: "eh-1", guildId: "500000", title: "BT", startTime: 1800000000, versionId: "tbc", instanceIds: ["bt"], setup: { approved: APPROVED } };
+    mockEvents["eh-1"] = ownEvent({ id: "eh-1", guildId: "500000", title: "BT", startTime: 1800000000, instanceIds: ["bt"], setup: { approved: APPROVED } });
 });
 afterAll(() => {
     plans.useFile();
@@ -148,7 +142,7 @@ describe("scoped map uploads", () => {
     const upload = async (key, buffer = PNG) => {
         mockUser = ORGA;
         readRawBody.mockResolvedValue(buffer);
-        const r = res();
+        const r = mockRes();
         await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}`));
         return r;
     };
@@ -183,7 +177,7 @@ describe("the public view", () => {
         await call(route.postApply, ORGA, { event: "eh-1", templateId: t.id, version: 0 });
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
         mockViewer = { id: "u1" };
-        const r = res();
+        const r = mockRes();
         await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         const d = body(r);
         expect(d.me).toBe("u1");
@@ -200,7 +194,7 @@ describe("the public view", () => {
         await call(route.postApply, ORGA, { event: "eh-1", templateId: t.id, version: 0 });
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
         mockEvents["eh-1"].setup = { approved: { ...APPROVED, groups: [{ index: 1, slots: [person("u2", "Heally", "Priest-Holy", "healer")] }] } };
-        const r = res();
+        const r = mockRes();
         await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         expect(body(r).bosses[0].slots.map((s) => s.userId)).toEqual(["", "u2", "", ""]);
     });
@@ -221,7 +215,7 @@ describe("the public view of the newer objects", () => {
             },
         });
         const on = body(await call(route.postPublish, ORGA, { event: "eh-1", published: true }));
-        const r = res();
+        const r = mockRes();
         await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${on.plan.publicPath.replace("/p/", "")}`));
         const b = body(r).bosses[0];
         expect(b.mapOpacity).toBe(0.4);

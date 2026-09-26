@@ -3,13 +3,14 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { listRaidEvents, getRaidEvent, saveRaidEvents } = require("../../src/web/raidEventStore.js");
+const { event: baseEvent } = require("../factories/events");
 
 beforeEach(() => {
     fs.__store.clear();
 });
 
-const event = (over = {}) => ({
-    id: "e1", guildId: "g1", title: "Kara", channelId: "c1", channelName: "kara",
+const event = (over = {}) => baseEvent({
+    guildId: "g1", channelName: "kara",
     categoryId: "cat", categoryName: "Raids", startTime: 1721851200, ...over,
 });
 

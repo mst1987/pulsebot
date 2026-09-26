@@ -1,5 +1,6 @@
 const { EventEmitter } = require("events");
 const { readJsonBody, readRawBody } = require("../../src/web/apiBody");
+const { jsonRequest } = require("../helpers/http");
 
 function fakeReq() {
     return new EventEmitter();
@@ -7,18 +8,12 @@ function fakeReq() {
 
 describe("web/apiBody readJsonBody", () => {
     it("parses a valid JSON body", async () => {
-        const req = fakeReq();
-        const p = readJsonBody(req);
-        req.emit("data", JSON.stringify({ name: "kara-signup", type: "text" }));
-        req.emit("end");
-        expect(await p).toEqual({ name: "kara-signup", type: "text" });
+        const req = jsonRequest("POST", "/", { name: "kara-signup", type: "text" });
+        expect(await readJsonBody(req)).toEqual({ name: "kara-signup", type: "text" });
     });
 
     it("resolves {} for an empty body", async () => {
-        const req = fakeReq();
-        const p = readJsonBody(req);
-        req.emit("end");
-        expect(await p).toEqual({});
+        expect(await readJsonBody(jsonRequest("POST"))).toEqual({});
     });
 
     it("resolves {} for invalid JSON instead of throwing", async () => {

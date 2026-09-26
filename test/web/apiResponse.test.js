@@ -1,8 +1,6 @@
 const { sendJson, ok, error } = require("../../src/web/apiResponse");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
+const { mockRes } = require("../helpers/http");
 
 describe("web/apiResponse", () => {
     it("sendJson writes the status, JSON content type, and serialized body", () => {

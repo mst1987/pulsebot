@@ -137,6 +137,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLootcouncil), Addon-Sync und Inbox, Vergabegrund und Raid-Inhalt |
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
+| [docs/testing.md](docs/testing.md) | Test-Helfer und Fabriken (`test/helpers/`, `test/factories/`), was `test/setup/` jeder Suite mitgibt, Mock-Konvention und Coverage-Schwellen |
 | [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
 | [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer-Modul, Inhalt, sensibel ja/nein, Sichern und Wiederherstellen |
 | [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
