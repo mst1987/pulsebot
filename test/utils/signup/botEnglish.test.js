@@ -11,7 +11,7 @@ function literalSentences(file, pattern) {
     return [...src.matchAll(pattern)].map((m) => m[1]);
 }
 
-describe("utils/botEnglish", () => {
+describe("utils/signup/botEnglish", () => {
     it("translates every fixed refusal of the signup service", () => {
         const sentences = literalSentences("signupService.js", /fail\("[a-z_]+", "([^"]+)"\)/g);
         expect(sentences.length).toBeGreaterThan(8);

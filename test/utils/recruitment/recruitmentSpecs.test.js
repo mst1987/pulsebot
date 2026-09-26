@@ -22,7 +22,7 @@ const REAL_BODY = [
     "Montag- 18:30 Invite | 19:00 Uhr Start",
 ].join("\n");
 
-describe("utils/recruitmentSpecs", () => {
+describe("utils/recruitment/recruitmentSpecs", () => {
     describe("SPEC_CATALOG", () => {
         it("dedupes aliases sharing the same spec key", () => {
             const shadowEntries = SPEC_CATALOG.filter((s) => s.name === "Shadow Priest");

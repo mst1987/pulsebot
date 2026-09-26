@@ -11,7 +11,7 @@ jest.mock("../../../src/classes/drive", () =>
 
 const { sweepDueSheets, startSheetCleanup } = require("../../../src/utils/setup/sheetCleanup.js");
 
-describe("utils/sheetCleanup", () => {
+describe("utils/setup/sheetCleanup", () => {
     const NOW = 1_000_000_000_000;
     let drive;
 

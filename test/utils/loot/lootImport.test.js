@@ -29,7 +29,7 @@ const GARGUL_CSV = `dateTime,character,itemID,offspec,id
 2026-07-12,Cosma,32267,1,12851790643566350554
 2026-07-12,Talisíen,30236,0,41708589713375484164`;
 
-describe("utils/lootImport", () => {
+describe("utils/loot/lootImport", () => {
     describe("splitPlayer", () => {
         it("splits a realm-qualified name on the first dash", () => {
             expect(splitPlayer("Naphfß-Thunderstrike")).toEqual({

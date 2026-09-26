@@ -6,7 +6,7 @@ const { MessageFlags } = require("discord.js");
 const { publicBaseUrl } = require("../../../src/config/variables");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 
-describe("utils/botLookup", () => {
+describe("utils/discord/botLookup", () => {
     it("clips text with an ellipsis only when something was dropped", () => {
         expect(clip("abc", 5)).toBe("abc");
         expect(clip("abcdef", 4)).toBe("abc…");

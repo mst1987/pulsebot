@@ -3,7 +3,7 @@ const {
     rosterFromFights, rosterFromTable, mergeRosters,
 } = require("../../../src/utils/logcheck/wclRoster");
 
-describe("utils/wclRoster", () => {
+describe("utils/logcheck/wclRoster", () => {
     describe("classOf", () => {
         it("takes the class from the entry type", () => {
             expect(classOf({ type: "Warrior" })).toBe("Warrior");

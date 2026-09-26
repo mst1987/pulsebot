@@ -14,7 +14,7 @@ function mockCreated(location = "https://softres.it/raid/Le3KEOe6?adminToken=f63
     axios.request.mockResolvedValue({ status: 302, headers: { location } });
 }
 
-describe("utils/softres", () => {
+describe("utils/loot/softres", () => {
     describe("parseInstancesFromTitle", () => {
         it("derives TBC instances from a compound title", () => {
             expect(softres.parseInstancesFromTitle("Kara + Gruul").map((i) => i.code)).toEqual(["kara", "gruul"]);

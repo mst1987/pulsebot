@@ -15,7 +15,7 @@ const SAMPLE = [
     { name: "Shammy",  spec: "Restoration1", group: 2 }, // restosham → C12
 ];
 
-describe("utils/fillSetup", () => {
+describe("utils/setup/fillSetup", () => {
     describe("enrichPlayers", () => {
         it("drops empty slots and resolves the class entry", () => {
             const players = enrichPlayers([

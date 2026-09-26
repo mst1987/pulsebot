@@ -4,7 +4,7 @@ const wowhead = require("../../../src/utils/loot/wowhead");
 
 afterEach(() => jest.clearAllMocks());
 
-describe("utils/wowhead", () => {
+describe("utils/loot/wowhead", () => {
     describe("branchFor / iconUrl / itemLink", () => {
         it("maps editions to Wowhead branches", () => {
             expect(wowhead.branchFor("classic")).toBe("classic");

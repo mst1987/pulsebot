@@ -1,7 +1,7 @@
 const applicationState = require("../../../src/utils/recruitment/applicationState.js");
 const { pendingApplications, sweepStaleApplications } = applicationState;
 
-describe("utils/applicationState", () => {
+describe("utils/recruitment/applicationState", () => {
     beforeEach(() => {
         pendingApplications.clear();
         applicationState.stop();

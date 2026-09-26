@@ -3,7 +3,7 @@ const {
     enrichSlot, realClass, roleOf, classIconUrl, specProfile, classSpecIconUrl, characterProfile,
 } = require("../../../src/utils/setup/setupView.js");
 
-describe("utils/setupView", () => {
+describe("utils/setup/setupView", () => {
     describe("enrichSlot", () => {
         it("resolves a spec by its classlist key and fills display fields", () => {
             const p = enrichSlot({ name: "Firemage", specName: "Fire" });
