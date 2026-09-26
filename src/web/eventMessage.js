@@ -80,6 +80,10 @@ const { migrateSignup } = require("./signupCharacters");
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../utils/text");
+const { approvedSetupOf } = require("./setupCore");
+const { getConfig, resolveEventSheetLink } = require("./settingsStore");
+const { getEventSheet } = require("./eventSheetStore");
+const { getEventSoftres } = require("./eventSoftresStore");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
@@ -245,8 +249,6 @@ function blockValue(lines, maxLines, max = LIMITS.fieldValue) {
  * channel. "" without an approval.
  */
 function approvedSetupText(event) {
-    // Lazily: setupEditor pulls in the proposal's inputs, which this module does not need otherwise.
-    const { approvedSetupOf } = require("./setupEditor");
     const approved = approvedSetupOf(event);
     if (!approved) return "";
     const names = (list) => list.map((s) => escapeMd(s.character) || "?").join(", ");
@@ -577,9 +579,6 @@ function payloadHash(payload) {
 async function payloadFor(event) {
     await loadAppEmojis(discord.getClient());
     // The category's look (Einstellungen › Kategorien): raid picture and title size.
-    const { getConfig, resolveEventSheetLink } = require("./settingsStore");
-    const { getEventSheet } = require("./eventSheetStore");
-    const { getEventSoftres } = require("./eventSoftresStore");
     const look = messageLookOf(getConfig(), event.categoryId);
     const sheetLink = resolveEventSheetLink(getEventSheet(event.id), event.categoryId);
     const softres = getEventSoftres(event.id);

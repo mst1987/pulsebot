@@ -19,7 +19,7 @@
 // classesOf / rosterCounts / messagePhase), so the page and the channel can
 // never disagree about who stands where.
 const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("./eventMessage");
-const { approvedSetupOf } = require("./setupEditor");
+const { approvedSetupOf } = require("./setupCore");
 const { getEvent } = require("./eventStore");
 const { listSignups } = require("./signupStore");
 const { instance } = require("../config/gameVersions");

@@ -24,6 +24,7 @@ jest.mock("../../src/web/eventSources", () => ({
 }));
 
 const editor = require("../../src/web/setupEditor");
+const { approvedSetupOf } = require("../../src/web/setupCore");
 const { buildEventMessage } = require("../../src/web/eventMessage");
 const { su } = require("../utils/setup/fixtures");
 
@@ -264,7 +265,7 @@ describe("what raiders see", () => {
         editor.proposeEventSetup(ID);
         const event = mockEvents.get(ID);
         const someone = event.setup.groups[0].slots[0].userId;
-        expect(editor.approvedSetupOf(event)).toBeNull();
+        expect(approvedSetupOf(event)).toBeNull();
         expect(editor.approvedPlacementFor(event, someone)).toBeNull();
         expect(editor.raidHelperSlots(event)).toEqual([]);
         const reader = editor.editorView(event, { canWrite: false });
