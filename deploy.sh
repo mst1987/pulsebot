@@ -110,5 +110,52 @@ else
     pm2 save
 fi
 
-echo "$LOG_TAG Deployment complete."
 pm2 show "$APP_NAME"
+
+# pm2 reports "online" as soon as the process exists — even when it dies a
+# second later on a bad require or a taken port. Ask the bot itself: /health is
+# served before the Discord login (src/bot.js start()), so it answers as soon as
+# the web server is up. No answer means a red deploy job instead of a green one
+# over a dead bot. The port comes from the same file src/bot.js reads (.env.dev
+# wins over .env), an exported WEB_PORT beats both, 3005 is the code's default.
+read_env_port() {
+    local file="$1"
+    [ -f "$file" ] || return 0
+    grep -E '^[[:space:]]*WEB_PORT=' "$file" | tail -n 1 | cut -d'=' -f2- | tr -d "\"' \r" || true
+}
+HEALTH_ENV_FILE="$APP_DIR/.env"
+[ -f "$APP_DIR/.env.dev" ] && HEALTH_ENV_FILE="$APP_DIR/.env.dev"
+WEB_PORT="${WEB_PORT:-$(read_env_port "$HEALTH_ENV_FILE")}"
+WEB_PORT="${WEB_PORT:-3005}"
+HEALTH_URL="http://localhost:$WEB_PORT/health"
+HEALTH_ATTEMPTS=20
+HEALTH_DELAY=3
+
+# curl on any normal server; Node (which is on PATH by now) as the fallback.
+health_get() {
+    if command -v curl > /dev/null 2>&1; then
+        curl -fsS --max-time 5 "$1"
+    else
+        node -e 'fetch(process.argv[1], { signal: AbortSignal.timeout(5000) }).then(async (r) => { if (!r.ok) process.exit(1); console.log(await r.text()); }).catch(() => process.exit(1));' "$1"
+    fi
+}
+
+echo "$LOG_TAG Waiting for $HEALTH_URL (up to $((HEALTH_ATTEMPTS * HEALTH_DELAY)) s)..."
+HEALTHY=0
+for ATTEMPT in $(seq 1 "$HEALTH_ATTEMPTS"); do
+    if HEALTH_BODY=$(health_get "$HEALTH_URL" 2>/dev/null); then
+        echo "$LOG_TAG Health check passed (attempt $ATTEMPT): $HEALTH_BODY"
+        HEALTHY=1
+        break
+    fi
+    sleep "$HEALTH_DELAY"
+done
+
+if [ "$HEALTHY" -ne 1 ]; then
+    echo "$LOG_TAG ERROR: $APP_NAME did not answer on $HEALTH_URL after $((HEALTH_ATTEMPTS * HEALTH_DELAY)) s — the deploy failed."
+    echo "$LOG_TAG Last log lines:"
+    pm2 logs "$APP_NAME" --lines 40 --nostream || true
+    exit 1
+fi
+
+echo "$LOG_TAG Deployment complete."
