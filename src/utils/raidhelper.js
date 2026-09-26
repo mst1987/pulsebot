@@ -1,5 +1,7 @@
 ﻿const { createRaidhelperClient } = require("./raidhelperClient");
 const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
+const { getEvent } = require("../web/eventStore");
+const { raidHelperSlots } = require("../web/setupEditor");
 
 /**
  * The setup of an own EventHelper event in Raid-Helper's `{ setup: slots }`
@@ -7,9 +9,6 @@ const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
  * raiders, so an unapproved event reads exactly like one without a raidplan.
  */
 function ownApprovedSetup(eventId) {
-  // Required lazily: the web stores are only needed for own events.
-  const { getEvent } = require("../web/eventStore");
-  const { raidHelperSlots } = require("../web/setupEditor");
   const slots = raidHelperSlots(getEvent(eventId));
   return slots.length ? { setup: slots } : null;
 }
