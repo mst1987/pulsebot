@@ -21,19 +21,47 @@ export { LANGS, LANG_LABELS, type Lang, type Params } from "./core";
 
 const STORAGE_KEY = "eh-lang";
 
-const files = import.meta.glob("./locales/*/*.json", { eager: true, import: "default" });
+// Only the active language is downloaded (#436). German is the fallback of
+// every other language, so it is always there, bundled with this module; any
+// other language is a chunk of its own that arrives when it is switched to.
+// (The glob needs a literal pattern, hence "de" and not DEFAULT_LANG.)
+const fallbackFiles = import.meta.glob("./locales/de/*.json", { eager: true, import: "default" });
+const lazyFiles = import.meta.glob(["./locales/*/*.json", "!./locales/de/*.json"], { import: "default" });
 
-function buildDicts(): Record<string, FlatDict> {
-    const dicts: Record<string, FlatDict> = { de: {}, en: {} };
-    for (const [file, tree] of Object.entries(files)) {
-        const m = file.match(/\.\/locales\/(\w+)\/([\w-]+)\.json$/);
-        if (!m || !dicts[m[1]]) continue;
-        flatten(tree, m[2], dicts[m[1]]);
-    }
-    return dicts;
+const FILE_RE = /\.\/locales\/(\w+)\/([\w-]+)\.json$/;
+
+function fillDict(into: FlatDict, file: string, tree: unknown): void {
+    const m = file.match(FILE_RE);
+    if (m) flatten(tree, m[2], into);
 }
 
-const DICTS = buildDicts();
+const DICTS: Record<string, FlatDict> = { de: {}, en: {} };
+for (const [file, tree] of Object.entries(fallbackFiles)) fillDict(DICTS.de, file, tree);
+
+const loaded = new Set<Lang>(["de"]);
+const loading = new Map<Lang, Promise<void>>();
+
+/** Downloads one language's files once; a failed download leaves it unloaded (German stays). */
+function loadLang(lang: Lang): Promise<void> {
+    if (loaded.has(lang)) return Promise.resolve();
+    let promise = loading.get(lang);
+    if (!promise) {
+        const own = Object.entries(lazyFiles).filter(([file]) => file.match(FILE_RE)?.[1] === lang);
+        promise = Promise.all(own.map(([file, load]) => load().then((tree) => [file, tree] as const)))
+            .then((trees) => {
+                const dict: FlatDict = {};
+                for (const [file, tree] of trees) fillDict(dict, file, tree);
+                DICTS[lang] = dict;
+                loaded.add(lang);
+            })
+            .catch((err) => {
+                console.warn(`[i18n] could not load ${lang}:`, err);
+            })
+            .finally(() => { loading.delete(lang); });
+        loading.set(lang, promise);
+    }
+    return promise;
+}
 
 function readStored(): Lang | null {
     try {
@@ -43,7 +71,13 @@ function readStored(): Lang | null {
     }
 }
 
-let current: Lang = readStored() || normalizeLang(DEFAULT_LANG) || "de";
+// The page starts in German and switches once the chosen language is loaded —
+// main.tsx waits for that (langReady) before it draws anything, so a visitor
+// never sees the German texts flash first.
+let current: Lang = normalizeLang(DEFAULT_LANG) || "de";
+/** The language asked for last; it becomes `current` once its texts are there. */
+let wanted: Lang = readStored() || current;
+let switching: Promise<void> = Promise.resolve();
 const listeners = new Set<() => void>();
 const reported = new Set<string>();
 
@@ -55,6 +89,32 @@ function applyToDocument(lang: Lang) {
     }
 }
 applyToDocument(current);
+
+/**
+ * Makes `wanted` the active language as soon as its texts are loaded. A later
+ * switch wins over one still downloading: only the language asked for last is
+ * applied.
+ */
+function switchToWanted(): Promise<void> {
+    const lang = wanted;
+    switching = loadLang(lang).then(() => {
+        if (wanted !== lang || lang === current || !loaded.has(lang)) return;
+        current = lang;
+        applyToDocument(lang);
+        for (const listener of listeners) listener();
+    });
+    return switching;
+}
+if (wanted !== current) switchToWanted();
+
+/**
+ * Resolves once the language asked for last is loaded and active (at once when
+ * it already is). main.tsx waits for it before the first render, and the menu
+ * waits for it after the account's saved language was applied (App.tsx).
+ */
+export function langReady(): Promise<void> {
+    return switching;
+}
 
 /** The active language. */
 export function getLang(): Lang {
@@ -68,8 +128,10 @@ export function locale(): string {
 
 /**
  * Switches the language for the whole page, remembers it in this browser and
- * tells every subscribed component. Saving it for the account (so it follows
- * the user to another device) is the caller's business — see LangToggle.
+ * tells every subscribed component — once the language's texts are loaded (the
+ * page keeps the old language until then, it never shows half of each).
+ * Saving it for the account (so it follows the user to another device) is the
+ * caller's business — see LangToggle.
  */
 export function setLang(next: Lang): void {
     const lang = normalizeLang(next);
@@ -79,10 +141,9 @@ export function setLang(next: Lang): void {
     } catch {
         // storage unavailable — the choice lasts until the next reload
     }
+    wanted = lang;
     if (lang === current) return;
-    current = lang;
-    applyToDocument(lang);
-    for (const listener of listeners) listener();
+    switchToWanted();
 }
 
 function subscribe(listener: () => void): () => void {
