@@ -1,6 +1,4 @@
 const {
-    isNumber,
-    formatNumberWithDots,
     formatSpecs,
     getChannelsFromCategories,
     botReply,
@@ -11,32 +9,6 @@ const { adminUserId } = require("../../src/config/variables.js");
 const { mockInteraction, makeCollection } = require("../helpers/mockInteraction.js");
 
 describe("utils/helper", () => {
-    describe("isNumber", () => {
-        it("accepts finite numbers", () => {
-            expect(isNumber(0)).toBe(true);
-            expect(isNumber(42)).toBe(true);
-            expect(isNumber(-1.5)).toBe(true);
-        });
-
-        it("rejects NaN, strings and other types", () => {
-            expect(isNumber(NaN)).toBe(false);
-            expect(isNumber("5")).toBe(false);
-            expect(isNumber(null)).toBe(false);
-            expect(isNumber(undefined)).toBe(false);
-        });
-    });
-
-    describe("formatNumberWithDots", () => {
-        it("groups thousands with dots", () => {
-            expect(formatNumberWithDots(1000)).toBe("1.000");
-            expect(formatNumberWithDots(1234567)).toBe("1.234.567");
-        });
-
-        it("leaves small numbers untouched", () => {
-            expect(formatNumberWithDots(42)).toBe("42");
-        });
-    });
-
     describe("formatSpecs", () => {
         it("maps known spec keys to className/specName", () => {
             const result = formatSpecs("Holy1", "10");

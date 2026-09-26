@@ -1,8 +1,5 @@
 ﻿const { getCharacterIcon, findServerEmoji } = require("./helper.js");
-const {
-  formatTimestampToDateString,
-  parseDMYDateString,
-} = require("./date.js");
+const { formatTimestampToDateString } = require("./date.js");
 const extendedClassList = require("../config/classlist.js");
 
 function setupResponse(interaction, event) {
@@ -54,49 +51,7 @@ function mySetupResponse(interaction, events) {
     .join("\n");
 }
 
-function getAuctionMessage(interaction, legendary) {
-  return `**${legendary.name}**\n\nRaid: **${
-    legendary.raid
-  }**\nAuktion endet am **${formatTimestampToDateString(
-    Number(legendary.endtime)
-  )}**\n\nStartpreis ist **${
-    legendary.mingold
-  }g** und Mindesterhöhung liegt bei **${
-    legendary.increment
-  }g**\n\nBenutze den **/bid** Befehl um mitzubieten!\n\nExample:\`\`\`/bid gold:350000\`\`\``;
-}
-
-function getItemsToShow(interaction, items, dateFrom, dateEnd) {
-  const filteredItems = items
-    .filter((entry) => {
-      const entryDate = parseDMYDateString(entry.date);
-      return entryDate >= dateFrom && entryDate <= dateEnd;
-    })
-    .sort((a, b) => a.player.localeCompare(b.player));
-
-  const formattedItems = getItemsFormatted(interaction, filteredItems);
-  const sumOfGold = filteredItems.reduce(
-    (totalGold, entry) => totalGold + entry.gold,
-    0
-  );
-  return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
-}
-
-function getItemsFormatted(interaction, items) {
-  return items
-    .map(
-      (item) =>
-        `${getCharacterIcon(interaction, item.class)} ${item.player} - [${
-          item.item
-        }](${item.wowhead}) - ${item.gold}g`
-    )
-    .join("\n");
-}
-
 module.exports = {
-  getItemsFormatted,
-  getItemsToShow,
-  getAuctionMessage,
   mySetupResponse,
   setupResponse,
 };
