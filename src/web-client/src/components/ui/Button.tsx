@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import WowIcon from "./WowIcon";
 import { ChevronDownIcon } from "../icons";
 import { t } from "../../i18n";
+import { useDismiss } from "../../hooks/useDismiss";
 
 // One button system for the whole menu (see the "Bausteine" artboard of the
 // Grundgerüst canvas). The variants are a hierarchy, not a palette:
@@ -94,18 +95,7 @@ export function SplitButton({ label, icon, onClick, options, disabled, menuTip =
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     return (
         <div className="split" ref={ref}>

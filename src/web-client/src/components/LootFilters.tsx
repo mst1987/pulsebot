@@ -3,13 +3,14 @@
 // "Filter" button with a count. What is active below that button shows up as
 // removable badges under the row, so a filter remembered from last week is never
 // invisible.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { LootContent } from "../api";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
-import { SearchIcon, XIcon } from "./icons";
+import { InfoIcon, SearchIcon } from "./icons";
 import { contentIcon } from "./LootBadges";
+import { useDismiss } from "../hooks/useDismiss";
 
 export function SearchBox({ id, value, onChange, placeholder }: {
     id: string;
@@ -76,18 +77,7 @@ export function FilterPopover({ active, children }: { active: number; children: 
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     return (
         <div ref={ref} className="hl-filter-btn">
@@ -109,11 +99,8 @@ export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; o
         <div className="hl-active">
             <span className="kicker">aktiv</span>
             {filters.map((f) => (
-                <Badge key={f.key} tone={f.tone}>
+                <Badge key={f.key} tone={f.tone} onRemove={f.onRemove} removeLabel={`Filter „${f.label}" entfernen`} removeTip="Filter entfernen">
                     {f.label}
-                    <button type="button" className="hl-x" aria-label={`Filter „${f.label}" entfernen`} data-tip="Filter entfernen" onClick={f.onRemove}>
-                        <XIcon />
-                    </button>
                 </Badge>
             ))}
             {onReset && filters.length > 1 && (
@@ -129,16 +116,6 @@ export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; o
  * The line "i" for an explanation that lives in the tooltip. Kept here rather
  * than in components/icons.tsx, which belongs to the shared foundation.
  */
-export function InfoIcon() {
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 11v5" />
-            <path d="M12 7.5h.01" />
-        </svg>
-    );
-}
-
 /** An info icon whose explanation opens in the tooltip box. */
 export function InfoTip({ tip, sub }: { tip: string; sub: string }) {
     return (

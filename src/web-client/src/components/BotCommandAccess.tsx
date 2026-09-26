@@ -16,8 +16,9 @@ import IconTile from "./ui/IconTile";
 import PartHead from "./ui/PartHead";
 import Segment from "./ui/Segment";
 import RaidLoader from "./ui/RaidLoader";
-import { XIcon } from "./icons";
-import { FieldLabel, LockIcon, PenIcon } from "./settingsUi";
+import { LockIcon, XIcon } from "./icons";
+import { PenIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): who may use which
 // bot command in Discord. One line per command group, folded; open, one row per
