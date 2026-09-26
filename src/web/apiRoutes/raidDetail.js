@@ -1,28 +1,19 @@
 // JSON API for the Raid-Event-Detail page. Part A (below) is the read-only
-// overview — meta header, Setup tab, Anwesenheit tab, Loot tab. Part B (this
-// file's second half) is the mutating/external-integration actions: Anmelde-
-// Aufruf, Fehlende-Raider-pingen, Raidsheet füllen, Sheet/Softres posten,
-// Softres-Liste erstellen/verlinken. Both are faithful JSON ports of the SSR
-// routes in server.js, minus the HTML rendering/redirects.
+// overview — meta header, Setup tab, Anwesenheit tab, Loot tab — whose payload
+// raidDetailView.js builds (#424). Part B (this file's second half) is the
+// mutating/external-integration actions: Anmelde-Aufruf, Fehlende-Raider-pingen,
+// Raidsheet füllen, Sheet/Softres posten, Softres-Liste erstellen/verlinken.
+// Both are faithful JSON ports of the SSR routes in server.js, minus the HTML
+// rendering/redirects.
 const { ok, error } = require("../apiResponse");
 const { withUser } = require("../apiHandler");
 const { AppError, sendResult } = require("../apiResult");
 const { q } = require("../apiParams");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const {
-    getConfig, listNotify, listRaidsheets, getNotify, getRaidsheet, resolveEventSheetLink,
-} = require("../settingsStore");
-const { matchRaidsheet } = require("../../utils/raidsheets");
-const { buildSetupView, tankCandidates } = require("../../utils/setupView");
-const {
-    computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
-    hasStarted, isRosterKnown,
-} = require("../../utils/attendance");
-const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
+const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../settingsStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
-const { getRaidEvent } = require("../raidEventStore");
-const { listStoredEvents, sourceOfEventId } = require("../eventSources");
+const { sourceOfEventId } = require("../eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
@@ -30,282 +21,28 @@ const softres = require("../../utils/softres");
 const { setEventLootSystem, lootSystemOf } = require("../eventLootSystemStore");
 const { normalizeLootSystem } = require("../lootSystem");
 const wowhead = require("../../utils/wowhead");
-const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../lootStore");
-const { raidSteps, eventSteps } = require("../raidDetailSteps");
-const { summarizePlayers } = require("../raidPlayerSummary");
-const { withClassLook: withLootClassLook } = require("../lootClassLook");
-const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
-const { backfillLogTitles } = require("../logChannel");
-const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/date");
 const discord = require("../discord");
-const { listSignups } = require("../signupStore");
-const { eventSignupList } = require("../signupView");
 const { getEvent } = require("../eventStore");
-const raidplanStore = require("../raidplanStore");
-const { setupSummary, raidHelperSlots } = require("../setupEditor");
+const { raidHelperSlots } = require("../setupEditor");
 const { invitePlan, callInvite } = require("../inviteCall");
 const {
-    normalizePingTarget, pingTargetInfo, deliverAnnouncement, dmSummary, TARGET_LABELS,
+    normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../pingDelivery");
 const { pingMissingRaiders } = require("../missingPing");
-
-/** The state "Event verwalten" (#288) sets on an own event, for the page head and the menu. */
-function manageState(eventId) {
-    const ev = getEvent(eventId) || {};
-    return {
-        status: ev.status || "active",
-        signupsClosed: !!ev.signupsClosed,
-        cancelReason: (ev.cancel && ev.cancel.reason) || "",
-        cancelArchived: !!(ev.cancel && ev.cancel.archived),
-        logCount: Array.isArray(ev.log) ? ev.log.length : 0,
-        // The cockpit (#319) needs to tell "no setup yet" from "this raid runs
-        // without one": a proposal is still coming while autoSuggest is on.
-        autoSuggest: !!ev.autoSuggest,
-    };
-}
-
-/** Whether a Raid-Helper event's raid plan is switched on (raidplanStore `link`). */
-function raidplanSwitchedOn(eventId) {
-    const plan = raidplanStore.getPlan(eventId);
-    return !!(plan && plan.link && plan.link.enabled);
-}
-
-/**
- * Where the approved setup was posted (#290), reduced to what the cockpit's
- * Freigabe step says: is it out, which state does it show, how many DMs went.
- * Deliberately no `told` map and no failed user ids — the bar names numbers.
- */
-function setupPostState(eventId) {
-    const post = (getEvent(eventId) || {}).setupPost;
-    if (!post || !post.messageId) return null;
-    const dms = post.dms || null;
-    return {
-        channelId: post.channelId || "",
-        messageId: post.messageId || "",
-        version: Number(post.version) || 0,
-        dms: dms ? { total: Number(dms.total) || 0, sent: Number(dms.sent) || 0, failed: (dms.failed || []).length } : null,
-    };
-}
+const { buildRaidDetail } = require("../raidDetailView");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
- * one read: meta, raidplan setup, attendance vs. role holders, softres/sheet
- * links already created, and the loot already imported for this event. Some
- * fields (notifyTemplates, roles, matchedSheetId, tankCandidates,
- * softresCatalogue/Edition/Suggested) are only consumed by Part B's UI, but are
- * included here since this read already computes all of it in one pass.
+ * one read; built by raidDetailView.js, this is only the HTTP side.
  */
 const getRaidDetail = withUser({}, async ({ req, res, url }) => {
-    const guildId = activeGuildFor(req);
     const eventId = (url.searchParams.get("event") || "").trim();
-    // Include past raids: the dashboard's "Latest Events" card links here.
-    // A Raid-Helper hiccup no longer blocks the whole page — loadEventGroups()
-    // still finds the event via its cached/persisted fallback in that case, so
-    // only bail here when the event genuinely can't be resolved at all.
-    const { groups, error: groupsError, stale } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-    const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
-    if (!found) return error(res, groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
-
-    const raidsheets = listRaidsheets();
-    const matched = matchRaidsheet(raidsheets, found.e.title);
-
-    // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
-    // Once a raid is over, Raid-Helper eventually answers with an empty raidplan;
-    // the snapshot raidEventScan.js froze while it was still there then stands in,
-    // so a past raid keeps showing the setup it actually ran with.
-    let setup = null;
-    let setupError = null;
-    let tankCands = [];
-    let setupFromSnapshot = false;
-    // An own event has no Raid-Helper raidplan; its setup comes with #263.
-    if (found.e.source === "eventhelper") {
-        setup = buildSetupView([]);
-    } else {
-        const snapshot = getRaidEvent(eventId);
-        const snapshotSetup = (snapshot && snapshot.setup) || [];
-        try {
-            const rh = createRaidhelperClient();
-            const result = await rh.getSetup(eventId);
-            let slots = result && result.setup ? result.setup : [];
-            if (!slots.length && snapshotSetup.length) {
-                slots = snapshotSetup;
-                setupFromSnapshot = true;
-            }
-            setup = buildSetupView(slots);
-            tankCands = tankCandidates(slots);
-        } catch (e) {
-            if (snapshotSetup.length) {
-                setup = buildSetupView(snapshotSetup);
-                tankCands = tankCandidates(snapshotSetup);
-                setupFromSnapshot = true;
-            } else {
-                console.error("event setup load failed:", e.message);
-                setupError = e.message || "Setup konnte nicht geladen werden.";
-            }
-        }
-    }
-
-    // A raid that is over and whose signups Raid-Helper no longer returns (and
-    // that was never snapshotted) has an UNKNOWN roster — not an empty one.
-    // Reporting it as "0 Anmeldungen, alle fehlen" is what made past raids look
-    // like nobody had ever reacted.
-    const isPast = hasStarted(found.e);
-    const signUps = found.e.signUps || [];
-    const signupsKnown = isRosterKnown(found.e);
-
-    // Attendance: who (holding a role assigned to this event's category) has not
-    // reacted to the signup yet. Empty roleIds → feature simply stays inactive.
-    // Skipped entirely when the roster is unknown: every expected raider would
-    // land in "missing" and the page would invite a pointless mass ping.
-    const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
-    let attendance = { responded: [], missing: [] };
-    let membersError = null;
-    if (categoryRoleIds.length && signupsKnown) {
-        const membersResult = await discord.listMembersWithRoles(guildId, categoryRoleIds);
-        membersError = membersResult.error;
-        attendance = computeAttendance(membersResult.members, signUps);
-        // Enrich with class/spec/colour from each member's most recent signup in
-        // *this same category* (raiders often play a different character on a
-        // different raid day/type, so history from other categories would guess
-        // wrong) so raiders who haven't reacted here yet can still be shown with
-        // their known class.
-        const specHistory = buildSpecHistory(found.g.events);
-        attendance = {
-            responded: withSpecProfiles(attendance.responded, specHistory),
-            missing: withSpecProfiles(attendance.missing, specHistory),
-        };
-        // A manual raider->character assignment for this category (see
-        // raiderCharactersStore.js) is admin-confirmed and overrides the guess above.
-        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId);
-        attendance = {
-            responded: withCharacterAssignments(attendance.responded, assignmentProfiles),
-            missing: withCharacterAssignments(attendance.missing, assignmentProfiles),
-        };
-    }
-
-    // An own event's signups with what only the EventHelper knows ("kann auch",
-    // comment, character) — the roster tab lists them in place of a raidplan.
-    let ownSignups = null;
-    let ownSetup = null;
-    let ownSetupPost = null;
-    if (found.e.source === "eventhelper") {
-        ownSetupPost = setupPostState(eventId);
-        // Counts and state only — the lineup itself comes from GET /api/raids/setup,
-        // which hands a draft to nobody but the orga.
-        ownSetup = setupSummary(getEvent(eventId));
-        const rows = listSignups(eventId);
-        const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
-        ownSignups = eventSignupList(rows, names);
-    }
-
-    // Softres: pre-select the instances the event title implies. For now the
-    // guild only raids TBC, so restrict both the suggestion and the pickable
-    // catalogue to the TBC edition.
-    const softresEdition = "tbc";
-    // An own event names its raids (instanceIds, #291) — those win over the title guess.
-    const ownCodes = found.e.source === "eventhelper" ? softres.codesForRulesetInstances(found.e.instanceIds, softresEdition) : [];
-    const suggestedInstances = ownCodes.length
-        ? ownCodes.map((code) => ({ code }))
-        : softres.parseInstancesFromTitle(found.e.title, softresEdition);
-    const eventSoftres = getEventSoftres(eventId);
-    // Signup counter target: the raid size implied by the created softres list,
-    // falling back to the expected headcount from the attendance role(s).
-    // An own event names the size it is planned for, which beats both guesses.
-    let signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
-        ? softres.targetSizeForInstances(eventSoftres.instances)
-        : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
-    if (found.e.source === "eventhelper" && found.e.size) signupTarget = found.e.size;
-
-    // Logs: already assigned to this event, plus the still-unassigned ones from
-    // this guild (candidates for the "Log zuordnen" picker).
-    const eventLogs = listLogsForEvent(eventId);
-    const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
-    await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
-    // Normalise which analyses already ran, so the UI can offer the CLA and RPB
-    // buttons independently without having to know about legacy log entries.
-    for (const l of [...eventLogs, ...unlinkedLogs]) l.sections = evaluatedSections(l);
-
-    const payload = {
-        event: {
-            id: found.e.id,
-            source: found.e.source || "raidhelper",
-            title: found.e.title,
-            startTime: found.e.startTime,
-            channelId: found.e.channelId,
-            channelName: found.e.channelName,
-            signupCount: found.e.signupCount,
-            isPast,
-            // false → the roster is unknown (past raid, Raid-Helper dropped it and
-            // nothing was snapshotted); the UI must not render it as "0".
-            signupsKnown,
-            signUpsFromSnapshot: Boolean(found.e.signUpsFromSnapshot),
-            // Event verwalten (#288): cancelled / closed signup, with the reason —
-            // plus what only an own event plans with: the cockpit's Anmeldung step
-            // measures against the size and ends at the signup deadline (#319).
-            ...(found.e.source === "eventhelper" ? {
-                ...manageState(eventId),
-                size: Number(found.e.size) || 0,
-                signupDeadline: Number(found.e.signupDeadline) || 0,
-            } : {}),
-            // a Raid-Helper event whose raid plan the orga switched on (docs/raidplan.md, "Raid-Helper-Events"): the page shows the
-            // "Raidplan" tab; an own event always has it
-            raidplanEnabled: found.e.source === "eventhelper" || raidplanSwitchedOn(eventId),
-            // Raid-Helper switched off in the settings: the menu says the plan works from its saved line-up only
-            ...(found.e.source === "eventhelper" ? {} : { raidhelperDisabled: raidhelperDisabled() }),
-        },
-        setupFromSnapshot,
-        categoryName: found.g.categoryName,
-        guildId,
-        eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
-        notifyTemplates: listNotify(),
-        roles: discord.listRoles(guildId),
-        // Whether the ping/notify modals may offer the talk server as a target.
-        pingTargets: pingTargetInfo(),
-        raidsheets,
-        matchedSheetId: matched ? matched.id : "",
-        setup,
-        setupError,
-        tankCandidates: tankCands,
-        eventSheet: getEventSheet(eventId),
-        // Which sheet this raid actually links: its own filled copy, else the
-        // fixed sheet assigned to its category in the settings, else null.
-        sheetLink: resolveEventSheetLink(getEventSheet(eventId), found.g.categoryId),
-        eventSoftres,
-        softresCatalogue: softres.catalogue().filter((g) => g.edition === softresEdition),
-        softresEdition,
-        softresSuggested: suggestedInstances.map((i) => i.code),
-        attendance,
-        ownSignups,
-        ownSetup,
-        ownSetupPost,
-        attendanceRoleIds: categoryRoleIds,
-        membersError,
-        signupTarget,
-        lootItems: withLootClassLook(listLootByEvent(eventId)),
-        lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
-        // Softres, Loot-Council, … — decides whether the softres step and menu
-        // entry are offered at all (src/web/lootSystem.js).
-        lootSystem: lootSystemOf(eventId, found.g.categoryId),
-        eventLogs,
-        unlinkedLogs,
-    };
-    // The progress bar and the head's primary action, from the same payload.
-    payload.progress = raidSteps(payload);
-    // An own event answers the orga's one question as a five-step route instead
-    // (#319). Raid-Helper events keep exactly today's view: steps stays null.
-    payload.steps = found.e.source === "eventhelper" ? eventSteps(payload) : null;
-    // What the player dialog shows beyond this raid (raids in the category's
-    // last eight weeks, recent loot), for every name the page can open.
-    const names = [
-        ...((setup && setup.groups) || []).flatMap((g) => g.players.map((p) => p.name)),
-        ...[...attendance.responded, ...attendance.missing].map((p) => p.character || ""),
-    ];
-    payload.playerSummaries = summarizePlayers(names, listAllLoot(), listStoredEvents(guildId), { categoryId: found.g.categoryId });
-    ok(res, payload);
+    return sendResult(res, await buildRaidDetail({ guildId: activeGuildFor(req), eventId }));
 });
 
 /**

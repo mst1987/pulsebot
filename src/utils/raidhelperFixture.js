@@ -13,6 +13,8 @@
 // In production the variable does nothing: fixtureEnabled() checks NODE_ENV itself, so a stray variable on the server cannot switch
 // the real Raid-Helper off.
 const { logcheckAdminIds } = require("../config/variables");
+const { listEvents } = require("../web/eventStore");
+const discord = require("../web/discord");
 
 const FIXTURE_EVENT_ID = "1400000000000000001";
 const MODES = ["on", "nogroups", "signups", "gone", "down"];
@@ -141,10 +143,9 @@ function fixtureClient({ mode: baseMode = fixtureMode(), channelIdOf = defaultCh
 function defaultChannel() {
     if (process.env.EVENTHELPER_RH_FIXTURE_CHANNEL) return String(process.env.EVENTHELPER_RH_FIXTURE_CHANNEL);
     try {
-        const { listEvents } = require("../web/eventStore");
         const own = (listEvents() || []).find((e) => e && e.guildId) || null;
         const guildId = own ? own.guildId : String(process.env.GUILD_ID || "");
-        const map = require("../web/discord").getChannelCategoryMap(guildId) || {};
+        const map = discord.getChannelCategoryMap(guildId) || {};
         if (own && own.channelId && map[own.channelId]) return String(own.channelId);
         return Object.keys(map).find((id) => map[id] && map[id].categoryId) || "";
     } catch {

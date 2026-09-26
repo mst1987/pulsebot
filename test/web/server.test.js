@@ -26,6 +26,8 @@ jest.mock("../../src/web/auth", () => ({
     parseCookies: jest.fn(() => ({})),
 }));
 jest.mock("../../src/web/apiRouter", () => ({ handle: jest.fn(() => true) }));
+// #424: the server is HTTP only; the jobs start in jobs.js.
+jest.mock("../../src/web/jobs", () => ({ startJobs: jest.fn(), stopJobs: jest.fn() }));
 jest.mock("../../src/web/staticClient", () => ({ serve: jest.fn(() => true) }));
 // The public event page and the calendar file (#308) — the routing is what is
 // tested here, their content in eventPublicPage.test.js / icsFeed.test.js.
@@ -54,6 +56,7 @@ const raidplanStore = require("../../src/web/raidplanStore");
 const auth = require("../../src/web/auth");
 const apiRouter = require("../../src/web/apiRouter");
 const staticClient = require("../../src/web/staticClient");
+const jobs = require("../../src/web/jobs");
 const { webPort } = require("../../src/config/variables");
 const { startWebServer } = require("../../src/web/server.js");
 
@@ -64,6 +67,7 @@ const firstReturn = startWebServer();
 const capturedHandler = http.createServer.mock.calls[0][0];
 const createCallsAtLoad = http.createServer.mock.calls.length;
 const listenArgsAtLoad = http.__fakeServer.listen.mock.calls[0];
+const jobsStartedAtLoad = jobs.startJobs.mock.calls.length;
 
 const flush = () => new Promise((r) => setImmediate(r));
 const { mockRes, json } = require("../helpers/http");
@@ -82,6 +86,11 @@ describe("web/server", () => {
             expect(createCallsAtLoad).toBe(1);
             expect(listenArgsAtLoad[0]).toBe(webPort);
             expect(typeof listenArgsAtLoad[1]).toBe("function");
+        });
+
+        it("starts no background job itself (#424, see jobs.js)", () => {
+            expect(jobsStartedAtLoad).toBe(0);
+            expect(require("fs").readFileSync(require.resolve("../../src/web/server.js"), "utf8")).not.toMatch(/\bstart(RaidEventScan|LogAutoLink|EventMessageSync|Reminders|RoleSync|TalkOverview|EventSeries|SheetCleanup|Jobs)\b/);
         });
 
         it("returns the same server instance on repeated calls (idempotent)", () => {

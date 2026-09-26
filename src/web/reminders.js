@@ -220,6 +220,12 @@ function startReminders({ intervalMs = 5 * 60 * 1000 } = {}) {
     return timer;
 }
 
+/** Stop the periodic reminder sweep (idempotent); a later start begins afresh. */
+function stopReminders() {
+    if (timer) clearInterval(timer);
+    timer = null;
+}
+
 /** Test-only: forget the running timer and the last run. */
 function _resetForTests() {
     if (timer) clearInterval(timer);
@@ -230,5 +236,5 @@ function _resetForTests() {
 
 module.exports = {
     KINDS, AUTO_SUGGEST, toMs, dueReminders, reminderText, runReminders, autoSuggestDue, runAutoSuggest,
-    lastReminderRun, startReminders, _resetForTests,
+    lastReminderRun, startReminders, stopReminders, _resetForTests,
 };

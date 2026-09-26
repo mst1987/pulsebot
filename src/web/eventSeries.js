@@ -480,18 +480,23 @@ function startEventSeries({ intervalMs = 5 * 60 * 1000, firstDelayMs = 60 * 1000
     return timer;
 }
 
-/** Test-only. */
-function _resetForTests() {
+/** Stop the periodic sweep, the first run included (idempotent). */
+function stopEventSeries() {
     if (timer) clearInterval(timer);
     if (firstTimer) clearTimeout(firstTimer);
     timer = null;
     firstTimer = null;
+}
+
+/** Test-only. */
+function _resetForTests() {
+    stopEventSeries();
     running = false;
 }
 
 module.exports = {
     MIN_DAYS_BEFORE, MAX_DAYS_BEFORE, STALE_CREATING_MS, runSeries, seriesOverview, previewSeries, saveSeriesFor, seriesFailures,
-    startEventSeries, _resetForTests,
+    startEventSeries, stopEventSeries, _resetForTests,
     // only for the tests (#424): not part of the module's API
     _internal: {
         ZONE: TIMEZONE, MAX_ATTEMPTS, normalizeSeries, occurrences, dueDates, planSeries, summaryLine,
