@@ -1,8 +1,17 @@
-node_modules
+# Keep the build context small and free of secrets (.env.dev, .env.dev.bak).
+**/node_modules
 .git
-.env
-.env.local
+.env*
+!.env.example
+*.bak
+data/
 logs/
 *.log
+coverage/
+test/
+reference/
+docs/
+bin/
+src/web-client/dist
 .claude/
 .github/

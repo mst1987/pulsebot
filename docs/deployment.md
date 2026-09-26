@@ -83,13 +83,44 @@ Commit ins Log (`[deploy] Now at a1b2c3d …`), aktiviert die Node-Version aus
 Pflicht-Variablen in `.env`, registriert die Slash-Commands und startet den
 Prozess über pm2 neu.
 
-Danach prüfen:
+Zum Schluss fragt es selbst `GET /health` ab (`curl -fsS`, bis zu 20 Versuche
+im Abstand von 3 s, Port aus `WEB_PORT` in `.env`, sonst 3005). Antwortet der
+Bot nicht, gibt es die letzten pm2-Logzeilen aus und endet mit `exit 1` — der
+Deploy-Job in GitHub Actions wird rot, statt über einem toten Bot grün zu
+bleiben. Von Hand lässt sich dasselbe nachsehen:
 
 ```bash
 curl -s http://localhost:3005/health
 ```
 
 Der `commit` dort muss der sein, der gerade auf `main` steht.
+
+pm2 startet ohne `--env` im Modus `production` (`ecosystem.config.js`);
+`--env development` gibt es nur noch ausdrücklich. Neu gestartet wird der Bot
+erst ab 512 MB Speicher.
+
+## Docker
+
+Der zweite Weg neben pm2: ein Multi-Stage-Image, das den Web-Client selbst baut
+(Stage `client`) und nur dessen `dist/` ins schlanke Laufzeit-Image übernimmt
+(Stage `runtime`, `npm ci --omit=dev`, dazu `src/`, `assets/`, `scripts/`).
+
+```bash
+docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) -t pulsebot .
+docker run -d --name pulsebot --env-file .env -p 3005:3005 \
+  -v pulsebot-data:/app/data pulsebot
+```
+
+- **Build-Arg `GIT_COMMIT`**: im Image gibt es kein `.git`; ohne das Argument
+  bleibt `commit` in `/health` leer.
+- **Volume `/app/data`**: alle Stores (Einstellungen, Sitzungen, Importe)
+  schreiben dorthin — ohne Volume ist nach einem neuen Image alles weg.
+- **Healthcheck**: das Image prüft alle 30 s `/health` auf `$WEB_PORT`
+  (Standard 3005). Wer einen anderen Port setzt, gibt ihn per `-e WEB_PORT=…`
+  mit und veröffentlicht denselben.
+- `.dockerignore` hält alle `.env*` (außer `.env.example`), `data/`, Tests und
+  Doku aus dem Build-Kontext — Secrets landen nie in einer Image-Schicht; sie
+  kommen nur zur Laufzeit per `--env-file`.
 
 ## Wenn der Bot hinter `main` hängt
 
