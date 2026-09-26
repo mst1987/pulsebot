@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const {
     officerRoleId, applicationChannelId,
     highestBidsChannelId, highestBidsMessageId, categoryIds,
@@ -15,12 +15,13 @@ const { normalizeCategoryMessageLook } = require("./embedLook");
 const { isSnowflake, newId } = require("../utils/ids");
 
 // Editable bot settings live as JSON files under data/settings/.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const RECRUITMENT_FILE = path.join(SETTINGS_DIR, "recruitment.json");
-const RECRUITMENT_POSTS_FILE = path.join(SETTINGS_DIR, "recruitment-posts.json");
-const RAID_TEMPLATES_FILE = path.join(SETTINGS_DIR, "raid-templates.json");
-const NOTIFY_FILE = path.join(SETTINGS_DIR, "notify.json");
-const CONFIG_FILE = path.join(SETTINGS_DIR, "config.json");
+const recruitmentStore = createJsonStore({ file: settingsPath("recruitment.json"), defaults: { templates: [] } });
+const recruitmentPostsStore = createJsonStore({ file: settingsPath("recruitment-posts.json"), defaults: { posts: [] } });
+const raidTemplatesStore = createJsonStore({ file: settingsPath("raid-templates.json"), defaults: { templates: [] } });
+const notifyStore = createJsonStore({ file: settingsPath("notify.json"), defaults: { templates: [] } });
+// getConfig() runs on nearly every request: the file is read again only when it
+// changed (mtime/size), every other call gets a copy of the remembered value.
+const configStore = createJsonStore({ file: settingsPath("config.json"), defaults: {}, cache: true });
 
 // The "Tier 4/5" raidsheet that ships by default (seeded from the GOOGLE_* env
 // vars). It always exists so a fresh install can fill setups without any config.
@@ -184,26 +185,9 @@ const CONFIG_DEFAULTS = {
     categoryReminders: {},
 };
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
-
-function readJson(file, fallback) {
-    try {
-        return JSON.parse(fs.readFileSync(file, "utf8"));
-    } catch {
-        return fallback;
-    }
-}
-
-function writeJson(file, data) {
-    ensureDir();
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-
 /** All recruitment templates, newest-edited first. */
 function listRecruitment() {
-    const data = readJson(RECRUITMENT_FILE, { templates: [] });
+    const data = recruitmentStore.read();
     const templates = Array.isArray(data.templates) ? data.templates : [];
     return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -234,7 +218,7 @@ function saveRecruitment(data) {
         saved = Object.assign({ id: newId(), createdAt: Date.now(), updatedAt: Date.now() }, clean);
         templates.push(saved);
     }
-    writeJson(RECRUITMENT_FILE, { templates });
+    recruitmentStore.write({ templates });
     return saved;
 }
 
@@ -243,7 +227,7 @@ function deleteRecruitment(id) {
     const templates = listRecruitment();
     const next = templates.filter((t) => t.id !== id);
     if (next.length === templates.length) return false;
-    writeJson(RECRUITMENT_FILE, { templates: next });
+    recruitmentStore.write({ templates: next });
     return true;
 }
 
@@ -251,7 +235,7 @@ function deleteRecruitment(id) {
 
 /** All tracked posted recruitment messages, newest first. */
 function listRecruitmentPosts() {
-    const data = readJson(RECRUITMENT_POSTS_FILE, { posts: [] });
+    const data = recruitmentPostsStore.read();
     const posts = Array.isArray(data.posts) ? data.posts : [];
     return posts.slice().sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
 }
@@ -293,7 +277,7 @@ function saveRecruitmentPost(data) {
         saved = Object.assign({ id: newId(), postedAt: Date.now(), updatedAt: Date.now() }, clean);
         posts.push(saved);
     }
-    writeJson(RECRUITMENT_POSTS_FILE, { posts });
+    recruitmentPostsStore.write({ posts });
     return saved;
 }
 
@@ -302,7 +286,7 @@ function deleteRecruitmentPost(id) {
     const posts = listRecruitmentPosts();
     const next = posts.filter((p) => p.id !== id);
     if (next.length === posts.length) return false;
-    writeJson(RECRUITMENT_POSTS_FILE, { posts: next });
+    recruitmentPostsStore.write({ posts: next });
     return true;
 }
 
@@ -313,7 +297,7 @@ function deleteRecruitmentPost(id) {
 
 /** All raid templates, newest-updated first, legacy entries migrated. */
 function listRaidTemplates() {
-    const data = readJson(RAID_TEMPLATES_FILE, { templates: [] });
+    const data = raidTemplatesStore.read();
     const stored = Array.isArray(data.templates) ? data.templates : [];
     let migrated = false;
     const templates = stored.filter((t) => t && typeof t === "object").map((t) => {
@@ -323,7 +307,7 @@ function listRaidTemplates() {
         }
         return { ...normalizeTemplate(t), createdAt: t.createdAt || 0, updatedAt: t.updatedAt || 0 };
     });
-    if (migrated) writeJson(RAID_TEMPLATES_FILE, { templates });
+    if (migrated) raidTemplatesStore.write({ templates });
     return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
@@ -347,12 +331,12 @@ function saveRaidTemplate(data) {
         const match = templates.find((t) => t.id === clean.id);
         if (!match) return { notFound: true, error: "Vorlage nicht gefunden." };
         Object.assign(match, clean, { updatedAt: Date.now() });
-        writeJson(RAID_TEMPLATES_FILE, { templates });
+        raidTemplatesStore.write({ templates });
         return { template: match };
     }
     const saved = { ...clean, id: newId(), createdAt: Date.now(), updatedAt: Date.now() };
     templates.push(saved);
-    writeJson(RAID_TEMPLATES_FILE, { templates });
+    raidTemplatesStore.write({ templates });
     return { template: saved };
 }
 
@@ -379,7 +363,7 @@ function saveRaidTemplates(list) {
             added += 1;
         }
     }
-    if (incoming.length) writeJson(RAID_TEMPLATES_FILE, { templates });
+    if (incoming.length) raidTemplatesStore.write({ templates });
     return { added, updated };
 }
 
@@ -388,7 +372,7 @@ function deleteRaidTemplate(id) {
     const templates = listRaidTemplates();
     const next = templates.filter((t) => t.id !== id);
     if (next.length === templates.length) return false;
-    writeJson(RAID_TEMPLATES_FILE, { templates: next });
+    raidTemplatesStore.write({ templates: next });
     return true;
 }
 
@@ -396,7 +380,7 @@ function deleteRaidTemplate(id) {
 
 /** All Anmelde-Aufruf templates, newest-edited first. */
 function listNotify() {
-    const data = readJson(NOTIFY_FILE, { templates: [] });
+    const data = notifyStore.read();
     const templates = Array.isArray(data.templates) ? data.templates : [];
     return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
@@ -422,7 +406,7 @@ function saveNotify(data) {
         saved = Object.assign({ id: newId(), createdAt: Date.now(), updatedAt: Date.now() }, clean);
         templates.push(saved);
     }
-    writeJson(NOTIFY_FILE, { templates });
+    notifyStore.write({ templates });
     return saved;
 }
 
@@ -431,7 +415,7 @@ function deleteNotify(id) {
     const templates = listNotify();
     const next = templates.filter((t) => t.id !== id);
     if (next.length === templates.length) return false;
-    writeJson(NOTIFY_FILE, { templates: next });
+    notifyStore.write({ templates: next });
     return true;
 }
 
@@ -461,7 +445,7 @@ function normalizeRaidsheet(data, fallback = {}) {
  * feature works out of the box.
  */
 function listRaidsheets() {
-    const stored = readJson(CONFIG_FILE, {});
+    const stored = configStore.read();
     if (Array.isArray(stored.raidsheets) && stored.raidsheets.length) {
         return stored.raidsheets;
     }
@@ -489,8 +473,8 @@ function saveRaidsheet(data) {
         saved = { id: newId(), ...normalizeRaidsheet(data) };
         sheets.push(saved);
     }
-    const stored = readJson(CONFIG_FILE, {});
-    writeJson(CONFIG_FILE, { ...stored, raidsheets: sheets });
+    const stored = configStore.read();
+    configStore.write({ ...stored, raidsheets: sheets });
     return saved;
 }
 
@@ -499,14 +483,14 @@ function deleteRaidsheet(id) {
     const sheets = listRaidsheets().map((s) => ({ ...s }));
     const next = sheets.filter((s) => s.id !== id);
     if (next.length === sheets.length) return false;
-    const stored = readJson(CONFIG_FILE, {});
-    writeJson(CONFIG_FILE, { ...stored, raidsheets: next });
+    const stored = configStore.read();
+    configStore.write({ ...stored, raidsheets: next });
     return true;
 }
 
 /** The current admin config, merged over defaults. */
 function getConfig() {
-    const stored = readJson(CONFIG_FILE, {});
+    const stored = configStore.read();
     const discordServers = normalizeDiscordServers(stored.discordServers);
     return {
         ...CONFIG_DEFAULTS,
@@ -1009,7 +993,7 @@ function saveConfig(partial) {
     // Both replace the stored value as a whole, like topItems.
     if (partial.roleSync !== undefined) next.roleSync = normalizeRoleSync(partial.roleSync);
     if (partial.categoryReminders !== undefined) next.categoryReminders = normalizeCategoryReminders(partial.categoryReminders);
-    writeJson(CONFIG_FILE, next);
+    configStore.write(next);
     return getConfig();
 }
 

@@ -17,7 +17,10 @@ jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGear
 // Never touch the real cache file.
 jest.mock("fs", () => {
     const actual = jest.requireActual("fs");
-    return { ...actual, readFileSync: jest.fn(actual.readFileSync), writeFileSync: jest.fn(), mkdirSync: jest.fn() };
+    return {
+        ...actual, readFileSync: jest.fn(actual.readFileSync), writeFileSync: jest.fn(), mkdirSync: jest.fn(),
+        renameSync: jest.fn(), unlinkSync: jest.fn(),
+    };
 });
 
 const fs = require("fs");

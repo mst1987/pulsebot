@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
 // Which spec a raider signed up with at Raid-Helper, imported once when a guild
 // moves to the EventHelper's own events (#291, scripts/import-raidhelper-history.js
@@ -16,33 +16,31 @@ const path = require("path");
 // Importing is idempotent per event: an event id in `importedEventIds` is never
 // counted twice, so running the import again only adds raids that are new.
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const HISTORY_FILE = path.join(SETTINGS_DIR, "spec-history.json");
-let historyFile = HISTORY_FILE;
+const HISTORY_FILE = settingsPath("spec-history.json");
 
 const MAX_RUNS = 20;
 
-/** Tests only: read and write another file. */
-function useFile(file) {
-    historyFile = file || HISTORY_FILE;
-}
-
-function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(historyFile, "utf8"));
+const store = createJsonStore({
+    file: HISTORY_FILE,
+    defaults: () => ({ users: {}, importedEventIds: [], runs: [] }),
+    normalize: (data) => {
         return {
             users: data && typeof data.users === "object" && !Array.isArray(data.users) ? data.users : {},
             importedEventIds: Array.isArray(data.importedEventIds) ? data.importedEventIds.map(String) : [],
             runs: Array.isArray(data.runs) ? data.runs : [],
         };
-    } catch {
-        return { users: {}, importedEventIds: [], runs: [] };
-    }
+    },
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
+
+function readAll() {
+    return store.read();
 }
 
 function writeAll(data) {
-    fs.mkdirSync(path.dirname(historyFile), { recursive: true });
-    fs.writeFileSync(historyFile, JSON.stringify(data, null, 2));
+    store.write(data);
 }
 
 /** The event ids that were imported already. */

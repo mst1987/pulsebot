@@ -16,8 +16,8 @@
 // automatically, without anyone having to invalidate anything.
 
 const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
+const { dataPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
 const engine = require("../utils/wowsims/engine");
 const { specByKey } = require("../config/casterSpecs");
@@ -25,8 +25,14 @@ const { canWear } = require("../config/wearable");
 const { equipmentFor, targetSlotFor, bisFittingFor } = require("../utils/wowsims/loadout");
 const { gearByCharacter } = require("./charGear");
 
-const CACHE_DIR = path.join(__dirname, "..", "..", "data", "sim");
-const CACHE_FILE = path.join(CACHE_DIR, "results.json");
+const CACHE_FILE = dataPath("sim", "results.json");
+// Compact: the file is a cache nobody reads by hand, and it grows with every run.
+const store = createJsonStore({
+    file: CACHE_FILE,
+    space: 0,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data === "object" && !Array.isArray(data) ? data : {}),
+});
 
 // Cached numbers stay valid as long as the loadout and the binary do — both are
 // in the key — so entries only ever expire to keep the file from growing
@@ -37,19 +43,13 @@ let cache = null;
 
 function readCache() {
     if (cache) return cache;
-    try {
-        const data = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
-        cache = data && typeof data === "object" && !Array.isArray(data) ? data : {};
-    } catch {
-        cache = {};
-    }
+    cache = store.read();
     return cache;
 }
 
 function writeCache() {
     try {
-        fs.mkdirSync(CACHE_DIR, { recursive: true });
-        fs.writeFileSync(CACHE_FILE, JSON.stringify(cache || {}));
+        store.write(cache || {});
     } catch (e) {
         // A cache that cannot be written is a slow page, not a broken one.
         console.warn("sim cache write failed:", e.message);

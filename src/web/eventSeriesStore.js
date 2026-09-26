@@ -17,31 +17,35 @@
 // Kept out of the settings config: the scheduler writes here on every creation,
 // and a PATCH of the settings page must never race it.
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
-let file = path.join(__dirname, "..", "..", "data", "settings", "event-series.json");
 
 const EMPTY = () => ({ series: {}, runs: {}, lastRun: null });
 const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
 
-function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(file, "utf8"));
+const store = createJsonStore({
+    file: settingsPath("event-series.json"),
+    defaults: EMPTY,
+    normalize: (data) => {
         if (!isMap(data)) return EMPTY();
         return {
             series: isMap(data.series) ? data.series : {},
             runs: isMap(data.runs) ? data.runs : {},
             lastRun: isMap(data.lastRun) ? data.lastRun : null,
         };
-    } catch {
-        return EMPTY();
-    }
+    },
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
+
+function readAll() {
+    return store.read();
 }
 
 function writeAll(data) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    store.write(data);
 }
 
 /** Every stored series, keyed by category id. */
@@ -156,12 +160,7 @@ function setLastRun(lastRun) {
     writeAll(data);
 }
 
-/** Test-only: point the store at another file. */
-function _setFileForTests(next) {
-    file = next;
-}
-
 module.exports = {
     listSeries, getSeries, saveSeries, deleteSeries, getRuns, listRuns, claimDate, setRun, clearRun, pruneRuns,
-    getLastRun, setLastRun, _setFileForTests,
+    getLastRun, setLastRun, useFile,
 };
