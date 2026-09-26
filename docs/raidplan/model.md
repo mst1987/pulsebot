@@ -341,7 +341,7 @@ schreibgeschützt"). `RaidplanTab` shows `RhSource` above the editor: "Aufstellu
 
 ### Dev-Fixture (local test instances only)
 
-`src/utils/raidhelperFixture.js`: with `EVENTHELPER_RH_FIXTURE` set and `NODE_ENV` **not** `production`,
+`src/utils/raidhelper/fixture.js`: with `EVENTHELPER_RH_FIXTURE` set and `NODE_ENV` **not** `production`,
 `createRaidhelperClient()` hands out a stand-in that knows ONE made-up Raid-Helper event ("BT 25er Fixture",
 id `1400000000000000001`, in two days, 25 raiders under nicknames, one death knight; the first raider is the
 dev login `ADMIN_USER_ID`, so "Meine Aufgaben" has something). It never opens a connection and refuses every
@@ -352,10 +352,10 @@ fails — the fallbacks). A file `data/rh-fixture-mode.txt` holding one of these
 instance (e.g. to `down` and back — the in-memory fallbacks are what a real outage hits); delete it to go back
 to the variable. `EVENTHELPER_RH_FIXTURE_CHANNEL` names the channel when the automatic choice does not fit. In
 production the variable does nothing (`fixtureMode()` checks `NODE_ENV` itself; tested in
-`test/utils/raidhelperFixture.test.js`). Example: `EVENTHELPER_RH_FIXTURE=1` in the worktree's `.env.dev`,
+`test/utils/raidhelper/fixture.test.js`). Example: `EVENTHELPER_RH_FIXTURE=1` in the worktree's `.env.dev`,
 restart.
 
 Tests: `test/web/raidhelperRoster.test.js`, `test/web/raidplanTitle.test.js`,
 `test/web/raidplanRaidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
-Raid-Helper), `test/utils/raidhelperFixture.test.js`, `src/web-client/src/lib/raidplanRaidhelper.test.ts`, plus the
+Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `src/web-client/src/lib/raidplanRaidhelper.test.ts`, plus the
 store / board additions.

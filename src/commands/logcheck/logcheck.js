@@ -2,7 +2,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
-const { botEditReply } = require("../../utils/helper");
+const { botEditReply } = require("../../utils/discord/reply");
 
 module.exports = {
     name: "logcheck",

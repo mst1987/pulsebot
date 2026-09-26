@@ -7,7 +7,7 @@ const { listByCharacter } = require("../../web/lootStore");
 const { itemCatalog } = require("../../web/lootStats");
 const { annotatedCharacters } = require("../../web/characterInfo");
 const { myCharacters } = require("../../web/userCharacters");
-const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/botLookup");
+const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
 
 /** How many awards a reply lists — the web page has the rest. */
 const MAX_ROWS = 6;

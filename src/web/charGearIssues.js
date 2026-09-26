@@ -12,7 +12,7 @@
 // The slim slice: this reads the roster (or, on an old report, the players)
 // and nothing else — see reportStore.js.
 const { listReports, getReportRoster } = require("./reportStore");
-const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 
 // How many of the newest evaluations are read. Same bound (and reason) as

@@ -6,7 +6,7 @@ const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
 const { listReports } = require("../../../src/web/reportStore");
 const { itemCatalog } = require("../../../src/web/lootStats");
-const { EMBED_LIMITS, embedSize } = require("../../../src/utils/botLookup");
+const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 

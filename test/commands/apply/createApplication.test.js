@@ -1,4 +1,3 @@
-jest.mock("../../../src/utils/helper.js");
 
 const command = require("../../../src/commands/apply/createApplication.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");

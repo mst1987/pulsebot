@@ -1,5 +1,5 @@
 const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
-const { pendingApplications } = require("../../utils/applicationState");
+const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
 const { getConfig } = require("../../web/configStore");

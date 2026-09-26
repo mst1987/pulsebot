@@ -32,7 +32,7 @@ const bis = require("../config/bisSets");
 const { SPECS } = require("../config/casterSpecs");
 const { TIERS } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
-const { characterProfile } = require("../utils/setupView");
+const { characterProfile } = require("../utils/setup/setupView");
 const { itemView } = require("./lootCouncil");
 const { DISPLAY_ORDER } = require("./charGear");
 

@@ -32,7 +32,7 @@ const {
 } = require("discord.js");
 const discord = require("./discord");
 const eventStore = require("./eventStore");
-const { eventEndTime } = require("../utils/eventTime");
+const { eventEndTime } = require("../utils/time");
 const { getConfig } = require("./settingsStore");
 const { str, clip } = require("../utils/text");
 

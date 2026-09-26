@@ -27,8 +27,8 @@ const { getChannelConfig } = require("./channelArchiveStore");
 const channelNaming = require("./channelNaming");
 const { instanceById } = require("../config/gameVersions");
 const { emojiStyleOf } = require("./appEmojis");
-const { createRaidhelperClient } = require("../utils/raidhelperClient");
-const { toRaidHelperDate } = require("../utils/date");
+const { createRaidhelperClient } = require("../utils/raidhelper/client");
+const { toRaidHelperDate } = require("../utils/time");
 
 const { TIMEZONE } = require("../config/timezone");
 const { fail } = require("./apiResult");

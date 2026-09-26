@@ -11,7 +11,7 @@ const { onJoin, onClass, reply, emojisFor } = require("./eventButton");
 //
 // A message component is the same for everybody, so this select cannot list
 // anyone's own characters; "Meine Charaktere …" opens them ephemerally. Every
-// step after it is the button flow's (eventButton.js, utils/signupButtons.js).
+// step after it is the button flow's (eventButton.js, utils/signup/signupButtons.js).
 //
 // Discord keeps a picked option shown in the member's client and sends nothing
 // when the same option is picked again. So the answer first resets the select

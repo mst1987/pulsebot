@@ -1,14 +1,14 @@
 // Words a character name typed into the bot or the web may not carry — the
 // raiders' names end up in public Discord messages (signup, setup, invite
 // call). German and English, lower case, without umlauts (ä → a, ß → ss; see
-// normalizeForCheck in src/utils/characterNames.js).
+// normalizeForCheck in src/utils/signup/characterNames.js).
 //
 // Three lists, because a blunt substring check refuses harmless names
 // ("Hancock", "Barsch", "Torpedo" — the Scunthorpe problem):
 //   CONTAINS  roots that are never part of a harmless name — matched anywhere
 //   PREFIX    matched at the start of a name part (and of first + last name)
 //   EXACT     only the whole part, or first + last name together
-// Extend the lists here; test/utils/characterNames.test.js holds the cases
+// Extend the lists here; test/utils/signup/characterNames.test.js holds the cases
 // that must stay allowed.
 
 const CONTAINS = [

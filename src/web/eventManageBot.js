@@ -32,8 +32,8 @@ const { updateEvent } = require("./eventCreate");
 const { pingMissingRaiders } = require("./missingPing");
 const { setupSummary } = require("./setupEditor");
 const { parseComposition } = require("./eventDraft");
-const { parseGermanDate, parseClockTime } = require("../utils/date");
-const { webUrl, clip } = require("../utils/botLookup");
+const { parseGermanDate, parseClockTime } = require("../utils/time");
+const { webUrl, clip } = require("../utils/discord/botLookup");
 const { isSnowflake } = require("../utils/ids");
 
 const MANAGE_PREFIX = "event-manage";

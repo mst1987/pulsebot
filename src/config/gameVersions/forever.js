@@ -18,7 +18,7 @@
 //
 // Characters in Forever carry a first and a last name, twelve letters each
 // ("Vorname Nachname"); the other versions know one name. The rule lives in
-// src/utils/characterNames.js, `characterNames.lastName` switches it on.
+// src/utils/signup/characterNames.js, `characterNames.lastName` switches it on.
 
 const classic = require("./classic");
 

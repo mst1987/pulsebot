@@ -30,7 +30,7 @@
 const { listStoredEvents } = require("./eventSources");
 const { listLogs } = require("./logStore");
 const { listReports, getReport } = require("./reportStore");
-const { characterKeyOf } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../config/tbcContent");
 
 /** How many raid nights of a category attendance looks back over. */

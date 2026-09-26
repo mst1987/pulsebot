@@ -1,8 +1,8 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { characterKey, enrichItemNames, needsLookup } = require("../utils/lootImport");
+const { characterKey, enrichItemNames, needsLookup } = require("../utils/loot/lootImport");
 const { wowheadLink } = require("../config/wowheadItemAliases");
-const { describeReason } = require("../utils/lootReasons");
+const { describeReason } = require("../utils/loot/lootReasons");
 const { contentForLoot, tokenTier } = require("../config/tbcContent");
 const { newId } = require("../utils/ids");
 

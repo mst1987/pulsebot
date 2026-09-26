@@ -130,9 +130,9 @@ jest.mock("../../../src/web/raiderCharactersStore", () => ({
     setCategoryAssignments: jest.fn(),
     resolveAssignmentProfiles: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/utils/lootImport", () => {
+jest.mock("../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
-    const actual = jest.requireActual("../../../src/utils/lootImport");
+    const actual = jest.requireActual("../../../src/utils/loot/lootImport");
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
@@ -212,19 +212,19 @@ jest.mock("../../../src/web/eventLootSystemStore", () => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
     })),
 }));
-jest.mock("../../../src/utils/softres", () => ({
+jest.mock("../../../src/utils/loot/softres", () => ({
     parseInstancesFromTitle: jest.fn(() => []),
     targetSizeForInstances: jest.fn(() => 0),
     catalogue: jest.fn(() => []),
     editionOf: jest.fn(() => ""),
-    codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../../src/utils/softres").codesForRulesetInstances(ids, "tbc")),
+    codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../../src/utils/loot/softres").codesForRulesetInstances(ids, "tbc")),
     createRaid: jest.fn(),
 }));
-jest.mock("../../../src/utils/raidsheets", () => ({
+jest.mock("../../../src/utils/setup/raidsheets", () => ({
     matchRaidsheet: jest.fn(() => null),
 }));
-jest.mock("../../../src/utils/wowhead", () => {
-    const actual = jest.requireActual("../../../src/utils/wowhead");
+jest.mock("../../../src/utils/loot/wowhead", () => {
+    const actual = jest.requireActual("../../../src/utils/loot/wowhead");
     return {
         searchItems: jest.fn(() => Promise.resolve([])),
         // Pure URL builders, no network: the loot catalogue's icon and Wowhead
@@ -244,7 +244,7 @@ jest.mock("../../../src/classes/drive", () =>
     })));
 jest.mock("../../../src/classes/sheets", () => jest.fn().mockImplementation(() => ({})));
 const mockFillSetupSheet = jest.fn();
-jest.mock("../../../src/utils/fillSetup", () => ({
+jest.mock("../../../src/utils/setup/fillSetup", () => ({
     fillSetupSheet: (...args) => mockFillSetupSheet(...args),
 }));
 const mockRaidHelperSlots = jest.fn(() => []);
@@ -263,9 +263,9 @@ const lootStore = require("../../../src/web/lootStore");
 const raiderCharactersStore = require("../../../src/web/raiderCharactersStore");
 const eventSheetStore = require("../../../src/web/eventSheetStore");
 const eventSoftresStore = require("../../../src/web/eventSoftresStore");
-const softres = require("../../../src/utils/softres");
-const wowhead = require("../../../src/utils/wowhead");
-const raidsheetsUtil = require("../../../src/utils/raidsheets");
+const softres = require("../../../src/utils/loot/softres");
+const wowhead = require("../../../src/utils/loot/wowhead");
+const raidsheetsUtil = require("../../../src/utils/setup/raidsheets");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/raidDetail"));
 
 describe("web/apiRoutes/raidDetail", () => {

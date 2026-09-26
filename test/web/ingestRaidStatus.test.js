@@ -50,7 +50,7 @@ jest.mock("../../src/web/raidEventGroups", () => ({
     EVENT_LOOKBACK_DAYS: 60,
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../src/utils/wowhead", () => ({
+jest.mock("../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
     searchItems: jest.fn(async () => []),
 }));

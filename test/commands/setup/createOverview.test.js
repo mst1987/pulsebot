@@ -1,8 +1,10 @@
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
+jest.mock("../../../src/utils/raidhelper/channelEvents.js");
 
-const helper = require("../../../src/utils/helper.js");
+const reply = require("../../../src/utils/discord/reply.js");
+const channelEvents = require("../../../src/utils/raidhelper/channelEvents.js");
 const createOverview = require("../../../src/commands/setup/createOverview.js");
 
 const ADMIN_ID = "233598324022837249";
@@ -10,7 +12,7 @@ const ADMIN_ID = "233598324022837249";
 describe("commands/setup/createOverview", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        helper.showAllEvents.mockResolvedValue("formatted raids");
+        channelEvents.showAllEvents.mockResolvedValue("formatted raids");
     });
 
     it("exports the correct command contract", () => {
@@ -33,9 +35,9 @@ describe("commands/setup/createOverview", () => {
 
         await createOverview.execute(interaction, {});
 
-        expect(helper.botReply).toHaveBeenCalledTimes(1);
-        expect(helper.botReply.mock.calls[0][1]).toBe("Fehler");
-        expect(helper.showAllEvents).not.toHaveBeenCalled();
+        expect(reply.botReply).toHaveBeenCalledTimes(1);
+        expect(reply.botReply.mock.calls[0][1]).toBe("Fehler");
+        expect(channelEvents.showAllEvents).not.toHaveBeenCalled();
     });
 
     it("renders the overview with buttons for an admin", async () => {
@@ -46,9 +48,9 @@ describe("commands/setup/createOverview", () => {
 
         await createOverview.execute(interaction, {});
 
-        expect(helper.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
-        expect(helper.botReply).toHaveBeenCalledTimes(1);
-        const call = helper.botReply.mock.calls[0];
+        expect(channelEvents.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
+        expect(reply.botReply).toHaveBeenCalledTimes(1);
+        const call = reply.botReply.mock.calls[0];
         expect(call[1]).toBe("GDKP Raids");
         expect(call[2]).toBe("formatted raids");
         // components row is the 6th arg

@@ -291,7 +291,7 @@ function approvedPlacementFor(event, userId) {
 
 /**
  * The approved lineup as Raid-Helper raidplan slots — for the readers built on
- * that shape (the bot's setup lookups, utils/fillSetup.js). [] without approval.
+ * that shape (the bot's setup lookups, utils/setup/fillSetup.js). [] without approval.
  */
 function raidHelperSlots(event) {
     const approved = approvedSetupOf(event);

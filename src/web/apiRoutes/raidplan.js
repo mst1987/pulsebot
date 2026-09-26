@@ -44,7 +44,7 @@ const { instancesFromTitle } = require("../raidplanTitle");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
-const { raidhelperDisabled } = require("../../utils/raidhelperClient");
+const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 
 const canWrite = (user) => userCan(user, "raids", "write");
 

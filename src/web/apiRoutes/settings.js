@@ -15,7 +15,7 @@ const { listKnownCategories } = require("../categoryNames");
 const { normalizeLootSystem } = require("../lootSystem");
 const { lastReminderRun } = require("../reminders");
 const { pingTargetInfo } = require("../pingDelivery");
-const wowhead = require("../../utils/wowhead");
+const wowhead = require("../../utils/loot/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
@@ -397,8 +397,6 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
-    if (body.highestBidsChannelId !== undefined) partial.highestBidsChannelId = String(body.highestBidsChannelId).trim();
-    if (body.highestBidsMessageId !== undefined) partial.highestBidsMessageId = String(body.highestBidsMessageId).trim();
     if (body.categoryIds !== undefined) partial.categoryIds = asStringArray(body.categoryIds);
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
     if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);

@@ -14,8 +14,8 @@ const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
 } = require("./settingsStore");
-const { matchRaidsheet } = require("../utils/raidsheets");
-const { buildSetupView, tankCandidates } = require("../utils/setupView");
+const { matchRaidsheet } = require("../utils/setup/raidsheets");
+const { buildSetupView, tankCandidates } = require("../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
     hasStarted, isRosterKnown,
@@ -25,7 +25,7 @@ const { getEventSheet } = require("./eventSheetStore");
 const { getRaidEvent } = require("./raidEventStore");
 const { listStoredEvents } = require("./eventSources");
 const { getEventSoftres } = require("./eventSoftresStore");
-const softres = require("../utils/softres");
+const softres = require("../utils/loot/softres");
 const { lootSystemOf } = require("./eventLootSystemStore");
 const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("./lootStore");
 const { raidSteps, eventSteps } = require("./raidDetailSteps");
@@ -33,7 +33,7 @@ const { summarizePlayers } = require("./raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("./lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("./logStore");
 const { backfillLogTitles } = require("./logChannel");
-const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
 const discord = require("./discord");
 const { listSignups } = require("./signupStore");
 const { eventSignupList } = require("./signupView");

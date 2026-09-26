@@ -55,7 +55,7 @@ function categoryOptions(guildId) {
  * Query: role, tiers, contents, category, bisTier, item (candidates for one item)
  */
 const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
-    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
     const role = url.searchParams.get("role") || "";
     const tierIds = listParam(url, "tiers");
@@ -142,15 +142,15 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
  */
 const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
-    if (!id) return apiError(res, 400, "Job-Id fehlt.");
+    if (!id) return apiError(res, 400, "bad_request", "Job-Id fehlt.");
     const subjects = (Array.isArray(body.subjects) ? body.subjects : [])
         .map((s) => ({ key: String((s && s.key) || "").trim(), specKey: String((s && s.specKey) || "").trim() }))
         .filter((s) => s.key && s.specKey);
-    if (!subjects.length) return apiError(res, 400, "Keine Raider angegeben.");
+    if (!subjects.length) return apiError(res, 400, "bad_request", "Keine Raider angegeben.");
     const items = (Array.isArray(body.items) ? body.items : []).map(Number).filter((n) => n > 0);
 
     if (!engine.isAvailable()) {
-        return apiError(res, 503, "Keine WoWSims-Simulation verfügbar — WOWSIMCLI_PATH ist nicht gesetzt.");
+        return apiError(res, 503, "sim_unavailable", "Keine WoWSims-Simulation verfügbar — WOWSIMCLI_PATH ist nicht gesetzt.");
     }
     const started = startCouncilSim(id, subjects, items);
     ok(res, { ...started, id });
@@ -167,7 +167,7 @@ const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: tr
  */
 const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
-    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
 
     if (body.exclude === false) {
         const removed = councilStore.include(character);
@@ -177,7 +177,7 @@ const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, a
         reason: String(body.reason || "").trim(),
         by: user.name || user.id,
     });
-    if (!entry) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!entry) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
     ok(res, { character, excluded: true, entry });
 });
 
@@ -192,9 +192,9 @@ const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, a
  */
 const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
-    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
     const role = String(body.role || "").trim();
-    if (role && !ROLES.some((r) => r.id === role)) return apiError(res, 400, `Unbekannte Rolle: ${role}`);
+    if (role && !ROLES.some((r) => r.id === role)) return apiError(res, 400, "invalid_input", `Unbekannte Rolle: ${role}`);
 
     const entry = councilStore.setRole(character, role, { by: user.name || user.id });
     ok(res, { character, role: entry ? entry.role : "", entry });
@@ -210,10 +210,10 @@ const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, asyn
  * look wrong when it is not.
  */
 const getExport = withUser({}, async ({ user, res, url }) => {
-    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
     const character = String(url.searchParams.get("character") || "").trim();
-    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
     // The spec decides the rotation and the buff set, so it has to be the same
     // one the page judged them by — and, one step earlier, the same role: the
     // export has to be built from the set the page compared, not from the
@@ -221,13 +221,13 @@ const getExport = withUser({}, async ({ user, res, url }) => {
     const known = characterMap()[charKey(character)] || {};
     const knownSpec = specFor(known.className, known.spec);
     const gear = gearFor(character, { roleFor: () => (knownSpec ? knownSpec.role : "") });
-    if (!gear) return apiError(res, 404, `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
+    if (!gear) return apiError(res, 404, "not_found", `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
 
     const specEntry = knownSpec || specFor(gear.className, known.spec);
-    if (!specEntry) return apiError(res, 400, `Für ${character} ist keine Caster-Spec bekannt.`);
+    if (!specEntry) return apiError(res, 400, "spec_required", `Für ${character} ist keine Caster-Spec bekannt.`);
 
     const built = engine.buildIndividualExport({ gear, specEntry });
-    if (!built.supported) return apiError(res, 400, built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");
+    if (!built.supported) return apiError(res, 400, "unsupported", built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");
 
     // Whoever checks the number in WoWSims has the raider's armory open next to
     // it, so every place where this loadout deliberately differs from their last
@@ -284,7 +284,7 @@ const SIM_URLS = {
  * `bisSpecs` — which is the answer, not a gap.
  */
 const getItemSearch = withUser({}, async ({ user, res, url }) => {
-    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     const tier = url.searchParams.get("tier") || "";
     const items = searchItems(url.searchParams.get("q") || "").map((it) => {
         const source = sourceForItem(it.id) || {};
@@ -309,11 +309,11 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
  */
 const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const characters = Array.isArray(body.characters) ? body.characters : [];
-    if (!characters.length) return apiError(res, 400, "Keine Charaktere angegeben.");
+    if (!characters.length) return apiError(res, 400, "bad_request", "Keine Charaktere angegeben.");
 
     const result = await primeArmoryGear(characters, { full: true, force: true });
     if (!result.configured) {
-        return apiError(res, 400, "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
+        return apiError(res, 400, "armory_not_configured", "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
     }
     ok(res, result);
 });
@@ -329,7 +329,7 @@ const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: tru
  */
 const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const character = String(body.character || "").trim();
-    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
     if (body.clear) {
         // "Zurück zur Auswertung": both hand-picked sources go, the loaded log
         // and the armory answer, so the evaluations' set is what shows next.
@@ -348,7 +348,7 @@ const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, a
             tried,
         });
     } catch (e) {
-        if (e && e.logGear) return apiError(res, e.status || 404, e.message);
+        if (e && e.logGear) return apiError(res, e.status || 404, "log_gear", e.message);
         throw e;
     }
 });
@@ -358,13 +358,13 @@ const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, a
  * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
  */
 const getBisLists = withUser({}, async ({ user, res, url }) => {
-    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     ok(res, bisLists(url.searchParams.get("tier") || ""));
 });
 
 /** GET /api/lootcouncil/sim?id=… — poll a running simulation. */
 const getLootCouncilSim = withUser({}, async ({ user, res, url }) => {
-    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
     const job = getJob(url.searchParams.get("id") || "");
     if (!job) return ok(res, { status: "unknown" });
     ok(res, job);

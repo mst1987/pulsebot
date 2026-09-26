@@ -19,7 +19,7 @@
 // A channel link crosses servers as a plain URL — `<#id>` only resolves on the
 // server it is posted on.
 const crypto = require("crypto");
-const { discordTimestamp, shortServerTime } = require("../utils/discordTime");
+const { discordTimestamp, shortServerTime } = require("../utils/time");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");

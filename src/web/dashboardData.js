@@ -12,7 +12,7 @@ const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require(".
 const { autoLinkLogs } = require("./logAutoLink");
 const { logPostedAt } = require("./reportList");
 const { listAwards } = require("./lootAwards");
-const { createRaidhelperClient } = require("../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("./discord");
 const { getConfig, resolveEventSheetLink } = require("./settingsStore");
 const { loadEventGroups } = require("./raidEventGroups");
@@ -23,7 +23,7 @@ const { buildRoster } = require("./roster");
 const { rosterStats } = require("./rosterStats");
 const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
 const { applyReview } = require("../utils/logcheck/recommendations");
-const softres = require("../utils/softres");
+const softres = require("../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../utils/attendance");

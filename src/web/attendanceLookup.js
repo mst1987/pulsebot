@@ -6,7 +6,7 @@ const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { listAllAssignments } = require("./raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listKnownCategories } = require("./categoryNames");
-const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 
 /**
  * Every character name the roster knows (loot and assignments), for autocomplete.

@@ -31,7 +31,7 @@ jest.mock("../../src/classes/warcraftlogs", () => jest.fn().mockImplementation((
 
 // The store keeps real behaviour (merge rules matter here) but in memory.
 jest.mock("../../src/web/characterStore", () => {
-    const { characterKey } = jest.requireActual("../../src/utils/lootImport");
+    const { characterKey } = jest.requireActual("../../src/utils/loot/lootImport");
     const actual = jest.requireActual("../../src/web/characterStore");
     let rows = [];
     return {

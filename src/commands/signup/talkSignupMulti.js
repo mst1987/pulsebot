@@ -3,8 +3,8 @@ const { publicBaseUrl } = require("../../utils/publicUrl");
 const profiles = require("../../web/raiderProfileStore");
 const { MULTI_BUTTON_ID } = require("../../web/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
-const { characterOptions } = require("../../utils/joinPicker");
-const { createSession, getSession, signableRaids, buildRaidPicker } = require("../../utils/multiSignup");
+const { characterOptions } = require("../../utils/signup/joinPicker");
+const { createSession, getSession, signableRaids, buildRaidPicker } = require("../../utils/signup/multiSignup");
 
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
 // step 1, only for the member — the coming raids (all preselected), the status

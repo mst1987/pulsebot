@@ -25,7 +25,7 @@ A button, select or modal that belongs to a command declares `accessOf: "<comman
 
 **Commands and components:** a module with `data` is a **command** (slash command or context menu), one without is a **component** — `kindOf()` in `loader.js`. Both sit in `client.commands`, keyed by name resp. customId prefix; the router lets a slash command, context menu or autocomplete reach only a command, a button/select/modal reaches either (the overview buttons call `update-events` etc.). A few components carry their own `group` because they are the entry point of a flow (`apply`, `event-btn`, `event-join`, `event-signup`, `talk-signup`); `test/commands/loader.test.js` keeps that list explicit.
 
-**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in the modules' `data`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
+**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/signup/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in the modules' `data`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
 
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
@@ -48,7 +48,7 @@ When adding a new command:
 
 ### Lookups with a link into the web menu (issue #265) and `/kanal` (#259)
 
-Short answers in Discord, the big view one click away: every reply is **ephemeral**, one compact embed (the headline number large, a few lines of detail) and an „Im Web öffnen“ link button to the page with the full view (`publicBaseUrl` from `config/variables.js`, i.e. `PUBLIC_BASE_URL`). The shared pieces — `lookupReply()`, `clampEmbed()` (Discord's embed limits), `linkRow()`, `respondChoices()` (autocomplete, ranked and capped at 25), `discordTime()` — are in `src/utils/botLookup.js`. **No second logic:** the data comes from the functions the API uses.
+Short answers in Discord, the big view one click away: every reply is **ephemeral**, one compact embed (the headline number large, a few lines of detail) and an „Im Web öffnen“ link button to the page with the full view (`publicBaseUrl` from `config/variables.js`, i.e. `PUBLIC_BASE_URL`). The shared pieces — `lookupReply()`, `clampEmbed()` (Discord's embed limits), `linkRow()`, `respondChoices()` (autocomplete, ranked and capped at 25), `discordTime()` — are in `src/utils/discord/botLookup.js`. **No second logic:** the data comes from the functions the API uses.
 
 | Command | Default | Reads | Links to |
 |---|---|---|---|
@@ -68,11 +68,26 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 ## Core Utilities
 
-### `botReply(interaction, title, message, timeout, ephemeral, components)`
-Standard way to send a Discord reply. Sends an embed with `title` and `description`. Default: ephemeral=true, timeout=60000ms (auto-deletes). Pass `timeout=0` to keep permanently.
+`src/utils/` is split by area (#427); a new helper goes into the folder of its area, not next to it:
 
-### `botEditReply(interaction, title, message, ...)`
-Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
+| Folder | What lives there |
+|---|---|
+| `utils/discord/` | `reply.js`: `botReply`, `botEditReply`, `botFollowup`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
+| `utils/signup/` | Signup buttons, dialog, multi-signup, join picker, character-name rule, `botEnglish.js` (German service messages → English) |
+| `utils/setup/` | Setup proposal (`model`, `proposal`, `score`, …), `fillSetup.js`, `setupView.js`, `raidsheets.js`, `sheetCleanup.js`, `response.js` (the line per raid of `/mysetups`) |
+| `utils/raidhelper/` | `client.js` (`createRaidhelperClient`, switch-off), `fixture.js` (dev stand-in), `queries.js` (signups/setups of a category), `channelEvents.js` (events of a category from both sources) |
+| `utils/loot/` | `lootImport.js`, `lootReasons.js`, `softres.js`, `wowhead.js` |
+| `utils/logcheck/` | The log analyzers and `wclRoster.js` (docs/logcheck.md) |
+| `utils/recruitment/` | `recruitmentSpecs.js`, `applicationState.js` |
+| `utils/time/` | One module (`index.js`): German date formats and parsers, Discord timestamps and server-time texts, raid duration (`clampDuration`, `eventEndTime`); the zone is `config/timezone.js` |
+| `utils/wowsims/` | The WoWSims engine and presets |
+| flat | `format.js` (`formatSpecs`, `formatSignUps` of `/signup`), `text.js`, `ids.js`, `publicUrl.js`, `httpAgent.js`, `attendance.js`, `channelNames.js` |
+
+### `botReply(interaction, title, message, timeout, ephemeral, components)`
+Standard way to send a Discord reply (`utils/discord/reply.js`). Sends an embed with `title` and `description`. Default: ephemeral=true, timeout=60000ms (auto-deletes). Pass `timeout=0` to keep permanently.
+
+### `botEditReply(interaction, title, message, timeout, ephemeral, components)`
+Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond. `timeout` and `ephemeral` have no effect on an edit; they only keep `components` in sixth place.
 
 ## API Clients
 
@@ -80,13 +95,13 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 
 | Client | Contract |
 |---|---|
-| `classes/raidhelper.js` | The body decides, whatever the HTTP status. Event-list reads reject (the `status: "failed"` payload as-is, else an Error), `getTemplates` → `[]`, `getSetup` → `undefined`, `createEvent`/`getEvent` resolve the parsed body. POSTs and timeouts (20 s) are never retried. Always obtained through `utils/raidhelperClient.js` (switch-off, fixture). |
+| `classes/raidhelper.js` | The body decides, whatever the HTTP status. Event-list reads reject (the `status: "failed"` payload as-is, else an Error), `getTemplates` → `[]`, `getSetup` → `undefined`, `createEvent`/`getEvent` resolve the parsed body. POSTs and timeouts (20 s) are never retried. Always obtained through `utils/raidhelper/client.js` (switch-off, fixture). |
 | `classes/warcraftlogs.js` (v1) | Throws the `ApiError`. The workhorse of the log check; the head lists every importer and why it stays on v1. |
 | `classes/warcraftlogsV2.js` | Never throws: `null` + `lastError` (`not_configured`, `graphql`, `{ status, message }`). A 401 on a query refreshes the token once. |
 | `classes/blizzard.js` | Never throws (except `getToken`): `null` + `lastError { status, message, namespace }`, so the UI falls back to the armory link. |
 | `classes/anthropic.js` | Only creates the SDK client (`createAnthropicClient({ apiKey })`); the SDK has its own transport and retries. |
 
-In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/softres.js`, `utils/wowhead.js`, `web/deployStatus.js`) use the shared agent as well.
+In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/loot/softres.js`, `utils/loot/wowhead.js`, `web/deployStatus.js`) use the shared agent as well.
 
 ## Common Patterns
 

@@ -43,6 +43,11 @@ describe("web/report/panels/debuffs", () => {
             expect(html).toContain("<td>Maulgar &lt;1&gt; <span class=\"sritems\">(Wipe)</span></td>");
             expect(html).toContain("<b class=\"high\">0 %</b>");
         });
+
+        it("says so when rows exist but metrics are missing, instead of throwing (#483)", () => {
+            expect(renderBossUptimesPanel({ rows: [{ boss: "Gruul", kill: true }] })).toBe("<div class=\"empty\">Keine Boss-Daten gefunden.</div>");
+            expect(renderBossUptimesPanel({ rows: [{ boss: "Gruul", kill: true }], metrics: [] })).toBe("<div class=\"empty\">Keine Boss-Daten gefunden.</div>");
+        });
     });
 
     describe("renderRaidDebuffsPanel", () => {

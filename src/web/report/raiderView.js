@@ -1,7 +1,7 @@
 // Sicht Raider: one card per raider with four sections, the paperdoll, the send
 // dialog, and the role filter above the cards.
-const { CLASS_COLORS } = require("../../utils/setupView");
-const { itemLink: wowheadItemLink } = require("../../utils/wowhead");
+const { CLASS_COLORS } = require("../../utils/setup/setupView");
+const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
 const { plural } = require("../../utils/text");
 const { fmtTime, PX_PER_SEC } = require("../charts");
 const { ICONS } = require("../adminChrome");
@@ -15,7 +15,7 @@ const { IMPACT_LABEL, IMPACT_TONE, recItem } = require("./recommendations");
 const { abilityIcon } = require("./panels/damage");
 const { RPB_ACTIVITY_HOW, spellTiles } = require("./panels/rpb");
 const { ROLE_LABEL } = require("./context");
-const { formatGermanDateTime } = require("../../utils/date");
+const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Sicht Raider: one card per raider ------------------------------------------
 
@@ -417,15 +417,16 @@ function paperdollSlot(it, side) {
     const href = wowheadItemUrl(it);
     const img = `<img src="${esc(iconUrl(it.icon))}" loading="lazy" alt="">`;
     // enchant badge + status line (value comes from the Wowhead tooltip, not WCL)
+    const enchant = it.enchant || {};
     let badge = "";
     let ench = "";
-    if (it.enchant.status === "missing") {
+    if (enchant.status === "missing") {
         badge = `<span class="slot-badge b-miss" data-tip="keine Verzauberung">${LINE.close}</span>`;
         ench = "<div class=\"slot-ench miss\">keine Verzauberung</div>";
-    } else if (it.enchant.status === "bad") {
-        badge = `<span class="slot-badge b-bad" data-tip="${esc(it.enchant.reason || "suboptimale Verzauberung")}">!</span>`;
-        ench = `<div class="slot-ench bad">suboptimale Verzauberung${it.enchant.reason ? ` · ${esc(it.enchant.reason)}` : ""}</div>`;
-    } else if (it.enchant.status === "ok") {
+    } else if (enchant.status === "bad") {
+        badge = `<span class="slot-badge b-bad" data-tip="${esc(enchant.reason || "suboptimale Verzauberung")}">!</span>`;
+        ench = `<div class="slot-ench bad">suboptimale Verzauberung${enchant.reason ? ` · ${esc(enchant.reason)}` : ""}</div>`;
+    } else if (enchant.status === "ok") {
         badge = `<span class="slot-badge b-ok" data-tip="verzaubert" data-tip-sub="Details im Tooltip des Gegenstands">${LINE.check}</span>`;
         ench = "<div class=\"slot-ench ok\">verzaubert</div>";
     }

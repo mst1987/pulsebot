@@ -1,5 +1,5 @@
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-const { showAllEvents } = require("../../utils/helper");
+const { showAllEvents } = require("../../utils/raidhelper/channelEvents");
 
 module.exports = {
     name: "update-events",

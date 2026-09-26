@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
-const { pendingApplications } = require("../../utils/applicationState");
+const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { getClass } = require("../../config/applyClasses");
 
 module.exports = {

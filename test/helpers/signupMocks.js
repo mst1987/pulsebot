@@ -1,5 +1,5 @@
 // In-memory stand-ins for eventStore and signupStore, for the signup dialog's
-// tests (commands/signup/*, utils/signupDialog.js). The real signupService runs
+// tests (commands/signup/*, utils/signup/signupDialog.js). The real signupService runs
 // on top of them, so the rules under test are the real ones. Use from a
 // jest.mock factory:
 //

@@ -9,7 +9,7 @@ jest.mock("../../../src/classes/warcraftlogs.js", () => {
     return WarcraftLogs;
 });
 jest.mock("../../../src/web/reportStore.js");
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
 jest.mock("../../../src/utils/logcheck/gearIssues.js");
 jest.mock("../../../src/utils/logcheck/consumables.js");
 jest.mock("../../../src/utils/logcheck/shadowResi.js");
@@ -22,7 +22,7 @@ jest.mock("../../../src/utils/logcheck/common.js");
 const command = require("../../../src/commands/logcheck/logcheck.js");
 const WarcraftLogs = require("../../../src/classes/warcraftlogs.js");
 const { saveReport } = require("../../../src/web/reportStore.js");
-const { botEditReply } = require("../../../src/utils/helper.js");
+const { botEditReply } = require("../../../src/utils/discord/reply.js");
 const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
 const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
