@@ -10,32 +10,33 @@
 // only feeds the hint "n archivierte Kanäle warten auf Löschung" (Kanäle page and
 // the dashboard's open tasks). Deleting stays a person's decision.
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const ARCHIVE_FILE = path.join(SETTINGS_DIR, "channel-archive.json");
+const ARCHIVE_FILE = settingsPath("channel-archive.json");
 
 /** Days an archived channel may wait before the hint turns yellow. */
 const DEFAULT_HINT_DAYS = 14;
 const DAY_MS = 86400000;
 
-function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(ARCHIVE_FILE, "utf8"));
+const store = createJsonStore({
+    file: ARCHIVE_FILE,
+    defaults: () => ({ guilds: {}, entries: {}, archiveDeleteHintDays: DEFAULT_HINT_DAYS }),
+    normalize: (data) => {
         return {
             guilds: data && typeof data.guilds === "object" && !Array.isArray(data.guilds) ? data.guilds : {},
             entries: data && typeof data.entries === "object" && !Array.isArray(data.entries) ? data.entries : {},
             archiveDeleteHintDays: data && Number.isFinite(data.archiveDeleteHintDays) ? data.archiveDeleteHintDays : DEFAULT_HINT_DAYS,
         };
-    } catch {
-        return { guilds: {}, entries: {}, archiveDeleteHintDays: DEFAULT_HINT_DAYS };
-    }
+    },
+});
+
+function readAll() {
+    return store.read();
 }
 
 function writeAll(data) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(ARCHIVE_FILE, JSON.stringify(data, null, 2));
+    store.write(data);
 }
 
 const clean = (v) => String(v || "").trim();
@@ -153,15 +154,11 @@ function archiveHint({ archived = [], entries = [], hintDays = DEFAULT_HINT_DAYS
 
 /** Drop everything — tests only. */
 function reset() {
-    try {
-        fs.unlinkSync(ARCHIVE_FILE);
-    } catch {
-        // never existed
-    }
+    store.remove();
 }
 
 module.exports = {
     DEFAULT_HINT_DAYS, ARCHIVE_FILE,
     getChannelConfig, saveChannelConfig, saveCategorySchema, normalizeHintDays,
-    recordArchived, listArchived, forgetArchived, archiveHint, reset,
+    recordArchived, listArchived, forgetArchived, archiveHint, reset, useFile: store.useFile,
 };

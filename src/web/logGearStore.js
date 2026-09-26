@@ -14,8 +14,8 @@
 // charGear.js then prefers it over the evaluations — until an evaluation newer
 // than the request lands, which is the natural end of "the set from Thursday".
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const WarcraftLogs = require("../classes/warcraftlogs");
 const { buildArmory } = require("../utils/logcheck/gearIssues");
 const { selectPlayers } = require("../utils/logcheck/common");
@@ -23,8 +23,7 @@ const { resolveSituationalGear } = require("../utils/logcheck/gearVariants");
 const { listLogs } = require("./logStore");
 const { characterKeyOf } = require("../utils/lootImport");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const LOG_GEAR_FILE = path.join(SETTINGS_DIR, "logGear.json");
+const LOG_GEAR_FILE = settingsPath("logGear.json");
 
 // How many of the bot's newest logs are opened when no report was named. Two
 // API calls per log, so this is the cap on "load from the newest log I am in".
@@ -39,18 +38,18 @@ class LogGearError extends Error {
     }
 }
 
+const store = createJsonStore({
+    file: LOG_GEAR_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data.characters === "object" && data.characters ? data.characters : {}),
+});
+
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(LOG_GEAR_FILE, "utf8"));
-        return data && typeof data.characters === "object" && data.characters ? data.characters : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(characters) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(LOG_GEAR_FILE, JSON.stringify({ characters }, null, 2));
+    store.write({ characters });
 }
 
 /** The loaded snapshot for one character, or null. */
@@ -188,5 +187,5 @@ async function loadLogGear(character, { reportId = "", link = "", wcl = null } =
 
 module.exports = {
     loadLogGear, gearFromReport, getLogGear, listLogGear, clearLogGear, recentLogs,
-    LogGearError, MAX_LOGS, keyOf: characterKeyOf, LOG_GEAR_FILE,
+    LogGearError, MAX_LOGS, keyOf: characterKeyOf, LOG_GEAR_FILE, useFile: store.useFile,
 };

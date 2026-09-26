@@ -14,25 +14,23 @@
 // character page, the loot history and every evaluation stay exactly as they
 // were, and the roster's own "Ausgeblendet" tab lists them.
 
-const fs = require("fs");
-const path = require("path");
 const { characterKeyOf } = require("../utils/lootImport");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const HIDDEN_FILE = path.join(SETTINGS_DIR, "roster-hidden.json");
+const HIDDEN_FILE = settingsPath("roster-hidden.json");
+const store = createJsonStore({
+    file: HIDDEN_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data.hidden === "object" && !Array.isArray(data.hidden) ? data.hidden : {}),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(HIDDEN_FILE, "utf8"));
-        return data && typeof data.hidden === "object" && !Array.isArray(data.hidden) ? data.hidden : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(hidden) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(HIDDEN_FILE, JSON.stringify({ hidden }, null, 2));
+    store.write({ hidden });
 }
 
 /** All entries as `{ [characterKey]: { character, reason, at, by } }`. */
@@ -82,11 +80,7 @@ function unhide(character) {
 
 /** Drop everything — tests only. */
 function reset() {
-    try {
-        fs.unlinkSync(HIDDEN_FILE);
-    } catch {
-        // never existed
-    }
+    store.remove();
 }
 
-module.exports = { listHidden, isHidden, hiddenKeys, hide, unhide, reset, characterKey: characterKeyOf, HIDDEN_FILE };
+module.exports = { listHidden, isHidden, hiddenKeys, hide, unhide, reset, characterKey: characterKeyOf, HIDDEN_FILE, useFile: store.useFile };

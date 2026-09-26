@@ -19,35 +19,36 @@
 //
 // Items are deduped on (source, rawId) — the same key the loot store uses — so
 // none of this can double-count an award.
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const INBOX_FILE = path.join(SETTINGS_DIR, "loot-inbox.json");
+const INBOX_FILE = settingsPath("loot-inbox.json");
 
 // How many resolved sessions to remember. Only needs to outlive the window in
 // which the sync tool might still re-upload a raid, but is cheap to keep long.
 const MAX_RESOLVED = 500;
 
-function readState() {
-    try {
-        const data = JSON.parse(fs.readFileSync(INBOX_FILE, "utf8"));
+const store = createJsonStore({
+    file: INBOX_FILE,
+    defaults: () => ({ pending: [], resolved: [] }),
+    normalize: (data) => {
         return {
             pending: Array.isArray(data.pending) ? data.pending : [],
             resolved: Array.isArray(data.resolved) ? data.resolved : [],
         };
-    } catch {
-        return { pending: [], resolved: [] };
-    }
+    },
+});
+
+function readState() {
+    return store.read();
 }
 
 function writeState(state) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(INBOX_FILE, JSON.stringify({
+    store.write({
         pending: state.pending,
         resolved: state.resolved.slice(-MAX_RESOLVED),
-    }, null, 2));
+    });
 }
 
 const itemKey = (it) => `${it.source}::${it.rawId}`;
