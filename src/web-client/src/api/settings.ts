@@ -38,8 +38,6 @@ export type AdminConfig = {
     raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
-    highestBidsChannelId: string;
-    highestBidsMessageId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];

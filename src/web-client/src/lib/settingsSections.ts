@@ -44,7 +44,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "topitems", group: "Module", label: "Top-Items", icon: "inv_misc_bag_10", crumb: "Module · die großen Drops fürs Dashboard" },
     { id: "logs", group: "Module", label: "Log-Auswertung", icon: "inv_misc_pocketwatch_01", crumb: "Module · wo Logs automatisch gepostet werden" },
     { id: "recruitment", group: "Module", label: "Recruitment", icon: "inv_misc_grouplooking", crumb: "Module · Bewerbungen" },
-    { id: "auktionen", group: "Module", label: "Auktionen", icon: "inv_misc_coin_01", crumb: "Module · Höchstgebote" },
 ];
 
 /**

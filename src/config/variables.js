@@ -20,8 +20,6 @@ module.exports = {
     raidhelperServerId: env.raidhelperServerId,
     raidhelperBotId: constants.RAIDHELPER_BOT_ID,
     categoryIds: defaults.categoryIds,
-    highestBidsChannelId: defaults.highestBidsChannelId,
-    highestBidsMessageId: defaults.highestBidsMessageId,
     embedAccentColor: constants.EMBED_ACCENT_COLOR,
     googleSpreadsheetId: env.googleSpreadsheetId,
     googleSheetName: env.googleSheetName,

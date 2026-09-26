@@ -283,7 +283,7 @@ describe("web/apiRoutes/channels", () => {
                     { id: "c2", name: "bewerbungen", type: 0, typeLabel: "Text", category: "", parentId: "", botCanView: true, botCanSend: false },
                 ]);
                 settingsStore.getConfig.mockReturnValue({
-                    logChannelIds: ["c1"], applicationChannelId: "c2", highestBidsChannelId: "", categoryIds: ["cat1"],
+                    logChannelIds: ["c1"], applicationChannelId: "c2", categoryIds: ["cat1"],
                     raidDefaults: { templateId: "t", channelId: "" },
                 });
                 settingsStore.listRecruitmentPosts.mockReturnValue([
@@ -301,7 +301,7 @@ describe("web/apiRoutes/channels", () => {
                 expect(byId.logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
                 expect(byId.application.status).toMatchObject({ tone: "mid", label: "Bot darf nicht schreiben" });
                 expect(byId.raid.status).toMatchObject({ tone: "bad", label: "fehlt" });
-                expect(data.purposeSummary).toEqual({ set: 3, missing: 2, warnings: 1 });
+                expect(data.purposeSummary).toEqual({ set: 3, missing: 1, warnings: 1 });
                 settingsStore.getConfig.mockReturnValue({});
                 settingsStore.listRecruitmentPosts.mockReturnValue([]);
                 discord.listGuilds.mockReturnValue([]);
