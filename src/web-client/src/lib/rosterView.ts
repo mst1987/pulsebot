@@ -1,21 +1,18 @@
 // Plain helpers of the roster and the character page (design issue #218),
 // kept apart from the components so fast refresh keeps working.
 import type { GearIssue, GearItem, RosterAttendance, RosterRole } from "../api";
+import { t } from "../i18n";
 import { formatDayDate } from "./format";
 
-export const ROLE_META: Record<Exclude<RosterRole, "">, { label: string; icon: string }> = {
-    tank: { label: "Tank", icon: "inv_shield_06" },
-    healer: { label: "Heiler", icon: "spell_holy_flashheal" },
-    dps: { label: "DPS", icon: "ability_dualwield" },
+/** The role badge's icon; its text is the role's name in the menu language (lib/wowNames roleLabel). */
+export const ROLE_META: Record<Exclude<RosterRole, "">, { icon: string }> = {
+    tank: { icon: "inv_shield_06" },
+    healer: { icon: "spell_holy_flashheal" },
+    dps: { icon: "ability_dualwield" },
 };
 
 /** The order a group lists its characters in: tanks, healers, damage, unknown. */
 export const ROLE_ORDER: Record<string, number> = { tank: 0, healer: 1, dps: 2, "": 3 };
-
-export const CLASS_LABELS: Record<string, string> = {
-    Warrior: "Krieger", Paladin: "Paladin", Hunter: "Jäger", Rogue: "Schurke", Priest: "Priester",
-    Shaman: "Schamane", Mage: "Magier", Warlock: "Hexenmeister", Druid: "Druide", DK: "Todesritter",
-};
 
 /** WoW class icon name for a class ("classicon_mage"). */
 export function classIconName(className: string): string {
@@ -50,12 +47,19 @@ export function share(part: number, whole: number): number {
     return Math.max(0, Math.min(100, Math.round((part / whole) * 100)));
 }
 
-export const SLOT_LABELS: Record<string, string> = {
-    HEAD: "Kopf", NECK: "Hals", SHOULDER: "Schulter", BACK: "Rücken", CHEST: "Brust", SHIRT: "Hemd", TABARD: "Wappenrock",
-    WRIST: "Handgelenk", HANDS: "Hände", WAIST: "Taille", LEGS: "Beine", FEET: "Füße",
-    FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
-    MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
-};
+const SLOT_KEYS = [
+    "HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST", "HANDS", "WAIST", "LEGS", "FEET",
+    "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2", "MAIN_HAND", "OFF_HAND", "RANGED",
+];
+
+/**
+ * Gear slot names ("HEAD" -> "Kopf" / "Head"). Each entry is a getter, so the
+ * name is looked up in the menu language when it is read, never frozen at load.
+ */
+export const SLOT_LABELS: Record<string, string> = Object.defineProperties(
+    {} as Record<string, string>,
+    Object.fromEntries(SLOT_KEYS.map((slot) => [slot, { get: () => t(`roster.slot.${slot}`), enumerable: true }])),
+);
 
 /**
  * The findings that belong to one slot row: by item id first — WCL and
@@ -73,5 +77,5 @@ export function findingsForSlot(issues: GearIssue[], slot: string, g?: GearItem)
 /** Short badge text of a finding, as it sits on the slot row ("Keine Verzauberung"). */
 export function findingLabel(issue: GearIssue): string {
     const l = issue.label || "";
-    return l ? l.charAt(0).toUpperCase() + l.slice(1) : "Befund";
+    return l ? l.charAt(0).toUpperCase() + l.slice(1) : t("roster.finding");
 }
