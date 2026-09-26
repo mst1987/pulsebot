@@ -162,8 +162,8 @@ testen kann**.
   aufgeklappte Abschnitte offen lässt; `/data.json` liefert die Rohdaten.
   `--watch [sekunden]` zeichnet den Text im Terminal neu. Beide fragen `gh`
   höchstens einmal pro Minute.
-- `--html` schreibt zusätzlich `data/agent-overview.html` (Schnappschuss ohne
-  Aktualisierung), `--json` gibt die
+- `--html` schreibt zusätzlich `eventhelper-agent-overview.html` ins Temp-Verzeichnis
+  (`os.tmpdir()`, nicht nach `data/`; Schnappschuss ohne Aktualisierung), `--json` gibt die
   Rohdaten aus, `--all` zeigt auch Worktrees ohne Änderungen und Agenten,
   `--hours N` bestimmt, wie weit zurück Agenten zählen (Standard 24).
 
