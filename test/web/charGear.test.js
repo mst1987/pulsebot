@@ -67,6 +67,16 @@ describe("web/charGear", () => {
         });
     });
 
+    it("skips a report without a roster, a roster row without a name and a hand-loaded log without a character key (#424)", () => {
+        setReports(report("a", 2000, [{ name: "", armory: [armoryItem()] }, { name: "Devihra", type: "Priest", armory: [armoryItem()] }]));
+        const listed = mockListReports();
+        mockListReports.mockReturnValue([{ id: "kaputt", generatedAt: 3000 }, ...listed]);
+        mockListLogGear.mockReturnValueOnce([null, { key: "", character: "Niemand", armory: [armoryItem()] }]);
+        const all = gearByCharacter();
+        expect([...all.keys()]).toEqual(["devihra"]);
+        expect(all.get("devihra")).toMatchObject({ reportId: "a", source: "log" });
+    });
+
     it("keeps the gems in socket order, because a loadout is positional", () => {
         setReports(report("a", 1, [{
             name: "Devihra", type: "Priest",
