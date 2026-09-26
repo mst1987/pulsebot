@@ -151,8 +151,12 @@ export default function RaidDetailPage() {
         }
     };
     const primaryEval = data.progress?.primary?.evaluate;
+    // An own event's roster comes from its signups (data.setup stays an empty
+    // Raid-Helper raidplan for it, see raidDetailView.js's setupPart) — without
+    // this branch the tab always showed "0" once #424 folded the roster into
+    // this counts object (#479).
     const counts: Record<Tab, number> = {
-        roster: data.setup?.total || 0,
+        roster: ownEvent ? (data.ownSignups?.length || 0) : (data.setup?.total || 0),
         setup: data.ownSetup?.placed || 0,
         loot: data.lootItems.length,
         logs: data.eventLogs.length,
