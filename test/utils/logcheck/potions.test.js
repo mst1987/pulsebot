@@ -1,10 +1,9 @@
 const { analyzePotions, potionsByName, POTION_TYPES, POTION_FILTER } = require("../../../src/utils/logcheck/potions");
+const { makeWcl: wclDouble } = require("../../factories/wcl");
 
 const fights = { end: 400 };
 
-function makeWcl(table) {
-    return { getCasts: jest.fn(async () => table) };
-}
+const makeWcl = (table) => wclDouble({ getCasts: jest.fn(async () => table) });
 
 describe("logcheck/potions analyzePotions", () => {
     test("counts destruction / haste / mana and sorts by total", async () => {
@@ -83,8 +82,8 @@ describe("logcheck/potions analyzePotions", () => {
             entries: [{ name: "Mana only", type: "Priest", abilities: [{ guid: 28499, total: 1 }] }],
         });
         const out = await analyzePotions(wcl, "rep", fights);
-        expect(out.icons.destruction).toBeTruthy();
-        expect(out.icons.haste).toBeTruthy();
+        // mana was drunk (Super Mana, no icon in the log), the other two fall back to their first type
+        expect(out.icons).toEqual({ destruction: "inv_potion_107", haste: "inv_potion_108", mana: "inv_potion_137" });
     });
 
     test("players with no potions are excluded; empty result is null", async () => {
@@ -95,7 +94,7 @@ describe("logcheck/potions analyzePotions", () => {
     });
 
     test("API error returns null", async () => {
-        const wcl = { getCasts: jest.fn(async () => { throw new Error("x"); }) };
+        const wcl = wclDouble({ getCasts: jest.fn(async () => { throw new Error("x"); }) });
         expect(await analyzePotions(wcl, "rep", fights)).toBeNull();
     });
 });

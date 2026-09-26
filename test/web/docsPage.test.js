@@ -7,8 +7,10 @@ const { esc } = require("../../src/web/render");
 describe("docsPage", () => {
     it("maps every group's category to a defined color token", () => {
         for (const group of [...DISCORD_GROUPS, ...WEB_GROUPS]) {
-            expect(CAT[group.cat]).toBeDefined();
+            expect(CAT[group.cat]).toEqual({ varName: expect.stringMatching(/^--(area|doc)-[a-z]+$/), label: expect.stringMatching(/\S/) });
         }
+        expect(CAT.raids).toEqual({ varName: "--area-raids", label: "Raids" });
+        expect(CAT.auto).toEqual({ varName: "--doc-auto", label: "Automatik" });
     });
 
     it("renders a full HTML page with both section anchors", () => {

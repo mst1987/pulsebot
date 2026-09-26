@@ -20,9 +20,17 @@ describe("rpb/validate zoneTagsOf", () => {
     });
 
     test("every mapped tag has requirements in the generated data", () => {
-        for (const tags of Object.values(ZONE_TAGS)) {
-            for (const tag of tags) {
-                expect(rpbData.TRASH_REQUIREMENTS[tag]).toBeDefined();
+        const mapped = new Set(Object.values(ZONE_TAGS).flat());
+        expect([...mapped].sort()).toEqual(["BT", "Kara", "MH", "SSC", "SW", "TK", "ZA"]);
+        expect(Object.keys(rpbData.TRASH_REQUIREMENTS).sort()).toEqual([...mapped].sort());
+        for (const tag of mapped) {
+            const reqs = rpbData.TRASH_REQUIREMENTS[tag];
+            expect(reqs.length).toBeGreaterThanOrEqual(1);
+            for (const req of reqs) {
+                expect(req).toEqual(expect.objectContaining({ name: expect.any(String), minimum: expect.any(Number), ids: expect.any(Array) }));
+                expect(req.minimum).toBeGreaterThanOrEqual(1);
+                expect(req.ids.length).toBeGreaterThanOrEqual(1);
+                for (const id of req.ids) expect(id).toMatch(/^\d+$/);
             }
         }
     });

@@ -140,6 +140,15 @@ describe("web/categoryNames rememberCategories", () => {
         fs.writeFileSync.mockImplementationOnce(() => {
             throw new Error("EACCES");
         });
-        expect(() => rememberCategories("g1", [{ id: "c1", name: "Montagsraid" }])).not.toThrow();
+        let result = "unset";
+        expect(() => { result = rememberCategories("g1", [{ id: "c1", name: "Montagsraid" }]); }).not.toThrow();
+        expect(result).toBeUndefined();
+        expect(fs.writeFileSync).toHaveBeenCalledTimes(1);
+        expect(fs.writeFileSync.mock.calls[0][0]).toBe(CATEGORY_NAMES_FILE);
+        expect(snapshot()).toEqual({});
+
+        // nothing was remembered, so the next call writes the name after all
+        rememberCategories("g1", [{ id: "c1", name: "Montagsraid" }]);
+        expect(snapshot()).toEqual({ guilds: { g1: { c1: "Montagsraid" } } });
     });
 });

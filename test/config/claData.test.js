@@ -2,9 +2,8 @@ const claData = require("../../src/config/claData");
 
 describe("config/claData", () => {
     it("exports the expected reference structures", () => {
-        for (const key of [
+        const lists = [
             "ENCHANTABLE_SLOTS",
-            "GEM_QUALITY",
             "META_GEM_IDS",
             "YELLOW_GEM_IDS",
             "RED_GEM_IDS",
@@ -15,11 +14,14 @@ describe("config/claData", () => {
             "ITEMS_WITHOUT_ENCHANT",
             "ENCHANT_BLACKLIST",
             "EXCLUDED_GEAR",
-            "SOCKETS",
-            "SHADOW_RESISTANCE",
-            "CONSUMABLES",
-        ]) {
-            expect(claData[key]).toBeDefined();
+        ];
+        const maps = ["GEM_QUALITY", "SOCKETS", "SHADOW_RESISTANCE", "CONSUMABLES"];
+        // exactly these keys - a new or vanished key in the generated JSON shows up here
+        expect(Object.keys(claData).sort()).toEqual([...lists, ...maps].sort());
+        for (const key of lists) expect(Array.isArray(claData[key])).toBe(true);
+        for (const key of maps) {
+            expect(claData[key]).toEqual(expect.any(Object));
+            expect(Array.isArray(claData[key])).toBe(false);
         }
     });
 
