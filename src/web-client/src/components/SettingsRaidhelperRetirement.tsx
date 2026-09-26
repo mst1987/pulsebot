@@ -50,9 +50,8 @@ function ItemLine({ item, onImport }: { item: RetirementItem; onImport: () => vo
     );
 }
 
-function ImportModal({ open, csrfToken, onClose, onStored }: {
+function ImportModal({ open, onClose, onStored }: {
     open: boolean;
-    csrfToken: string | null;
     onClose: () => void;
     onStored: () => void;
 }) {
@@ -64,7 +63,7 @@ function ImportModal({ open, csrfToken, onClose, onStored }: {
     const run = async (dryRun: boolean) => {
         setBusy(true);
         try {
-            const r = await importRaidhelperHistory(csrfToken, { perCategory, dryRun });
+            const r = await importRaidhelperHistory({ perCategory, dryRun });
             setResult(r);
             if (!dryRun) {
                 toast(importSummary(r));
@@ -147,7 +146,7 @@ function ImportModal({ open, csrfToken, onClose, onStored }: {
     );
 }
 
-export default function RaidhelperRetirementCard({ csrfToken }: { csrfToken: string | null }) {
+export default function RaidhelperRetirementCard() {
     const [list, setList] = useState<RetirementChecklist | null>(null);
     const [error, setError] = useState("");
     const [importing, setImporting] = useState(false);
@@ -178,7 +177,7 @@ export default function RaidhelperRetirementCard({ csrfToken }: { csrfToken: str
         if (!ok) return;
         setBusy(true);
         try {
-            const d = await setRaidhelperDisabled(csrfToken, off);
+            const d = await setRaidhelperDisabled(off);
             setList(d.checklist);
             toast(off ? "Raid-Helper abgeschaltet." : "Raid-Helper wieder eingeschaltet.");
         } catch (err) {
@@ -224,7 +223,7 @@ export default function RaidhelperRetirementCard({ csrfToken }: { csrfToken: str
                     <AdminOnlyBadge />
                 </div>
             )}
-            <ImportModal open={importing} csrfToken={csrfToken} onClose={() => setImporting(false)} onStored={load} />
+            <ImportModal open={importing} onClose={() => setImporting(false)} onStored={load} />
         </section>
     );
 }

@@ -80,7 +80,7 @@ export default function CategoryMatrix({
     categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [], categoryLootSystem = {}, onLootSystem,
     categoryMessageLook = {}, onMessageLook,
     categorySignupNotes = {}, onSignupNotes, categorySignupNoteChannel = {}, noteChannels, onSignupNoteChannel,
-    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, csrfToken, icon, crumb, raidTemplates,
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, icon, crumb, raidTemplates,
 }: {
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes?: Record<string, string>;
@@ -129,7 +129,6 @@ export default function CategoryMatrix({
     onVoiceChannel?: (categoryId: string, channelId: string) => void;
     onAnnounce?: (categoryId: string, mode: string) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
-    csrfToken: string | null;
     icon: string;
     crumb: string;
 }) {
@@ -457,7 +456,6 @@ export default function CategoryMatrix({
                 <RaiderCharactersModal
                     categoryId={assigning.id}
                     categoryName={assigning.name}
-                    csrfToken={csrfToken}
                     onClose={() => setAssigning(null)}
                     onSaved={(info) => {
                         setChars((prev) => ({ ...prev, [assigning.id]: summarizeRaiderChars(info) }));

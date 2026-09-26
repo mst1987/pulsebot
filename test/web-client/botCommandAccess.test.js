@@ -51,7 +51,7 @@ function load(src) {
 const logic = load(read("lib", "botCommandAccess.ts"));
 const view = read("components", "BotCommandAccess.tsx");
 const page = read("pages", "SettingsPage.tsx");
-const api = read("api.ts");
+const api = read("api", "botCommands.ts");
 
 const ORGA = "123456789012345678";
 const LEAD = "223456789012345678";
@@ -112,7 +112,7 @@ describe("Bot-Befehle view", () => {
     it("loads its own data and saves the whole map through PATCH /api/settings", () => {
         expect(api).toMatch(/getBotCommands[\s\S]*"\/api\/bot-commands"/);
         expect(view).toMatch(/getBotCommands\(\)/);
-        expect(view).toMatch(/updateSettings\(csrfToken, \{ botCommandAccess: next \}\)/);
+        expect(view).toMatch(/updateSettings\(\{ botCommandAccess: next \}\)/);
     });
 
     it("folds each group to one line with the shared Details button", () => {

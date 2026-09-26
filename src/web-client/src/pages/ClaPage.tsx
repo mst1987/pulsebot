@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
     getClaData, createReport, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
     deleteReport,
-    type ApiError, type ClaData, type ClaFilter, type ClaRow, type ClaRaid, type LogSection, type MatchCandidate,
-} from "../api";
+    type ApiError, type ClaFilter, type ClaRow, type ClaRaid, type LogSection, type MatchCandidate } from "../api";
+import { useApi } from "../hooks/useApi";
 import { formatEventTime } from "../lib/format";
 import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import { raidCount, raidIcon, raidTip } from "../lib/logRaids";
-import type { ShellContext } from "../components/Shell";
 import { SortLabel, ariaSort } from "../components/SortTh";
 import { useJobs } from "../components/Jobs";
 import Pager from "../components/Pager";
@@ -240,10 +239,9 @@ function RowMenu({ items, label }: { items: MenuItem[]; label: string }) {
  * as a background job — the dialog closes at once and the toast at the bottom
  * reports progress and the finished report. The link stays a draft until then.
  */
-function NewEvaluationDialog({ open, onClose, csrfToken, onChanged }: {
+function NewEvaluationDialog({ open, onClose, onChanged }: {
     open: boolean;
     onClose: () => void;
-    csrfToken: string | null;
     onChanged: () => void;
 }) {
     const ask = useConfirm();
@@ -266,7 +264,7 @@ function NewEvaluationDialog({ open, onClose, csrfToken, onChanged }: {
                 message: "Auswertung erstellt.",
                 link: { href: r.url, label: "Report ansehen", external: true },
             }),
-        }, () => withIncompleteConfirm(ask, (force) => createReport(csrfToken, target, { force, sections: choice.sections }))).then(onChanged);
+        }, () => withIncompleteConfirm(ask, (force) => createReport(target, { force, sections: choice.sections }))).then(onChanged);
     };
 
     return (
@@ -579,7 +577,6 @@ function ListRow({ row, running, eventsError, onEvaluate, onAssign, onReset, onD
 // ---- the page ----
 
 export default function ClaPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const ask = useConfirm();
     const jobs = useJobs();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -612,13 +609,8 @@ export default function ClaPage() {
     // The page number is deliberately not remembered: the list grows at the top.
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
-    const [data, setData] = useState<ClaData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-
-    const load = () => {
-        getClaData(filter, sort, dir, page).then((d) => { setData(d); setError(null); }).catch((err: ApiError) => setError(err));
-    };
-    useEffect(load, [filter, sort, dir, page]);
+    const cla = useApi(() => getClaData(filter, sort, dir, page), [filter, sort, dir, page]);
+    const { data } = cla;
 
     const switchFilter = (f: ClaFilter) => setFilter(f, (p) => { p.delete("page"); });
 
@@ -644,12 +636,12 @@ export default function ClaPage() {
             jobs.notify((err as ApiError).message, "err");
         } finally {
             if (setBusy) setBusy(false);
-            load();
+            cla.reload();
         }
     };
 
-    const scan = () => quick(() => scanLogs(csrfToken), setScanning);
-    const automatch = () => quick(() => autoMatchLogs(csrfToken), setAutomatching);
+    const scan = () => quick(() => scanLogs(), setScanning);
+    const automatch = () => quick(() => autoMatchLogs(), setAutomatching);
 
     // Hands the evaluation to JobsProvider: it runs server-side either way, but
     // owning the promise up there is what lets the admin leave this page while
@@ -667,9 +659,9 @@ export default function ClaPage() {
                 message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
                 link: r.url ? { href: r.url, label: "Report ansehen", external: true } : undefined,
             }),
-        }, () => withIncompleteConfirm(ask, (force) => evalLog(csrfToken, row.logId, section, { force }))).then(() => {
+        }, () => withIncompleteConfirm(ask, (force) => evalLog(row.logId, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
-            load();
+            cla.reload();
         });
     };
 
@@ -688,24 +680,24 @@ export default function ClaPage() {
             }),
         }, async () => {
             let force = false;
-            await withIncompleteConfirm(ask, (f) => { force = f; return evalLog(csrfToken, row.logId, "cla", { force: f }); });
-            return evalLog(csrfToken, row.logId, "rpb", { force });
+            await withIncompleteConfirm(ask, (f) => { force = f; return evalLog(row.logId, "cla", { force: f }); });
+            return evalLog(row.logId, "rpb", { force });
         }).then(() => {
             setRunning((r) => r.filter((k) => !keys.includes(k)));
-            load();
+            cla.reload();
         });
     };
 
     const reset = async (row: ClaRow, section: LogSection) => {
         const label = section.toUpperCase();
         if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: `Die ${label}-Auswertung von „${row.title}“ wird verworfen und kann danach neu gestartet werden.`, action: "Verwerfen" }))) return;
-        await quick(() => resetEval(csrfToken, row.logId, section));
+        await quick(() => resetEval(row.logId, section));
     };
 
     const removeLog = async (row: ClaRow) => {
         if (!(await ask({ title: "Log aus der Liste löschen?", text: `„${row.title}“ wird aus der Liste entfernt. Eine vorhandene Auswertung bleibt als Report erhalten.`, action: "Löschen" }))) return;
         await quick(async () => {
-            await deleteLogEntry(csrfToken, row.logId);
+            await deleteLogEntry(row.logId);
             return { message: "Gelöscht." };
         });
     };
@@ -714,18 +706,18 @@ export default function ClaPage() {
         if (!row.report) return;
         const reportId = row.report.id;
         if (!(await ask({ title: "Auswertung löschen?", text: `„${row.title}“ wird gelöscht.`, action: "Löschen" }))) return;
-        await quick(() => deleteReport(csrfToken, reportId));
+        await quick(() => deleteReport(reportId));
     };
 
     const assign = async (row: ClaRow, eventId: string) => {
         setAssignRow(null);
-        await quick(() => linkLog(csrfToken, row.logId, eventId));
+        await quick(() => linkLog(row.logId, eventId));
     };
 
     const unlink = async (row: ClaRow) => {
         setAssignRow(null);
         if (!(await ask({ title: "Zuordnung entfernen?", text: `Die Zuordnung von „${row.title}“ zu „${row.eventLabel || row.eventId}“ wird entfernt. Die Auswertung selbst bleibt bestehen.`, action: "Entfernen" }))) return;
-        await quick(() => unlinkLog(csrfToken, row.logId));
+        await quick(() => unlinkLog(row.logId));
     };
 
     const head = (
@@ -738,7 +730,7 @@ export default function ClaPage() {
         />
     );
 
-    if (error && !data) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
+    if (cla.error && !data) return <>{head}<div className="empty">Fehler beim Laden: {cla.error.message}</div></>;
     if (!data) return <>{head}<RaidLoader text="Logs werden geladen" /></>;
 
     const list = data.page;
@@ -813,7 +805,7 @@ export default function ClaPage() {
                     </>
                 )
                 : <div className="empty">{FILTER_META[data.filter].empty}</div>}
-            <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} csrfToken={csrfToken} onChanged={load} />
+            <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
         </>
     );

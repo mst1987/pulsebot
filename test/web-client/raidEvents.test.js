@@ -41,7 +41,7 @@ describe("Raid-Events list", () => {
     it("loads the past raids from their own endpoint next to the coming ones", () => {
         expect(page).toContain("getRaids()");
         expect(page).toContain("getPastRaids()");
-        expect(read("api.ts")).toContain("get<PastRaidsData>(\"/api/raids/past\")");
+        expect(read("api", "raids.ts")).toContain("get<PastRaidsData>(\"/api/raids/past\")");
     });
 
     it("groups coming raids by raid ID and past raids by month, after sorting by date", () => {
@@ -138,7 +138,7 @@ describe("Neues Event dialog", () => {
         expect(dialog).toContain("value={tpl.raidhelperTemplateId}");
         expect(dialog).toContain("(data.categoryTemplates || {})[ev.categoryId]");
         expect(dialog).toContain("setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || \"\")");
-        expect(templates).toContain("importRaidTemplates(csrfToken)");
+        expect(templates).toContain("importRaidTemplates()");
     });
 });
 

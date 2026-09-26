@@ -57,8 +57,7 @@ function RuleBadges({ rule, roleById }: { rule: BotAccessRule; roleById: Map<str
     );
 }
 
-export default function BotCommandAccess({ csrfToken, viewSwitch, icon, crumb }: {
-    csrfToken: string | null;
+export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
     /** The Bereiche · Bot-Befehle segment, shown in the part head. */
     viewSwitch: ReactNode;
     icon: string;
@@ -102,7 +101,7 @@ export default function BotCommandAccess({ csrfToken, viewSwitch, icon, crumb }:
     const save = async (next: AccessMap, message: string) => {
         setSaving(true);
         try {
-            const { config } = await updateSettings(csrfToken, { botCommandAccess: next });
+            const { config } = await updateSettings({ botCommandAccess: next });
             const stored = config.botCommandAccess || {};
             setData({
                 ...data,

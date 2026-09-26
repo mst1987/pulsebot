@@ -2,7 +2,8 @@
 // the channel goes into the archive — and the foot says in one line what
 // pressing the red button will do.
 import { useEffect, useState } from "react";
-import { cancelRaid, getManageInfo, type ApiError, type ManageInfo } from "../../../api";
+import { cancelRaid, getManageInfo, type ApiError } from "../../../api";
+import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
@@ -14,22 +15,23 @@ import type { RaidCtx } from "../meta";
 
 export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
-    const [info, setInfo] = useState<ManageInfo | null>(null);
+    const { data, eventId, onChanged } = ctx;
     const [reason, setReason] = useState("");
     const [notify, setNotify] = useState(true);
     const [archive, setArchive] = useState(false);
     const [busy, setBusy] = useState(false);
     const toast = useToast();
 
+    // Asked each time the dialog opens; a failed load is a toast, the dialog stays.
+    const infoData = useApi(() => getManageInfo(eventId), [eventId], { enabled: open });
+    const info = infoData.data;
+    useEffect(() => { if (infoData.error) toast(infoData.error.message, "err"); }, [infoData.error, toast]);
     useEffect(() => {
         if (!open) return;
         setReason("");
         setNotify(true);
         setArchive(false);
-        getManageInfo(eventId).then(setInfo).catch((err: ApiError) => toast(err.message, "err"));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, eventId]);
+    }, [open]);
 
     const recipients = info ? info.recipients.length : 0;
     const names = info ? info.recipients.map((r) => r.character || r.name || r.userId).join(", ") : "";
@@ -39,7 +41,7 @@ export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         if (!cancelReasonOk(reason)) return;
         setBusy(true);
         try {
-            const r = await cancelRaid(csrfToken, { event: eventId, reason, notify, archiveChannel: archive });
+            const r = await cancelRaid({ event: eventId, reason, notify, archiveChannel: archive });
             onClose();
             onChanged([r.message, ...(r.warnings || [])].join("\n"));
         } catch (err) {

@@ -25,10 +25,9 @@ function settingsLink(purpose: ChannelPurpose) {
 // Purpose → channels
 // ---------------------------------------------------------------------------
 
-export function PurposeDialog({ purpose, data, csrfToken, onClose, onSaved }: {
+export function PurposeDialog({ purpose, data, onClose, onSaved }: {
     purpose: ChannelPurpose;
     data: ChannelsData;
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -56,7 +55,7 @@ export function PurposeDialog({ purpose, data, csrfToken, onClose, onSaved }: {
     const save = async () => {
         setBusy(true);
         try {
-            await saveChannelPurpose(csrfToken, purpose, selected);
+            await saveChannelPurpose(purpose, selected);
             toast(`${purpose.label}: Zuordnung gespeichert.`);
             onSaved();
         } catch (err) {
@@ -151,10 +150,9 @@ export function PurposeDialog({ purpose, data, csrfToken, onClose, onSaved }: {
 // Channel → purposes (the row's "Zweck zuordnen")
 // ---------------------------------------------------------------------------
 
-export function AssignChannelDialog({ channel, data, csrfToken, onClose, onSaved }: {
+export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
     channel: Channel;
     data: ChannelsData;
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -173,7 +171,7 @@ export function AssignChannelDialog({ channel, data, csrfToken, onClose, onSaved
                 const ids = on.includes(p.id)
                     ? (p.multiple ? [...p.ids, channel.id] : [channel.id])
                     : p.ids.filter((id) => id !== channel.id);
-                await saveChannelPurpose(csrfToken, p, ids);
+                await saveChannelPurpose(p, ids);
             }
             toast(`#${channel.name}: Zwecke gespeichert.`);
             onSaved();
@@ -262,9 +260,8 @@ function TypeSegment({ value, onChange }: { value: string; onChange: (v: string)
     );
 }
 
-export function CreateChannelDialog({ data, csrfToken, canAssign, onClose, onDone }: {
+export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
     data: ChannelsData;
-    csrfToken: string | null;
     /** Write access to Einstellungen — the purposes are settings. */
     canAssign: boolean;
     onClose: () => void;
@@ -283,11 +280,11 @@ export function CreateChannelDialog({ data, csrfToken, canAssign, onClose, onDon
         e.preventDefault();
         setBusy(true);
         try {
-            const created = await createChannel(csrfToken, { name, type, parentId });
+            const created = await createChannel({ name, type, parentId });
             const purpose = canAssign && textLike ? purposes.find((p) => p.id === purposeId) : undefined;
             if (purpose) {
                 try {
-                    await saveChannelPurpose(csrfToken, purpose, purpose.multiple ? [...purpose.ids, created.id] : [created.id]);
+                    await saveChannelPurpose(purpose, purpose.multiple ? [...purpose.ids, created.id] : [created.id]);
                     toast(`Kanal #${created.name} erstellt und als ${purpose.label} zugeordnet.`);
                 } catch (err) {
                     toast(`Kanal #${created.name} erstellt, Zuordnung fehlgeschlagen: ${(err as ApiError).message}`, "err");
@@ -372,10 +369,9 @@ function SourceCard({ channel, data }: { channel: Channel; data: ChannelsData })
     );
 }
 
-export function DuplicateChannelDialog({ source, data, csrfToken, onClose, onDone }: {
+export function DuplicateChannelDialog({ source, data, onClose, onDone }: {
     source: Channel;
     data: ChannelsData;
-    csrfToken: string | null;
     onClose: () => void;
     onDone: () => void;
 }) {
@@ -387,7 +383,7 @@ export function DuplicateChannelDialog({ source, data, csrfToken, onClose, onDon
         e.preventDefault();
         setBusy(true);
         try {
-            const created = await duplicateChannel(csrfToken, { channelId: source.id, name });
+            const created = await duplicateChannel({ channelId: source.id, name });
             toast(`Kanal #${created.name} dupliziert.`);
             onDone();
         } catch (err) {

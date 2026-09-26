@@ -64,7 +64,7 @@ function ReasonBadge({ it }: { it: LootItem }) {
 
 export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
-    const { data, csrfToken, onChanged, openModal } = ctx;
+    const { data, onChanged, openModal } = ctx;
     const ask = useConfirm();
     const [groupBy, setGroupBy] = usePersistedState<GroupBy>("raid-detail-loot-group", "character");
     const [query, setQuery] = useState("");
@@ -105,7 +105,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
         if (!(await ask({ title: t("raidDetail.loot.deleteTitle"), text: t("raidDetail.loot.deleteText", { item: itemLabel(it), character: it.character }), action: t("raidDetail.loot.deleteAction") }))) return;
         setBusyId(it.id);
         try {
-            await deleteLootItems(csrfToken, [it.id]);
+            await deleteLootItems([it.id]);
             onChanged(t("raidDetail.loot.deleted", { item: itemLabel(it) }));
         } catch (err) {
             onChanged((err as ApiError).message);
@@ -118,7 +118,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
         if (!(await ask({ title: t("raidDetail.loot.clearTitle"), text: t("raidDetail.loot.clearText", { count: items.length }), action: t("raidDetail.loot.clearAction") }))) return;
         setClearing(true);
         try {
-            const r = await clearHistoryEvent(csrfToken, ctx.eventId);
+            const r = await clearHistoryEvent(ctx.eventId);
             onChanged(t("raidDetail.loot.cleared", { count: r.removed }));
         } catch (err) {
             onChanged((err as ApiError).message);

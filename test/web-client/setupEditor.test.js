@@ -243,7 +243,7 @@ describe("setup editor page", () => {
         // reshuffled locally before anything is sent to the server
         expect(editor).toMatch(/setData\(\{ \.\.\.shown, event: \{ \.\.\.shown\.event, size: newSize \}, groupCount, setup: applyLocal\(shown\.setup, resized\) \}\);\s*\n\s*setBusy\(true\);/);
         // the size itself persists through the same PATCH the event-edit dialog uses
-        expect(editor).toContain("await updateRaidSize(ctx.csrfToken, ctx.eventId, newSize);");
+        expect(editor).toContain("await updateRaidSize(ctx.eventId, newSize);");
         const de = makeT("de");
         // entered as a number of groups, the total is calculated (groups × 5)
         expect(de("setup.editor.sizeLabel")).toBe("Gruppen");
@@ -335,7 +335,7 @@ describe("setup editor page", () => {
         }
         expect(editor).toContain("if (setup.origin !== \"auto\") return draft;");
         // after the moves still on their way, with the version the server confirmed last
-        expect(editor).toMatch(/await chain\.current;\s*const next = await approveRaidSetup\(ctx\.csrfToken, ctx\.eventId, confirmedVersion\.current\);/);
+        expect(editor).toMatch(/await chain\.current;\s*const next = await approveRaidSetup\(ctx\.eventId, confirmedVersion\.current\);/);
         expect(editor).toContain("title: t(\"setup.editor.approveAnywayTitle\")");
         expect(de("setup.editor.approveAnywayTitle")).toBe("Trotzdem freigeben?");
         // a reader never gets the editor, only the approved lineup
@@ -351,7 +351,7 @@ describe("setup editor page", () => {
 
     it("shows the setup's own message under the bar and offers one \"Setup posten\" (#290)", () => {
         expect(editor).toContain("<PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />");
-        expect(editor).toMatch(/await chain\.current;\s*const next = await publishRaidSetup\(ctx\.csrfToken, ctx\.eventId\);/);
+        expect(editor).toMatch(/await chain\.current;\s*const next = await publishRaidSetup\(ctx\.eventId\);/);
         // while the DMs run only their state is polled, never the lineup
         expect(editor).toContain("setData((prev) => (prev ? { ...prev, publish: next.publish } : prev))");
     });
@@ -428,7 +428,7 @@ describe("„nicht zusammen“ in the editor", () => {
 
 describe("ping text (Ping-Nachricht) inline field", () => {
     const editor = read("pages", "raid-detail", "SetupEditor.tsx");
-    const api = read("api.ts");
+    const api = read("api", "setup.ts");
     const de = makeT("de");
     const en = makeT("en");
 
@@ -443,8 +443,8 @@ describe("ping text (Ping-Nachricht) inline field", () => {
 
     it("the API layer carries the effective ping text and saves it to the dedicated endpoint", () => {
         expect(api).toContain("pingText?: string;");
-        expect(api).toContain("export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {");
-        expect(api).toContain("send(\"POST\", \"/api/raids/setup/ping-text\", csrfToken, { event: eventId, text })");
+        expect(api).toContain("export function saveSetupPingText(eventId: string, text: string): Promise<SetupEditorData> {");
+        expect(api).toContain("send(\"POST\", \"/api/raids/setup/ping-text\", { event: eventId, text })");
     });
 
     it("shows an editable field beside the publish status, committing on blur or Enter — never per keystroke", () => {
@@ -454,7 +454,7 @@ describe("ping text (Ping-Nachricht) inline field", () => {
         expect(editor).toMatch(/const \[draft, setDraft\] = useState\(value\);[\s\S]*?pingTextToSave\(draft, value\)/);
         expect(editor).toContain("onBlur={commit}");
         expect(editor).toMatch(/e\.key === "Enter"/);
-        expect(editor).toContain("saveSetupPingText(ctx.csrfToken, ctx.eventId, text)");
+        expect(editor).toContain("saveSetupPingText(ctx.eventId, text)");
     });
 
     it("labels it in German and English, making clear that this is what gets posted", () => {
@@ -551,8 +551,8 @@ describe("the raider tooltip and the drag glow", () => {
             const src = read("pages", "raid-detail", "SetupEditor.tsx");
             expect(src).toContain("setDialog(\"search\")");
             expect(src).toContain("function SearchModal(");
-            expect(src).toContain("postRaidSearch(ctx.csrfToken, ctx.eventId, text)");
-            expect(src).toContain("previewRaidSearch(ctx.csrfToken, ctx.eventId,");
+            expect(src).toContain("postRaidSearch(ctx.eventId, text)");
+            expect(src).toContain("previewRaidSearch(ctx.eventId,");
             for (const fn of ["stepRole(", "toggleSpec(", "addRole(", "removeBuffs("]) expect(src).toContain(fn);
             // the message is posted as edited, never empty, never over Discord's limit, not while it is being written
             expect(src).toContain("disabled={!search || !text.trim() || text.length > 2000 || writing}");
@@ -640,7 +640,7 @@ describe("the raider tooltip and the drag glow", () => {
     describe("Extra tank / healer", () => {
         it("has a toggle per role the class can take besides the setup's, a pill on the tile, and texts in both languages", () => {
             const src = read("pages", "raid-detail", "SetupEditor.tsx");
-            expect(src).toContain("saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on)");
+            expect(src).toContain("saveSetupExtraRole(ctx.eventId, userId, role, on)");
             expect(src).toContain("([\"tank\", \"healer\"] as const).filter((r) => r !== p.role");
             expect(src).toContain("ui.extraRoles[p.userId]");
             expect(src).toContain("aria-pressed={on}");

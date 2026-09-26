@@ -111,10 +111,9 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
     return all.filter((card) => visible.includes(card.id));
 }
 
-export default function ConnectionsSection({ data, tokens, csrfToken, onConfig, onTokensChanged, icon, crumb }: {
+export default function ConnectionsSection({ data, tokens, onConfig, onTokensChanged, icon, crumb }: {
     data: SettingsData;
     tokens: IngestToken[] | null;
-    csrfToken: string | null;
     onConfig: (config: AdminConfig) => void;
     onTokensChanged: () => void;
     icon: string;
@@ -166,14 +165,13 @@ export default function ConnectionsSection({ data, tokens, csrfToken, onConfig, 
                 })}
             </div>
             {/* #291: the switch-over checklist — full admins only, like the API. */}
-            {data.canManageAccess && <RaidhelperRetirementCard csrfToken={csrfToken} />}
+            {data.canManageAccess && <RaidhelperRetirementCard />}
 
             {editing && editing !== "lootsync" && (
                 <ConnectionModal
                     id={editing}
                     card={list.find((c) => c.id === editing)!}
                     data={data}
-                    csrfToken={csrfToken}
                     onClose={() => setEditing(null)}
                     onSaved={(config) => { onConfig(config); setEditing(null); }}
                 />
@@ -181,7 +179,6 @@ export default function ConnectionsSection({ data, tokens, csrfToken, onConfig, 
             <TokensModal
                 open={editing === "lootsync"}
                 tokens={tokens}
-                csrfToken={csrfToken}
                 onClose={() => setEditing(null)}
                 onChanged={onTokensChanged}
             />
@@ -250,11 +247,10 @@ function hasStoredSecret(id: ConnectionId, config: AdminConfig): boolean {
 }
 
 /** "Verbindung bearbeiten": the fields of one connection, saved on their own. */
-function ConnectionModal({ id, card, data, csrfToken, onClose, onSaved }: {
+function ConnectionModal({ id, card, data, onClose, onSaved }: {
     id: Exclude<ConnectionId, "lootsync">;
     card: Card;
     data: SettingsData;
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: (config: AdminConfig) => void;
 }) {
@@ -273,7 +269,7 @@ function ConnectionModal({ id, card, data, csrfToken, onClose, onSaved }: {
         setBusy(true);
         const secret = clearSecret ? "" : secretValue.trim() ? secretValue.trim() : undefined;
         try {
-            const { config } = await updateSettings(csrfToken, connectionPatch(id, fields, def.secret ? secret : undefined) as Partial<AdminConfig>);
+            const { config } = await updateSettings(connectionPatch(id, fields, def.secret ? secret : undefined) as Partial<AdminConfig>);
             toast(`${card.title} gespeichert.`);
             onSaved(config);
         } catch (err) {
@@ -364,10 +360,9 @@ type TokenSortKey = "name" | "created" | "lastUsed" | "uses";
 const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = { name: "asc", created: "desc", lastUsed: "desc", uses: "desc" };
 
 /** Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm. */
-function TokensModal({ open, tokens, csrfToken, onClose, onChanged }: {
+function TokensModal({ open, tokens, onClose, onChanged }: {
     open: boolean;
     tokens: IngestToken[] | null;
-    csrfToken: string | null;
     onClose: () => void;
     onChanged: () => void;
 }) {
@@ -384,7 +379,7 @@ function TokensModal({ open, tokens, csrfToken, onClose, onChanged }: {
     const create = async () => {
         setBusy(true);
         try {
-            const r = await createIngestToken(csrfToken, name);
+            const r = await createIngestToken(name);
             setFresh({ token: r.token, name: r.record.name });
             setName("");
             setCopied(false);
@@ -399,7 +394,7 @@ function TokensModal({ open, tokens, csrfToken, onClose, onChanged }: {
     const revoke = async (t: IngestToken) => {
         if (!(await ask({ title: `Token „${t.name}“ zurückziehen?`, text: "Das Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.", action: "Zurückziehen", tone: "danger" }))) return;
         try {
-            await deleteIngestToken(csrfToken, t.id);
+            await deleteIngestToken(t.id);
             onChanged();
             toast(`Token „${t.name}“ zurückgezogen.`);
         } catch (err) {

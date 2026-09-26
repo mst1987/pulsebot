@@ -8,6 +8,7 @@ export { default as IconTile, type TileTone } from "./IconTile";
 export { default as Expand } from "./Expand";
 export { default as Bar } from "./Bar";
 export { default as RaidLoader } from "./RaidLoader";
+export { default as AsyncView } from "./AsyncView";
 export { default as PageHead } from "./PageHead";
 export { PartHead, SectionHead } from "./PartHead";
 export { default as Tip, TipLayer } from "./Tip";

@@ -31,11 +31,10 @@ import { useT } from "../i18n";
 // segment option is marked and one small line says so, instead of pretending
 // one status held for everybody.
 
-export default function SignupDialog({ row, profile, classes, csrfToken, onClose, onSaved }: {
+export default function SignupDialog({ row, profile, classes, onClose, onSaved }: {
     row: OwnSignupRow | null;
     profile: SignupProfile;
     classes: SignupClass[];
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts) => void;
 }) {
@@ -102,7 +101,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     const submit = async () => {
         setBusy(true);
         try {
-            const res = await saveSignup(csrfToken, {
+            const res = await saveSignup({
                 eventId: row.id,
                 characters: picksToInput(profile, picks),
                 // the signup's own status mirrors the first character's (#320)

@@ -14,7 +14,7 @@ import type { RaidCtx } from "../meta";
 
 export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const { notifyTemplates, roles, event: ev } = data;
     const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
     const [roleIds, setRoleIds] = useState<string[]>([]);
@@ -28,7 +28,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await notifyRaid(csrfToken, { event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds, target });
+            const r = await notifyRaid({ event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds, target });
             onClose();
             onChanged(r.message);
         } catch (err) {

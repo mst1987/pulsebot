@@ -7,12 +7,12 @@
 // #218): what does the character play, was it there lately, is its gear in
 // order, what did it already get. Explanations live in tooltips, the full gear
 // findings and the loot history one click away on the character page.
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     canAccess, getCharacterClaims, getRoster, setRosterHidden,
-    type ApiError, type CharacterClaim, type RosterChar, type RosterData, type RosterHiddenNote, type RosterRole,
-} from "../api";
+    type ApiError, type CharacterClaim, type RosterChar, type RosterHiddenNote, type RosterRole } from "../api";
+import { useApi } from "../hooks/useApi";
 import { usePersistedState } from "../lib/persistedState";
 import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
 import { ClassSpecIdentity } from "../components/ClassSpec";
@@ -235,20 +235,17 @@ function ClaimsBadge({ claims }: { claims: CharacterClaim[] }) {
 }
 
 export default function RosterPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
-    const [data, setData] = useState<RosterData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-    const [claims, setClaims] = useState<CharacterClaim[]>([]);
+    const { user } = useOutletContext<ShellContext>();
+    const roster = useApi(() => getRoster(), []);
+    const { data, setData } = roster;
+    // Beside the roster, best-effort: without the claims the "doppelt vergeben" badge simply stays away.
+    const claimsData = useApi(() => getCharacterClaims().then((r) => r.claims), []);
+    const claims = claimsData.data || [];
     const [stored, setView] = usePersistedState<View>("roster-view", VIEW_DEFAULT);
     const { sort, dir, onSort } = useTableSort<SortKey>("roster-sort", SORT_DEFAULTS, "name");
     const toast = useToast();
     const ask = useConfirm();
     const canWrite = canAccess(user, "roster", "write");
-
-    useEffect(() => {
-        getRoster().then(setData).catch((err: ApiError) => setError(err));
-        getCharacterClaims().then((r) => setClaims(r.claims)).catch(() => undefined);
-    }, []);
 
     const showHidden = stored.tab === "hidden";
     const chars = useMemo(() => (showHidden ? data?.hiddenChars : data?.chars) || [], [data, showHidden]);
@@ -273,7 +270,7 @@ export default function RosterPage() {
             action: "Ausblenden",
         }))) return;
         try {
-            await setRosterHidden(csrfToken, c.character, hide);
+            await setRosterHidden(c.character, hide);
             setData((prev) => {
                 if (!prev) return prev;
                 if (hide) {
@@ -292,7 +289,9 @@ export default function RosterPage() {
             });
             toast(hide ? `${c.character} ausgeblendet.` : `${c.character} ist wieder im Roster.`, "ok");
             // The KPI band is aggregated server-side, so it only agrees with the
-            // lists again once the roster comes back — quietly, in the background.
+            // lists again once the roster comes back — quietly, in the background:
+            // the change itself went through, so a failed refresh must not turn
+            // the page into an error.
             getRoster().then(setData).catch(() => undefined);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -312,7 +311,7 @@ export default function RosterPage() {
         return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [chars]);
 
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
+    if (roster.error) return <div className="empty">Fehler beim Laden: {roster.error.message}</div>;
     if (!data) return <RaidLoader text="Roster wird geladen" />;
 
     // A stored view from an older build lacks fields or carries old ones

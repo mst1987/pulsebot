@@ -1,9 +1,9 @@
-// A proxy's HTML error page never reaches the person (api.ts): a sentence in his language, the HTML only in the console.
+// A proxy's HTML error page never reaches the person (api/client.ts): a sentence in his language, the HTML only in the console.
 const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "../../src/web-client/src");
-const api = fs.readFileSync(path.join(root, "api.ts"), "utf8");
+const api = fs.readFileSync(path.join(root, "api/client.ts"), "utf8");
 
 describe("non-JSON answers of the server / a proxy", () => {
     it("says what happened in words and keeps the HTML out of the message", () => {

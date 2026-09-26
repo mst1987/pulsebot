@@ -98,7 +98,7 @@ const LONG_PRESS_MS = 550;
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, csrfToken, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -135,7 +135,6 @@ export default function BoardWorkspace({
     actions?: ReactNode;
     /** The boss chips, under the tool bar. */
     bossNav: ReactNode;
-    csrfToken: string | null;
     mapRows: MapRow[];
     onMapsChanged: () => void;
     /** template editor: the rows of the Standard (inherited by every boss) and the action that writes them into every boss */
@@ -1127,7 +1126,7 @@ export default function BoardWorkspace({
                                 <div className="rp-bg">
                                     <MapOpacityField board={board} canWrite={canWrite} edit={edit} />
                                     <ObjectScaleField board={board} canWrite={canWrite} edit={edit} />
-                                    <MapPanel csrfToken={csrfToken} rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
+                                    <MapPanel rows={mapRows} canWrite={canWrite} onChanged={onMapsChanged} />
                                 </div>
                             )}
                         </aside>
@@ -1147,7 +1146,7 @@ export default function BoardWorkspace({
                 {!noBoard && <MobsBar mobs={mobs} board={board} catalog={catalog} bossKey={boss.key} instanceId={boss.instanceId} canWrite={canWrite} edit={edit} />}
                 <AssignPanel
                     scope={scope} board={board} edit={edit} roster={roster} players={players} isEvent={isEvent} canWrite={canWrite}
-                    eventId={eventId} csrfToken={csrfToken} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
+                    eventId={eventId} groupCount={groupCount} links={showLinks} onLinks={setShowLinks}
                     profileName={profileName} onPickProfile={onPickProfile} catalog={catalog} sectionMobs={mobs}
                     inherited={inherited} defaultRows={defaultRows} onCopyDefaults={onCopyDefaults} openRequest={rowReq}
                 />
