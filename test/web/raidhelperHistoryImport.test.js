@@ -8,12 +8,12 @@ jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({
 const mockGetPastEvents = jest.fn();
 const mockClient = { getPastEvents: (...a) => mockGetPastEvents(...a) };
 jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(() => mockClient) }));
-jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn(() => ({})) }));
+jest.mock("../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn(() => ({})) }));
 
 const fs = require("fs");
 const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const specHistory = require("../../src/stores/specHistoryStore");
 const { planImport, runImport, perCategoryOf } = require("../../src/web/raidhelperHistoryImport");
 

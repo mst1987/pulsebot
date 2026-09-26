@@ -8,7 +8,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
 const mockNames = jest.fn();
-jest.mock("../../../src/web/discord", () => ({ resolveUserNames: (...a) => mockNames(...a), listGuilds: () => [] }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: (...a) => mockNames(...a), listGuilds: () => [] }));
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: () => 0 }));
 
 const { leaderCandidates } = require("../../../src/web/apiRoutes/raids");

@@ -13,7 +13,7 @@ jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
 const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
 jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
 const mockGuard = jest.fn(async () => true);
-jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
+jest.mock("../src/services/discord/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real

@@ -61,7 +61,7 @@ describe("scripts/sync-app-emojis", () => {
     });
 
     it("uploads a catalogue entry with a local file from disk, without asking the web", async () => {
-        const { readIconFile } = require("../../src/web/appEmojiSync");
+        const { readIconFile } = require("../../src/services/discord/appEmojiSync");
         const rest = restWith([]);
         const readFile = jest.fn(async () => Buffer.from([4, 5, 6]));
         const local = [{ name: "eh_ui_leader", icon: "leader", file: "/assets/emojis/eh_ui_leader.png" }];
@@ -73,7 +73,7 @@ describe("scripts/sync-app-emojis", () => {
         await expect(readIconFile("x.svg", readFile)).rejects.toThrow("unbekanntes Bildformat");
         await expect(readIconFile("x.png", async () => Buffer.alloc(300 * 1024))).rejects.toThrow("zu groß");
         // the real checked-in file reads as a PNG data uri
-        const { uiIconFile } = require("../../src/web/appEmojis");
+        const { uiIconFile } = require("../../src/services/discord/appEmojis");
         await expect(readIconFile(uiIconFile("signed"))).resolves.toMatch(/^data:image\/png;base64,iVBOR/);
     });
 });

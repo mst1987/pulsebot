@@ -4,21 +4,21 @@ const mockGetEvent = jest.fn();
 jest.mock("../../src/utils/raidhelper/client", () => ({
     createRaidhelperClient: () => ({ createEvent: mockCreateEvent, getEvent: mockGetEvent }),
 }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     duplicateChannel: jest.fn(),
     listAllChannels: jest.fn(() => []),
     listCategories: jest.fn(() => [{ id: "cat-eh", name: "EventHelper-Raids" }]),
 }));
-jest.mock("../../src/web/discordChannels", () => ({
+jest.mock("../../src/services/discord/discordChannels", () => ({
     createFromTemplate: jest.fn(),
     placeChannel: jest.fn(async () => true),
-    discordErrorText: jest.requireActual("../../src/web/discordChannels").discordErrorText,
+    discordErrorText: jest.requireActual("../../src/services/discord/discordChannels").discordErrorText,
 }));
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
 // #305: the Discord event is best-effort — here it only records that it was asked.
-jest.mock("../../src/web/discordEvent", () => ({
+jest.mock("../../src/services/discord/discordEvent", () => ({
     createForEvent: jest.fn(async () => ({ skipped: "disabled" })),
     syncForEvent: jest.fn(async () => ({ skipped: "disabled" })),
     warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
@@ -35,8 +35,8 @@ jest.mock("../../src/web/raidListing", () => ({
 }));
 
 const fs = require("fs");
-const discord = require("../../src/web/discord");
-const discordChannels = require("../../src/web/discordChannels");
+const discord = require("../../src/services/discord/discord");
+const discordChannels = require("../../src/services/discord/discordChannels");
 const { getConfig, getRaidTemplate } = require("../../src/stores/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../src/web/eventMessage");
 const { announceEvent } = require("../../src/web/eventAnnounce");
@@ -45,7 +45,7 @@ const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../src/stores/channelArchiveStore");
 const raidEventGroups = require("../../src/web/raidEventGroups");
 const eventStore = require("../../src/stores/eventStore");
-const discordEvent = require("../../src/web/discordEvent");
+const discordEvent = require("../../src/services/discord/discordEvent");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../src/web/eventCreate");
 
 const user = { id: "42" };

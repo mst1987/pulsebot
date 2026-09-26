@@ -1,13 +1,13 @@
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     getClient: jest.fn(),
     getGuild: jest.fn(),
     createChannel: jest.fn(async (guildId, opts) => ({ id: "plain", name: opts.name })),
 }));
 
 const { ChannelType } = require("discord.js");
-const discord = require("../../src/web/discord");
-const dc = require("../../src/web/discordChannels");
-const discordClient = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord");
+const dc = require("../../../src/services/discord/discordChannels");
+const discordClient = require("../../helpers/discordClient");
 
 // A channel of guild "g1" that can be edited, deleted and cloned; the bot and a raider role hold overwrites.
 function makeChannel(fields = {}) {
@@ -30,7 +30,7 @@ function withChannels(...channels) {
 
 beforeEach(() => jest.clearAllMocks());
 
-describe("web/discordChannels", () => {
+describe("services/discord/discordChannels", () => {
     describe("pickChanges", () => {
         it("takes only the fields that are set, normalised", () => {
             expect(dc.pickChanges({ topic: "Flasks Pflicht" })).toEqual({ topic: "Flasks Pflicht" });

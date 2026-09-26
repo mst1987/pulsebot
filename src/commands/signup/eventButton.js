@@ -4,7 +4,7 @@ const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { submitSignup, checkRaiderRole } = require("../../web/signupService");
 const { BUTTON_PREFIX } = require("../../web/eventMessage");
-const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
+const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
 const { classLabel } = require("../../utils/signup/signupDialog");
 const {

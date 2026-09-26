@@ -1,6 +1,6 @@
-const { runSerial, summarize, eventStatusByChannel } = require("../../src/web/channelOps");
+const { runSerial, summarize, eventStatusByChannel } = require("../../../src/web/channels/channelOps");
 
-describe("web/channelOps", () => {
+describe("web/channels/channelOps", () => {
     describe("runSerial", () => {
         it("runs one channel after another and reports each, failures included", async () => {
             const order = [];

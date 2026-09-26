@@ -10,7 +10,7 @@
 // ⚠️ The sync only ever ADDS a role (`member.roles.add`). It never removes one
 // — decided in #250/#264: a role taken away on one server stays on the other,
 // and roleSyncDrift() lists those members as a hint in the admin menu, where a
-// person decides and removes it in Discord. test/web/roleSync.test.js holds
+// person decides and removes it in Discord. test/services/discord/roleSync.test.js holds
 // that line, including a scan of this file for a remove call.
 //
 // Runs on guildMemberUpdate/guildMemberAdd (bot.js) for the one member, and
@@ -18,7 +18,7 @@
 // verwalten" on a target server it adds nothing there and says so.
 const discord = require("./discord");
 const guildRoles = require("./guildRoles");
-const { getConfig } = require("../stores/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 const REASON = "EventHelper Rollen-Abgleich";
 const SIDES = ["event", "talk"];

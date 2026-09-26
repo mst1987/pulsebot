@@ -15,23 +15,23 @@ jest.mock("../../../src/stores/settingsStore", () => ({
     getRaidsheet: jest.fn(),
     resolveEventSheetLink: jest.fn(() => null),
 }));
-jest.mock("../../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     listMembersWithRoles: jest.fn(),
     postMissingPing: jest.fn(),
     postAnnouncement: jest.fn(),
     listRoles: jest.fn(() => []),
     getGuild: jest.fn(() => null),
 }));
-jest.mock("../../../src/web/pingDelivery", () => {
-    const actual = jest.requireActual("../../../src/web/pingDelivery");
+jest.mock("../../../src/services/discord/pingDelivery", () => {
+    const actual = jest.requireActual("../../../src/services/discord/pingDelivery");
     return { ...actual, deliverUserPing: jest.fn(), deliverAnnouncement: jest.fn() };
 });
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const settingsStore = require("../../../src/stores/settingsStore");
-const discord = require("../../../src/web/discord");
-const pingDelivery = require("../../../src/web/pingDelivery");
+const discord = require("../../../src/services/discord/discord");
+const pingDelivery = require("../../../src/services/discord/pingDelivery");
 const { postPingMissing, postNotify } = require("../../../src/web/apiRoutes/raidDetail");
 
 const { mockRes, json } = require("../../helpers/http");

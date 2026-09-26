@@ -4,7 +4,7 @@ const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../../stores/settingsStore");
 const { decorateTemplate } = require("../raidTemplates");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 

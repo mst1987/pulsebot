@@ -9,7 +9,7 @@ const mockReads = {
 };
 jest.mock("../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => mockReads));
 
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listGuilds: jest.fn(() => [{ id: "g1", name: "Gilde" }]),
 }));

@@ -1,9 +1,9 @@
-// src/web/appEmojiSync.js: the bot creates its missing app emojis on start and
+// src/services/discord/appEmojiSync.js: the bot creates its missing app emojis on start and
 // reads them into the cache. No call reaches Discord or zamimg — REST, fetch and
 // the client are doubles.
-const { ensureAppEmojis } = require("../../src/web/appEmojiSync");
-const { appEmojiMap, resetAppEmojis, emojiCatalog } = require("../../src/web/appEmojis");
-const { makeClient } = require("../helpers/discordClient");
+const { ensureAppEmojis } = require("../../../src/services/discord/appEmojiSync");
+const { appEmojiMap, resetAppEmojis, emojiCatalog } = require("../../../src/services/discord/appEmojis");
+const { makeClient } = require("../../helpers/discordClient");
 
 const okFetch = jest.fn(async () => ({
     ok: true,
@@ -25,7 +25,7 @@ function fakeClient(existing) {
     return { ...makeClient({ rest, application: { id: "app", emojis: { fetch: fetchEmojis } } }), fetchEmojis };
 }
 
-describe("web/appEmojiSync ensureAppEmojis", () => {
+describe("services/discord/appEmojiSync ensureAppEmojis", () => {
     beforeEach(() => {
         resetAppEmojis();
         okFetch.mockClear();

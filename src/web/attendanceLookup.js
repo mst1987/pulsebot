@@ -5,7 +5,7 @@
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { listAllAssignments } = require("../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
-const { listKnownCategories } = require("./categoryNames");
+const { listKnownCategories } = require("../services/discord/categoryNames");
 const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 
 /**

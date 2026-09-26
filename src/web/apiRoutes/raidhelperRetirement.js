@@ -6,7 +6,7 @@ const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const retirement = require("../raidhelperRetirement");
 const historyImport = require("../raidhelperHistoryImport");
-const guildRoles = require("../guildRoles");
+const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 
 /** GET /api/settings/raidhelper-retirement — the checklist, computed now. */

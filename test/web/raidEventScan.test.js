@@ -5,7 +5,7 @@ jest.mock("../../src/classes/raidhelper", () =>
 
 const mockGetChannelCategoryMap = jest.fn(() => ({}));
 const mockListGuilds = jest.fn(() => []);
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getChannelCategoryMap: (...a) => mockGetChannelCategoryMap(...a),
     listGuilds: (...a) => mockListGuilds(...a),
 }));

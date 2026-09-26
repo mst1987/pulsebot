@@ -14,8 +14,8 @@
 // and uses the English class and spec names; it ends with the link to the signup
 // message. The orga edits it before it goes out.
 const eventStore = require("../stores/eventStore");
-const discord = require("./discord");
-const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
+const discord = require("../services/discord/discord");
+const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("../services/discord/appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { fail } = require("./http/apiResult");
 

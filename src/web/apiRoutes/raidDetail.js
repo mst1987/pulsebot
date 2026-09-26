@@ -26,13 +26,13 @@ const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/time");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const { getEvent } = require("../../stores/eventStore");
 const { raidHelperSlots } = require("../setupEditor");
 const { invitePlan, callInvite } = require("../inviteCall");
 const {
     normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
-} = require("../pingDelivery");
+} = require("../../services/discord/pingDelivery");
 const { pingMissingRaiders } = require("../missingPing");
 const { buildRaidDetail } = require("../raidDetailView");
 

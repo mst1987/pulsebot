@@ -21,9 +21,9 @@
 // answers "does this exist in Discord right now".
 const fs = require("fs");
 const discord = require("./discord");
-const { listStoredEvents } = require("./eventSources");
+const { listStoredEvents } = require("../../web/eventSources");
 
-const { SETTINGS_DIR, settingsPath } = require("../config/paths");
+const { SETTINGS_DIR, settingsPath } = require("../../config/paths");
 const CATEGORY_NAMES_FILE = settingsPath("category-names.json");
 
 /** @returns {Object<string, Object<string, string>>} guildId -> { categoryId: name } */

@@ -29,7 +29,7 @@ jest.mock("../../../src/web/eventSources", () => ({
     listStoredEvents: () => [],
     specNameFor: jest.requireActual("../../../src/web/eventSources").specNameFor,
 }));
-jest.mock("../../../src/web/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
 jest.mock("../../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/web/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),

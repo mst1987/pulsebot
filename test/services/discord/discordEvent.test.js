@@ -3,7 +3,7 @@
 // fehlendes Recht — und dass nichts davon je wirft.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventDiscordEvent: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -13,15 +13,15 @@ jest.mock("../../src/stores/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../src/web/discord", () => ({ getGuild: jest.fn(), botCanManageEvents: jest.fn(() => true) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), botCanManageEvents: jest.fn(() => true) }));
 
 const { ChannelType, GuildScheduledEventEntityType, GuildScheduledEventStatus } = require("discord.js");
-const discord = require("../../src/web/discord");
-const eventStore = require("../../src/stores/eventStore");
-const de = require("../../src/web/discordEvent");
-const { event: baseEvent } = require("../factories/events");
-const { makeGuild, makeChannel } = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord");
+const eventStore = require("../../../src/stores/eventStore");
+const de = require("../../../src/services/discord/discordEvent");
+const { event: baseEvent } = require("../../factories/events");
+const { makeGuild, makeChannel } = require("../../helpers/discordClient");
 
 const START = 2000000000; // the factory's start time
 const event = (over = {}) => baseEvent({
@@ -80,7 +80,7 @@ const put = (ev) => {
     return ev.id;
 };
 
-describe("web/discordEvent", () => {
+describe("services/discord/discordEvent", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockEvents.clear();

@@ -39,7 +39,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -65,7 +65,7 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
 const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/recruitment"));
 
 describe("web/apiRoutes/recruitment", () => {

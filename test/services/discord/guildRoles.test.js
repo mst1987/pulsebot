@@ -1,13 +1,13 @@
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(),
     botPermissionsIn: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
 }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn() }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn() }));
 
-const discord = require("../../src/web/discord");
-const { getConfig } = require("../../src/stores/settingsStore");
-const guildRoles = require("../../src/web/guildRoles");
+const discord = require("../../../src/services/discord/discord");
+const { getConfig } = require("../../../src/stores/settingsStore");
+const guildRoles = require("../../../src/services/discord/guildRoles");
 
 const servers = (over = {}) => ({
     eventGuilds: [], talkGuildId: "", talkPingChannelId: "", ...over,
@@ -20,7 +20,7 @@ beforeEach(() => {
     getConfig.mockReturnValue({ guildId: "", discordServers: servers() });
 });
 
-describe("web/guildRoles ids", () => {
+describe("services/discord/guildRoles ids", () => {
     it("falls back to the old guildId when no event server is set", () => {
         getConfig.mockReturnValue({ guildId: "100", discordServers: servers() });
         expect(guildRoles.eventGuildId()).toBe("100");
@@ -74,7 +74,7 @@ describe("web/guildRoles ids", () => {
     });
 });
 
-describe("web/guildRoles cards", () => {
+describe("services/discord/guildRoles cards", () => {
     it("describes a connected server with its missing rights", () => {
         discord.getGuild.mockReturnValue({ name: "Pulse Events", memberCount: 212, iconURL: () => "https://cdn/icon.png" });
         discord.botPermissionsIn.mockReturnValue([
@@ -122,7 +122,7 @@ describe("web/guildRoles cards", () => {
     });
 });
 
-describe("web/guildRoles memberOverlap", () => {
+describe("services/discord/guildRoles memberOverlap", () => {
     const two = { discordServers: servers({ eventGuilds: [eventGuild("200")], talkGuildId: "300" }) };
 
     it("is null without a second server", async () => {

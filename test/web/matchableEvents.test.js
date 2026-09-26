@@ -1,7 +1,7 @@
 const mockGetPastEvents = jest.fn();
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
-jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
+jest.mock("../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
 jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
 jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
@@ -11,7 +11,7 @@ jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({
 
 const eventStore = require("../../src/stores/eventStore");
 const { autoMatches } = require("../../src/web/logEventMatch");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../src/web/matchableEvents");
 const { event: baseEvent } = require("../factories/events");

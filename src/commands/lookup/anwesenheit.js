@@ -6,7 +6,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const { myCharacters } = require("../../web/userCharacters");
 const { characterAttendance, overall, attendanceFields } = require("../../web/attendanceLookup");
 const { buildAttendanceContext } = require("../../web/rosterAttendance");
-const { eventGuildId } = require("../../web/guildRoles");
+const { eventGuildId } = require("../../services/discord/guildRoles");
 const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 
 /** The reply for one or more characters: the overall number large, the categories below. */

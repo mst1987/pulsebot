@@ -1,6 +1,6 @@
 // Shared by server.js's SSR routes and apiRouter.js's JSON routes: which guild
 // the admin is currently managing.
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const auth = require("./auth");
 const { getConfig } = require("../../stores/settingsStore");
 

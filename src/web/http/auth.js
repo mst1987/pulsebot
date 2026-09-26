@@ -8,12 +8,12 @@ const {
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../../config/variables");
 const { getConfig } = require("../../stores/settingsStore");
-const guildRoles = require("../guildRoles");
+const guildRoles = require("../../services/discord/guildRoles");
 const { fullAccess, emptyAccess, accessForRoles, accessForUser, baseAccessMap, mergeAccess } = require("../../config/permissions");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 // The bot client (read for guild roles) is the one discord.js holds; server
 // startup hands it over there, not here.
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }

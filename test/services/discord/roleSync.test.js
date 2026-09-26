@@ -3,16 +3,16 @@
 const fs = require("fs");
 const path = require("path");
 
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(),
     botPermissionsIn: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
     listRoles: jest.fn(() => []),
 }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const discord = require("../../src/web/discord");
-const roleSync = require("../../src/web/roleSync");
+const discord = require("../../../src/services/discord/discord");
+const roleSync = require("../../../src/services/discord/roleSync");
 
 const EVENT = "100000";
 const TALK = "200000";
@@ -133,7 +133,7 @@ describe("runRoleSync", () => {
 });
 
 describe("member events", () => {
-    const cfgModule = require("../../src/stores/settingsStore");
+    const cfgModule = require("../../../src/stores/settingsStore");
 
     it("syncs the one member whose roles changed", async () => {
         cfgModule.getConfig.mockReturnValue(config("toTalk"));
@@ -208,7 +208,7 @@ describe("drift", () => {
 
 describe("source", () => {
     it("contains no call that removes a role", () => {
-        const src = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "roleSync.js"), "utf8");
+        const src = fs.readFileSync(path.join(__dirname, "..", "..", "..", "src", "services", "discord", "roleSync.js"), "utf8");
         expect(src).not.toMatch(/\.remove\s*\(/);
         expect(src).not.toMatch(/roles\.set\s*\(/);
         expect(src).not.toMatch(/\.edit\s*\(\s*\{\s*roles/);

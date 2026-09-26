@@ -108,7 +108,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -180,7 +180,7 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
 const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/web/raidEventGroups");
 const raidEventStore = require("../../../src/stores/raidEventStore");
 const raidListing = require("../../../src/web/raidListing");

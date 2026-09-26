@@ -16,7 +16,7 @@ jest.mock("../../../src/web/http/apiMiddleware.js", () => require("../../helpers
 jest.mock("../../../src/web/http/apiBody.js", () => require("../../helpers/http").apiBodyMock({ body: () => mockBody }));
 jest.mock("../../../src/web/recommendationSend.js", () => ({ sendApproved: (...a) => mockSendApproved(...a), sendStatus: (...a) => mockSendStatus(...a) }));
 jest.mock("../../../src/stores/raiderCharactersStore.js", () => ({ listAllAssignments: () => mockAssignments() }));
-jest.mock("../../../src/web/discord.js", () => ({ getClient: () => mockClient, sendDirectMessage: jest.fn(), embed: jest.fn() }));
+jest.mock("../../../src/services/discord/discord.js", () => ({ getClient: () => mockClient, sendDirectMessage: jest.fn(), embed: jest.fn() }));
 jest.mock("../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../../src/web/reportList.js", () => ({ prepareReportList: jest.fn(), prepareLogList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
 jest.mock("../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));

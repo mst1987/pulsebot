@@ -1,9 +1,9 @@
 // App-Emojis der Bot-Anwendung (#287): Namensschema, Katalog, Cache, Text-Fallback.
-const appEmojis = require("../../src/web/appEmojis");
-const { buildClasses, ROLES } = require("../../src/config/gameVersions/classes");
-const { SIGNUP_STATUSES } = require("../../src/utils/attendance");
+const appEmojis = require("../../../src/services/discord/appEmojis");
+const { buildClasses, ROLES } = require("../../../src/config/gameVersions/classes");
+const { SIGNUP_STATUSES } = require("../../../src/utils/attendance");
 
-describe("web/appEmojis", () => {
+describe("services/discord/appEmojis", () => {
     beforeEach(() => appEmojis.resetAppEmojis());
 
     it("names specs, classes, roles and statuses by the schema", () => {
@@ -70,8 +70,8 @@ describe("web/appEmojis", () => {
 
     it("ships every UI icon, tile and styled role icon as a checked-in 128 px PNG within Discord's size limit", () => {
         const fs = require("fs");
-        const { MAX_BYTES } = require("../../src/web/appEmojiSync");
-        const { ICONS } = require("../../scripts/render-ui-emojis");
+        const { MAX_BYTES } = require("../../../src/services/discord/appEmojiSync");
+        const { ICONS } = require("../../../scripts/render-ui-emojis");
         for (const e of appEmojis.emojiCatalog().filter((x) => x.file)) {
             // the UI icons are drawn by the script; tiles and styled roles are generated images
             if (!e.tile) expect(Object.keys(ICONS)).toContain(e.icon);

@@ -23,7 +23,7 @@ describe("commands/apply/createApplication", () => {
     });
 
     it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
-        // The check itself runs centrally before execute (src/web/botAccess.js).
+        // The check itself runs centrally before execute (src/services/discord/botAccess.js).
         expect(command.defaultAccess).toBe("admins");
         expect(typeof command.group).toBe("string");
     });

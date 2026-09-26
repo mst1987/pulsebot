@@ -7,8 +7,8 @@
 // twenty renames at once gets most of them bounced with a 429 and leaves the
 // admin with a half-renamed category.
 
-const { discordErrorText } = require("./discordChannels");
-const { plural } = require("../utils/text");
+const { discordErrorText } = require("../../services/discord/discordChannels");
+const { plural } = require("../../utils/text");
 
 const DEFAULT_PAUSE_MS = 350;
 

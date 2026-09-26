@@ -1,6 +1,6 @@
 jest.mock("../../src/stores/settingsStore.js");
 jest.mock("../../src/stores/logStore.js");
-jest.mock("../../src/web/discord.js");
+jest.mock("../../src/services/discord/discord.js");
 jest.mock("../../src/utils/logcheck/report.js", () => {
     class ReportError extends Error {}
     return { buildReport: jest.fn(), ReportError };
@@ -13,7 +13,7 @@ const { ChannelType } = require("discord.js");
 const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
 const { getConfig } = require("../../src/stores/settingsStore.js");
 const logStore = require("../../src/stores/logStore.js");
-const discord = require("../../src/web/discord.js");
+const discord = require("../../src/services/discord/discord.js");
 require("../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");
 const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../src/web/logChannel.js");

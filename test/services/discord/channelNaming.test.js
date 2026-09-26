@@ -1,17 +1,17 @@
 // #285: which name and design a new event channel gets — the previous event
 // channel of the category, the stored schema, or the default one — and that
 // the result always says so.
-jest.mock("../../src/web/discord", () => ({ listAllChannels: jest.fn(() => []) }));
-jest.mock("../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
-jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../src/web/raidListing", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({ listAllChannels: jest.fn(() => []) }));
+jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
+jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
+jest.mock("../../../src/web/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /hyjal/i.test(title || "") ? ["hyjal", "bt"] : /ssc/i.test(title || "") ? ["ssc", "tk"] : [] }),
 }));
 
-const discord = require("../../src/web/discord");
-const archiveStore = require("../../src/stores/channelArchiveStore");
-const { loadEventGroups } = require("../../src/web/raidEventGroups");
-const naming = require("../../src/web/channelNaming");
+const discord = require("../../../src/services/discord/discord");
+const archiveStore = require("../../../src/stores/channelArchiveStore");
+const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const naming = require("../../../src/services/discord/channelNaming");
 
 const CAT = "cat-mi";
 // Berlin 19:30 on a day
@@ -40,7 +40,7 @@ beforeEach(() => {
     loadEventGroups.mockResolvedValue({ groups: [{ categoryId: CAT, events: EVENTS.slice(0, 3) }, { categoryId: "cat-other", events: [EVENTS[3]] }] });
 });
 
-describe("web/channelNaming — namingContext", () => {
+describe("services/discord/channelNaming — namingContext", () => {
     it("names after the latest event channel with the same raid, and copies it", () => {
         const ctx = ctxFor({ raid: "ssc-tk" });
         expect(ctx).toMatchObject({ source: "previous", fromChannel: "🔥・mi-16-09-ssc-tk", templateChannelId: "c2" });
@@ -115,7 +115,7 @@ describe("web/channelNaming — namingContext", () => {
     });
 });
 
-describe("web/channelNaming — deriveChannelName", () => {
+describe("services/discord/channelNaming — deriveChannelName", () => {
     it("reads events, channels and schemas and names the instances' raid", async () => {
         const result = await naming.deriveChannelName({ guildId: "g1", categoryId: CAT, date: "2026-09-24", instanceIds: ["hyjal", "bt"] });
         expect(loadEventGroups).toHaveBeenCalledWith("g1", { sinceSeconds: 1 });

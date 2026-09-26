@@ -1,4 +1,4 @@
-const discord = require("../../src/web/discord.js");
+const discord = require("../../../src/services/discord/discord.js");
 
 const { LOG_SECTIONS, logButtonRow, logButtonContent, LOG_EVAL_PREFIX } = discord;
 
@@ -11,7 +11,7 @@ function buttonsOf(rows) {
     }));
 }
 
-describe("web/discord — log evaluation buttons", () => {
+describe("services/discord/discord — log evaluation buttons", () => {
     it("offers one button per analysis half", () => {
         expect(LOG_SECTIONS.map((s) => s.key)).toEqual(["cla", "rpb"]);
         const buttons = buttonsOf(logButtonRow("log1"));
@@ -37,7 +37,7 @@ describe("web/discord — log evaluation buttons", () => {
     });
 });
 
-describe("web/discord — log button message text", () => {
+describe("services/discord/discord — log button message text", () => {
     it("describes both analyses for a freshly detected log", () => {
         const text = logButtonContent("SSC + TK");
         expect(text).toContain("Warcraft-Logs-Report erkannt");

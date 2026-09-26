@@ -1,18 +1,18 @@
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/services/discord/discord", () => ({
     getClient: jest.fn(() => null),
     getGuild: jest.fn(() => null),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 
 const { MessageFlags } = require("discord.js");
-const settingsStore = require("../../src/stores/settingsStore");
-const discord = require("../../src/web/discord");
-const { logcheckAdminIds } = require("../../src/config/variables");
+const settingsStore = require("../../../src/stores/settingsStore");
+const discord = require("../../../src/services/discord/discord");
+const { logcheckAdminIds } = require("../../../src/config/variables");
 const {
     resolveBotAccess, ruleFor, accessOwner, eventGuildId, eventMemberRoles, denyMessage, guardInteraction,
-} = require("../../src/web/botAccess");
-const { mockInteraction, makeCollection } = require("../helpers/mockInteraction");
+} = require("../../../src/services/discord/botAccess");
+const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction");
 
 const GUILD = "900000000000000001";
 const ORGA = "123456789012345678";
@@ -102,8 +102,8 @@ describe("resolveBotAccess", () => {
 });
 
 describe("the discord helpers used here", () => {
-    it("are really exported by web/discord.js (the mock above would hide a missing one)", () => {
-        const real = jest.requireActual("../../src/web/discord");
+    it("are really exported by services/discord/discord.js (the mock above would hide a missing one)", () => {
+        const real = jest.requireActual("../../../src/services/discord/discord");
         for (const name of ["getClient", "getGuild", "fetchGuildMembersCached", "listRoles"]) {
             expect({ name, type: typeof real[name] }).toEqual({ name, type: "function" });
         }

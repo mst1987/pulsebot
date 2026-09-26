@@ -11,10 +11,10 @@ const eventStore = require("../../stores/eventStore");
 const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
-const { deriveChannelName } = require("../channelNaming");
+const { deriveChannelName } = require("../../services/discord/channelNaming");
 const { signupSourceFor } = require("../eventSources");
 const { listSignups } = require("../../stores/signupStore");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/raids — the active guild's upcoming events of both sources

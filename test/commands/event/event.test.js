@@ -1,21 +1,21 @@
-jest.mock("../../../src/web/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn(), fetchGuildMembersCached: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn(), fetchGuildMembersCached: jest.fn() }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/web/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
 jest.mock("../../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const { MessageFlags } = require("discord.js");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const archiveStore = require("../../../src/stores/channelArchiveStore");
 const settings = require("../../../src/stores/settingsStore");
 const { signupSourceFor } = require("../../../src/web/eventSources");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
-const { eventGuildId } = require("../../../src/web/guildRoles");
+const { eventGuildId } = require("../../../src/services/discord/guildRoles");
 const { createEvent } = require("../../../src/web/eventCreate");
-const { guardInteraction } = require("../../../src/web/botAccess");
+const { guardInteraction } = require("../../../src/services/discord/botAccess");
 const draft = require("../../../src/web/eventDraft");
 const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventCreateStep");

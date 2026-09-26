@@ -14,7 +14,7 @@
 // menu's server switcher is independent of this: it still picks any server the
 // bot is on, and only shows these roles as a badge.
 const discord = require("./discord");
-const { getConfig } = require("../stores/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 /** Every configured event server's id, in the order they were added. */
 function eventGuildIds(config = getConfig()) {

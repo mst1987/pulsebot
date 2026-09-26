@@ -4,7 +4,7 @@
 const { tempStoreFile } = require("../helpers/tempStore");
 const { DateTime } = require("luxon");
 
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getClient: jest.fn(() => ({ isReady: () => true })),
     listCategories: jest.fn(() => [{ id: "cat1", name: "Raids Mittwoch" }]),
 }));
@@ -14,13 +14,13 @@ jest.mock("../../src/web/eventSources", () => ({
     ownUpcomingRaw: jest.fn(() => []),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [], error: null })) }));
-jest.mock("../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "g1") }));
+jest.mock("../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "g1") }));
 jest.mock("../../src/stores/eventStore", () => ({ appendEventLog: jest.fn() }));
 jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["cat1"], categoryRaidTemplate: {} })),
     getRaidTemplate: jest.fn((id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", instanceIds: ["ssc", "tk"], size: 25 } : null)),
 }));
-jest.mock("../../src/web/channelNaming", () => ({
+jest.mock("../../src/services/discord/channelNaming", () => ({
     loadNamingInputs: jest.fn(async () => ({ events: [], channels: [], schemas: {} })),
     raidTagFor: jest.fn(() => "ssc-tk"),
     namingContext: jest.fn(() => ({ source: "previous" })),
@@ -29,7 +29,7 @@ jest.mock("../../src/web/channelNaming", () => ({
     })),
 }));
 
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { createEvent } = require("../../src/web/eventCreate");
 const { signupSourceFor, ownUpcomingRaw } = require("../../src/web/eventSources");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");

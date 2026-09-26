@@ -21,7 +21,7 @@ const lib = read("lib", "channels.ts");
 const api = read("api", "channels.ts");
 const css = read("styles", "kanaele.css");
 const dashboard = read("pages", "DashboardPage.tsx");
-const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "channelPurposes.js"), "utf8");
+const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "channels", "channelPurposes.js"), "utf8");
 const routes = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "apiRoutes", "channels.js"), "utf8");
 
 const ALL = [page, dialogs, bits, tree, bulk, edit, quick, archive, purposes].join("\n");
@@ -273,7 +273,7 @@ describe("Kanäle — Namensschema pro Kategorie", () => {
 // top-level channel (#361 — the "Bewerbungen" application threads).
 describe("Kanäle — Threads nisten unter ihrem Kanal (#361)", () => {
     it("marks a channel as a thread on the server, the API type carries it through", () => {
-        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "discord.js"), "utf8");
+        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "services", "discord", "discord.js"), "utf8");
         expect(server).toContain("const THREAD_TYPES = [ChannelType.AnnouncementThread, ChannelType.PublicThread, ChannelType.PrivateThread];");
         expect(server).toContain("isThread: THREAD_TYPES.includes(c.type),");
         expect(api).toContain("isThread: boolean;");
@@ -308,7 +308,7 @@ describe("Kanäle — Threads nisten unter ihrem Kanal (#361)", () => {
     it("gives threads their own line icon and type label", () => {
         expect(bits).toContain("case TYPE_ANNOUNCEMENT_THREAD:");
         expect(bits).toContain("return <ThreadIcon />;");
-        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "discord.js"), "utf8");
+        const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "services", "discord", "discord.js"), "utf8");
         expect(server).toContain("[ChannelType.PublicThread]: \"Thread\",");
         expect(server).toContain("[ChannelType.PrivateThread]: \"Privater Thread\",");
     });

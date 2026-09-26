@@ -11,11 +11,11 @@
 // Roles are always resolved against the *event* guild, whichever server the
 // interaction came from — members are on both.
 const { MessageFlags } = require("discord.js");
-const { getConfig } = require("../stores/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 const discord = require("./discord");
-const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../config/variables");
+const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { eventGuildId } = require("./guildRoles");
-const { normalizeRule, normalizeBotCommandAccess } = require("../config/botCommands");
+const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 const MAX_ACCESS_OF_DEPTH = 5;

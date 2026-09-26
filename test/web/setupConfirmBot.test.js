@@ -14,7 +14,7 @@ jest.mock("../../src/stores/eventStore", () => ({
     }),
 }));
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
+jest.mock("../../src/services/discord/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const eventStore = require("../../src/stores/eventStore");

@@ -10,7 +10,7 @@
 // invite goes out to the raid, the rest waits.
 const eventStore = require("../stores/eventStore");
 const signupStore = require("../stores/signupStore");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { approvedSetupOf } = require("./setupCore");
 const { fail } = require("./http/apiResult");
 

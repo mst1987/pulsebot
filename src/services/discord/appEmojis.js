@@ -33,11 +33,11 @@
 // four are out of the catalogue. An application that has them keeps them —
 // nothing ever deletes an emoji.
 const path = require("path");
-const { buildClasses, ROLES } = require("../config/gameVersions/classes");
+const { buildClasses, ROLES } = require("../../config/gameVersions/classes");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/medium";
 const PREFIX = "eh_";
-const UI_DIR = path.join(__dirname, "..", "..", "assets", "emojis");
+const UI_DIR = path.join(__dirname, "..", "..", "..", "assets", "emojis");
 // Retry a failed fetch after this long instead of asking Discord on every render.
 const RETRY_MS = 10 * 60 * 1000;
 

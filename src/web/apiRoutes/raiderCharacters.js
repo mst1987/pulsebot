@@ -7,7 +7,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { getConfig } = require("../../stores/settingsStore");
 const { getCategoryAssignments, setCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { listCharacters } = require("../../stores/characterStore");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/raider-characters?category=<id> — the category's expected raiders

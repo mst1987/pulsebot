@@ -7,8 +7,8 @@
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { getConfig } = require("../stores/settingsStore");
 const { computeAttendance, hasStarted } = require("../utils/attendance");
-const discord = require("./discord");
-const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS } = require("./pingDelivery");
+const discord = require("../services/discord/discord");
+const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS } = require("../services/discord/pingDelivery");
 const { fail } = require("./http/apiResult");
 
 /**

@@ -1,4 +1,4 @@
-const { PURPOSES, resolvePurposes, purposeSummary, channelStatus, idsFor } = require("../../src/web/channelPurposes");
+const { PURPOSES, resolvePurposes, purposeSummary, channelStatus, idsFor } = require("../../../src/web/channels/channelPurposes");
 
 const ch = (id, name, rights = {}) => ({ id, name, type: 0, botCanView: true, botCanSend: true, ...rights });
 

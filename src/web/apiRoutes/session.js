@@ -1,6 +1,6 @@
 const auth = require("../http/auth");
-const discord = require("../discord");
-const { guildRole } = require("../guildRoles");
+const discord = require("../../services/discord/discord");
+const { guildRole } = require("../../services/discord/guildRoles");
 const { activeGuildFor } = require("../http/activeGuild");
 const { ok, error } = require("../http/apiResponse");
 const { requireCsrf } = require("../http/apiMiddleware");

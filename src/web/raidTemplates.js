@@ -19,7 +19,7 @@ const {
 // them for the template and for the event that inherits them.
 const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");
 // The emoji style of the message (letter tiles, role icons), copied to the event like the colour.
-const { emojiStyleOf, DEFAULT_EMOJI_STYLE } = require("./appEmojis");
+const { emojiStyleOf, DEFAULT_EMOJI_STYLE } = require("../services/discord/appEmojis");
 
 const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.

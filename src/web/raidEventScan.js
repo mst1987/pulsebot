@@ -6,7 +6,7 @@
 // finished raid shows up even if nobody opens the dashboard right after it ends.
 
 const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { saveRaidEvents, getRaidEvent } = require("../stores/raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
 const { signupStatus } = require("../utils/attendance");

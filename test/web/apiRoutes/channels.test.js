@@ -111,7 +111,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -181,8 +181,8 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 jest.mock("../../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
-jest.mock("../../../src/web/channelOps", () => {
-    const actual = jest.requireActual("../../../src/web/channelOps");
+jest.mock("../../../src/web/channels/channelOps", () => {
+    const actual = jest.requireActual("../../../src/web/channels/channelOps");
     return { ...actual, runSerial: (ids, fn) => actual.runSerial(ids, fn, { pauseMs: 0 }) };
 });
 jest.mock("../../../src/stores/channelArchiveStore", () => {
@@ -197,8 +197,8 @@ jest.mock("../../../src/stores/channelArchiveStore", () => {
         forgetArchived: jest.fn(),
     };
 });
-jest.mock("../../../src/web/discordChannels", () => {
-    const actual = jest.requireActual("../../../src/web/discordChannels");
+jest.mock("../../../src/services/discord/discordChannels", () => {
+    const actual = jest.requireActual("../../../src/services/discord/discordChannels");
     return {
         ...actual,
         listChannelDetails: jest.fn(() => ({})),
@@ -227,11 +227,11 @@ jest.mock("../../../src/web/http/apiBody", () => {
 const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/channels"));
 const { requireAdmin, requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const { readJsonBody } = require("../../../src/web/http/apiBody");
-const dc = require("../../../src/web/discordChannels");
+const dc = require("../../../src/services/discord/discordChannels");
 const archiveStore = require("../../../src/stores/channelArchiveStore");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("../../../src/web/raidEventGroups");

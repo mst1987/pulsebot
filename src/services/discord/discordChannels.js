@@ -7,7 +7,7 @@
 
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
-const { normalizeForType } = require("../utils/channelNames");
+const { normalizeForType } = require("../../utils/channelNames");
 
 /** Slowmode Discord accepts: 0 (off) to 6 hours. */
 const MAX_SLOWMODE = 21600;

@@ -27,14 +27,14 @@
 const crypto = require("crypto");
 const { DateTime } = require("luxon");
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
-const discord = require("./discord");
-const channelNaming = require("./channelNaming");
+const discord = require("../services/discord/discord");
+const channelNaming = require("../services/discord/channelNaming");
 const { namingLine } = channelNaming;
 const { getConfig, listRaidTemplates, getRaidTemplate } = require("../stores/settingsStore");
 const { announceSetting } = require("./eventAnnounce");
 const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { eventGuildId } = require("./guildRoles");
+const { eventGuildId } = require("../services/discord/guildRoles");
 const { createEvent } = require("./eventCreate");
 const { MIN_DURATION, MAX_DURATION } = require("../stores/eventStore");
 const { instanceById } = require("../config/gameVersions");

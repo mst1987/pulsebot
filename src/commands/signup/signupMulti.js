@@ -2,7 +2,7 @@ const { MessageFlags } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
 const { getEvent } = require("../../stores/eventStore");
 const { checkRaiderRole, allowedStatuses, submitSignups } = require("../../web/signupService");
-const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
+const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const {
     PREFIX, createSession, getSession, endSession, parseMultiId, pageCount,
     buildRaidPicker, buildCharacterModal, entriesFromModal, buildResults,

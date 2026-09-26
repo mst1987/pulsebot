@@ -1,7 +1,7 @@
 // discord.sendDirectMessage / embed: the DM path the recommendations use.
-jest.mock("../../src/config/variables.js", () => ({ embedAccentColor: 0x8a7cff }));
+jest.mock("../../../src/config/variables.js", () => ({ embedAccentColor: 0x8a7cff }));
 
-const discord = require("../../src/web/discord.js");
+const discord = require("../../../src/services/discord/discord.js");
 
 function clientWith(user) {
     return { users: { fetch: jest.fn(async (id) => (typeof user === "function" ? user(id) : user)) } };
@@ -9,7 +9,7 @@ function clientWith(user) {
 
 afterEach(() => discord.setClient(null));
 
-describe("web/discord — sendDirectMessage", () => {
+describe("services/discord/discord — sendDirectMessage", () => {
     it("throws without a client", async () => {
         await expect(discord.sendDirectMessage("u1", { content: "x" })).rejects.toThrow("Bot nicht verbunden.");
     });
@@ -34,7 +34,7 @@ describe("web/discord — sendDirectMessage", () => {
     });
 });
 
-describe("web/discord — embed", () => {
+describe("services/discord/discord — embed", () => {
     it("builds an embed in the bot's colour", () => {
         const e = discord.embed().setTitle("T");
         expect(e.data.color).toBe(0x8a7cff);

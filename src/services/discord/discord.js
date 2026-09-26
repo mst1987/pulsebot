@@ -6,7 +6,7 @@
 const {
     ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
 } = require("discord.js");
-const { embedAccentColor } = require("../config/variables");
+const { embedAccentColor } = require("../../config/variables");
 
 let client = null;
 function setClient(c) {

@@ -21,12 +21,12 @@ jest.mock("../../src/stores/eventStore", () => ({
 }));
 let mockConfig = {};
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
+jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const eventStore = require("../../src/stores/eventStore");
-const appEmojis = require("../../src/web/appEmojis");
+const appEmojis = require("../../src/services/discord/appEmojis");
 const sm = require("../../src/web/setupMessage");
 const { event: baseEvent } = require("../factories/events");
 const { makeClient, makeChannel } = require("../helpers/discordClient");

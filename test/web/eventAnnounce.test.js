@@ -2,15 +2,15 @@
 // Raider-Rolle seiner Kategorie — über pingDelivery (#264), nicht über einen
 // zweiten Weg. Der Store läuft echt auf einem In-Memory-fs, Discord ist Mock.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
-jest.mock("../../src/web/pingDelivery", () => ({
-    normalizePingTarget: jest.requireActual("../../src/web/pingDelivery").normalizePingTarget,
+jest.mock("../../src/services/discord/pingDelivery", () => ({
+    normalizePingTarget: jest.requireActual("../../src/services/discord/pingDelivery").normalizePingTarget,
     deliverAnnouncement: jest.fn(async ({ target }) => ({ target, event: { messageId: "m1" }, talk: null, mentioned: 0, dm: null })),
 }));
 let mockConfig = {};
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const fs = require("fs");
-const { deliverAnnouncement } = require("../../src/web/pingDelivery");
+const { deliverAnnouncement } = require("../../src/services/discord/pingDelivery");
 const eventStore = require("../../src/stores/eventStore");
 const announce = require("../../src/web/eventAnnounce");
 

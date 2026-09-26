@@ -38,7 +38,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),

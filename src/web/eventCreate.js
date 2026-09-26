@@ -9,24 +9,24 @@
 // channel. The channel is chosen, cloned from an earlier event or created new
 // (named by the category's schema, #259) the same way for both.
 const { DateTime } = require("luxon");
-const discord = require("./discord");
-const discordChannels = require("./discordChannels");
+const discord = require("../services/discord/discord");
+const discordChannels = require("../services/discord/discordChannels");
 const { normalizeChannelName, renderChannelName, DEFAULT_SCHEMA } = require("../utils/channelNames");
 const eventStore = require("../stores/eventStore");
 const { getRaidEvent } = require("../stores/raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { signupSourceFor } = require("./eventSources");
 const { postEventMessage, refreshEventMessage } = require("./eventMessage");
-const discordEvent = require("./discordEvent");
+const discordEvent = require("../services/discord/discordEvent");
 const { warningOf } = discordEvent;
 const { announceEvent } = require("./eventAnnounce");
 const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("../stores/settingsStore");
 const { getChannelConfig } = require("../stores/channelArchiveStore");
-const channelNaming = require("./channelNaming");
+const channelNaming = require("../services/discord/channelNaming");
 const { instanceById } = require("../config/gameVersions");
-const { emojiStyleOf } = require("./appEmojis");
+const { emojiStyleOf } = require("../services/discord/appEmojis");
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const { toRaidHelperDate } = require("../utils/time");
 

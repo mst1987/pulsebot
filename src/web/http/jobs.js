@@ -9,13 +9,13 @@
 // in server.js, with the application sweep (formerly started by bot.js) last;
 // the jobs that need the Discord gateway (role sync, talk overview, event
 // series) wait for it themselves with a delayed first run.
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const sheetCleanup = require("../../utils/setup/sheetCleanup");
 const raidEventScan = require("../raidEventScan");
 const logAutoLink = require("../logAutoLink");
 const eventMessage = require("../eventMessage");
 const reminders = require("../reminders");
-const roleSync = require("../roleSync");
+const roleSync = require("../../services/discord/roleSync");
 const talkOverview = require("../talkOverview");
 const eventSeries = require("../eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");

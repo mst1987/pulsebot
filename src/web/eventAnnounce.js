@@ -19,7 +19,7 @@
 // eventCreate.createEvent(), so there is one switch and no special path.
 const eventStore = require("../stores/eventStore");
 const { getConfig } = require("../stores/settingsStore");
-const { normalizePingTarget, deliverAnnouncement } = require("./pingDelivery");
+const { normalizePingTarget, deliverAnnouncement } = require("../services/discord/pingDelivery");
 
 /**
  * The category's announcement setting (#306), or the caller's own choice.

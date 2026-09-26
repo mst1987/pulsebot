@@ -35,13 +35,13 @@ Eingebunden über `jest.config.js`, ohne dass ein Test etwas tun muss:
 |---|---|
 | `mockInteraction.js` | `mockInteraction(opts)` — eine Discord-Interaction mit `reply`/`editReply`/`followUp`/`showModal` als `jest.fn`; `makeCollection(entries)` — Map mit `find`/`filter` wie eine discord.js-Collection. Für alles unter `src/commands/`. |
 | `discordClient.js` | `makeClient({ guilds, channels, members, user, ready, missing })`, `makeGuild(...)`, `makeChannel(...)`, `makeMember(...)`, `discordError(kind)` — ein Bot-Client aus Collections. `fetch(id)` liefert den Cache-Eintrag, ein Fehlgriff wirft wie Discord (Code 10003/10004/10007/10008) oder liefert mit `missing: "null"` null. Sonderformen (Scheduled Events, fehlschlagendes `messages.fetch`) kommen über `...over`. |
-| `discordMock.js` | `withClientHelpers(mock)` — für Suites, die `src/web/discord.js` mocken: `isOnline()` und `fetchTextChannel()` lesen dann den Client, den der gemockte `getClient()` liefert. |
+| `discordMock.js` | `withClientHelpers(mock)` — für Suites, die `src/services/discord/discord.js` mocken: `isOnline()` und `fetchTextChannel()` lesen dann den Client, den der gemockte `getClient()` liefert. |
 | `http.js` | `mockRes()`, `status(res)`, `json(res)` (ganzer Umschlag), `body(res)` (`data` des Umschlags, sonst der Umschlag), `jsonRequest(method, path, payload, headers)` (EventEmitter mit JSON-Body), `apiMiddlewareMock({ user, fullAdmin, csrf })` und `apiBodyMock({ body, raw })` als fertige Factory-Mocks, `routerClient(routeModule)` (liefert `get`/`post`/`patch`/`request`/`urlFor`/`handle`, fährt die Anfrage durch `apiRouter.handle` samt Area-Gate und CSRF-Header und lässt einen Pfad eines fremden Route-Moduls scheitern). Für alle Route-Handler `(req, res, url)`. |
 | `tempStore.js` | `tempStoreFile(name)` — eine Datei in einem eigenen `mkdtemp`-Verzeichnis für `store.useFile(...)`; das Aufräumen registriert der Helfer selbst. |
 | `memoryFs.js` | `memoryFs()` — ein `fs` im Speicher für Store-Suites (`jest.mock("fs", () => require("../helpers/memoryFs").memoryFs())`, Inhalt in `fs.__store`). |
 | `lootCouncil.js` | `DAY`, `now`, `lootRow`, `gearOf`, `item` — die Loot- und Gear-Zeilen, die sich die `test/web/lootCouncil.<thema>.test.js`-Suiten teilen (die `jest.mock`-Aufrufe stehen weiter in jeder Suite). |
 | `signupMocks.js` | In-Memory-`eventStore`/`signupStore`/`discord`/`settingsStore` für den Anmelde-Dialog; `signupService` läuft echt darauf. |
-| `botCommandAccess.js` | `memberMayRun(command, config)` — prüft die echten Zugriffsregeln (`web/botAccess.js`) für einen Befehl. |
+| `botCommandAccess.js` | `memberMayRun(command, config)` — prüft die echten Zugriffsregeln (`services/discord/botAccess.js`) für einen Befehl. |
 | `tempRepo.js` | Ein Wegwerf-Git-Repo mit verknüpftem Worktree, nur für die Hook-Tests unter `test/claude-hooks/`. |
 
 ## Fabriken (`test/factories/`)
@@ -66,7 +66,7 @@ Eine Suite mit eigener Form baut einen Einzeiler darauf: `const event = (over = 
       getEvent: jest.fn(() => null),
   }));
   ```
-- **Gemeinsame Mocks kommen aus einem Helfer**, nicht aus einer Kopie: `apiMiddleware`/`apiBody` über `http.js`, `web/discord` über `discordMock.js`, `fs` über `memoryFs.js`, die Anmelde-Stores über `signupMocks.js`. Braucht ein weiterer Mock mehrere Suites, gehört er als Factory nach `test/helpers/`.
+- **Gemeinsame Mocks kommen aus einem Helfer**, nicht aus einer Kopie: `apiMiddleware`/`apiBody` über `http.js`, `services/discord/discord` über `discordMock.js`, `fs` über `memoryFs.js`, die Anmelde-Stores über `signupMocks.js`. Braucht ein weiterer Mock mehrere Suites, gehört er als Factory nach `test/helpers/`.
 - **Automock** (`jest.mock("axios")` ohne Factory) nur für Module, deren Rückgaben der Test ohnehin vollständig setzt.
 - **Stores**, die eine Suite wirklich schreiben lässt, bekommen `useFile(tempStoreFile("x.json"))` oder `memoryFs` — nie `os.tmpdir()` plus `process.pid`, nie das `data/` des Checkouts.
 - **Assertions auf konkrete Werte:** `toEqual`/`toMatchObject`/`toBe` auf das Ergebnis, nicht nur `toBeDefined()`, `not.toThrow()` oder `length > 0`.

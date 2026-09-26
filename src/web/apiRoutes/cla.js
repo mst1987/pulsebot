@@ -27,7 +27,7 @@ const { phraseReport } = require("../../utils/logcheck/recommendationText");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page= — the page's one

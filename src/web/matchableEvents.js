@@ -4,7 +4,7 @@
 // Extracted out of server.js so both call sites re-resolve events the same
 // way (never trust a client-supplied event label — always look it up here).
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
 const { listRaidEvents } = require("../stores/raidEventStore");
 const { ownMatchableEvents } = require("./eventSources");

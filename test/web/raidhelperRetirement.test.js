@@ -8,21 +8,21 @@ jest.mock("../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ fetchEventsCached: jest.fn(async () => ({ events: [], stale: false })) }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     botPermissionsIn: jest.fn(() => null),
     botCanManageEvents: jest.fn(() => null),
     listCategories: jest.fn(() => []),
 }));
-jest.mock("../../src/web/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
+jest.mock("../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
 jest.mock("../../src/stores/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
 
 const { getConfig, saveConfig } = require("../../src/stores/settingsStore");
 const { fetchEventsCached } = require("../../src/web/raidEventGroups");
-const discord = require("../../src/web/discord");
-const { listKnownCategories } = require("../../src/web/categoryNames");
+const discord = require("../../src/services/discord/discord");
+const { listKnownCategories } = require("../../src/services/discord/categoryNames");
 const specHistory = require("../../src/stores/specHistoryStore");
-const appEmojis = require("../../src/web/appEmojis");
+const appEmojis = require("../../src/services/discord/appEmojis");
 const { buildChecklist, loadChecklist, setRaidhelperDisabled } = require("../../src/web/raidhelperRetirement");
 
 const baseInputs = (over = {}) => ({

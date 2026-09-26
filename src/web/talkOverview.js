@@ -24,14 +24,14 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");
 const { embedAccentColor, publicBaseUrl } = require("../config/variables");
-const discord = require("./discord");
-const guildRoles = require("./guildRoles");
+const discord = require("../services/discord/discord");
+const guildRoles = require("../services/discord/guildRoles");
 const { loadEventGroups } = require("./raidEventGroups");
 const { getConfig } = require("../stores/settingsStore");
 const { onSignupsChanged } = require("../stores/signupStore");
 const { getOverviewState, setOverviewState } = require("../stores/talkOverviewStore");
 const { signupStatus } = require("../utils/attendance");
-const { appEmojiMap, emojiText, uiEmojiName } = require("./appEmojis");
+const { appEmojiMap, emojiText, uiEmojiName } = require("../services/discord/appEmojis");
 
 // Between two raid stanzas (each three lines) — a blank line for breathing room.
 const RAID_SEP = "\n\n";

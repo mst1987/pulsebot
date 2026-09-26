@@ -34,13 +34,13 @@ const { withClassLook: withLootClassLook } = require("./lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../stores/logStore");
 const { backfillLogTitles } = require("./logChannel");
 const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { listSignups } = require("../stores/signupStore");
 const { eventSignupList } = require("./signupView");
 const { getEvent } = require("../stores/eventStore");
 const raidplanStore = require("../stores/raidplanStore");
 const { setupSummary } = require("./setupEditor");
-const { pingTargetInfo } = require("./pingDelivery");
+const { pingTargetInfo } = require("../services/discord/pingDelivery");
 
 // For now the guild only raids TBC, so the softres suggestion and the pickable
 // catalogue are restricted to the TBC edition.

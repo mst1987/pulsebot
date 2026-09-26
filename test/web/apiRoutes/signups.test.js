@@ -11,7 +11,7 @@ jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => mockRoleIds),
     resolveUserNames: jest.fn(async () => ({ "200000000000000001": "anna_discord" })),
 }));

@@ -2,7 +2,7 @@ const mockFetchEvents = jest.fn();
 const mockGetAllEvents = jest.fn();
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ fetchEvents: mockFetchEvents, getAllEvents: mockGetAllEvents })));
-jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
+jest.mock("../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
 jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
 // The EventHelper's own store, read through the real adapter (eventSources.js).
 jest.mock("../../src/stores/eventStore", () => ({
@@ -13,7 +13,7 @@ jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({
 
 const eventStore = require("../../src/stores/eventStore");
 const { listSignups } = require("../../src/stores/signupStore");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");
 const { event: baseEvent, ownEvent } = require("../factories/events");

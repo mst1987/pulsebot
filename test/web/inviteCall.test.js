@@ -4,13 +4,13 @@
 // Discord are mocks; the approved setup is read by the real setupCore.
 jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
 jest.mock("../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
-jest.mock("../../src/web/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
+jest.mock("../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 jest.mock("../../src/web/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
 const eventStore = require("../../src/stores/eventStore");
 const signupStore = require("../../src/stores/signupStore");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { invitePlan, callInvite, inviteCharacterOf } = require("../../src/web/inviteCall");
 const bot = require("../../src/web/inviteCallBot");
 const { inviteButtonRow } = require("../../src/web/setupCore");

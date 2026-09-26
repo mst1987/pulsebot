@@ -36,7 +36,7 @@ const CONFIG_DEFAULTS = {
     userPermissions: {},
     // Who may use which bot command: { [commandName]: { mode, roleIds } } with
     // mode "everyone" | "roles" | "admins". Empty = every command follows its
-    // own defaultAccess (see config/botCommands.js and web/botAccess.js).
+    // own defaultAccess (see config/botCommands.js and services/discord/botAccess.js).
     botCommandAccess: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
     // With discordServers.eventGuilds set, getConfig() reports the first one
@@ -152,7 +152,7 @@ const CONFIG_DEFAULTS = {
     warcraftlogsV2: { clientId: "", clientSecret: "" },
     // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
     // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
-    // ever ADDS roles (src/web/roleSync.js); a role lost on one side stays on
+    // ever ADDS roles (src/services/discord/roleSync.js); a role lost on one side stays on
     // the other and shows up as a hint in the admin menu.
     roleSync: [],
     // Automatic reminders per raid category (#264): { [categoryId]:

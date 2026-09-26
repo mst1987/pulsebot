@@ -8,13 +8,13 @@ const {
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../../stores/ingestTokenStore");
-const discord = require("../discord");
-const guildRoles = require("../guildRoles");
-const roleSync = require("../roleSync");
-const { listKnownCategories } = require("../categoryNames");
+const discord = require("../../services/discord/discord");
+const guildRoles = require("../../services/discord/guildRoles");
+const roleSync = require("../../services/discord/roleSync");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../lootSystem");
 const { lastReminderRun } = require("../reminders");
-const { pingTargetInfo } = require("../pingDelivery");
+const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const wowhead = require("../../utils/loot/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,

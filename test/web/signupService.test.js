@@ -37,10 +37,10 @@ jest.mock("../../src/stores/signupStore", () => {
 let mockConfig = {};
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../src/web/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
+jest.mock("../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
 
 const profiles = require("../../src/stores/raiderProfileStore");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const service = require("../../src/web/signupService");
 const { tempStoreFile } = require("../helpers/tempStore");
 const { ownEvent, sec, DAY } = require("../factories/events");

@@ -1,6 +1,6 @@
 // Where a ping goes (#264): event channel, talk server, or both — and who gets
 // a DM because they are not on the talk server.
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
     postMissingPing: jest.fn(),
@@ -8,12 +8,12 @@ jest.mock("../../src/web/discord", () => ({
     listMembersWithRoles: jest.fn(),
     sendDirectMessage: jest.fn(),
 }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const discord = require("../../src/web/discord");
-const ping = require("../../src/web/pingDelivery");
-const { event: baseEvent } = require("../factories/events");
-const { makeGuild, makeChannel } = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord");
+const ping = require("../../../src/services/discord/pingDelivery");
+const { event: baseEvent } = require("../../factories/events");
+const { makeGuild, makeChannel } = require("../../helpers/discordClient");
 
 const config = (over = {}) => ({
     guildId: "100000",

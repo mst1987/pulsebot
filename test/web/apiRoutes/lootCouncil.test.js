@@ -50,7 +50,7 @@ jest.mock("../../../src/utils/wowsims/engine", () => ({
     WOWSIMS_VERSION: "v0.1.2",
     buildIndividualExport: jest.fn(() => ({ supported: true, warnings: [], data: { gear: [] } })),
 }));
-jest.mock("../../../src/web/discord", () => ({ listCategories: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 let mockUser = null;
@@ -68,7 +68,7 @@ const { gearFor } = require("../../../src/web/charGear");
 const { characterMap } = require("../../../src/stores/characterStore");
 const { specFor } = require("../../../src/config/casterSpecs");
 const engine = require("../../../src/utils/wowsims/engine");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const routesModule = require("../../../src/web/apiRoutes/lootCouncil");
 const {

@@ -6,7 +6,7 @@ jest.mock("../../src/stores/logStore", () => ({
 }));
 
 const mockListGuilds = jest.fn(() => []);
-jest.mock("../../src/web/discord", () => ({ listGuilds: (...a) => mockListGuilds(...a) }));
+jest.mock("../../src/services/discord/discord", () => ({ listGuilds: (...a) => mockListGuilds(...a) }));
 
 const mockLoadMatchableEvents = jest.fn(async () => ({ events: [], error: null }));
 jest.mock("../../src/web/matchableEvents", () => ({

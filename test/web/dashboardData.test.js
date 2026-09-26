@@ -39,7 +39,7 @@ jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Prom
 jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
 jest.mock("../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn() }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
 }));
@@ -54,7 +54,7 @@ const reportStore = require("../../src/stores/reportStore");
 const lootInboxStore = require("../../src/stores/lootInboxStore");
 const { buildRoster } = require("../../src/web/roster");
 const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const {
     loadTopLoot, loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
 } = require("../../src/web/dashboardData");

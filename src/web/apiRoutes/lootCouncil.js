@@ -32,7 +32,7 @@ const { gearFor, charKey } = require("../charGear");
 const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */

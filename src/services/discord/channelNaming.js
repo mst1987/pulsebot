@@ -20,16 +20,16 @@
 
 const { DateTime } = require("luxon");
 const discord = require("./discord");
-const archiveStore = require("../stores/channelArchiveStore");
-const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { raidContentIds } = require("./raidListing");
-const { instanceById } = require("../config/gameVersions");
+const archiveStore = require("../../stores/channelArchiveStore");
+const { loadEventGroups, eventLookbackSince } = require("../../web/raidEventGroups");
+const { raidContentIds } = require("../../web/raidListing");
+const { instanceById } = require("../../config/gameVersions");
 const {
     DEFAULT_SCHEMA, normalizeChannelName, renderChannelName, derivePatternFromName, applyPattern, patternParts,
     prefixOf, describeReplaced, listParts, placementFor,
-} = require("../utils/channelNames");
+} = require("../../utils/channelNames");
 
-const { TIMEZONE } = require("../config/timezone");
+const { TIMEZONE } = require("../../config/timezone");
 
 /** An event start (unix seconds) as its Berlin day, "2026-09-17". */
 function berlinDay(startTime) {

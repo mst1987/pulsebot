@@ -14,7 +14,7 @@
 //     reached there, and a DM on top would be the same ping twice.
 const discord = require("./discord");
 const guildRoles = require("./guildRoles");
-const { getConfig } = require("../stores/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 const PING_TARGETS = ["event", "talk", "both"];
 

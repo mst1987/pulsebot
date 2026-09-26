@@ -66,7 +66,7 @@ const { publicBaseUrl } = require("../utils/publicUrl");
 const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
 const { getEvent, setEventMessage, listEvents } = require("../stores/eventStore");
 const { listSignups, onSignupsChanged } = require("../stores/signupStore");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("./signupService");
 const { buildClasses } = require("../config/gameVersions/classes");
@@ -74,7 +74,7 @@ const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
-} = require("./appEmojis");
+} = require("../services/discord/appEmojis");
 const { migrateSignup } = require("./signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
 // public, like the report pages.

@@ -2,7 +2,7 @@
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 // matchableEvents pulls in the Discord client wrapper at require time; only its
 // pure eventLinkFields() is used here, so keep the heavy module out entirely.
-jest.mock("../../src/web/discord.js", () => ({}));
+jest.mock("../../src/services/discord/discord.js", () => ({}));
 
 const fs = require("fs");
 const logStore = require("../../src/stores/logStore.js");

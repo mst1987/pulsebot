@@ -66,8 +66,8 @@ jest.mock("../../../src/stores/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../src/web/categoryNames", () => ({
-    listKnownCategories: (guildId) => (guildId ? require("../../../src/web/discord").listCategories(guildId) : []),
+jest.mock("../../../src/services/discord/categoryNames", () => ({
+    listKnownCategories: (guildId) => (guildId ? require("../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
 jest.mock("../../../src/stores/logStore", () => ({
@@ -184,7 +184,7 @@ jest.mock("../../../src/web/lootEventMatch", () => ({
     formatDayDisplay: jest.fn(() => "12.07.2026"),
     dayKey: jest.fn(() => "2026-07-12"),
 }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -270,7 +270,7 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const dashboardData = require("../../../src/web/dashboardData");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/web/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
 const lootStore = require("../../../src/stores/lootStore");

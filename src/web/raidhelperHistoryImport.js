@@ -15,7 +15,7 @@ const specHistory = require("../stores/specHistoryStore");
 const { listRaidEvents } = require("../stores/raidEventStore");
 const { signupStatus } = require("../utils/attendance");
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 
 const DEFAULT_PER_CATEGORY = 10;
 const MAX_PER_CATEGORY = 50;

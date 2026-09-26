@@ -8,7 +8,7 @@ jest.mock("../../src/stores/eventStore", () => ({
     appendEventLog: (id, entry) => mockLog.push({ id, ...entry }),
 }));
 const mockPost = jest.fn();
-jest.mock("../../src/web/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
+jest.mock("../../src/services/discord/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
 
 const { suggestSearch, textForNeeds, postSearch } = require("../../src/web/raidSearch");
 const { event: baseEvent } = require("../factories/events");
@@ -206,7 +206,7 @@ describe("postSearch", () => {
 });
 
 describe("the message with the spec icons", () => {
-    const appEmojis = require("../../src/web/appEmojis");
+    const appEmojis = require("../../src/services/discord/appEmojis");
     afterEach(() => appEmojis.resetAppEmojis());
 
     it("puts the app emoji of a spec, of a whole class and of the role in front, and nothing while they are not uploaded", () => {

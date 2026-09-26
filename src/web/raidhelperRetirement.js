@@ -16,10 +16,10 @@ const { getConfig, saveConfig } = require("../stores/settingsStore");
 const { signupSourceFor } = require("./eventSources");
 const { raidhelperDisabled } = require("../utils/raidhelper/client");
 const { TIMEZONE } = require("../config/timezone");
-const discord = require("./discord");
-const guildRoles = require("./guildRoles");
-const { listKnownCategories } = require("./categoryNames");
-const appEmojis = require("./appEmojis");
+const discord = require("../services/discord/discord");
+const guildRoles = require("../services/discord/guildRoles");
+const { listKnownCategories } = require("../services/discord/categoryNames");
+const appEmojis = require("../services/discord/appEmojis");
 const specHistory = require("../stores/specHistoryStore");
 const { fetchEventsCached } = require("./raidEventGroups");
 

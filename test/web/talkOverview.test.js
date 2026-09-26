@@ -1,4 +1,4 @@
-jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
+jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
@@ -21,7 +21,7 @@ jest.mock("../../src/stores/talkOverviewStore", () => ({
 // Most tests configure exactly one event server ("111", see `config` below).
 const stateOf = (guildId = "111") => mockStates[guildId] || {};
 
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { getConfig } = require("../../src/stores/settingsStore");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const {

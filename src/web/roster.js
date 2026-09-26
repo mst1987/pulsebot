@@ -19,7 +19,7 @@ const { latestIssuesByCharacter } = require("./charGearIssues");
 const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("./charLinks");
-const { listKnownCategories } = require("./categoryNames");
+const { listKnownCategories } = require("../services/discord/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("./rosterAttendance");
 
 // How much loot a roster row carries for its hover panel. The overview shows

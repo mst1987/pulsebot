@@ -19,7 +19,7 @@ jest.mock("../../../src/web/evalJobs.js", () => ({ startJob: (...a) => mockStart
 jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/web/recommendationSend.js", () => ({ sendApproved: jest.fn(), sendStatus: jest.fn() }));
 jest.mock("../../../src/stores/raiderCharactersStore.js", () => ({ listAllAssignments: () => ({}) }));
-jest.mock("../../../src/web/discord.js", () => ({ getClient: () => ({}) }));
+jest.mock("../../../src/services/discord/discord.js", () => ({ getClient: () => ({}) }));
 jest.mock("../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../../src/web/reportList.js", () => ({ prepareReportList: jest.fn(), prepareLogList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
 jest.mock("../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));

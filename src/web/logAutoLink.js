@@ -13,7 +13,7 @@
 // never touches a log that already carries an `eventId`.
 
 const logStore = require("../stores/logStore");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { autoMatches } = require("./logEventMatch");
 const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
 

@@ -4,10 +4,10 @@
 // so the rules are the page's: Discord's naming rules, archiving takes the right
 // to write away and is logged. Deleting stays in the web menu, from the archive.
 const { ChannelType, SlashCommandBuilder } = require("discord.js");
-const discord = require("../../web/discord");
-const discordChannels = require("../../web/discordChannels");
+const discord = require("../../services/discord/discord");
+const discordChannels = require("../../services/discord/discordChannels");
 const archiveStore = require("../../stores/channelArchiveStore");
-const channelNaming = require("../../web/channelNaming");
+const channelNaming = require("../../services/discord/channelNaming");
 const { normalizeChannelName, renderChannelName, parseDay } = require("../../utils/channelNames");
 const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/discord/botLookup");
 

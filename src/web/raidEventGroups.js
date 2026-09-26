@@ -2,7 +2,7 @@
 // events of both sources (Raid-Helper and the EventHelper's own store) grouped
 // by Discord category, in one row shape with a `source` field — eventSources.js.
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const { listRaidEvents } = require("../stores/raidEventStore");
 const { signupStatus } = require("../utils/attendance");
 const { ownEventGroupRows } = require("./eventSources");

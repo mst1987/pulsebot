@@ -3,8 +3,8 @@ const fs = require("fs");
 const { ok } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/settingsStore");
-const discord = require("../discord");
-const { eventGuildId, ruleFor } = require("../botAccess");
+const discord = require("../../services/discord/discord");
+const { eventGuildId, ruleFor } = require("../../services/discord/botAccess");
 const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");

@@ -2,14 +2,14 @@ const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { listRecruitmentPosts, getConfig } = require("../../stores/settingsStore");
 const { activeGuildFor } = require("../http/activeGuild");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
 } = require("../dashboardData");
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
-const { loadDrift } = require("../roleSync");
+const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../eventSeries");
 const { deployStatus } = require("../http/deployStatus");
 

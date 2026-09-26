@@ -95,7 +95,7 @@ describe("editor pieces", () => {
         expect(preview).toContain(":{t.name}:");
         // the default button label matches the one the bot posts
         expect(preview).toContain("buttonLabel.trim() || \"Jetzt bewerben\"");
-        expect(read("..", "..", "web", "discord.js")).toContain("template.buttonLabel || \"Jetzt bewerben\"");
+        expect(read("..", "..", "services", "discord", "discord.js")).toContain("template.buttonLabel || \"Jetzt bewerben\"");
     });
 
     it("counts against Discord's message limit", () => {

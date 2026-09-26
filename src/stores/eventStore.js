@@ -35,7 +35,7 @@ const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTim
 // duration, inherited from the raid template. The rules live in embedLook.js.
 const { normalizeColor, normalizeImage, normalizeLook } = require("../web/embedLook");
 // The emoji style of the event message: letter tiles and role icons (arcane unless chosen otherwise).
-const { emojiStyleOf } = require("../web/appEmojis");
+const { emojiStyleOf } = require("../services/discord/appEmojis");
 const { str } = require("../utils/text");
 
 function readAll() {

@@ -5,7 +5,7 @@
 // wishes, "kann auch mit", the profile and a setup draft.
 jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
-jest.mock("../../../src/web/discord", () => ({ getClient: jest.fn(() => null) }));
+jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(() => null) }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");

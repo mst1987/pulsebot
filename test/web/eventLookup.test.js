@@ -1,5 +1,5 @@
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1000) }));
-jest.mock("../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
+jest.mock("../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const { listEvents, statusOf, statusCounts } = require("../../src/web/eventLookup");

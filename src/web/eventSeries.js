@@ -29,11 +29,11 @@
 // same clock time.
 
 const { DateTime } = require("luxon");
-const discord = require("./discord");
+const discord = require("../services/discord/discord");
 const store = require("../stores/eventSeriesStore");
 const eventStore = require("../stores/eventStore");
-const guildRoles = require("./guildRoles");
-const channelNaming = require("./channelNaming");
+const guildRoles = require("../services/discord/guildRoles");
+const channelNaming = require("../services/discord/channelNaming");
 const { signupSourceFor, ownUpcomingRaw } = require("./eventSources");
 const { loadEventGroups } = require("./raidEventGroups");
 const { getConfig, getRaidTemplate } = require("../stores/settingsStore");

@@ -1,20 +1,20 @@
 // What matters here is that a category id never loses its name: the live
 // Discord list is only one of three sources, and the two others exist precisely
 // for the states in which the live one is empty.
-jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
+jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const mockListCategories = jest.fn(() => []);
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: (...a) => mockListCategories(...a),
 }));
 
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     listRaidEvents: (...a) => mockListRaidEvents(...a),
 }));
 
 const fs = require("fs");
-const { listKnownCategories, rememberCategories, CATEGORY_NAMES_FILE } = require("../../src/web/categoryNames");
+const { listKnownCategories, rememberCategories, CATEGORY_NAMES_FILE } = require("../../../src/services/discord/categoryNames");
 
 const snapshot = () => JSON.parse(fs.__store.get(CATEGORY_NAMES_FILE) || "{}");
 const nameOf = (list, id) => (list.find((c) => c.id === id) || {}).name;
@@ -26,7 +26,7 @@ beforeEach(() => {
     mockListRaidEvents.mockReturnValue([]);
 });
 
-describe("web/categoryNames listKnownCategories", () => {
+describe("services/discord/categoryNames listKnownCategories", () => {
     it("serves the live Discord categories in their Discord order", () => {
         mockListCategories.mockReturnValue([{ id: "c2", name: "Montagsraid" }, { id: "c1", name: "Pug" }]);
 
@@ -113,7 +113,7 @@ describe("web/categoryNames listKnownCategories", () => {
     });
 });
 
-describe("web/categoryNames rememberCategories", () => {
+describe("services/discord/categoryNames rememberCategories", () => {
     it("merges instead of replacing, across guilds and over time", () => {
         rememberCategories("g1", [{ id: "c1", name: "Montagsraid" }]);
         rememberCategories("g1", [{ id: "c2", name: "Pug" }]);

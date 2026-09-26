@@ -31,8 +31,8 @@ const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView"
 const { armoryUrlFor, wclUrlFor } = require("../charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
-const discord = require("../discord");
-const { listKnownCategories } = require("../categoryNames");
+const discord = require("../../services/discord/discord");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

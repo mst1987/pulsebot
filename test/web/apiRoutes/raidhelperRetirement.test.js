@@ -2,7 +2,7 @@ jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/ht
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 jest.mock("../../../src/web/raidhelperRetirement", () => ({
     loadChecklist: jest.fn(async () => ({ ready: true, items: [] })),
     setRaidhelperDisabled: jest.fn(async () => ({ checklist: { disabled: true } })),

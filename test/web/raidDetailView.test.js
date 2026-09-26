@@ -11,7 +11,7 @@ jest.mock("../../src/stores/settingsStore", () => ({
     listRaidsheets: jest.fn(() => [{ id: "sheet-kara", name: "Karazhan", keywords: ["kara"] }]),
     resolveEventSheetLink: jest.fn(() => ({ url: "https://sheet" })),
 }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/services/discord/discord", () => ({
     listMembersWithRoles: jest.fn(),
     listRoles: jest.fn(() => [{ id: "r1", name: "Raider" }]),
     resolveUserNames: jest.fn(async (g, ids) => Object.fromEntries(ids.map((id) => [id, `Name ${id}`]))),
@@ -34,11 +34,11 @@ jest.mock("../../src/stores/logStore", () => ({
     listLogsForEvent: jest.fn(() => []),
 }));
 jest.mock("../../src/web/logChannel", () => ({ backfillLogTitles: jest.fn(async () => {}) }));
-jest.mock("../../src/web/pingDelivery", () => ({ ...jest.requireActual("../../src/web/pingDelivery"), pingTargetInfo: jest.fn(() => ({ talk: false })) }));
+jest.mock("../../src/services/discord/pingDelivery", () => ({ ...jest.requireActual("../../src/services/discord/pingDelivery"), pingTargetInfo: jest.fn(() => ({ talk: false })) }));
 
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const settingsStore = require("../../src/stores/settingsStore");
-const discord = require("../../src/web/discord");
+const discord = require("../../src/services/discord/discord");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelper/client");
 const { getRaidEvent } = require("../../src/stores/raidEventStore");
 const { getEvent } = require("../../src/stores/eventStore");

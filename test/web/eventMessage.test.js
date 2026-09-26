@@ -9,13 +9,13 @@ jest.mock("../../src/stores/signupStore", () => ({
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     }),
 }));
-jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
+jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const { getEvent, setEventMessage, listEvents } = require("../../src/stores/eventStore");
 const { listSignups } = require("../../src/stores/signupStore");
-const discord = require("../../src/web/discord");
-const appEmojis = require("../../src/web/appEmojis");
+const discord = require("../../src/services/discord/discord");
+const appEmojis = require("../../src/services/discord/appEmojis");
 const { event: baseEvent } = require("../factories/events");
 const { makeClient, makeChannel } = require("../helpers/discordClient");
 const {

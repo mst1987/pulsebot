@@ -7,9 +7,9 @@ require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
-const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
-const { guardInteraction } = require("./web/botAccess.js");
-const { ensureAppEmojis } = require("./web/appEmojiSync.js");
+const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
+const { guardInteraction } = require("./services/discord/botAccess.js");
+const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
@@ -63,7 +63,7 @@ client.on("messageCreate", async(message) => {
 
 // Role sync between the event and the talk server (#264): a member whose roles
 // changed, or who just joined one of the two, gets the mapped roles on the
-// other one. Only adds — see src/web/roleSync.js.
+// other one. Only adds — see src/services/discord/roleSync.js.
 client.on("guildMemberUpdate", (oldMember, newMember) => {
     Promise.resolve(handleMemberUpdate(oldMember, newMember))
         .catch((error) => console.error("guildMemberUpdate handler error:", error.message));
@@ -150,7 +150,7 @@ async function handleInteraction(interaction) {
     logger.debug(`Command: ${command.name}`);
 
     try {
-        // Who may run it is decided here, once, for every command, button and modal (web/botAccess.js).
+        // Who may run it is decided here, once, for every command, button and modal (services/discord/botAccess.js).
         if (!(await guardInteraction(interaction, command, client.commands))) return;
         await command.execute(interaction, client);
     } catch (error) {

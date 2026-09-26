@@ -12,7 +12,7 @@
 //   config.botCommandAccess = { [commandName]: { mode, roleIds } }
 // and wins over `defaultAccess`. Admins (ADMIN_USER_ID and the admin roles from
 // Zugang) may always use everything. A command with neither a stored setting
-// nor a default is admin-only — fail-closed, see web/botAccess.js.
+// nor a default is admin-only — fail-closed, see services/discord/botAccess.js.
 
 /** The groups of the Bot-Befehle view, in display order. */
 const BOT_COMMAND_GROUPS = [

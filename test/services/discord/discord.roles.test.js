@@ -1,7 +1,7 @@
 // listRoles() feeds the role pickers and the permission matrix, which tints a
 // role's tile with its Discord colour.
-const discord = require("../../src/web/discord.js");
-const { makeClient, makeGuild } = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord.js");
+const { makeClient, makeGuild } = require("../../helpers/discordClient");
 
 function role(id, name, rawPosition, color = 0, hexColor = "#000000") {
     return { id, name, rawPosition, color, hexColor };
@@ -9,7 +9,7 @@ function role(id, name, rawPosition, color = 0, hexColor = "#000000") {
 
 afterEach(() => discord.setClient(null));
 
-describe("web/discord listRoles", () => {
+describe("services/discord/discord listRoles", () => {
     it("lists the roles highest first without @everyone, with their colour", () => {
         const guild = makeGuild({
             id: "g1",

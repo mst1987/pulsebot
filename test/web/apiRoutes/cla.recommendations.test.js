@@ -23,7 +23,7 @@ jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(()
 jest.mock("../../../src/utils/logcheck/report.js", () => ({ buildReport: jest.fn(), stripSection: jest.fn(), ReportError: class extends Error {} }));
 jest.mock("../../../src/web/matchableEvents.js", () => ({ loadMatchableEvents: jest.fn(), eventLinkFields: jest.fn() }));
 jest.mock("../../../src/web/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
-jest.mock("../../../src/web/discord.js", () => ({}));
+jest.mock("../../../src/services/discord/discord.js", () => ({}));
 
 const { getRecommendations, reviewRecommendation } = require("../../../src/web/apiRoutes/cla.js");
 

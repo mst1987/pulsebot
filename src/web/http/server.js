@@ -4,7 +4,7 @@
 const http = require("http");
 const { webPort } = require("../../config/variables");
 const { renderNotFound } = require("../report/render");
-const discord = require("../discord");
+const discord = require("../../services/discord/discord");
 const staticClient = require("./staticClient");
 const { findPageRoute, send } = require("./pageRoutes");
 

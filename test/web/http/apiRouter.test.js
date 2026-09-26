@@ -33,7 +33,7 @@ jest.mock("../../../src/stores/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -64,7 +64,7 @@ jest.mock("../../../src/web/raidEventGroups", () => ({
 const auth = require("../../../src/web/http/auth");
 const reportStore = require("../../../src/stores/reportStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
-const discord = require("../../../src/web/discord");
+const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/web/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
 const { AppError } = require("../../../src/web/http/apiResult");

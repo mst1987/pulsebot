@@ -1,12 +1,12 @@
 jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: true })), attendanceFor: jest.fn() }));
 jest.mock("../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: jest.fn() }));
 jest.mock("../../src/web/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
-jest.mock("../../src/web/categoryNames", () => ({ listKnownCategories: jest.fn() }));
+jest.mock("../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn() }));
 
 const { buildAttendanceContext, attendanceFor } = require("../../src/web/rosterAttendance");
 const { listAllAssignments } = require("../../src/stores/raiderCharactersStore");
 const { annotatedCharacters } = require("../../src/web/characterInfo");
-const { listKnownCategories } = require("../../src/web/categoryNames");
+const { listKnownCategories } = require("../../src/services/discord/categoryNames");
 const { knownCharacterNames, characterAttendance, overall, attendanceFields } = require("../../src/web/attendanceLookup");
 
 beforeEach(() => {

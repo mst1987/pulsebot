@@ -1,6 +1,6 @@
 const { ChannelType } = require("discord.js");
-const discord = require("../../src/web/discord.js");
-const dc = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord.js");
+const dc = require("../../helpers/discordClient");
 
 // Build a fake channel as it appears in guild.channels.cache.
 function chan(id, name, type, { parent = null, parentId = "", rawPosition = 0 } = {}) {
@@ -41,7 +41,7 @@ afterEach(() => {
     jest.clearAllMocks();
 });
 
-describe("web/discord client access", () => {
+describe("services/discord/discord client access", () => {
     describe("isOnline", () => {
         it("is false without a client", () => {
             expect(discord.isOnline()).toBe(false);
@@ -103,7 +103,7 @@ describe("web/discord client access", () => {
     });
 });
 
-describe("web/discord channel management", () => {
+describe("services/discord/discord channel management", () => {
     describe("listCategories", () => {
         it("returns only category channels, ordered by position", () => {
             const guild = makeGuild([
@@ -696,7 +696,7 @@ describe("web/discord channel management", () => {
     });
 });
 
-describe("web/discord botPermissionsIn", () => {
+describe("services/discord/discord botPermissionsIn", () => {
     const { PermissionsBitField } = require("discord.js");
 
     function withBot({ perms = [], intents = [] } = {}) {
@@ -736,8 +736,8 @@ describe("web/discord botPermissionsIn", () => {
 });
 
 // Long pings and single-member mentions (#264).
-describe("web/discord ping helpers", () => {
-    const discordMod = require("../../src/web/discord");
+describe("services/discord/discord ping helpers", () => {
+    const discordMod = require("../../../src/services/discord/discord");
 
     it("splits mentions into chunks under the limit", () => {
         const mentions = Array.from({ length: 20 }, (_, i) => `<@${100000 + i}>`);

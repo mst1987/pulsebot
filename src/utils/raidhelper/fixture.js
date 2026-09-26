@@ -14,7 +14,7 @@
 // the real Raid-Helper off.
 const { logcheckAdminIds } = require("../../config/variables");
 const { listEvents } = require("../../stores/eventStore");
-const discord = require("../../web/discord");
+const discord = require("../../services/discord/discord");
 
 const FIXTURE_EVENT_ID = "1400000000000000001";
 const MODES = ["on", "nogroups", "signups", "gone", "down"];
