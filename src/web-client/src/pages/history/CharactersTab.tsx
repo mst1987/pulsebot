@@ -3,9 +3,9 @@ import { resolveCharacters, type ApiError, type AnnotatedCharacter, type Categor
 import { usePersistedState } from "../../lib/persistedState";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { SortTh } from "../../components/SortTh";
-import { CharLootHover } from "../../components/CharLootHover";
+import { CharLootHover } from "./CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../../components/ClassSpec";
-import { SearchBox } from "../../components/LootFilters";
+import { SearchBox } from "../../components/loot/LootFilters";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";

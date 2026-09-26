@@ -45,7 +45,7 @@ describe("ui/Chip", () => {
 
 describe("the places that use them", () => {
     it("the loot filters' active filters are removable badges", () => {
-        expect(read("components/LootFilters.tsx")).toContain("<Badge key={f.key} tone={f.tone} onRemove={f.onRemove}");
+        expect(read("components/loot/LootFilters.tsx")).toContain("<Badge key={f.key} tone={f.tone} onRemove={f.onRemove}");
         expect(read("styles/historie-loot.css")).not.toContain(".hl-x");
     });
 
@@ -59,7 +59,7 @@ describe("the places that use them", () => {
         const settings = read("pages/settings");
         expect(settings).toContain("<Chip");
         expect(settings).not.toContain("chip-x");
-        const matrix = read("components/CategoryMatrix.tsx");
+        const matrix = read("pages/settings/CategoryMatrix.tsx");
         expect(matrix).toMatch(/<Chip key=\{r\.id\} tone=\{on \? "accent" : undefined\} pressed=\{on\}/);
         expect(matrix).not.toContain("className={`badge chip");
     });

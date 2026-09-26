@@ -75,6 +75,7 @@ function clientSources(dir = "", ext = /\.tsx?$/, options = {}) {
 // counts (the drop check and the dialog were never part of these scans).
 const SPLIT_FOLDERS = [
     "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster",
+    "components/loot", "components/settings", "components/signup", "components/roster", "components/raid-create",
     ["pages/lootcouncil", ["LootCouncilPage.tsx", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"]],
 ];
 

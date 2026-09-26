@@ -13,7 +13,7 @@ import { canAccess, getCharacterClaims, getRoster, setRosterHidden, type ApiErro
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort, type Dir } from "../../lib/tableSort";
-import { RosterKpis } from "../../components/RosterHero";
+import { RosterKpis } from "./RosterHero";
 import { CLASS_LABELS, ROLE_ORDER, classIconName } from "../../lib/rosterView";
 import { IconTile, Segment, WowIcon } from "../../components/ui";
 import { SearchIcon } from "../../components/icons";

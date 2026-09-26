@@ -3,11 +3,11 @@ import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-
 import { getHistoryData, getLootStats, getLootInbox, getSession, canAccess } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { usePersistedState, usePersistedSearchParam } from "../../lib/persistedState";
-import RaidTable from "../../components/RaidTable";
-import { LootReasonsTab } from "../../components/LootReasonsTab";
-import { LootItemsTab } from "../../components/LootItemsTab";
-import { LatestLootTab } from "../../components/LatestLootTab";
-import { ImportLootDialog } from "../../components/ImportLootDialog";
+import RaidTable from "./RaidTable";
+import { LootReasonsTab } from "./LootReasonsTab";
+import { LootItemsTab } from "./LootItemsTab";
+import { LatestLootTab } from "./LatestLootTab";
+import { ImportLootDialog } from "./ImportLootDialog";
 import type { ShellContext } from "../../components/Shell";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";

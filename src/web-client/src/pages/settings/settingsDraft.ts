@@ -1,5 +1,5 @@
 import type { AdminConfig, RolePermissions, Access, TopItem, EventSource } from "../../api";
-import { type CategorySheet } from "../../components/CategoryMatrix";
+import { type CategorySheet } from "./CategoryMatrix";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 

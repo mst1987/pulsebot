@@ -7,8 +7,8 @@ import {
 import { useApi } from "../hooks/useApi";
 import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
 import RaidIcon from "../components/RaidIcon";
-import SignupDialog from "../components/SignupDialog";
-import BulkSignupDialog from "../components/BulkSignupDialog";
+import SignupDialog from "../components/signup/SignupDialog";
+import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";

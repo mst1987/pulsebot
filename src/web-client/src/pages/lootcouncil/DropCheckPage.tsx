@@ -12,7 +12,7 @@ import {
     getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
     type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/Jobs";
-import ItemSearchPicker from "../../components/ItemSearchPicker";
+import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import PageLoader from "../../components/PageLoader";
 import { Badge, Button, PartHead } from "../../components/ui";
 import { ChevronLeftIcon } from "../../components/icons";

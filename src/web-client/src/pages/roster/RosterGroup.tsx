@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { RosterChar, RosterHiddenNote } from "../../api";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { ClassSpecIdentity } from "../../components/ClassSpec";
-import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge } from "../../components/RosterCommon";
+import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge } from "../../components/roster/RosterCommon";
 import { SortLabel } from "../../components/SortTh";
 import { ROLE_ORDER } from "../../lib/rosterView";
 import { Badge, Expand, IconButton, IconTile } from "../../components/ui";

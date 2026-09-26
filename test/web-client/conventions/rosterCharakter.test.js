@@ -2,7 +2,7 @@
 // render cannot show: no glyph icons, their own stylesheet, the shared building
 // blocks and the fixed-width attendance bar. What the pages do is tested in
 // Vitest next to them: pages/roster/RosterPage.test.tsx, pages/history/HistoryCharPage.test.tsx,
-// components/RosterCommon.test.tsx and lib/rosterCharakter.test.ts.
+// components/roster/RosterCommon.test.tsx and lib/rosterCharakter.test.ts.
 // (No native `title` anywhere is the client-wide guard in conventions/uiFoundation.test.js.)
 const { read } = require("../clientSource");
 
@@ -13,8 +13,8 @@ const charPage = ["HistoryCharPage.tsx", "CharHero.tsx", "GearSection.tsx", "Ite
 const FILES = {
     roster,
     charPage,
-    common: read("components/RosterCommon.tsx"),
-    kpis: read("components/RosterHero.tsx"),
+    common: read("components/roster/RosterCommon.tsx"),
+    kpis: read("pages/roster/RosterHero.tsx"),
     view: read("lib/rosterView.ts"),
 };
 

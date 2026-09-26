@@ -20,7 +20,7 @@ import WowIcon from "../components/ui/WowIcon";
 import RaidLoader from "../components/ui/RaidLoader";
 import CompositionEditor from "../components/CompositionEditor";
 import { RefreshIcon } from "../components/icons";
-import { WarnIcon } from "../components/settingsUi";
+import { WarnIcon } from "../components/settings/settingsUi";
 import "../styles/raid-templates.css";
 
 // Raid-Vorlagen (#266): what an evening looks like. One compact row per

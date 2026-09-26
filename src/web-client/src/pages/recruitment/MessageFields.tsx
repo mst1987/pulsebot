@@ -1,9 +1,9 @@
 import { useRef, type ReactNode } from "react";
 import type { RecruitmentData } from "../../api";
 import { DISCORD_CONTENT_LIMIT } from "../../lib/discordMarkdown";
-import EmojiPicker from "../../components/EmojiPicker";
-import SpecPicker from "../../components/SpecPicker";
-import DiscordPreview from "../../components/DiscordPreview";
+import EmojiPicker from "./EmojiPicker";
+import SpecPicker from "./SpecPicker";
+import DiscordPreview from "./DiscordPreview";
 import { IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import { TipLabel } from "./RecruitmentBits";

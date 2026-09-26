@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import type { BisSpec, CouncilLootItem } from "../../api";
 import { Badge, Expand, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
-import { ReasonBadge } from "../../components/LootBadges";
+import { ReasonBadge } from "../../components/loot/LootBadges";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { WOWHEAD } from "./council";

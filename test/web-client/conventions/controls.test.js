@@ -93,7 +93,7 @@ describe("web-client control styles", () => {
     it("has every filter bar in the client use the shared class", () => {
         // The roster's filter row is its own design (search, role segment, class
         // chips — rosterCharakter.test.js holds it), not the generic filter bar.
-        const pages = ["pages/history/CharactersTab.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
+        const pages = ["pages/history/CharactersTab.tsx", "pages/history/LootItemsTab.tsx", "pages/history/LootReasonsTab.tsx"];
         for (const file of pages) {
             const src = fs.readFileSync(path.join(CLIENT, file), "utf8");
             // the loot views add their own row modifier (hl-filters) on top
@@ -114,7 +114,7 @@ describe("web-client control styles", () => {
         expect(rule).not.toBeNull();
         expect(rule[0]).toContain("min-height: var(--ctl-h)");
         // it hangs off the wrapper, so no caller can forget a class on the input
-        const src = fs.readFileSync(path.join(CLIENT, "components/ItemSearchPicker.tsx"), "utf8");
+        const src = fs.readFileSync(path.join(CLIENT, "components/loot/ItemSearchPicker.tsx"), "utf8");
         expect(src).toContain("className=\"hr-picker\"");
     });
 });

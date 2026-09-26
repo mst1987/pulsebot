@@ -6,7 +6,7 @@ import { ExternalIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";
 import { ListSection } from "../../components/ListSection";
 import { useCollectionEditor } from "../../lib/collectionEditor";
-import { PenIcon } from "../../components/settingsUi";
+import { PenIcon } from "../../components/settings/settingsUi";
 import Field from "../../components/ui/Field";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";

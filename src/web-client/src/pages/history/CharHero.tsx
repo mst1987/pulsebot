@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { HistoryCharData, RosterCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { classColorProps } from "../../components/ClassSpec";
-import { IconLink, RoleBadge } from "../../components/RosterCommon";
+import { IconLink, RoleBadge } from "../../components/roster/RosterCommon";
 import { attendanceTone, combineAttendance, nightLabel } from "../../lib/rosterView";
 import { Badge, Button, WowIcon, buttonClass } from "../../components/ui";
 

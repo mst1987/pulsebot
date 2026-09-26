@@ -15,7 +15,7 @@ import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
 import { usePersistedSearchParam } from "../../lib/persistedState";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
-import { LootTable } from "../../components/LootTable";
+import { LootTable } from "../../components/loot/LootTable";
 import type { ShellContext } from "../../components/Shell";
 import { useToast } from "../../components/Jobs";
 import { combineAttendance } from "../../lib/rosterView";

@@ -10,13 +10,13 @@ const MODALS = ["LogAssignModal", "LootAddModal", "LootSystemModal", "NotifyModa
     .map((m) => `pages/raid-detail/modals/${m}.tsx`);
 const MANAGE = ["CancelModal", "DeleteModal", "HistoryModal", "MoveModal", "RaiderModal"]
     .map((m) => `pages/raid-detail/manage/${m}.tsx`);
-const FILES = [...MODALS, ...MANAGE, "components/ItemSearchPicker.tsx"];
+const FILES = [...MODALS, ...MANAGE, "components/loot/ItemSearchPicker.tsx"];
 
 describe("raid-detail dialogs in two languages", () => {
     it("every dialog takes its texts from useT", () => {
         for (const file of FILES) {
             const src = read(file);
-            expect({ file, useT: /import \{[^}]*\buseT\b[^}]*\} from "\.\.\/(\.\.\/\.\.\/)?i18n";/.test(src) }).toEqual({ file, useT: true });
+            expect({ file, useT: /import \{[^}]*\buseT\b[^}]*\} from "(\.\.\/)+i18n";/.test(src) }).toEqual({ file, useT: true });
             expect({ file, hook: src.includes("const t = useT();") }).toEqual({ file, hook: true });
         }
     });

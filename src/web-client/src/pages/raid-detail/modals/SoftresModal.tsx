@@ -14,7 +14,7 @@ import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import WowIcon from "../../../components/ui/WowIcon";
-import ItemSearchPicker from "../../../components/ItemSearchPicker";
+import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
 import { ExternalIcon, XIcon } from "../../../components/icons";
 import { useToast } from "../../../components/Jobs";
 import { useT } from "../../../i18n";

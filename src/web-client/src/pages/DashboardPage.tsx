@@ -21,7 +21,7 @@ import Badge from "../components/ui/Badge";
 import IconTile, { type TileTone } from "../components/ui/IconTile";
 import WowIcon from "../components/ui/WowIcon";
 import { ChevronRightIcon } from "../components/icons";
-import TopLootList from "../components/TopLootList";
+import TopLootList from "../components/loot/TopLootList";
 import RaidDetailsModal from "../components/RaidDetailsModal";
 import { RoleBar, IconLink } from "../components/OverviewParts";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";

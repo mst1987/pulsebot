@@ -20,14 +20,14 @@ const PHASE1 = [
     "App.tsx",
     "components/Shell.tsx", "components/LangToggle.tsx", "components/ThemeToggle.tsx", "components/GuildSwitcher.tsx",
     "pages/DashboardPage.tsx", "components/OverviewParts.tsx",
-    "pages/RaidsPage.tsx", "components/RaidList.tsx", "components/RaidTable.tsx", "components/RaidIcon.tsx",
+    "pages/RaidsPage.tsx", "components/RaidList.tsx", "pages/history/RaidTable.tsx", "components/RaidIcon.tsx",
     "pages/RaidCreatePage.tsx", "components/raid-create", "components/RaidPlanFields.tsx", "components/CompositionEditor.tsx",
     "components/channels/NamingBadge.tsx",
     "pages/RaidDetailPage.tsx", "pages/raid-detail",
-    "pages/SignupsPage.tsx", "components/SignupDialog.tsx", "components/BulkSignupDialog.tsx",
-    "components/SignupCharacterPicks.tsx", "components/SpecPicker.tsx", "components/ClassSpec.tsx",
+    "pages/SignupsPage.tsx", "components/signup/SignupDialog.tsx", "components/signup/BulkSignupDialog.tsx",
+    "components/signup/SignupCharacterPicks.tsx", "pages/recruitment/SpecPicker.tsx", "components/ClassSpec.tsx",
     "pages/profile", "components/profile",
-    "components/LootTable.tsx", "components/ui",
+    "components/loot/LootTable.tsx", "components/ui",
     "lib/eventManage.ts", "lib/eventPlan.ts", "lib/raidSteps.ts", "lib/raidTemplates.ts", "lib/setupEditor.ts",
     "lib/signups.ts", "lib/signupPicks.ts", "lib/raidIcons.ts", "lib/logRaids.ts", "lib/raidTime.ts",
     "lib/overviewDates.ts", "lib/format.ts", "lib/wowNames.ts",
@@ -73,7 +73,7 @@ describe("i18n phase 1: no hard-coded German left", () => {
 
     it("scans a real set of files", () => {
         expect(list.length).toBeGreaterThan(50);
-        expect(list).toEqual(expect.arrayContaining(["pages/profile/ProfilePage.tsx", "pages/raid-detail/RosterTab.tsx", "components/SignupDialog.tsx"]));
+        expect(list).toEqual(expect.arrayContaining(["pages/profile/ProfilePage.tsx", "pages/raid-detail/RosterTab.tsx", "components/signup/SignupDialog.tsx"]));
     });
 
     it("has no umlaut or ß in a string or JSX text", () => {

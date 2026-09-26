@@ -16,7 +16,7 @@ const css = read("styles", "recruitment.css");
 
 describe("Recruitment page conventions", () => {
     it("keeps explanations in tooltips, not in paragraphs under the heads and fields", () => {
-        for (const [name, src] of [["RecruitmentPage.tsx", page], ["SpecPicker.tsx", read("components", "SpecPicker.tsx")]]) {
+        for (const [name, src] of [["RecruitmentPage.tsx", page], ["SpecPicker.tsx", read("pages", "recruitment", "SpecPicker.tsx")]]) {
             expect({ name, note: /className="note"/.test(src), hint: /className="hint"/.test(src) }).toEqual({ name, note: false, hint: false });
         }
     });
@@ -41,7 +41,7 @@ describe("Recruitment page conventions", () => {
     });
 
     it("gives the preview's button the same default label as the message the bot posts", () => {
-        const preview = read("components", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
+        const preview = read("pages", "recruitment", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
         const bot = fs.readFileSync(path.join(ROOT, "src", "services", "discord", "discord.js"), "utf8").match(/template\.buttonLabel \|\| "([^"]+)"/);
         expect(preview).not.toBeNull();
         expect(bot).not.toBeNull();

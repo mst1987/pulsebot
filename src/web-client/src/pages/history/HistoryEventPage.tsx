@@ -3,8 +3,8 @@ import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom
 import { getHistoryEvent, clearHistoryEvent, deleteLootItems, canAccess, type ApiError, type LootItem } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import AsyncView from "../../components/ui/AsyncView";
-import { LootTable } from "../../components/LootTable";
-import ManualLootForm from "../../components/ManualLootForm";
+import { LootTable } from "../../components/loot/LootTable";
+import ManualLootForm from "./ManualLootForm";
 import type { ShellContext } from "../../components/Shell";
 import { ChevronLeftIcon, TrashIcon } from "../../components/icons";
 import { useToast } from "../../components/Jobs";

@@ -21,8 +21,8 @@ describe("the profile's suggestion from Raid-Helper", () => {
 });
 
 describe("the card on the page", () => {
-    const card = read("components", "SettingsRaidhelperRetirement.tsx");
-    const connections = read("components", "SettingsConnections.tsx");
+    const card = read("pages", "settings", "SettingsRaidhelperRetirement.tsx");
+    const connections = read("pages", "settings", "SettingsConnections.tsx");
 
     it("sits under the connection cards, for full admins only", () => {
         expect(connections).toContain("{data.canManageAccess && <RaidhelperRetirementCard />}");
@@ -40,7 +40,7 @@ describe("the card on the page", () => {
     });
 
     it("shows the categories still on Raid-Helper in the category list's head", () => {
-        const matrix = read("components", "CategoryMatrix.tsx");
+        const matrix = read("pages", "settings", "CategoryMatrix.tsx");
         expect(matrix).toContain("noch Raid-Helper");
         expect(matrix).toContain("categorySignupSource[cat.id] || signupSourceDefault");
         expect(matrix).not.toContain("categorySignupSource[cat.id] || \"raidhelper\"");

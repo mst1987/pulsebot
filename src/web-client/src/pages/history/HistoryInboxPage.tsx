@@ -12,8 +12,8 @@ import { IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
 import { ChevronLeftIcon } from "../../components/icons";
-import { InboxSessionCard, LinkedSessions } from "../../components/LootInboxTab";
-import { InfoTip } from "../../components/LootFilters";
+import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
+import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 

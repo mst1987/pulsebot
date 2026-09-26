@@ -22,13 +22,13 @@ vi.mock("../../api", async (orig) => ({
     getIngestTokens: vi.fn(),
 }));
 
-vi.mock("../../components/RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
-vi.mock("../../components/BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
-vi.mock("../../components/SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
-vi.mock("../../components/SettingsRaidhelperRetirement", () => ({ default: () => null }));
+vi.mock("./RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
+vi.mock("./BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
+vi.mock("./SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
+vi.mock("./SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
-vi.mock("../../components/CategoryMatrix", () => ({
+vi.mock("./CategoryMatrix", () => ({
     default: ({ onSheet }: { onSheet: (id: string, sheet: { url: string; name: string }) => void }) => (
         <div>
             Panel Kategorien

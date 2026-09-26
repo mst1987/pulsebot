@@ -4,7 +4,7 @@
 // render in jsdom can show. What the page, the signup dialog, the bulk dialog
 // and the roster show and send is tested in Vitest:
 // src/web-client/src/pages/SignupsPage.test.tsx,
-// src/web-client/src/components/SignupDialog.test.tsx,
+// src/web-client/src/components/signup/SignupDialog.test.tsx,
 // src/web-client/src/pages/raid-detail/RosterTab.signups.test.tsx and
 // src/web-client/src/api/signups.test.ts.
 const fs = require("fs");

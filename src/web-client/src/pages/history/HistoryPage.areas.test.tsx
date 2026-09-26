@@ -21,11 +21,11 @@ vi.mock("../../api", async (orig) => ({
     getSession: vi.fn(),
 }));
 
-vi.mock("../../components/LatestLootTab", () => ({ LatestLootTab: () => <div>Ansicht Vergaben</div> }));
-vi.mock("../../components/LootItemsTab", () => ({ LootItemsTab: () => <div>Ansicht Items</div> }));
-vi.mock("../../components/LootReasonsTab", () => ({ LootReasonsTab: () => <div>Ansicht Gründe</div> }));
-vi.mock("../../components/RaidTable", () => ({ default: () => <div>Raid-Tabelle</div> }));
-vi.mock("../../components/ImportLootDialog", () => ({
+vi.mock("./LatestLootTab", () => ({ LatestLootTab: () => <div>Ansicht Vergaben</div> }));
+vi.mock("./LootItemsTab", () => ({ LootItemsTab: () => <div>Ansicht Items</div> }));
+vi.mock("./LootReasonsTab", () => ({ LootReasonsTab: () => <div>Ansicht Gründe</div> }));
+vi.mock("./RaidTable", () => ({ default: () => <div>Raid-Tabelle</div> }));
+vi.mock("./ImportLootDialog", () => ({
     ImportLootDialog: ({ open }: { open: boolean }) => (open ? <div>Import-Dialog offen</div> : null),
 }));
 

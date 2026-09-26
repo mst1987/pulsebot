@@ -5,7 +5,7 @@
 const { read } = require("../clientSource");
 
 const field = read("components/ui/Field.tsx");
-const settingsUi = read("components/settingsUi.tsx");
+const settingsUi = read("components/settings/settingsUi.tsx");
 const indexCss = read("index.css");
 const settingsCss = read("styles/einstellungen.css");
 
@@ -38,7 +38,7 @@ describe("ui/Field", () => {
 
     it.each([
         ["pages/settings/RaidsheetsSection.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
-        ["components/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
+        ["pages/settings/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
     ])("%s uses it", (file, needle) => {
         expect(read(file)).toContain(needle);
     });
