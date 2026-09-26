@@ -8,7 +8,6 @@ const wowsims = require("../../src/config/wowsims");
 // Items, deren Art feststeht (Name → Typ aus der Tabelle, siehe items.json).
 const CORRUPTOR_HOOD = 30212;      // Hexenmeister-T5, Stoff, classes [9]
 const SKYSHATTER_COVER = 31015;    // Schamanen-T6, Kette, classes [7]
-const THUNDERHEART_HELM = 31037;   // Druiden-T6, Leder, classes [11]
 const SEVENTH_CIRCLE = 30734;      // Leggings of the Seventh Circle, Stoff, ohne Klassenbindung
 const DETERMINATION = 32515;       // Wristguards of Determination, Platte, ohne Klassenbindung
 const ZHARDOOM = 32374;            // Zweihandstab

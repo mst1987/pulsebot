@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { tipPosition } from "../../lib/popoverPosition";
+import { tipParts } from "../../lib/tipParts";
 
 // Tooltips: the page's own box, never the browser's `title`. The native box
 // appears after a second, cannot be styled and does not exist on touch.
@@ -24,20 +25,6 @@ export default function Tip({ head, sub, children, className }: {
             {children}
         </span>
     );
-}
-
-/**
- * Head and explanation of a tip. A `data-tip` without a sub that is long or has
- * several lines — most of the former `title` texts — is split at its first line
- * break, or shown as plain explanation when it is one long sentence, instead of
- * being set in bold as a whole.
- */
-export function tipParts(tip: string, sub: string | null): { head: string; sub: string } {
-    if (sub) return { head: tip, sub };
-    const nl = tip.indexOf("\n");
-    if (nl > 0) return { head: tip.slice(0, nl).trim(), sub: tip.slice(nl + 1).trim() };
-    if (tip.length > 60) return { head: "", sub: tip };
-    return { head: tip, sub: "" };
 }
 
 /**

@@ -35,14 +35,14 @@ const DISPLAY_TZ = "Europe/Berlin";
 const hhmm = (ms: number) => new Date(ms).toLocaleTimeString("de-DE", { timeZone: DISPLAY_TZ, hour: "2-digit", minute: "2-digit" });
 
 /** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
-export function sessionSpan(s: { startedAt: number; endedAt: number }): string {
+function sessionSpan(s: { startedAt: number; endedAt: number }): string {
     if (!s.startedAt) return "";
     const start = `${shortDay(s.startedAt)} · ${hhmm(s.startedAt)}`;
     return s.endedAt > s.startedAt ? `${start}–${hhmm(s.endedAt)}` : start;
 }
 
 /** The raid most of the session's items come from — its icon heads the card. */
-export function dominantContent(items: LootItem[]): string {
+function dominantContent(items: LootItem[]): string {
     const counts = new Map<string, number>();
     for (const it of items) if (it.contentId) counts.set(it.contentId, (counts.get(it.contentId) || 0) + 1);
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";

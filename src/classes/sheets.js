@@ -1,4 +1,4 @@
-﻿const { google } = require("googleapis");
+const { google } = require("googleapis");
 
 class SheetsClient {
     // config (all optional) lets a caller target a specific raidsheet:

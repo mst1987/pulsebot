@@ -22,7 +22,6 @@ jest.mock("../../src/web/logStore", () => ({
     deleteLog: jest.fn(),
     getLog: jest.fn(),
     getByReportRefId: jest.fn(),
-    clearEvaluation: jest.fn(),
     linkEvent: jest.fn(),
     unlinkEvent: jest.fn(),
     clearEvaluation: jest.fn(),

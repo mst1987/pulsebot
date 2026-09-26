@@ -1,7 +1,5 @@
-﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
-const messages = require("../../config/messages");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
 const {
-    findServerEmoji,
     showAllEvents,
     botReply,
 } = require("../../utils/helper");
@@ -14,7 +12,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("createoverview")
         .setDescription("Creates an event overview for the current category"),
-    async execute(interaction, client) {
+    async execute(interaction) {
         try {
             if (!interaction.channel.parent) {
                 return botReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");

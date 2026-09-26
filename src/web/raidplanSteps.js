@@ -27,7 +27,7 @@ const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const GROUP_REF = /^group:([1-9]|1\d|20)$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
-const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
+const ICON = /^([a-z0-9_'-]{2,64}|(?:boss|mob):\d{1,6})$/;
 
 /** How a kind of step is resolved like an assignment: tanking steps imply the tank role, healing the healers, the rest none. */
 const TASK_OF = { tank: "tank", swap: "tank", kite: "special", adds: "tank", heal: "heal" };

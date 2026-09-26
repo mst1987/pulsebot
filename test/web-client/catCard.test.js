@@ -26,7 +26,7 @@ function rule(selector) {
 describe("Kategorien list", () => {
     it("is a list with a tinted mono head instead of a card per category", () => {
         expect(matrix).not.toContain("catcard");
-        expect(matrix).toContain('className="cat-row cat-head"');
+        expect(matrix).toContain("className=\"cat-row cat-head\"");
         const head = rule(".cat-row.cat-head");
         expect(head).toContain("var(--panel2)");
         expect(head).toContain("var(--font-mono)");
@@ -36,16 +36,16 @@ describe("Kategorien list", () => {
     });
 
     it("opens one row at a time with the shared expand button", () => {
-        expect(matrix).toContain('const [openId, setOpenId] = useState("");');
+        expect(matrix).toContain("const [openId, setOpenId] = useState(\"\");");
         expect(matrix).toContain("const isOpen = openId === cat.id && active;");
-        expect(matrix).toContain('onToggle={() => setOpenId(isOpen ? "" : cat.id)}');
+        expect(matrix).toContain("onToggle={() => setOpenId(isOpen ? \"\" : cat.id)}");
         expect(matrix).toMatch(/<Expand open=\{isOpen\}/);
     });
 
     it("folds the inactive categories under one line, and the part head switches to all of them", () => {
         expect(matrix).toContain("splitCategoryRows(rows, categoryIds, showAll)");
         expect(matrix).toContain("weitere Discord-");
-        expect(matrix).toContain('usePersistedState("settings-categories-all", false)');
+        expect(matrix).toContain("usePersistedState(\"settings-categories-all\", false)");
         expect(matrix).toContain("Alle Discord-Kategorien");
     });
 
@@ -54,16 +54,16 @@ describe("Kategorien list", () => {
     });
 
     it("shows the per-category settings as badges in the row", () => {
-        expect(matrix).toContain('<Badge tone="bad" icon={<WarnIcon />}>keine</Badge>');
-        expect(matrix).toContain('<Badge tone="mid" icon={<WarnIcon />}>fehlt</Badge>');
-        expect(matrix).toContain('icon="inv_scroll_03"');
+        expect(matrix).toContain("<Badge tone=\"bad\" icon={<WarnIcon />}>keine</Badge>");
+        expect(matrix).toContain("<Badge tone=\"mid\" icon={<WarnIcon />}>fehlt</Badge>");
+        expect(matrix).toContain("icon=\"inv_scroll_03\"");
         expect(matrix).toContain("{summary.assigned} / {summary.members}");
     });
 
     it("picks the loot addon with a segment and opens the character assignment for this category", () => {
         expect(matrix).toMatch(/<Segment ariaLabel=\{`Loot-Addon/);
-        expect(matrix).toContain('{ value: "", label: "keins" }');
-        expect(matrix).toContain('icon="ability_rogue_disguise"');
+        expect(matrix).toContain("{ value: \"\", label: \"keins\" }");
+        expect(matrix).toContain("icon=\"ability_rogue_disguise\"");
         expect(matrix).toContain("categoryId={assigning.id}");
         const modal = fs.readFileSync(path.join(CLIENT, "components", "RaiderCharactersModal.tsx"), "utf8");
         // the category is a prop now, never a second picker
@@ -72,8 +72,8 @@ describe("Kategorien list", () => {
     });
 
     it("moves the hints into tooltips at the field names", () => {
-        expect(matrix).not.toContain('className="hint"');
-        for (const tip of ['tip="Raider-Rollen"', 'tip="Loot-Addon"', 'tip="Festes Raidsheet"', 'tip="Raider → Charakter"']) {
+        expect(matrix).not.toContain("className=\"hint\"");
+        for (const tip of ["tip=\"Raider-Rollen\"", "tip=\"Loot-Addon\"", "tip=\"Festes Raidsheet\"", "tip=\"Raider → Charakter\""]) {
             expect(matrix).toContain(tip);
         }
     });
@@ -85,10 +85,10 @@ describe("Kategorien list", () => {
 
     it("picks the message channel at the message segment, hidden for \"keine\" and while no channels load (#335)", () => {
         const block = matrix.slice(matrix.indexOf("{onSignupNotes && ("), matrix.indexOf("{onDiscordEvent && ("));
-        expect(block).toContain('options={NOTE_MODES}');
-        expect(block).toContain('signupNoteMode(categorySignupNotes, cat.id) !== "none"');
+        expect(block).toContain("options={NOTE_MODES}");
+        expect(block).toContain("signupNoteMode(categorySignupNotes, cat.id) !== \"none\"");
         expect(block).toContain("noteChannels.channels.length > 0");
-        expect(block).toContain('<option value="">{pick.defaultLabel}</option>');
+        expect(block).toContain("<option value=\"\">{pick.defaultLabel}</option>");
         // an own channel out of reach stays selected and is marked, never silently dropped
         expect(block).toContain("{pick.unreachable && <option value={own}>");
         expect(block).toMatch(/\{pick\.unreachable && <Badge tone="bad"[^>]*>nicht erreichbar<\/Badge>\}/);

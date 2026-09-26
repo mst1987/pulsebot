@@ -64,7 +64,6 @@ jest.mock("../../../src/web/logStore", () => ({
     deleteLog: jest.fn(),
     getLog: jest.fn(),
     getByReportRefId: jest.fn(),
-    clearEvaluation: jest.fn(),
     linkEvent: jest.fn(),
     unlinkEvent: jest.fn(),
     clearEvaluation: jest.fn(),
@@ -117,7 +116,7 @@ const mockIsConfigured = jest.fn(() => false);
 const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
 const mockGetEquipment = jest.fn(() => Promise.resolve(null));
 const mockResolve = jest.fn(() => ({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" }));
-let mockLastError = null;
+const mockLastError = null;
 jest.mock("../../../src/classes/blizzard", () =>
     jest.fn().mockImplementation(() => ({
         isConfigured: mockIsConfigured,

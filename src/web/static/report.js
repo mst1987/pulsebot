@@ -1,4 +1,3 @@
-/* global window, document, location, history, localStorage, fetch, confirm, URLSearchParams */
 // The client script of the log-check report pages (/r/<id>, /r/<id>/p/<n>) and
 // of every other page built on report/layout.js (docs, the public event page).
 // Served as /r-assets/report.js (report/assets.js) with a content hash in the

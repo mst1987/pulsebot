@@ -20,7 +20,7 @@ module.exports = {
         .setName("signup")
         .setDescription("Sign up to the raid in this channel")
         .addStringOption((o) => o.setName("specs").setDescription("Specs to sign up with, comma-separated (e.g. Combat,Fire,RestoDruid)").setRequired(true)),
-    async execute(interaction, client) {
+    async execute(interaction) {
         const own = ownEventInChannel(interaction.channel && interaction.channel.id);
         if (own) {
             const base = publicBaseUrl();

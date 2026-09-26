@@ -31,7 +31,7 @@ function matchesTab(tabHref: string, pathname: string): boolean {
 }
 
 /** A menu entry's label in the active language (menu.json holds the German one). */
-export function tabLabel(tab: Tab): string {
+function tabLabel(tab: Tab): string {
     return tOr(`shell.menu.${tab.id}`, tab.label);
 }
 

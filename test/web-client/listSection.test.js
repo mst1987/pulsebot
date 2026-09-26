@@ -106,8 +106,8 @@ describe("list sections", () => {
         const src = readClient("pages", "RecruitmentPage.tsx");
 
         it("opens both editors through the shared hook, each with its own param", () => {
-            expect(src).toContain('useCollectionEditor("edit")');
-            expect(src).toContain('useCollectionEditor("editpost")');
+            expect(src).toContain("useCollectionEditor(\"edit\")");
+            expect(src).toContain("useCollectionEditor(\"editpost\")");
             expect(src).not.toContain("<ListSection");
         });
 
