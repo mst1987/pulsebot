@@ -86,6 +86,19 @@ describe("config/classlist", () => {
         });
     });
 
+    it("refuses an alias whose key the class table does not describe", () => {
+        jest.isolateModules(() => {
+            jest.doMock("../../src/config/gameVersions/classes", () => {
+                const actual = jest.requireActual("../../src/config/gameVersions/classes");
+                const names = { ...actual.RAID_HELPER_NAMES };
+                delete names["Paladin-Holy"];
+                return { ...actual, RAID_HELPER_NAMES: names };
+            });
+            expect(() => require("../../src/config/classlist")).toThrow("classlist: unknown key Paladin-Holy for Holy1");
+        });
+        jest.dontMock("../../src/config/gameVersions/classes");
+    });
+
     it("freezes its entries", () => {
         expect(Object.isFrozen(classlist.entryFor("Fury"))).toBe(true);
     });

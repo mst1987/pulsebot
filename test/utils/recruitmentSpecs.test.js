@@ -29,6 +29,23 @@ describe("utils/recruitmentSpecs", () => {
             expect(shadowEntries).toHaveLength(1);
         });
 
+        it("carries the spec's role instead of the old sodclazz", () => {
+            const shadow = SPEC_CATALOG.find((s) => s.name === "Shadow Priest");
+            expect(shadow).toEqual({ key: "Shadow", name: "Shadow Priest", icon: "shadow", role: "ranged" });
+            expect(SPEC_CATALOG.find((s) => s.name === "Paladin").role).toBe("");
+            expect(SPEC_CATALOG.some((s) => "sodclazz" in s)).toBe(false);
+        });
+
+        it("resolves nothing without an icon or a label", () => {
+            expect(resolveSpec("", "")).toBeNull();
+            expect(resolveSpec("", "   ")).toBeNull();
+        });
+
+        it("leaves the body alone for a line index outside it", () => {
+            expect(removeSpecLine("a\nb", -1)).toBe("a\nb");
+            expect(removeSpecLine("a\nb", 2)).toBe("a\nb");
+        });
+
         it("keeps distinct specs distinct", () => {
             const names = SPEC_CATALOG.map((s) => s.name);
             expect(names).toEqual(expect.arrayContaining(["Shadow Priest", "Beastmaster Hunter", "Holy Paladin"]));
