@@ -58,7 +58,7 @@ export const SIGNUP_META: Record<SignupStatus, { label: string; tone?: Tone }> =
     absence: { get label() { return t("raidDetail.signupStatus.absence"); }, tone: "bad" },
 };
 
-/** Rough runtimes for the job toasts' progress bar — same numbers as ClaPage. */
+/** Rough runtimes for the job toasts' progress bar — same numbers as cla/shared.ts. */
 export const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
 
 /** The two analyses a log can be run through; both write into the same report page. */

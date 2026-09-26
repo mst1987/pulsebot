@@ -19,7 +19,7 @@ const persistedState = readClient("lib", "persistedState.ts");
 
 // Every page/component file of the client, as [name, source].
 function clientSources() {
-    return ["pages", "components"].flatMap((dir) => shared.clientSources(dir, /.tsx$/, { recursive: false }));
+    return shared.pageSources();
 }
 
 describe("persistedState hooks", () => {
@@ -77,19 +77,18 @@ describe("client state persistence", () => {
     // Pages whose tab/view selection has to outlive both a tab switch and the
     // visit, with the storage key each one uses.
     const TAB_PAGES = [
-        ["pages/HistoryPage.tsx", "history-tab"],
-        ["pages/HistoryCharPage.tsx", "history-char-tab"],
+        ["pages/history/HistoryPage.tsx", "history-tab"],
+        ["pages/history/HistoryCharPage.tsx", "history-char-tab"],
         ["pages/RaidDetailPage.tsx", "raid-detail-tab"],
-        ["pages/ClaPage.tsx", "cla-filter"],
-        ["pages/RecruitmentPage.tsx", "recruitment-view"],
+        ["pages/cla/ClaPage.tsx", "cla-filter"],
+        ["pages/recruitment/RecruitmentPage.tsx", "recruitment-view"],
         ["pages/RaidsPage.tsx", "raids-category"],
         ["pages/RaidsPage.tsx", "raids-view"],
-        ["pages/SettingsPage.tsx", "settings-section"],
+        ["pages/settings/SettingsPage.tsx", "settings-section"],
     ];
 
     it.each(TAB_PAGES)("%s remembers its open tab as %s", (file, key) => {
-        const [dir, name] = file.split("/");
-        const src = readClient(dir, name);
+        const src = readClient(file);
         expect(src).toMatch(/usePersisted(State|SearchParam)(<[^>]*>)?\(/);
         expect(src).toContain(`"${key}"`);
     });
@@ -117,7 +116,7 @@ describe("client state persistence", () => {
         expect(readClient("pages", "raid-detail", "modals", "LootAddModal.tsx")).toContain("`raid-loot-import:${eventId}`");
         expect(readClient("pages", "raid-detail", "modals", "SoftresModal.tsx")).toContain("`raid-softres:${eventId}`");
         expect(readClient("pages", "raid-detail", "modals", "LogAssignModal.tsx")).toContain("`raid-log-url:${eventId}`");
-        const recruitment = readClient("pages", "RecruitmentPage.tsx");
+        const recruitment = readClient("pages", "recruitment");
         expect(recruitment).toContain("`recruitment-template:${template?.id ?? \"new\"}`");
         expect(recruitment).toContain("`recruitment-post:${post.id}`");
     });

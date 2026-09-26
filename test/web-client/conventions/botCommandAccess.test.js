@@ -8,7 +8,7 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 const view = read("components", "BotCommandAccess.tsx");
-const page = read("pages", "SettingsPage.tsx");
+const page = read("pages", "settings", "SettingsPage.tsx");
 const api = read("api", "botCommands.ts");
 
 describe("Bot-Befehle view", () => {

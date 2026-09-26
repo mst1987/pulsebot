@@ -2,15 +2,15 @@
 // per-category setting has one home (the category matrix), and explanations sit
 // in tooltips instead of hint paragraphs. What the sections, the section column
 // and the save bar do is tested in src/web-client/src/lib/settingsSections.test.ts,
-// components/SectionNav.test.tsx and pages/SettingsPage.sections.test.tsx; the
-// areas of Historie & Loot in pages/HistoryPage.areas.test.tsx.
+// components/SectionNav.test.tsx and pages/settings/SettingsPage.sections.test.tsx; the
+// areas of Historie & Loot in pages/history/HistoryPage.areas.test.tsx.
 const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const readClient = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-const settingsSrc = readClient("pages", "SettingsPage.tsx");
+const settingsSrc = readClient("pages", "settings", "SettingsPage.tsx");
 
 describe("Einstellungen conventions", () => {
     it("configures each per-category setting in exactly one place", () => {

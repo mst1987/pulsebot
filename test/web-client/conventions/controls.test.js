@@ -80,7 +80,7 @@ describe("web-client control styles", () => {
     it("shows a log's raid assignment as a badge, removed only inside the assignment dialog", () => {
         // The Log-Auswertung (#217) dropped the removable chip: the assignment is an
         // accent badge, and "Zuordnung entfernen" is the danger button in the dialog.
-        const src = fs.readFileSync(path.join(CLIENT, "pages/ClaPage.tsx"), "utf8");
+        const src = require("../clientSource").read("pages/cla");
         expect(src).not.toContain("chip-x");
         expect(src).not.toContain("pill-chip");
         expect(src).toContain("tone=\"accent\" icon=\"inv_misc_note_02\" className=\"plain la-event\"");
@@ -93,7 +93,7 @@ describe("web-client control styles", () => {
     it("has every filter bar in the client use the shared class", () => {
         // The roster's filter row is its own design (search, role segment, class
         // chips — rosterCharakter.test.js holds it), not the generic filter bar.
-        const pages = ["pages/HistoryPage.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
+        const pages = ["pages/history/CharactersTab.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
         for (const file of pages) {
             const src = fs.readFileSync(path.join(CLIENT, file), "utf8");
             // the loot views add their own row modifier (hl-filters) on top

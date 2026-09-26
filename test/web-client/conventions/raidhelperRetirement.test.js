@@ -16,7 +16,7 @@ describe("the profile's suggestion from Raid-Helper", () => {
         expect(dialog).toContain("if (way === \"manual\") applySuggestion();");
         expect(dialog).toContain("t(\"profile.add.fromRaidhelper\")");
         expect(require("../clientSource").dictionary("de")["profile.add.fromRaidhelper"]).toBe("aus Raid-Helper");
-        expect(read("pages", "ProfilePage.tsx")).toContain("suggestion={specSuggestion(data.specHistory)}");
+        expect(read("pages", "profile", "ProfilePage.tsx")).toContain("suggestion={specSuggestion(data.specHistory)}");
     });
 });
 

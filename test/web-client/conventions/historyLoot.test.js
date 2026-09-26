@@ -11,12 +11,15 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
+const { read } = require("../clientSource");
 
 const MODULE_FILES = [
-    "pages/HistoryPage.tsx",
-    "pages/HistoryEventPage.tsx",
-    "pages/HistoryInboxPage.tsx",
+    "pages/history/HistoryPage.tsx",
+    "pages/history/LootEventsTab.tsx",
+    "pages/history/LogsTab.tsx",
+    "pages/history/CharactersTab.tsx",
+    "pages/history/HistoryEventPage.tsx",
+    "pages/history/HistoryInboxPage.tsx",
     "components/LatestLootTab.tsx",
     "components/LootItemsTab.tsx",
     "components/LootReasonsTab.tsx",
@@ -56,7 +59,7 @@ describe("Historie & Loot module", () => {
         expect(dlg.match(/if \(!\(await ask\(\{ title: /g)).toHaveLength(1);
         expect(dlg).toContain("deleteLootItems([awardId])");
         expect(dlg).toMatch(/\{canEdit && a\.id\s*\?/);
-        expect(src["pages/HistoryPage.tsx"]).toContain("canEdit={canWrite}");
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("canEdit={canWrite}");
     });
 
     it("draws reasons as a stacked bar in the reason colours and counts as WCL bars", () => {
@@ -91,11 +94,11 @@ describe("Historie & Loot module", () => {
         expect(dlg).toContain("importLoot({ data: text, tool, event: eventId, manualLabel, categoryId })");
         // the six help paragraphs went into tooltips
         expect(dlg).not.toContain("className=\"hint\"");
-        expect(src["pages/HistoryPage.tsx"]).not.toContain("function ImportForm(");
+        expect(src["pages/history/HistoryPage.tsx"]).not.toContain("function ImportForm(");
     });
 
     it("routes the addon inbox to its own page with cards and the linked list", () => {
-        const page = src["pages/HistoryInboxPage.tsx"];
+        const page = src["pages/history/HistoryInboxPage.tsx"];
         expect(page).toContain("<InboxSessionCard");
         expect(page).toContain("<LinkedSessions linked={linked} />");
         expect(read("App.tsx")).toContain("<Route path=\"history/inbox\" element={<Guard user={user} areas={[\"history\"]}><HistoryInboxPage /></Guard>} />");
@@ -109,10 +112,10 @@ describe("Historie & Loot module", () => {
     });
 
     it("builds on the shared UI blocks and keeps its CSS in the module file", () => {
-        expect(src["pages/HistoryPage.tsx"]).toContain("<PageHead");
-        expect(src["pages/HistoryPage.tsx"]).toContain("<Segment<AreaId>");
-        for (const file of ["pages/HistoryPage.tsx", "pages/HistoryEventPage.tsx", "pages/HistoryInboxPage.tsx"]) {
-            expect(src[file]).toContain("import \"../styles/historie-loot.css\";");
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("<PageHead");
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("<Segment<AreaId>");
+        for (const file of ["pages/history/HistoryPage.tsx", "pages/history/HistoryEventPage.tsx", "pages/history/HistoryInboxPage.tsx"]) {
+            expect(src[file]).toContain("import \"../../styles/historie-loot.css\";");
         }
         expect(fs.existsSync(path.join(CLIENT, "styles", "historie-loot.css"))).toBe(true);
         expect(read("index.css")).not.toContain(".hl-");
@@ -121,7 +124,7 @@ describe("Historie & Loot module", () => {
     // The Raids view used to stack both lists with the coming raids on top —
     // the list nobody opens this page for above the one they do.
     it("opens the Raids view on the past raids and switches to the coming ones", () => {
-        const page = src["pages/HistoryPage.tsx"].replace(/\r\n/g, "\n");
+        const page = src["pages/history/HistoryPage.tsx"].replace(/\r\n/g, "\n");
         expect(page).toContain("usePersistedState<RaidWhen>(\"history-raids-when\", \"past\")");
         expect(page).toContain("<Segment<RaidWhen>");
         const view = page.match(/\{tab === "raids" && \(\n[\s\S]*?\n {12}\)\}/)[0];
@@ -136,9 +139,9 @@ describe("Historie & Loot module", () => {
     // ring). The Charaktere view held the one bare <input> that was left, and
     // it wore the browser's own look next to controls that did not.
     it("searches with the module's own field, never a bare input", () => {
-        const page = src["pages/HistoryPage.tsx"].replace(/\r\n/g, "\n");
+        const page = src["pages/history/CharactersTab.tsx"].replace(/\r\n/g, "\n");
         expect(page).toContain("<SearchBox id=\"chars-search\"");
-        expect(page).toContain("import { SearchBox } from \"../components/LootFilters\";");
+        expect(page).toContain("import { SearchBox } from \"../../components/LootFilters\";");
         for (const [file, code] of Object.entries(src)) {
             // the box itself is where that one input belongs
             if (file === "components/LootFilters.tsx") continue;

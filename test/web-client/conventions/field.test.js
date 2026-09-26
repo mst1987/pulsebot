@@ -37,7 +37,7 @@ describe("ui/Field", () => {
     });
 
     it.each([
-        ["pages/SettingsPage.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
+        ["pages/settings/RaidsheetsSection.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
         ["components/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
     ])("%s uses it", (file, needle) => {
         expect(read(file)).toContain(needle);

@@ -1,7 +1,7 @@
 // The Addon-Inbox's building blocks: one card per raid session the WoW addon's
 // uploader sent in, waiting for someone to say which raid it belongs to, and the
 // quiet list of sessions that were already accepted and keep flowing in.
-// The page around them is pages/HistoryInboxPage.tsx.
+// The page around them is pages/history/HistoryInboxPage.tsx.
 //
 // The upload already did the guessing — it matched the session's own start time
 // against the Raid-Helper events of that day — so the common case is one glance

@@ -26,7 +26,7 @@ const PHASE1 = [
     "pages/RaidDetailPage.tsx", "pages/raid-detail",
     "pages/SignupsPage.tsx", "components/SignupDialog.tsx", "components/BulkSignupDialog.tsx",
     "components/SignupCharacterPicks.tsx", "components/SpecPicker.tsx", "components/ClassSpec.tsx",
-    "pages/ProfilePage.tsx", "components/profile",
+    "pages/profile/ProfilePage.tsx", "components/profile",
     "components/LootTable.tsx", "components/ui",
     "lib/eventManage.ts", "lib/eventPlan.ts", "lib/raidSteps.ts", "lib/raidTemplates.ts", "lib/setupEditor.ts",
     "lib/signups.ts", "lib/signupPicks.ts", "lib/raidIcons.ts", "lib/logRaids.ts", "lib/raidTime.ts",
@@ -73,7 +73,7 @@ describe("i18n phase 1: no hard-coded German left", () => {
 
     it("scans a real set of files", () => {
         expect(list.length).toBeGreaterThan(50);
-        expect(list).toEqual(expect.arrayContaining(["pages/ProfilePage.tsx", "pages/raid-detail/RosterTab.tsx", "components/SignupDialog.tsx"]));
+        expect(list).toEqual(expect.arrayContaining(["pages/profile/ProfilePage.tsx", "pages/raid-detail/RosterTab.tsx", "components/SignupDialog.tsx"]));
     });
 
     it("has no umlaut or ß in a string or JSX text", () => {

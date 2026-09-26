@@ -40,7 +40,7 @@ describe("no hand-written click-outside listener is left", () => {
 
     // the former users of the pattern, all on the hook now — directly, or through ui/Popover (which calls it)
     const USERS = [
-        "components/LootFilters.tsx", "pages/ClaPage.tsx", "pages/lootcouncil/FilterBar.tsx",
+        "components/LootFilters.tsx", "pages/cla/RowMenu.tsx", "pages/lootcouncil/FilterBar.tsx",
         "components/EmojiPicker.tsx", "components/ItemSearchPicker.tsx", "components/ManualLootForm.tsx", "components/raidplan/Flyout.tsx",
         "components/RolePermissions.tsx", "components/SpecPicker.tsx",
         "pages/raid-detail/raidplan/ViewControls.tsx", "components/ui/Button.tsx",

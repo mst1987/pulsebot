@@ -50,13 +50,13 @@ describe("the places that use them", () => {
     });
 
     it("the roster's small badges use size=\"sm\"", () => {
-        const roster = read("pages/RosterPage.tsx");
+        const roster = read("pages/roster");
         expect(roster).not.toContain("ros-mini");
         expect((roster.match(/size="sm" tip=/g) || []).length).toBe(2);
     });
 
     it("the settings' channel list and raider roles are chips", () => {
-        const settings = read("pages/SettingsPage.tsx");
+        const settings = read("pages/settings");
         expect(settings).toContain("<Chip");
         expect(settings).not.toContain("chip-x");
         const matrix = read("components/CategoryMatrix.tsx");

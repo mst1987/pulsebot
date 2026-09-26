@@ -14,7 +14,7 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const css = fs.readFileSync(path.join(CLIENT, "styles", "einstellungen.css"), "utf8");
 const matrix = fs.readFileSync(path.join(CLIENT, "components", "CategoryMatrix.tsx"), "utf8");
-const page = fs.readFileSync(path.join(CLIENT, "pages", "SettingsPage.tsx"), "utf8");
+const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
 
 function rule(selector) {
     const re = new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`);
