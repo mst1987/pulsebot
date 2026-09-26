@@ -4,7 +4,7 @@
 // through the real router, and computeRaidStatus() (the actual done/ready/
 // empty decision) is also tested directly with plain object literals, since
 // it is pure and needs no mocking at all.
-const { EventEmitter } = require("events");
+const { mockRes, status, json, jsonRequest } = require("../helpers/http");
 
 jest.mock("../../src/web/auth", () => ({
     getUser: jest.fn(() => null),
@@ -58,29 +58,15 @@ jest.mock("../../src/utils/wowhead", () => ({
 const { verifyToken, touchToken } = require("../../src/web/ingestTokenStore");
 const { resolutionFor, listPending } = require("../../src/web/lootInboxStore");
 const { eventsWithLoot } = require("../../src/web/lootStore");
+const { event: baseEvent } = require("../factories/events");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const { handle } = require("../../src/web/apiRouter");
 const { computeRaidStatus } = require("../../src/web/apiRoutes/ingest");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-function body(res) {
-    return JSON.parse(res.end.mock.calls[0][0]);
-}
-function status(res) {
-    return res.writeHead.mock.calls[0][0];
-}
-
 async function request(jsonBody, authorization = "Bearer ehl_good") {
-    const req = new EventEmitter();
-    req.method = "POST";
-    req.headers = authorization ? { authorization } : {};
+    const req = jsonRequest("POST", "/api/ingest/raids", jsonBody, authorization ? { authorization } : {});
     const res = mockRes();
-    const p = handle("/api/ingest/raids", req, res);
-    req.emit("data", JSON.stringify(jsonBody));
-    req.emit("end");
-    await p;
+    await handle("/api/ingest/raids", req, res);
     return res;
 }
 
@@ -109,14 +95,14 @@ describe("POST /api/ingest/raids", () => {
         it("refuses a request without a token", async () => {
             const res = await request({ sessions: [] }, null);
             expect(status(res)).toBe(401);
-            expect(body(res).error.code).toBe("no_token");
+            expect(json(res).error.code).toBe("no_token");
         });
 
         it("refuses a token the store does not know", async () => {
             verifyToken.mockReturnValue(null);
             const res = await request({ sessions: [] });
             expect(status(res)).toBe(401);
-            expect(body(res).error.code).toBe("bad_token");
+            expect(json(res).error.code).toBe("bad_token");
         });
 
         it("records the use of an accepted token", async () => {
@@ -135,7 +121,7 @@ describe("POST /api/ingest/raids", () => {
         });
         const res = await request({ sessions: [SSC_SESSION] });
         expect(status(res)).toBe(200);
-        expect(body(res).data.raids).toEqual([{
+        expect(json(res).data.raids).toEqual([{
             eventId: "e1",
             title: "SSC",
             startTime: 1784574000,
@@ -156,7 +142,7 @@ describe("POST /api/ingest/raids", () => {
         });
         eventsWithLoot.mockReturnValue([{ eventId: "e1" }]);
         const res = await request({ sessions: [SSC_SESSION] });
-        expect(body(res).data.raids[0]).toMatchObject({ status: "done", matchedSessionId: null });
+        expect(json(res).data.raids[0]).toMatchObject({ status: "done", matchedSessionId: null });
     });
 
     it("passes the local sessions through to the day-match", async () => {
@@ -168,7 +154,7 @@ describe("POST /api/ingest/raids", () => {
     it("defaults to an empty session list", async () => {
         const res = await request({});
         expect(status(res)).toBe(200);
-        expect(body(res).data.raids).toEqual([]);
+        expect(json(res).data.raids).toEqual([]);
     });
 });
 
@@ -181,7 +167,7 @@ describe("computeRaidStatus", () => {
         ...over,
     });
 
-    const event = (over = {}) => ({ id: "e1", title: "SSC", startTime: 1000, source: "raidhelper", categoryId: "c1", categoryName: "Raids", ...over });
+    const event = (over = {}) => baseEvent({ title: "SSC", startTime: 1000, source: "raidhelper", categoryId: "c1", categoryName: "Raids", ...over });
     const session = (over = {}) => ({ sessionId: "s1", startedAt: 1000 * 1000, items: 10, gargul: 10, rclc: 0, excluded: false, ...over });
 
     it("is 'empty' when nothing matches and nothing is stored", () => {

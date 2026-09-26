@@ -1,4 +1,4 @@
-const { EventEmitter } = require("events");
+const { mockRes, json, jsonRequest } = require("../helpers/http");
 
 jest.mock("../../src/web/auth", () => ({
     getUser: jest.fn(),
@@ -359,24 +359,11 @@ const { handle } = require("../../src/web/apiRouter");
 const { AppError } = require("../../src/web/apiResult");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../src/config/permissions");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-
-function body(res) {
-    return JSON.parse(res.end.mock.calls[0][0]);
-}
-
 // Drive a mutating /api/* request through the router with a JSON body.
 async function request(method, pathname, jsonBody, headers) {
-    const req = new EventEmitter();
-    req.method = method;
-    req.headers = { "x-csrf-token": "tok", ...headers };
+    const req = jsonRequest(method, pathname, jsonBody || {}, { "x-csrf-token": "tok", ...headers });
     const res = mockRes();
-    const p = handle(pathname, req, res);
-    req.emit("data", JSON.stringify(jsonBody || {}));
-    req.emit("end");
-    await p;
+    await handle(pathname, req, res);
     return res;
 }
 const post = (pathname, jsonBody, headers) => request("POST", pathname, jsonBody, headers);
@@ -409,7 +396,7 @@ describe("web/apiRouter", () => {
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.objectContaining({
                 "Content-Type": "application/json; charset=utf-8",
             }));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "internal_error", message: "Datenspeicher kaputt" },
             });
         });
@@ -417,27 +404,21 @@ describe("web/apiRouter", () => {
         it("falls back to a generic message when the failure carries none", async () => {
             logStore.getLog.mockImplementation(() => { throw new Error(""); });
             const res = await post("/api/cla/eval", { logId: "l1" });
-            expect(body(res).error).toEqual({
+            expect(json(res).error).toEqual({
                 code: "internal_error", message: "Unerwarteter Serverfehler.",
             });
         });
 
         it("reports the request as handled so nothing falls through", async () => {
             logStore.getLog.mockImplementation(() => { throw new Error("boom"); });
-            const req = new EventEmitter();
-            req.method = "POST";
-            req.headers = { "x-csrf-token": "tok" };
-            const res = mockRes();
-            const p = handle("/api/cla/eval", req, res);
-            req.emit("data", JSON.stringify({ logId: "l1" }));
-            req.emit("end");
-            expect(await p).toBe(true);
+            const req = jsonRequest("POST", "/api/cla/eval", { logId: "l1" }, { "x-csrf-token": "tok" });
+            expect(await handle("/api/cla/eval", req, mockRes())).toBe(true);
         });
 
         it("keeps the 404 JSON shape for unknown endpoints", async () => {
             const res = await get("/api/does-not-exist");
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "not_found", message: "Unbekannter API-Endpunkt." },
             });
         });
@@ -447,9 +428,9 @@ describe("web/apiRouter", () => {
         it("answers 405 with the allowed methods for a known path and a wrong method", async () => {
             const res = await request("DELETE", "/api/dashboard", {});
             expect(res.writeHead).toHaveBeenCalledWith(405, expect.objectContaining({ Allow: "GET" }));
-            expect(body(res).error.code).toBe("method_not_allowed");
-            expect(body(res).error.message).toContain("DELETE");
-            expect(body(res).error.message).toContain("GET");
+            expect(json(res).error.code).toBe("method_not_allowed");
+            expect(json(res).error.message).toContain("DELETE");
+            expect(json(res).error.message).toContain("GET");
         });
 
         it("lists every method of a path in the 405", async () => {
@@ -468,7 +449,7 @@ describe("web/apiRouter", () => {
             logStore.getLog.mockImplementation(() => { throw new AppError("busy", 409, "Gerade nicht."); });
             const res = await post("/api/cla/eval", { logId: "l1" });
             expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "busy", message: "Gerade nicht." } });
+            expect(json(res)).toEqual({ error: { code: "busy", message: "Gerade nicht." } });
         });
     });
 
@@ -483,7 +464,7 @@ describe("web/apiRouter", () => {
             const handled = await handle("/api/session", { method: "GET" }, res);
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            const data = body(res).data;
+            const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
             expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess(), canViewAs: true });
             expect(data.csrfToken).toBe("csrf-abc");
@@ -499,7 +480,7 @@ describe("web/apiRouter", () => {
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }, { id: "g2", name: "Talk" }, { id: "g3", name: "Andere" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            expect(body(res).data.guilds.map((g) => g.role)).toEqual(["event", "talk", ""]);
+            expect(json(res).data.guilds.map((g) => g.role)).toEqual(["event", "talk", ""]);
             settingsStore.getConfig.mockReturnValue({});
         });
 
@@ -508,7 +489,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             expect(auth.csrfToken).not.toHaveBeenCalled();
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data).toMatchObject({ user: null, csrfToken: null, guilds: [], activeGuildId: "" });
         });
 
@@ -519,7 +500,7 @@ describe("web/apiRouter", () => {
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess(), canViewAs: false });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
@@ -535,7 +516,7 @@ describe("web/apiRouter", () => {
             activeGuildFor.mockReturnValue("g1");
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.user.access.raids).toEqual({ read: true, write: false });
@@ -548,7 +529,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(false);
             const res = await post("/api/session/guild", { guildId: "g1" });
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "csrf", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "csrf", message: expect.any(String) } });
             expect(auth.setActiveGuild).not.toHaveBeenCalled();
         });
 
@@ -558,7 +539,7 @@ describe("web/apiRouter", () => {
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             const res = await post("/api/session/guild", { guildId: "does-not-exist" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "unknown_guild", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "unknown_guild", message: expect.any(String) } });
             expect(auth.setActiveGuild).not.toHaveBeenCalled();
         });
 
@@ -569,7 +550,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/session/guild", { guildId: "g1" });
             expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "g1");
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({ data: { activeGuildId: "g1" } });
+            expect(json(res)).toEqual({ data: { activeGuildId: "g1" } });
         });
 
         it("clears the selection when guildId is empty", async () => {
@@ -578,7 +559,7 @@ describe("web/apiRouter", () => {
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             const res = await post("/api/session/guild", { guildId: "" });
             expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "");
-            expect(body(res)).toEqual({ data: { activeGuildId: "" } });
+            expect(json(res)).toEqual({ data: { activeGuildId: "" } });
         });
     });
 
@@ -599,7 +580,7 @@ describe("web/apiRouter", () => {
             auth.getRealUser.mockReturnValue(admin);
             const res = mockRes();
             await handle("/api/session/view-as", { method: "GET" }, res);
-            expect(body(res).data.roles).toEqual([
+            expect(json(res).data.roles).toEqual([
                 { id: RAIDER, name: "Raider", color: "#aabbcc", admin: false, configured: true },
                 { id: "999999999999999999", name: "Gast", color: "", admin: false, configured: false },
             ]);
@@ -624,7 +605,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/session/view-as", { roleIds: [RAIDER, "123456789012345678"] });
             expect(auth.setViewAs).toHaveBeenCalledWith(expect.anything(), [RAIDER]);
-            expect(body(res)).toEqual({ data: { viewAs: { roleIds: [RAIDER] } } });
+            expect(json(res)).toEqual({ data: { viewAs: { roleIds: [RAIDER] } } });
         });
 
         it("stops the view even though the viewed role may open nothing — and needs the CSRF token", async () => {
@@ -637,7 +618,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/session/view-as", { stop: true });
             expect(auth.setViewAs).toHaveBeenCalledWith(expect.anything(), null);
-            expect(body(res)).toEqual({ data: { viewAs: null } });
+            expect(json(res)).toEqual({ data: { viewAs: null } });
         });
 
         it("reports the running view with role names in the session, while the rest of the menu is gated by the role", async () => {
@@ -645,7 +626,7 @@ describe("web/apiRouter", () => {
             auth.getRealUser.mockReturnValue(admin);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            const user = body(res).data.user;
+            const user = json(res).data.user;
             expect(user.isAdmin).toBe(false);
             expect(user.canViewAs).toBe(true);
             expect(user.viewAs).toEqual({ roleIds: [RAIDER], roleNames: ["Raider"], at: 1 });
@@ -665,7 +646,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/session/lang", { lang: "en" });
             expect(userPrefs.setLang).toHaveBeenCalledWith("42", "en");
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({ data: { lang: "en" } });
+            expect(json(res)).toEqual({ data: { lang: "en" } });
         });
 
         it("is open to a limited member, not only to admins", async () => {
@@ -673,7 +654,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/session/lang", { lang: "de" });
             expect(userPrefs.setLang).toHaveBeenCalledWith("7", "de");
-            expect(body(res)).toEqual({ data: { lang: "de" } });
+            expect(json(res)).toEqual({ data: { lang: "de" } });
         });
 
         it("refuses an unknown language with 400", async () => {
@@ -681,7 +662,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/session/lang", { lang: "fr" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "unknown_lang", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "unknown_lang", message: expect.any(String) } });
         });
 
         it("needs the CSRF token and a login", async () => {
@@ -701,7 +682,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             expect(userPrefs.getLang).toHaveBeenCalledWith("42");
-            expect(body(res).data.user.lang).toBe("en");
+            expect(json(res).data.user.lang).toBe("en");
         });
     });
 
@@ -712,7 +693,7 @@ describe("web/apiRouter", () => {
             const handled = await handle("/api/dashboard", { method: "GET" }, res);
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "unauthorized", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "unauthorized", message: expect.any(String) } });
         });
 
         it("returns 403 for a logged-in non-admin", async () => {
@@ -720,7 +701,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/dashboard", { method: "GET" }, res);
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "forbidden", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "forbidden", message: expect.any(String) } });
         });
 
         it("assembles next raid, tasks, area figures, loot and last raids for an admin", async () => {
@@ -749,7 +730,7 @@ describe("web/apiRouter", () => {
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5);
             // "Neuer Loot" counts from the newest past raid's start
             expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
             expect(data.nextRaid).toEqual(next);
             expect(data.followingRaid).toEqual(after);
@@ -776,7 +757,7 @@ describe("web/apiRouter", () => {
             dashboardData.loadInbox.mockReturnValue([]);
             const res = mockRes();
             await handle("/api/dashboard", { method: "GET" }, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.nextRaid).toBeNull();
             expect(data.nextRaidError).toBe("Raid-Helper down");
             expect(data.tasks).toEqual([]);
@@ -812,7 +793,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=ev1"));
             expect(dashboardData.loadNextRaidDetails).toHaveBeenCalledWith("guild-1", "ev1");
-            expect(body(res)).toEqual({ data: { raid: { id: "ev1", classes: [] }, activeGuildId: "guild-1" } });
+            expect(json(res)).toEqual({ data: { raid: { id: "ev1", classes: [] }, activeGuildId: "guild-1" } });
         });
 
         it("is closed to anonymous callers", async () => {
@@ -840,7 +821,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/channels", { method: "GET" }, res);
 
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: expect.objectContaining({
                     categories: [{ id: "cat1", name: "Raids" }],
                     channels: [{ id: "c1", name: "kara", type: 0, typeLabel: "Text", category: "Raids", parentId: "cat1" }],
@@ -868,7 +849,7 @@ describe("web/apiRouter", () => {
 
             const res = mockRes();
             await handle("/api/channels", { method: "GET" }, res);
-            const data = body(res).data;
+            const data = json(res).data;
 
             expect(data.guildName).toBe("Pulse");
             expect(data.connected).toBe(true);
@@ -890,7 +871,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(false);
             const res = await post("/api/channels", { name: "kara-signup" });
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "csrf", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "csrf", message: expect.any(String) } });
             expect(discord.createChannel).not.toHaveBeenCalled();
         });
 
@@ -900,7 +881,7 @@ describe("web/apiRouter", () => {
             activeGuildFor.mockReturnValue("");
             const res = await post("/api/channels", { name: "kara-signup" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_guild", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_guild", message: expect.any(String) } });
         });
 
         it("creates the channel and returns it on success", async () => {
@@ -913,7 +894,7 @@ describe("web/apiRouter", () => {
 
             expect(discord.createChannel).toHaveBeenCalledWith("guild-1", { name: "kara-signup", type: "voice", parentId: "cat1" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "c9", name: "kara-signup" } });
+            expect(json(res)).toEqual({ data: { id: "c9", name: "kara-signup" } });
         });
 
         it("returns 400 with the Discord error message on failure", async () => {
@@ -925,7 +906,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/channels", {});
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "create_failed", message: "Kanalname fehlt." } });
+            expect(json(res)).toEqual({ error: { code: "create_failed", message: "Kanalname fehlt." } });
         });
     });
 
@@ -935,7 +916,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/channels/duplicate", { name: "clone" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_channel", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_channel", message: expect.any(String) } });
             expect(discord.duplicateChannel).not.toHaveBeenCalled();
         });
 
@@ -948,7 +929,7 @@ describe("web/apiRouter", () => {
 
             expect(discord.duplicateChannel).toHaveBeenCalledWith("c1", "kara-signup-2");
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "c10", name: "kara-signup-2" } });
+            expect(json(res)).toEqual({ data: { id: "c10", name: "kara-signup-2" } });
         });
     });
 
@@ -961,7 +942,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             expect(await handle("/api/settings/discord-servers", { method: "GET" }, res)).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.guilds.map((g) => g.role)).toEqual(["event"]);
             expect(data.overlap).toBeNull();
             settingsStore.getConfig.mockReturnValue({});
@@ -996,7 +977,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data).toMatchObject({
                 config: { adminRoleIds: ["r1"] },
                 canManageAccess: true,
@@ -1023,7 +1004,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.config).toEqual({ guildId: "g1" });
             expect(data.canManageAccess).toBe(false);
         });
@@ -1045,9 +1026,9 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.config).toEqual({ guildId: "g1", blizzard: { clientId: "bz-id", region: "eu", hasClientSecret: true } });
-            expect(JSON.stringify(body(res))).not.toContain("secret");
+            expect(JSON.stringify(json(res))).not.toContain("secret");
         });
 
         // The Battle.net secret follows the same contract as the other two: the
@@ -1059,13 +1040,13 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            expect(body(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true });
-            expect(JSON.stringify(body(res))).not.toContain("bz-secret");
+            expect(json(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true });
+            expect(JSON.stringify(json(res))).not.toContain("bz-secret");
 
             settingsStore.getConfig.mockReturnValue({ guildId: "g1", blizzard: { clientId: "bz-id", clientSecret: "", region: "eu" } });
             const res2 = mockRes();
             await handle("/api/settings", { method: "GET" }, res2);
-            expect(body(res2).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: false });
+            expect(json(res2).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: false });
         });
 
         // Same for the WCL v2 client secret: the id is shown, the secret is only "set".
@@ -1076,8 +1057,8 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            expect(body(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
-            expect(JSON.stringify(body(res))).not.toContain("wcl-secret");
+            expect(json(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
+            expect(JSON.stringify(json(res))).not.toContain("wcl-secret");
         });
 
         // The Anthropic key never leaves the server — the page only learns that one is stored.
@@ -1088,8 +1069,8 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            expect(body(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
-            expect(JSON.stringify(body(res))).not.toContain("sk-secret");
+            expect(json(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
+            expect(JSON.stringify(json(res))).not.toContain("sk-secret");
         });
     });
 
@@ -1128,8 +1109,8 @@ describe("web/apiRouter", () => {
 
             const res = await patch("/api/settings", { anthropic: { model: " claude-opus-5 " } });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ anthropic: { model: "claude-opus-5" } });
-            expect(body(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
-            expect(JSON.stringify(body(res))).not.toContain("sk-new");
+            expect(json(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
+            expect(JSON.stringify(json(res))).not.toContain("sk-new");
 
             await patch("/api/settings", { anthropic: { apiKey: " sk-new ", model: "" } });
             expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ anthropic: { apiKey: "sk-new", model: "" } });
@@ -1142,8 +1123,8 @@ describe("web/apiRouter", () => {
 
             const res = await patch("/api/settings", { warcraftlogsV2: { clientId: " wcl-id " } });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ warcraftlogsV2: { clientId: "wcl-id" } });
-            expect(body(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
-            expect(JSON.stringify(body(res))).not.toContain("wcl-new");
+            expect(json(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
+            expect(JSON.stringify(json(res))).not.toContain("wcl-new");
 
             await patch("/api/settings", { warcraftlogsV2: { clientId: "wcl-id", clientSecret: " wcl-new " } });
             expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-new" } });
@@ -1243,8 +1224,8 @@ describe("web/apiRouter", () => {
             // the secret left out: the stored one stays; unknown fields are dropped
             const res = await patch("/api/settings", { blizzard: { clientId: " bz-id ", region: "EU ", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true, bogus: 1 } });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ blizzard: { clientId: "bz-id", region: "EU", realmSlug: "thunderstrike", namespace: "" } });
-            expect(body(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: true });
-            expect(JSON.stringify(body(res))).not.toContain("bz-new");
+            expect(json(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: true });
+            expect(JSON.stringify(json(res))).not.toContain("bz-new");
 
             await patch("/api/settings", { blizzard: { clientId: "bz-id", clientSecret: " bz-new " } });
             expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ blizzard: { clientId: "bz-id", clientSecret: "bz-new" } });
@@ -1372,7 +1353,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/notify", { eventId: "e1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
-            expect(body(res).error.code).toBe("forbidden");
+            expect(json(res).error.code).toBe("forbidden");
             expect(discord.postAnnouncement).not.toHaveBeenCalled();
         });
 
@@ -1386,7 +1367,7 @@ describe("web/apiRouter", () => {
             // a Raid-Helper event is edited at Raid-Helper, never here
             const refused = await patch("/api/raids", { id: "123456", title: "x" });
             expect(refused.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(refused).error.code).toBe("not_own_event");
+            expect(json(refused).error.code).toBe("not_own_event");
         });
 
         it("blocks an area the role was not given at all", async () => {
@@ -1418,7 +1399,7 @@ describe("web/apiRouter", () => {
 
             expect(settingsStore.saveRaidsheet).toHaveBeenCalledWith({ name: "Tier 4/5" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "s1", name: "Tier 4/5" } });
+            expect(json(res)).toEqual({ data: { id: "s1", name: "Tier 4/5" } });
         });
     });
 
@@ -1437,7 +1418,7 @@ describe("web/apiRouter", () => {
             settingsStore.deleteRaidsheet.mockReturnValue(true);
             const res = await post("/api/settings/raidsheets/delete", { id: "s1" });
             expect(settingsStore.deleteRaidsheet).toHaveBeenCalledWith("s1");
-            expect(body(res)).toEqual({ data: { id: "s1" } });
+            expect(json(res)).toEqual({ data: { id: "s1" } });
         });
     });
 
@@ -1468,7 +1449,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/raider-characters", { category: "cat1" });
 
             expect(discord.listMembersWithRoles).toHaveBeenCalledWith("guild-1", ["role1"]);
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: {
                     members: [{ id: "u1", displayName: "Sedroc" }],
                     membersError: null,
@@ -1484,7 +1465,7 @@ describe("web/apiRouter", () => {
             settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
             const res = await get("/api/raider-characters", { category: "cat1" });
             expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
-            expect(body(res).data.members).toEqual([]);
+            expect(json(res).data.members).toEqual([]);
         });
     });
 
@@ -1519,7 +1500,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raider-characters", { categoryId: "cat1", assignments: { u1: "Elesham", u2: "" } });
 
             expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" });
-            expect(body(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
+            expect(json(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
         });
     });
 
@@ -1560,7 +1541,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/roster");
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.activeGuildId).toBe("guild-1");
             expect(data.categories).toEqual([{ id: "cat1", name: "Montagsraid" }, { id: "cat2", name: "Pug" }]);
             expect(data.chars.map((c) => c.character)).toEqual(["Anna", "Bob"]);
@@ -1606,7 +1587,7 @@ describe("web/apiRouter", () => {
             await handle("/api/raids", { method: "GET" }, res);
 
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1");
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: {
                     events: [{
                         id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo",
@@ -1631,7 +1612,7 @@ describe("web/apiRouter", () => {
             await handle("/api/raids", { method: "GET" }, res);
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { events: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1", guildName: "" },
             });
         });
@@ -1655,7 +1636,7 @@ describe("web/apiRouter", () => {
             await handle("/api/raids/past", { method: "GET" }, res);
 
             expect(raidListing.loadPastRaids).toHaveBeenCalledWith("guild-1");
-            expect(body(res)).toEqual({ data: { events: [{ id: "p1", title: "BT" }], error: null, activeGuildId: "guild-1" } });
+            expect(json(res)).toEqual({ data: { events: [{ id: "p1", title: "BT" }], error: null, activeGuildId: "guild-1" } });
         });
     });
 
@@ -1690,7 +1671,7 @@ describe("web/apiRouter", () => {
 
             // Past raids of the lookback window can be repeated too.
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1", { sinceSeconds: 1234 });
-            expect(body(res)).toMatchObject({
+            expect(json(res)).toMatchObject({
                 data: {
                     // the default channel's category decides the preselected Raid-Helper template
                     defaults: { templateId: "t1", channelId: "c1" },
@@ -1717,7 +1698,7 @@ describe("web/apiRouter", () => {
                     editEvent: null,
                 },
             });
-            expect(body(res).data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
+            expect(json(res).data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
         });
     });
 
@@ -1727,7 +1708,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/raids", { date: "not-a-date", channelId: "c1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "invalid_date", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "invalid_date", message: expect.any(String) } });
             expect(mockCreateEvent).not.toHaveBeenCalled();
         });
 
@@ -1744,7 +1725,7 @@ describe("web/apiRouter", () => {
                 channelId: "c1", leaderId: "42", templateId: "t1", date: "12-07-2026", time: "20:00", title: "GDKP Kara", description: "",
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "ev1", channelId: "c1" } });
+            expect(json(res)).toEqual({ data: { id: "ev1", channelId: "c1" } });
         });
 
         // The clone needs one thing from the source event: its channel. It is
@@ -1827,12 +1808,12 @@ describe("web/apiRouter", () => {
             mockGetEvent.mockResolvedValue(null);
             const gone = await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "x" });
             expect(gone.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(gone).error.code).toBe("source_not_found");
+            expect(json(gone).error.code).toBe("source_not_found");
 
             mockGetEvent.mockRejectedValue(new Error("ETIMEDOUT"));
             const down = await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "x" });
-            expect(body(down).error.code).toBe("raidhelper_unreachable");
-            expect(body(down).error.message).toMatch(/Raid-Helper antwortet gerade nicht/);
+            expect(json(down).error.code).toBe("raidhelper_unreachable");
+            expect(json(down).error.message).toMatch(/Raid-Helper antwortet gerade nicht/);
             expect(mockCreateEvent).not.toHaveBeenCalled();
         });
 
@@ -1844,7 +1825,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids", { date: "2026-07-12", time: "20:00", channelId: "c1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "create_failed", message: "invalid token" } });
+            expect(json(res)).toEqual({ error: { code: "create_failed", message: "invalid token" } });
         });
     });
 
@@ -1904,7 +1885,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/raids/detail", { event: "eh-1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.event).toMatchObject({ id: "eh-1", source: "eventhelper", isPast: false, signupsKnown: true });
             expect(mockGetSetup).not.toHaveBeenCalled();
             expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
@@ -1928,7 +1909,7 @@ describe("web/apiRouter", () => {
         it("sends no step bar for a Raid-Helper event — it keeps today's view (#319)", async () => {
             setupDefaults();
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.event.source).toBe("raidhelper");
             expect(data.steps).toBeNull();
             expect(data.progress.steps.length).toBe(6);
@@ -1938,7 +1919,7 @@ describe("web/apiRouter", () => {
             setupDefaults();
             const eventLootSystemStore = require("../../src/web/eventLootSystemStore");
             eventLootSystemStore.lootSystemOf.mockReturnValueOnce({ system: "lootcouncil", label: "Loot-Council", source: "category", softres: false });
-            const data = body(await get("/api/raids/detail", { event: "e1" })).data;
+            const data = json(await get("/api/raids/detail", { event: "e1" })).data;
             expect(data.lootSystem).toMatchObject({ system: "lootcouncil", softres: false });
             expect(data.progress.steps.map((s) => s.key)).not.toContain("softres");
         });
@@ -1972,7 +1953,7 @@ describe("web/apiRouter", () => {
 
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1", { sinceSeconds: 0 });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.event).toEqual({
                 id: "e1", source: "raidhelper", title: "GDKP Kara", startTime: 1753500000,
                 channelId: "chan1", channelName: "kara-channel", signupCount: 1,
@@ -2056,7 +2037,7 @@ describe("web/apiRouter", () => {
             ]);
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(logStore.listLogsForEvent).toHaveBeenCalledWith("e1");
-            const data = body(res).data;
+            const data = json(res).data;
             // each row carries which analyses already ran, so the UI can offer the
             // CLA and RPB buttons independently
             expect(data.eventLogs).toEqual([{ id: "l1", eventId: "e1", title: "Kara", sections: [] }]);
@@ -2071,7 +2052,7 @@ describe("web/apiRouter", () => {
             ]);
             logStore.listLogs.mockReturnValue([]);
             const res = await get("/api/raids/detail", { event: "e1" });
-            const logs = body(res).data.eventLogs;
+            const logs = json(res).data.eventLogs;
             expect(logs[0].sections).toEqual(["cla"]);
             expect(logs[1].sections).toEqual(["cla"]);
         });
@@ -2081,7 +2062,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
             const res = await get("/api/raids/detail", { event: "missing" });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
         });
 
         it("returns 400 when Raid-Helper events can't be loaded and no fallback event was found either", async () => {
@@ -2089,7 +2070,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar.", stale: true });
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
         });
 
         it("still opens the page with an eventsWarning when the event was found via the stale/persisted fallback", async () => {
@@ -2099,20 +2080,20 @@ describe("web/apiRouter", () => {
             });
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res).data.eventsWarning).toBe("Raid-Helper nicht erreichbar.");
+            expect(json(res).data.eventsWarning).toBe("Raid-Helper nicht erreichbar.");
         });
 
         it("omits eventsWarning when the data is fresh (not stale)", async () => {
             setupDefaults();
             const res = await get("/api/raids/detail", { event: "e1" });
-            expect(body(res).data.eventsWarning).toBeNull();
+            expect(json(res).data.eventsWarning).toBeNull();
         });
 
         it("sets setupError when the Raid-Helper raidplan can't be loaded", async () => {
             setupDefaults();
             mockGetSetup.mockRejectedValue(new Error("raidplan down"));
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.setup).toBeNull();
             expect(data.setupError).toBe("raidplan down");
             expect(data.tankCandidates).toEqual([]);
@@ -2122,7 +2103,7 @@ describe("web/apiRouter", () => {
             setupDefaults();
             mockGetSetup.mockResolvedValue({ setup: [] });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
             expect(data.setupError).toBeNull();
         });
@@ -2132,7 +2113,7 @@ describe("web/apiRouter", () => {
             settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.attendance).toEqual({ responded: [], missing: [] });
             expect(data.attendanceRoleIds).toEqual([]);
             expect(data.membersError).toBeNull();
@@ -2146,7 +2127,7 @@ describe("web/apiRouter", () => {
                 members: [], error: "Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?).",
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.membersError).toBe("Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?).");
             expect(data.attendance).toEqual({ responded: [], missing: [] });
             expect(data.attendanceRoleIds).toEqual(["role1"]);
@@ -2160,7 +2141,7 @@ describe("web/apiRouter", () => {
                 error: null,
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.eventSheet).toBeNull();
             expect(data.eventSoftres).toBeNull();
             expect(data.signupTarget).toBe(2);
@@ -2170,8 +2151,8 @@ describe("web/apiRouter", () => {
             setupDefaults();
             lootStore.listByEvent.mockReturnValue([]);
             const res = await get("/api/raids/detail", { event: "e1" });
-            expect(body(res).data.lootItems).toEqual([]);
-            expect(body(res).data.lootTool).toBe("");
+            expect(json(res).data.lootItems).toEqual([]);
+            expect(json(res).data.lootTool).toBe("");
         });
 
         it("returns 404 when no event id is given", async () => {
@@ -2184,7 +2165,7 @@ describe("web/apiRouter", () => {
             setupDefaults();
             mockGetSetup.mockResolvedValue({});
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
             expect(data.tankCandidates).toEqual([]);
             expect(data.setupFromSnapshot).toBe(false);
@@ -2201,7 +2182,7 @@ describe("web/apiRouter", () => {
             });
 
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
 
             expect(data.setup.total).toBe(1);
             expect(data.setupFromSnapshot).toBe(true);
@@ -2215,7 +2196,7 @@ describe("web/apiRouter", () => {
             });
 
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
 
             expect(data.setupError).toBeNull();
             expect(data.setup.total).toBe(1);
@@ -2229,7 +2210,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/raids/detail", { event: "e1" });
 
-            expect(body(res).data.setupError).toBe("Raid-Helper down");
+            expect(json(res).data.setupError).toBe("Raid-Helper down");
         });
 
         // A PAST raid without signups: Raid-Helper has dropped them, so the
@@ -2248,7 +2229,7 @@ describe("web/apiRouter", () => {
                 error: null,
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.event.signupsKnown).toBe(false);
             expect(data.event.isPast).toBe(true);
             expect(data.attendance).toEqual({ responded: [], missing: [] });
@@ -2268,7 +2249,7 @@ describe("web/apiRouter", () => {
                 error: null,
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.event.signupsKnown).toBe(true);
             expect(data.attendance).toEqual({ responded: [], missing: [{ id: "1", displayName: "Anna" }] });
         });
@@ -2293,7 +2274,7 @@ describe("web/apiRouter", () => {
                 error: null,
             });
             const res = await get("/api/raids/detail", { event: "e1" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.attendance.missing).toEqual([{
                 id: "2",
                 displayName: "Sedroc",
@@ -2313,7 +2294,7 @@ describe("web/apiRouter", () => {
             });
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1");
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.attendance.missing).toEqual([{
                 id: "2",
                 displayName: "Sedroc",
@@ -2330,7 +2311,7 @@ describe("web/apiRouter", () => {
             settingsStore.getNotify.mockReturnValue(null);
             const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "missing_fields", message: "Vorlage oder Channel fehlt." } });
+            expect(json(res)).toEqual({ error: { code: "missing_fields", message: "Vorlage oder Channel fehlt." } });
             expect(discord.postAnnouncement).not.toHaveBeenCalled();
         });
 
@@ -2343,7 +2324,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1", roleIds: ["r1", "r2"] });
 
             expect(discord.postAnnouncement).toHaveBeenCalledWith("c1", { id: "t1", title: "Anmeldung", body: "Bitte anmelden" }, ["r1", "r2"]);
-            expect(body(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
+            expect(json(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
         });
 
         it("returns 500 with the Discord error message on failure", async () => {
@@ -2355,7 +2336,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden oder kein Textkanal." } });
+            expect(json(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden oder kein Textkanal." } });
         });
     });
 
@@ -2382,7 +2363,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
         });
 
         it("returns 404 when the event isn't found", async () => {
@@ -2390,7 +2371,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
             const res = await post("/api/raids/ping-missing", { event: "missing" });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
         });
 
         it("returns 400 when the category has no roles assigned", async () => {
@@ -2398,7 +2379,7 @@ describe("web/apiRouter", () => {
             settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "no_roles", message: "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien)." },
             });
             expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
@@ -2409,7 +2390,7 @@ describe("web/apiRouter", () => {
             discord.listMembersWithRoles.mockResolvedValue({ members: [], error: "GuildMembers-Intent fehlt." });
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "members_unavailable", message: "GuildMembers-Intent fehlt." } });
+            expect(json(res)).toEqual({ error: { code: "members_unavailable", message: "GuildMembers-Intent fehlt." } });
         });
 
         // Once a raid has started, "missing" raiders are not missing — and if
@@ -2426,7 +2407,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("event_past");
+            expect(json(res).error.code).toBe("event_past");
             expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
             expect(discord.postMissingPing).not.toHaveBeenCalled();
         });
@@ -2440,7 +2421,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(discord.postMissingPing).not.toHaveBeenCalled();
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({ data: { message: "Niemand fehlt — es haben schon alle reagiert." } });
+            expect(json(res)).toEqual({ data: { message: "Niemand fehlt — es haben schon alle reagiert." } });
         });
 
         it("pings the missing raiders and reports the count", async () => {
@@ -2450,7 +2431,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1", text: "Bitte melden" });
 
             expect(discord.postMissingPing).toHaveBeenCalledWith("chan1", ["2"], "Bitte melden");
-            expect(body(res)).toEqual({ data: { message: "1 fehlende Raider gepingt." } });
+            expect(json(res)).toEqual({ data: { message: "1 fehlende Raider gepingt." } });
         });
 
         it("returns 500 with the Discord error message on post failure", async () => {
@@ -2458,7 +2439,7 @@ describe("web/apiRouter", () => {
             discord.postMissingPing.mockRejectedValue(new Error("Channel nicht gefunden."));
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
         });
     });
 
@@ -2481,7 +2462,7 @@ describe("web/apiRouter", () => {
             settingsStore.getRaidsheet.mockReturnValue(null);
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "missing" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "sheet_not_found", message: "Raidsheet nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "sheet_not_found", message: "Raidsheet nicht gefunden." } });
         });
 
         it("refuses an EventHelper event without an approved setup — a draft never fills a sheet", async () => {
@@ -2489,7 +2470,7 @@ describe("web/apiRouter", () => {
             mockRaidHelperSlots.mockReturnValue([]);
             const res = await post("/api/raids/fill", { event: "eh-1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("no_approved_setup");
+            expect(json(res).error.code).toBe("no_approved_setup");
             expect(mockGetSetup).not.toHaveBeenCalled();
             expect(mockDriveCopyFile).not.toHaveBeenCalled();
         });
@@ -2509,7 +2490,7 @@ describe("web/apiRouter", () => {
             settingsStore.getRaidsheet.mockReturnValue({ id: "sheet1", name: "Kara Sheet", spreadsheetId: "" });
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "no_spreadsheet_id", message: "Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen)." },
             });
         });
@@ -2519,7 +2500,7 @@ describe("web/apiRouter", () => {
             mockGetSetup.mockResolvedValue({ setup: [] });
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
+            expect(json(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
             // The orphan cleanup targets the FRESH copy just made, not any previous one.
             expect(mockDriveDeleteFile).toHaveBeenCalledWith("copy-id");
             expect(eventSheetStore.markEventSheetFilled).not.toHaveBeenCalled();
@@ -2531,7 +2512,7 @@ describe("web/apiRouter", () => {
             mockDriveDeleteFile.mockRejectedValueOnce(new Error("cleanup boom"));
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
+            expect(json(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
         });
 
         it("copies+fills concurrently, records the fill, and deletes the OLD copy (not the new one) in the background", async () => {
@@ -2575,8 +2556,8 @@ describe("web/apiRouter", () => {
             expect(eventSheetStore.markEventSheetFilled).toHaveBeenNthCalledWith(2, "e1", {
                 sheetId: "sheet1", sheetName: "Kara Sheet", playerCount: 1,
             });
-            expect(body(res).data.message).toMatch(/^Neues Sheet erstellt & gefüllt: 1 Spieler\. Wird am \d{2}\.\d{2}\.\d{4} automatisch gelöscht\.$/);
-            expect(body(res).data.playerCount).toBe(1);
+            expect(json(res).data.message).toMatch(/^Neues Sheet erstellt & gefüllt: 1 Spieler\. Wird am \d{2}\.\d{2}\.\d{4} automatisch gelöscht\.$/);
+            expect(json(res).data.playerCount).toBe(1);
         });
 
         it("does not try to delete the previous copy when there is none", async () => {
@@ -2592,7 +2573,7 @@ describe("web/apiRouter", () => {
             mockDriveDeleteFile.mockRejectedValueOnce(new Error("delete boom"));
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res).data.playerCount).toBe(1);
+            expect(json(res).data.playerCount).toBe(1);
         });
 
         it("returns 500 with the error message on a generic failure", async () => {
@@ -2600,7 +2581,7 @@ describe("web/apiRouter", () => {
             mockDriveCopyFile.mockRejectedValue(new Error("Drive lieferte keine Datei-ID für die Kopie."));
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "fill_failed", message: "Drive lieferte keine Datei-ID für die Kopie." } });
+            expect(json(res)).toEqual({ error: { code: "fill_failed", message: "Drive lieferte keine Datei-ID für die Kopie." } });
         });
     });
 
@@ -2627,7 +2608,7 @@ describe("web/apiRouter", () => {
             settingsStore.resolveEventSheetLink.mockReturnValue(null);
             const res = await post("/api/raids/post-sheet", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("no_sheet");
+            expect(json(res).error.code).toBe("no_sheet");
             expect(discord.postLink).not.toHaveBeenCalled();
         });
 
@@ -2650,7 +2631,7 @@ describe("web/apiRouter", () => {
             expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", {
                 channelId: "chan1", messageId: "m1", message: "Bitte eintragen", createIfMissing: true,
             });
-            expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
+            expect(json(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
         });
 
         it("returns 400 when Raid-Helper events can't be loaded", async () => {
@@ -2658,7 +2639,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
             const res = await post("/api/raids/post-sheet", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
         });
 
         it("returns 404 when the event isn't found", async () => {
@@ -2666,7 +2647,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
             const res = await post("/api/raids/post-sheet", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
         });
 
         it("posts the sheet link and returns the success message", async () => {
@@ -2681,7 +2662,7 @@ describe("web/apiRouter", () => {
             expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", {
                 channelId: "chan1", messageId: "m1", message: "Bitte prüfen", createIfMissing: true,
             });
-            expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
+            expect(json(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
         });
 
         it("edits the already-posted message in place instead of posting a new one", async () => {
@@ -2693,7 +2674,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/post-sheet", { event: "e1", message: "Neuer Text" });
             expect(discord.editLink).toHaveBeenCalledWith("chan1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
             expect(discord.postLink).not.toHaveBeenCalled();
-            expect(body(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
+            expect(json(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
         });
 
         it("falls back to posting fresh when editing the tracked message fails", async () => {
@@ -2705,7 +2686,7 @@ describe("web/apiRouter", () => {
             discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m2" });
             const res = await post("/api/raids/post-sheet", { event: "e1", message: "Neuer Text" });
             expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({ message: "Neuer Text" }));
-            expect(body(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
+            expect(json(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
         });
 
         it("returns 500 with the Discord error message on post failure", async () => {
@@ -2713,7 +2694,7 @@ describe("web/apiRouter", () => {
             discord.postLink.mockRejectedValue(new Error("Channel nicht gefunden."));
             const res = await post("/api/raids/post-sheet", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
         });
     });
 
@@ -2734,7 +2715,7 @@ describe("web/apiRouter", () => {
             eventSoftresStore.getEventSoftres.mockReturnValue(null);
             const res = await post("/api/raids/post-softres", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_softres", message: "Für dieses Event gibt es noch keine Softres-Liste." } });
+            expect(json(res)).toEqual({ error: { code: "no_softres", message: "Für dieses Event gibt es noch keine Softres-Liste." } });
             expect(discord.postLink).not.toHaveBeenCalled();
         });
 
@@ -2743,7 +2724,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
             const res = await post("/api/raids/post-softres", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
         });
 
         it("returns 404 when the event isn't found", async () => {
@@ -2751,7 +2732,7 @@ describe("web/apiRouter", () => {
             raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
             const res = await post("/api/raids/post-softres", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
         });
 
         it("posts the softres link and returns the success message", async () => {
@@ -2763,7 +2744,7 @@ describe("web/apiRouter", () => {
                 label: "Softres öffnen", emoji: "🎁",
             });
             expect(eventSoftresStore.markEventSoftresPosted).toHaveBeenCalledWith("e1", { channelId: "chan1", messageId: "m1", message: "Bitte prüfen" });
-            expect(body(res)).toEqual({ data: { message: "Softres-Link in den Channel gepostet." } });
+            expect(json(res)).toEqual({ data: { message: "Softres-Link in den Channel gepostet." } });
         });
 
         it("edits the already-posted softres message in place instead of posting a new one", async () => {
@@ -2775,7 +2756,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/post-softres", { event: "e1", message: "Neuer Text" });
             expect(discord.editLink).toHaveBeenCalledWith("chan1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
             expect(discord.postLink).not.toHaveBeenCalled();
-            expect(body(res)).toEqual({ data: { message: "Softres-Nachricht aktualisiert." } });
+            expect(json(res)).toEqual({ data: { message: "Softres-Nachricht aktualisiert." } });
         });
 
         it("returns 500 with the Discord error message on post failure", async () => {
@@ -2783,7 +2764,7 @@ describe("web/apiRouter", () => {
             discord.postLink.mockRejectedValue(new Error("Channel nicht gefunden."));
             const res = await post("/api/raids/post-softres", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
         });
     });
 
@@ -2800,7 +2781,7 @@ describe("web/apiRouter", () => {
             wowhead.searchItems.mockResolvedValue([{ id: 30883, name: "Kalter Fels" }]);
             const res = await get("/api/settings/item-search", { q: "kalter" });
             expect(wowhead.searchItems).toHaveBeenCalledWith("kalter", { edition: "tbc" });
-            expect(body(res)).toEqual({ data: { items: [{ id: 30883, name: "Kalter Fels" }] } });
+            expect(json(res)).toEqual({ data: { items: [{ id: 30883, name: "Kalter Fels" }] } });
         });
     });
 
@@ -2817,7 +2798,7 @@ describe("web/apiRouter", () => {
             wowhead.searchItems.mockResolvedValue([{ id: 123, name: "Thunderfury", icon: "thunderfury" }]);
             const res = await get("/api/raids/softres/item-search", { q: "thunder", edition: "classic" });
             expect(wowhead.searchItems).toHaveBeenCalledWith("thunder", { edition: "classic" });
-            expect(body(res)).toEqual({ data: { items: [{ id: 123, name: "Thunderfury", icon: "thunderfury" }] } });
+            expect(json(res)).toEqual({ data: { items: [{ id: 123, name: "Thunderfury", icon: "thunderfury" }] } });
         });
     });
 
@@ -2832,7 +2813,7 @@ describe("web/apiRouter", () => {
             setupDefaults();
             const res = await post("/api/raids/softres", { event: "e1", instanceCodes: [] });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_instances", message: "Mindestens eine Instanz wählen." } });
+            expect(json(res)).toEqual({ error: { code: "no_instances", message: "Mindestens eine Instanz wählen." } });
             expect(softres.createRaid).not.toHaveBeenCalled();
         });
 
@@ -2841,7 +2822,7 @@ describe("web/apiRouter", () => {
             softres.editionOf.mockImplementation((code) => (code === "kara" ? "tbc" : "wotlk"));
             const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara", "naxx"] });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "mixed_edition", message: "Alle gewählten Instanzen müssen zur selben Erweiterung gehören." },
             });
         });
@@ -2867,7 +2848,7 @@ describe("web/apiRouter", () => {
                 edition: "tbc", instances: ["kara"], amount: 3, hardReserveCount: 1,
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
+            expect(json(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
         });
 
         it("passes protection: false through when the caller opts out", async () => {
@@ -2887,7 +2868,7 @@ describe("web/apiRouter", () => {
                 event: "e1", instanceCodes: ["kara"], faction: "Horde", hardReserves: [{ id: 123, name: "Item" }],
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res).data.message).toMatch("Hardreserves konnten nicht gesetzt werden");
+            expect(json(res).data.message).toMatch("Hardreserves konnten nicht gesetzt werden");
         });
 
         it("defaults hardReserves to [] when it isn't an array, and returns 500 with the error message on failure", async () => {
@@ -2896,7 +2877,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara"], faction: "Horde", hardReserves: "not-an-array" });
             expect(softres.createRaid).toHaveBeenCalledWith(expect.objectContaining({ hardReserves: [] }));
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "softres_failed", message: "softres.it lehnte die Anfrage ab: unbekannter Fehler" } });
+            expect(json(res)).toEqual({ error: { code: "softres_failed", message: "softres.it lehnte die Anfrage ab: unbekannter Fehler" } });
         });
     });
 
@@ -2906,7 +2887,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/raids/softres/link", { event: "e1", softresUrl: "https://example.com/foo" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: { code: "invalid_url", message: "Das muss ein softres.it-Raid-Link sein (https://softres.it/raid/...)." },
             });
             expect(eventSoftresStore.setEventSoftresLink).not.toHaveBeenCalled();
@@ -2922,7 +2903,7 @@ describe("web/apiRouter", () => {
             expect(eventSoftresStore.setEventSoftresLink).toHaveBeenCalledWith("e1", {
                 url: "https://softres.it/raid/abc123", editUrl: "https://softres.it/raid/abc123/tok",
             });
-            expect(body(res)).toEqual({ data: { message: "Softres-Link aktualisiert." } });
+            expect(json(res)).toEqual({ data: { message: "Softres-Link aktualisiert." } });
         });
     });
 
@@ -2939,7 +2920,7 @@ describe("web/apiRouter", () => {
         it("refuses an unknown loot system", async () => {
             const res = await post("/api/raids/loot-system", { event: "e1", system: "dkp" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("invalid_system");
+            expect(json(res).error.code).toBe("invalid_system");
             expect(eventLootSystemStore.setEventLootSystem).not.toHaveBeenCalled();
         });
 
@@ -2958,7 +2939,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/loot-system", { event: "e1", system: "lootcouncil", softres: true });
             expect(eventLootSystemStore.setEventLootSystem).toHaveBeenCalledWith("e1", { system: "lootcouncil", softres: true, by: "1", byName: "Admin" });
             expect(eventLootSystemStore.lootSystemOf).toHaveBeenCalledWith("e1", "cat1");
-            expect(body(res).data).toMatchObject({ message: "Lootsystem: Loot-Council + Softres.", lootSystem: { system: "lootcouncil" } });
+            expect(json(res).data).toMatchObject({ message: "Lootsystem: Loot-Council + Softres.", lootSystem: { system: "lootcouncil" } });
         });
 
         it("takes \"\" as \"like the category\" and only a literal true as the softres switch", async () => {
@@ -2981,7 +2962,7 @@ describe("web/apiRouter", () => {
             settingsStore.listNotify.mockReturnValue([{ id: "tpl1", name: "Standard-Aufruf" }]);
             const res = mockRes();
             await handle("/api/notify-templates", { method: "GET" }, res);
-            expect(body(res)).toEqual({ data: { templates: [{ id: "tpl1", name: "Standard-Aufruf" }] } });
+            expect(json(res)).toEqual({ data: { templates: [{ id: "tpl1", name: "Standard-Aufruf" }] } });
         });
     });
 
@@ -2995,7 +2976,7 @@ describe("web/apiRouter", () => {
 
             expect(settingsStore.saveNotify).toHaveBeenCalledWith({ name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { template: { id: "tpl1", name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" } } });
+            expect(json(res)).toEqual({ data: { template: { id: "tpl1", name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" } } });
         });
 
         it("updates an existing template by id", async () => {
@@ -3006,7 +2987,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/notify-templates", { id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" });
 
             expect(settingsStore.saveNotify).toHaveBeenCalledWith({ id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" });
-            expect(body(res)).toEqual({ data: { template: { id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" } } });
+            expect(json(res)).toEqual({ data: { template: { id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" } } });
         });
     });
 
@@ -3024,7 +3005,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             settingsStore.deleteNotify.mockReturnValue(true);
             const res = await post("/api/notify-templates/delete", { id: "tpl1" });
-            expect(body(res)).toEqual({ data: { id: "tpl1" } });
+            expect(json(res)).toEqual({ data: { id: "tpl1" } });
         });
     });
 
@@ -3047,7 +3028,7 @@ describe("web/apiRouter", () => {
             discord.listCategories.mockReturnValue([{ id: "cat1", name: "Donnerstag" }]);
             const res = mockRes();
             await handle("/api/raid-templates", { method: "GET" }, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.categoryNames).toEqual({ cat1: "Donnerstag" });
             expect(data.templates.map((t) => [t.id, t.needsSize, t.incomplete, t.defaultFor])).toEqual([
                 ["k1", false, false, ["cat1"]],
@@ -3062,7 +3043,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raid-templates", { ...kara, id: "sneaky" });
             expect(settingsStore.saveRaidTemplate).toHaveBeenCalledWith(expect.objectContaining({ id: "", name: "Karazhan PuG" }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res).data).toMatchObject({ id: "k1", needsSize: false });
+            expect(json(res).data).toMatchObject({ id: "k1", needsSize: false });
         });
 
         it("POST answers 400 with the validation message", async () => {
@@ -3070,14 +3051,14 @@ describe("web/apiRouter", () => {
             settingsStore.saveRaidTemplate.mockReturnValue({ error: "Tanks + Heiler (11) passen nicht in die Größe 10." });
             const res = await post("/api/raid-templates", kara);
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.message).toMatch(/passen nicht/);
+            expect(json(res).error.message).toMatch(/passen nicht/);
         });
 
         it("PATCH updates by id, 400 without id, 404 for an unknown one", async () => {
             admin();
             settingsStore.saveRaidTemplate.mockReturnValue({ template: { ...kara, name: "Neu" } });
             let res = await patch("/api/raid-templates", { ...kara, name: "Neu" });
-            expect(body(res).data.name).toBe("Neu");
+            expect(json(res).data.name).toBe("Neu");
 
             res = await patch("/api/raid-templates", { name: "x" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
@@ -3093,7 +3074,7 @@ describe("web/apiRouter", () => {
             settingsStore.getConfig.mockReturnValue({ categoryRaidTemplate: { cat1: "other" } });
             const res = await request("DELETE", "/api/raid-templates", { id: "k1" });
             expect(settingsStore.deleteRaidTemplate).toHaveBeenCalledWith("k1");
-            expect(body(res)).toEqual({ data: { id: "k1" } });
+            expect(json(res)).toEqual({ data: { id: "k1" } });
         });
 
         it("DELETE answers 409 and names the category when the template is a default", async () => {
@@ -3103,7 +3084,7 @@ describe("web/apiRouter", () => {
             discord.listCategories.mockReturnValue([{ id: "cat1", name: "Donnerstag" }]);
             const res = await request("DELETE", "/api/raid-templates", { id: "k1" });
             expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
-            expect(body(res).error.message).toContain("Standard für Donnerstag");
+            expect(json(res).error.message).toContain("Standard für Donnerstag");
             expect(settingsStore.deleteRaidTemplate).not.toHaveBeenCalled();
         });
 
@@ -3148,7 +3129,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raid-templates/import", {});
 
             expect(settingsStore.saveRaidTemplates).toHaveBeenCalledWith([{ id: "t1", name: "GDKP Kara" }]);
-            expect(body(res).data).toMatchObject({ added: 1, updated: 0, templates: [{ id: "rh-t1", needsSize: true, defaultFor: [] }] });
+            expect(json(res).data).toMatchObject({ added: 1, updated: 0, templates: [{ id: "rh-t1", needsSize: true, defaultFor: [] }] });
         });
     });
 
@@ -3185,7 +3166,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/recruitment", { view: "applications" });
 
             expect(discord.listApplications).toHaveBeenCalledWith("chan1");
-            expect(body(res).data).toMatchObject({
+            expect(json(res).data).toMatchObject({
                 view: "applications",
                 applications: [{ threadId: "a1", className: "Druid", spec: "Balance", classIcon: "classicon_druid", status: "neu" }],
                 applicationsError: null,
@@ -3197,7 +3178,7 @@ describe("web/apiRouter", () => {
             activeGuildFor.mockReturnValueOnce("g1");
             discord.listGuilds.mockReturnValueOnce([{ id: "g0", name: "Andere" }, { id: "g1", name: "Pulse" }]);
             const res = await get("/api/recruitment", { view: "posts" });
-            expect(body(res).data.guildName).toBe("Pulse");
+            expect(json(res).data.guildName).toBe("Pulse");
         });
 
         it("resolves editing/editingPost from the id query params", async () => {
@@ -3208,7 +3189,7 @@ describe("web/apiRouter", () => {
 
             expect(settingsStore.getRecruitment).toHaveBeenCalledWith("t1");
             expect(settingsStore.getRecruitmentPost).toHaveBeenCalledWith("p1");
-            expect(body(res).data).toMatchObject({
+            expect(json(res).data).toMatchObject({
                 editing: { id: "t1", name: "Tpl" },
                 editingPost: { id: "p1", content: "hi" },
             });
@@ -3223,7 +3204,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/recruitment");
 
-            expect(body(res).data.posts).toEqual([{ id: "p1", guildId: "guild-1" }]);
+            expect(json(res).data.posts).toEqual([{ id: "p1", guildId: "guild-1" }]);
         });
     });
 
@@ -3237,7 +3218,7 @@ describe("web/apiRouter", () => {
 
             expect(settingsStore.saveRecruitment).toHaveBeenCalledWith({ name: "Tpl", content: "hi" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "t1", name: "Tpl", content: "hi" } });
+            expect(json(res)).toEqual({ data: { id: "t1", name: "Tpl", content: "hi" } });
         });
     });
 
@@ -3255,7 +3236,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             settingsStore.deleteRecruitment.mockReturnValue(true);
             const res = await post("/api/recruitment/delete", { id: "t1" });
-            expect(body(res)).toEqual({ data: { id: "t1" } });
+            expect(json(res)).toEqual({ data: { id: "t1" } });
         });
     });
 
@@ -3294,7 +3275,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/recruitment/post", { templateId: "t1", channelId: "c1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "post_failed", message: "channel not found" } });
+            expect(json(res)).toEqual({ error: { code: "post_failed", message: "channel not found" } });
         });
     });
 
@@ -3318,7 +3299,7 @@ describe("web/apiRouter", () => {
 
             expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", { content: "new", title: "", body: "", buttonLabel: "Bewerben" });
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith({ id: "p1", content: "new", title: "", body: "", buttonLabel: "Bewerben" });
-            expect(body(res)).toEqual({ data: { id: "p1", content: "new" } });
+            expect(json(res)).toEqual({ data: { id: "p1", content: "new" } });
         });
     });
 
@@ -3328,7 +3309,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             settingsStore.deleteRecruitmentPost.mockReturnValue(true);
             const res = await post("/api/recruitment/post-delete", { id: "p1" });
-            expect(body(res)).toEqual({ data: { id: "p1" } });
+            expect(json(res)).toEqual({ data: { id: "p1" } });
         });
     });
 
@@ -3351,7 +3332,7 @@ describe("web/apiRouter", () => {
 
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledTimes(2);
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1", source: "scan" }));
-            expect(body(res)).toEqual({ data: { count: 2 } });
+            expect(json(res)).toEqual({ data: { count: 2 } });
         });
     });
 
@@ -3379,7 +3360,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/history");
 
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", Infinity);
-            expect(body(res).data).toEqual({
+            expect(json(res).data).toEqual({
                 events: [{ id: "e1", title: "Kara", startTime: 100, categoryId: "cat1" }],
                 upcomingRaids: { events: [{ id: "e1", title: "Kara", lootCount: 2 }], error: null },
                 pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
@@ -3406,7 +3387,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history");
 
-            expect(body(res).data).toEqual({
+            expect(json(res).data).toEqual({
                 events: [],
                 upcomingRaids: { events: [], error: null },
                 pastRaids: { events: [], error: null },
@@ -3428,7 +3409,7 @@ describe("web/apiRouter", () => {
             reportList.logPostedAt.mockReturnValueOnce(555);
             const res = await get("/api/history");
             expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", title: "Log 1", detectedAt: 555 });
-            expect(body(res).data.logs).toEqual([{ id: "l1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
+            expect(json(res).data.logs).toEqual([{ id: "l1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
         });
 
         it("annotates loot characters with their class color and spec icon", async () => {
@@ -3440,7 +3421,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history");
 
-            expect(body(res).data.chars).toEqual([
+            expect(json(res).data.chars).toEqual([
                 {
                     key: "anna@t", character: "Anna", realm: "t", count: 3, className: "Paladin", spec: "Holy", source: "wcl", reportId: "r1",
                     classColor: expect.any(String), iconUrl: expect.any(String),
@@ -3450,8 +3431,8 @@ describe("web/apiRouter", () => {
                     classColor: "", iconUrl: "",
                 },
             ]);
-            expect(body(res).data.chars[0].classColor).not.toBe("");
-            expect(body(res).data.chars[0].iconUrl).toMatch(/^https:\/\//);
+            expect(json(res).data.chars[0].classColor).not.toBe("");
+            expect(json(res).data.chars[0].iconUrl).toMatch(/^https:\/\//);
         });
     });
 
@@ -3461,7 +3442,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/history/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
-            expect(body(res)).toEqual({ data: { id: "l1" } });
+            expect(json(res)).toEqual({ data: { id: "l1" } });
         });
     });
 
@@ -3478,7 +3459,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/history/import", { data: "" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_data", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_data", message: expect.any(String) } });
         });
 
         it("returns 400 with the parser's message on a LootParseError", async () => {
@@ -3487,7 +3468,7 @@ describe("web/apiRouter", () => {
             lootImport.parseLoot.mockImplementation(() => { throw new lootImport.LootParseError("Ungültiges Format."); });
             const res = await post("/api/history/import", { data: "garbage" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "parse_failed", message: "Ungültiges Format." } });
+            expect(json(res)).toEqual({ error: { code: "parse_failed", message: "Ungültiges Format." } });
         });
 
         it("returns 400 when parsing succeeds but finds no items", async () => {
@@ -3496,7 +3477,7 @@ describe("web/apiRouter", () => {
             lootImport.parseLoot.mockReturnValue([]);
             const res = await post("/api/history/import", { data: "text" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "empty", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "empty", message: expect.any(String) } });
         });
 
         it("imports under a manual label when event is __manual__", async () => {
@@ -3513,7 +3494,7 @@ describe("web/apiRouter", () => {
                 { categoryId: "", eventLabel: "SSC/TK — 12.07." },
             );
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", categoryId: "", added: 1, skipped: 0 } });
+            expect(json(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", categoryId: "", added: 1, skipped: 0 } });
         });
 
         // A manual import has no event to take a category from, so the one the
@@ -3534,7 +3515,7 @@ describe("web/apiRouter", () => {
                 [{ itemName: "Sword" }],
                 { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
             );
-            expect(body(res).data).toMatchObject({ eventId: "manual-pug-raid", categoryId: "cat-pug" });
+            expect(json(res).data).toMatchObject({ eventId: "manual-pug-raid", categoryId: "cat-pug" });
         });
 
         it("refuses a category the guild does not have", async () => {
@@ -3547,7 +3528,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "nope" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
             expect(lootStore.addImport).not.toHaveBeenCalled();
         });
 
@@ -3574,7 +3555,7 @@ describe("web/apiRouter", () => {
             lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
             const res = await post("/api/history/import", { data: "text", event: "__manual__" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_label", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_label", message: expect.any(String) } });
         });
 
         it("returns 409 when the auto-matched date is ambiguous", async () => {
@@ -3587,7 +3568,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/import", { data: "text", event: "__auto__" });
 
             expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "ambiguous", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "ambiguous", message: expect.any(String) } });
         });
 
         it("auto-matches a known event and marks the category's loot tool", async () => {
@@ -3607,7 +3588,7 @@ describe("web/apiRouter", () => {
 
             expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "gargul" } });
-            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 3, skipped: 1 } });
+            expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 3, skipped: 1 } });
         });
 
         // The event's own Discord category is the truth — a category picked in
@@ -3627,7 +3608,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/import", { data: "text", event: "e1", categoryId: "cat-pug" });
 
             expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
-            expect(body(res).data.categoryId).toBe("cat1");
+            expect(json(res).data.categoryId).toBe("cat1");
         });
 
         it("imports directly against a given event id", async () => {
@@ -3643,7 +3624,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/import", { data: "text", event: "e1" });
 
             expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
-            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 1, skipped: 0 } });
+            expect(json(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 1, skipped: 0 } });
         });
     });
 
@@ -3663,7 +3644,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/loot-category", { event: "manual-pug-raid", categoryId: "cat-pug" });
 
             expect(lootStore.setEventCategory).toHaveBeenCalledWith("manual-pug-raid", "cat-pug");
-            expect(body(res)).toEqual({ data: { eventId: "manual-pug-raid", categoryId: "cat-pug", updated: 7 } });
+            expect(json(res)).toEqual({ data: { eventId: "manual-pug-raid", categoryId: "cat-pug", updated: 7 } });
         });
 
         it("clears the category for an empty id", async () => {
@@ -3674,7 +3655,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/loot-category", { event: "e1", categoryId: "" });
 
             expect(lootStore.setEventCategory).toHaveBeenCalledWith("e1", "");
-            expect(body(res).data).toMatchObject({ categoryId: "", updated: 2 });
+            expect(json(res).data).toMatchObject({ categoryId: "", updated: 2 });
         });
 
         it("returns 400 without an event", async () => {
@@ -3682,7 +3663,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/history/loot-category", { categoryId: "cat-pug" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
             expect(lootStore.setEventCategory).not.toHaveBeenCalled();
         });
 
@@ -3695,7 +3676,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/loot-category", { event: "e1", categoryId: "nope" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
             expect(lootStore.setEventCategory).not.toHaveBeenCalled();
         });
 
@@ -3724,7 +3705,7 @@ describe("web/apiRouter", () => {
             lootStore.removeItems.mockReturnValue(2);
             const res = await post("/api/history/loot-delete", { ids: ["a1", "b2"] });
             expect(lootStore.removeItems).toHaveBeenCalledWith(["a1", "b2"]);
-            expect(body(res)).toEqual({ data: { removed: 2 } });
+            expect(json(res)).toEqual({ data: { removed: 2 } });
         });
 
         it("accepts a single id", async () => {
@@ -3740,7 +3721,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/history/loot-delete", { ids: ["", "  "] });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_id", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "no_id", message: expect.any(String) } });
             expect(lootStore.removeItems).not.toHaveBeenCalled();
         });
 
@@ -3752,7 +3733,7 @@ describe("web/apiRouter", () => {
             lootStore.removeItems.mockReturnValue(0);
             const res = await post("/api/history/loot-delete", { id: "gone" });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
         });
 
         it("returns 401 for an anonymous caller", async () => {
@@ -3787,7 +3768,7 @@ describe("web/apiRouter", () => {
         it("offers every raid's drops, the reasons and the known raiders", async () => {
             characterInfo.annotatedCharacters.mockReturnValue([{ character: "Anna", className: "Paladin", spec: "Holy" }]);
 
-            const data = body(await get("/api/history/loot-picker", { event: "e1", title: "Raidabend" })).data;
+            const data = json(await get("/api/history/loot-picker", { event: "e1", title: "Raidabend" })).data;
 
             const ssc = data.contents.find((c) => c.id === "ssc");
             expect(ssc.items.length).toBeGreaterThan(0);
@@ -3801,15 +3782,15 @@ describe("web/apiRouter", () => {
 
         it("preselects the raid the event's own loot says it was", async () => {
             lootStore.listByEvent.mockReturnValue([{ contentId: "bt" }, { contentId: "hyjal" }]);
-            const data = body(await get("/api/history/loot-picker", { event: "e1", title: "SSC/TK" })).data;
+            const data = json(await get("/api/history/loot-picker", { event: "e1", title: "SSC/TK" })).data;
             // The stored loot wins over the title — item ids are evidence, a
             // title is a plan.
             expect(data.suggested).toEqual(["hyjal", "bt"]);
         });
 
         it("falls back to the event title, and suggests nothing when it says nothing", async () => {
-            expect(body(await get("/api/history/loot-picker", { event: "e1", title: "Kara" })).data.suggested).toEqual(["kara"]);
-            expect(body(await get("/api/history/loot-picker", { event: "e1", title: "Raid" })).data.suggested).toEqual([]);
+            expect(json(await get("/api/history/loot-picker", { event: "e1", title: "Kara" })).data.suggested).toEqual(["kara"]);
+            expect(json(await get("/api/history/loot-picker", { event: "e1", title: "Raid" })).data.suggested).toEqual([]);
         });
     });
 
@@ -3839,7 +3820,7 @@ describe("web/apiRouter", () => {
                 awardedAt: 5000,
             })], { categoryId: "cat1", eventLabel: "SSC/TK" });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res).data).toMatchObject({ eventId: "e1", eventLabel: "SSC/TK", added: 1 });
+            expect(json(res).data).toMatchObject({ eventId: "e1", eventLabel: "SSC/TK", added: 1 });
         });
 
         it("looks up the item's name and icon before storing it", async () => {
@@ -3851,18 +3832,18 @@ describe("web/apiRouter", () => {
             lootStore.addImport.mockReturnValue({ added: 0, skipped: 1 });
             const res = await post("/api/history/loot-add", entry);
             expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "duplicate", message: expect.any(String) } });
+            expect(json(res)).toEqual({ error: { code: "duplicate", message: expect.any(String) } });
         });
 
         it("returns 400 without an event, an item or a character", async () => {
             const noEvent = await post("/api/history/loot-add", { ...entry, event: "" });
-            expect(body(noEvent)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
+            expect(json(noEvent)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
 
             const noItem = await post("/api/history/loot-add", { ...entry, itemId: 0 });
-            expect(body(noItem)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
+            expect(json(noItem)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
 
             const noChar = await post("/api/history/loot-add", { ...entry, character: "  " });
-            expect(body(noChar)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
+            expect(json(noChar)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
             expect(lootStore.addImport).not.toHaveBeenCalled();
         });
 
@@ -3884,7 +3865,7 @@ describe("web/apiRouter", () => {
             lootStore.clearEvent.mockReturnValue(4);
             const res = await post("/api/history/clear", { event: "e1" });
             expect(lootStore.clearEvent).toHaveBeenCalledWith("e1");
-            expect(body(res)).toEqual({ data: { removed: 4 } });
+            expect(json(res)).toEqual({ data: { removed: 4 } });
         });
     });
 
@@ -3894,7 +3875,7 @@ describe("web/apiRouter", () => {
             lootStore.listByEvent.mockReturnValue([{ eventLabel: "Kara", itemName: "Sword" }]);
             const res = await get("/api/history/event", { event: "e1" });
             expect(lootStore.listByEvent).toHaveBeenCalledWith("e1");
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: {
                     eventId: "e1",
                     label: "Kara",
@@ -3911,7 +3892,7 @@ describe("web/apiRouter", () => {
                 { eventLabel: "Kara", itemName: "Shield", character: "Bob", characterKey: "bob" },
             ]);
 
-            const [anna, bob] = body(await get("/api/history/event", { event: "e1" })).data.items;
+            const [anna, bob] = json(await get("/api/history/event", { event: "e1" })).data.items;
 
             expect(anna.className).toBe("Paladin");
             expect(anna.spec).toBe("Holy");
@@ -3955,7 +3936,7 @@ describe("web/apiRouter", () => {
                 totalPages: 2, topItemCount: 4, contents: [], reasons: [], unknownContentCount: 0,
             });
             const res = await get("/api/history/loot-awards", { page: "2" });
-            expect(body(res).data).toMatchObject({ page: 2, total: 30, totalPages: 2, topItemCount: 4 });
+            expect(json(res).data).toMatchObject({ page: 2, total: 30, totalPages: 2, topItemCount: 4 });
         });
 
         // Rows imported before name enrichment existed would show as "Item <id>"
@@ -3993,7 +3974,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/characters-resolve", {});
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res).data).toEqual(expect.objectContaining({
+            expect(json(res).data).toEqual(expect.objectContaining({
                 fromExport: 1, fromReports: 2, fromWcl: 0,
                 message: "3 Charakter(e) ergänzt.",
             }));
@@ -4010,7 +3991,7 @@ describe("web/apiRouter", () => {
 
             const res = await post("/api/history/characters-resolve", {});
 
-            expect(body(res).data.message).toBe(
+            expect(json(res).data.message).toBe(
                 "4 Charakter(e) ergänzt, 3 Log(s) ausgewertet, 2 weitere(s) Log(s) offen — nochmal ausführen, "
                 + "2 ohne zugeordnetes Log (Log im CLA-Menü dem Event zuordnen), 1 weiterhin ohne Klasse.",
             );
@@ -4027,7 +4008,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/characters-resolve", {});
 
             expect(res.writeHead).toHaveBeenCalledWith(502, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 error: {
                     code: "wcl_unavailable",
                     message: "WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env) — Specs können nicht aus den Logs gelesen werden.",
@@ -4063,7 +4044,7 @@ describe("web/apiRouter", () => {
             expect(lootStore.listByCharacter).toHaveBeenCalledWith("Anna");
             expect(mockGetCharacterSummary).not.toHaveBeenCalled();
             expect(mockGetEquipment).not.toHaveBeenCalled();
-            expect(body(res).data).toEqual({
+            expect(json(res).data).toEqual({
                 character: "Anna",
                 realm: "thunderstrike",
                 items: [{
@@ -4090,7 +4071,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/history/char", { name: "Anna" });
 
             expect(charGearIssues.issuesForCharacter).toHaveBeenCalledWith("Anna");
-            expect(body(res).data.gearIssues).toMatchObject({ issueCount: 2, reportRefId: "r1" });
+            expect(json(res).data.gearIssues).toMatchObject({ issueCount: 2, reportRefId: "r1" });
             charGearIssues.issuesForCharacter.mockReturnValue(null);
         });
 
@@ -4099,12 +4080,12 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.realm).toBe("thunderstrike");
+            expect(json(res).data.realm).toBe("thunderstrike");
         });
 
         it("returns an empty character/realm/gear response when name is missing", async () => {
             const res = await get("/api/history/char", {});
-            expect(body(res).data.character).toBe("");
+            expect(json(res).data.character).toBe("");
             expect(mockGetCharacterSummary).not.toHaveBeenCalled();
         });
 
@@ -4116,11 +4097,11 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gear).toEqual([{ slot: "Head", itemId: 123, name: "Helm" }]);
-            expect(body(res).data.charSummary).toEqual({ name: "Anna", level: 70, className: "Paladin" });
-            expect(body(res).data.gearConfigured).toBe(true);
-            expect(body(res).data.gearError).toBe("");
-            expect(body(res).data.info).toEqual({
+            expect(json(res).data.gear).toEqual([{ slot: "Head", itemId: 123, name: "Helm" }]);
+            expect(json(res).data.charSummary).toEqual({ name: "Anna", level: 70, className: "Paladin" });
+            expect(json(res).data.gearConfigured).toBe(true);
+            expect(json(res).data.gearError).toBe("");
+            expect(json(res).data.info).toEqual({
                 character: "Anna",
                 className: "Paladin",
                 classColor: "#F58CBA",
@@ -4136,7 +4117,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe(
+            expect(json(res).data.gearError).toBe(
                 "Charakter „Anna\" nicht in der Blizzard-API gefunden (404, Namespace profile-classicann-eu). "
                 + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-eu).",
             );
@@ -4149,7 +4130,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe("Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.");
+            expect(json(res).data.gearError).toBe("Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.");
         });
 
         it("builds the 401 gearError", async () => {
@@ -4159,7 +4140,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe("Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.");
+            expect(json(res).data.gearError).toBe("Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.");
         });
 
         it("builds the generic-status gearError for any other HTTP status", async () => {
@@ -4169,7 +4150,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe("Blizzard-API-Fehler (500).");
+            expect(json(res).data.gearError).toBe("Blizzard-API-Fehler (500).");
         });
 
         it("builds the network-error gearError when there is no status", async () => {
@@ -4179,7 +4160,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe("Blizzard-API nicht erreichbar (ECONNRESET).");
+            expect(json(res).data.gearError).toBe("Blizzard-API nicht erreichbar (ECONNRESET).");
         });
 
         it("falls back to a generic network-error message when lastError carries no message either", async () => {
@@ -4189,7 +4170,7 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/history/char", { name: "Anna" });
 
-            expect(body(res).data.gearError).toBe("Blizzard-API nicht erreichbar (Netzwerkfehler).");
+            expect(json(res).data.gearError).toBe("Blizzard-API nicht erreichbar (Netzwerkfehler).");
         });
     });
 
@@ -4224,7 +4205,7 @@ describe("web/apiRouter", () => {
             ]);
 
             const res = await get("/api/cla");
-            const data = body(res).data;
+            const data = json(res).data;
 
             expect(data.filter).toBe("all");
             expect(data.page.items.map((r) => r.id)).toEqual(["l1", "l3", "report:r3"]);
@@ -4253,7 +4234,7 @@ describe("web/apiRouter", () => {
             const res = await get("/api/cla");
 
             expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([expect.objectContaining({ id: "l1" })]);
-            expect(body(res).data.page.items[0]).toMatchObject({ title: "Hyjal", raids: [expect.objectContaining({ killed: 3, total: 5 })] });
+            expect(json(res).data.page.items[0]).toMatchObject({ title: "Hyjal", raids: [expect.objectContaining({ killed: 3, total: 5 })] });
         });
 
         it("offers candidates for assigned logs too, and counts what auto-assign would link", async () => {
@@ -4268,26 +4249,26 @@ describe("web/apiRouter", () => {
             logEventMatch.autoMatches.mockReturnValueOnce([{ log: { id: "l2" }, event: { id: "e1" } }]);
 
             const res = await get("/api/cla");
-            const items = body(res).data.page.items;
+            const items = json(res).data.page.items;
 
             // annotateMatches skips linked logs, so the route hands them over without their event
             expect(logEventMatch.annotateMatches.mock.calls[0][0].every((it) => it.eventId === "")).toBe(true);
             expect(items.find((r) => r.id === "l1").eventId).toBe("e9");
             expect(items.find((r) => r.id === "l1").candidates[0]).toMatchObject({ eventId: "e1", contentId: "hyjal" });
-            expect(body(res).data.autoMatchCount).toBe(1);
+            expect(json(res).data.autoMatchCount).toBe(1);
             expect(logEventMatch.autoMatches.mock.calls[0][0].map((l) => l.id)).toEqual(["l2"]);
         });
 
         it("logChannelsConfigured is false when no log channels are configured", async () => {
             settingsStore.getConfig.mockReturnValue({ logChannelIds: [] });
             const res = await get("/api/cla");
-            expect(body(res).data.logChannelsConfigured).toBe(false);
+            expect(json(res).data.logChannelsConfigured).toBe(false);
         });
 
         it("logChannelsConfigured is true when at least one log channel is configured", async () => {
             settingsStore.getConfig.mockReturnValue({ logChannelIds: ["c1"] });
             const res = await get("/api/cla");
-            expect(body(res).data.logChannelsConfigured).toBe(true);
+            expect(json(res).data.logChannelsConfigured).toBe(true);
         });
 
         it("annotates categories and matches against the guild's events", async () => {
@@ -4314,8 +4295,8 @@ describe("web/apiRouter", () => {
 
             const res = await get("/api/cla");
 
-            expect(body(res).data.matchEventsError).toBe("API down");
-            expect(body(res).data.autoMatchCount).toBe(0);
+            expect(json(res).data.matchEventsError).toBe("API down");
+            expect(json(res).data.autoMatchCount).toBe(0);
         });
     });
 
@@ -4335,8 +4316,8 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123" });
 
             expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
-            expect(body(res).data.status).toBe("running");
-            expect(body(res).data.jobId).toEqual(expect.any(String));
+            expect(json(res).data.status).toBe("running");
+            expect(json(res).data.jobId).toEqual(expect.any(String));
             await flushJobs();
             expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
         });
@@ -4356,7 +4337,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla", { link: "  " });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("build_failed");
+            expect(json(res).error.code).toBe("build_failed");
             expect(buildReport).not.toHaveBeenCalled();
         });
 
@@ -4365,9 +4346,9 @@ describe("web/apiRouter", () => {
 
             const started = await post("/api/cla", { link: "https://x/reports/abc123" });
             await flushJobs();
-            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
-            expect(body(res).data).toMatchObject({ status: "done", id: "abc123", url: "/r/abc123" });
+            expect(json(res).data).toMatchObject({ status: "done", id: "abc123", url: "/r/abc123" });
         });
 
         it("reports a ReportError as the job's error message", async () => {
@@ -4375,9 +4356,9 @@ describe("web/apiRouter", () => {
 
             const started = await post("/api/cla", { link: "not-a-link" });
             await flushJobs();
-            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
-            expect(body(res).data).toMatchObject({
+            expect(json(res).data).toMatchObject({
                 status: "error", error: "Konnte keine Report-ID aus dem Link lesen.",
             });
         });
@@ -4388,9 +4369,9 @@ describe("web/apiRouter", () => {
 
             const started = await post("/api/cla", { link: "https://x" });
             await flushJobs();
-            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
-            expect(body(res).data).toMatchObject({
+            expect(json(res).data).toMatchObject({
                 status: "error", error: "Unerwarteter Fehler beim Erstellen der Auswertung.",
             });
         });
@@ -4408,17 +4389,17 @@ describe("web/apiRouter", () => {
 
             const started = await post("/api/cla", { link: "https://x/reports/abc" });
             await flushJobs();
-            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+            const res = await get("/api/cla/report-status", { jobId: json(started).data.jobId });
 
-            expect(body(res).data).toMatchObject({ status: "error", incomplete: true });
-            expect(body(res).data.raids).toEqual([expect.objectContaining({
+            expect(json(res).data).toMatchObject({ status: "error", incomplete: true });
+            expect(json(res).data.raids).toEqual([expect.objectContaining({
                 contentId: "hyjal", label: "Hyjal", killed: 1, total: 2, finalKilled: false, missing: ["Archimonde"],
             })]);
         });
 
         it("answers unknown for a job id nobody started", async () => {
             const res = await get("/api/cla/report-status", { jobId: "nope" });
-            expect(body(res).data).toEqual({ status: "unknown" });
+            expect(json(res).data).toEqual({ status: "unknown" });
         });
     });
 
@@ -4445,8 +4426,8 @@ describe("web/apiRouter", () => {
             expect(logStore.getByReportRefId).toHaveBeenCalledWith("abc");
             expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
             expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
-            expect(body(res).data).toMatchObject({ reportId: "abc", logId: "l1" });
-            expect(body(res).data.message).toMatch(/offen/);
+            expect(json(res).data).toMatchObject({ reportId: "abc", logId: "l1" });
+            expect(json(res).data.message).toMatch(/offen/);
         });
 
         it("deletes a report that has no tracked log without touching the log store", async () => {
@@ -4454,7 +4435,7 @@ describe("web/apiRouter", () => {
 
             expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
             expect(logStore.clearEvaluation).not.toHaveBeenCalled();
-            expect(body(res).data).toEqual({ reportId: "abc", logId: "", message: "Auswertung gelöscht." });
+            expect(json(res).data).toEqual({ reportId: "abc", logId: "", message: "Auswertung gelöscht." });
         });
 
         it("returns 400 when neither a report file nor a log exists for the id", async () => {
@@ -4463,7 +4444,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/report-delete", { reportId: "nope" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Auswertung nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Auswertung nicht gefunden." } });
             expect(logStore.clearEvaluation).not.toHaveBeenCalled();
         });
 
@@ -4474,7 +4455,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/report-delete", { reportId: "abc" });
 
             expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
-            expect(body(res).data.logId).toBe("l1");
+            expect(json(res).data.logId).toBe("l1");
         });
     });
 
@@ -4490,7 +4471,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/report-unlink", { reportId: "abc" });
 
             expect(logStore.unlinkEvent).toHaveBeenCalledWith("l1");
-            expect(body(res)).toEqual({ data: { reportId: "abc", logId: "l1", message: "Zuordnung entfernt." } });
+            expect(json(res)).toEqual({ data: { reportId: "abc", logId: "l1", message: "Zuordnung entfernt." } });
         });
 
         it("leaves the report itself alone", async () => {
@@ -4504,7 +4485,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/report-unlink", { reportId: "abc" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Zu dieser Auswertung gibt es kein Log." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Zu dieser Auswertung gibt es kein Log." } });
             expect(logStore.unlinkEvent).not.toHaveBeenCalled();
         });
 
@@ -4514,7 +4495,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/report-unlink", { reportId: "abc" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
+            expect(json(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
         });
     });
 
@@ -4534,7 +4515,7 @@ describe("web/apiRouter", () => {
             logChannel.evaluateLog.mockReturnValue(new Promise((r) => { finish = r; }));
             const res = await post("/api/cla/eval", { logId: "l1" });
             expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { status: "running", section: "cla", logId: "l1", alreadyRunning: false },
             });
             finish({ ok: true, url: "/r/abc" });
@@ -4558,7 +4539,7 @@ describe("web/apiRouter", () => {
             logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], reportUrl: "/r/xyz" });
             const res = await post("/api/cla/eval", { logId: "l1", section: "cla" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { alreadyEvaluated: true, url: "/r/xyz", section: "cla", status: "done" },
             });
             expect(logChannel.evaluateLog).not.toHaveBeenCalled();
@@ -4577,20 +4558,20 @@ describe("web/apiRouter", () => {
             logStore.getLog.mockReturnValue(null);
             const res = await post("/api/cla/eval", { logId: "nope" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Log nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "eval_failed", message: "Log nicht gefunden." } });
             expect(logChannel.evaluateLog).not.toHaveBeenCalled();
         });
 
         it("rejects a request without a log id", async () => {
             const res = await post("/api/cla/eval", {});
-            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Kein Log angegeben." } });
+            expect(json(res)).toEqual({ error: { code: "eval_failed", message: "Kein Log angegeben." } });
         });
 
         it("flags a second start while the first is still running", async () => {
             logChannel.evaluateLog.mockReturnValue(new Promise(() => {}));
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             const res = await post("/api/cla/eval", { logId: "l1", section: "rpb" });
-            expect(body(res).data.alreadyRunning).toBe(true);
+            expect(json(res).data.alreadyRunning).toBe(true);
         });
     });
 
@@ -4616,7 +4597,7 @@ describe("web/apiRouter", () => {
                 expect.objectContaining({ rpb: null, sections: ["cla"] }), "rep1",
             );
             expect(reportStore.deleteReport).not.toHaveBeenCalled();
-            expect(body(res).data).toMatchObject({ logId: "l1", section: "rpb", remaining: ["cla"] });
+            expect(json(res).data).toMatchObject({ logId: "l1", section: "rpb", remaining: ["cla"] });
         });
 
         it("deletes the whole report when the last half is dropped", async () => {
@@ -4628,21 +4609,21 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
             expect(reportStore.deleteReport).toHaveBeenCalledWith("rep1");
             expect(reportStore.saveReport).not.toHaveBeenCalled();
-            expect(body(res).data.message).toMatch(/offen/i);
+            expect(json(res).data.message).toMatch(/offen/i);
         });
 
         it("rejects a half that was never evaluated", async () => {
             logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"] });
             const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("not_evaluated");
+            expect(json(res).error.code).toBe("not_evaluated");
             expect(logStore.clearSection).not.toHaveBeenCalled();
         });
 
         it("rejects an unknown log", async () => {
             logStore.getLog.mockReturnValue(null);
             const res = await post("/api/cla/eval-reset", { logId: "nope", section: "cla" });
-            expect(body(res).error).toEqual({ code: "not_found", message: "Log nicht gefunden." });
+            expect(json(res).error).toEqual({ code: "not_found", message: "Log nicht gefunden." });
         });
 
         it("defaults to the CLA half for an unknown section", async () => {
@@ -4660,7 +4641,7 @@ describe("web/apiRouter", () => {
             reportStore.getReport.mockReturnValue(null);
             const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
             expect(reportStore.saveReport).not.toHaveBeenCalled();
-            expect(body(res).data.remaining).toEqual(["cla"]);
+            expect(json(res).data.remaining).toEqual(["cla"]);
         });
 
         it("requires a csrf token", async () => {
@@ -4682,7 +4663,7 @@ describe("web/apiRouter", () => {
             logChannel.evaluateLog.mockReturnValue(new Promise(() => {}));
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
-            expect(body(res).data.status).toBe("running");
+            expect(json(res).data.status).toBe("running");
         });
 
         it("reports the finished report's url", async () => {
@@ -4690,7 +4671,7 @@ describe("web/apiRouter", () => {
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             await flushJobs();
             const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
-            expect(body(res).data).toMatchObject({ status: "done", url: "/r/abc", id: "abc" });
+            expect(json(res).data).toMatchObject({ status: "done", url: "/r/abc", id: "abc" });
         });
 
         it("surfaces a failed evaluation with its message", async () => {
@@ -4698,7 +4679,7 @@ describe("web/apiRouter", () => {
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             await flushJobs();
             const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
-            expect(body(res).data).toMatchObject({ status: "error", error: "Report ist privat." });
+            expect(json(res).data).toMatchObject({ status: "error", error: "Report ist privat." });
         });
 
         it("answers from the persisted state when no job is tracked (after a restart)", async () => {
@@ -4706,13 +4687,13 @@ describe("web/apiRouter", () => {
                 id: "l1", status: "done", sections: ["rpb"], reportUrl: "/r/old", reportRefId: "old",
             });
             const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
-            expect(body(res).data).toMatchObject({ status: "done", url: "/r/old", id: "old" });
+            expect(json(res).data).toMatchObject({ status: "done", url: "/r/old", id: "old" });
         });
 
         it("reports unknown when neither a job nor a result exists", async () => {
             logStore.getLog.mockReturnValue({ id: "l1", status: "open" });
             const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
-            expect(body(res).data.status).toBe("unknown");
+            expect(json(res).data.status).toBe("unknown");
         });
 
         it("requires an admin session", async () => {
@@ -4733,14 +4714,14 @@ describe("web/apiRouter", () => {
             logChannel.scanLogChannels.mockResolvedValue(3);
             const res = await post("/api/cla/scan", {});
             expect(logChannel.scanLogChannels).toHaveBeenCalledWith("guild-1");
-            expect(body(res)).toEqual({ data: { found: 3, message: "3 neue(r) Log(s) gefunden." } });
+            expect(json(res)).toEqual({ data: { found: 3, message: "3 neue(r) Log(s) gefunden." } });
         });
 
         it("returns a 500 with the thrown message on failure", async () => {
             logChannel.scanLogChannels.mockRejectedValue(new Error("timeout"));
             const res = await post("/api/cla/scan", {});
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "scan_failed", message: "timeout" } });
+            expect(json(res)).toEqual({ error: { code: "scan_failed", message: "timeout" } });
         });
     });
 
@@ -4750,7 +4731,7 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             const res = await post("/api/cla/log-delete", { logId: "l1" });
             expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
-            expect(body(res)).toEqual({ data: { logId: "l1" } });
+            expect(json(res)).toEqual({ data: { logId: "l1" } });
         });
     });
 
@@ -4767,7 +4748,7 @@ describe("web/apiRouter", () => {
             logStore.getLog.mockReturnValue(null);
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_found", message: "Log nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "not_found", message: "Log nicht gefunden." } });
             expect(logStore.linkEvent).not.toHaveBeenCalled();
         });
 
@@ -4775,7 +4756,7 @@ describe("web/apiRouter", () => {
             logStore.getLog.mockReturnValue({ id: "l1" });
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
+            expect(json(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
         });
 
         it("surfaces the Raid-Helper error when events cannot be loaded", async () => {
@@ -4784,7 +4765,7 @@ describe("web/apiRouter", () => {
             mockGetPastEvents.mockRejectedValue(new Error("API down"));
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
         });
 
         it("returns 400 when the event id is not among the resolved events", async () => {
@@ -4796,7 +4777,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
         });
 
         it("links the log to the re-resolved event on success", async () => {
@@ -4808,7 +4789,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
 
             expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual" });
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
             });
         });
@@ -4826,14 +4807,14 @@ describe("web/apiRouter", () => {
         it("returns 400 when no event id is given", async () => {
             const res = await post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
+            expect(json(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
             expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
         });
 
         it("returns 400 when the event id is not among the resolved events", async () => {
             const res = await post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
+            expect(json(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
             expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
         });
 
@@ -4841,7 +4822,7 @@ describe("web/apiRouter", () => {
             manualLog.linkLogByUrl.mockReturnValue({ error: "Kein gültiger Warcraft-Logs-Link." });
             const res = await post("/api/cla/log-link-url", { link: "nope", eventId: "e2" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "invalid_link", message: "Kein gültiger Warcraft-Logs-Link." } });
+            expect(json(res)).toEqual({ error: { code: "invalid_link", message: "Kein gültiger Warcraft-Logs-Link." } });
         });
 
         it("registers + links the pasted URL and backfills the title", async () => {
@@ -4856,7 +4837,7 @@ describe("web/apiRouter", () => {
                 "guild-1",
             );
             expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([log]);
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { logId: "l9", eventId: "e2", eventLabel: "Other", message: "WCL-Link „Other\" zugeordnet." },
             });
         });
@@ -4872,14 +4853,14 @@ describe("web/apiRouter", () => {
             logStore.unlinkEvent.mockReturnValue(null);
             const res = await post("/api/cla/log-unlink", { logId: "l1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
+            expect(json(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
         });
 
         it("removes the assignment on success", async () => {
             logStore.unlinkEvent.mockReturnValue({ id: "l1" });
             const res = await post("/api/cla/log-unlink", { logId: "l1" });
             expect(logStore.unlinkEvent).toHaveBeenCalledWith("l1");
-            expect(body(res)).toEqual({ data: { logId: "l1", message: "Zuordnung entfernt." } });
+            expect(json(res)).toEqual({ data: { logId: "l1", message: "Zuordnung entfernt." } });
         });
     });
 
@@ -4897,7 +4878,7 @@ describe("web/apiRouter", () => {
             mockGetPastEvents.mockRejectedValue(new Error("API down"));
             const res = await post("/api/cla/log-automatch", {});
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
+            expect(json(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
             expect(logStore.linkEvent).not.toHaveBeenCalled();
         });
 
@@ -4920,7 +4901,7 @@ describe("web/apiRouter", () => {
                 [matchedEvent],
             );
             expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto" });
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { matched: 1, remaining: 1, message: "1 Log(s) automatisch zugeordnet, 1 ohne eindeutiges Event." },
             });
         });
@@ -4932,7 +4913,7 @@ describe("web/apiRouter", () => {
 
             const res = await post("/api/cla/log-automatch", {});
 
-            expect(body(res)).toEqual({
+            expect(json(res)).toEqual({
                 data: { matched: 1, remaining: 0, message: "1 Log(s) automatisch zugeordnet." },
             });
         });
@@ -4952,6 +4933,6 @@ describe("web/apiRouter", () => {
         const handled = await handle("/api/does-not-exist", { method: "GET" }, res);
         expect(handled).toBe(true);
         expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
-        expect(body(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
+        expect(json(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
     });
 });

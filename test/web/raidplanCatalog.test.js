@@ -1,11 +1,8 @@
 // The raid plan catalog: defaults (code) and overrides (data) kept apart, CRUD, reset, the API and its gate,
 // mob and spell references in assignments, snapshots for deleted entries, the classes the suggestions use.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn(), readRawBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 
 const { readJsonBody } = require("../../src/web/apiBody");
 const { tempStoreFile } = require("../helpers/tempStore");
@@ -19,13 +16,12 @@ const { checkAccess } = require("../../src/web/apiAccess");
 const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => { const p = JSON.parse(r.end.mock.calls[0][0]); return p.data || p.error; };
+const { mockRes, status, json } = require("../helpers/http");
+const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, method = "POST") {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {}, method }, r, new URL("http://x/api/raidplan/catalog"));
     return r;
 }

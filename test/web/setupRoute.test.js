@@ -2,11 +2,8 @@
 // approved lineup and never the draft, writing takes `raids` write, and the
 // explanation runs as a background job that needs the Anthropic key.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 let mockConfig = {};
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
 const mockEvents = new Map();
@@ -47,25 +44,19 @@ const setupMessage = require("../../src/web/setupMessage");
 const route = require("../../src/web/apiRoutes/setup");
 const { checkAccess } = require("../../src/web/apiAccess");
 const { su } = require("../utils/setup/fixtures");
+const { mockRes, status, body } = require("../helpers/http");
+const { ownEvent } = require("../factories/events");
 
 const ID = "eh-kara";
 const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 
-function res() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => {
-    const parsed = JSON.parse(r.end.mock.calls[0][0]);
-    return parsed.data || parsed;
-};
 const url = (q) => new URL(`http://x/api/raids/setup?${q}`);
 
 async function call(handler, user, payload, query) {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, query ? url(query) : undefined);
     return r;
 }
@@ -73,10 +64,10 @@ async function call(handler, user, payload, query) {
 beforeEach(() => {
     mockConfig = {};
     mockEvents.clear();
-    mockEvents.set(ID, {
-        id: ID, source: "eventhelper", guildId: "g1", categoryId: "cat", title: "Kara", startTime: 2000000000,
-        versionId: "tbc", size: 10, composition: { tank: 1, healer: 2, melee: 0, ranged: 0 }, setup: null, message: { channelId: "c", messageId: "m" },
-    });
+    mockEvents.set(ID, ownEvent({
+        id: ID, guildId: "g1", categoryId: "cat", title: "Kara", startTime: 2000000000,
+        composition: { tank: 1, healer: 2, melee: 0, ranged: 0 }, setup: null, message: { channelId: "c", messageId: "m" },
+    }));
     mockSignups = [
         su("tank", "Warrior-Protection"), su("heal1", "Priest-Holy"), su("heal2", "Paladin-Holy"), su("mage", "Mage-Fire"),
         su("rogue", "Rogue-Combat"), su("lock", "Warlock-Destruction"), su("hunter", "Hunter-BeastMastery"),
