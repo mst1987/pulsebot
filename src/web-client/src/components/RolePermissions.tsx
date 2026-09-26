@@ -10,7 +10,8 @@ import Segment from "./ui/Segment";
 import PartHead from "./ui/PartHead";
 import WowIcon from "./ui/WowIcon";
 import { EyeIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "./icons";
-import { InfoTip, PenIcon, FieldLabel } from "./settingsUi";
+import { PenIcon } from "./settingsUi";
+import { FieldLabel, InfoTip } from "./ui/Field";
 import { useDismiss } from "../hooks/useDismiss";
 
 // Einstellungen → Berechtigungen as one matrix: rows = who, columns = the areas

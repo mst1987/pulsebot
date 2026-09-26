@@ -13,7 +13,8 @@ import Expand from "./ui/Expand";
 import PartHead from "./ui/PartHead";
 import RaidLoader from "./ui/RaidLoader";
 import Segment from "./ui/Segment";
-import { AdminOnlyBadge, FieldLabel, PenIcon, RolePicker, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, PenIcon, RolePicker, WarnIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Rollen-Abgleich" (#264).
 // One line per role pair; add and edit in a dialog. The sync only ever adds a

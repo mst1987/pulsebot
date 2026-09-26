@@ -12,7 +12,8 @@ import PartHead from "./ui/PartHead";
 import Segment from "./ui/Segment";
 import WowIcon from "./ui/WowIcon";
 import RaiderCharactersModal from "./RaiderCharactersModal";
-import { CheckMark, FieldLabel, WarnIcon } from "./settingsUi";
+import { CheckMark, WarnIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Everything that is configured *per raid category*, as one list instead of a
 // card per Discord category: active switch, raider roles, where new events are

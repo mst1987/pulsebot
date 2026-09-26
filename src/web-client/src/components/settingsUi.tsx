@@ -1,14 +1,12 @@
-import type { ReactNode } from "react";
 import type { Role, TextChannel } from "../api";
 import Badge from "./ui/Badge";
-import { InfoMarkIcon, LockIcon } from "./icons";
+import { LockIcon } from "./icons";
 
-// Small pieces the Einstellungen page shares between its sections: the round
-// info button that carries what used to be a paragraph of explanation, a field
-// label with that button, the "Nur Voll-Admins" badge, the few line icons only
-// this module draws (the shared ones are in ./icons), and the channel/role pickers that replace
-// typed Discord ids. Local to this module on purpose (design issue #224); the
-// shared building blocks in ./ui stay untouched.
+// Small pieces the Einstellungen page shares between its sections: the
+// "Nur Voll-Admins" badge, the few line icons only this module draws (the
+// shared ones are in ./icons) and the channel/role pickers that replace typed
+// Discord ids (design issue #224). Field labels and the round info button are
+// shared building blocks now: ./ui/Field.
 
 export function PenIcon() {
     return (
@@ -31,30 +29,6 @@ export function CheckMark() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 12 5 5 9-10" />
         </svg>
-    );
-}
-
-/** The round "i": focusable, explains itself in the tooltip box. */
-export function InfoTip({ head, sub }: { head: string; sub?: string }) {
-    return (
-        <span className="info" tabIndex={0} role="img" aria-label={head} data-tip={head} data-tip-sub={sub}>
-            <InfoMarkIcon />
-        </span>
-    );
-}
-
-/** A field's name with the hint that used to sit under the input as a tooltip. */
-export function FieldLabel({ children, htmlFor, tip, tipSub }: {
-    children: ReactNode;
-    htmlFor?: string;
-    tip?: string;
-    tipSub?: string;
-}) {
-    return (
-        <div className="field-label">
-            {htmlFor ? <label htmlFor={htmlFor}>{children}</label> : <span>{children}</span>}
-            {tip && <InfoTip head={tip} sub={tipSub} />}
-        </div>
     );
 }
 

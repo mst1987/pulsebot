@@ -201,6 +201,19 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 .sel-sm { max-width: 270px; font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 30px 6px 10px; background-position: right 9px center; background-size: 14px 14px; }
 .inp-sm { font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 10px; }
 .field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+/* components/ui/Field: the name row (label + round info button), the error line */
+.field-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 7px; line-height: 1.3; }
+.field-label label { cursor: pointer; }
+.field-error { color: var(--high); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+/* the round info button (tooltip holder), ui/Field InfoTip */
+.info {
+    width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto;
+    color: var(--muted); border: 1px solid var(--line); background: var(--panel2); cursor: help;
+    transition: color .12s ease, border-color .12s ease;
+}
+.info svg { width: 12px; height: 12px; }
+.info:hover, .info:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+
 /* One button system for the whole admin. The variants are a hierarchy, not a
    palette: .btn = the one primary action of a form/section, .btn-ghost = every
    secondary action next to it, .btn-run = "start this analysis" (CLA/RPB — an

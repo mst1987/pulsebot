@@ -13,3 +13,4 @@ export { PartHead, SectionHead } from "./PartHead";
 export { default as Tip, TipLayer, tipParts } from "./Tip";
 export { Modal, ConfirmProvider, useConfirm, type ConfirmFn, type ConfirmOptions } from "./Modal";
 export { default as Popover } from "./Popover";
+export { default as Field, FieldLabel, InfoTip } from "./Field";

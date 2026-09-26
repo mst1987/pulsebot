@@ -14,7 +14,8 @@ import Badge from "./ui/Badge";
 import IconTile from "./ui/IconTile";
 import PartHead from "./ui/PartHead";
 import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "./icons";
-import { AdminOnlyBadge, CheckMark, FieldLabel, InfoTip, PenIcon, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "./settingsUi";
+import { FieldLabel, InfoTip } from "./ui/Field";
 import RaidLoader from "./ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
 

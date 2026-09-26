@@ -6,15 +6,6 @@
 /* ---- page head: the title carries the info button ---- */
 .settings-head h1 { display: flex; align-items: center; gap: 10px; }
 
-/* ---- the round info button (tooltip holder) ---- */
-.info {
-    width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto;
-    color: var(--muted); border: 1px solid var(--line); background: var(--panel2); cursor: help;
-    transition: color .12s ease, border-color .12s ease;
-}
-.info svg { width: 12px; height: 12px; }
-.info:hover, .info:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
-
 .grow { flex: 1 1 auto; }
 .mono { font-family: var(--font-mono); }
 .settings-panel .note { margin: 0; }
@@ -54,8 +45,6 @@
 }
 
 /* ---- form controls inside the page's own field wrappers ---- */
-.field-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 7px; line-height: 1.3; }
-.field-label label { cursor: pointer; }
 .set-field input:not([type=checkbox]):not([type=radio]), .dlg-field input:not([type=checkbox]):not([type=radio]),
 .cat-detail input, .rch-row input, .inline-add input, .secret-row input {
     width: 100%; min-height: var(--ctl-h); padding: 8px 12px; background-color: var(--bg); color: var(--text);
