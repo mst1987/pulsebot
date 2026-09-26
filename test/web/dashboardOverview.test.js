@@ -1,8 +1,10 @@
 // The rules behind the start page ("Übersicht"): which raid icon, how full a
 // role is, which tasks are open, what the evaluation tile counts.
 const {
-    zoneFor, zoneForEvent, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
-    openRecommendations, lastReportArea, newLootSince, buildTasks, FALLBACK_ZONE_ICON,
+    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    _internal: {
+        roleBucket, FALLBACK_ZONE_ICON,
+    },
 } = require("../../src/web/dashboardOverview");
 
 describe("web/dashboardOverview", () => {
@@ -180,7 +182,7 @@ describe("web/dashboardOverview", () => {
 // "Server ist n Commits hinter main" (#314): eight merged PRs never reached the
 // server because the deploy failed silently every single time.
 describe("deployTask", () => {
-    const { deployTask, DEPLOY_GUIDE_URL, buildTasks: tasksFor } = require("../../src/web/dashboardOverview");
+    const { buildTasks: tasksFor, _internal: { deployTask, DEPLOY_GUIDE_URL } } = require("../../src/web/dashboardOverview");
     const NOW = Date.parse("2026-09-20T12:00:00Z");
     const behind = (over) => ({
         status: "behind", behind: 9, short: "a1b2c3d", committedAt: "2026-09-12T10:00:00Z",
@@ -229,7 +231,7 @@ describe("deployTask", () => {
 
 // Role-sync drift (#264) as a dashboard task.
 describe("roleDriftTask", () => {
-    const { roleDriftTask, buildTasks: tasksFor } = require("../../src/web/dashboardOverview");
+    const { buildTasks: tasksFor, _internal: { roleDriftTask } } = require("../../src/web/dashboardOverview");
 
     it("has no task without drift", () => {
         expect(roleDriftTask(null)).toBeNull();

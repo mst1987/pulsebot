@@ -585,9 +585,10 @@ async function submitForm(guildId, rawState, values, { userId, now = Date.now() 
 }
 
 module.exports = {
-    STEP_PREFIX, FORM_PREFIX, CUSTOM_ID_MAX,
-    cleanState, encodeState, stepId, formId, parseCustomId,
-    guildFor, eventCategories, templatesFor, initialState, applyStep, stepMessage,
-    templateSummary, parseComposition, compositionOf, formModal, readForm,
-    saveDraft, getDraft, buildBody, submitForm, errorMessage,
+    STEP_PREFIX, FORM_PREFIX, parseCustomId, guildFor, initialState, applyStep, stepMessage, parseComposition, formModal, readForm,
+    getDraft, submitForm,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        CUSTOM_ID_MAX, cleanState, stepId, formId, compositionOf, buildBody,
+    },
 };

@@ -27,8 +27,11 @@
 // Also here, pure and tested: the suggestions ("Heiler verteilen", "Aus Setup
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
-const ASSIGN_TYPES = ["tank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "trashtank", "other"];
-const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class", "role"];
+const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
+const catalog = require("./raidplanCatalogStore");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
+
 // a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
 const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
@@ -72,14 +75,11 @@ const CLASS_RULES = {
 const CURSES = ["Curse of the Elements", "Curse of Recklessness", "Curse of Doom"];
 
 const SLOT_ROLES = ["tank", "healer", "melee", "ranged", "dps"];
-const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
 /** A list of class ids as stored: only known classes, each once, in the order given. */
 function cleanClasses(raw) {
     return [...new Set((Array.isArray(raw) ? raw : []).map((c) => String(c === null || c === undefined ? "" : c).trim()).filter((c) => CLASS_IDS.includes(c)))];
 }
 
-const { str } = require("../utils/text");
-const { newId } = require("../utils/ids");
 /** Which of several mobs of one kind a target means: 1..20, 0 = none given (the row's own). */
 const mobInstance = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 1 && n <= 20 ? n : 0; };
 
@@ -167,12 +167,9 @@ const slotsOf = (slots, kind) => (slots || []).filter((s) => s.kind === kind).so
 const refOf = (s) => `slot:${s.kind}:${s.n}`;
 const make = (type, assignees, targets, spell = null, pref = [], allowOthers = false) => ({ id: newId(5), type, title: "", spell, assignees, targets, note: "", suggested: true, preferredClasses: cleanClasses(pref), allowOthers: allowOthers === true });
 
-// The catalog is read lazily (the catalog store needs this module's type list).
-const catalog = () => require("./raidplanCatalogStore");
-
 /** The classes that fit a type: the catalog's spells of that type say it; without any, the built in rules. */
 function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
-    const fromCatalog = catalog().classesOf(type, versionId);
+    const fromCatalog = catalog.classesOf(type, versionId);
     const rules = CLASS_RULES[type] || [];
     // the built in order (rogue before mage ...) first, then what the admin added
     const base = fromCatalog.length ? [...rules.filter((c) => fromCatalog.includes(c)), ...fromCatalog.filter((c) => !rules.includes(c))] : rules;
@@ -185,7 +182,7 @@ function classesFor(type, prefer = [], allowOthers = false, versionId = "") {
 
 /** A row's spell as it is stored: the catalog entry with a snapshot of name and icon; one of the class first, else the first of the type. */
 function spellFor(type, classId, index = 0, versionId = "") {
-    const list = catalog().spellsOfType(type, versionId);
+    const list = catalog.spellsOfType(type, versionId);
     const of = classId ? list.filter((x) => x.classes.includes(classId)) : list;
     const hit = (of.length ? of : list)[index] || (of.length ? of : list)[0];
     return hit ? { id: hit.id, name: hit.name, icon: hit.icon } : null;
@@ -291,7 +288,7 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
     }
     if (type === "curse") {
         // one curse per warlock, in the order of the catalog's curses (Elements, Recklessness, Doom ...)
-        const curses = catalog().spellsOfType("curse");
+        const curses = catalog.spellsOfType("curse");
         const count = Math.min(3, curses.length || CURSES.length);
         return Array.from({ length: count }, (_, i) => make("curse", [ref(cls[0], i + 1)], [], withRoster && curses[i] ? { id: curses[i].id, name: curses[i].name, icon: curses[i].icon } : null, pc, allowOthers));
     }
@@ -464,7 +461,10 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY, CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, mobInstance,
-    ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
+    CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, ASSIGN_TYPES, CLASS_IDS, SLOT_ROLES, cleanClasses, LIMITS, SUGGESTABLE,
+    cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        impliedRole, mobInstance, renumberClassRefs, classesFor,
+    },
 };

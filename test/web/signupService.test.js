@@ -139,7 +139,7 @@ describe("submitSignup", () => {
 
     it("lässt Raid-Helper-Events nicht zu", async () => {
         expect(await service.submitSignup("1234567890", ANNA, { character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW })).toMatchObject({ code: "raidhelper" });
-        expect(service.validateSignup({ id: "123", source: "raidhelper" }, {}, { now: NOW })).toMatchObject({ code: "raidhelper" });
+        expect(service._internal.validateSignup({ id: "123", source: "raidhelper" }, {}, { now: NOW })).toMatchObject({ code: "raidhelper" });
     });
 
     it("antwortet not_found für ein unbekanntes eigenes Event", async () => {
@@ -398,7 +398,7 @@ describe("Raider-Rollen der Kategorie", () => {
     it("categoryVisible nutzt dieselbe Regel", () => {
         const config = { categoryIds: ["a", "b"], categoryRoles: { a: ["r1"] } };
         expect(service.categoryVisible("a", { config, roleIds: ["r2"] })).toBe(false);
-        expect(service.categoryRoleAllowed("a", { config, roleIds: ["r2"] })).toBe(false);
+        expect(service._internal.categoryRoleAllowed("a", { config, roleIds: ["r2"] })).toBe(false);
         expect(service.categoryVisible("a", { config, roleIds: ["r2"], orga: true })).toBe(true);
         expect(service.categoryVisible("b", { config, roleIds: [] })).toBe(true);
     });

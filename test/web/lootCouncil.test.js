@@ -36,8 +36,11 @@ jest.mock("../../src/web/reportStore", () => ({
 }));
 
 const {
-    councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
-    gearSpellHit, resolveContentFilter, firstSlotFor, slotNameFor, NEED_WEIGHTS, NON_BIS_WEIGHT,
+    councilRoster, bisGaps, resolveContentFilter,
+    _internal: {
+        candidatesForItem, needScore, upgradeValue, currentTier, wornItemView, gearSpellHit, firstSlotFor, slotNameFor, NEED_WEIGHTS,
+        NON_BIS_WEIGHT,
+    },
 } = require("../../src/web/lootCouncil");
 const { specByKey, hitCapFor } = require("../../src/config/casterSpecs");
 const wowsims = require("../../src/config/wowsims");

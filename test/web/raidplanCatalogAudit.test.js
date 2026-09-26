@@ -32,7 +32,7 @@ describe("catalog defaults", () => {
         expect(store.catalogView().spells.some((s) => s.id === "d:tricks-of-the-trade")).toBe(true);
     });
     it("the classes for a misdirect suggestion are hunters only in TBC, and the suggestion never takes a rogue", () => {
-        expect(assign.classesFor("md", [], false, "tbc")).toEqual(["Hunter"]);
+        expect(assign._internal.classesFor("md", [], false, "tbc")).toEqual(["Hunter"]);
         const roster = [{ userId: "r", classId: "Rogue", role: "melee" }, { userId: "h", classId: "Hunter", role: "ranged" }];
         const r = assign.suggest("md", { slots: [{ kind: "tank", n: 1, userId: "t" }], roster, groups: [1], versionId: "tbc" });
         expect(r.map((a) => a.assignees[0])).toEqual(["user:h"]);

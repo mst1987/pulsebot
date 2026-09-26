@@ -11,6 +11,7 @@ const { listEvents, getEvent, isOwnEventId } = require("./eventStore");
 const { listSignups } = require("./signupStore");
 const { listRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { getConfig } = require("./settingsStore");
+const { ALIASES } = require("../config/classlist");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -57,9 +58,8 @@ function specKeyFromRaidHelper(className, specName) {
     const raw = String(specName || "").trim();
     if (!raw) return "";
     const cls = WOW_CLASSES.find((c) => c.toLowerCase() === String(className || "").trim().toLowerCase()) || "";
-    // Lazily: classlist is only needed here. An alias counts when it names a
-    // spec of the rule set (not a class-only entry, not a death knight).
-    const { ALIASES } = require("../config/classlist");
+    // An alias counts when it names a spec of the rule set (not a class-only
+    // entry, not a death knight).
     const aliasKey = Object.prototype.hasOwnProperty.call(ALIASES, raw) ? ALIASES[raw] : "";
     const found = SPEC_KEY_BY_RH_NAME[raw.toLowerCase()]
         || (RH_SPEC_NAMES[aliasKey] ? aliasKey : "");

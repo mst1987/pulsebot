@@ -30,7 +30,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   Counterspell, Dispel Magic / Cleanse / Purge / Remove Curse / Cure Poison, Innervate, Bloodlust, Heroism,
   Power Infusion, Shackle Undead, Polymorph, Hibernate, Banish, Taunt, Growl. Not in there (add per admin if
   wanted): Supremus's volcanoes, Hyjal wave details beyond the five, most trash.
-- **Real portraits (43 of the 46 default mobs, Sept 2026):** `src/web/raidplanMobNpcs.js` names the Wowhead
+- **Real portraits (43 of the 46 default mobs, Sept 2026):** `scripts/data/raidplanMobNpcs.js` names the Wowhead
   NPC of each default mob (TBC Classic database, e.g. Gathios 22949). `scripts/fetch-mob-icons.js` fetches the
   NPC page (its title has to name the mob, else the mob is skipped and reported), reads the display id and
   downloads the **model render** of that display,
@@ -51,7 +51,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   the mapping. `test/web/raidplanMobPortraits.test.js` fails when an NPC of the table has no verified
   portrait, no stored file or a wrong size; `test/scripts/png.test.js` covers the codec and the crop.
 - **Placeholder mob icons** (`scripts/fetch-mob-icons.js` -> generated `src/config/generated/mobIcons.json`, the table
-  to edit is `src/web/raidplanMobIconRules.js`; never edit the JSON). **Source check:** the boss icons come
+  to edit is `scripts/data/raidplanMobIconRules.js`; never edit the JSON). **Source check:** the boss icons come
   from Warcraft Logs (`scripts/fetch-boss-icons.js`, `public/bosses/<encounter id>.jpg`, artwork of the game
   as WCL shows it); WCL lists encounters only, it has no icon for a boss's adds or for trash, so no real NPC
   pictures are available from that source. Every default mob therefore gets a **similar WoW icon** from the

@@ -598,8 +598,11 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 }
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES, useFile: store.useFile,
-    eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
+    appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
+    normalizePlan, isOwnEventId, useFile: store.useFile, eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        EVENTS_FILE,
+    },
 };

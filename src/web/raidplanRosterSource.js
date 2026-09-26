@@ -18,6 +18,7 @@ const raiderProfiles = require("./raiderProfileStore");
 const store = require("./raidplanStore");
 const { raidhelperLineup } = require("./raidhelperRoster");
 const raidplan = require("./raidplan");
+const { ANY_PLAYER } = require("./raidplanBoard");
 
 const CACHE_MS = 60_000;
 const cache = new Map(); // eventId -> { at, raw: { setupSlots, signUps } }
@@ -169,7 +170,7 @@ async function planEventFor(eventId, opts = {}) {
  */
 function allowedFor(found) {
     if (found.kind !== "raidhelper") return raidplan.editorRoster(found.event).map((p) => p.userId);
-    return found.info.authoritative ? found.loaded.map((p) => p.userId) : require("./raidplanBoard").ANY_PLAYER;
+    return found.info.authoritative ? found.loaded.map((p) => p.userId) : ANY_PLAYER;
 }
 
 module.exports = { planEventFor, raidhelperPlanEvent, allowedFor, fetchRaw, rawFor, CACHE_MS, _resetForTests };

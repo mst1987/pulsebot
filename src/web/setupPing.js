@@ -8,18 +8,8 @@
 // raid plan lives at Raid-Helper.
 const eventStore = require("./eventStore");
 const discord = require("./discord");
-const { approvedSetupOf } = require("./setupEditor");
+const { approvedSetupOf, PING_TEXT_MAX, pingTextOf } = require("./setupCore");
 const { fail } = require("./apiResult");
-
-/** The line everyone reads without the orga ever setting their own — raider-facing, so English. */
-const PING_TEXT = "📋 The setup is up — you're in!";
-// Kept in sync with eventStore.js's setEventSetupPingText.
-const PING_TEXT_MAX = 300;
-
-/** The orga's own text if they set one (web or the Discord modal), else the default. */
-function pingTextOf(event) {
-    return (event && event.setupPingText) || PING_TEXT;
-}
 
 /** `event.setupPingText`, "" (clear) accepted, trimmed to the same length the store enforces. */
 function saveSetupPingText(eventId, text) {
@@ -68,4 +58,4 @@ async function callSetupPing({ guildId, eventId, userId, byName = "", text } = {
     return { message: `${count} Raider aus dem Setup gepingt.`, count, url: posted && posted.url };
 }
 
-module.exports = { PING_TEXT, PING_TEXT_MAX, pingTextOf, saveSetupPingText, setupPingPlan, callSetupPing };
+module.exports = { saveSetupPingText, setupPingPlan, callSetupPing };

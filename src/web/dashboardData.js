@@ -31,6 +31,8 @@ const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
+const { getEvent } = require("./eventStore");
+const { raidHelperSlots } = require("./setupEditor");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 
@@ -49,8 +51,6 @@ async function setupSlots(rh, eventId) {
  * as no setup, exactly like a Raid-Helper event without a raidplan.
  */
 function ownSetupSlots(eventId) {
-    const { getEvent } = require("./eventStore");
-    const { raidHelperSlots } = require("./setupEditor");
     return raidHelperSlots(getEvent(eventId)).filter((s) => s && s.name);
 }
 

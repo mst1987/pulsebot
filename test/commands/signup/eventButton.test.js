@@ -337,7 +337,7 @@ describe("commands/signup/eventButton", () => {
             expect(statuses()).toEqual([["Devire", "bench"]]);
 
             // what the channel sees, built from the same store
-            const { buildEventMessage } = require("../../../src/web/eventMessage");
+            const { _internal: { buildEventMessage } } = require("../../../src/web/eventMessage");
             const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"));
             const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bench|Absence/.test(f.value)).value.split("\n");
             expect(lines).toEqual(["Bench (1): `1` Devire"]);

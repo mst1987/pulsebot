@@ -16,6 +16,12 @@ const { getConfig, saveConfig } = require("./settingsStore");
 const { signupSourceFor } = require("./eventSources");
 const { raidhelperDisabled } = require("../utils/raidhelperClient");
 const { TIMEZONE } = require("../config/timezone");
+const discord = require("./discord");
+const guildRoles = require("./guildRoles");
+const { listKnownCategories } = require("./categoryNames");
+const appEmojis = require("./appEmojis");
+const specHistory = require("./specHistoryStore");
+const { fetchEventsCached } = require("./raidEventGroups");
 
 // Statuses: ok (green), mid (open, yellow), bad (red), unknown (cannot be
 // checked right now), info (nothing to check — a reminder).
@@ -234,11 +240,6 @@ function eventCategoryIds(config) {
 
 /** Gather the inputs and build the checklist. Never throws. */
 async function loadChecklist({ config = getConfig() } = {}) {
-    const discord = require("./discord");
-    const guildRoles = require("./guildRoles");
-    const { listKnownCategories } = require("./categoryNames");
-    const appEmojis = require("./appEmojis");
-    const specHistory = require("./specHistoryStore");
     const eventGuildId = guildRoles.eventGuildId(config) || config.guildId || "";
     const disabled = raidhelperDisabled(config);
 
@@ -253,7 +254,6 @@ async function loadChecklist({ config = getConfig() } = {}) {
     let upcoming = { events: [], error: null };
     if (!disabled) {
         try {
-            const { fetchEventsCached } = require("./raidEventGroups");
             const { events } = await fetchEventsCached(0);
             let catMap = {};
             try {

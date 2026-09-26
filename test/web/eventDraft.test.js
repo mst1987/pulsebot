@@ -44,18 +44,18 @@ beforeEach(() => {
 describe("web/eventDraft — the state in the customId", () => {
     it("round-trips a state and drops what is not an id", () => {
         const s = state({ mode: "d", ref: "eh-mfx1k2abc123" });
-        expect(draft.parseCustomId(draft.stepId("c", s))).toEqual({ prefix: "event-new", field: "c", state: s, token: "" });
-        expect(draft.parseCustomId(draft.formId(s, "0a1b2c3d"))).toMatchObject({ prefix: "event-form", state: s, token: "0a1b2c3d" });
+        expect(draft.parseCustomId(draft._internal.stepId("c", s))).toEqual({ prefix: "event-new", field: "c", state: s, token: "" });
+        expect(draft.parseCustomId(draft._internal.formId(s, "0a1b2c3d"))).toMatchObject({ prefix: "event-form", state: s, token: "0a1b2c3d" });
         expect(draft.parseCustomId("event-form:12:<script>:z:q:../x:nope").state).toEqual({ cat: "", tpl: "", mode: "n", src: "", ref: "", ann: "" });
     });
 
     it("stays within Discord's 100 characters in the worst case", () => {
         const worst = { cat: "12345678901234567890", tpl: "x".repeat(24), mode: "d", src: "r", ref: "y".repeat(24), ann: "1" };
-        for (const id of [draft.stepId("c", worst), draft.stepId("b", worst), draft.formId(worst, "0a1b2c3d")]) {
-            expect({ id, fits: id.length <= draft.CUSTOM_ID_MAX }).toEqual({ id, fits: true });
+        for (const id of [draft._internal.stepId("c", worst), draft._internal.stepId("b", worst), draft._internal.formId(worst, "0a1b2c3d")]) {
+            expect({ id, fits: id.length <= draft._internal.CUSTOM_ID_MAX }).toEqual({ id, fits: true });
         }
         // an id longer than that is never carried
-        expect(draft.cleanState({ ...worst, tpl: "x".repeat(25) }).tpl).toBe("");
+        expect(draft._internal.cleanState({ ...worst, tpl: "x".repeat(25) }).tpl).toBe("");
     });
 });
 
@@ -72,7 +72,7 @@ describe("web/eventDraft — step 1", () => {
         expect(tpls[0].options).toEqual([expect.objectContaining({ value: T5.id, default: true, description: "SSC + TK · 25er · 3 T / 6 H / 16 DPS" })]);
         expect(modes[0].options.map((o) => o.value)).toEqual(["n", "d", "e"]);
         expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Abbrechen"]);
-        expect(buttons[0]).toMatchObject({ custom_id: draft.formId(state()), disabled: false });
+        expect(buttons[0]).toMatchObject({ custom_id: draft._internal.formId(state()), disabled: false });
         expect(payload.embeds[0].description).toContain("neu nach Standard-Schema `{tag}-{dd}-{mm}-{raid}`");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** EventHelper");
         for (const row of payload.components) for (const c of row.components) expect(c.custom_id.length).toBeLessThanOrEqual(100);
@@ -130,10 +130,10 @@ describe("web/eventDraft — step 1", () => {
         const { payload } = await draft.stepMessage("g1", state());
         expect(payload.embeds[0].description).toContain("**Kanal:** neu wie #🔥・mi-16-09-ssc-tk — Wochentag, Datum und Raid werden ersetzt");
 
-        const built = await draft.buildBody("g1", state(), values({ date: "23.09." }), { userId: "42", now: NOW });
+        const built = await draft._internal.buildBody("g1", state(), values({ date: "23.09." }), { userId: "42", now: NOW });
         expect(built.body.newChannel).toEqual({ name: "🔥・mi-23-09-ssc-tk", categoryId: CAT_EH, templateChannelId: "301" });
 
-        const dup = await draft.buildBody("g1", state({ mode: "d", ref: "eh-new1" }), values({ date: "23.09." }), { userId: "42", now: NOW });
+        const dup = await draft._internal.buildBody("g1", state({ mode: "d", ref: "eh-new1" }), values({ date: "23.09." }), { userId: "42", now: NOW });
         expect(dup.body).toMatchObject({ sourceEventId: "eh-new1", channelName: "🔥・mi-23-09-ssc-tk" });
         const dupStep = await draft.stepMessage("g1", state({ mode: "d", ref: "eh-new1" }));
         expect(dupStep.payload.embeds[0].description).toContain("Kanal von **SSC + TK** duplizieren · Name wie #🔥・mi-16-09-ssc-tk");
@@ -200,13 +200,13 @@ describe("web/eventDraft — the modal", () => {
         expect(draft.parseComposition("25/3/6/900").error).toContain("Dauer");
         expect(draft.parseComposition("25/3/6/240/9").error).toContain("Größe/T/H/Dauer");
         // the field is prefilled from the template, duration included
-        expect(draft.compositionOf({ size: 25, composition: { tank: 3, healer: 6 }, durationMinutes: 240 })).toBe("25/3/6/240");
-        expect(draft.compositionOf({ size: 25, composition: { tank: 3, healer: 6 } })).toBe("25/3/6");
+        expect(draft._internal.compositionOf({ size: 25, composition: { tank: 3, healer: 6 }, durationMinutes: 240 })).toBe("25/3/6/240");
+        expect(draft._internal.compositionOf({ size: 25, composition: { tank: 3, healer: 6 } })).toBe("25/3/6");
     });
 });
 
 describe("web/eventDraft — building the create body", () => {
-    const build = async (s, v, now = NOW) => draft.buildBody("g1", s, v, { userId: "42", now });
+    const build = async (s, v, now = NOW) => draft._internal.buildBody("g1", s, v, { userId: "42", now });
 
     it("schickt die Ankündigung nur mit, wenn sie hier entschieden wurde (#306)", async () => {
         expect((await build(state(), values())).body.announce).toBeUndefined();
