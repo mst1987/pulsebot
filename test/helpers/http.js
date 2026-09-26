@@ -2,8 +2,8 @@
 // that carries a JSON body, and ready-made factory mocks for the two modules
 // every /api/* handler reads through (apiMiddleware, apiBody).
 //
-//   jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-//   jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
+//   jest.mock("../../src/web/http/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+//   jest.mock("../../src/web/http/apiBody", () => require("../helpers/http").apiBodyMock());
 //   const { mockRes, status, body } = require("../helpers/http");
 //
 // A handler keeps its signature `(req, res, url)`; the helpers only stand in
@@ -62,13 +62,13 @@ function jsonRequest(method = "GET", path = "/", payload, headers = {}) {
 const resolve = (value) => (typeof value === "function" ? value() : value);
 
 /**
- * Factory mock for src/web/apiMiddleware. `user`, `fullAdmin` and `csrf` are a
+ * Factory mock for src/web/http/apiMiddleware. `user`, `fullAdmin` and `csrf` are a
  * value or a function read on every call (`() => mockUser`). A missing user or
  * a failed CSRF check is refused the way the real middleware does it: a JSON
  * 401 / 403 on `res`, and null / false back.
  */
 function apiMiddlewareMock({ user = { id: "1", name: "Admin", isAdmin: true }, fullAdmin, csrf = true } = {}) {
-    const { error } = jest.requireActual("../../src/web/apiResponse");
+    const { error } = jest.requireActual("../../src/web/http/apiResponse");
     const refuse = (res, value) => {
         if (!value && res && typeof res.writeHead === "function") error(res, 401, "unauthorized", "Nicht angemeldet.");
         return value || null;
@@ -85,7 +85,7 @@ function apiMiddlewareMock({ user = { id: "1", name: "Admin", isAdmin: true }, f
 }
 
 /**
- * Factory mock for src/web/apiBody. `body` is the parsed JSON every
+ * Factory mock for src/web/http/apiBody. `body` is the parsed JSON every
  * readJsonBody() resolves (a value or a function read per call); a suite
  * steers single calls with `readJsonBody.mockResolvedValue(...)`.
  */
@@ -115,10 +115,10 @@ function routerClient(routeModule, { csrf = "tok" } = {}) {
     const own = routeModule && Array.isArray(routeModule.routes)
         ? new Set(routeModule.routes.map((r) => r.path))
         : null;
-    const handle = (...args) => require("../../src/web/apiRouter").handle(...args);
+    const handle = (...args) => require("../../src/web/http/apiRouter").handle(...args);
     const check = (pathname) => {
         if (!own || own.has(pathname)) return;
-        const other = require("../../src/web/routeTable").ROUTES.find((r) => r.path === pathname);
+        const other = require("../../src/web/http/routeTable").ROUTES.find((r) => r.path === pathname);
         if (other) throw new Error(`${pathname} belongs to apiRoutes/${other.module}.js, not to the route module under test`);
     };
     const urlFor = (pathname, query) => {

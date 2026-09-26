@@ -1,13 +1,13 @@
 // Admin UI for the manual raider->character-per-category assignment (see
 // raiderCharactersStore.js) consumed by apiRoutes/raidDetail.js's attendance
 // enrichment.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
-const { getConfig } = require("../settingsStore");
-const { getCategoryAssignments, setCategoryAssignments } = require("../raiderCharactersStore");
-const { listCharacters } = require("../characterStore");
-const discord = require("../discord");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
+const { getConfig } = require("../../stores/settingsStore");
+const { getCategoryAssignments, setCategoryAssignments } = require("../../stores/raiderCharactersStore");
+const { listCharacters } = require("../../stores/characterStore");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/raider-characters?category=<id> — the category's expected raiders

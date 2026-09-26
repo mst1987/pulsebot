@@ -2,18 +2,18 @@
 // öffnen den Anmelde-Dialog, Raid-Helper-Events verlinken in ihren Event-Kanal.
 const { MessageFlags } = require("discord.js");
 
-jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
-jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
-jest.mock("../../../src/web/eventSources", () => ({ getStoredEvent: jest.fn() }));
-jest.mock("../../../src/web/talkOverview", () => ({ SELECT_ID: "talk-signup" }));
-jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
+jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
+jest.mock("../../../src/services/events/eventSources", () => ({ getStoredEvent: jest.fn() }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup" }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/web/raiderProfileStore");
-const { getStoredEvent } = require("../../../src/web/eventSources");
+const profiles = require("../../../src/stores/raiderProfileStore");
+const { getStoredEvent } = require("../../../src/services/events/eventSources");
 const command = require("../../../src/commands/signup/talkSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");

@@ -20,8 +20,8 @@ const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
 const { resolveSituationalGear } = require("./gearVariants");
-const { saveReport, getReport } = require("../../web/reportStore");
-const { getConfig } = require("../../web/settingsStore");
+const { saveReport, getReport } = require("../../stores/reportStore");
+const { getConfig } = require("../../stores/settingsStore");
 const WarcraftLogsV2 = require("../../classes/warcraftlogsV2");
 const { publicBaseUrl } = require("../../config/variables");
 

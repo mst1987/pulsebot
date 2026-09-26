@@ -5,15 +5,15 @@
 const mockStartWebServer = jest.fn();
 const mockLogin = jest.fn(() => Promise.resolve("ok"));
 
-jest.mock("../src/web/server", () => ({ startWebServer: mockStartWebServer }));
+jest.mock("../src/web/http/server", () => ({ startWebServer: mockStartWebServer }));
 const mockStartJobs = jest.fn();
-jest.mock("../src/web/jobs", () => ({ startJobs: mockStartJobs }));
-jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
+jest.mock("../src/web/http/jobs", () => ({ startJobs: mockStartJobs }));
+jest.mock("../src/services/logcheck/logChannel", () => ({ handleLogMessage: jest.fn() }));
 // The start-up upgrade of old settings files (#420) must not touch the real data/.
 const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
-jest.mock("../src/web/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
+jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
 const mockGuard = jest.fn(async () => true);
-jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
+jest.mock("../src/services/discord/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real

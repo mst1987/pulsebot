@@ -25,12 +25,12 @@ const { publicBaseUrl } = require("../publicUrl");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
-const { listSignups, getSignup } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
+const { listSignups, getSignup } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
 const {
     roleCounts, signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,
-} = require("../../web/signupService");
+} = require("../../services/signups/signupService");
 
 const PICK_PREFIX = "signup-pick";
 const STATUS_PREFIX = "signup-status";

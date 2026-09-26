@@ -8,7 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { publicVersions } = require("../../src/config/gameVersions");
-const server = require("../../src/web/raidTemplates");
+const server = require("../../src/services/events/raidTemplates");
 const { makeT } = require("./i18nHelper");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
@@ -122,7 +122,7 @@ describe("Raid-Vorlagen rules (client)", () => {
     });
 
     describe("Aussehen (#307)", () => {
-        const look = require("../../src/web/embedLook");
+        const look = require("../../src/services/events/embedLook");
 
         it("beurteilt Farbe und Bild wortgleich mit dem Server", () => {
             for (const color of ["", "#1f8ba5", "#1F8BA5", "1f8ba5", "#abc", "rot", "#12345g"]) {

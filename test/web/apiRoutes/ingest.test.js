@@ -4,18 +4,18 @@
 const { mockRes, status, json, jsonRequest } = require("../../helpers/http");
 
 // No session user anywhere in this file: the uploader is a machine.
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/ingestTokenStore", () => ({
+jest.mock("../../../src/stores/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../src/web/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../src/stores/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../../src/web/lootInboxStore", () => ({
+jest.mock("../../../src/stores/lootInboxStore", () => ({
     upsertPending: jest.fn(() => ({ entry: { id: "inbox1", itemCount: 1 }, added: 1, created: true })),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -25,7 +25,7 @@ jest.mock("../../../src/web/lootInboxStore", () => ({
     noteAppended: jest.fn(() => true),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 1, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -37,28 +37,28 @@ jest.mock("../../../src/web/lootStore", () => ({
     repairItemNames: jest.fn(),
     characters: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [] })),
     eventLookbackSince: jest.fn(() => 0),
     EVENT_LOOKBACK_DAYS: 30,
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
     searchItems: jest.fn(async () => []),
 }));
 
-const { verifyToken, touchToken } = require("../../../src/web/ingestTokenStore");
-const { upsertPending, resolutionFor } = require("../../../src/web/lootInboxStore");
-const { addImport } = require("../../../src/web/lootStore");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
-const { handle } = require("../../../src/web/apiRouter");
+const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
+const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
+const { addImport } = require("../../../src/stores/lootStore");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { handle } = require("../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
 
 const TOKEN = { id: "t1", name: "Raidlead-PC" };
@@ -193,7 +193,7 @@ describe("POST /api/ingest/loot", () => {
                 status: "appended", eventId: "e1", added: 1,
             });
             // counted for the inbox's "+n nachgeliefert"
-            const { noteAppended } = require("../../../src/web/lootInboxStore");
+            const { noteAppended } = require("../../../src/stores/lootInboxStore");
             expect(noteAppended).toHaveBeenCalledWith(expect.any(String), 1);
         });
 

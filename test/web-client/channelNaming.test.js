@@ -37,7 +37,7 @@ describe("web client — visible channel naming (#285)", () => {
     });
 
     it("routes the suggestion through the raids area", () => {
-        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/raids/channel-name"]).toBe("raids");
     });
 });

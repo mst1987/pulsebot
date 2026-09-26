@@ -1,7 +1,7 @@
 // The events of a Discord category, from both sources — Raid-Helper's and the
-// EventHelper's own (web/eventSources.js) — for the legacy setup commands.
+// EventHelper's own (services/events/eventSources.js) — for the legacy setup commands.
 const { createRaidhelperClient } = require("./client");
-const { ownUpcomingRaw } = require("../../web/eventSources");
+const { ownUpcomingRaw } = require("../../services/events/eventSources");
 const { formatTimestampToDateString } = require("../time");
 
 /** The ids of the text channels below the given categories. */

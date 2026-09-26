@@ -25,7 +25,7 @@ lassen.
 | `import-raidhelper-history.js` | Migration: Raid-Helper-Anmeldungen als Spec-Historie importieren; wird mit dem Raid-Helper-Ausstieg gelöscht (`docs/raidhelper-retirement.md`) | `data/settings/spec-history.json` | – | ja |
 | `register-commands.js` | Slash-Commands bei Discord registrieren (sammelt die `data` der Befehlsmodule über den Loader) | Discord-API | `register`, `register:global`, `register:clear`, `register:dev` | ja |
 | `render-role-swords.js` | Nahkampf-Icon als gekreuzte Schwerter aus den Rollen-Kacheln | `assets/emojis/eh_r<stil>_swords.png` | – | nein |
-| `render-ui-emojis.js` | Die flachen UI-Icons der Event-Nachricht zeichnen (eingecheckt) | `assets/emojis/eh_ui_<name>.png` | `emojis:render` | ja (Icon-Liste, `test/web/appEmojis.test.js`) |
+| `render-ui-emojis.js` | Die flachen UI-Icons der Event-Nachricht zeichnen (eingecheckt) | `assets/emojis/eh_ui_<name>.png` | `emojis:render` | ja (Icon-Liste, `test/services/discord/appEmojis.test.js`) |
 | `seed-test-raid.js` | Nur Dev: kompletter Testraid mit 25 Anmeldungen, Setup und Raidplan-Vorlage | Stores unter `data/` der Instanz | `dev:seed` | ja |
 | `sync-app-emojis.js` | Fehlende App-Emojis hochladen (macht der Bot beim Start auch) | Discord-API | `emojis:sync` (`-- --dry-run` listet nur) | ja |
 | `lib/png.js` | Kleiner PNG-Codec für `fetch-mob-icons.js` | – | – | ja |

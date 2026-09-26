@@ -1,16 +1,16 @@
-const auth = require("../auth");
-const discord = require("../discord");
-const { guildRole } = require("../guildRoles");
-const { activeGuildFor } = require("../activeGuild");
-const { ok, error } = require("../apiResponse");
-const { requireCsrf } = require("../apiMiddleware");
-const { withUser } = require("../apiHandler");
-const { readJsonBody } = require("../apiBody");
-const userPrefs = require("../userPrefsStore");
+const auth = require("../http/auth");
+const discord = require("../../services/discord/discord");
+const { guildRole } = require("../../services/discord/guildRoles");
+const { activeGuildFor } = require("../http/activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { requireCsrf } = require("../http/apiMiddleware");
+const { withUser } = require("../http/apiHandler");
+const { readJsonBody } = require("../http/apiBody");
+const userPrefs = require("../../stores/userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
-const { getConfig } = require("../settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
-const { normalizeRoleIds, MAX_ROLES } = require("../viewAs");
+const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -73,7 +73,7 @@ const postLang = withUser({ csrf: true, body: true }, async ({ user, body, res }
     ok(res, { lang: result.lang });
 });
 
-// ---- "Ansicht als Rolle" (src/web/viewAs.js) --------------------------------
+// ---- "Ansicht als Rolle" (src/web/http/viewAs.js) --------------------------------
 
 /** The server whose roles carry the menu rights (Einstellungen › Zugang/Berechtigungen). */
 function permissionGuildId() {

@@ -2,8 +2,8 @@
 // where the asking user stands; the full detail page is one click away (#265).
 const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
-const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../web/eventLookup");
-const { eventGuildId } = require("../../web/guildRoles");
+const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
+const { eventGuildId } = require("../../services/discord/guildRoles");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { TIMEZONE } = require("../../config/timezone");
 

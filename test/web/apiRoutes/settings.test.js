@@ -5,7 +5,7 @@
 
 const { mockRes, json, body, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -14,13 +14,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -49,8 +49,8 @@ jest.mock("../../../src/web/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -59,11 +59,11 @@ jest.mock("../../../src/web/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../src/web/categoryNames", () => ({
-    listKnownCategories: (guildId) => (guildId ? require("../../../src/web/discord").listCategories(guildId) : []),
+jest.mock("../../../src/services/discord/categoryNames", () => ({
+    listKnownCategories: (guildId) => (guildId ? require("../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -97,7 +97,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -122,7 +122,7 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     botPermissionsIn: jest.fn(() => null),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
@@ -151,39 +151,39 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
         itemLink: actual.itemLink,
     };
 });
-jest.mock("../../../src/web/ingestTokenStore", () => ({
+jest.mock("../../../src/stores/ingestTokenStore", () => ({
     listTokens: jest.fn(() => []),
     createToken: jest.fn(),
     revokeToken: jest.fn(),
 }));
 // The handlers are also called directly below (without the router): the
 // middleware and the body reader run for real unless a test steers them.
-jest.mock("../../../src/web/apiMiddleware", () => {
-    const actual = jest.requireActual("../../../src/web/apiMiddleware");
+jest.mock("../../../src/web/http/apiMiddleware", () => {
+    const actual = jest.requireActual("../../../src/web/http/apiMiddleware");
     return {
         requireAdmin: jest.fn(actual.requireAdmin),
         requireFullAdmin: jest.fn(actual.requireFullAdmin),
         requireCsrf: jest.fn(actual.requireCsrf),
     };
 });
-jest.mock("../../../src/web/apiBody", () => {
-    const actual = jest.requireActual("../../../src/web/apiBody");
+jest.mock("../../../src/web/http/apiBody", () => {
+    const actual = jest.requireActual("../../../src/web/http/apiBody");
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
-const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
-const discord = require("../../../src/web/discord");
+const auth = require("../../../src/web/http/auth");
+const settingsStore = require("../../../src/stores/settingsStore");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const discord = require("../../../src/services/discord/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../src/config/permissions");
 const { post, patch, get, handle } = routerClient(require("../../../src/web/apiRoutes/settings"));
-const { requireAdmin, requireFullAdmin } = require("../../../src/web/apiMiddleware");
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { requireAdmin, requireFullAdmin } = require("../../../src/web/http/apiMiddleware");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const {
     getSettings, updateSettings, getDiscordServers, getRoleSync, getReminders, FULL_ADMIN_KEYS,
 } = require("../../../src/web/apiRoutes/settings");
-const realMiddleware = jest.requireActual("../../../src/web/apiMiddleware");
-const realBody = jest.requireActual("../../../src/web/apiBody");
+const realMiddleware = jest.requireActual("../../../src/web/http/apiMiddleware");
+const realBody = jest.requireActual("../../../src/web/http/apiBody");
 
 describe("web/apiRoutes/settings", () => {
     describe("through the router", () => {

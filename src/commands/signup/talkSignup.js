@@ -1,15 +1,15 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { publicBaseUrl } = require("../../utils/publicUrl");
-const { getStoredEvent } = require("../../web/eventSources");
-const { getEvent, isOwnEventId } = require("../../web/eventStore");
-const { SELECT_ID } = require("../../web/talkOverview");
-const guildRoles = require("../../web/guildRoles");
-const { checkRaiderRole } = require("../../web/signupService");
+const { getStoredEvent } = require("../../services/events/eventSources");
+const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const { SELECT_ID } = require("../../services/talk/talkOverview");
+const guildRoles = require("../../services/discord/guildRoles");
+const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
 const { toEnglish } = require("../../utils/signup/botEnglish");
 
 // The select "Raid wählen, um dich anzumelden" under the raid overview on the
-// talk server (customId `talk-signup`, web/talkOverview.js). An own event opens
+// talk server (customId `talk-signup`, services/talk/talkOverview.js). An own event opens
 // the signup dialog (utils/signup/signupDialog.js) right here, only for the member; a
 // Raid-Helper event keeps its signup at Raid-Helper, so the answer links into
 // its event channel on the event server.

@@ -2,11 +2,11 @@
 // answer. The web stores and Raid-Helper are mocked.
 const mockRh = { getAllEvents: jest.fn() };
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: () => mockRh }));
-jest.mock("../../../src/web/eventSources", () => ({
+jest.mock("../../../src/services/events/eventSources", () => ({
     ownUpcomingRaw: jest.fn(() => []),
 }));
 
-const eventSources = require("../../../src/web/eventSources");
+const eventSources = require("../../../src/services/events/eventSources");
 const {
     getCategoryEvents,
     getChannelsFromCategories,

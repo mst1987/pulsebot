@@ -1,7 +1,7 @@
 // The HTTP scaffolding the route suites share (#433).
 const { mockRes, status, json, body, jsonRequest, apiMiddlewareMock, apiBodyMock } = require("./http");
-const { readJsonBody, readRawBody } = require("../../src/web/apiBody");
-const { ok, error } = require("../../src/web/apiResponse");
+const { readJsonBody, readRawBody } = require("../../src/web/http/apiBody");
+const { ok, error } = require("../../src/web/http/apiResponse");
 
 describe("test/helpers/http", () => {
     it("reads status, envelope and payload of an ok() answer", () => {

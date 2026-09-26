@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 const { publicVersions } = require("../../src/config/gameVersions");
-const { normalizePlan } = require("../../src/web/eventStore");
+const { normalizePlan } = require("../../src/stores/eventStore");
 const { renderChannelName } = require("../../src/utils/channelNames");
 const { makeT } = require("./i18nHelper");
 
@@ -186,7 +186,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.overflowLine(plan)).toBe("voll: keine Anmeldung mehr · Anmeldung schließt bei Voll");
         expect(logic.overflowLine(logic.emptyPlan(v("tbc")))).toBe("voll: Warteliste (Bank)");
         // und der Server nimmt die Vorlage so an
-        const server = require("../../src/web/raidTemplates");
+        const server = require("../../src/services/events/raidTemplates");
         const saved = logic.templateFromPlan(plan, null, "Kara");
         expect(server.validateTemplate(server.normalizeTemplate(saved))).toBe("");
         expect(server.normalizeTemplate(saved)).toMatchObject({ overflow: "off", lockAtLimit: true });
@@ -215,7 +215,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.withVersion(plan, v("classic"))).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
         // und beides geht so zum Server und zurück in eine Vorlage
         expect(logic.planBody(plan)).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
-        const server = require("../../src/web/raidTemplates");
+        const server = require("../../src/services/events/raidTemplates");
         const saved = logic.templateFromPlan(plan, null, "SSC");
         expect(server.validateTemplate(server.normalizeTemplate(saved), saved)).toBe("");
         expect(server.normalizeTemplate(saved)).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
@@ -259,7 +259,7 @@ describe("Event anlegen: plan rules (client)", () => {
         const base = { id: "tpl-1", name: "Alt", raidhelperTemplateId: "rh-3" };
         expect(logic.templateFromPlan(plan, base, "")).toMatchObject({ id: "tpl-1", name: "Alt", raidhelperTemplateId: "rh-3", instanceIds: ["hyjal", "bt"] });
         // and it passes the server's template rules
-        const server = require("../../src/web/raidTemplates");
+        const server = require("../../src/services/events/raidTemplates");
         expect(server.validateTemplate(server.normalizeTemplate(fresh))).toBe("");
     });
 
@@ -278,7 +278,7 @@ describe("Event anlegen: plan rules (client)", () => {
                 .toEqual({ schema, date, name: renderChannelName(schema || undefined, { date, raid }) });
         }
         expect(logic.schemaName("{tag}-{dd}-{mm}-{raid}", "2026-09-24", "ssc-tk")).toBe("do-24-09-ssc-tk");
-        // "{raid}": the instances' short names like the server's raidTagOf (test/web/eventCreate.test.js), else the schema's own
+        // "{raid}": the instances' short names like the server's raidTagOf (test/services/events/eventCreate.test.js), else the schema's own
         expect(logic.raidTag(v("tbc"), ["ssc", "tk"], "t5")).toBe("ssc-tk");
         expect(logic.raidTag(v("tbc"), [], "t5")).toBe("t5");
     });

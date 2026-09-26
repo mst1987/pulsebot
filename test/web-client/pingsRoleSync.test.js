@@ -44,7 +44,7 @@ describe("Rollen-Abgleich part", () => {
     it("loads from the endpoint the router serves, full-admin gated in the access table", () => {
         expect(settingsApi).toContain("get<RoleSyncData>(\"/api/settings/role-sync\")");
         expect(settingsApi).toContain("get<RemindersData>(\"/api/settings/reminders\")");
-        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/settings/role-sync"]).toBe("settings");
         expect(AREA_BY_PATH["/api/settings/reminders"]).toBe("settings");
     });

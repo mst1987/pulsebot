@@ -14,22 +14,22 @@
 // The area gate (apiAccess.js) decides read vs. write by method; the GET of the
 // editor additionally asks whether the caller may write, because a draft is
 // never handed to someone who could not approve it.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendFailure, sendResult } = require("../apiResult");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendFailure, sendResult } = require("../http/apiResult");
 const { userCan } = require("../../config/permissions");
-const { getConfig } = require("../settingsStore");
-const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../eventStore");
-const { listSignups } = require("../signupStore");
-const discord = require("../discord");
-const setupEditor = require("../setupEditor");
-const profiles = require("../raiderProfileStore");
-const { refreshEventMessage } = require("../eventMessage");
-const setupMessage = require("../setupMessage");
-const { saveSetupPingText } = require("../setupPing");
-const { setupAttendance } = require("../setupAttendance");
-const { postSearch, textForNeeds } = require("../raidSearch");
-const { startJob, getJob } = require("../evalJobs");
+const { getConfig } = require("../../stores/settingsStore");
+const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");
+const { listSignups } = require("../../stores/signupStore");
+const discord = require("../../services/discord/discord");
+const setupEditor = require("../../services/setup/setupEditor");
+const profiles = require("../../stores/raiderProfileStore");
+const { refreshEventMessage } = require("../../services/events/eventMessage");
+const setupMessage = require("../../services/setup/setupMessage");
+const { saveSetupPingText } = require("../../services/setup/setupPing");
+const { setupAttendance } = require("../setup/setupAttendance");
+const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
+const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
 const EXPLAIN_SECTION = "setup-explain";

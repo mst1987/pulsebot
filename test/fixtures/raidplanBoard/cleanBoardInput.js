@@ -1,4 +1,4 @@
-// The input of the cleanBoard golden master (test/web/raidplanBoardGolden.test.js):
+// The input of the cleanBoard golden master (test/services/raidplan/raidplanBoard.golden.test.js):
 // one board that walks every section of the cleaner — kept, clamped, defaulted
 // and dropped entries alike. Every kept object carries its own id, so the
 // output is deterministic. cleanBoardGolden.json is the output the cleaner

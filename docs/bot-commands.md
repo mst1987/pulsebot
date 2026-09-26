@@ -21,7 +21,7 @@ module.exports = {
 };
 ```
 
-A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access. A component that only hands the interaction to its logic in `src/web/` is built with `componentRoute({ name, description, accessOf, handler })` from `src/commands/componentRoute.js` (checks the event server via `guildFor` first; `guild: false` skips that, `onGuildError: "update"` answers by replacing the message).
+A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access. A component that only hands the interaction to its logic in `src/services/` is built with `componentRoute({ name, description, accessOf, handler })` from `src/commands/componentRoute.js` (checks the event server via `guildFor` first; `guild: false` skips that, `onGuildError: "update"` answers by replacing the message).
 
 **Commands and components:** a module with `data` is a **command** (slash command or context menu), one without is a **component** — `kindOf()` in `loader.js`. Both sit in `client.commands`, keyed by name resp. customId prefix; the router lets a slash command, context menu or autocomplete reach only a command, a button/select/modal reaches either (the overview buttons call `update-events` etc.). A few components carry their own `group` because they are the entry point of a flow (`apply`, `event-btn`, `event-join`, `event-signup`, `talk-signup`); `test/commands/loader.test.js` keeps that list explicit.
 
@@ -33,7 +33,7 @@ The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, mod
 
 ### Who may run a command (bot command access, issue #252)
 
-**Access is checked once, in `bot.js`, before `execute`** — `guardInteraction()` from `src/web/botAccess.js`. No command file checks permissions itself anymore; `checkForPermission` is gone. The order is: **admin** (`ADMIN_USER_ID`/`LOGCHECK_ADMIN_IDS` or an admin role from *Zugang*) → the setting stored in `config.botCommandAccess = { [commandName]: { mode, roleIds } }` → the file's `defaultAccess` → **admin-only (fail-closed)**. `resolveBotAccess(commandName, member, { commands, config })` is the pure part and is what the tests drive.
+**Access is checked once, in `bot.js`, before `execute`** — `guardInteraction()` from `src/services/discord/botAccess.js`. No command file checks permissions itself anymore; `checkForPermission` is gone. The order is: **admin** (`ADMIN_USER_ID`/`LOGCHECK_ADMIN_IDS` or an admin role from *Zugang*) → the setting stored in `config.botCommandAccess = { [commandName]: { mode, roleIds } }` → the file's `defaultAccess` → **admin-only (fail-closed)**. `resolveBotAccess(commandName, member, { commands, config })` is the pure part and is what the tests drive.
 
 - **Buttons, selects and modals inherit** through `accessOf`; there is no separate setting per component, and a rule stored under a component's own name is ignored. The `apply` button is the one exception with its own `defaultAccess: "everyone"`: it is posted by admin-only commands but must be usable by every applicant.
 - **Roles are resolved against the event guild** (`eventGuildId()` in `botAccess.js`: `config.eventGuildId`, else `config.guildId`), whichever server the interaction came from — the interaction's own member when it happened there, else the cached member list (`discord.fetchGuildMembersCached`), else a single fetch; a failed lookup means no roles, never an exception. A rule of `"everyone"` asks Discord nothing.
@@ -52,16 +52,16 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 | Command | Default | Reads | Links to |
 |---|---|---|---|
-| `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `web/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
-| `/raids` | everyone | `web/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
+| `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `services/characters/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
+| `/raids` | everyone | `services/events/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
 | `/raid <Event>` | everyone | same, with the lookback window | `/raids/detail?event=`, the Discord channel |
-| `/anwesenheit` | everyone | `web/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
+| `/anwesenheit` | everyone | `services/characters/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
 | `/anwesenheit-raider <Name>` | admins | same, any character | `/roster/char?name=` |
 | `/report` | everyone | `reportStore.listReports` + `reportList.prepareReportList` | `/r/<id>` |
 | `/council <Item>` | admins | `tbcLootNames.RAID_ITEMS` + `lootStats.itemCatalog` | `/lootcouncil/drop/<itemId>` |
 | `/kanal umbenennen · archivieren · anlegen` | admins | `discordChannels.js`, `channelArchiveStore.js`, `utils/channelNames.js` | `/channels` |
 
-- „Mein" is `web/userCharacters.js`'s `myCharacters()`: the raider→character assignment (Einstellungen → Kategorien, `charactersForUser()`) first, then the characters from the raider's own profile (`/profil`, #255). Without either the reply says so instead of guessing from names.
+- „Mein" is `services/characters/userCharacters.js`'s `myCharacters()`: the raider→character assignment (Einstellungen → Kategorien, `charactersForUser()`) first, then the characters from the raider's own profile (`/profil`, #255). Without either the reply says so instead of guessing from names.
 - Own attendance and others' are **two commands** because access is per command: everyone may see themselves, the raid lead decides who sees others.
 - `/kanal` never deletes (that stays in the menu, from the archive); archiving logs who did it like the page does, `anlegen` takes a name or a schema (`{tag}-{dd}-{mm}-{raid}`; empty = named and copied like the category's previous event channel, #285) plus `datum` (`24.09.` or `2026-09-24`).
 - **Autocomplete passes the access gate too** (`handleAutocomplete` in `bot.js`): a command someone may not run does not list its items or raiders to them. `test/commands/access.test.js` checks every registered autocomplete option has a handler.
@@ -101,7 +101,7 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 | `classes/blizzard.js` | Never throws (except `getToken`): `null` + `lastError { status, message, namespace }`, so the UI falls back to the armory link. |
 | `classes/anthropic.js` | Only creates the SDK client (`createAnthropicClient({ apiKey })`); the SDK has its own transport and retries. |
 
-In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/loot/softres.js`, `utils/loot/wowhead.js`, `web/deployStatus.js`) use the shared agent as well.
+In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/loot/softres.js`, `utils/loot/wowhead.js`, `web/http/deployStatus.js`) use the shared agent as well.
 
 ## Common Patterns
 

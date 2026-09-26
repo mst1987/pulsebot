@@ -1,6 +1,6 @@
 const { json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -44,13 +44,13 @@ jest.mock("../../../src/web/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -67,7 +67,7 @@ jest.mock("../../../src/web/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/reportList", () => ({
+jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
@@ -78,14 +78,14 @@ jest.mock("../../../src/web/reportList", () => ({
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
     // the Log-Auswertung list is pure; the route tests run the real one
-    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").prepareClaList(...args)),
-    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").claRowFromLog(...args)),
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
-jest.mock("../../../src/web/logEventMatch", () => ({
+jest.mock("../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/logChannel", () => ({
+jest.mock("../../../src/services/logcheck/logChannel", () => ({
     evaluateLog: jest.fn(),
     scanLogChannels: jest.fn(),
     backfillLogTitles: jest.fn(() => Promise.resolve(0)),
@@ -107,7 +107,7 @@ jest.mock("../../../src/utils/logcheck/report", () => {
     };
 });
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -119,12 +119,12 @@ jest.mock("../../../src/web/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -147,7 +147,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -170,15 +170,15 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../src/web/raidListing", () => ({
-    ...jest.requireActual("../../../src/web/raidListing"),
+jest.mock("../../../src/services/events/raidListing", () => ({
+    ...jest.requireActual("../../../src/services/events/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
@@ -195,18 +195,18 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventLootSystemStore", () => ({
+jest.mock("../../../src/stores/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -248,21 +248,21 @@ jest.mock("../../../src/utils/setup/fillSetup", () => ({
     fillSetupSheet: (...args) => mockFillSetupSheet(...args),
 }));
 const mockRaidHelperSlots = jest.fn(() => []);
-jest.mock("../../../src/web/setupEditor", () => ({
-    ...jest.requireActual("../../../src/web/setupEditor"),
+jest.mock("../../../src/services/setup/setupEditor", () => ({
+    ...jest.requireActual("../../../src/services/setup/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
-const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
-const discord = require("../../../src/web/discord");
-const raidEventGroups = require("../../../src/web/raidEventGroups");
-const raidEventStore = require("../../../src/web/raidEventStore");
-const logStore = require("../../../src/web/logStore");
-const lootStore = require("../../../src/web/lootStore");
-const raiderCharactersStore = require("../../../src/web/raiderCharactersStore");
-const eventSheetStore = require("../../../src/web/eventSheetStore");
-const eventSoftresStore = require("../../../src/web/eventSoftresStore");
+const auth = require("../../../src/web/http/auth");
+const settingsStore = require("../../../src/stores/settingsStore");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const discord = require("../../../src/services/discord/discord");
+const raidEventGroups = require("../../../src/services/events/raidEventGroups");
+const raidEventStore = require("../../../src/stores/raidEventStore");
+const logStore = require("../../../src/stores/logStore");
+const lootStore = require("../../../src/stores/lootStore");
+const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
+const eventSheetStore = require("../../../src/stores/eventSheetStore");
+const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
 const softres = require("../../../src/utils/loot/softres");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const raidsheetsUtil = require("../../../src/utils/setup/raidsheets");
@@ -357,7 +357,7 @@ describe("web/apiRoutes/raidDetail", () => {
 
         it("carries the loot system and leaves the softres step out when it has no softres list", async () => {
             setupDefaults();
-            const eventLootSystemStore = require("../../../src/web/eventLootSystemStore");
+            const eventLootSystemStore = require("../../../src/stores/eventLootSystemStore");
             eventLootSystemStore.lootSystemOf.mockReturnValueOnce({ system: "lootcouncil", label: "Loot-Council", source: "category", softres: false });
             const data = json(await get("/api/raids/detail", { event: "e1" })).data;
             expect(data.lootSystem).toMatchObject({ system: "lootcouncil", softres: false });
@@ -1331,7 +1331,7 @@ describe("web/apiRoutes/raidDetail", () => {
     });
 
     describe("POST /api/raids/loot-system", () => {
-        const eventLootSystemStore = require("../../../src/web/eventLootSystemStore");
+        const eventLootSystemStore = require("../../../src/stores/eventLootSystemStore");
         const groups = { groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC" }] }], error: null };
 
         beforeEach(() => {

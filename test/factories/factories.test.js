@@ -3,7 +3,7 @@
 const { event, ownEvent, signup, series, sec, DAY } = require("./events");
 const { makeWcl, fight, GRUUL, fights } = require("./wcl");
 const { board, icon, person } = require("./raidplan");
-const { normalizeSignup } = require("../../src/web/signupStore");
+const { normalizeSignup } = require("../../src/stores/signupStore");
 
 describe("test/factories", () => {
     it("event: a Raid-Helper-shaped event, over wins", () => {

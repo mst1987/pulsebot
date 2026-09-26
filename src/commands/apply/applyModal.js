@@ -2,7 +2,7 @@ const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discor
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
-const { getConfig } = require("../../web/configStore");
+const { getConfig } = require("../../stores/configStore");
 const { getClass } = require("../../config/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant } = require("../../utils/logcheck/applicant");
@@ -70,7 +70,7 @@ function getEmojiString(guildEmojis, iconName) {
 module.exports = {
     name: "apply-modal",
     description: "Bewerbungs-Modal Submit",
-    // A component of /apply: it needs the same access (web/botAccess.js).
+    // A component of /apply: it needs the same access (services/discord/botAccess.js).
     accessOf: "apply",
     async execute(interaction, client) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

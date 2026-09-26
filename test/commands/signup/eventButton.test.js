@@ -4,14 +4,14 @@
 // Raider-Rolle, alte customIds.
 const { MessageFlags } = require("discord.js");
 
-jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
-jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
+jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/web/raiderProfileStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventButton");
 const {
     parseButtonId, orderedValues, firstCharacterTo, withAddedCharacter, refusal,
@@ -337,7 +337,7 @@ describe("commands/signup/eventButton", () => {
             expect(statuses()).toEqual([["Devire", "bench"]]);
 
             // what the channel sees, built from the same store
-            const { _internal: { buildEventMessage } } = require("../../../src/web/eventMessage");
+            const { _internal: { buildEventMessage } } = require("../../../src/services/events/eventMessage");
             const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"));
             const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bench|Absence/.test(f.value)).value.split("\n");
             expect(lines).toEqual(["Bench (1): `1` Devire"]);
@@ -351,7 +351,7 @@ describe("commands/signup/eventButton", () => {
     });
 
     describe("Bestätigung mit Icons (#303)", () => {
-        const appEmojis = require("../../../src/web/appEmojis");
+        const appEmojis = require("../../../src/services/discord/appEmojis");
         afterEach(() => appEmojis.resetAppEmojis());
 
         it("puts the spec and status icons into the confirmation when the emojis are there", async () => {

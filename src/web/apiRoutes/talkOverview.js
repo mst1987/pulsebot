@@ -1,9 +1,9 @@
 // Einstellungen → Verbindungen → Discord-Server: each event server's own raid
-// overview (#257, #361, web/talkOverview.js). Full admins only, like the rest
+// overview (#257, #361, services/talk/talkOverview.js). Full admins only, like the rest
 // of that section.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const talkOverview = require("../talkOverview");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const talkOverview = require("../../services/talk/talkOverview");
 
 /**
  * GET /api/settings/talk-overview — without `guildId`: every configured event

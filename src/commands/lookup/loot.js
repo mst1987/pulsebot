@@ -3,10 +3,10 @@
 // same functions the web pages use (lootStore, lootStats), never from a second
 // reading of the loot file.
 const { SlashCommandBuilder } = require("discord.js");
-const { listByCharacter } = require("../../web/lootStore");
-const { itemCatalog } = require("../../web/lootStats");
-const { annotatedCharacters } = require("../../web/characterInfo");
-const { myCharacters } = require("../../web/userCharacters");
+const { listByCharacter } = require("../../stores/lootStore");
+const { itemCatalog } = require("../../services/loot/lootStats");
+const { annotatedCharacters } = require("../../services/characters/characterInfo");
+const { myCharacters } = require("../../services/characters/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
 
 /** How many awards a reply lists — the web page has the rest. */

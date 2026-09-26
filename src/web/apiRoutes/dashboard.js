@@ -1,17 +1,17 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { listRecruitmentPosts, getConfig } = require("../settingsStore");
-const { activeGuildFor } = require("../activeGuild");
-const discord = require("../discord");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { listRecruitmentPosts, getConfig } = require("../../stores/settingsStore");
+const { activeGuildFor } = require("../http/activeGuild");
+const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
-} = require("../dashboardData");
+} = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
-const { buildTasks, zoneFor } = require("../dashboardOverview");
-const { loadDrift } = require("../roleSync");
-const { seriesFailures } = require("../eventSeries");
-const { deployStatus } = require("../deployStatus");
+const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
+const { loadDrift } = require("../../services/discord/roleSync");
+const { seriesFailures } = require("../events/eventSeries");
+const { deployStatus } = require("../http/deployStatus");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {

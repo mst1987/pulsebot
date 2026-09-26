@@ -2,7 +2,7 @@ const mockListEventSheets = jest.fn();
 const mockDeleteEventSheet = jest.fn();
 const mockDeleteFile = jest.fn().mockResolvedValue({});
 
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     listEventSheets: mockListEventSheets,
     deleteEventSheet: mockDeleteEventSheet,
 }));

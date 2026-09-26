@@ -11,7 +11,7 @@ const { MessageFlags } = require("discord.js");
 // then defers and replaces the step message with the confirmation or the error.
 const {
     FORM_PREFIX, parseCustomId, guildFor, formModal, getDraft, readForm, submitForm,
-} = require("../../web/eventDraft");
+} = require("../../services/events/eventDraft");
 
 module.exports = {
     name: FORM_PREFIX,

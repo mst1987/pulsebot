@@ -2,12 +2,12 @@
 // approved lineup and never the draft, writing takes `raids` write, and the
 // explanation runs as a background job that needs the Anthropic key.
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 let mockConfig = {};
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
 const mockEvents = new Map();
-jest.mock("../../../src/web/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -22,27 +22,27 @@ jest.mock("../../../src/web/eventStore", () => ({
     }),
 }));
 let mockSignups = [];
-jest.mock("../../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../../src/web/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../../src/web/eventSources", () => ({
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
-    specNameFor: jest.requireActual("../../../src/web/eventSources").specNameFor,
+    specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,
 }));
-jest.mock("../../../src/web/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
-jest.mock("../../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/web/setupMessage", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
+jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
 const mockExplain = jest.fn();
 jest.mock("../../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
 
-const { readJsonBody } = require("../../../src/web/apiBody");
-const { refreshEventMessage } = require("../../../src/web/eventMessage");
-const setupMessage = require("../../../src/web/setupMessage");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
+const { refreshEventMessage } = require("../../../src/services/events/eventMessage");
+const setupMessage = require("../../../src/services/setup/setupMessage");
 const route = require("../../../src/web/apiRoutes/setup");
-const { checkAccess } = require("../../../src/web/apiAccess");
+const { checkAccess } = require("../../../src/web/http/apiAccess");
 const { su } = require("../../utils/setup/fixtures");
 const { mockRes, status, body } = require("../../helpers/http");
 const { ownEvent } = require("../../factories/events");

@@ -5,15 +5,15 @@
 // profiles through GET /api/profile/user (area `roster`), and the list of
 // characters claimed by more than one account through
 // GET /api/roster/character-claims.
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const profiles = require("../raiderProfileStore");
-const specHistory = require("../specHistoryStore");
-const { logIndex, logSuggestions } = require("../profileLogs");
-const { profileView, lookupArmory } = require("../profileView");
-const calendarTokens = require("../calendarTokenStore");
-const calendarFeed = require("../calendarFeed");
-const { userIcsUrl } = require("../icsFeed");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const profiles = require("../../stores/raiderProfileStore");
+const specHistory = require("../../stores/specHistoryStore");
+const { logIndex, logSuggestions } = require("../characters/profileLogs");
+const { profileView, lookupArmory } = require("../characters/profileView");
+const calendarTokens = require("../../stores/calendarTokenStore");
+const calendarFeed = require("../pages/calendarFeed");
+const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 

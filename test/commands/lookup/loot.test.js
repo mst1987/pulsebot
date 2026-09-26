@@ -1,14 +1,14 @@
-jest.mock("../../../src/web/lootStore", () => ({ listByCharacter: jest.fn() }));
-jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
-jest.mock("../../../src/web/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
-jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
+jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn() }));
+jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn() }));
+jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
+jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/loot");
-const { listByCharacter } = require("../../../src/web/lootStore");
-const { itemCatalog } = require("../../../src/web/lootStats");
-const { annotatedCharacters } = require("../../../src/web/characterInfo");
-const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
+const { listByCharacter } = require("../../../src/stores/lootStore");
+const { itemCatalog } = require("../../../src/services/loot/lootStats");
+const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
+const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");

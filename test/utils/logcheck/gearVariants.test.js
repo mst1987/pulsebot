@@ -90,7 +90,7 @@ describe("utils/logcheck/gearVariants", () => {
 
         it("never hands over a piece the raider wears in the other slot", async () => {
             // Zwei gleiche Trinkets kann niemand anlegen, und ihre Werte zählten
-            // im Vergleich doppelt (siehe web/charGear.js).
+            // im Vergleich doppelt (siehe services/loot/charGear.js).
             const wcl = wclWith([[entry("Devihra", [[12, TRINKET], [13, TRINKET]])]]);
             const roster = [{ name: "Devihra", armory: [armoryRow(12, MOTC), armoryRow(13, TRINKET)] }];
             const result = await resolveSituationalGear(wcl, "abc", fights(3), roster);

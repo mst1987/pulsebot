@@ -22,8 +22,8 @@ describe("Log-Auswertung: finding it", () => {
         // One list for both menus (src/config/menu.json), rendered by Shell.tsx and adminChrome.js.
         const menu = require("../../src/config/menu.json");
         expect(menu.find((e) => e.id === "cla")).toMatchObject({ label: "Log-Auswertung", href: "/cla" });
-        const chrome = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "adminChrome.js"), "utf8");
-        expect(chrome).toContain("require(\"../config/menu\")");
+        const chrome = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "report", "adminChrome.js"), "utf8");
+        expect(chrome).toContain("require(\"../../config/menu\")");
     });
 
     it("has a page head with the area tile and exactly one primary action, which opens the dialog", () => {

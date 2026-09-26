@@ -4,30 +4,30 @@
 // routes in server.js (see the "CLA / logcheck" block there) — same guards,
 // same German strings, same data shapes, minus the HTML rendering.
 const crypto = require("crypto");
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { AppError } = require("../apiResult");
-const { q } = require("../apiParams");
-const { activeGuildFor } = require("../activeGuild");
-const { listReports, deleteReport, getReport, saveReport } = require("../reportStore");
-const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { AppError } = require("../http/apiResult");
+const { q } = require("../http/apiParams");
+const { activeGuildFor } = require("../http/activeGuild");
+const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
+const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
 const { contentsForText } = require("../../config/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
-} = require("../logStore");
-const { annotateMatches, autoMatches } = require("../logEventMatch");
-const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
-const { startJob, getJob } = require("../evalJobs");
-const { getConfig } = require("../settingsStore");
+} = require("../../stores/logStore");
+const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
+const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../../services/logcheck/logChannel");
+const { startJob, getJob } = require("../logcheck/evalJobs");
+const { getConfig } = require("../../stores/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { applyReview } = require("../../utils/logcheck/recommendations");
-const { sendApproved, sendStatus } = require("../recommendationSend");
+const { sendApproved, sendStatus } = require("../logcheck/recommendationSend");
 const { phraseReport } = require("../../utils/logcheck/recommendationText");
-const { listAllAssignments } = require("../raiderCharactersStore");
-const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
-const { linkLogByUrl } = require("../manualLog");
-const discord = require("../discord");
+const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { loadMatchableEvents, eventLinkFields } = require("../../services/logcheck/matchableEvents");
+const { linkLogByUrl } = require("../logcheck/manualLog");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page= — the page's one

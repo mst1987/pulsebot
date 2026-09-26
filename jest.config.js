@@ -59,7 +59,7 @@ module.exports = {
             branches: 82.7,
             statements: 94.8,
         },
-        "./src/web/**/*Store.js": {
+        "./src/stores/**/*Store.js": {
             lines: 85.4,
             functions: 87.8,
             branches: 64.4,

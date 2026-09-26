@@ -1,7 +1,7 @@
 // The fake discord.js client the suites share (#433).
 const { ChannelType } = require("discord.js");
 const { makeClient, makeGuild, makeChannel, makeMember, discordError } = require("./discordClient");
-const { textChannelOf } = require("../../src/web/discord");
+const { textChannelOf } = require("../../src/services/discord/discord");
 
 describe("test/helpers/discordClient", () => {
     it("fetches cached channels and rejects an unknown one like Discord", async () => {

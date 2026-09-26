@@ -1,9 +1,9 @@
 const { MessageFlags } = require("discord.js");
-const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
+const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
-const logStore = require("../../web/logStore");
-const discord = require("../../web/discord");
+const logStore = require("../../stores/logStore");
+const discord = require("../../services/discord/discord");
 
 // Button handler for the "CLA auswerten" / "RPB auswerten" buttons posted under a
 // detected log. The customId carries the tracked log id and which half to run:
@@ -13,7 +13,7 @@ const discord = require("../../web/discord");
 module.exports = {
     name: "logcheck-eval",
     description: "Wertet einen im Log-Channel erkannten Warcraft-Logs-Report aus (Button).",
-    // A component of /logcheck: it needs the same access (web/botAccess.js).
+    // A component of /logcheck: it needs the same access (services/discord/botAccess.js).
     accessOf: "logcheck",
     async execute(interaction) {
         const parts = (interaction.customId || "").split(":");

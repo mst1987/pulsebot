@@ -1,10 +1,10 @@
 const { MessageFlags } = require("discord.js");
-const { getEvent } = require("../../web/eventStore");
-const { getSignup } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
-const { submitSignup, checkRaiderRole } = require("../../web/signupService");
-const { BUTTON_PREFIX } = require("../../web/eventMessage");
-const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
+const { getEvent } = require("../../stores/eventStore");
+const { getSignup } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { submitSignup, checkRaiderRole } = require("../../services/signups/signupService");
+const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
+const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
 const { classLabel } = require("../../utils/signup/signupDialog");
 const {
@@ -12,7 +12,7 @@ const {
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
 } = require("../../utils/signup/signupButtons");
 const { toEnglish } = require("../../utils/signup/botEnglish");
-const { noteMode, MIN_NOTE } = require("../../web/signupNotes");
+const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
 
 // The signup buttons under an EventHelper event message and every step after
 // them — see utils/signup/signupButtons.js for the flow and the customIds. Every answer

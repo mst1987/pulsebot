@@ -1,16 +1,16 @@
 // Uploads the bot's application emojis (#287) — spec, class, role and status
-// icons for the event message and its selects (src/web/appEmojis.js).
+// icons for the event message and its selects (src/services/discord/appEmojis.js).
 //
 //   node scripts/sync-app-emojis.js --dry-run     only list what is missing
 //   node scripts/sync-app-emojis.js               create the missing emojis
 //   --dev                                         read .env.dev instead of .env
 //
-// The bot runs the same sync itself on start (src/web/appEmojiSync.js), so this
+// The bot runs the same sync itself on start (src/services/discord/appEmojiSync.js), so this
 // is only needed to check or fill an application without starting the bot.
 // Idempotent: only names that do not exist yet are created. Requiring this file
 // does nothing; only running it talks to Discord.
 const { REST } = require("discord.js");
-const { existingNames, downloadIcon, syncAppEmojis } = require("../src/web/appEmojiSync");
+const { existingNames, downloadIcon, syncAppEmojis } = require("../src/services/discord/appEmojiSync");
 
 function parseArgs(argv) {
     return { dev: argv.includes("--dev"), dryRun: argv.includes("--dry-run") };

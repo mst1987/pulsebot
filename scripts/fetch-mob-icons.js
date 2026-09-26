@@ -16,7 +16,7 @@
 // re-derives the mapping.
 const fs = require("fs");
 const path = require("path");
-const { MOBS } = require("../src/web/raidplanCatalogDefaults");
+const { MOBS } = require("../src/services/raidplan/raidplanCatalogDefaults");
 const { KIND_ICONS, MOB_KINDS, ICON_CHOICES } = require("./data/raidplanMobIconRules");
 const { MOB_NPCS } = require("./data/raidplanMobNpcs");
 const png = require("./lib/png");

@@ -1,6 +1,6 @@
 // Sicht Bosse: one card per boss with tries, chips and the fight section, plus a
 // raider's own timeline (player page, raider card).
-const { fmtTime } = require("../charts");
+const { fmtTime } = require("./charts");
 const { bossIconUrl } = require("../../config/bosses");
 const { esc } = require("./layout");
 const { expBtn, badge, hicon, fmtK } = require("./widgets");

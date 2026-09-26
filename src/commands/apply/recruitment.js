@@ -1,7 +1,7 @@
 const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder,
 } = require("discord.js");
-const { listRecruitment, saveRecruitmentPost } = require("../../web/recruitmentStore");
+const { listRecruitment, saveRecruitmentPost } = require("../../stores/recruitmentStore");
 const { embedAccentColor } = require("../../config/variables");
 
 module.exports = {

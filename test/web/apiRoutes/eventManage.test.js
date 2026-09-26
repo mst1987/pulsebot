@@ -2,10 +2,10 @@
 // path is area `raids`, writes need write by method, the two reads check write
 // in the handler, and each route hands the body to the service as it should.
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../../src/web/eventManage", () => ({
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../src/services/events/eventManage", () => ({
     manageInfo: jest.fn(async () => ({ status: 200, body: { event: { id: "eh-a" } } })),
     movePlan: jest.fn(async () => ({ plan: { eventId: "eh-a", channel: { rename: true } } })),
     moveEvent: jest.fn(async () => ({ status: 200, body: { message: "Verschoben." } })),
@@ -18,10 +18,10 @@ jest.mock("../../../src/web/eventManage", () => ({
     deleteEvent: jest.fn(async () => ({ status: 200, body: { message: "gelöscht", warnings: [] } })),
 }));
 
-const { readJsonBody } = require("../../../src/web/apiBody");
-const manage = require("../../../src/web/eventManage");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
+const manage = require("../../../src/services/events/eventManage");
 const route = require("../../../src/web/apiRoutes/eventManage");
-const { checkAccess } = require("../../../src/web/apiAccess");
+const { checkAccess } = require("../../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };

@@ -3,24 +3,24 @@
 // the public read view. The stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
-jest.mock("../../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../../src/web/eventStore"),
+jest.mock("../../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
 
-const { readJsonBody, readRawBody } = require("../../../src/web/apiBody");
-const { requireCsrf } = require("../../../src/web/apiMiddleware");
+const { readJsonBody, readRawBody } = require("../../../src/web/http/apiBody");
+const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../factories/events");
-const store = require("../../../src/web/raidplanStore");
-const profiles = require("../../../src/web/raidplanProfileStore");
+const store = require("../../../src/stores/raidplanStore");
+const profiles = require("../../../src/stores/raidplanProfileStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
-const { checkAccess, areasFor, UNGATED } = require("../../../src/web/apiAccess");
+const { checkAccess, areasFor, UNGATED } = require("../../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
@@ -398,7 +398,7 @@ describe("GET /api/raidplan/public", () => {
 });
 
 describe("what a raider counts as", () => {
-    const { resolveRole } = require("../../../src/web/raidplan");
+    const { resolveRole } = require("../../../src/web/raidplan/raidplan");
     const spec = (role) => ({ role });
 
     it("takes the placed role when it is one of the four, else the spec's, else dps", () => {

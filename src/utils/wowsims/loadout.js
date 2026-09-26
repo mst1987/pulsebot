@@ -1,4 +1,4 @@
-// Turns a raider's last-seen gear (web/charGear.js, read out of a CLA report's
+// Turns a raider's last-seen gear (services/loot/charGear.js, read out of a CLA report's
 // armory) into the equipment block of a WoWSims request.
 //
 // The translation is nearly free, because Warcraft Logs already hands back

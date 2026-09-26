@@ -4,7 +4,7 @@
 // The client is TSX and there is no React renderer here, so what is checked are
 // the invariants that would regress silently. The content recognition and the
 // raid size behind the icons and the signup bar are tested for real on the
-// server side (test/web/raidListing.test.js).
+// server side (test/services/events/raidListing.test.js).
 const fs = require("fs");
 const path = require("path");
 const { CONTENTS } = require("../../src/config/tbcContent");

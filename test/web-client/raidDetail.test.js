@@ -4,7 +4,7 @@
 // No React renderer here, so the invariants are checked in the source:
 //   * three tabs instead of six, and the old ?tab= values still land somewhere,
 //   * the head's progress bar and primary action come from the server payload
-//     (src/web/raidDetailSteps.js, tested in test/web/raidDetailSteps.test.js),
+//     (src/web/events/raidDetailSteps.js, tested in test/web/events/raidDetailSteps.test.js),
 //   * every form is a dialog, built on the shared blocks,
 //   * no native title, no confirm(), no glyph or emoji as an icon,
 //   * the page's CSS lives in its own file, not appended to index.css.

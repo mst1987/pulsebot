@@ -1,13 +1,13 @@
 // "Event verwalten" in Discord (#288): /event verwalten, the message context
 // menu, and the buttons/selects/modals of the ephemeral message. The service
-// (web/eventManage.js) runs for real on in-memory stores; Discord writes, the
+// (services/events/eventManage.js) runs for real on in-memory stores; Discord writes, the
 // message, the talk overview and every DM/ping are mocks.
 jest.mock("fs", () => ({
     ...require("../../helpers/memoryFs").memoryFs(),
     readdirSync: jest.requireActual("fs").readdirSync,
     existsSync: jest.fn(() => false),
 }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listAllChannels: jest.fn(() => [{ id: "200000000000000001", name: "mi-24-09-ssc-tk", parentId: "100000000000000001" }]),
     listCategories: jest.fn(() => []),
     resolveUserNames: jest.fn(async () => ({})),
@@ -15,39 +15,39 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     memberRoleIds: jest.fn(async () => null),
     getClient: jest.fn(() => null),
 }));
-jest.mock("../../../src/web/discordChannels", () => ({
+jest.mock("../../../src/services/discord/discordChannels", () => ({
     editChannel: jest.fn(async (id, { name }) => ({ id, name })),
     placeChannel: jest.fn(async () => true),
     archiveChannel: jest.fn(async (id) => ({ id, name: "mi-24-09-ssc-tk", guildId: "300000000000000001" })),
     discordErrorText: (e) => e.message,
 }));
-jest.mock("../../../src/web/channelNaming", () => ({ deriveChannelName: jest.fn(), namingLine: jest.fn(() => "") }));
-jest.mock("../../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
-jest.mock("../../../src/web/pingDelivery", () => ({
+jest.mock("../../../src/services/discord/channelNaming", () => ({ deriveChannelName: jest.fn(), namingLine: jest.fn(() => "") }));
+jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
+jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})), listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(() => null),
 }));
-jest.mock("../../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
-jest.mock("../../../src/web/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
-jest.mock("../../../src/web/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
-jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
+jest.mock("../../../src/services/setup/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
+jest.mock("../../../src/services/events/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
+jest.mock("../../../src/services/events/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const { DateTime } = require("luxon");
 const fs = require("fs");
-const channelNaming = require("../../../src/web/channelNaming");
-const { sendDms, deliverUserPing } = require("../../../src/web/pingDelivery");
-const { updateEvent } = require("../../../src/web/eventCreate");
-const { pingMissingRaiders } = require("../../../src/web/missingPing");
-const eventStore = require("../../../src/web/eventStore");
-const signupStore = require("../../../src/web/signupStore");
-const profiles = require("../../../src/web/raiderProfileStore");
-const bot = require("../../../src/web/eventManageBot");
+const channelNaming = require("../../../src/services/discord/channelNaming");
+const { sendDms, deliverUserPing } = require("../../../src/services/discord/pingDelivery");
+const { updateEvent } = require("../../../src/services/events/eventCreate");
+const { pingMissingRaiders } = require("../../../src/services/events/missingPing");
+const eventStore = require("../../../src/stores/eventStore");
+const signupStore = require("../../../src/stores/signupStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
+const bot = require("../../../src/services/events/eventManageBot");
 const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventManageStep");
 const formCommand = require("../../../src/commands/event/eventManageForm");
@@ -231,7 +231,7 @@ describe("actions", () => {
     it("deletes only with LÖSCHEN typed: the event and its signups go, the message is deleted, the panel says so", async () => {
         const message = { delete: jest.fn(async () => ({})) };
         const client = makeClient({ channels: [makeChannel({ id: CHANNEL, guildId: GUILD, messages: [["700000000000000001", message]] })] });
-        require("../../../src/web/discord").getClient.mockReturnValue(client);
+        require("../../../src/services/discord/discord").getClient.mockReturnValue(client);
 
         const modal = interaction({ customId: bot._internal.manageId("l", event.id) });
         await stepCommand.execute(modal);

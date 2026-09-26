@@ -26,23 +26,23 @@
 //
 // The area gate (apiAccess.js) decides read vs. write by method. The public route
 // is listed in UNGATED there; it hands out only what /p/<token> shows.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { readRawBody } = require("../apiBody");
-const { sendFailure } = require("../apiResult");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { readRawBody } = require("../http/apiBody");
+const { sendFailure } = require("../http/apiResult");
 const { userCan } = require("../../config/permissions");
-const auth = require("../auth");
-const { getEvent, isOwnEventId } = require("../eventStore");
-const store = require("../raidplanStore");
-const profileStore = require("../raidplanProfileStore");
-const templateStore = require("../raidplanTemplateStore");
-const raidplan = require("../raidplan");
-const assign = require("../raidplanAssign");
-const catalog = require("../raidplanCatalogStore");
-const rosterSource = require("../raidplanRosterSource");
-const { instancesFromTitle } = require("../raidplanTitle");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
+const auth = require("../http/auth");
+const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const store = require("../../stores/raidplanStore");
+const profileStore = require("../../stores/raidplanProfileStore");
+const templateStore = require("../../stores/raidplanTemplateStore");
+const raidplan = require("../raidplan/raidplan");
+const assign = require("../../services/raidplan/raidplanAssign");
+const catalog = require("../../stores/raidplanCatalogStore");
+const rosterSource = require("../raidplan/raidplanRosterSource");
+const { instancesFromTitle } = require("../raidplan/raidplanTitle");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 

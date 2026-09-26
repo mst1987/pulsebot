@@ -1,4 +1,4 @@
-// For suites that mock src/web/discord.js: discord.fetchTextChannel() and
+// For suites that mock src/services/discord/discord.js: discord.fetchTextChannel() and
 // discord.isOnline() then read the client the suite hands to the mocked
 // getClient(), with the real rules (textChannelOf runs for real) — so a suite
 // keeps steering "bot offline", "channel missing" and "channel found" through
@@ -8,7 +8,7 @@
 // Automock:      withClientHelpers(require(".../web/discord"));
 
 function withClientHelpers(mock) {
-    const actual = jest.requireActual("../../src/web/discord");
+    const actual = jest.requireActual("../../src/services/discord/discord");
     mock.isOnline = jest.fn(() => {
         const client = mock.getClient();
         return !!client && (typeof client.isReady !== "function" || client.isReady());

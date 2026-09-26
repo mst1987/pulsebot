@@ -1,6 +1,6 @@
 const { mockRes, json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -9,7 +9,7 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -38,8 +38,8 @@ jest.mock("../../../src/web/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -76,9 +76,9 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
-const discord = require("../../../src/web/discord");
+const auth = require("../../../src/web/http/auth");
+const settingsStore = require("../../../src/stores/settingsStore");
+const discord = require("../../../src/services/discord/discord");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { request, post, patch, handle } = routerClient(require("../../../src/web/apiRoutes/raidTemplates"));
 

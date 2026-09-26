@@ -11,7 +11,7 @@ regenerate. Only JSON lives here; the modules that use the data load it:
 | `scripts/build-cla-data.js` | `claData.json` | CLA Apps Script source + `scripts/data-sources/cla/*.csv` | `node scripts/build-cla-data.js` | `config/claData.js` |
 | `scripts/build-rpb-data.js` | `rpbData.json` | `scripts/data-sources/rpb/*.csv` (+ cached spell icons) | `node scripts/build-rpb-data.js` | `config/rpbData.js` |
 | `scripts/fetch-boss-icons.js` | `bossIcons.json` | Warcraft Logs zones/encounters (icons go to `src/web-client/public/bosses/`) | `node scripts/fetch-boss-icons.js` | `config/bosses.js` |
-| `scripts/fetch-mob-icons.js` | `mobIcons.json` | Wowhead icon CDN + NPC model renders (portraits go to `src/web-client/public/mobs/`) | `node scripts/fetch-mob-icons.js` | `web/raidplanCatalogDefaults.js`, `web/apiRoutes/raidplan.js` |
+| `scripts/fetch-mob-icons.js` | `mobIcons.json` | Wowhead icon CDN + NPC model renders (portraits go to `src/web-client/public/mobs/`) | `node scripts/fetch-mob-icons.js` | `services/raidplan/raidplanCatalogDefaults.js`, `web/apiRoutes/raidplan.js` |
 | `scripts/fetch-wowhead-bis.js` | `wowhead/bisSets.json` | Wowhead's written BiS guides (the five healing specs) | `npm run bis:refresh` | `config/bisSets.js` |
 | `scripts/fetch-wowsims-data.js` | `wowsims/items.json`, `wowsims/bisSets.json`, `wowsims/apls/*.apl.json` | wowsims/tbc-new (MIT) | `npm run bis:refresh` | `config/wowsims/index.js` |
 
