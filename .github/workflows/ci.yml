@@ -85,6 +85,10 @@ jobs:
       - name: Run ESLint
         run: npm run lint -- --max-warnings=18
 
+      # The client's own tests (Vitest + jsdom, #435).
+      - name: Test
+        run: npm test
+
       - name: Type-check
         run: npx tsc -b
 
