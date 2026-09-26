@@ -163,24 +163,18 @@ describe("web/settingsStore", () => {
             const def = getConfig();
             expect(def).toHaveProperty("applicationChannelId");
             expect(def).toHaveProperty("officerRoleId");
-            expect(def).toHaveProperty("highestBidsChannelId");
-            expect(def).toHaveProperty("highestBidsMessageId");
             expect(Array.isArray(def.categoryIds)).toBe(true);
             expect(Array.isArray(def.logChannelIds)).toBe(true);
 
             saveConfig({
                 applicationChannelId: "app-1",
                 officerRoleId: "role-1",
-                highestBidsChannelId: "hb-1",
-                highestBidsMessageId: "msg-1",
                 categoryIds: ["c1", "c2"],
                 logChannelIds: ["log-1", "log-2"],
             });
             const cfg = getConfig();
             expect(cfg.applicationChannelId).toBe("app-1");
             expect(cfg.officerRoleId).toBe("role-1");
-            expect(cfg.highestBidsChannelId).toBe("hb-1");
-            expect(cfg.highestBidsMessageId).toBe("msg-1");
             expect(cfg.categoryIds).toEqual(["c1", "c2"]);
             expect(cfg.logChannelIds).toEqual(["log-1", "log-2"]);
         });

@@ -58,13 +58,13 @@ function panelIds() {
 describe("Einstellungen sections", () => {
     it("parses the section list at all", () => {
         // Sanity: a broken regex above would make every assertion below vacuous.
-        expect(sections().length).toBe(10);
+        expect(sections().length).toBe(9);
     });
 
-    it("keeps ten sections in four groups, each with a WoW icon", () => {
+    it("keeps nine sections in four groups, each with a WoW icon", () => {
         expect(sections().map((s) => s.id)).toEqual([
             "berechtigungen", "verbindungen", "discordserver", "kategorien",
-            "raids", "raidsheets", "topitems", "logs", "recruitment", "auktionen",
+            "raids", "raidsheets", "topitems", "logs", "recruitment",
         ]);
         expect([...new Set(sections().map((s) => s.group))]).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
         for (const s of sections()) expect({ id: s.id, icon: /^[a-z0-9_]+$/.test(s.icon) }).toEqual({ id: s.id, icon: true });

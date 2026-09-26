@@ -49,18 +49,6 @@ const PURPOSES = [
         missing: "Neue Bewerbungen haben keinen Kanal, in dem sie landen.",
     },
     {
-        id: "highestBids",
-        label: "Höchstgebote",
-        icon: "inv_misc_coin_01",
-        key: "highestBidsChannelId",
-        kind: "channel",
-        multiple: false,
-        need: "send",
-        section: "auktionen",
-        hint: "Kanal mit der Höchstgebote-Übersicht, die der Bot bei jedem Gebot aktualisiert.",
-        missing: "Die Höchstgebote-Übersicht wird nicht aktualisiert.",
-    },
-    {
         id: "eventCategories",
         label: "Event-Kategorien",
         icon: "achievement_boss_illidan",

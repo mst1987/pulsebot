@@ -47,8 +47,6 @@ type Draft = {
     userPermissions: RolePermissions;
     officerRoleId: string;
     applicationChannelId: string;
-    highestBidsChannelId: string;
-    highestBidsMessageId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
@@ -83,8 +81,6 @@ function toDraft(config: AdminConfig): Draft {
         userPermissions: config.userPermissions || {},
         officerRoleId: config.officerRoleId || "",
         applicationChannelId: config.applicationChannelId || "",
-        highestBidsChannelId: config.highestBidsChannelId || "",
-        highestBidsMessageId: config.highestBidsMessageId || "",
         categoryIds: config.categoryIds || [],
         categoryRoles: config.categoryRoles || {},
         logChannelIds: config.logChannelIds || [],
@@ -382,8 +378,6 @@ export default function SettingsPage() {
                 } : {}),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
-                highestBidsChannelId: draft.highestBidsChannelId.trim(),
-                highestBidsMessageId: draft.highestBidsMessageId.trim(),
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
                 logChannelIds: draft.logChannelIds,
@@ -586,22 +580,6 @@ export default function SettingsPage() {
                         <div className="set-field">
                             <FieldLabel htmlFor="set-officer" tip="Offizier-Rolle" tipSub="Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.">Offizier-Rolle</FieldLabel>
                             <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder="— kein Ping —" />
-                        </div>
-                    </ModuleCard>
-                </>
-            );
-
-            case "auktionen": return (
-                <>
-                    {head(activeSection)}
-                    <ModuleCard>
-                        <div className="set-field">
-                            <FieldLabel htmlFor="set-bids-channel" tip="Höchstgebote-Kanal" tipSub="Der Kanal mit der Höchstgebote-Übersicht der Legendary-Auktionen.">Höchstgebote-Kanal</FieldLabel>
-                            <ChannelPicker id="set-bids-channel" value={draft.highestBidsChannelId} channels={channels} onChange={(highestBidsChannelId) => patch({ highestBidsChannelId })} />
-                        </div>
-                        <div className="set-field">
-                            <FieldLabel htmlFor="set-bids-msg" tip="Höchstgebote-Nachricht" tipSub="Die Nachricht mit der Übersicht, die der Bot aktualisiert. In Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus).">Höchstgebote-Message-ID</FieldLabel>
-                            <input id="set-bids-msg" type="text" className="mono" value={draft.highestBidsMessageId} onChange={(e) => patch({ highestBidsMessageId: e.target.value })} placeholder="Discord-Message-ID" />
                         </div>
                     </ModuleCard>
                 </>

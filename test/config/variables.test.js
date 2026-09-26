@@ -4,8 +4,6 @@ describe("config/variables", () => {
         "raidhelperServerId",
         "raidhelperBotId",
         "categoryIds",
-        "highestBidsChannelId",
-        "highestBidsMessageId",
         "embedAccentColor",
         "googleSpreadsheetId",
         "googleSheetName",
@@ -94,8 +92,6 @@ describe("config/variables", () => {
 
     it("provides Discord id strings for the well-known ids", () => {
         expect(variables.raidhelperBotId).toMatch(/^\d+$/);
-        expect(variables.highestBidsChannelId).toMatch(/^\d+$/);
-        expect(variables.highestBidsMessageId).toMatch(/^\d+$/);
     });
 
     it("defaults the web port to 3005 and derives the public base url from it", () => {

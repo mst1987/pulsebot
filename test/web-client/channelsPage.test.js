@@ -225,7 +225,7 @@ describe("ChannelsPage", () => {
     });
 
     it("uses WoW icons for purposes and line icons only for UI actions, no native titles", () => {
-        for (const icon of ["inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "inv_misc_coin_01", "achievement_boss_illidan"]) {
+        for (const icon of ["inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "achievement_boss_illidan"]) {
             expect(server).toContain(`icon: "${icon}"`);
         }
         expect(tree).toMatch(/icon=\{<CopyIcon \/>\} tip="Duplizieren"/);
