@@ -7,7 +7,8 @@
 // in through `input`; setupInput.js is what reads it from the stores.
 
 const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../lootImport");
+const { characterKeyOf } = require("../lootImport");
+const { str } = require("../text");
 
 const GROUP_SIZE = 5;
 // How many earlier raid nights fairness looks back over, per raider.
@@ -16,11 +17,6 @@ const HISTORY_WINDOW = 10;
 const STATUS_FACTOR = { signed: 1, late: 0.5, tentative: 0.3, bench: 0 };
 const GEAR_FACTOR = { ready: 1, "": 0.5, usable: 0 };
 
-function charKey(name) {
-    return lootCharacterKey(splitPlayer(name).character);
-}
-
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 /** A composition entry as `{ min, max }` — max null = no upper bound. */
 function limitFor(role, raw) {
@@ -74,9 +70,9 @@ function profileMap(raw) {
 /** The profile character a signup names — by name, else the main of that class. */
 function profileCharacter(profile, character, classId) {
     const chars = (profile && Array.isArray(profile.characters)) ? profile.characters : [];
-    const key = charKey(character);
+    const key = characterKeyOf(character);
     if (key) {
-        const hit = chars.find((c) => (c.key || charKey(c.name)) === key);
+        const hit = chars.find((c) => (c.key || characterKeyOf(c.name)) === key);
         if (hit) return hit;
         return null;
     }
@@ -392,9 +388,9 @@ function addFixedSpecOption(f, cand, event, ctx, warnings) {
 /** Index of the option a fixed place means — the named character first, then any; -1 when none. */
 function fixedOption(f, cand, event, ctx, warnings) {
     const wanted = str(f.spec);
-    const wantedChar = charKey(f.character);
+    const wantedChar = characterKeyOf(f.character);
     const fits = (o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role);
-    let optIdx = cand.options.findIndex((o) => fits(o) && (!wantedChar || charKey(o.character) === wantedChar));
+    let optIdx = cand.options.findIndex((o) => fits(o) && (!wantedChar || characterKeyOf(o.character) === wantedChar));
     if (optIdx < 0 && wantedChar) optIdx = cand.options.findIndex(fits);
     if (optIdx < 0 && wanted && ctx.specInfo.get(wanted)) optIdx = addFixedSpecOption(f, cand, event, ctx, warnings);
     return optIdx;
@@ -537,4 +533,4 @@ function buildModel(input = {}, weights) {
     };
 }
 
-module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, characterFlags, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };
+module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, characterFlags, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey: characterKeyOf };

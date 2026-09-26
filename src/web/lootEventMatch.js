@@ -10,12 +10,12 @@
 const { DateTime } = require("luxon");
 const { eventStartMs } = require("./logEventMatch");
 
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 
 /** "yyyy-MM-dd" in Europe/Berlin for a ms timestamp, or "" when unusable. */
 function dayKey(ms) {
     if (!ms) return "";
-    return DateTime.fromMillis(ms, { zone: ZONE }).toFormat("yyyy-MM-dd");
+    return DateTime.fromMillis(ms, { zone: TIMEZONE }).toFormat("yyyy-MM-dd");
 }
 
 /** Events whose Raid-Helper start falls on the same calendar day as `detectedMs`. */
@@ -42,7 +42,7 @@ function bestDayMatch(detectedMs, events) {
 /** "12.07.2026" in Europe/Berlin, for messages shown to the admin. */
 function formatDayDisplay(ms) {
     if (!ms) return "";
-    return DateTime.fromMillis(ms, { zone: ZONE }).toFormat("dd.MM.yyyy");
+    return DateTime.fromMillis(ms, { zone: TIMEZONE }).toFormat("dd.MM.yyyy");
 }
 
 module.exports = { dayKey, candidatesForDay, bestDayMatch, formatDayDisplay };

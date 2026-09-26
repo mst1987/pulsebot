@@ -1,10 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { characterKey, enrichItemNames, needsLookup } = require("../utils/lootImport");
 const { wowheadLink } = require("../config/wowheadItemAliases");
 const { describeReason } = require("../utils/lootReasons");
 const { contentForLoot, tokenTier } = require("../config/tbcContent");
+const { newId } = require("../utils/ids");
 
 // Imported loot lives as a single JSON file next to the other editable settings.
 // Each entry is a normalized loot item (see utils/lootImport) tagged with the
@@ -30,10 +30,6 @@ function readAll() {
 function writeAll(items) {
     ensureDir();
     fs.writeFileSync(LOOT_FILE, JSON.stringify({ items }, null, 2));
-}
-
-function newId() {
-    return crypto.randomBytes(6).toString("hex");
 }
 
 function dedupKey(item) {

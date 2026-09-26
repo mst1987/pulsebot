@@ -16,10 +16,11 @@
 
 const fs = require("fs");
 const path = require("path");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
 const { instanceById } = require("../config/gameVersions");
 const { validateCharacterName, NAME_MAX } = require("../utils/characterNames");
+const { isSnowflake } = require("../utils/ids");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const PROFILES_FILE = path.join(SETTINGS_DIR, "raider-profiles.json");
@@ -53,11 +54,6 @@ for (const c of buildClasses(CLASSES)) {
     CLASS_CAN.set(c.id, { canOfftank: c.specs.some((s) => s.canTank), canHeal: c.specs.some((s) => s.canHeal) });
 }
 const CLASS_IDS = CLASSES.map((c) => c.id);
-
-/** Keyed like characterStore/lootStore: lower case, without the realm suffix. */
-function characterKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
 
 /** "mage", "MAGE", "Mage" -> "Mage"; "" for anything that is not a class. */
 function normalizeClass(raw) {
@@ -111,7 +107,7 @@ function normalizeSpecs(raw, className) {
 function normalizeCharacter(raw) {
     if (!raw || typeof raw !== "object") return null;
     const name = cleanText(splitPlayer(raw.name || raw.character || "").character, MAX_NAME);
-    const key = characterKey(name);
+    const key = characterKeyOf(name);
     const className = normalizeClass(raw.className);
     if (!key || !className) return null;
     const armory = raw.armory && typeof raw.armory === "object" ? {
@@ -159,7 +155,7 @@ function normalizeProfile(raw, userId = "") {
         .filter((id) => instanceById(id)))];
     const userIds = (list, max) => [...new Set((Array.isArray(list) ? list : [])
         .map((id) => String(id || "").trim())
-        .filter((id) => /^\d{5,25}$/.test(id) && id !== uid))].slice(0, max);
+        .filter((id) => isSnowflake(id) && id !== uid))].slice(0, max);
     const wishes = userIds(src.wishes, MAX_WISHES);
     // "Nicht mit X raiden" is off until the raider switches it on (past a
     // warning) — and switching it off forgets the names, so nothing lingers.
@@ -267,7 +263,7 @@ function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
     if (!existing && clean.source !== "log") {
         const checked = validateCharacterName(splitPlayer(data.name || data.character || "").character, { versionId });
         if (checked.error) return { error: checked.error };
-        clean = { ...clean, name: checked.name, key: characterKey(checked.name) };
+        clean = { ...clean, name: checked.name, key: characterKeyOf(checked.name) };
         existing = current.characters.find((c) => c.key === clean.key);
     }
     let characters;
@@ -297,7 +293,7 @@ function mergeSpecs(have, add) {
 /** Take a character out of the raider's own profile. True when one was removed. */
 function removeCharacter(userId, key) {
     const current = getProfile(userId);
-    const k = characterKey(key);
+    const k = characterKeyOf(key);
     if (!current || !k || !current.characters.some((c) => c.key === k)) return false;
     store(userId, { ...current, characters: current.characters.filter((c) => c.key !== k) });
     return true;
@@ -305,7 +301,7 @@ function removeCharacter(userId, key) {
 
 /** Which *other* accounts claim this character: [{ userId, name }]. */
 function claimsFor(character, exceptUserId = "") {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return [];
     return listProfiles()
         .filter((p) => p.userId !== String(exceptUserId) && p.characters.some((c) => c.key === key))
@@ -402,7 +398,7 @@ function reset() {
 
 module.exports = {
     GEAR_LEVELS, WEEKDAYS, CHARACTER_SOURCES, MAX_CHARACTERS, MAX_WISHES, MAX_AVOID, MAX_NOTE,
-    characterKey, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
+    characterKey: characterKeyOf, normalizeClass, specInfo, normalizeProfile, specRoles, characterRoles, classCan,
     getProfile, hasProfile, listProfiles, saveProfile, addCharacter, removeCharacter,
     claimsFor, characterClaims, mainCharacter, searchRaiders, raiderRef, reset, useFile,
     PROFILES_FILE,

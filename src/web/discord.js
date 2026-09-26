@@ -1,6 +1,7 @@
 // Bridge between the web admin menu and the Discord bot client: list servers /
 // channels, and post / edit / scan recruitment messages. The client is injected
-// from the web server startup (which receives it from bot.js).
+// from the web server startup (which receives it from bot.js). This is the one
+// holder of the client: everything else (auth included) reads it via getClient().
 
 const {
     ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
@@ -13,6 +14,31 @@ function setClient(c) {
 }
 function getClient() {
     return client;
+}
+
+/** Whether the bot client is there (and, when it can say so, logged in). */
+function isOnline() {
+    return !!client && (typeof client.isReady !== "function" || client.isReady());
+}
+
+/**
+ * A text channel of the given client (announcement channels and threads count).
+ * Throws "Bot nicht verbunden." (code "bot_offline") without a client and
+ * `notFound` (code "channel_not_found") for a channel that is missing or cannot
+ * hold messages; Discord's own errors (unknown channel, missing access) pass through.
+ */
+async function textChannelOf(c, channelId, notFound = "Kanal nicht gefunden oder kein Textkanal.") {
+    if (!c) throw Object.assign(new Error("Bot nicht verbunden."), { code: "bot_offline" });
+    const channel = await c.channels.fetch(String(channelId || ""));
+    if (!channel || typeof channel.isTextBased !== "function" || !channel.isTextBased()) {
+        throw Object.assign(new Error(notFound), { code: "channel_not_found" });
+    }
+    return channel;
+}
+
+/** A text channel of the bot, fetched through its client (see textChannelOf). */
+function fetchTextChannel(channelId, notFound) {
+    return textChannelOf(client, channelId, notFound);
 }
 
 const RECRUIT_BUTTON_ID = "apply";
@@ -94,9 +120,7 @@ function getChannelCategoryMap(guildId) {
  * @returns { guildId, channelId, messageId, url }
  */
 async function postAnnouncement(channelId, template, roleIds = [], userIds = []) {
-    if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
 
     const roles = (roleIds || []).filter(Boolean);
     // Single members are mentioned where a role cannot be: on the talk server
@@ -221,8 +245,7 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     if (!client) throw new Error("Bot nicht verbunden.");
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     if (!users.length) throw new Error("Keine fehlenden Raider zum Pingen.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const body = String(text || "").trim()
         || "Please sign up or sign off for the raid, so the roster is complete.";
     // Discord refuses a message over 2000 characters, and a mention costs about
@@ -252,9 +275,7 @@ const MESSAGE_LIMIT = 2000;
  * @returns {Promise<{ channelId, messageId, url }>}
  */
 async function postNotice(channelId, payload) {
-    if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(String(channelId || ""));
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const data = typeof payload === "string" ? { content: payload } : (payload || {});
     const send = { allowedMentions: { parse: [] } };
     if (data.content) send.content = String(data.content).slice(0, MESSAGE_LIMIT);
@@ -458,9 +479,7 @@ function buildRecruitmentMessage(template) {
 
 /** Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url }. */
 async function postRecruitment(channelId, template) {
-    if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const posted = await channel.send(buildRecruitmentMessage(template));
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
@@ -468,8 +487,7 @@ async function postRecruitment(channelId, template) {
 /** Edit an already-posted recruitment message in place. */
 async function editRecruitment(channelId, messageId, template) {
     if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
     const message = await channel.messages.fetch(messageId);
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
     await message.edit(buildRecruitmentMessage(template));
@@ -789,8 +807,7 @@ function buildLinkMessage({ url, title, message, label = "Ã–ffnen", emoji = "ðŸ“
 async function postLink(channelId, opts = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
     if (!opts.url) throw new Error("Kein Link vorhanden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const posted = await channel.send(buildLinkMessage(opts));
     return { channelId: channel.id, messageId: posted.id, url: posted.url };
 }
@@ -799,8 +816,7 @@ async function postLink(channelId, opts = {}) {
 async function editLink(channelId, messageId, opts = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
     if (!opts.url) throw new Error("Kein Link vorhanden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden.");
+    const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
     const message = await channel.messages.fetch(messageId);
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
     await message.edit(buildLinkMessage(opts));
@@ -890,7 +906,7 @@ function embed() {
 }
 
 module.exports = {
-    setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
+    setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames,
     memberRoleIds,

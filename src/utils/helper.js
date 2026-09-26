@@ -3,6 +3,7 @@ const { DateTime } = require("luxon");
 const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
+const { TIMEZONE } = require("../config/timezone");
 const {
     raidhelperBotId,
     defaultTimeout,
@@ -170,7 +171,7 @@ function ownRaidInfos(channelId) {
     const { raidHelperSlots } = require("../web/setupEditor");
     const event = ownEventInChannel(channelId);
     if (!event) return null;
-    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: "Europe/Berlin" });
+    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: TIMEZONE });
     return {
         raidData: createRaidData({
             id: event.id,

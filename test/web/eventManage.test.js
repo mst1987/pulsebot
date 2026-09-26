@@ -14,7 +14,7 @@ jest.mock("fs", () => {
         }),
     };
 });
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({
     listAllChannels: jest.fn(() => []),
     resolveUserNames: jest.fn(async () => ({})),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
@@ -309,7 +309,7 @@ describe("cancelling an event", () => {
 describe("deleting an event", () => {
     const fakeClient = (onDelete = jest.fn(async () => ({}))) => {
         const fetchMessage = jest.fn(async () => ({ delete: onDelete }));
-        return { onDelete, fetchMessage, client: { channels: { fetch: jest.fn(async () => ({ messages: { fetch: fetchMessage } })) } } };
+        return { onDelete, fetchMessage, client: { channels: { fetch: jest.fn(async () => ({ isTextBased: () => true, messages: { fetch: fetchMessage } })) } } };
     };
     let logSpy;
     beforeEach(() => {

@@ -210,7 +210,7 @@ let server = null;
 
 /** Start the report web server (idempotent). Pass the bot client for role lookups. */
 function startWebServer(client) {
-    if (client) { auth.setClient(client); discord.setClient(client); }
+    if (client) discord.setClient(client);
     if (server) return server;
     server = http.createServer((req, res) => {
         Promise.resolve(handle(req, res)).catch((err) => {
