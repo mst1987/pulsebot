@@ -1,5 +1,5 @@
 ﻿const { getAllSignUps } = require("../../utils/raidhelper");
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const messages = require("../../config/messages");
 
@@ -8,6 +8,9 @@ module.exports = {
     description: "Zeigt alle Anmeldungen dieser Kategorie",
     group: "signup",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("show-signups")
+        .setDescription("Show all signups for the current category"),
     async execute(interaction, client) {
         try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });

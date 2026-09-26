@@ -1,5 +1,5 @@
 const {
-    MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder,
+    MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder,
 } = require("discord.js");
 const { listRecruitment, saveRecruitmentPost } = require("../../web/settingsStore");
 const { embedAccentColor } = require("../../config/variables");
@@ -9,6 +9,11 @@ module.exports = {
     description: "Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel",
     group: "recruitment",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("recruitment")
+        .setDescription("Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel")
+        .addStringOption((o) => o.setName("vorlage").setDescription("Name der Recruitment-Vorlage (im Admin-Menü angelegt)").setRequired(true))
+        .addChannelOption((o) => o.setName("channel").setDescription("Ziel-Channel für die Recruitment-Nachricht").setRequired(true)),
     async execute(interaction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

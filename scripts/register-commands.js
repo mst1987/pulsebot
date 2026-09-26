@@ -1,4 +1,6 @@
-﻿// Registers the slash commands with Discord.
+﻿// Registers the slash commands with Discord. The definitions are not kept here:
+// every module under src/commands/ carries its own (`data`, #413), and this
+// script collects them with the loader the bot routes with.
 //
 //   npm run register               every configured server (event + talk, #251)
 //   node scripts/register-commands.js --guild <id>   exactly that server
@@ -39,7 +41,7 @@ function targetGuildIds({ guildArg = "", configuredIds = [], envGuildId = "" } =
  * server failing does not stop the others; the failures come back as
  * `[{ target, error }]`, so the caller can exit non-zero.
  */
-async function registerCommands({ rest, routes = Routes, clientId, guildIds = [], global = false, clear = false, body = commands, log = console.log }) {
+async function registerCommands({ rest, routes = Routes, clientId, guildIds = [], global = false, clear = false, body = collectCommands(), log = console.log }) {
     const targets = global
         ? [{ label: "global", route: routes.applicationCommands(clientId) }]
         : guildIds.map((id) => ({ label: `guild ${id}`, route: routes.applicationGuildCommands(clientId, id) }));
@@ -55,155 +57,14 @@ async function registerCommands({ rest, routes = Routes, clientId, guildIds = []
     return failures;
 }
 
-const commands = [
-    {
-        name: "createapplication",
-        description: "Postet eine Nachricht mit Bewerben-Button in einen Channel",
-        options: [
-            {
-                name: "message_id",
-                description: "Message-ID (aus diesem Channel) oder voller Nachrichten-Link",
-                type: 3,
-                required: true,
-            },
-            {
-                name: "channel",
-                description: "Ziel-Channel für die Bewerbungs-Nachricht",
-                type: 7,
-                required: true,
-            },
-        ],
-    },
-    {
-        name: "recruitment",
-        description: "Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel",
-        options: [
-            {
-                name: "vorlage",
-                description: "Name der Recruitment-Vorlage (im Admin-Menü angelegt)",
-                type: 3,
-                required: true,
-            },
-            {
-                name: "channel",
-                description: "Ziel-Channel für die Recruitment-Nachricht",
-                type: 7,
-                required: true,
-            },
-        ],
-    },
-    { name: "show-mysetups", description: "Show the events where I am in the setup" },
-    { name: "createoverview", description: "Creates an event overview for the current category" },
-    { name: "show-allsetups", description: "Show all setups for the current category" },
-    { name: "show-signups", description: "Show all signups for the current category" },
-    { name: "update-events", description: "Update event overview for the current category" },
-    { name: "profil", description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web" },
-    {
-        name: "event",
-        description: "Events anlegen und verwalten",
-        options: [
-            { name: "anlegen", description: "Event anlegen: Kategorie, Vorlage und Kanal wählen, dann Datum und Titel", type: 1 },
-            {
-                name: "verwalten", description: "Event bearbeiten, verschieben, Anmeldung schließen, Raider eintragen, absagen", type: 1,
-                options: [{ name: "event", description: "Event (leer = das Event dieses Kanals)", type: 3, required: false, autocomplete: true }],
-            },
-        ],
-    },
-    // Message context menu (#288): right click on the event's signup message → Apps.
-    // Message commands carry no description (Discord wants it empty).
-    { name: "Event verwalten", type: 3, description: "" },
-    {
-        name: "signup",
-        description: "Sign up to the raid in this channel",
-        options: [{
-            name: "specs",
-            description: "Specs to sign up with, comma-separated (e.g. Combat,Fire,RestoDruid)",
-            type: 3,
-            required: true,
-        }],
-    },
-    {
-        name: "logcheck",
-        description: "Prüft einen Warcraft-Logs-Report auf Gear-Probleme (Verzauberungen, Edelsteine)",
-        options: [{
-            name: "link",
-            description: "Warcraft-Logs-Report-Link oder Report-ID",
-            type: 3,
-            required: true,
-        }],
-    },
-    {
-        name: "fillsetup",
-        description: "Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan",
-        options: [
-            { name: "setup_id", description: "Raidhelper Setup-ID oder EventHelper-Event (eh-…); leer = Event dieses Kanals", type: 3, required: false },
-            { name: "tank3", description: "3. Tank (Charaktername fuer B13, optional)", type: 3, required: false },
-        ],
-    },
-    // Lookups with a link into the web menu (#265) — src/commands/lookup/.
-    {
-        name: "loot",
-        description: "Loot nachschlagen",
-        options: [
-            { name: "ich", description: "Dein Loot (über deine zugeordneten Charaktere)", type: 1 },
-            {
-                name: "item", description: "Wer ein Item wann bekommen hat", type: 1,
-                options: [{ name: "item", description: "Item", type: 3, required: true, autocomplete: true }],
-            },
-            {
-                name: "raider", description: "Was ein Raider bekommen hat", type: 1,
-                options: [{ name: "name", description: "Charaktername", type: 3, required: true, autocomplete: true }],
-            },
-        ],
-    },
-    { name: "raids", description: "Deine nächsten Raids und dein Anmeldestatus" },
-    {
-        name: "raid",
-        description: "Ein Raid im Überblick: Termin, Anmeldestand, dein Status",
-        options: [{ name: "event", description: "Raid", type: 3, required: true, autocomplete: true }],
-    },
-    { name: "anwesenheit", description: "Deine Anwesenheit in den letzten Raids" },
-    {
-        name: "anwesenheit-raider",
-        description: "Anwesenheit eines Raiders in den letzten Raids",
-        options: [{ name: "raider", description: "Charaktername", type: 3, required: true, autocomplete: true }],
-    },
-    { name: "report", description: "Die letzten Log-Auswertungen mit Link" },
-    {
-        name: "council",
-        description: "Loot-Council: Drop-Check für ein Item öffnen",
-        options: [{ name: "item", description: "Item", type: 3, required: true, autocomplete: true }],
-    },
-    // Channel work from Discord (#259); deleting stays in the web menu.
-    {
-        name: "kanal",
-        description: "Kanal umbenennen, archivieren oder anlegen",
-        options: [
-            {
-                name: "umbenennen", description: "Kanal umbenennen", type: 1,
-                options: [
-                    { name: "kanal", description: "Kanal", type: 7, required: true, channel_types: [0, 2, 5, 13, 15] },
-                    { name: "name", description: "Neuer Name", type: 3, required: true, max_length: 100 },
-                ],
-            },
-            {
-                name: "archivieren", description: "Kanal ins Archiv verschieben und Schreibrechte entziehen", type: 1,
-                options: [
-                    { name: "kanal", description: "Kanal", type: 7, required: true, channel_types: [0, 2, 5, 13, 15] },
-                ],
-            },
-            {
-                name: "anlegen", description: "Kanal in einer Kategorie anlegen (Name oder Schema)", type: 1,
-                options: [
-                    { name: "kategorie", description: "Kategorie", type: 7, required: true, channel_types: [4] },
-                    { name: "name", description: "Name oder Schema wie {tag}-{dd}-{mm}-{raid}; leer = Schema der Kategorie", type: 3, required: false, max_length: 100 },
-                    { name: "datum", description: "Datum für das Schema, z. B. 24.09.", type: 3, required: false },
-                    { name: "raid", description: "Raid-Kürzel für {raid}, z. B. ssc-tk", type: 3, required: false },
-                ],
-            },
-        ],
-    },
-];
+/**
+ * The definitions of every command module, as Discord wants them. Collected on
+ * call, not on require: the modules read the env when they load, so `main`
+ * reads the env file first.
+ */
+function collectCommands() {
+    return require("../src/commands/loader").commandDefinitions();
+}
 
 async function main(argv) {
     const flags = parseArgs(argv);
@@ -225,14 +86,17 @@ async function main(argv) {
         process.exit(1);
     }
 
+    const body = collectCommands();
+    if (!flags.clear) console.log(`Commands: ${body.map((c) => c.name).join(", ")}`);
     const rest = new REST({ version: "10" }).setToken(token);
-    const failures = await registerCommands({ rest, clientId, guildIds, global: flags.global, clear: flags.clear });
+    const failures = await registerCommands({ rest, clientId, guildIds, global: flags.global, clear: flags.clear, body });
     for (const f of failures) console.error(`Failed to register commands (${f.target}):`, f.error);
-    if (failures.length) process.exit(1);
+    // Exit explicitly: a loaded command module may keep a timer running.
+    process.exit(failures.length ? 1 : 0);
 }
 
 if (require.main === module) {
     main(process.argv.slice(2));
 }
 
-module.exports = { commands, parseArgs, targetGuildIds, registerCommands };
+module.exports = { collectCommands, parseArgs, targetGuildIds, registerCommands };

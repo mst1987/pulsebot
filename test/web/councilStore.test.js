@@ -76,4 +76,28 @@ describe("web/councilStore", () => {
         expect(fs.existsSync(store.EXCLUDED_FILE)).toBe(false);
         expect(fs.existsSync(store.ROLES_FILE)).toBe(false);
     });
+
+    describe("ganze Listen", () => {
+        it("gibt Ausgeschlossene als Objekt und als Schlüsselmenge", () => {
+            store.exclude("Devihra-Thunderstrike", { reason: "Gilde verlassen" });
+            store.exclude("Zweita");
+            const all = store.listExcluded();
+            expect(Object.keys(all).sort()).toEqual(["devihra", "zweita"]);
+            expect(all.devihra).toMatchObject({ character: "Devihra-Thunderstrike", reason: "Gilde verlassen" });
+            expect(store.excludedKeys()).toEqual(new Set(["devihra", "zweita"]));
+        });
+
+        it("gibt alle Rollen-Festlegungen samt Urheber", () => {
+            store.setRole("Heala", "caster", { by: "Raidlead" });
+            expect(store.listRoles()).toEqual({
+                heala: expect.objectContaining({ character: "Heala", role: "caster", by: "Raidlead" }),
+            });
+        });
+
+        it("ist ohne Einträge leer", () => {
+            expect(store.listExcluded()).toEqual({});
+            expect(store.excludedKeys().size).toBe(0);
+            expect(store.listRoles()).toEqual({});
+        });
+    });
 });

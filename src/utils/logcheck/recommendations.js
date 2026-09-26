@@ -317,7 +317,8 @@ const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, coold
 
 // ---- raid rules ---------------------------------------------------------
 
-function raidRules(report) {
+/** Boss debuffs: missing or short uptime, and stacks kept below the maximum. */
+function raidDebuffRules(report) {
     const out = [];
     for (const row of (report.raidDebuffs && report.raidDebuffs.rows) || []) {
         if (!row.expected) continue;
@@ -328,46 +329,81 @@ function raidRules(report) {
             out.push(finding(`raid.stacks.${row.key}`, "medium", `${row.label} ${row.avgBelowMax} % der Zeit unter ${row.maxStacks} Stacks`, "Zu Beginn schneller hochstacken und die Stacks nicht abfallen lassen.", [{ label: "Unter Max-Stacks", value: `${row.avgBelowMax} %` }]));
         }
     }
-    // Raid buffs: for the providers. A buff short on several players is theirs
-    // to fix, a blessing on the wrong role is the paladins' distribution.
+    return out;
+}
+
+/** A buff short on several players, for its providers. */
+function missingBuffFinding(row) {
+    const def = buffByKey(row.key);
+    const who = def ? `Die ${def.provider === "Paladin" ? "Paladine" : `${def.provider}s`}` : "Wer den Buff liefert,";
+    const onto = def && def.roles && def.roles.length < 4 ? ` auf ${def.roles.map((r) => ROLE_LABELS[r] || r).join(", ")}` : " auf alle";
+    return finding(`raid.buff.${row.key}`, Number.isFinite(row.coveragePct) && row.coveragePct < 50 ? "high" : "medium", `${row.label} fehlte auf ${row.missingPlayers} Spielern`, `${who}: ${row.label} vor dem Pull${onto} und nach jedem Wipe erneuern. Abdeckung ${row.coveragePct} % über ${row.fights} ${row.fights === 1 ? "Kampf" : "Kämpfe"}.`, [{ label: "Abdeckung", value: `${row.coveragePct} %` }, { label: "Spieler ohne", value: String(row.missingPlayers) }]);
+}
+
+/**
+ * Raid buffs: for the providers. A buff short on several players is theirs
+ * to fix, a blessing on the wrong role is the paladins' distribution.
+ */
+function raidBuffRaidRules(report) {
+    const out = [];
     for (const row of (report.raidBuffs && report.raidBuffs.rows) || []) {
-        const def = buffByKey(row.key);
-        if (row.expected && row.missingPlayers >= R.raidBuffs.raidMissingPlayers) {
-            const who = def ? `Die ${def.provider === "Paladin" ? "Paladine" : `${def.provider}s`}` : "Wer den Buff liefert,";
-            const onto = def && def.roles && def.roles.length < 4 ? ` auf ${def.roles.map((r) => ROLE_LABELS[r] || r).join(", ")}` : " auf alle";
-            out.push(finding(`raid.buff.${row.key}`, Number.isFinite(row.coveragePct) && row.coveragePct < 50 ? "high" : "medium", `${row.label} fehlte auf ${row.missingPlayers} Spielern`, `${who}: ${row.label} vor dem Pull${onto} und nach jedem Wipe erneuern. Abdeckung ${row.coveragePct} % über ${row.fights} ${row.fights === 1 ? "Kampf" : "Kämpfe"}.`, [{ label: "Abdeckung", value: `${row.coveragePct} %` }, { label: "Spieler ohne", value: String(row.missingPlayers) }]));
-        }
+        if (row.expected && row.missingPlayers >= R.raidBuffs.raidMissingPlayers) out.push(missingBuffFinding(row));
         if (row.wrong >= R.raidBuffs.wrongPlayers) {
             out.push(finding(`raid.buffWrong.${row.key}`, "medium", `${row.label} ${row.wrong}× auf der falschen Rolle`, "Die Paladine teilen die Segen nach Rolle auf: Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster, Könige auf alle.", [{ label: "Falsche Rolle", value: `${row.wrong}×` }]));
         }
     }
+    return out;
+}
+
+/** Death counters of `report.mechanics.deaths` that make a raid finding from a threshold on. */
+const DEATH_RULES = [
+    { field: "early", min: () => R.raid.earlyDeaths, key: "raid.earlyDeaths", title: (n) => `${n} Tode in den ersten 30 Sekunden`, text: "Pull sauberer: Aggro aufbauen lassen, DPS zwei Sekunden warten.", label: "Frühe Tode" },
+    { field: "avoidable", min: () => 3, key: "raid.avoidableDeaths", title: (n) => `${n} vermeidbare Tode`, text: "Mechaniken vor dem Pull noch einmal ansagen.", label: "Vermeidbare Tode" },
+];
+
+function deathRaidRules(report) {
     const deaths = report.mechanics && report.mechanics.deaths;
-    if (deaths && deaths.early >= R.raid.earlyDeaths) {
-        out.push(finding("raid.earlyDeaths", "high", `${deaths.early} Tode in den ersten 30 Sekunden`, "Pull sauberer: Aggro aufbauen lassen, DPS zwei Sekunden warten.", [{ label: "Frühe Tode", value: String(deaths.early) }]));
-    }
-    if (deaths && deaths.avoidable >= 3) {
-        out.push(finding("raid.avoidableDeaths", "high", `${deaths.avoidable} vermeidbare Tode`, "Mechaniken vor dem Pull noch einmal ansagen.", [{ label: "Vermeidbare Tode", value: String(deaths.avoidable) }]));
-    }
+    if (!deaths) return [];
+    return DEATH_RULES
+        .filter((rule) => deaths[rule.field] >= rule.min())
+        .map((rule) => finding(rule.key, "high", rule.title(deaths[rule.field]), rule.text, [{ label: rule.label, value: String(deaths[rule.field]) }]));
+}
+
+/** The two mechanics that cost the raid the most, from ten hits on. */
+function mechanicRaidRules(report) {
     const mech = (report.mechanics && report.mechanics.mechanics) || [];
-    for (const m of mech.slice(0, 2)) {
-        if (m.hits >= 10) {
-            out.push(finding(`raid.mechanic.${m.key}`, "medium", `${m.label}: ${m.hits} Treffer in ${m.fights} Kämpfen`, "Die Mechanik, die den Raid am meisten gekostet hat.", [{ label: "Treffer", value: String(m.hits) }]));
-        }
-    }
+    return mech.slice(0, 2)
+        .filter((m) => m.hits >= 10)
+        .map((m) => finding(`raid.mechanic.${m.key}`, "medium", `${m.label}: ${m.hits} Treffer in ${m.fights} Kämpfen`, "Die Mechanik, die den Raid am meisten gekostet hat.", [{ label: "Treffer", value: String(m.hits) }]));
+}
+
+function lustRaidRules(report) {
     const lustSpreads = ((report.timeline && report.timeline.fights) || []).map((f) => f.cooldowns && f.cooldowns.lust).filter((l) => l && l.casts > 1 && l.spreadMs > R.raid.lustSpreadMs);
-    if (lustSpreads.length) {
-        out.push(finding("raid.lust", "medium", `Bloodlust in ${lustSpreads.length} Kämpfen ${Math.round(Math.max(...lustSpreads.map((l) => l.spreadMs)) / 1000)} s auseinander`, "Alle Gruppen lusten auf eine Ansage, sonst verpufft die Überlappung mit den Cooldowns.", [{ label: "Kämpfe", value: String(lustSpreads.length) }]));
-    }
+    if (!lustSpreads.length) return [];
+    return [finding("raid.lust", "medium", `Bloodlust in ${lustSpreads.length} Kämpfen ${Math.round(Math.max(...lustSpreads.map((l) => l.spreadMs)) / 1000)} s auseinander`, "Alle Gruppen lusten auf eine Ansage, sonst verpufft die Überlappung mit den Cooldowns.", [{ label: "Kämpfe", value: String(lustSpreads.length) }])];
+}
+
+function dispelRaidRules(report) {
     const heal = report.healers && report.healers.raid;
-    if (heal && heal.dispelsMissed >= R.healers.dispelsMissed) {
-        const top = (heal.missedByAbility || [])[0];
-        out.push(finding("raid.dispels", "medium", `${heal.dispelsMissed} dispelbare Debuffs nie entfernt`, `${top ? `Am häufigsten ${top.ability} (${top.count}×). ` : ""}Wer dispellt, vor dem Pull festlegen.`, [{ label: "Nie entfernt", value: String(heal.dispelsMissed) }]));
-    }
+    if (!heal || !(heal.dispelsMissed >= R.healers.dispelsMissed)) return [];
+    const top = (heal.missedByAbility || [])[0];
+    return [finding("raid.dispels", "medium", `${heal.dispelsMissed} dispelbare Debuffs nie entfernt`, `${top ? `Am häufigsten ${top.ability} (${top.count}×). ` : ""}Wer dispellt, vor dem Pull festlegen.`, [{ label: "Nie entfernt", value: String(heal.dispelsMissed) }])];
+}
+
+function activityRaidRules(report) {
     const act = (report.activity && report.activity.players) || [];
-    if (act.length >= 5) {
-        const avg = Math.round(act.reduce((n, p) => n + p.activeAvg, 0) / act.length);
-        if (avg < R.activity.activePct) out.push(finding("raid.activity", "medium", `Raid im Schnitt nur ${avg} % aktiv`, "Bewegungsphasen kürzer halten, nach Mechaniken sofort weitermachen.", [{ label: "Ø aktiv", value: `${avg} %` }]));
-    }
+    if (act.length < 5) return [];
+    const avg = Math.round(act.reduce((n, p) => n + p.activeAvg, 0) / act.length);
+    if (!(avg < R.activity.activePct)) return [];
+    return [finding("raid.activity", "medium", `Raid im Schnitt nur ${avg} % aktiv`, "Bewegungsphasen kürzer halten, nach Mechaniken sofort weitermachen.", [{ label: "Ø aktiv", value: `${avg} %` }])];
+}
+
+/** The raid-wide rules, in the order their findings are listed before sorting by impact. */
+const RAID_RULES = [raidDebuffRules, raidBuffRaidRules, deathRaidRules, mechanicRaidRules, lustRaidRules, dispelRaidRules, activityRaidRules];
+
+/** The five most important raid-wide findings, high impact first. */
+function raidRules(report) {
+    const out = RAID_RULES.flatMap((rule) => rule(report));
     return out.sort((a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact]).slice(0, 5);
 }
 

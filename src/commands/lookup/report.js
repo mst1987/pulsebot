@@ -1,5 +1,6 @@
 // /report — the latest log evaluations, each linked to its report page (#265).
 // Building one stays /logcheck; this only finds what exists.
+const { SlashCommandBuilder } = require("discord.js");
 const { listReports } = require("../../web/reportStore");
 const { prepareReportList } = require("../../web/reportList");
 const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/botLookup");
@@ -20,6 +21,9 @@ module.exports = {
     description: "Die letzten Log-Auswertungen mit Link.",
     group: "logs",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("report")
+        .setDescription("Die letzten Log-Auswertungen mit Link"),
     MAX_REPORTS,
     progressText,
     async execute(interaction) {

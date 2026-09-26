@@ -64,6 +64,12 @@ jest.mock("../../src/web/dashboardData", () => ({
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
     loadChannelArchive: jest.fn(() => null),
 }));
+// The dashboard asks GitHub how far the server is behind main. Unmocked, this
+// suite really called api.github.com (found by the network guard, #432) - and
+// its task list then depended on whether the checkout was current.
+jest.mock("../../src/web/deployStatus", () => ({
+    deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
+}));
 jest.mock("../../src/web/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
