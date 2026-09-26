@@ -91,14 +91,9 @@ async function call(handler, path = "/api/lootcouncil", query = "") {
     return res;
 }
 
-/**
- * The text of an error answer. The handlers pass their German sentence as the
- * `code` argument of apiResponse.error (see the report), so this reads both
- * fields and the tests hold on to the sentence, not to where it ended up.
- */
-function errorText(res) {
-    const { error } = json(res);
-    return [error.code, error.message].filter(Boolean).join(" ");
+/** Asserts the exact `{ code, message }` shape of an error answer (#483: every apiError call gets a speaking code). */
+function expectError(res, code, message) {
+    expect(json(res).error).toEqual({ code, message });
 }
 
 beforeEach(() => {
@@ -150,7 +145,7 @@ describe("read access on the GET handlers", () => {
         mockUser = OUTSIDER;
         const res = await call(handler());
         expect(status(res)).toBe(403);
-        expect(errorText(res)).toContain("Kein Zugriff auf den Loot-Council.");
+        expectError(res, "forbidden", "Kein Zugriff auf den Loot-Council.");
     });
 
     it("refuses a caller without a session with 401 before touching any data", async () => {
@@ -294,12 +289,12 @@ describe("POST /api/lootcouncil/sim", () => {
         mockBody = { subjects: [{ key: "a", specKey: "b" }] };
         let res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Job-Id fehlt.");
+        expectError(res, "bad_request", "Job-Id fehlt.");
 
         mockBody = { id: "job", subjects: "nope" };
         res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Keine Raider angegeben.");
+        expectError(res, "bad_request", "Keine Raider angegeben.");
         expect(startCouncilSim).not.toHaveBeenCalled();
     });
 
@@ -308,7 +303,7 @@ describe("POST /api/lootcouncil/sim", () => {
         mockBody = { id: "job", subjects: [{ key: "a", specKey: "b" }] };
         const res = await call(postLootCouncilSim, "/api/lootcouncil/sim");
         expect(status(res)).toBe(503);
-        expect(errorText(res)).toContain("WOWSIMCLI_PATH ist nicht gesetzt");
+        expectError(res, "sim_unavailable", "Keine WoWSims-Simulation verfügbar — WOWSIMCLI_PATH ist nicht gesetzt.");
         expect(startCouncilSim).not.toHaveBeenCalled();
     });
 });
@@ -355,13 +350,13 @@ describe("POST /api/lootcouncil/exclude", () => {
         mockBody = { character: "  " };
         let res = await call(postExclude, "/api/lootcouncil/exclude");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Kein Charakter angegeben.");
+        expectError(res, "bad_request", "Kein Charakter angegeben.");
 
         councilStore.exclude.mockReturnValueOnce(null);
         mockBody = { character: "Alpha" };
         res = await call(postExclude, "/api/lootcouncil/exclude");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Kein Charakter angegeben.");
+        expectError(res, "bad_request", "Kein Charakter angegeben.");
     });
 });
 
@@ -385,12 +380,12 @@ describe("POST /api/lootcouncil/role", () => {
         mockBody = { role: "caster" };
         let res = await call(postRole, "/api/lootcouncil/role");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Kein Charakter angegeben.");
+        expectError(res, "bad_request", "Kein Charakter angegeben.");
 
         mockBody = { character: "Alpha", role: "tank" };
         res = await call(postRole, "/api/lootcouncil/role");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Unbekannte Rolle: tank");
+        expectError(res, "invalid_input", "Unbekannte Rolle: tank");
         expect(councilStore.setRole).not.toHaveBeenCalled();
     });
 });
@@ -458,21 +453,21 @@ describe("GET /api/lootcouncil/export", () => {
     it("rejects a missing character", async () => {
         const res = await call(getExport, "/api/lootcouncil/export", "?character=%20");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Kein Charakter angegeben.");
+        expectError(res, "bad_request", "Kein Charakter angegeben.");
         expect(gearFor).not.toHaveBeenCalled();
     });
 
     it("answers 404 for a character without known gear", async () => {
         const res = await call(getExport, "/api/lootcouncil/export", "?character=Ghost");
         expect(status(res)).toBe(404);
-        expect(errorText(res)).toContain("Für Ghost ist kein Gear bekannt");
+        expectError(res, "not_found", "Für Ghost ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.");
     });
 
     it("rejects a character without a caster spec", async () => {
         gearFor.mockReturnValue(gear({ className: "Warrior" }));
         const res = await call(getExport, "/api/lootcouncil/export", "?character=Alpha");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Für Alpha ist keine Caster-Spec bekannt.");
+        expectError(res, "spec_required", "Für Alpha ist keine Caster-Spec bekannt.");
     });
 
     it("passes on why the engine cannot export a spec, with a default sentence", async () => {
@@ -481,11 +476,11 @@ describe("GET /api/lootcouncil/export", () => {
         engine.buildIndividualExport.mockReturnValueOnce({ supported: false, warnings: ["Spec fehlt.", "Talente fehlen."] });
         let res = await call(getExport, "/api/lootcouncil/export", "?character=Alpha");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Spec fehlt. Talente fehlen.");
+        expectError(res, "unsupported", "Spec fehlt. Talente fehlen.");
 
         engine.buildIndividualExport.mockReturnValueOnce({ supported: false, warnings: [] });
         res = await call(getExport, "/api/lootcouncil/export", "?character=Alpha");
-        expect(errorText(res)).toContain("Diese Spec lässt sich nicht exportieren.");
+        expectError(res, "unsupported", "Diese Spec lässt sich nicht exportieren.");
     });
 });
 
@@ -539,14 +534,14 @@ describe("POST /api/lootcouncil/armory", () => {
         mockBody = { characters: "Alpha" };
         let res = await call(postArmoryRefresh, "/api/lootcouncil/armory");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Keine Charaktere angegeben.");
+        expectError(res, "bad_request", "Keine Charaktere angegeben.");
         expect(primeArmoryGear).not.toHaveBeenCalled();
 
         mockBody = { characters: ["Alpha"] };
         primeArmoryGear.mockResolvedValueOnce({ configured: false });
         res = await call(postArmoryRefresh, "/api/lootcouncil/armory");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Battle.net-Zugangsdaten");
+        expectError(res, "armory_not_configured", "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
     });
 });
 
@@ -576,7 +571,7 @@ describe("POST /api/lootcouncil/loggear", () => {
         mockBody = {};
         const res = await call(postLogGear, "/api/lootcouncil/loggear");
         expect(status(res)).toBe(400);
-        expect(errorText(res)).toContain("Kein Charakter angegeben.");
+        expectError(res, "bad_request", "Kein Charakter angegeben.");
     });
 
     it("answers a log-gear failure with its own status, 404 by default", async () => {
@@ -584,7 +579,7 @@ describe("POST /api/lootcouncil/loggear", () => {
         loadLogGear.mockRejectedValueOnce(Object.assign(new Error("Kein Log gefunden."), { logGear: true, status: 422 }));
         let res = await call(postLogGear, "/api/lootcouncil/loggear");
         expect(status(res)).toBe(422);
-        expect(errorText(res)).toContain("Kein Log gefunden.");
+        expectError(res, "log_gear", "Kein Log gefunden.");
 
         loadLogGear.mockRejectedValueOnce(Object.assign(new Error("Nicht im Log."), { logGear: true }));
         res = await call(postLogGear, "/api/lootcouncil/loggear");

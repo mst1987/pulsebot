@@ -48,7 +48,7 @@ const getRoster = withUser({}, async ({ req, res }) => {
  */
 const postRosterHide = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
-    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
 
     if (body.hide === false) {
         const removed = rosterHidden.unhide(character);

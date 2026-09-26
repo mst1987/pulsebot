@@ -38,7 +38,7 @@ function uptimeCell(v) {
 }
 
 function renderBossUptimesPanel(data) {
-    if (!data || !data.rows || data.rows.length === 0) return "<div class=\"empty\">Keine Boss-Daten gefunden.</div>";
+    if (!data || !data.rows || data.rows.length === 0 || !data.metrics || data.metrics.length === 0) return "<div class=\"empty\">Keine Boss-Daten gefunden.</div>";
     const head = data.metrics.map((m) => `<th data-tip="${esc(m.label)}" data-tip-sub="Debuff-Uptime pro Boss-Kampf in % der Kampfdauer. Ab 95 % grün, ab 70 % gelb.">${esc(m.label)}</th>`).join("");
     const body = data.rows.map((r) => {
         const cells = data.metrics.map((m) => `<td>${uptimeCell(r[m.key] || 0)}</td>`).join("");
