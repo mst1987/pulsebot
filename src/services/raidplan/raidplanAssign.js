@@ -37,7 +37,7 @@ const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
 /**
  * Whether a raider belongs to a role group ("Melees" ...): his spec role from the setup, a flex role on this boss wins; "dps" = everybody
- * who is neither tank nor healer. The client twin is lib/assign.ts inRoleGroup (kept in step by the tests).
+ * who is neither tank nor healer. The client twin is lib/raidplan/assign.ts inRoleGroup (kept in step by the tests).
  */
 function inRoleGroup(role, playerRole) {
     if (!role || !playerRole) return false;

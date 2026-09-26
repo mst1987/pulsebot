@@ -20,7 +20,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Board, token, slot, zone, player icon (both editors and the read view) | `src/web-client/src/components/raidplan/PlanBoard.tsx`, `MarkIcon.tsx` |
 | Read view | `src/web-client/src/pages/PlanPublicPage.tsx`, route `/p/<token>` |
 | Pure board logic | `src/web-client/src/lib/raidplan/` (one import, `index.ts`, over the topic files `model`, `players`, `objects`, `geometry`, `labels`, `besetzung` …; the other raid plan libs such as `assign.ts`, `autoPlace.ts`, `steps.ts` sit beside them) |
-| Styles (prefix `rp-`) / texts | `styles/raidplan.css` / `i18n/locales/{de,en}/raidBoard.json` |
+| Styles (prefix `rp-`) / texts | `styles/raidplan/` (`index.css` imports the parts: `frame`, `editor`, `assign`, `layout`, `canvas`, `tactic`, `objects`) / `i18n/locales/{de,en}/raidBoard.json` |
 
 An **own event** always has a raid plan; its players come from the event's setup. A **Raid-Helper event** has
 one once the orga switched it on in its "Verwalten" menu; its players then come from Raid-Helper, read only
