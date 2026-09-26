@@ -2,7 +2,7 @@
 // tiles, bars, metric cards, dialogs, number formats and the class colours.
 const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
-const { armoryUrlFor } = require("../charLinks");
+const { armoryUrlFor } = require("../characters/charLinks");
 const rpbData = require("../../config/rpbData");
 const { esc } = require("./layout");
 
@@ -114,7 +114,7 @@ function ibtn(inner, tip, sub, attrs = "", tone = "") {
 // What the report shows is the gear the log SAW on that night — the armory is
 // what the character wears now, which is exactly the question anyone asks when
 // a gear finding looks wrong. "" when no armory template is configured
-// (web/charLinks.js), so a guild without one simply gets no button.
+// (web/characters/charLinks.js), so a guild without one simply gets no button.
 const ARMORY_TIP = "Armory öffnen";
 
 const ARMORY_SUB = "Der Charakter, wie er jetzt aussieht. Der Report zeigt die Ausrüstung aus dem Log dieses Abends.";

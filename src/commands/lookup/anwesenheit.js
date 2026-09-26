@@ -3,9 +3,9 @@
 // two can carry different access: everyone may look at themselves, looking at
 // others is the raid lead's business.
 const { SlashCommandBuilder } = require("discord.js");
-const { myCharacters } = require("../../web/userCharacters");
-const { characterAttendance, overall, attendanceFields } = require("../../web/attendanceLookup");
-const { buildAttendanceContext } = require("../../web/rosterAttendance");
+const { myCharacters } = require("../../services/characters/userCharacters");
+const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
+const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
 const { eventGuildId } = require("../../services/discord/guildRoles");
 const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 

@@ -20,15 +20,15 @@ const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
-const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
-const { bisLists } = require("../bisLists");
-const { primeArmoryGear, clearArmoryFor } = require("../armoryGear");
+const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../loot/lootCouncil");
+const { bisLists } = require("../loot/bisLists");
+const { primeArmoryGear, clearArmoryFor } = require("../../services/loot/armoryGear");
 const { loadLogGear, clearLogGear, recentLogs } = require("../../stores/logGearStore");
 const { sourceForItem } = require("../../config/tbcContent");
 const { startCouncilSim, getJob } = require("../../stores/simStore");
 const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../../stores/councilStore");
-const { gearFor, charKey } = require("../charGear");
+const { gearFor, charKey } = require("../../services/loot/charGear");
 const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
@@ -355,7 +355,7 @@ const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, a
 
 /**
  * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
- * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
+ * DPS class and spec, as the matrix the tab draws (see web/loot/bisLists.js).
  */
 const getBisLists = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");

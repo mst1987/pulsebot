@@ -11,7 +11,7 @@ Die Regel (#434), kurz auch in CLAUDE.md:
 | `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/web/*Store.js`) und die übrigen Module unter `src/web/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
 | ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
 | der Dispatcher `src/web/http/apiRouter.js` | `test/web/http/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
-| eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |
+| eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/loot/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |
 
 Eine Route-Suite fährt ihre Anfragen durch den echten Router (`routerClient` aus `http.js`, siehe unten) und bindet ihn an ihr Route-Modul: ein Pfad, den ein anderes Route-Modul registriert, lässt den Test sofort scheitern, statt still die falsche Datei zu testen. Sie mockt nur, was ihre Route erreicht. Wer einen Handler lieber direkt aufruft (Validierung, Randfälle), tut das in derselben Datei, wie in `apiRoutes/settings.test.js` und `apiRoutes/channels.test.js` („handlers called directly“).
 

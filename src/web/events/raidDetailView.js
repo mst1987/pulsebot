@@ -30,7 +30,7 @@ const { lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../../stores/lootStore");
 const { raidSteps, eventSteps } = require("./raidDetailSteps");
 const { summarizePlayers } = require("./raidPlayerSummary");
-const { withClassLook: withLootClassLook } = require("../lootClassLook");
+const { withClassLook: withLootClassLook } = require("../loot/lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../../stores/logStore");
 const { backfillLogTitles } = require("../logChannel");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
@@ -311,7 +311,7 @@ async function buildRaidDetail({ guildId, eventId }) {
         lootItems: withLootClassLook(listLootByEvent(eventId)),
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
         // Softres, Loot-Council, … — decides whether the softres step and menu
-        // entry are offered at all (src/web/lootSystem.js).
+        // entry are offered at all (src/services/loot/lootSystem.js).
         lootSystem: lootSystemOf(eventId, found.g.categoryId),
         eventLogs: logs.eventLogs,
         unlinkedLogs: logs.unlinkedLogs,

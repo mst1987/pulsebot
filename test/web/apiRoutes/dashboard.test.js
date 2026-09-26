@@ -124,14 +124,14 @@ jest.mock("../../../src/stores/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/lootAwards", () => ({
+jest.mock("../../../src/web/loot/lootAwards", () => ({
     listAwards: jest.fn(() => ({
         items: [], page: 1, pageSize: 25, total: 0, totalPages: 1,
         topItemCount: 0, contents: [], reasons: [], unknownContentCount: 0,
     })),
     PAGE_SIZE: 25,
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(() => Promise.resolve({
@@ -151,7 +151,7 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({
 }));
 // The report-file scan behind the gear-issue column has its own test
 // (charGearIssues.test.js) — here it is only an input to the roster join.
-jest.mock("../../../src/web/charGearIssues", () => ({
+jest.mock("../../../src/web/characters/charGearIssues", () => ({
     latestIssuesByCharacter: jest.fn(() => ({})),
     issuesForCharacter: jest.fn(() => null),
 }));

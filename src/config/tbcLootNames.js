@@ -4,7 +4,7 @@
 // enrichItemNames() looks up the handful of ids it is missing. This table
 // exists for the question asked the other way round: "which items can drop in
 // this raid", which the manual "Item nachtragen" picker asks for a whole raid
-// at once (see web/lootCatalog.js). Resolving 800 ids through Wowhead per pick
+// at once (see web/loot/lootCatalog.js). Resolving 800 ids through Wowhead per pick
 // would be slow and rude, so they are resolved once by
 // `node scripts/fetch-tbc-loot-names.js` and shipped in
 // config/generated/tbcLootNames.json.

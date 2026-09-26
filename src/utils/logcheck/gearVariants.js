@@ -28,7 +28,7 @@ const { situationalItem } = require("../../config/situationalItems");
 
 // How many fights of a night are looked at before giving up. A TBC raid night
 // is 8-12 boss fights; past that the snapshot is old enough that the older
-// evaluations (see web/charGear.js) are the better source anyway.
+// evaluations (see services/loot/charGear.js) are the better source anyway.
 const MAX_FIGHTS = 12;
 
 /** The armory rows of a roster entry that hold a boss-specific piece. */

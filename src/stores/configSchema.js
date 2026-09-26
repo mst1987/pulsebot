@@ -10,7 +10,7 @@ const {
 } = require("../config/variables");
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
-const { normalizeCategoryLootSystem } = require("../web/lootSystem");
+const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { isSnowflake } = require("../utils/ids");
 
@@ -83,7 +83,7 @@ const CONFIG_DEFAULTS = {
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
     // Which loot system a category's raids run on, keyed by category id:
-    // "softres" | "lootcouncil" | "gdkp" | "other" (src/web/lootSystem.js). A
+    // "softres" | "lootcouncil" | "gdkp" | "other" (src/services/loot/lootSystem.js). A
     // category without an entry follows its loot addon (RCLootcouncil =
     // Loot-Council, else Softres); one raid can still override it.
     categoryLootSystem: {},

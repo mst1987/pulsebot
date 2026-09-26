@@ -11,24 +11,24 @@ const {
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
     decorate: decorateLootItem,
 } = require("../../stores/lootStore");
-const { lootStats } = require("../lootStats");
-const { listAwards } = require("../lootAwards");
-const { withClassLook: withLootClassLook } = require("../lootClassLook");
-const { lootCatalog, suggestedContents } = require("../lootCatalog");
+const { lootStats } = require("../../services/loot/lootStats");
+const { listAwards } = require("../loot/lootAwards");
+const { withClassLook: withLootClassLook } = require("../loot/lootClassLook");
+const { lootCatalog, suggestedContents } = require("../loot/lootCatalog");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
-const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
+const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../../services/characters/characterInfo");
 const { getCharacter } = require("../../stores/characterStore");
-const { issuesForCharacter } = require("../charGearIssues");
+const { issuesForCharacter } = require("../characters/charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
+const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions,
 } = require("../../stores/lootInboxStore");
-const { sessionContentLabel } = require("../lootSessionContent");
-const { previewImport } = require("../lootImportPreview");
+const { sessionContentLabel } = require("../loot/lootSessionContent");
+const { previewImport } = require("../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
-const { armoryUrlFor, wclUrlFor } = require("../charLinks");
+const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");

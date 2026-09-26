@@ -1,8 +1,8 @@
 // The small HTML building blocks of the report pages (src/web/report/widgets.js),
 // tested on their own with hand-built inputs.
-jest.mock("../../../src/web/charLinks", () => ({ armoryUrlFor: jest.fn(() => "") }));
+jest.mock("../../../src/web/characters/charLinks", () => ({ armoryUrlFor: jest.fn(() => "") }));
 
-const { armoryUrlFor } = require("../../../src/web/charLinks");
+const { armoryUrlFor } = require("../../../src/web/characters/charLinks");
 const w = require("../../../src/web/report/widgets");
 
 const ICON = (name) => `https://wow.zamimg.com/images/wow/icons/large/${name}.jpg`;

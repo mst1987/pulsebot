@@ -19,7 +19,7 @@ const {
 } = require("../../stores/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
-const { normalizeLootSystem } = require("../lootSystem");
+const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const Drive = require("../../classes/drive");

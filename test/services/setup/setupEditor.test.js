@@ -17,7 +17,7 @@ let mockSignups = [];
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
     specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,

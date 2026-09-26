@@ -10,7 +10,7 @@ const signupStore = require("../../stores/signupStore");
 const profileStore = require("../../stores/raiderProfileStore");
 const characterStore = require("../../stores/characterStore");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
-const { buildAttendanceContext, attendanceForAccounts } = require("../rosterAttendance");
+const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const { raidContentIds, raidSize } = require("../../services/events/raidListing");
 const { benchHistory } = require("../../services/setup/setupInput");
 

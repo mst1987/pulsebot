@@ -1,11 +1,11 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { normalizeLootSystem, resolveLootSystem } = require("../web/lootSystem");
+const { normalizeLootSystem, resolveLootSystem } = require("../services/loot/lootSystem");
 const { getConfig } = require("./settingsStore");
 const { getEventSoftres } = require("./eventSoftresStore");
 
 // The loot system of one raid where it differs from its category's
-// (src/web/lootSystem.js), plus the "Softres zusätzlich" switch. Keyed by event
+// (src/services/loot/lootSystem.js), plus the "Softres zusätzlich" switch. Keyed by event
 // id, so it works for an own event and a Raid-Helper event alike — the latter
 // has no record of ours to put a field on.
 //

@@ -3,7 +3,7 @@ const wowsims = require("../../../src/config/wowsims");
 const { specByKey, aplForSpec } = require("../../../src/config/casterSpecs");
 const { presetFor } = require("../../../src/utils/wowsims/presets");
 
-// A small snapshot in the shape web/charGear.js produces. Item ids are real
+// A small snapshot in the shape services/loot/charGear.js produces. Item ids are real
 // (Hood of Absolution 31064, Vestments of Absolution 31065) so slot resolution
 // runs against the actual generated table rather than a stub.
 const gear = {

@@ -23,7 +23,7 @@ const engine = require("../utils/wowsims/engine");
 const { specByKey } = require("../config/casterSpecs");
 const { canWear } = require("../config/wearable");
 const { equipmentFor, targetSlotFor, bisFittingFor } = require("../utils/wowsims/loadout");
-const { gearByCharacter } = require("../web/charGear");
+const { gearByCharacter } = require("../services/loot/charGear");
 
 const CACHE_FILE = dataPath("sim", "results.json");
 // Compact: the file is a cache nobody reads by hand, and it grows with every run.

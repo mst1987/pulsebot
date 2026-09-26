@@ -52,16 +52,16 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 | Command | Default | Reads | Links to |
 |---|---|---|---|
-| `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `web/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
+| `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `services/characters/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
 | `/raids` | everyone | `services/events/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
 | `/raid <Event>` | everyone | same, with the lookback window | `/raids/detail?event=`, the Discord channel |
-| `/anwesenheit` | everyone | `web/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
+| `/anwesenheit` | everyone | `services/characters/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
 | `/anwesenheit-raider <Name>` | admins | same, any character | `/roster/char?name=` |
 | `/report` | everyone | `reportStore.listReports` + `reportList.prepareReportList` | `/r/<id>` |
 | `/council <Item>` | admins | `tbcLootNames.RAID_ITEMS` + `lootStats.itemCatalog` | `/lootcouncil/drop/<itemId>` |
 | `/kanal umbenennen · archivieren · anlegen` | admins | `discordChannels.js`, `channelArchiveStore.js`, `utils/channelNames.js` | `/channels` |
 
-- „Mein" is `web/userCharacters.js`'s `myCharacters()`: the raider→character assignment (Einstellungen → Kategorien, `charactersForUser()`) first, then the characters from the raider's own profile (`/profil`, #255). Without either the reply says so instead of guessing from names.
+- „Mein" is `services/characters/userCharacters.js`'s `myCharacters()`: the raider→character assignment (Einstellungen → Kategorien, `charactersForUser()`) first, then the characters from the raider's own profile (`/profil`, #255). Without either the reply says so instead of guessing from names.
 - Own attendance and others' are **two commands** because access is per command: everyone may see themselves, the raid lead decides who sees others.
 - `/kanal` never deletes (that stays in the menu, from the archive); archiving logs who did it like the page does, `anlegen` takes a name or a schema (`{tag}-{dd}-{mm}-{raid}`; empty = named and copied like the category's previous event channel, #285) plus `datum` (`24.09.` or `2026-09-24`).
 - **Autocomplete passes the access gate too** (`handleAutocomplete` in `bot.js`): a command someone may not run does not list its items or raiders to them. `test/commands/access.test.js` checks every registered autocomplete option has a handler.

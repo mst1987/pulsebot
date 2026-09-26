@@ -8,7 +8,7 @@ const {
 } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
-const { annotateApplication } = require("../recruitmentApplications");
+const { annotateApplication } = require("../recruitment/recruitmentApplications");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>

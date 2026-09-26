@@ -13,7 +13,7 @@ jest.mock("../../src/utils/wowsims/engine", () => {
         simulate: (...a) => mockSimulate(...a),
     };
 });
-jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
+jest.mock("../../src/services/loot/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
 // Never touch the real cache file.
 jest.mock("fs", () => {
     const actual = jest.requireActual("fs");

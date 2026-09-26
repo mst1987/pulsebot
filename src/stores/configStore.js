@@ -10,7 +10,7 @@
 // file run once at start (settingsMigration.js), never on a read.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { normalizeCategoryLootSystem } = require("../web/lootSystem");
+const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,

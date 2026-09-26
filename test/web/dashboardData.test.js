@@ -18,7 +18,7 @@ jest.mock("../../src/stores/settingsStore", () => ({
 jest.mock("../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
 jest.mock("../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 jest.mock("../../src/stores/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
-jest.mock("../../src/web/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
+jest.mock("../../src/web/characters/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
 jest.mock("../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
 jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 // The EventHelper's own events, read through the real adapter (eventSources.js).
@@ -52,7 +52,7 @@ const eventSoftresStore = require("../../src/stores/eventSoftresStore");
 const raidEventGroups = require("../../src/services/events/raidEventGroups");
 const reportStore = require("../../src/stores/reportStore");
 const lootInboxStore = require("../../src/stores/lootInboxStore");
-const { buildRoster } = require("../../src/web/roster");
+const { buildRoster } = require("../../src/web/characters/roster");
 const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
 const discord = require("../../src/services/discord/discord");
 const {

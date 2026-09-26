@@ -2,14 +2,14 @@ jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), listEv
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn() }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
-jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
 
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
 const profileStore = require("../../../src/stores/raiderProfileStore");
 const settingsStore = require("../../../src/stores/settingsStore");
-const attendance = require("../../../src/web/rosterAttendance");
+const attendance = require("../../../src/services/characters/rosterAttendance");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
 const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup } = require("../../../src/services/setup/setupInput");
 const { ownEvent } = require("../../factories/events");

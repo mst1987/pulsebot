@@ -118,14 +118,14 @@ jest.mock("../../../src/stores/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/lootAwards", () => ({
+jest.mock("../../../src/web/loot/lootAwards", () => ({
     listAwards: jest.fn(() => ({
         items: [], page: 1, pageSize: 25, total: 0, totalPages: 1,
         topItemCount: 0, contents: [], reasons: [], unknownContentCount: 0,
     })),
     PAGE_SIZE: 25,
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(() => Promise.resolve({
@@ -145,7 +145,7 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({
 }));
 // The report-file scan behind the gear-issue column has its own test
 // (charGearIssues.test.js) — here it is only an input to the roster join.
-jest.mock("../../../src/web/charGearIssues", () => ({
+jest.mock("../../../src/web/characters/charGearIssues", () => ({
     latestIssuesByCharacter: jest.fn(() => ({})),
     issuesForCharacter: jest.fn(() => null),
 }));
@@ -179,7 +179,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/lootEventMatch", () => ({
+jest.mock("../../../src/web/loot/lootEventMatch", () => ({
     bestDayMatch: jest.fn(() => ({ match: null, ambiguous: false })),
     formatDayDisplay: jest.fn(() => "12.07.2026"),
     dayKey: jest.fn(() => "2026-07-12"),
@@ -274,12 +274,12 @@ const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
 const lootStore = require("../../../src/stores/lootStore");
-const lootAwards = require("../../../src/web/lootAwards");
-const characterInfo = require("../../../src/web/characterInfo");
+const lootAwards = require("../../../src/web/loot/lootAwards");
+const characterInfo = require("../../../src/services/characters/characterInfo");
 const characterStore = require("../../../src/stores/characterStore");
-const charGearIssues = require("../../../src/web/charGearIssues");
+const charGearIssues = require("../../../src/web/characters/charGearIssues");
 const lootImport = require("../../../src/utils/loot/lootImport");
-const lootEventMatch = require("../../../src/web/lootEventMatch");
+const lootEventMatch = require("../../../src/web/loot/lootEventMatch");
 const reportList = require("../../../src/web/reportList");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/history"));

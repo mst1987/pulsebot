@@ -22,7 +22,7 @@ const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const profileStore = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
-const { buildAttendanceContext, attendanceFor } = require("../../web/rosterAttendance");
+const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 

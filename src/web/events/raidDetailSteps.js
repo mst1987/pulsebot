@@ -272,7 +272,7 @@ function primaryFor(step, d) {
 
 /**
  * Whether this raid gets a softres step at all: only when its loot system asks
- * for one (src/web/lootSystem.js) — a Loot-Council raid is not nudged to
+ * for one (src/services/loot/lootSystem.js) — a Loot-Council raid is not nudged to
  * create a list it never uses. A payload without `lootSystem` keeps the step.
  */
 function wantsSoftres(d) {

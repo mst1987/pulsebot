@@ -88,7 +88,7 @@ jest.mock("../../../src/stores/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(() => Promise.resolve({
@@ -108,7 +108,7 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({
 }));
 // The report-file scan behind the gear-issue column has its own test
 // (charGearIssues.test.js) — here it is only an input to the roster join.
-jest.mock("../../../src/web/charGearIssues", () => ({
+jest.mock("../../../src/web/characters/charGearIssues", () => ({
     latestIssuesByCharacter: jest.fn(() => ({})),
     issuesForCharacter: jest.fn(() => null),
 }));
@@ -179,10 +179,10 @@ const auth = require("../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
 const lootStore = require("../../../src/stores/lootStore");
-const characterInfo = require("../../../src/web/characterInfo");
+const characterInfo = require("../../../src/services/characters/characterInfo");
 const characterStore = require("../../../src/stores/characterStore");
 const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
-const charGearIssues = require("../../../src/web/charGearIssues");
+const charGearIssues = require("../../../src/web/characters/charGearIssues");
 const rosterHidden = require("../../../src/stores/rosterHiddenStore");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { tempStoreFile } = require("../../helpers/tempStore");

@@ -1,16 +1,16 @@
-jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
-jest.mock("../../../src/web/attendanceLookup", () => {
-    const actual = jest.requireActual("../../../src/web/attendanceLookup");
+jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn() }));
+jest.mock("../../../src/services/characters/attendanceLookup", () => {
+    const actual = jest.requireActual("../../../src/services/characters/attendanceLookup");
     return { ...actual, characterAttendance: jest.fn(), knownCharacterNames: jest.fn() };
 });
-jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: 1 })) }));
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: 1 })) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 
 const { MessageFlags } = require("discord.js");
 const own = require("../../../src/commands/lookup/anwesenheit");
 const other = require("../../../src/commands/lookup/anwesenheitRaider");
-const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
-const { characterAttendance, knownCharacterNames } = require("../../../src/web/attendanceLookup");
+const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
+const { characterAttendance, knownCharacterNames } = require("../../../src/services/characters/attendanceLookup");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");

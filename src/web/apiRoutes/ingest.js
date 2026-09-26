@@ -14,9 +14,9 @@ const { readJsonBody } = require("../http/apiBody");
 const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
-const { rememberFromLoot } = require("../characterInfo");
+const { rememberFromLoot } = require("../../services/characters/characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { bestDayMatch } = require("../lootEventMatch");
+const { bestDayMatch } = require("../loot/lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 

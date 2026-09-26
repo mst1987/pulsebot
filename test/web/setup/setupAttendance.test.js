@@ -11,7 +11,7 @@ jest.mock("../../../src/stores/characterStore", () => ({
 let mockAssignments = {};
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
 const mockCounted = jest.fn();
-jest.mock("../../../src/web/rosterAttendance", () => ({
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     buildAttendanceContext: () => ({}),
     attendanceForAccounts: (...a) => mockCounted(...a),
 }));

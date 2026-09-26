@@ -37,7 +37,7 @@ jest.mock("../../../src/stores/lootStore", () => ({
     repairItemNames: jest.fn(),
     characters: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(),
