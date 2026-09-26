@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
 const { ok } = require("../apiResponse");
-const { requireFullAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { getConfig } = require("../settingsStore");
 const discord = require("../discord");
 const { eventGuildId, ruleFor } = require("../botAccess");
@@ -96,8 +96,7 @@ function buildBotCommandList(commands, config) {
 }
 
 /** GET /api/bot-commands */
-async function getBotCommands(req, res) {
-    if (!requireFullAdmin(req, res)) return;
+const getBotCommands = withUser({ full: true }, async ({ res }) => {
     const config = getConfig();
     const guildId = eventGuildId(config);
     const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
@@ -110,6 +109,11 @@ async function getBotCommands(req, res) {
         guildId,
         guildName: guild ? guild.name : "",
     });
-}
+});
 
-module.exports = { getBotCommands, buildBotCommandList, loadedCommands };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/bot-commands", handler: getBotCommands, area: "settings" },
+];
+
+module.exports = { getBotCommands, buildBotCommandList, loadedCommands, routes };

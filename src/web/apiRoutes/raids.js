@@ -1,6 +1,6 @@
-const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { ok } = require("../apiResponse");
+const { withUser } = require("../apiHandler");
+const { sendResult } = require("../apiResult");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
@@ -21,15 +21,13 @@ const discord = require("../discord");
  * (Raid-Helper and EventHelper) as flat rows, each with its raid content(s),
  * raid size and soft-reserve link (raidListing.js).
  */
-async function getRaids(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaids = withUser({}, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     // The server's name goes into the page's kicker ("Raid-Helper · Pulse").
     const guild = guildId ? (discord.listGuilds() || []).find((g) => g.id === guildId) : null;
     ok(res, { events: upcomingRows(groups), error: err, activeGuildId: guildId, guildName: (guild && guild.name) || "" });
-}
+});
 
 /**
  * GET /api/raids/past — the raids that already took place, newest first, with
@@ -37,13 +35,11 @@ async function getRaids(req, res) {
  * rescans the event snapshot and assigns fresh logs first, which the coming
  * raids have no need to wait for.
  */
-async function getPastRaids(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getPastRaids = withUser({}, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     const { events, error: err } = await loadPastRaids(guildId);
     ok(res, { events, error: err, activeGuildId: guildId });
-}
+});
 
 /** A Discord list that may throw while the bot is offline — [] then. */
 function safeList(fn) {
@@ -123,9 +119,7 @@ async function leaderCandidates(guildId, user, editEvent) {
  * events. With ?event=<own id> also the event to edit (#261): the same dialog
  * opens prefilled for an EventHelper event.
  */
-async function getRaidCreateContext(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     // Events that can be repeated for a new date — upcoming ones and those of the
     // lookback window, so a series whose next raid is not scheduled yet can still
@@ -183,7 +177,7 @@ async function getRaidCreateContext(req, res, url) {
         defaultSchema: DEFAULT_SCHEMA,
         editEvent,
     });
-}
+});
 
 /**
  * GET /api/raids/channel-name?categoryId=&date=2026-09-24&instanceIds=ssc,tk[&sourceEventId=]
@@ -191,9 +185,7 @@ async function getRaidCreateContext(req, res, url) {
  * category's previous event channel, by its stored schema or the default one.
  * The create dialog shows it as its name suggestion plus one badge.
  */
-async function getChannelName(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getChannelName = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const q = (key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
     const date = /^\d{4}-\d{2}-\d{2}$/.test(q("date")) ? q("date") : "";
@@ -204,7 +196,7 @@ async function getChannelName(req, res, url) {
     const shown = { ...result };
     delete shown.placement; // where Discord sorts it in is the server's business
     ok(res, shown);
-}
+});
 
 /**
  * POST /api/raids — create an event, optionally cloning a source event's
@@ -212,28 +204,30 @@ async function getChannelName(req, res, url) {
  * own store, by the category's default source; the work is eventCreate.js',
  * shared with the Discord modal (#260).
  */
-async function createRaid(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const createRaid = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const result = await createEvent({ guildId: activeGuildFor(req), user, body });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, result.body, result.status);
-}
+});
 
 /**
  * PATCH /api/raids — change an own (EventHelper) event with the create
  * dialog's fields. Body: { id, … }; a Raid-Helper id is refused (#261).
  */
-async function updateRaid(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const updateRaid = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const result = await updateEvent({ guildId: activeGuildFor(req), body, user, byName: user.name });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, result.body, result.status);
-}
+});
 
-module.exports = { leaderCandidates, getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raids", handler: getRaids, area: "raids" },
+    { method: "GET", path: "/api/raids/past", handler: getPastRaids, area: "raids" },
+    { method: "GET", path: "/api/raids/new", handler: getRaidCreateContext, area: "raids" },
+    { method: "GET", path: "/api/raids/channel-name", handler: getChannelName, area: "raids" },
+    { method: "POST", path: "/api/raids", handler: createRaid, area: "raids" },
+    { method: "PATCH", path: "/api/raids", handler: updateRaid, area: "raids" },
+];
+
+module.exports = { leaderCandidates, getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid, routes };

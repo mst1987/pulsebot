@@ -1,0 +1,5366 @@
+{
+ "Holy1": {
+  "classlist": {
+   "icon": "holypala",
+   "name": "Holy Paladin",
+   "clazz": "Paladin",
+   "sodclazz": "Healer",
+   "spec": "Holy1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Holy1",
+   "specName": "Holy Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Holy Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Holy Paladin",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Holy1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Paladin",
+    "specName": "Holy1"
+   }
+  ],
+  "characterIcon": ":holypala:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Holy",
+   "Warrior": "",
+   "Paladin": "Paladin-Holy",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Holy",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Holy",
+   "DK": "Paladin-Holy"
+  }
+ },
+ "HolyPala": {
+  "classlist": {
+   "icon": "holypala",
+   "name": "Holy Paladin",
+   "clazz": "Paladin",
+   "sodclazz": "Healer",
+   "spec": "Holy1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "HolyPala",
+   "specName": "Holy Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Holy Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Holy Paladin",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Holy1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Paladin",
+    "specName": "Holy1"
+   }
+  ],
+  "characterIcon": ":holypala:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Holy",
+   "Warrior": "",
+   "Paladin": "Paladin-Holy",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Holy",
+   "DK": "Paladin-Holy"
+  }
+ },
+ "Protection1": {
+  "classlist": {
+   "icon": "protpala",
+   "name": "Protection Pala",
+   "clazz": "Tank",
+   "sodclazz": "Tank",
+   "spec": "Protection1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Protection1",
+   "specName": "Protection Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Protection Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Protection Pala",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Tank",
+    "specName": "Protection1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Protection1"
+   }
+  ],
+  "characterIcon": ":protpala:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B11",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Protection",
+   "Warrior": "Warrior-Protection",
+   "Paladin": "Paladin-Protection",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Protection",
+   "DK": "Paladin-Protection"
+  }
+ },
+ "ProtPala": {
+  "classlist": {
+   "icon": "protpala",
+   "name": "Protection Pala",
+   "clazz": "Tank",
+   "sodclazz": "Tank",
+   "spec": "Protection1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "ProtPala",
+   "specName": "Protection Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Protection Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Protection Pala",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Tank",
+    "specName": "Protection1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Protection1"
+   }
+  ],
+  "characterIcon": ":protpala:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B11",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Protection",
+   "Warrior": "",
+   "Paladin": "Paladin-Protection",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Protection",
+   "DK": "Paladin-Protection"
+  }
+ },
+ "Retribution": {
+  "classlist": {
+   "icon": "retribution",
+   "name": "Retribution Pala",
+   "clazz": "Paladin",
+   "sodclazz": "melee",
+   "spec": "Retribution"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Retribution",
+   "specName": "Retribution Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_auraoflight.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Retribution Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_auraoflight.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Retribution Pala",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Retribution"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Paladin",
+    "specName": "Retribution"
+   }
+  ],
+  "characterIcon": ":retribution:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Retribution",
+   "Warrior": "",
+   "Paladin": "Paladin-Retribution",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Retribution",
+   "DK": "Paladin-Retribution"
+  }
+ },
+ "Retri": {
+  "classlist": {
+   "icon": "retribution",
+   "name": "Retribution Pala",
+   "clazz": "Paladin",
+   "sodclazz": "melee",
+   "spec": "Retribution"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Retri",
+   "specName": "Retribution Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_auraoflight.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Retribution Pala",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_auraoflight.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Retribution Pala",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Retribution"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Paladin",
+    "specName": "Retribution"
+   }
+  ],
+  "characterIcon": ":retribution:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Paladin-Retribution",
+   "Warrior": "",
+   "Paladin": "Paladin-Retribution",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Paladin-Retribution",
+   "DK": "Paladin-Retribution"
+  }
+ },
+ "PALADIN": {
+  "classlist": {
+   "icon": "paladin",
+   "name": "Paladin",
+   "clazz": "Paladin",
+   "spec": "paladin"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "PALADIN",
+   "specName": "Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Paladin",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "paladin"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Paladin",
+    "specName": "paladin"
+   }
+  ],
+  "characterIcon": ":paladin:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Fury": {
+  "classlist": {
+   "icon": "fury",
+   "name": "Fury Warrior",
+   "clazz": "Warrior",
+   "sodclazz": "melee",
+   "spec": "Fury"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Fury",
+   "specName": "Fury Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_innerrage.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Fury Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_innerrage.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Fury Warrior",
+    "className": "Warrior"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Fury"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warrior",
+    "specName": "Fury"
+   }
+  ],
+  "characterIcon": ":fury:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!H22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warrior-Fury",
+   "Warrior": "Warrior-Fury",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Warrior-Fury",
+   "DK": "Warrior-Fury"
+  }
+ },
+ "Arms": {
+  "classlist": {
+   "icon": "arms",
+   "name": "Arms Warrior",
+   "clazz": "Warrior",
+   "sodclazz": "melee",
+   "spec": "Arms"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Arms",
+   "specName": "Arms Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_savageblow.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Arms Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_savageblow.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Arms Warrior",
+    "className": "Warrior"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Arms"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warrior",
+    "specName": "Arms"
+   }
+  ],
+  "characterIcon": ":arms:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!H22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warrior-Arms",
+   "Warrior": "Warrior-Arms",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Warrior-Arms",
+   "DK": "Warrior-Arms"
+  }
+ },
+ "Protection": {
+  "classlist": {
+   "icon": "protection",
+   "name": "Protection Warrior",
+   "clazz": "Warrior",
+   "sodclazz": "tank",
+   "spec": "Protection"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Protection",
+   "specName": "Protection Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_defensivestance.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Protection Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_defensivestance.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Protection Warrior",
+    "className": "Warrior"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Protection"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warrior",
+    "specName": "Protection"
+   }
+  ],
+  "characterIcon": ":protection:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warrior-Protection",
+   "Warrior": "Warrior-Protection",
+   "Paladin": "Paladin-Protection",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Warrior-Protection",
+   "DK": "Warrior-Protection"
+  }
+ },
+ "ProtWarrior": {
+  "classlist": {
+   "icon": "protection",
+   "name": "Protection Warrior",
+   "clazz": "Tank",
+   "sodclazz": "tank",
+   "spec": "Protection"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "ProtWarrior",
+   "specName": "Protection Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_defensivestance.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Protection Warrior",
+   "className": "Warrior",
+   "classColor": "#C79C6E",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_defensivestance.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Protection Warrior",
+    "className": "Warrior"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Protection"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Protection"
+   }
+  ],
+  "characterIcon": ":protection:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warrior-Protection",
+   "Warrior": "Warrior-Protection",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Warrior-Protection",
+   "DK": "Warrior-Protection"
+  }
+ },
+ "WARRIOR": {
+  "classlist": {
+   "icon": "warrior",
+   "name": "Warrior",
+   "clazz": "Tank",
+   "spec": "Warrior"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "WARRIOR",
+   "specName": "Warrior",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Warrior",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Warrior",
+    "className": ""
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Warrior"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Warrior"
+   }
+  ],
+  "characterIcon": ":warrior:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Assassination": {
+  "classlist": {
+   "icon": "assassination",
+   "name": "Assassination Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "melee",
+   "spec": "Assassination"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Assassination",
+   "specName": "Assassination Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_eviscerate.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Assassination Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_eviscerate.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Assassination"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Assassination"
+   }
+  ],
+  "characterIcon": ":assassination:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Assassination",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Assassination",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Assassination",
+   "DK": "Rogue-Assassination"
+  }
+ },
+ "Assa": {
+  "classlist": {
+   "icon": "assassination",
+   "name": "Assassination Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "melee",
+   "spec": "Assassination"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Assa",
+   "specName": "Assassination Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_eviscerate.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Assassination Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_rogue_eviscerate.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Assassination"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Assassination"
+   }
+  ],
+  "characterIcon": ":assassination:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Assassination",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Assassination",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Assassination",
+   "DK": "Rogue-Assassination"
+  }
+ },
+ "Sublety": {
+  "classlist": {
+   "icon": "sublety",
+   "name": "Sublety Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "melee",
+   "spec": "Sublety"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Sublety",
+   "specName": "Sublety Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_stealth.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Sublety Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_stealth.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Sublety"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Sublety"
+   }
+  ],
+  "characterIcon": ":sublety:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Subtlety",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Subtlety",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Subtlety",
+   "DK": "Rogue-Subtlety"
+  }
+ },
+ "Sub": {
+  "classlist": {
+   "icon": "sublety",
+   "name": "Sublety Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "melee",
+   "spec": "Sublety"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Sub",
+   "specName": "Sublety Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_stealth.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Sublety Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_stealth.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Sublety"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Sublety"
+   }
+  ],
+  "characterIcon": ":sublety:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Subtlety",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Subtlety",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Subtlety",
+   "DK": "Rogue-Subtlety"
+  }
+ },
+ "Combat": {
+  "classlist": {
+   "icon": "combat",
+   "name": "Combat Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "melee",
+   "spec": "Combat"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Combat",
+   "specName": "Combat Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_backstab.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Combat Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_backstab.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Combat"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Combat"
+   }
+  ],
+  "characterIcon": ":combat:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Combat",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Combat",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Combat",
+   "DK": "Rogue-Combat"
+  }
+ },
+ "TankRogue": {
+  "classlist": {
+   "icon": "combat",
+   "name": "Combat Rogue",
+   "clazz": "Rogue",
+   "sodclazz": "tank",
+   "spec": "Combat"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "TankRogue",
+   "specName": "Combat Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_backstab.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Combat Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_backstab.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Combat Rogue",
+    "className": "Rogue"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Combat"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "Combat"
+   }
+  ],
+  "characterIcon": ":combat:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Rogue-Combat",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "Rogue-Combat",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Rogue-Combat",
+   "DK": "Rogue-Combat"
+  }
+ },
+ "ROGUE": {
+  "classlist": {
+   "icon": "rogue",
+   "name": "Rogue",
+   "clazz": "Rogue",
+   "spec": "rogue"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "ROGUE",
+   "specName": "Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_throwingknife_04.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_throwingknife_04.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "rogue"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Rogue",
+    "specName": "rogue"
+   }
+  ],
+  "characterIcon": ":rogue:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Discipline": {
+  "classlist": {
+   "icon": "discipline",
+   "name": "Discipline Priest",
+   "clazz": "Priest",
+   "sodclazz": "Healer",
+   "spec": "Discipline"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Discipline",
+   "specName": "Discipline Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_powerwordshield.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Discipline Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_powerwordshield.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Discipline"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "Discipline"
+   }
+  ],
+  "characterIcon": ":discipline:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!B27:B29",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Priest-Discipline",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Discipline",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Priest-Discipline",
+   "DK": "Priest-Discipline"
+  }
+ },
+ "Disc": {
+  "classlist": {
+   "icon": "discipline",
+   "name": "Discipline Priest",
+   "clazz": "Priest",
+   "sodclazz": "Healer",
+   "spec": "Discipline"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Disc",
+   "specName": "Discipline Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_powerwordshield.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Discipline Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_powerwordshield.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Discipline"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "Discipline"
+   }
+  ],
+  "characterIcon": ":discipline:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!B27:B29",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Priest-Discipline",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Discipline",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Priest-Discipline",
+   "DK": "Priest-Discipline"
+  }
+ },
+ "Shadow": {
+  "classlist": {
+   "icon": "shadow",
+   "name": "Shadow Priest",
+   "clazz": "Priest",
+   "sodclazz": "ranged",
+   "spec": "Shadow"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Shadow",
+   "specName": "Shadow Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_shadowwordpain.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Shadow Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_shadowwordpain.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Shadow"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "Shadow"
+   }
+  ],
+  "characterIcon": ":shadow:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!D22",
+   "Setup!B27:B29"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Priest-Shadow",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Shadow",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Priest-Shadow",
+   "DK": "Priest-Shadow"
+  }
+ },
+ "HolyPriest": {
+  "classlist": {
+   "icon": "holypriest",
+   "name": "Holy Priest",
+   "clazz": "Priest",
+   "sodclazz": "Healer",
+   "spec": "HolyPriest"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "HolyPriest",
+   "specName": "Holy Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_guardianspirit.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Holy Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_guardianspirit.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "HolyPriest"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "HolyPriest"
+   }
+  ],
+  "characterIcon": ":holypriest:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!B27:B29",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Priest-Holy",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Holy",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Priest-Holy",
+   "DK": "Priest-Holy"
+  }
+ },
+ "Holy": {
+  "classlist": {
+   "icon": "holypriest",
+   "name": "Holy Priest",
+   "clazz": "Priest",
+   "sodclazz": "Healer",
+   "spec": "HolyPriest"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Holy",
+   "specName": "Holy Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_guardianspirit.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Holy Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_guardianspirit.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "HolyPriest"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "HolyPriest"
+   }
+  ],
+  "characterIcon": ":holypriest:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!B27:B29",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Priest-Holy",
+   "Warrior": "",
+   "Paladin": "Paladin-Holy",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "Priest-Holy",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Priest-Holy",
+   "DK": "Priest-Holy"
+  }
+ },
+ "PRIEST": {
+  "classlist": {
+   "icon": "priest",
+   "name": "Priest",
+   "clazz": "Priest",
+   "spec": "Priest"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "PRIEST",
+   "specName": "Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_staff_30.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_staff_30.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "Priest"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Priest",
+    "specName": "Priest"
+   }
+  ],
+  "characterIcon": ":priest:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B27:B29"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Survival": {
+  "classlist": {
+   "icon": "survival",
+   "name": "Survival Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "melee",
+   "spec": "Survival"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Survival",
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Survival"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Survival"
+   }
+  ],
+  "characterIcon": ":survival:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!G22",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Survival",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Survival",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Survival",
+   "DK": "Hunter-Survival"
+  }
+ },
+ "SV": {
+  "classlist": {
+   "icon": "survival",
+   "name": "Survival Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "melee",
+   "spec": "Survival"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "SV",
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Survival"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Survival"
+   }
+  ],
+  "characterIcon": ":survival:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!G22",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Survival",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Survival",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Survival",
+   "DK": "Hunter-Survival"
+  }
+ },
+ "Marksmanship": {
+  "classlist": {
+   "icon": "marksman",
+   "name": "Marksman Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "ranged",
+   "spec": "Marksmanship"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Marksmanship",
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Marksmanship"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Marksmanship"
+   }
+  ],
+  "characterIcon": ":marksman:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Marksmanship",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Marksmanship",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Marksmanship",
+   "DK": "Hunter-Marksmanship"
+  }
+ },
+ "Marksman": {
+  "classlist": {
+   "icon": "marksman",
+   "name": "Marksman Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "ranged",
+   "spec": "Marksmanship"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Marksman",
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Marksmanship"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Marksmanship"
+   }
+  ],
+  "characterIcon": ":marksman:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Marksmanship",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Marksmanship",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Marksmanship",
+   "DK": "Hunter-Marksmanship"
+  }
+ },
+ "MM": {
+  "classlist": {
+   "icon": "marksman",
+   "name": "Marksman Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "ranged",
+   "spec": "Marksmanship"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "MM",
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Marksman Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_focusedaim.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Marksmanship"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Marksmanship"
+   }
+  ],
+  "characterIcon": ":marksman:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Marksmanship",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Marksmanship",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Marksmanship",
+   "DK": "Hunter-Marksmanship"
+  }
+ },
+ "Beastmastery": {
+  "classlist": {
+   "icon": "beastmaster",
+   "name": "Beastmaster Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "ranged",
+   "spec": "Beastmastery"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Beastmastery",
+   "specName": "Beastmaster Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_beasttaming.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Beastmaster Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_beasttaming.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Beastmastery"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Beastmastery"
+   }
+  ],
+  "characterIcon": ":beastmaster:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-BeastMastery",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-BeastMastery",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-BeastMastery",
+   "DK": "Hunter-BeastMastery"
+  }
+ },
+ "BM": {
+  "classlist": {
+   "icon": "beastmaster",
+   "name": "Beastmaster Hunter",
+   "clazz": "Hunter",
+   "sodclazz": "ranged",
+   "spec": "Beastmastery"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "BM",
+   "specName": "Beastmaster Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_beasttaming.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Beastmaster Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_beasttaming.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Beastmastery"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Beastmastery"
+   }
+  ],
+  "characterIcon": ":beastmaster:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-BeastMastery",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-BeastMastery",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-BeastMastery",
+   "DK": "Hunter-BeastMastery"
+  }
+ },
+ "HUNTER": {
+  "classlist": {
+   "icon": "survival",
+   "name": "Survival Hunter",
+   "clazz": "Hunter",
+   "spec": "Survival"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "HUNTER",
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Survival Hunter",
+   "className": "Hunter",
+   "classColor": "#ABD473",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_hunter_camouflage.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "Survival"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Hunter",
+    "specName": "Survival"
+   }
+  ],
+  "characterIcon": ":survival:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!G22",
+   "Setup!E27:E30"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.671,
+     "green": 0.831,
+     "blue": 0.451
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Hunter-Survival",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "Hunter-Survival",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Hunter-Survival",
+   "DK": "Hunter-Survival"
+  }
+ },
+ "Demonology": {
+  "classlist": {
+   "icon": "demonology",
+   "name": "Demonology Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "ranged",
+   "spec": "Demonology"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Demonology",
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Demonology"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Demonology"
+   }
+  ],
+  "characterIcon": ":demonology:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Demonology",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Demonology",
+   "Druid": "",
+   "Tank": "Warlock-Demonology",
+   "DK": "Warlock-Demonology"
+  }
+ },
+ "Demo": {
+  "classlist": {
+   "icon": "demonology",
+   "name": "Demonology Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "ranged",
+   "spec": "Demonology"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Demo",
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Demonology"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Demonology"
+   }
+  ],
+  "characterIcon": ":demonology:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Demonology",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Demonology",
+   "Druid": "",
+   "Tank": "Warlock-Demonology",
+   "DK": "Warlock-Demonology"
+  }
+ },
+ "TankWL": {
+  "classlist": {
+   "icon": "demonology",
+   "name": "Demonology Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "tank",
+   "spec": "Demonology"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "TankWL",
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Demonology Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_metamorphosis.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Demonology Warlock",
+    "className": "Warlock"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Demonology"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Demonology"
+   }
+  ],
+  "characterIcon": ":demonology:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Demonology",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Demonology",
+   "Druid": "",
+   "Tank": "Warlock-Demonology",
+   "DK": "Warlock-Demonology"
+  }
+ },
+ "Affliction": {
+  "classlist": {
+   "icon": "affliction",
+   "name": "Affliction Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "ranged",
+   "spec": "Affliction"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Affliction",
+   "specName": "Affliction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Affliction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Affliction"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Affliction"
+   }
+  ],
+  "characterIcon": ":affliction:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Affliction",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Affliction",
+   "Druid": "",
+   "Tank": "Warlock-Affliction",
+   "DK": "Warlock-Affliction"
+  }
+ },
+ "Affli": {
+  "classlist": {
+   "icon": "affliction",
+   "name": "Affliction Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "ranged",
+   "spec": "Affliction"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Affli",
+   "specName": "Affliction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Affliction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Affliction"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Affliction"
+   }
+  ],
+  "characterIcon": ":affliction:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Affliction",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Affliction",
+   "Druid": "",
+   "Tank": "Warlock-Affliction",
+   "DK": "Warlock-Affliction"
+  }
+ },
+ "Destro": {
+  "classlist": {
+   "icon": "destruction",
+   "name": "Destruction Warlock",
+   "clazz": "Warlock",
+   "sodclazz": "ranged",
+   "spec": "Destruction"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Destro",
+   "specName": "Destruction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_rainoffire.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Destruction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_rainoffire.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Destruction"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "Destruction"
+   }
+  ],
+  "characterIcon": ":destruction:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Warlock-Destruction",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Destruction",
+   "Druid": "",
+   "Tank": "Warlock-Destruction",
+   "DK": "Warlock-Destruction"
+  }
+ },
+ "WARLOCK": {
+  "classlist": {
+   "icon": "warlock",
+   "name": "Warlock",
+   "clazz": "Warlock",
+   "spec": "warlock"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "WARLOCK",
+   "specName": "Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "warlock"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Warlock",
+    "specName": "warlock"
+   }
+  ],
+  "characterIcon": ":warlock:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Fire": {
+  "classlist": {
+   "icon": "firemage",
+   "name": "Fire Mage",
+   "clazz": "Mage",
+   "sodclazz": "ranged",
+   "spec": "Fire"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Fire",
+   "specName": "Fire Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_fire_firebolt02.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Fire Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_fire_firebolt02.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Fire"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Mage",
+    "specName": "Fire"
+   }
+  ],
+  "characterIcon": ":firemage:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C27:C29",
+   "Setup!J27:J31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.412,
+     "green": 0.8,
+     "blue": 0.941
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Mage-Fire",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "Mage-Fire",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Mage-Fire",
+   "DK": "Mage-Fire"
+  }
+ },
+ "Arcane": {
+  "classlist": {
+   "icon": "arcane",
+   "name": "Arcane Mage",
+   "clazz": "Mage",
+   "sodclazz": "ranged",
+   "spec": "Arcane"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Arcane",
+   "specName": "Arcane Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Arcane Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Arcane"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Mage",
+    "specName": "Arcane"
+   }
+  ],
+  "characterIcon": ":arcane:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C27:C29",
+   "Setup!J27:J31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.412,
+     "green": 0.8,
+     "blue": 0.941
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Mage-Arcane",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "Mage-Arcane",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Mage-Arcane",
+   "DK": "Mage-Arcane"
+  }
+ },
+ "Frost": {
+  "classlist": {
+   "icon": "frostmage",
+   "name": "Frost Mage",
+   "clazz": "Mage",
+   "sodclazz": "ranged",
+   "spec": "Frost"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Frost",
+   "specName": "Frost Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_frost_frostbolt02.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Frost Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_frost_frostbolt02.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Frost"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Mage",
+    "specName": "Frost"
+   }
+  ],
+  "characterIcon": ":frostmage:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C27:C29",
+   "Setup!J27:J31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.412,
+     "green": 0.8,
+     "blue": 0.941
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Mage-Frost",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "Mage-Frost",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Mage-Frost",
+   "DK": "Mage-Frost"
+  }
+ },
+ "MAGE": {
+  "classlist": {
+   "icon": "mage",
+   "name": "Mage",
+   "clazz": "Mage",
+   "spec": "mage"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "MAGE",
+   "specName": "Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "mage"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Mage",
+    "specName": "mage"
+   }
+  ],
+  "characterIcon": ":mage:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C27:C29",
+   "Setup!J27:J31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.412,
+     "green": 0.8,
+     "blue": 0.941
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Feral": {
+  "classlist": {
+   "icon": "feral",
+   "name": "Feral Druid",
+   "clazz": "Druid",
+   "sodclazz": "melee",
+   "spec": "Feral"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Feral",
+   "specName": "Feral Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Feral Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Feral Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Feral"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "Feral"
+   }
+  ],
+  "characterIcon": ":feral:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!F22"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Druid-Feral",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Feral",
+   "Tank": "Druid-Feral",
+   "DK": "Druid-Feral"
+  }
+ },
+ "Guardian": {
+  "classlist": {
+   "icon": "guardian",
+   "name": "Feral Tank",
+   "clazz": "Druid",
+   "sodclazz": "tank",
+   "spec": "Guardian"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Guardian",
+   "specName": "Feral Tank",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_racial_bearform.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Feral Tank",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_racial_bearform.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Feral Tank",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Guardian"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "Guardian"
+   }
+  ],
+  "characterIcon": ":guardian:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B12",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Druid-Guardian",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Guardian",
+   "Tank": "Druid-Guardian",
+   "DK": "Druid-Guardian"
+  }
+ },
+ "Balance": {
+  "classlist": {
+   "icon": "balance",
+   "name": "Balance Druid",
+   "clazz": "Druid",
+   "sodclazz": "ranged",
+   "spec": "Balance"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Balance",
+   "specName": "Balance Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_starfall.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Balance Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_starfall.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Balance Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Balance"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "Balance"
+   }
+  ],
+  "characterIcon": ":balance:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!F22",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Druid-Balance",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Balance",
+   "Tank": "Druid-Balance",
+   "DK": "Druid-Balance"
+  }
+ },
+ "Restoration": {
+  "classlist": {
+   "icon": "restoration",
+   "name": "Restoration Druid",
+   "clazz": "Druid",
+   "sodclazz": "Healer",
+   "spec": "Restoration"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Restoration",
+   "specName": "Restoration Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_healingtouch.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Restoration Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_healingtouch.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Restoration Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Restoration"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "Restoration"
+   }
+  ],
+  "characterIcon": ":restoration:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Druid-Restoration",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Restoration",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Restoration",
+   "Tank": "Druid-Restoration",
+   "DK": "Druid-Restoration"
+  }
+ },
+ "RestoDruid": {
+  "classlist": {
+   "icon": "restoration",
+   "name": "Restoration Druid",
+   "clazz": "Druid",
+   "sodclazz": "Healer",
+   "spec": "Restoration"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "RestoDruid",
+   "specName": "Restoration Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_healingtouch.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Restoration Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_healingtouch.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Restoration Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Restoration"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "Restoration"
+   }
+  ],
+  "characterIcon": ":restoration:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Druid-Restoration",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Restoration",
+   "Tank": "Druid-Restoration",
+   "DK": "Druid-Restoration"
+  }
+ },
+ "DRUID": {
+  "classlist": {
+   "icon": "druid",
+   "name": "Druid",
+   "clazz": "Druid",
+   "spec": "druid"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "DRUID",
+   "specName": "Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "druid"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Druid",
+    "specName": "druid"
+   }
+  ],
+  "characterIcon": ":druid:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Unholy_DPS": {
+  "classlist": {
+   "icon": "unholy",
+   "name": "Unholy Deathknight",
+   "clazz": "DK",
+   "spec": "Unholy_DPS"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Unholy_DPS",
+   "specName": "Unholy Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_unholypresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Unholy Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_unholypresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Unholy Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Unholy_DPS"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Unholy_DPS"
+   }
+  ],
+  "characterIcon": ":unholy:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "UnholyDK": {
+  "classlist": {
+   "icon": "unholy",
+   "name": "Unholy Deathknight",
+   "clazz": "DK",
+   "spec": "Unholy_DPS"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "UnholyDK",
+   "specName": "Unholy Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_unholypresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Unholy Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_unholypresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Unholy Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Unholy_DPS"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Unholy_DPS"
+   }
+  ],
+  "characterIcon": ":unholy:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Frost_DPS": {
+  "classlist": {
+   "icon": "frostdk",
+   "name": "Frost Deathknight",
+   "clazz": "DK",
+   "spec": "Frost_DPS"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Frost_DPS",
+   "specName": "Frost Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_frostpresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Frost Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_frostpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Frost Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Frost_DPS"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Frost_DPS"
+   }
+  ],
+  "characterIcon": ":frostdk:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "FrostDK": {
+  "classlist": {
+   "icon": "frostdk",
+   "name": "Frost Deathknight",
+   "clazz": "DK",
+   "spec": "Frost_DPS"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "FrostDK",
+   "specName": "Frost Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_frostpresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Frost Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_frostpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Frost Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Frost_DPS"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Frost_DPS"
+   }
+  ],
+  "characterIcon": ":frostdk:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Blood_Tank": {
+  "classlist": {
+   "icon": "blooddk",
+   "name": "Blood Tank",
+   "clazz": "Tank",
+   "spec": "Blood_Tank"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Blood_Tank",
+   "specName": "Blood Tank",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Blood Tank",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Blood Tank",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Blood_Tank"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Blood_Tank"
+   }
+  ],
+  "characterIcon": ":blooddk:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "BloodTank": {
+  "classlist": {
+   "icon": "blooddk",
+   "name": "Blood Tank",
+   "clazz": "Tank",
+   "spec": "Blood_Tank"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "BloodTank",
+   "specName": "Blood Tank",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Blood Tank",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Blood Tank",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Blood_Tank"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Tank",
+    "specName": "Blood_Tank"
+   }
+  ],
+  "characterIcon": ":blooddk:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "BloodDK": {
+  "classlist": {
+   "icon": "blooddk",
+   "name": "Blood Deathknight",
+   "clazz": "DK",
+   "spec": "Blood_Tank"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "BloodDK",
+   "specName": "Blood Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Blood Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Blood Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Blood_Tank"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Blood_Tank"
+   }
+  ],
+  "characterIcon": ":blooddk:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "DEATHKNIGHT": {
+  "classlist": {
+   "icon": "deathknight",
+   "name": "Deathknight",
+   "clazz": "DK",
+   "spec": "Deathknight"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "DEATHKNIGHT",
+   "specName": "Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "specName": "Deathknight"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "DK",
+    "specName": "Deathknight"
+   }
+  ],
+  "characterIcon": ":deathknight:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Restoration1": {
+  "classlist": {
+   "icon": "restosham",
+   "name": "Restoration Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "Healer",
+   "spec": "Restoration1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Restoration1",
+   "specName": "Restoration Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_magicimmunity.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Restoration Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_magicimmunity.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Restoration1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Restoration1"
+   }
+  ],
+  "characterIcon": ":restosham:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Restoration",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Restoration",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "Druid-Restoration",
+   "Tank": "Shaman-Restoration",
+   "DK": "Shaman-Restoration"
+  }
+ },
+ "RestoSham": {
+  "classlist": {
+   "icon": "restosham",
+   "name": "Restoration Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "Healer",
+   "spec": "Restoration1"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "RestoSham",
+   "specName": "Restoration Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_magicimmunity.jpg",
+   "role": "healer"
+  },
+  "specProfile": {
+   "specName": "Restoration Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_magicimmunity.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "Healer",
+    "specName": "Restoration1"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Restoration1"
+   }
+  ],
+  "characterIcon": ":restosham:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C11:C15",
+   "Setup!H27:H31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Restoration",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Restoration",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Restoration",
+   "DK": "Shaman-Restoration"
+  }
+ },
+ "Elemental": {
+  "classlist": {
+   "icon": "elemental",
+   "name": "Elemental Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "ranged",
+   "spec": "Elemental"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Elemental",
+   "specName": "Elemental Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Elemental Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Elemental"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Elemental"
+   }
+  ],
+  "characterIcon": ":elemental:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!J27:J31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Elemental",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Elemental",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Elemental",
+   "DK": "Shaman-Elemental"
+  }
+ },
+ "EleSham": {
+  "classlist": {
+   "icon": "elemental",
+   "name": "Elemental Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "ranged",
+   "spec": "Elemental"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "EleSham",
+   "specName": "Elemental Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Elemental Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "ranged",
+    "specName": "Elemental"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Elemental"
+   }
+  ],
+  "characterIcon": ":elemental:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!J27:J31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Elemental",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Elemental",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Elemental",
+   "DK": "Shaman-Elemental"
+  }
+ },
+ "Enhancement": {
+  "classlist": {
+   "icon": "enhancement",
+   "name": "Enhancement Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "melee",
+   "spec": "Enhancement"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Enhancement",
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Enhancement"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Enhancement"
+   }
+  ],
+  "characterIcon": ":enhancement:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Enhancement",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Enhancement",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Enhancement",
+   "DK": "Shaman-Enhancement"
+  }
+ },
+ "Enhancer": {
+  "classlist": {
+   "icon": "enhancement",
+   "name": "Enhancement Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "melee",
+   "spec": "Enhancement"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Enhancer",
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg",
+   "role": "melee"
+  },
+  "specProfile": {
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "className": "melee",
+    "specName": "Enhancement"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Enhancement"
+   }
+  ],
+  "characterIcon": ":enhancement:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Enhancement",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Enhancement",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Enhancement",
+   "DK": "Shaman-Enhancement"
+  }
+ },
+ "TankShaman": {
+  "classlist": {
+   "icon": "enhancement",
+   "name": "Enhancement Shaman",
+   "clazz": "Shaman",
+   "sodclazz": "tank",
+   "spec": "Enhancement"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "TankShaman",
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Enhancement Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightningshield.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Enhancement Shaman",
+    "className": "Shaman"
+   }
+  ],
+  "formatSpecs40": [
+   {
+    "className": "tank",
+    "specName": "Enhancement"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Enhancement"
+   }
+  ],
+  "characterIcon": ":enhancement:",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "Shaman-Enhancement",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "Shaman-Enhancement",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "Shaman-Enhancement",
+   "DK": "Shaman-Enhancement"
+  }
+ },
+ "SHAMAN": {
+  "classlist": {
+   "icon": "shaman",
+   "name": "Shaman",
+   "clazz": "Shaman",
+   "spec": "Shaman"
+  },
+  "enrichSlot": {
+   "name": "P",
+   "spec": "SHAMAN",
+   "specName": "Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [
+   {
+    "specName": "Shaman"
+   }
+  ],
+  "formatSpecs1": [
+   {
+    "className": "Shaman",
+    "specName": "Shaman"
+   }
+  ],
+  "characterIcon": ":shaman:",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "paladin": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "paladin",
+   "specName": "Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Paladin",
+   "className": "Paladin",
+   "classColor": "#F58CBA",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_holybolt.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Paladin",
+    "className": "Paladin"
+   }
+  ],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.961,
+     "green": 0.549,
+     "blue": 0.729
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Warrior": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Warrior",
+   "specName": "Warrior",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg",
+   "role": "tank"
+  },
+  "specProfile": {
+   "specName": "Warrior",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_sword_27.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Warrior",
+    "className": ""
+   }
+  ],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.78,
+     "green": 0.612,
+     "blue": 0.431
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "rogue": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "rogue",
+   "specName": "Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_throwingknife_04.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Rogue",
+   "className": "Rogue",
+   "classColor": "#FFF569",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_throwingknife_04.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!E22",
+   "Setup!D27:D31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.961,
+     "blue": 0.412
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Priest": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Priest",
+   "specName": "Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_staff_30.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Priest",
+   "className": "Priest",
+   "classColor": "#FFFFFF",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_staff_30.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!B27:B29"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 1,
+     "blue": 1
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Destruction": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Destruction",
+   "specName": "Destruction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_rainoffire.jpg",
+   "role": "ranged"
+  },
+  "specProfile": {
+   "specName": "Destruction Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_rainoffire.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "Warlock-Destruction",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "warlock": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "warlock",
+   "specName": "Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Warlock",
+   "className": "Warlock",
+   "classColor": "#9482C9",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_shadow_deathcoil.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C22",
+   "Setup!G27:G31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.58,
+     "green": 0.51,
+     "blue": 0.788
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "mage": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "mage",
+   "specName": "Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Mage",
+   "className": "Mage",
+   "classColor": "#69CCF0",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_holy_magicalsentry.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7",
+   "Setup!C27:C29",
+   "Setup!J27:J31",
+   "Setup!K27:K31"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.412,
+     "green": 0.8,
+     "blue": 0.941
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "druid": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "druid",
+   "specName": "Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Druid",
+   "className": "Druid",
+   "classColor": "#FF7D0A",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/ability_druid_catform.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Druid",
+    "className": "Druid"
+   }
+  ],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 1,
+     "green": 0.49,
+     "blue": 0.039
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Deathknight": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Deathknight",
+   "specName": "Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Deathknight",
+   "className": "DK",
+   "classColor": "#C41F3B",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_deathknight_bloodpresence.jpg"
+  },
+  "tankCandidates": [
+   {
+    "name": "P",
+    "specName": "Deathknight",
+    "className": "DK"
+   }
+  ],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0.769,
+     "green": 0.122,
+     "blue": 0.231
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Shaman": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Shaman",
+   "specName": "Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg",
+   "role": "dps"
+  },
+  "specProfile": {
+   "specName": "Shaman",
+   "className": "Shaman",
+   "classColor": "#0070DE",
+   "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg"
+  },
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [
+   {
+    "name": "P",
+    "color": {
+     "red": 0,
+     "green": 0.439,
+     "blue": 0.871
+    }
+   }
+  ],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "Unknown": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "Unknown",
+   "specName": "Unknown",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "",
+   "role": "dps"
+  },
+  "specProfile": null,
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "": {
+  "classlist": null,
+  "enrichSlot": {
+   "name": "P",
+   "spec": "",
+   "specName": "Unbekannt",
+   "className": "",
+   "classColor": "",
+   "iconUrl": "",
+   "role": "dps"
+  },
+  "specProfile": null,
+  "tankCandidates": [],
+  "formatSpecs40": [],
+  "formatSpecs1": [],
+  "characterIcon": "undefined",
+  "fillSetupRanges": [
+   "Setup!B3:B7"
+  ],
+  "fillSetupColors": [],
+  "specKey": {
+   "-": "",
+   "Warrior": "",
+   "Paladin": "",
+   "Hunter": "",
+   "Rogue": "",
+   "Priest": "",
+   "Shaman": "",
+   "Mage": "",
+   "Warlock": "",
+   "Druid": "",
+   "Tank": "",
+   "DK": ""
+  }
+ },
+ "__catalog": [
+  {
+   "key": "Affliction",
+   "name": "Affliction Warlock",
+   "icon": "affliction",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Arcane",
+   "name": "Arcane Mage",
+   "icon": "arcane",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Arms",
+   "name": "Arms Warrior",
+   "icon": "arms",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Assassination",
+   "name": "Assassination Rogue",
+   "icon": "assassination",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Balance",
+   "name": "Balance Druid",
+   "icon": "balance",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Beastmastery",
+   "name": "Beastmaster Hunter",
+   "icon": "beastmaster",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Blood_Tank",
+   "name": "Blood Tank",
+   "icon": "blooddk",
+   "sodclazz": ""
+  },
+  {
+   "key": "Combat",
+   "name": "Combat Rogue",
+   "icon": "combat",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Deathknight",
+   "name": "Deathknight",
+   "icon": "deathknight",
+   "sodclazz": ""
+  },
+  {
+   "key": "Demonology",
+   "name": "Demonology Warlock",
+   "icon": "demonology",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Destruction",
+   "name": "Destruction Warlock",
+   "icon": "destruction",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Discipline",
+   "name": "Discipline Priest",
+   "icon": "discipline",
+   "sodclazz": "Healer"
+  },
+  {
+   "key": "druid",
+   "name": "Druid",
+   "icon": "druid",
+   "sodclazz": ""
+  },
+  {
+   "key": "Elemental",
+   "name": "Elemental Shaman",
+   "icon": "elemental",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Enhancement",
+   "name": "Enhancement Shaman",
+   "icon": "enhancement",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Feral",
+   "name": "Feral Druid",
+   "icon": "feral",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Guardian",
+   "name": "Feral Tank",
+   "icon": "guardian",
+   "sodclazz": "tank"
+  },
+  {
+   "key": "Fire",
+   "name": "Fire Mage",
+   "icon": "firemage",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Frost_DPS",
+   "name": "Frost Deathknight",
+   "icon": "frostdk",
+   "sodclazz": ""
+  },
+  {
+   "key": "Frost",
+   "name": "Frost Mage",
+   "icon": "frostmage",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Fury",
+   "name": "Fury Warrior",
+   "icon": "fury",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Holy1",
+   "name": "Holy Paladin",
+   "icon": "holypala",
+   "sodclazz": "Healer"
+  },
+  {
+   "key": "HolyPriest",
+   "name": "Holy Priest",
+   "icon": "holypriest",
+   "sodclazz": "Healer"
+  },
+  {
+   "key": "mage",
+   "name": "Mage",
+   "icon": "mage",
+   "sodclazz": ""
+  },
+  {
+   "key": "Marksmanship",
+   "name": "Marksman Hunter",
+   "icon": "marksman",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "paladin",
+   "name": "Paladin",
+   "icon": "paladin",
+   "sodclazz": ""
+  },
+  {
+   "key": "Priest",
+   "name": "Priest",
+   "icon": "priest",
+   "sodclazz": ""
+  },
+  {
+   "key": "Protection1",
+   "name": "Protection Pala",
+   "icon": "protpala",
+   "sodclazz": "Tank"
+  },
+  {
+   "key": "Protection",
+   "name": "Protection Warrior",
+   "icon": "protection",
+   "sodclazz": "tank"
+  },
+  {
+   "key": "Restoration",
+   "name": "Restoration Druid",
+   "icon": "restoration",
+   "sodclazz": "Healer"
+  },
+  {
+   "key": "Restoration1",
+   "name": "Restoration Shaman",
+   "icon": "restosham",
+   "sodclazz": "Healer"
+  },
+  {
+   "key": "Retribution",
+   "name": "Retribution Pala",
+   "icon": "retribution",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "rogue",
+   "name": "Rogue",
+   "icon": "rogue",
+   "sodclazz": ""
+  },
+  {
+   "key": "Shadow",
+   "name": "Shadow Priest",
+   "icon": "shadow",
+   "sodclazz": "ranged"
+  },
+  {
+   "key": "Shaman",
+   "name": "Shaman",
+   "icon": "shaman",
+   "sodclazz": ""
+  },
+  {
+   "key": "Sublety",
+   "name": "Sublety Rogue",
+   "icon": "sublety",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Survival",
+   "name": "Survival Hunter",
+   "icon": "survival",
+   "sodclazz": "melee"
+  },
+  {
+   "key": "Unholy_DPS",
+   "name": "Unholy Deathknight",
+   "icon": "unholy",
+   "sodclazz": ""
+  },
+  {
+   "key": "warlock",
+   "name": "Warlock",
+   "icon": "warlock",
+   "sodclazz": ""
+  },
+  {
+   "key": "Warrior",
+   "name": "Warrior",
+   "icon": "warrior",
+   "sodclazz": ""
+  }
+ ]
+}

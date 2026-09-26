@@ -364,6 +364,31 @@ describe("web/server", () => {
             expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/p/abcdefghijklmnopqrstuv");
         });
     });
+    describe("report assets (#423)", () => {
+        const { assetUrl } = require("../../src/web/report/assets");
+
+        it("GET /r-assets/report.css serves the stylesheet without a session, long-cached under its versioned url", async () => {
+            const res = await request({ url: assetUrl("report.css"), method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "text/css; charset=utf-8", "Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" }));
+            expect(String(res.end.mock.calls[0][0])).toContain("--bg:");
+            expect(auth.getUser).not.toHaveBeenCalled();
+        });
+
+        it("GET /r-assets/report.js serves the client script, uncached without the current version", async () => {
+            const res = await request({ url: "/r-assets/report.js?v=old", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-cache" }));
+            expect(String(res.end.mock.calls[0][0])).toContain("function reviewBody(");
+        });
+
+        it("answers 404 for any other name, and never for a path outside static/", async () => {
+            for (const url of ["/r-assets/nope.js", "/r-assets/", "/r-assets/%2e%2e%2frender.js", "/r-assets/..%2Fserver.js", "/r-assets/report.css/x", "/r-assets/REPORT.CSS"]) {
+                const res = await request({ url, method: "GET", headers: {} });
+                expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+                expect(res.end).toHaveBeenCalledWith("NOT_FOUND");
+            }
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+    });
     describe("in-app documentation (#349)", () => {
         it("GET /docs renders the docs page without requiring a session", async () => {
             auth.getUser.mockReturnValue(null);

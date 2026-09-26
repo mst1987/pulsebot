@@ -3,7 +3,7 @@ const {
     setupResponse,
 } = require("../../src/utils/responses.js");
 const { formatTimestampToDateString } = require("../../src/utils/date.js");
-const extendedClassList = require("../../src/config/classlist.js");
+const { entryFor } = require("../../src/config/classlist.js");
 const { mockInteraction } = require("../helpers/mockInteraction.js");
 
 // Build an emoji whose string interpolation is deterministic, mimicking a
@@ -28,7 +28,7 @@ describe("utils/responses", () => {
             const result = setupResponse(interaction, event);
             const expectedDate = formatTimestampToDateString(1700000000 * 1000);
             expect(result).toBe(
-                `<#chan-1> <t:1700000000:R> \n <:holypala:1> **${extendedClassList["Holy1"].name}**\n${expectedDate} Uhr\n`
+                `<#chan-1> <t:1700000000:R> \n <:holypala:1> **${entryFor("Holy1").name}**\n${expectedDate} Uhr\n`
             );
         });
 

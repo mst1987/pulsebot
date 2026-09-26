@@ -1,6 +1,6 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireFullAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { requireFullAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
@@ -178,9 +178,7 @@ const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...R
 const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
-async function getSettings(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getSettings = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     const config = getConfig();
     // Names for the accounts that hold a per-user grant, so the permissions tab
@@ -221,7 +219,7 @@ async function getSettings(req, res) {
         servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
     });
-}
+});
 
 /**
  * Where the messages of "Vielleicht" / "Absagen" may go (#335): the text
@@ -264,8 +262,7 @@ function serverCards(config) {
  * the edit dialog, so switching the talk server there lists that server's
  * channels without another request).
  */
-async function getDiscordServers(req, res) {
-    if (!requireFullAdmin(req, res)) return;
+const getDiscordServers = withUser({ full: true }, async ({ res }) => {
     const config = getConfig();
     const guilds = (discord.listGuilds() || []).map((g) => ({
         ...g,
@@ -278,7 +275,7 @@ async function getDiscordServers(req, res) {
         overlap: await guildRoles.memberOverlap(config),
         guilds,
     });
-}
+});
 
 /**
  * GET /api/settings/role-sync — the role sync block of the Discord-Server
@@ -286,19 +283,16 @@ async function getDiscordServers(req, res) {
  * on each, the drift list (members who kept a synced role the source lost;
  * computed now, nothing stored) and the last sweep. Full-admin only.
  */
-async function getRoleSync(req, res) {
-    if (!requireFullAdmin(req, res)) return;
+const getRoleSync = withUser({ full: true }, async ({ res }) => {
     ok(res, await roleSync.roleSyncView(getConfig()));
-}
+});
 
 /**
  * GET /api/settings/reminders — the reminder block: the stored rules, every
  * configured event server's raid categories with names, whether the talk
  * server's ping channel exists as a target, and the last sweep.
  */
-function getReminders(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getReminders = withUser({}, async ({ res }) => {
     const config = getConfig();
     // Names from the live list backed by earlier snapshots, so a category the
     // bot cannot see right now still reads as a name rather than an id — and a
@@ -314,7 +308,7 @@ function getReminders(req, res) {
         pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
-}
+});
 
 /**
  * Whether the bot is logged in and which guild the settings run against — the
@@ -376,11 +370,7 @@ const BLIZZARD_FIELDS = ["clientId", "region", "realmSlug", "namespace"];
  * adminRoleIds/rolePermissions (ACCESS_KEYS) and the Anthropic/WCL
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
-async function updateSettings(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     const partial = {};
@@ -462,7 +452,7 @@ async function updateSettings(req, res) {
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     ok(res, { config: publicConfig(saveConfig(partial)) });
-}
+});
 
 /**
  * GET /api/settings/item-search?q=&edition= — Wowhead item search for the
@@ -470,35 +460,25 @@ async function updateSettings(req, res) {
  * hard-reserve picker uses, but under the settings area, so defining top items
  * doesn't require raid rights.
  */
-async function getItemSearch(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getItemSearch = withUser({}, async ({ res, url }) => {
     const q = url.searchParams.get("q") || "";
     const edition = url.searchParams.get("edition") || "tbc";
     const items = await wowhead.searchItems(q, { edition });
     ok(res, { items });
-}
+});
 
 /** POST /api/settings/raidsheets — create (no id) or update (id) a raidsheet. */
-async function saveRaidsheetHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const saveRaidsheetHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     if (!String(body.name || "").trim()) return error(res, 400, "invalid", "Name fehlt.");
     ok(res, saveRaidsheet(body), 201);
-}
+});
 
 /** POST /api/settings/raidsheets/delete — body: { id }. */
-async function deleteRaidsheetHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteRaidsheetHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id || !deleteRaidsheet(id)) return error(res, 404, "not_found", "Raidsheet nicht gefunden.");
     ok(res, { id });
-}
+});
 
 // ---- loot-sync API tokens (the WoW addon's companion uploader) ----
 // Full-admin only, like the other access settings: these are credentials that
@@ -506,37 +486,45 @@ async function deleteRaidsheetHandler(req, res) {
 // "Einstellungen" must not be able to mint one.
 
 /** GET /api/settings/ingest-tokens — the tokens, never their secrets. */
-function getIngestTokens(req, res) {
-    if (!requireFullAdmin(req, res)) return;
+const getIngestTokens = withUser({ full: true }, async ({ res }) => {
     ok(res, { tokens: listIngestTokens() });
-}
+});
 
 /**
  * POST /api/settings/ingest-tokens — body: { name }. Mints a token and returns
  * the plaintext **once**; it is stored hashed and can never be shown again.
  */
-async function createIngestTokenHandler(req, res) {
-    const user = requireFullAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const createIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
     const { token, record } = createIngestToken(body.name, user.name || user.id || "");
     ok(res, { token, record }, 201);
-}
+});
 
 /** POST /api/settings/ingest-tokens/delete — body: { id }. Revokes immediately. */
-async function deleteIngestTokenHandler(req, res) {
-    if (!requireFullAdmin(req, res)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id || !revokeIngestToken(id)) return error(res, 404, "not_found", "Token nicht gefunden.");
     ok(res, { id });
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/settings", handler: getSettings, area: "settings" },
+    { method: "PATCH", path: "/api/settings", handler: updateSettings, area: "settings" },
+    { method: "GET", path: "/api/settings/item-search", handler: getItemSearch, area: "settings" },
+    { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
+    { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
+    { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },
+    { method: "GET", path: "/api/settings/role-sync", handler: getRoleSync, area: "settings" },
+    { method: "GET", path: "/api/settings/reminders", handler: getReminders, area: "settings" },
+    { method: "GET", path: "/api/settings/ingest-tokens", handler: getIngestTokens, area: "settings" },
+    { method: "POST", path: "/api/settings/ingest-tokens", handler: createIngestTokenHandler, area: "settings" },
+    { method: "POST", path: "/api/settings/ingest-tokens/delete", handler: deleteIngestTokenHandler, area: "settings" },
+];
 
 module.exports = {
     getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
     publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,
+    routes,
 };

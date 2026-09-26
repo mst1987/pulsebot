@@ -175,7 +175,7 @@ describe(".dockerignore", () => {
     });
 
     it("leaves out nested node_modules, local data and what the image never needs", () => {
-        for (const entry of ["**/node_modules", "data/", "coverage/", "test/", "reference/", "docs/", "bin/", "src/web-client/dist", ".claude/", ".github/"]) {
+        for (const entry of ["**/node_modules", "data/", "coverage/", "test/", "scripts/data-sources/", "docs/", "bin/", "src/web-client/dist", ".claude/", ".github/"]) {
             expect(lines).toContain(entry);
         }
     });

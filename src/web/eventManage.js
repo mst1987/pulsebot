@@ -44,6 +44,7 @@ const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
 
 const { TIMEZONE } = require("../config/timezone");
+const { fail } = require("./apiResult");
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_REASON = 3;
 const MAX_REASON = 300;
@@ -68,8 +69,6 @@ const ACTION_LABELS = {
 const STATUS_LABELS = {
     signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abgemeldet",
 };
-
-const fail = (status, code, message) => ({ error: { status, code, message } });
 
 /** "Do 24.09. 19:30" in Berlin time. */
 function whenLabel(startTime) {

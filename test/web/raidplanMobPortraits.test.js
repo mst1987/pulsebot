@@ -4,7 +4,7 @@ const path = require("path");
 const png = require("../../scripts/lib/png");
 const defaults = require("../../src/web/raidplanCatalogDefaults");
 const { MOB_NPCS } = require("../../scripts/data/raidplanMobNpcs");
-const generated = require("../../src/config/mobIcons.json");
+const generated = require("../../src/config/generated/mobIcons.json");
 const catalog = require("../../src/web/raidplanCatalogStore");
 const board = require("../../src/web/raidplanBoard");
 

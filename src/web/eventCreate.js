@@ -31,6 +31,7 @@ const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
 const { TIMEZONE } = require("../config/timezone");
+const { fail } = require("./apiResult");
 const SOURCES = ["raidhelper", "eventhelper"];
 
 /** Unix seconds of a "dd-MM-yyyy" date and "HH:mm" time in Berlin time, or 0. */
@@ -186,7 +187,6 @@ function isoDateOf(value) {
     return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
 }
 
-const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
 const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit", "color", "image", "emojiStyle"];
 // Colour and picture (#307) are the two planning fields whose *empty* value

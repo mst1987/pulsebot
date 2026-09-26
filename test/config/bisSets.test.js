@@ -4,7 +4,7 @@
 // geschriebene Liste nie als simulierte durchgeht.
 const bis = require("../../src/config/bisSets");
 const wowsims = require("../../src/config/wowsims");
-const wowhead = require("../../src/config/wowhead/bisSets.json");
+const wowhead = require("../../src/config/generated/wowhead/bisSets.json");
 
 const HEALERS = ["Priest-Holy", "Druid-Restoration", "Shaman-Restoration", "Paladin-Holy"];
 const TIERS = ["t4", "t5", "t6", "t65"];

@@ -273,7 +273,7 @@ describe("web/render", () => {
             expect(html).toContain("<div id=\"view-raid\" class=\"view\">");
             expect(html).toContain("<div id=\"view-bosse\" class=\"view\" hidden>");
             expect(html).toContain("<div id=\"view-raider\" class=\"view\" hidden>");
-            expect(html).toContain("window.__ehView");
+            expect(html).toContain("<script src=\"/r-assets/report.js?v=");
         });
 
         it("shows a metric card with its detail dialog for every populated raid-wide part", () => {

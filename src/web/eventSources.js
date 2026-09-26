@@ -11,7 +11,7 @@ const { listEvents, getEvent, isOwnEventId } = require("./eventStore");
 const { listSignups } = require("./signupStore");
 const { listRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { getConfig } = require("./settingsStore");
-const aliases = require("../config/classlist");
+const { ALIASES } = require("../config/classlist");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -58,10 +58,11 @@ function specKeyFromRaidHelper(className, specName) {
     const raw = String(specName || "").trim();
     if (!raw) return "";
     const cls = WOW_CLASSES.find((c) => c.toLowerCase() === String(className || "").trim().toLowerCase()) || "";
-    const alias = aliases[raw] && aliases[raw].spec ? String(aliases[raw].spec) : "";
+    // An alias counts when it names a spec of the rule set (not a class-only
+    // entry, not a death knight).
+    const aliasKey = Object.prototype.hasOwnProperty.call(ALIASES, raw) ? ALIASES[raw] : "";
     const found = SPEC_KEY_BY_RH_NAME[raw.toLowerCase()]
-        || SPEC_KEY_BY_RH_NAME[alias.toLowerCase()]
-        || (alias.toLowerCase() === "destruction" ? "Warlock-Destruction" : "");
+        || (RH_SPEC_NAMES[aliasKey] ? aliasKey : "");
     if (!cls) return found;
     if (found && found.startsWith(`${cls}-`)) return found;
     // The class says otherwise: its spec of the same name ("Holy1" → "Holy").
@@ -286,7 +287,7 @@ function listStoredEvents(guildId, { now = Date.now() } = {}) {
 
 /**
  * The own event a Discord channel belongs to, for the bot's channel-bound
- * commands (`/signup`, `/saveraid`, `/fillsetup` without an id, #291): the next
+ * commands (`/signup`, `/fillsetup` without an id, #291): the next
  * one that has not started, else the one that started last. A cancelled event
  * counts only when nothing else is there. Null without an own event.
  */

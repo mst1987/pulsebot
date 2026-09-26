@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Gives every default mob of the raid plan catalog an icon and writes src/config/mobIcons.json.
+// Gives every default mob of the raid plan catalog an icon and writes src/config/generated/mobIcons.json.
 //
 //   node scripts/fetch-mob-icons.js [--offline] [--force]
 //
@@ -22,7 +22,7 @@ const { MOB_NPCS } = require("./data/raidplanMobNpcs");
 const png = require("./lib/png");
 
 const ROOT = path.join(__dirname, "..");
-const OUT = path.join(ROOT, "src", "config", "mobIcons.json");
+const OUT = path.join(ROOT, "src", "config", "generated", "mobIcons.json");
 const DIR = path.join(ROOT, "src", "web-client", "public", "mobs");
 const URL_OF = (name) => `https://wow.zamimg.com/images/wow/icons/large/${name}.jpg`;
 const PAGE_OF = (id) => `https://www.wowhead.com/tbc/npc=${id}`;

@@ -154,7 +154,7 @@ describe("web/charGear", () => {
             ...(over[i] || {}),
         }));
         const casterSet = (slot12) => setOf(shadowIds, { 12: { itemId: String(slot12), itemName: `Item ${slot12}` } });
-        const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+        const healIds = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
             .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
             .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
             .map(([id]) => Number(id));
@@ -342,7 +342,7 @@ describe("web/charGear", () => {
             // Wer am Donnerstag geheilt hat, wird trotzdem an seinem Casterset
             // gemessen — dieselbe Regel wie bei der Armory.
             setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet }]));
-            const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+            const healIds = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
                 .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
                 .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
                 .slice(0, 16)
@@ -445,7 +445,7 @@ describe("web/charGear", () => {
         it("refuses a set that is the wrong role for this raider", () => {
             // Wer gerade in Heilgear steckt, wird trotzdem an seinem Casterset
             // gemessen — dieselbe Regel wie bei den Logs.
-            const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+            const healIds = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
                 .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
                 .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
                 .slice(0, 16)
@@ -467,7 +467,7 @@ describe("web/charGear", () => {
             // Ein Caster-Arenaset: Abhärtung, und Zaubermacht gleich Heilung
             // (sonst läse das Rollen-Profil ein Heilset und der Test prüfte
             // die falsche Regel).
-            const pvpIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+            const pvpIds = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
                 .filter(([, it]) => it.stats.resilience && it.ilvl >= 130 && it.slots.length === 1
                     && it.stats.spellPower && it.stats.healingPower === it.stats.spellPower)
                 .slice(0, 12)

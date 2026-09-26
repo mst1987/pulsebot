@@ -1,7 +1,6 @@
 const { DateTime } = require("luxon");
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
 const discordChannels = require("../discordChannels");
@@ -104,9 +103,7 @@ function quickEventDefaults(categories, config = getConfig()) {
  * carry an upcoming or past event, the archive with its waiting channels, and
  * the stored naming schemas.
  */
-async function getChannels(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getChannels = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     const categories = discord.listCategories(guildId);
     const channels = discord.listAllChannels(guildId);
@@ -136,16 +133,12 @@ async function getChannels(req, res) {
         defaultSchema: DEFAULT_SCHEMA,
         placeholders: PLACEHOLDERS,
     });
-}
+});
 
 /** POST /api/channels — create a channel in the active guild. Body: { name, type, parentId }. */
-async function createChannel(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const createChannel = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
-    const body = await readJsonBody(req);
     try {
         const created = await discord.createChannel(guildId, {
             name: String(body.name || "").trim(),
@@ -156,14 +149,10 @@ async function createChannel(req, res) {
     } catch (e) {
         error(res, 400, "create_failed", e.message || "Kanal konnte nicht erstellt werden.");
     }
-}
+});
 
 /** POST /api/channels/duplicate — clone a channel. Body: { channelId, name }. */
-async function duplicateChannel(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const duplicateChannel = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const channelId = String(body.channelId || "").trim();
     if (!channelId) return error(res, 400, "no_channel", "Kein Kanal gewählt.");
     try {
@@ -172,7 +161,7 @@ async function duplicateChannel(req, res) {
     } catch (e) {
         error(res, 400, "duplicate_failed", e.message || "Kanal konnte nicht dupliziert werden.");
     }
-}
+});
 
 /** The ids of a body, only those of the active guild — a stale page must not reach another server. */
 function idsOfGuild(body, guildId) {
@@ -189,13 +178,9 @@ const unknownResults = (ids) => ids.map((id) => ({ id, ok: false, error: "Kanal 
  * fields present in `changes` are applied (a bulk edit's "unverändert" is simply
  * absent), one channel after another; the answer says per channel what happened.
  */
-async function patchChannels(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const patchChannels = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
-    const body = await readJsonBody(req);
     const changes = body.changes && typeof body.changes === "object" ? body.changes : {};
     try {
         discordChannels.pickChanges(changes);
@@ -209,18 +194,14 @@ async function patchChannels(req, res) {
         ...unknownResults(unknown),
     ];
     ok(res, { results, ...summarize(results, "geändert") });
-}
+});
 
 /** POST /api/channels/archive — move channels into the archive category. Body: { ids }. */
-async function archiveChannels(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const archiveChannels = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
     const { archiveCategoryId } = archiveStore.getChannelConfig(guildId);
     if (!archiveCategoryId) return error(res, 400, "no_archive", "Keine Archiv-Kategorie festgelegt.");
-    const body = await readJsonBody(req);
     const { ids, unknown } = idsOfGuild(body, guildId);
     if (!ids.length && !unknown.length) return error(res, 400, "no_channel", "Kein Kanal gewählt.");
     const results = [
@@ -232,7 +213,7 @@ async function archiveChannels(req, res) {
         ...unknownResults(unknown),
     ];
     ok(res, { results, ...summarize(results, "archiviert") });
-}
+});
 
 /**
  * POST /api/channels/delete — delete channels. Body: `{ ids, confirm, anywhere }`:
@@ -241,14 +222,10 @@ async function archiveChannels(req, res) {
  * refused per channel; with it (the channel list) any channel may go, a
  * category never (discordChannels.deleteChannel, whatever the page sent).
  */
-async function deleteChannels(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const deleteChannels = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
     const { archiveCategoryId } = archiveStore.getChannelConfig(guildId);
-    const body = await readJsonBody(req);
     const anywhere = body.anywhere === true;
     if (!anywhere && !archiveCategoryId) return error(res, 400, "no_archive", "Keine Archiv-Kategorie festgelegt.");
     const { ids, unknown, known } = idsOfGuild(body, guildId);
@@ -268,7 +245,7 @@ async function deleteChannels(req, res) {
         ...unknownResults(unknown),
     ];
     ok(res, { results, ...summarize(results, "gelöscht") });
-}
+});
 
 /** A day in the guild's time zone ("2026-09-23") for an event start in seconds. */
 function dayOf(startTime) {
@@ -292,12 +269,8 @@ function namingView(result) {
  * the latest *other* event channel of its category (#285) — every row says so
  * in `naming`. Changes nothing.
  */
-async function renamePreview(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const renamePreview = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
-    const body = await readJsonBody(req);
     const { ids, known } = idsOfGuild(body, guildId);
     const rawEvents = await eventsFor(guildId);
     const events = eventStatusByChannel(rawEvents);
@@ -331,7 +304,7 @@ async function renamePreview(req, res) {
         return row;
     });
     ok(res, { rows });
-}
+});
 
 /**
  * The job toast's text after a quick-create with events: the totals, then one
@@ -380,13 +353,9 @@ function batchNaming(ctx, { schemaInput, day, raid, templateChannelId, channels 
  * and the category's source (Raid-Helper or EventHelper). A channel whose event
  * fails stays; the result says so per channel (`eventId` / `eventError`).
  */
-async function batchCreate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
-    const body = await readJsonBody(req);
     const categoryId = String(body.categoryId || "").trim();
     const schemaInput = String(body.schema || "").trim();
     const schema = schemaInput || DEFAULT_SCHEMA;
@@ -468,7 +437,7 @@ async function batchCreate(req, res) {
         ...summary,
         message: skipped ? `${summary.message}, ${skipped} übersprungen (existiert)` : summary.message,
     }, 201);
-}
+});
 
 /** A stored schema longer than a channel name can be is a typo, not a design. */
 const SCHEMA_MAX = 200;
@@ -480,13 +449,9 @@ const SCHEMA_MAX = 200;
  * "wie der letzte Event-Kanal" again; the time "gleich Event anlegen" remembered
  * stays. Answers the stored entry.
  */
-async function saveSchema(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const saveSchema = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
-    const body = await readJsonBody(req);
     const categoryId = String(body.categoryId || "").trim();
     const schema = String(body.schema || "").trim();
     const templateChannelId = String(body.templateChannelId || "").trim();
@@ -504,20 +469,16 @@ async function saveSchema(req, res) {
         schema, raid: String(body.raid || "").trim(), templateChannelId,
     });
     ok(res, { schema: stored });
-}
+});
 
 /**
  * POST /api/channels/config — the archive settings. Body:
  * `{ archiveCategoryId?, archiveDeleteHintDays?, createArchiveCategory? }`;
  * `createArchiveCategory` is a name — the category is created and becomes the archive.
  */
-async function saveConfig(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const saveConfig = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
-    const body = await readJsonBody(req);
     let archiveCategoryId = body.archiveCategoryId;
     if (body.createArchiveCategory) {
         try {
@@ -534,10 +495,25 @@ async function saveConfig(req, res) {
         archiveDeleteHintDays: body.archiveDeleteHintDays,
     });
     ok(res, { config });
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/channels", handler: getChannels, area: "channels" },
+    { method: "POST", path: "/api/channels", handler: createChannel, area: "channels" },
+    { method: "PATCH", path: "/api/channels", handler: patchChannels, area: "channels" },
+    { method: "POST", path: "/api/channels/duplicate", handler: duplicateChannel, area: "channels" },
+    { method: "POST", path: "/api/channels/archive", handler: archiveChannels, area: "channels" },
+    { method: "POST", path: "/api/channels/delete", handler: deleteChannels, area: "channels" },
+    { method: "POST", path: "/api/channels/rename-preview", handler: renamePreview, area: "channels" },
+    { method: "POST", path: "/api/channels/batch", handler: batchCreate, area: "channels" },
+    { method: "POST", path: "/api/channels/schema", handler: saveSchema, area: "channels" },
+    { method: "POST", path: "/api/channels/config", handler: saveConfig, area: "channels" },
+];
 
 module.exports = {
     BULK_DELETE_WORD,
     getChannels, createChannel, duplicateChannel,
     patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveSchema, saveConfig,
+    routes,
 };

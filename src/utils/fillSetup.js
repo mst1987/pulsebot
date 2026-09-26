@@ -3,14 +3,9 @@
 // This module never touches Discord or the network directly: buildSetupWrite() is a
 // pure transform, and fillSetupSheet() takes an already-constructed SheetsClient.
 
-const classlist = require("../config/classlist");
-
-// Build reverse lookup: both by key ("Destro") and by spec field ("Destruction")
-const SPEC_LOOKUP = {};
-for (const [key, val] of Object.entries(classlist)) {
-    SPEC_LOOKUP[key] = val;
-    if (val.spec) SPEC_LOOKUP[val.spec] = val;
-}
+// A slot's spec resolves by Raid-Helper alias ("Destro") and by Raid-Helper's
+// own spec name ("Destruction").
+const { entryForSpec } = require("../config/classlist");
 
 // WoW class colors (RGB 0–1)
 const CLASS_COLORS = {
@@ -24,21 +19,14 @@ const CLASS_COLORS = {
     "Warlock": { red: 0.580, green: 0.510, blue: 0.788 },  // #9482C9
     "Druid":   { red: 1.000, green: 0.490, blue: 0.039 },  // #FF7D0A
     "DK":      { red: 0.769, green: 0.122, blue: 0.231 },  // #C41F3B
-    "Tank":    { red: 0.780, green: 0.612, blue: 0.431 },  // Warrior-Farbe für generische Tanks
-};
-
-// Icon-level overrides for specs where clazz is "Tank" but the real class differs
-const ICON_COLOR_OVERRIDES = {
-    "protpala": CLASS_COLORS["Paladin"],
-    "blooddk":  CLASS_COLORS["DK"],
 };
 
 function getClassColor(entry) {
     if (!entry) return null;
-    return ICON_COLOR_OVERRIDES[entry.icon] || CLASS_COLORS[entry.clazz] || null;
+    return CLASS_COLORS[entry.clazz] || null;
 }
 
-// ---- Role detection via classlist.js icon / sodclazz / clazz ----
+// ---- Role detection via classlist.js icon / role / clazz ----
 const isProtPala         = (e) => e?.icon === "protpala";
 const isGuardian         = (e) => e?.icon === "guardian";
 const isHolyPala         = (e) => e?.icon === "holypala";
@@ -47,7 +35,7 @@ const isRestoSham        = (e) => e?.icon === "restosham";
 const isRestoDruid       = (e) => e?.icon === "restoration";
 const isElemental        = (e) => e?.icon === "elemental";
 const isHolyOrDiscPriest = (e) => e?.icon === "holypriest" || e?.icon === "discipline";
-const isHealer           = (e) => e?.sodclazz === "Healer";
+const isHealer           = (e) => e?.role === "healer";
 const isWarlock          = (e) => e?.clazz === "Warlock";
 const isAffliction       = (e) => e?.icon === "affliction";
 const isPriest           = (e) => e?.clazz === "Priest";
@@ -60,11 +48,14 @@ const isFeral            = (e) => e?.icon === "feral";
 const isSurvival         = (e) => e?.icon === "survival";
 const isArms             = (e) => e?.icon === "arms";
 const isFury             = (e) => e?.icon === "fury";
-const isWarrior          = (e) => e?.clazz === "Warrior";
+// A tank (by spec, or filed under Raid-Helper's "Tank" class) is busy tanking:
+// only the damage warriors count here.
+const isTank             = (e) => e?.role === "tank" || e?.raidhelperClass === "Tank";
+const isWarrior          = (e) => e?.clazz === "Warrior" && !isTank(e);
 const isEnhancement      = (e) => e?.icon === "enhancement";
 
 function getClassEntry(specName) {
-    return specName ? (SPEC_LOOKUP[specName] || null) : null;
+    return specName ? entryForSpec(specName) : null;
 }
 
 function getSlotName(slot) {

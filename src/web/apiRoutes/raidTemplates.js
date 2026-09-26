@@ -1,6 +1,5 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../settingsStore");
@@ -26,45 +25,31 @@ function categoryNames(req) {
 }
 
 /** GET /api/raid-templates — the raid templates (#266) with their badges. */
-function getRaidTemplates(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaidTemplates = withUser({}, async ({ req, res }) => {
     ok(res, { templates: decoratedTemplates(), categoryNames: categoryNames(req) });
-}
+});
 
 /** POST /api/raid-templates — create a template. Body: the template without id. */
-async function createRaidTemplate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const createRaidTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const result = saveRaidTemplate({ ...body, id: "" });
     if (result.error) return error(res, 400, "invalid", result.error);
     ok(res, decorateTemplate(result.template, getConfig().categoryRaidTemplate), 201);
-}
+});
 
 /** PATCH /api/raid-templates — update a template. Body: the template with its id. */
-async function updateRaidTemplate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const updateRaidTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     if (!String(body.id || "").trim()) return error(res, 400, "invalid", "Vorlagen-ID fehlt.");
     const result = saveRaidTemplate(body);
     if (result.notFound) return error(res, 404, "not_found", result.error);
     if (result.error) return error(res, 400, "invalid", result.error);
     ok(res, decorateTemplate(result.template, getConfig().categoryRaidTemplate));
-}
+});
 
 /**
  * DELETE /api/raid-templates — body: { id }. A template some category uses as
  * its default is refused with 409: the category would silently lose it.
  */
-async function deleteRaidTemplateHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteRaidTemplateHandler = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const id = String(body.id || "").trim();
     const template = id ? getRaidTemplate(id) : null;
     if (!template) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
@@ -76,13 +61,10 @@ async function deleteRaidTemplateHandler(req, res) {
     }
     deleteRaidTemplate(id);
     ok(res, { id });
-}
+});
 
 /** POST /api/raid-templates/import — take over the Raid-Helper templates the server's current events use. */
-async function importRaidTemplates(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const importRaidTemplates = withUser({ csrf: true }, async ({ res }) => {
     try {
         const rh = createRaidhelperClient();
         const templates = await rh.getTemplates();
@@ -92,8 +74,18 @@ async function importRaidTemplates(req, res) {
     } catch (e) {
         error(res, 400, "import_failed", e.message || "Laden fehlgeschlagen.");
     }
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raid-templates", handler: getRaidTemplates, area: "raids" },
+    { method: "POST", path: "/api/raid-templates", handler: createRaidTemplate, area: "raids" },
+    { method: "PATCH", path: "/api/raid-templates", handler: updateRaidTemplate, area: "raids" },
+    { method: "DELETE", path: "/api/raid-templates", handler: deleteRaidTemplateHandler, area: "raids" },
+    { method: "POST", path: "/api/raid-templates/import", handler: importRaidTemplates, area: "raids" },
+];
 
 module.exports = {
     getRaidTemplates, createRaidTemplate, updateRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
+    routes,
 };

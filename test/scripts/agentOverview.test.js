@@ -238,3 +238,11 @@ describe("agent overview - refreshing", () => {
         }
     });
 });
+
+describe("agent overview - html snapshot", () => {
+    test("goes to the temp directory, never into a checkout's data/", () => {
+        const os = require("os");
+        expect(ov.htmlFile()).toBe(path.join(os.tmpdir(), "eventhelper-agent-overview.html"));
+        expect(ov.htmlFile("/scratch")).toBe(path.join("/scratch", "eventhelper-agent-overview.html"));
+    });
+});
