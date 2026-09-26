@@ -62,14 +62,19 @@ describe("web/eventSheetStore", () => {
             expect(listEventSheets()).toHaveLength(1);
         });
 
-        it("upserts by event id instead of duplicating, refreshing the timestamp/summary", async () => {
+        it("upserts by event id instead of duplicating, refreshing the timestamp/summary", () => {
+            // an explicit clock instead of a real sleep: the refresh shows as a
+            // strictly later timestamp, never as a coincidence of timing
+            const now = jest.spyOn(Date, "now").mockReturnValue(1000);
             const first = markEventSheetFilled("evt1", { sheetId: "s1", playerCount: 10 });
-            await new Promise((r) => setTimeout(r, 2));
+            now.mockReturnValue(2000);
             const second = markEventSheetFilled("evt1", { sheetId: "s2", playerCount: 22 });
+            now.mockRestore();
             expect(listEventSheets()).toHaveLength(1);
             expect(second.sheetId).toBe("s2");
             expect(second.playerCount).toBe(22);
-            expect(second.filledAt).toBeGreaterThanOrEqual(first.filledAt);
+            expect(first.filledAt).toBe(1000);
+            expect(second.filledAt).toBe(2000);
         });
 
         it("coerces the player count to a number", () => {
@@ -155,10 +160,12 @@ describe("web/eventSheetStore", () => {
     });
 
     describe("listEventSheets", () => {
-        it("returns records newest-filled first", async () => {
+        it("returns records newest-filled first", () => {
+            const now = jest.spyOn(Date, "now").mockReturnValue(1000);
             markEventSheetFilled("evt1");
-            await new Promise((r) => setTimeout(r, 2));
+            now.mockReturnValue(2000);
             markEventSheetFilled("evt2");
+            now.mockRestore();
             const list = listEventSheets();
             expect(list[0].eventId).toBe("evt2");
             expect(list[1].eventId).toBe("evt1");

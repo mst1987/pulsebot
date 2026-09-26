@@ -1,17 +1,70 @@
 /** @type {import("jest").Config} */
-module.exports = {
-    testEnvironment: "node",
-    testMatch: ["**/test/**/*.test.js"],
+
+// Settings every project shares. With `projects`, a project does not inherit
+// the root's test options, so they live here and are spread into each one.
+const shared = {
+    rootDir: __dirname,
+    // plain Node plus the test lifecycle the console buffer needs
+    testEnvironment: "<rootDir>/test/setup/environment.js",
     clearMocks: true,
+    // no test may reach the network (axios, http(s), fetch) - jest.mock instead
+    setupFiles: ["<rootDir>/test/setup/noNetwork.js"],
+    // console output only shows up for a failing test (replaces `silent`)
+    setupFilesAfterEnv: ["<rootDir>/test/setup/consoleBuffer.js"],
+};
+
+module.exports = {
+    projects: [
+        {
+            ...shared,
+            displayName: "unit",
+            testMatch: ["<rootDir>/test/**/*.test.js"],
+            testPathIgnorePatterns: ["/node_modules/", "<rootDir>/test/claude-hooks/"],
+        },
+        {
+            // The Claude-Code hooks run real git repositories and are slow;
+            // run them on their own with `npx jest --selectProjects hooks`.
+            ...shared,
+            displayName: "hooks",
+            testMatch: ["<rootDir>/test/claude-hooks/**/*.test.js"],
+        },
+    ],
+    // `--detectOpenHandles` (#432) finds exactly one kind of leak left: the
+    // un-unref()'d setInterval at module level in src/utils/applicationState.js
+    // (loaded by the apply commands and bot.js). Every other interval/timeout is
+    // unref()'d. Once #430 reworks that module, this can go.
+    forceExit: true,
+    // Coverage options are root-level: they apply across all projects.
     collectCoverageFrom: [
         "src/**/*.js",
         "!src/bot.js",
-        "!src/discordcommands/**",
+        // the built React bundle (src/web-client/dist) is not backend code
+        "!src/web-client/**",
     ],
     coverageDirectory: "coverage",
-    // Silence the bot's console.error/log noise during tests.
-    silent: true,
-    // The bot schedules setTimeout timers (auto-deleting replies); force a clean
-    // exit so lingering timers don't keep the Jest worker alive.
-    forceExit: true,
+    // About one point under what the suite reaches (measured 2026-09-26, #432):
+    // coverage must not sink. A path key takes its files out of `global`;
+    //   - a directory is checked as a whole (logcheck),
+    //   - a glob is checked for EACH matching file (the stores), so its
+    //     numbers sit under the weakest store, not under the average.
+    coverageThreshold: {
+        global: {
+            lines: 93.8,
+            functions: 92.9,
+            branches: 77.2,
+            statements: 90.8,
+        },
+        "./src/utils/logcheck/": {
+            lines: 97.4,
+            functions: 96.5,
+            branches: 82.7,
+            statements: 94.8,
+        },
+        "./src/web/**/*Store.js": {
+            lines: 85.4,
+            functions: 79,
+            branches: 64.4,
+            statements: 76,
+        },
+    },
 };
