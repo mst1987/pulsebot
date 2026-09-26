@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { Popover } from "../../components/ui";
 import { tipPlacement } from "../../lib/popoverPosition";
 
@@ -38,7 +38,7 @@ export function RichTip({ trigger, children, width = 300, label }: {
                 {trigger}
             </span>
             {open && (
-                <Popover anchor={anchor} place={tipPlacement()} host="dialog" onClose={() => setOpen(false)} dismiss={false} className="tip on lc-rtip" role="tooltip" style={{ width }}>
+                <Popover anchor={anchor} place={tipPlacement()} host="dialog" onClose={() => setOpen(false)} dismiss={false} className="tip on lc-rtip" role="tooltip" style={{ "--lc-rtip-w": `${width}px` } as CSSProperties}>
                     {children}
                 </Popover>
             )}

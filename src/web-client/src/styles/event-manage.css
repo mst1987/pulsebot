@@ -10,7 +10,7 @@
     position: fixed; z-index: 60; width: 300px; max-height: calc(100vh - 24px); overflow-y: auto;
     display: flex; flex-direction: column; gap: 1px; padding: 6px;
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .55);
+    box-shadow: 0 18px 40px -12px var(--shade-55);
 }
 .em-item {
     display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 7px; background: none;

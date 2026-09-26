@@ -1,0 +1,157 @@
+/* Base (#441): reset, typography, tables, form controls, buttons and tabs, in
+   the order they had in index.css. Loaded after tokens.css. */
+
+* { box-sizing: border-box; }
+body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    transition: background .2s, color .2s;
+}
+a { color: inherit; }
+h1, h3 { margin: 0; }
+h2 { font-size: 18px; margin: 24px 0 12px; }
+
+.sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+a.mlink { color: var(--accent); text-decoration: none; }
+a.mlink:hover { text-decoration: underline; }
+table.idx { width: 100%; border-collapse: collapse; }
+table.idx th, table.idx td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+/* The third head level: tinted, mono, upper case — the same column head as the
+   report pages. A head that explains itself carries data-tip (see SortTh). */
+table.idx th { background: var(--panel2); color: var(--muted); font-weight: 600; font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+table.idx tr:hover td { background: var(--panel2); }
+table.idx td.small { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+/* A cell holding a control is taller than one holding text, and baseline
+   alignment would then drop the plain-text cells of that row out of line with
+   it — centre every cell instead, and take the row's own padding back down so
+   the control's height doesn't stack on top of it. */
+table.idx td { vertical-align: middle; }
+table.idx td:has(select), table.idx td:has(input:not([type=checkbox]):not([type=radio])),
+table.idx td:has(.btn), table.idx td:has(.row-actions) {
+    padding-top: 5px; padding-bottom: 5px;
+}
+/* controls inside a row stay compact so a table of them doesn't turn into a
+   column of 50px rows */
+table.idx td select, table.idx td input:not([type=checkbox]):not([type=radio]) {
+    min-height: var(--ctl-h-sm); font-size: 13.5px; padding: 5px 30px 5px 10px; background-position: right 9px center; background-size: 14px 14px;
+}
+table.idx td input:not([type=checkbox]):not([type=radio]) { padding: 5px 10px; }
+table.idx td .btn { min-height: var(--ctl-h-sm); }
+
+/* ===== forms/buttons ===== */
+form.card-form { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 18px; margin: 0 0 16px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; line-height: 1.3; }
+/* --- the control base: every text input, select and textarea shares one look
+   and, more importantly, one height (--ctl-h). Anything that lands on the same
+   line — a filter row, a table cell, the topbar — then lines up on its own
+   without per-place height patches. The vertical padding is sized so the
+   computed height lands on --ctl-h; the min-height is the floor that keeps it
+   there when a shorter font is used. --- */
+select,
+.field input:not([type=checkbox]):not([type=radio]), .field textarea, .inp-sm, .sel-sm, .hr-picker input {
+    /* background-color, not the shorthand: the shorthand would reset the chevron
+       image below, and it does so at a higher specificity than the `select`
+       rule can win back — .sel-sm would silently lose its arrow. */
+    background-color: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    font: inherit; line-height: 1.35;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.field input:not([type=checkbox]):not([type=radio]) { width: 100%; max-width: 440px; min-height: var(--ctl-h); padding: 8px 12px; }
+.field textarea { width: 100%; padding: 10px 12px; min-height: 120px; resize: vertical; }
+.field select { width: 100%; max-width: 440px; }
+/* --- selects: the OS widget is dropped (appearance: none) because its grey
+   Windows triangle and system-blue focus ring ignore the palette entirely; the
+   chevron is drawn as a background image instead, which is the one decoration a
+   <select> can carry (it takes no pseudo-elements). It tints to the accent on
+   hover and focus, so the control answers the pointer the way the buttons do. --- */
+select {
+    appearance: none; -webkit-appearance: none;
+    min-height: var(--ctl-h); padding: 8px 34px 8px 12px; max-width: 100%; cursor: pointer;
+    background-image: var(--ctl-arrow); background-repeat: no-repeat;
+    background-position: right 11px center; background-size: 15px 15px;
+}
+select:hover:not(:disabled) { border-color: var(--muted); background-image: var(--ctl-arrow-hi); }
+select:disabled, .field input:disabled, .inp-sm:disabled {
+    opacity: .55; cursor: not-allowed; background-color: var(--panel2); background-image: var(--ctl-arrow);
+}
+/* The popup list is native, so it can only be tinted through the options
+   themselves (plus the pinned color-scheme in :root). */
+select option { background: var(--panel); color: var(--text); }
+select:focus, .field input:focus, .field textarea:focus, .inp-sm:focus, .sel-sm:focus, .hr-picker input:focus {
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
+}
+select:focus { background-image: var(--ctl-arrow-hi); }
+/* compact variants for dense places (table cells, the topbar's neighbours) */
+.sel-sm { max-width: 270px; font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 30px 6px 10px; background-position: right 9px center; background-size: 14px 14px; }
+.inp-sm { font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 10px; }
+.field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+/* components/ui/Field: the name row (label + round info button), the error line */
+.field-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 7px; line-height: 1.3; }
+.field-label label { cursor: pointer; }
+.field-error { color: var(--high); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+/* the round info button (tooltip holder), ui/Field InfoTip */
+.info {
+    width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; flex: 0 0 auto;
+    color: var(--muted); border: 1px solid var(--line); background: var(--panel2); cursor: help;
+    transition: color .12s ease, border-color .12s ease;
+}
+.info svg { width: 12px; height: 12px; }
+.info:hover, .info:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+
+/* One button system for the whole admin. The variants are a hierarchy, not a
+   palette: .btn = the one primary action of a form/section, .btn-ghost = every
+   secondary action next to it, .btn-run = "start this analysis" (CLA/RPB — an
+   action that then takes a while and reports back through a job toast),
+   .btn-danger = destructive. Icons come from components/icons.tsx and are sized
+   here, so a button never has to hard-code one (and never carries an emoji). */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--ctl-radius);
+    min-height: var(--ctl-h); padding: 8px 18px; line-height: 1.25;
+    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; vertical-align: middle;
+    transition: filter .15s ease, box-shadow .2s ease, transform .1s ease, background-color .15s ease, border-color .15s ease;
+}
+.btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.btn:hover { filter: brightness(1.08); box-shadow: 0 4px 22px -6px var(--accent); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: .6; cursor: not-allowed; filter: none; box-shadow: none; transform: none; }
+.btn-ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+.btn-ghost:hover { filter: none; background: var(--panel3); border-color: var(--accent); box-shadow: none; }
+.btn-danger { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+.btn-danger:hover { filter: none; background: var(--high); color: var(--on-fill); box-shadow: 0 4px 22px -8px var(--high); transform: translateY(-1px); }
+/* Analysis starters (CLA/RPB): accent-tinted so they read as "run this", but
+   outlined so a table row full of them never looks like a row of submits. */
+.btn-run { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); letter-spacing: .02em; }
+.btn-run:hover { filter: none; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 4px 18px -8px var(--accent); }
+/* While its job runs the button stays clickable-looking but inert, and swaps
+   its icon for a spinner (the real progress lives in the toast). */
+.btn.is-running { cursor: progress; }
+.btn-spin {
+    width: 13px; height: 13px; flex: 0 0 auto; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent; opacity: .8;
+    animation: toast-spin .8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .btn-spin { animation: none; } }
+.btn-sm { min-height: var(--ctl-h-sm); padding: 5px 12px; font-size: 13px; }
+.btn-sm svg { width: 13px; height: 13px; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
+.pill.good { background: var(--good-bg); color: var(--good); }
+/* discard button inside a status pill — drops just that one analysis */
+.pill-x { background: none; border: 0; color: inherit; opacity: .55; cursor: pointer; font: inherit; line-height: 1; padding: 0 0 0 5px; }
+.pill-x:hover { opacity: 1; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.note { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }
+
+/* ===== tabs ===== */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 20px; border-bottom: 1px solid var(--line); }
+.tab-btn { appearance: none; background: transparent; border: 1px solid transparent; border-bottom: none; color: var(--muted); font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 9px 9px 0 0; cursor: pointer; margin-bottom: -1px; }
+.tab-btn:hover { color: var(--text); background: var(--panel2); }
+.tab-btn.active { color: var(--text); background: var(--panel); border-color: var(--line); border-bottom-color: var(--panel); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.tab-count { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; font-family: var(--font-mono); background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+.tab-btn.active .tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle; }

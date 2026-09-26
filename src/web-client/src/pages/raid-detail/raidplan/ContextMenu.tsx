@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type CSSProperties } from "react";
 import type { MenuItem } from "../../../lib/raidplan";
-import { pointPlacement } from "../../../lib/popoverPosition";
+import { pointPlacement, popoverVars } from "../../../lib/popoverPosition";
 import Popover from "../../../components/ui/Popover";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import type { RaidplanMarkName } from "../../../api";
@@ -58,7 +58,7 @@ export default function ContextMenu({ x, y, title, items, labelFor, onPick, onCl
     return (
         <Popover
             anchor={null} boxRef={ref} place={pointPlacement(x, y)} onClose={onClose} dismiss={{ event: "pointerdown", capture: true, escape: false }}
-            className="rp-menu" role="menu" aria-label={title} style={{ left: x, top: y }} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}
+            className="rp-menu" role="menu" aria-label={title} style={popoverVars({ left: x, top: y }) as CSSProperties} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}
         >
             <div className="rp-menu-title" aria-hidden="true">{title}</div>
             {items.map((item, n) => {

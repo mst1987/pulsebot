@@ -13,6 +13,7 @@
 .rd-right { text-align: right; }
 .rd-grow { flex: 1 1 auto; min-width: 0; }
 .rd-empty { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 14px; }
+.rd-empty.is-padded { padding: 14px; }
 
 /* ---- page head ---- */
 .rd-hero { position: relative; margin: 0; }
@@ -46,7 +47,7 @@ button.rd-loot-chip:hover { border-color: var(--accent); color: var(--accent); }
 .rd-step-v { font-family: var(--font-mono); font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-step-v small { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-left: 4px; }
 .rd-step-bar { display: block; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
-.rd-step-bar i { display: block; height: 100%; background: var(--accent); }
+.rd-step-bar i { display: block; width: var(--fill); height: 100%; background: var(--accent); }
 .rd-step-badge { display: flex; min-width: 0; }
 .rd-step-badge .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 
@@ -75,7 +76,7 @@ button.rd-ck:focus-visible { outline: 2px solid var(--accent); outline-offset: -
 .rd-ck-v { font-family: var(--font-mono); font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-ck-v small { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-left: 4px; }
 .rd-ck-bar { display: block; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
-.rd-ck-bar i { display: block; height: 100%; background: var(--accent); }
+.rd-ck-bar i { display: block; width: var(--fill); height: 100%; background: var(--accent); }
 .rd-ck-state { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
 .rd-ck-state .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .rd-ck-note { font-size: 12px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

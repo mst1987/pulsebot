@@ -9,7 +9,7 @@
 // Starting or stopping reloads the menu from "/": the session, the sidebar and
 // every page's data have to come from the other rights, and the first page the
 // viewed role may open is where App.tsx lands anyway.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { getViewAsRoles, setViewAs, type ApiError, type SessionUser, type ViewAsRole } from "../api";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
@@ -90,7 +90,7 @@ function ViewAsDialog({ open, onClose, current }: {
                                 <li key={r.id}>
                                     <label className={`va-role${picked.includes(r.id) ? " is-on" : ""}`}>
                                         <input type="checkbox" checked={picked.includes(r.id)} onChange={() => toggle(r.id)} />
-                                        <span className="va-dot" style={r.color ? { background: r.color } : undefined} aria-hidden="true" />
+                                        <span className="va-dot" style={r.color ? ({ "--va-c": r.color } as CSSProperties) : undefined} aria-hidden="true" />
                                         <span className="va-name">{r.name}</span>
                                         {r.admin
                                             ? <Badge tone="accent" tip={t("shell.viewAs.admin")} tipSub={t("shell.viewAs.adminSub")}>{t("shell.viewAs.admin")}</Badge>

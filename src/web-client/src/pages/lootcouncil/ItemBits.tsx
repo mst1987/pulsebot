@@ -39,9 +39,9 @@ export function RaiderIdent({ name, classColor, specIconUrl, className, sub, siz
         : <span className={`lc-id-name ${colored.className || ""}`} style={colored.style}>{name}</span>;
     return (
         <span className={`lc-id${big ? " big" : ""}`}>
-            <span className="lc-id-tile" style={{ "--cc": classColor || "var(--muted)", width: size, height: size } as CSSProperties}>
+            <span className="lc-id-tile" style={{ "--cc": classColor || "var(--muted)", "--lc-tile": `${size}px`, "--lc-tile-img": `${Math.round(size * 0.7)}px` } as CSSProperties}>
                 {specIconUrl
-                    ? <img src={specIconUrl} alt="" loading="lazy" style={{ width: Math.round(size * 0.7), height: Math.round(size * 0.7) }} />
+                    ? <img className="lc-id-spec" src={specIconUrl} alt="" loading="lazy" />
                     : className ? <WowIcon name={`classicon_${className.toLowerCase().replace(/\s+/g, "")}`} size={Math.round(size * 0.7)} /> : null}
             </span>
             <span className="lc-id-text">

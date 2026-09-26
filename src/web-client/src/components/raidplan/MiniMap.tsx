@@ -1,4 +1,4 @@
-import { useRef, type PointerEvent } from "react";
+import { useRef, type PointerEvent, type CSSProperties } from "react";
 import { visibleRect, type BoardView } from "../../lib/raidplan/boardView";
 
 /**
@@ -20,7 +20,7 @@ export default function MiniMap({ mapUrl, view, onCenter, label }: { mapUrl: str
             onPointerMove={(e) => { if (e.buttons === 1) at(e); }}
         >
             {mapUrl ? <img src={mapUrl} alt="" draggable={false} /> : <div className="rp-minimap-grid" />}
-            <span className="rp-minimap-view" style={{ left: `${v.x * 100}%`, top: `${v.y * 100}%`, width: `${v.w * 100}%`, height: `${v.h * 100}%` }} />
+            <span className="rp-minimap-view" style={{ "--rp-x": `${v.x * 100}%`, "--rp-y": `${v.y * 100}%`, "--rp-w": `${v.w * 100}%`, "--rp-h": `${v.h * 100}%` } as CSSProperties} />
         </div>
     );
 }

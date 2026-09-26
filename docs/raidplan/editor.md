@@ -20,7 +20,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
   that person disappears (no duplicate). Own-character highlight is unchanged. Tests:
   `src/web-client/src/lib/raidplan/groupTag.test.ts`.
 
-- **Layout** (`BoardWorkspace.tsx`, `styles/raidplan.css`, one component for the template and the event
+- **Layout** (`BoardWorkspace.tsx`, `styles/raidplan/` (`index.css` over its parts), one component for the template and the event
   editor): tool bar and boss chips (sticky), then the **bands** above the board (palette as one horizontal
   strip, the Besetzung as compact chips, the players not placed yet), then the board at the left and a
   **dock** (about 340 px) at the right with the tabs *Einteilungen · Eigenschaften · Ebenen · Hintergrund*.
@@ -296,7 +296,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
     Enter (Ctrl+Enter on a button) is done, the native dialog traps the focus.
   - Measured with puppeteer on the 25-raider test raid: no scroll bar and nothing cut at 1440x900, 1920x1080
     and 390x844 for every slot and category (the dialog keeps one height, `min-height` of the main part).
-    **Phone (< 900 px)**: a full-screen sheet (`dlg-sheet` in index.css), the slots as tabs with their count,
+    **Phone (< 900 px)**: a full-screen sheet (`dlg-sheet` in `styles/ui.css`), the slots as tabs with their count,
     the categories as a chip row, the people grid 3 columns, the preview hidden.
 - **Row container** (`AssignLine.tsx`, pure logic `lib/raidplan/assignLine.ts`): every row of the editor's cards is ONE
   container with the grid `26px | 1fr | 18px | 1fr | 76px` — spell / task icon, who, arrow, at whom, actions.

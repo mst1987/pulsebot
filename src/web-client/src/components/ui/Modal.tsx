@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import IconTile, { type TileTone } from "./IconTile";
 import { Button, IconButton } from "./Button";
 import { TrashIcon, XIcon } from "../icons";
@@ -48,8 +48,8 @@ export function Modal({ open, onClose, icon, tone, kicker, title, footer, hint, 
     return (
         <dialog
             ref={ref}
-            className={className ? `dlg ${className}` : "dlg"}
-            style={{ width: `min(${width}px, calc(100vw - 32px))` }}
+            className={className ? `dlg dlg-w ${className}` : "dlg dlg-w"}
+            style={{ "--dlg-w": `${width}px` } as CSSProperties}
             // Esc fires "cancel": turn it into the caller's close instead of
             // letting the browser close the dialog behind React's back.
             onCancel={(e) => { e.preventDefault(); onClose(); }}

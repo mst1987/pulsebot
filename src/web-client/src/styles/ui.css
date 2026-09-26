@@ -1,0 +1,241 @@
+/* Building blocks of components/ui (#441, design issue #221), and the classes
+   that replaced inline styles. Loaded last of the shared stylesheets. */
+
+/* =====================================================================
+   Shared building blocks (components/ui, design issue #221). The look is the
+   report pages' (src/web/render.js): same badge, tile, expand, bar, part head
+   and tooltip box, on the SPA's tokens. Nothing here uses gold.
+   ===================================================================== */
+
+/* ---- WoW icon ---- */
+.wi { display: block; width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
+
+/* ---- buttons: leading WoW icon, the run spinner, disabled ---- */
+.btn.has-icon { padding-left: 10px; gap: 8px; }
+.btn .wi { width: 22px; height: 22px; border-radius: 5px; box-shadow: 0 0 0 1px var(--shade-35); }
+.btn-sm.has-icon { padding-left: 7px; gap: 7px; }
+.btn-sm .wi { width: 18px; height: 18px; border-radius: 4px; }
+
+/* ---- icon button: square, 38 / 32 px, always with a tooltip ---- */
+.ibtn {
+    width: var(--ctl-h); height: var(--ctl-h); display: inline-grid; place-items: center; padding: 0; flex: 0 0 auto;
+    border-radius: var(--ctl-radius); border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
+    cursor: pointer; text-decoration: none; font: inherit;
+    transition: color .12s ease, border-color .12s ease, background-color .12s ease;
+}
+.ibtn svg { width: 17px; height: 17px; }
+.ibtn .wi { width: 24px; height: 24px; border-radius: 5px; }
+.ibtn.sm { width: var(--ctl-h-sm); height: var(--ctl-h-sm); }
+.ibtn.sm svg { width: 15px; height: 15px; }
+.ibtn.sm .wi { width: 20px; height: 20px; }
+.ibtn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); background: var(--panel3); }
+.ibtn:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ibtn.danger:hover:not(:disabled) { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+.ibtn:disabled { opacity: .45; cursor: default; }
+
+/* ---- split button: main action + chevron menu ---- */
+.split { position: relative; display: inline-flex; }
+.split > .btn { border-radius: var(--ctl-radius) 0 0 var(--ctl-radius); }
+.split > .btn:hover { transform: none; }
+.btn-caret {
+    display: inline-grid; place-items: center; padding: 0 10px; min-height: var(--ctl-h); border: 0; cursor: pointer;
+    border-left: 1px solid color-mix(in srgb, var(--accent-ink) 35%, transparent);
+    border-radius: 0 var(--ctl-radius) var(--ctl-radius) 0; background: var(--accent); color: var(--accent-ink);
+}
+.btn-caret:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-caret:disabled { opacity: .6; cursor: not-allowed; }
+.btn-caret svg { width: 15px; height: 15px; }
+.split-menu {
+    position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; min-width: 100%; display: flex; flex-direction: column; padding: 5px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px var(--shade-40);
+}
+.split-menu button {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 7px; background: none;
+    color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.split-menu button:hover:not(:disabled) { background: var(--accent-soft); }
+.split-menu button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- segment switch ---- */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--ctl-radius); overflow: hidden; background: var(--panel2); }
+.seg-opt {
+    display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; min-height: var(--ctl-h-sm); border: 0; background: none;
+    font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap;
+}
+.seg-opt + .seg-opt { border-left: 1px solid var(--line); }
+.seg-opt .wi { width: 18px; height: 18px; }
+.seg-opt:hover:not(:disabled):not(.active) { color: var(--text); background: var(--panel3); }
+.seg-opt.active { background: var(--accent-soft); color: var(--accent); }
+.seg-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seg-opt:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---- badges ---- */
+.badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; line-height: 1.5; white-space: nowrap;
+    font-size: 12px; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+}
+.badge.ok { background: var(--good-bg); color: var(--good); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.badge.mid { background: var(--medium-bg); color: var(--medium); border-color: color-mix(in srgb, var(--medium) 35%, transparent); }
+.badge.bad { background: var(--high-bg); color: var(--high); border-color: color-mix(in srgb, var(--high) 35%, transparent); }
+.badge.accent { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.badge.count { border-radius: 10px; padding: 1px 7px; }
+.badge .wi { width: 14px; height: 14px; border-radius: 3px; }
+.badge svg { width: 12px; height: 12px; }
+.badge[data-tip] { cursor: default; }
+.badge.sm { font-size: 11px; padding: 0 6px; }
+/* the small x of a removable badge or chip (ui/Badge onRemove, ui/Chip) */
+.badge-x { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; opacity: .7; cursor: pointer; }
+.badge-x svg { width: 10px; height: 10px; }
+.badge-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
+/* chips (ui/Chip): the larger, clickable badge; several sit in a .chip-row */
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }
+button.badge.chip:hover { border-color: var(--accent); color: var(--text); }
+button.badge.chip.accent:hover { color: var(--accent); }
+.badge.chip .badge-x { width: auto; height: auto; border-radius: 0; opacity: .75; }
+.badge.chip .badge-x svg { width: 12px; height: 12px; }
+.badge.chip .badge-x:hover { background: none; }
+
+/* ---- icon tiles (.itile — .tile is the dashboard's stat tile) ---- */
+.itile { --tile-bg: var(--accent-soft); width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: var(--tile-bg); color: var(--accent); }
+.itile .wi { width: 22px; height: 22px; border-radius: 4px; }
+.itile svg { width: 18px; height: 18px; }
+.itile.lg { width: 48px; height: 48px; border-radius: 12px; }
+.itile.lg .wi { width: 32px; height: 32px; border-radius: 6px; }
+.itile.lg svg { width: 24px; height: 24px; }
+.itile.t-home { --tile-bg: var(--area-home-soft); color: var(--area-home); }
+.itile.t-profile { --tile-bg: var(--area-profile-soft); color: var(--area-profile); }
+.itile.t-signups { --tile-bg: var(--area-signups-soft); color: var(--area-signups); }
+.itile.t-recruitment { --tile-bg: var(--area-recruitment-soft); color: var(--area-recruitment); }
+.itile.t-cla { --tile-bg: var(--area-cla-soft); color: var(--area-cla); }
+.itile.t-raids { --tile-bg: var(--area-raids-soft); color: var(--area-raids); }
+.itile.t-roster { --tile-bg: var(--area-roster-soft); color: var(--area-roster); }
+.itile.t-history { --tile-bg: var(--area-history-soft); color: var(--area-history); }
+.itile.t-lootcouncil { --tile-bg: var(--area-lootcouncil-soft); color: var(--area-lootcouncil); }
+.itile.t-channels { --tile-bg: var(--area-channels-soft); color: var(--area-channels); }
+.itile.t-settings { --tile-bg: var(--area-settings-soft); color: var(--area-settings); }
+.itile.t-ok { --tile-bg: var(--good-bg); color: var(--good); }
+.itile.t-mid { --tile-bg: var(--medium-bg); color: var(--medium); }
+.itile.t-bad { --tile-bg: var(--high-bg); color: var(--high); }
+.itile.t-none { --tile-bg: var(--panel2); color: var(--muted); }
+
+/* ---- expand: "Details" + the round chevron button ---- */
+.exp-lbl { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: 0 0 auto; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.exp { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: inline-flex; align-items: center; justify-content: center; color: var(--accent); flex: 0 0 auto; transition: background-color .12s ease, border-color .12s ease; }
+.exp svg { width: 18px; height: 18px; display: block; transition: transform .15s ease; }
+.exp-lbl:hover .exp { border-color: var(--accent); }
+.exp-lbl:focus-visible { outline: none; }
+.exp-lbl:focus-visible .exp { box-shadow: 0 0 0 3px var(--accent-soft); }
+.exp.open { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.exp.open svg { transform: rotate(180deg); }
+
+/* ---- bars (WCL style, fixed width) ---- */
+.bar { position: relative; display: block; width: 120px; height: 24px; border-radius: 5px; overflow: hidden; background: var(--panel2); }
+.bar.wide { width: 260px; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--fill); background: var(--accent-soft); border-right: 2px solid var(--accent); }
+.bar.ok i { background: var(--good-bg); border-right-color: var(--good); }
+.bar.mid i { background: var(--medium-bg); border-right-color: var(--medium); }
+.bar.bad i { background: var(--high-bg); border-right-color: var(--high); }
+.bar > span { position: relative; display: block; padding: 0 8px; font: 700 12.5px/24px var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.idx td:has(> .bar) { padding-top: 5px; padding-bottom: 5px; }
+
+/* ---- heads: page head › part head (› table head, see table.idx th) ---- */
+.kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); font-weight: 500; }
+.page-head { display: flex; align-items: center; gap: 16px; margin: 0 0 20px; flex-wrap: wrap; }
+.page-head .ph-text { min-width: 0; }
+.page-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 2px 0 0; line-height: 1.15; }
+.page-head .ph-meta { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+.page-head .ph-act, .part-head .ph-act { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.part-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.part-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; min-width: 0; }
+.part-title .kicker { display: block; }
+.tipped { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; cursor: help; }
+table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+
+/* ---- the tooltip box (one per page, drawn by <TipLayer>) ---- */
+.tip {
+    position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none; opacity: 0; transform: translateY(5px); max-width: 330px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    padding: 8px 12px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 14px 38px -12px var(--shade-65);
+    clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+    transition: opacity .11s ease, transform .11s ease; white-space: pre-line;
+    /* <TipLayer> makes the box a manual popover (top layer, above an open modal):
+       undo the popover's centring defaults, placement comes from left/top. */
+    right: auto; bottom: auto; margin: 0; overflow: visible;
+}
+.tip.on { opacity: 1; transform: translateY(0); }
+.tip b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+.tip b:only-child { margin-bottom: 0; }
+.tip i { display: block; font-style: normal; color: var(--muted); }
+.tip-anchor { cursor: help; }
+@media (prefers-reduced-motion: reduce) { .tip { transition: none; } }
+
+/* ---- modal (native <dialog>) and the confirm dialog ---- */
+dialog.dlg { padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text); box-shadow: 0 24px 60px var(--shade-45); max-height: calc(100vh - 48px); overflow: auto; }
+dialog.dlg::backdrop { background: var(--overlay-dialog); }
+.dlg-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--line-soft); }
+.dlg-titles { flex: 1; min-width: 0; }
+.dlg-title { font-size: 18px; font-weight: 800; line-height: 1.2; }
+.dlg-body { padding: 18px 20px; }
+.dlg-text { color: var(--muted); font-size: 14px; white-space: pre-line; }
+.dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line-soft); background: var(--panel2); flex-wrap: wrap; }
+.dlg-hint { margin-right: auto; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+/* A long dialog scrolls as a whole: the foot stays on the bottom edge, so its
+   buttons never scroll out of reach (e.g. the raid template's open "Mehr" part). */
+dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
+/* a dialog whose body lays itself out edge to edge (the raid plan's assignment dialog), and one that becomes a full-screen sheet on a phone */
+dialog.dlg.dlg-flush .dlg-head { padding: 10px 20px; }
+dialog.dlg.dlg-flush .dlg-body { padding: 0; }
+dialog.dlg.dlg-flush .dlg-foot { padding: 10px 20px; }
+dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
+@media (max-width: 900px) {
+    dialog.dlg.dlg-sheet { width: 100vw !important; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
+    dialog.dlg.dlg-sheet .dlg-inner { display: flex; flex-direction: column; height: 100%; }
+    dialog.dlg.dlg-sheet .dlg-body { flex: 1 1 auto; }
+    dialog.dlg.dlg-sheet .dlg-head { padding: 8px 12px; }
+    dialog.dlg.dlg-sheet .dlg-foot { padding: 8px 12px; flex-wrap: nowrap; }
+    dialog.dlg.dlg-sheet .dlg-foot .dlg-hint { display: none; }
+}
+/* A button in the hint (Löschen, Archivieren …) is a button, not mono hint text. */
+.dlg-foot .dlg-hint .btn { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+/* ---- language switch in the top bar: "DE | EN", the active part lit ---- */
+.lang-toggle {
+    display: inline-flex; height: var(--ctl-h); padding: 2px; gap: 2px; flex: 0 0 auto;
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2);
+}
+.lang-toggle button {
+    min-width: 30px; padding: 0 7px; border: 0; border-radius: calc(var(--ctl-radius) - 2px);
+    background: transparent; color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    cursor: pointer; transition: color .12s ease, background-color .12s ease;
+}
+.lang-toggle button:hover:not(.is-on) { color: var(--text); background: var(--panel3); }
+.lang-toggle button.is-on { color: var(--text); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
+.lang-toggle button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+
+/* sub entries of the menu (Raidplan-Vorlagen, Raidplan-Katalog under Raid-Events) */
+.nav-item.is-sub { margin-left: 16px; padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
+.nav-item.is-sub .wi { width: 20px; height: 20px; }
+
+/* ---- what used to be inline styles (#441) --------------------------------
+   A fixed look is a class; a value that differs per element (a width, a
+   colour, a position) is a custom property set on the element and read here. */
+.empty.app-notice { display: flex; flex-direction: column; gap: 10px; align-items: center; padding-top: 60px; }
+.empty.app-notice.is-login { gap: 14px; padding-top: 80px; }
+nav.menu .hint.menu-hint { padding: 0 14px; }
+img.spec-ico-sm { border-radius: 4px; vertical-align: -4px; margin-right: 6px; }
+.spec-label { font-weight: 700; }
+table.idx.flush { margin: 0; }
+.row-actions.is-end { justify-content: flex-end; }
+.sub.is-inline { margin: 0; }
+.sub.is-trailing { margin: 0 0 0 auto; }
+.badge-row.is-end { margin-left: auto; }
+.field.is-last { margin-bottom: 0; }
+/* a DataTable column with a width (--th-w from its column definition) */
+th.th-w { width: var(--th-w); }
+/* ui/Modal's width prop; the modules that pin a dialog's width do so with !important */
+dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
+/* ui/Popover: the coordinates its placement measured (lib/popoverPosition.ts popoverVars) */
+.ui-pop { left: var(--pop-left, auto); top: var(--pop-top, auto); right: var(--pop-right, auto); bottom: var(--pop-bottom, auto); }
+/* RaidLoader: the party does not swing in step */
+.rl-icon.attack, .rl-icon.flee { animation-delay: var(--rl-delay, 0s); }

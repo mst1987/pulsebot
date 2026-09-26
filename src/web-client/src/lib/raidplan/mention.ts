@@ -11,7 +11,7 @@ function escapeRe(s: string): string {
 
 /** The names worth looking for: whole names of the visitor's characters (at least two letters), each once. */
 export function cleanNames(names: string[]): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const n of names) {
         const v = String(n === null || n === undefined ? "" : n).trim();
         if (v.length >= 2 && out.map((x) => x.toLowerCase()).indexOf(v.toLowerCase()) < 0) out.push(v);
@@ -27,7 +27,7 @@ export function splitMentions(text: string, names: string[]): TextPart[] {
     // longest first, so "Heilbert" wins over "Heil"; a name is a whole word (a letter next to it means it is part of another word)
     const alt = list.slice().sort((a, b) => b.length - a.length).map(escapeRe).join("|");
     const re = new RegExp(`(?<![\\p{L}\\p{N}_])(${alt})(?![\\p{L}\\p{N}_])`, "giu");
-    const parts = [];
+    const parts: TextPart[] = [];
     let last = 0;
     let m = re.exec(src);
     while (m) {

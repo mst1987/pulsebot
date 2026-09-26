@@ -123,7 +123,7 @@ button.kn-figure:hover .kn-figure-val { color: var(--accent); }
     /* width: max-content — with left: 50% the bar would otherwise only get half
        the viewport and break its buttons onto a second line. */
     flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 32px); padding: 10px 12px 10px 18px; background: var(--panel);
-    border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .6);
+    border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 18px 40px -12px var(--shade-60);
 }
 .kn-bulk-sel { display: flex; flex-direction: column; gap: 1px; margin-right: 6px; line-height: 1.15; }
 .kn-bulk-count { font-weight: 800; font-size: 15px; white-space: nowrap; }

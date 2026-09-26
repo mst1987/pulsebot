@@ -218,7 +218,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                 </div>
                             );
                         })}
-                        {!groups.length && <p className="rd-empty" style={{ padding: 14 }}>{t("raidDetail.loot.noHit", { query })}</p>}
+                        {!groups.length && <p className="rd-empty is-padded">{t("raidDetail.loot.noHit", { query })}</p>}
                     </div>
 
                     <div className="rd-foot">

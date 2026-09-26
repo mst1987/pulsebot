@@ -122,7 +122,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                             </div>
                         )
                         : (
-                            <div style={{ opacity: busy ? 0.6 : 1 }}>
+                            <div className={busy ? "hl-dim" : undefined}>
                                 <TopLootList items={data.items} />
                             </div>
                         )}

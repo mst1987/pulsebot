@@ -13,7 +13,12 @@ const path = require("path");
 
 const STYLES = path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "styles");
 
-// Classes the shared building blocks own (index.css). A module may re-style them
+// The shared layer index.css imports (#441): variables, base, the page pieces
+// several modules share, feedback, shared loot pieces, the ui building blocks.
+// Every page loads it, so it is not a module; its classes are the shared ones.
+const SHARED_FILES = ["tokens.css", "base.css", "shared.css", "feedback.css", "loot.css", "ui.css"];
+
+// Classes the shared building blocks own (the shared layer). A module may re-style them
 // for its own page — always from its own scope, e.g. ".hl-card .part-head" —
 // so they turn up in several files by design.
 const SHARED = new Set([
@@ -24,9 +29,15 @@ const SHARED = new Set([
     "dc-embed-body", "dc-empty", "dc-msg", "dc-time", "dc-name", "dc-text",
 ]);
 
-/** The prefixed class names a stylesheet mentions — a module's own vocabulary. */
+/**
+ * The prefixed class names a module's stylesheet mentions — its own vocabulary.
+ * A module split into a folder of stylesheets (styles/raidplan/, #441) is all of them.
+ */
 function classesOf(file) {
-    const css = fs.readFileSync(path.join(STYLES, file), "utf8");
+    const full = path.join(STYLES, file);
+    const css = fs.statSync(full).isDirectory()
+        ? fs.readdirSync(full).filter((f) => f.endsWith(".css")).map((f) => fs.readFileSync(path.join(full, f), "utf8")).join("\n")
+        : fs.readFileSync(full, "utf8");
     const out = new Set();
     for (const m of css.matchAll(/\.([a-z]{2,4}-[\w-]+)/g)) {
         if (!SHARED.has(m[1])) out.add(m[1]);
@@ -35,7 +46,16 @@ function classesOf(file) {
 }
 
 describe("module stylesheets", () => {
-    const files = fs.readdirSync(STYLES).filter((f) => f.endsWith(".css"));
+    // a module is a stylesheet or a folder of them; the shared layer is none
+    const files = fs.readdirSync(STYLES, { withFileTypes: true })
+        .filter((e) => (e.isDirectory() || e.name.endsWith(".css")) && !SHARED_FILES.includes(e.name))
+        .map((e) => e.name);
+
+    it("knows the shared layer: exactly the stylesheets index.css imports, in that order", () => {
+        const index = fs.readFileSync(path.join(STYLES, "..", "index.css"), "utf8");
+        const imports = [...index.matchAll(/@import "\.\/styles\/([\w-]+\.css)";/g)].map((m) => m[1]);
+        expect(imports).toEqual(SHARED_FILES);
+    });
 
     it("has more than one module to keep apart", () => {
         expect(files.length).toBeGreaterThan(5);

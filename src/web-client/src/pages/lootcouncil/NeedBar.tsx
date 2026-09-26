@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { WowIcon } from "../../components/ui";
 import { tParts, useT } from "../../i18n";
 import { RichTip } from "./RichTip";
@@ -33,8 +34,8 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
         <RichTip
             label={t("lootcouncil.need.score", { score })}
             trigger={
-                <span className="lc-needbar" style={{ width }}>
-                    {parts.map((s) => <i key={s.cls} className={s.cls} style={{ width: `${s.w}%` }} />)}
+                <span className="lc-needbar" style={{ "--lc-nb": `${width}px` } as CSSProperties}>
+                    {parts.map((s) => <i key={s.cls} className={s.cls} style={{ "--fill": `${s.w}%` } as CSSProperties} />)}
                     <b>{score}</b>
                 </span>
             }

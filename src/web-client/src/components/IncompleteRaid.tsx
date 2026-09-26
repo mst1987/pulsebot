@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ClaRaid } from "../api";
 import Badge from "./ui/Badge";
 import { CheckIcon } from "./icons";
@@ -31,9 +32,9 @@ export default function IncompleteRaid({ raids, message }: { raids?: ClaRaid[]; 
             <p>{t("jobs.incomplete.notInLog", { count: open.length, finals })}</p>
             {open.filter((r) => (r.bosses || []).length > 0).map((r) => (
                 <div
-                    key={r.contentId} className="la-bossgrid" role="list" aria-label={t("jobs.incomplete.bosses", { raid: r.label })}
+                    key={r.contentId} className={`la-bossgrid${r.bosses.length <= 5 ? " is-row" : ""}`} role="list" aria-label={t("jobs.incomplete.bosses", { raid: r.label })}
                     // a short raid (Hyjal, TK, Gruul) in one row, a long one wraps
-                    style={r.bosses.length <= 5 ? { gridTemplateColumns: `repeat(${r.bosses.length}, minmax(0, 1fr))` } : undefined}
+                    style={r.bosses.length <= 5 ? ({ "--la-cols": r.bosses.length } as CSSProperties) : undefined}
                 >
                     {r.bosses.map((b) => (
                         <div key={b.name} role="listitem" className={`la-boss ${b.killed ? "ok" : "miss"}`}>

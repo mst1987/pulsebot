@@ -113,7 +113,7 @@ export function rosterMap(roster: RaidplanPlayer[]): Map<string, RaidplanPlayer>
  * Raid-Helper no longer lists him. "" for everybody else (an own event's raiders).
  */
 export function rhNote(p: RaidplanPlayer): string {
-    const parts = [];
+    const parts: string[] = [];
     if (p.gone) parts.push(t("raidBoard.rh.goneMark"));
     if (p.nameFromRh) parts.push(t("raidBoard.rh.nameFromRh"));
     else if (p.rhName && p.rhName !== p.character) parts.push(t("raidBoard.rh.rhName", { name: p.rhName }));
@@ -125,8 +125,8 @@ export function rhNote(p: RaidplanPlayer): string {
  * the warnings (stale / not available / no groups) and the small notes (names not matched, unknown specs, raiders no longer listed).
  */
 export function rhSourceText(src: RaidplanRosterSource): { main: string; warns: string[]; notes: string[] } {
-    const warns = [];
-    const notes = [];
+    const warns: string[] = [];
+    const notes: string[] = [];
     const main = src.lineupSource === "signups" ? t("raidBoard.rh.sourceSignups") : t("raidBoard.rh.source");
     if (!src.available) warns.push(src.disabled ? t("raidBoard.rh.stale.disabled") : t("raidBoard.rh.unavailable"));
     else if (src.stale) {

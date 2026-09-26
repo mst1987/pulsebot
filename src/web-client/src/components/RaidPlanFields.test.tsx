@@ -76,7 +76,8 @@ describe("Aussehen (#307)", () => {
         expect(within(mode).getAllByRole("radio").map((r) => r.textContent)).toEqual([t("raidPlan.fields.thumbnail"), t("raidPlan.fields.banner")]);
         // the preview: the colour bar and the picture as a banner
         const preview = container.querySelector("[aria-hidden=\"true\"]")!;
-        expect((preview.querySelector("span") as HTMLElement).style.background).toBe("rgb(18, 52, 86)");
+        // the colour goes in as --rt-look (#441)
+        expect((preview.querySelector("span") as HTMLElement).style.getPropertyValue("--rt-look")).toBe("#123456");
         expect(preview.querySelector("img")).toHaveAttribute("src", "https://example.org/b.png");
         // the rule sits in the label's tooltip, never as a paragraph on the page
         expect(screen.getByText(t("raidPlan.fields.look"))).toHaveAttribute("data-tip-sub", t("raidPlan.fields.lookTip"));
@@ -93,7 +94,7 @@ describe("Aussehen (#307)", () => {
     it("takes the colour of the leading instance from the shared rule, the accent without one", () => {
         const lead = leadInstance(tbc, ["kara", "gruul"]);
         const { container, rerender } = render(look({ instanceIds: ["kara", "gruul"] }));
-        const bar = () => (container.querySelector("[aria-hidden=\"true\"] span") as HTMLElement).style.background;
+        const bar = () => (container.querySelector("[aria-hidden=\"true\"] span") as HTMLElement).style.getPropertyValue("--rt-look");
         const swatch = () => screen.getByLabelText(t("raidPlan.fields.pickColor"));
         expect(swatch()).toHaveValue((lead?.color || EMBED_ACCENT).toLowerCase());
         expect(bar()).not.toBe("");

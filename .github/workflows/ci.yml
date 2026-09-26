@@ -97,6 +97,11 @@ jobs:
       - name: Run ESLint
         run: npm run lint -- --max-warnings=18
 
+      # Colours only as design variables (#441): no hex or rgb()/rgba() outside
+      # src/styles/tokens.css (.stylelintrc.json).
+      - name: Run Stylelint
+        run: npm run lint:css
+
       # The client's own tests (Vitest + jsdom, #435).
       - name: Test
         run: npm test

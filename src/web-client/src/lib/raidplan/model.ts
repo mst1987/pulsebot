@@ -10,7 +10,7 @@ export const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#6
 // A role group placeholder ("Melees", "Ranged" ...): the roles in the order the palette offers them, their colours (the board's role colours).
 export const ROLE_GROUPS = ["melee", "ranged", "healer", "tank", "dps"];
 
-export const ROLE_GROUP_COLORS = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
+export const ROLE_GROUP_COLORS: Record<string, string> = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
 
 /** The facing wedge of an icon: 25 % .. 300 % of its default size. */
 export const ARROW_MIN = 0.25;
@@ -163,7 +163,7 @@ export function withBoard(bosses: Record<string, Partial<RaidplanBoard>>, key: s
 
 /** What the save request carries: every touched board complete, an untouched one left out. */
 export function toSave(bosses: Record<string, Partial<RaidplanBoard>>, bossKeys: string[]): Record<string, RaidplanBoard> {
-    const out = {};
+    const out: Record<string, RaidplanBoard> = {};
     for (const key of bossKeys) {
         if (!bosses[key]) continue;
         out[key] = boardOf(bosses, key);

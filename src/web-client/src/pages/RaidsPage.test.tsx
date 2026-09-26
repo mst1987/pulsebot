@@ -262,11 +262,11 @@ describe("Raid-Events list", () => {
         const karaTip = kara.closest("[data-tip]");
         expect(karaTip).toHaveAttribute("data-tip", t("raids.list.seatsOf", { count: 9, size: 10 }));
         const karaBar = kara.parentElement as HTMLElement;
-        expect(karaBar.querySelector("i")).toHaveStyle({ width: "90%" });
+        expect(karaBar.querySelector("i")).toHaveStyle({ "--fill": "90%" });
         expect(karaBar).toHaveClass("ok");
 
         const hyjal = within(rowOf("Hyjal + BT")).getByText("12 / 25").parentElement as HTMLElement;
-        expect(hyjal.querySelector("i")).toHaveStyle({ width: "48%" });
+        expect(hyjal.querySelector("i")).toHaveStyle({ "--fill": "48%" });
         expect(hyjal).toHaveClass("mid");
     });
 

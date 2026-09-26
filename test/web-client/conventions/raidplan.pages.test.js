@@ -14,7 +14,7 @@ describe("the pages", () => {
     const detail = read("pages/RaidDetailPage.tsx");
     const app = read("App.tsx");
     const pub = read("pages/PlanPublicPage.tsx");
-    const css = read("styles/raidplan.css");
+    const css = read("styles/raidplan/index.css");
     const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
 
@@ -51,7 +51,9 @@ describe("the pages", () => {
         expect(board2).toContain("player.iconUrl");
         expect(board2).toContain("rp-role-${roleTone(player.role)}");
         expect(css).toMatch(/\.rp-role-tank \{ --ring: var\(--rp-tank\)/);
-        expect(css).toMatch(/--rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-melee: #f97316; --rp-ranged: #a78bfa; --rp-dps: #f5c542/);
+        // the role colours are scoped to the board, their values live with the other colours (#441)
+        expect(css).toContain("--rp-tank: var(--rp-role-tank); --rp-healer: var(--rp-role-healer); --rp-melee: var(--rp-role-melee); --rp-ranged: var(--rp-role-ranged); --rp-dps: var(--rp-role-dps);");
+        expect(read("index.css")).toMatch(/--rp-role-tank: #60a5fa; --rp-role-healer: #35d6c4; --rp-role-melee: #f97316; --rp-role-ranged: #a78bfa; --rp-role-dps: #f5c542/);
         // ranged is told from melee by a double ring, not only by its colour
         expect(css).toMatch(/\.rp-role-ranged \{[^}]*border-style: double/);
     });
@@ -137,12 +139,13 @@ describe("the pages", () => {
         expect(insp).toContain("OpacityField");
         expect(insp).toContain("min={10} max={100} step={5} unit=\"%\"");
         expect(insp).toContain("MapOpacityField");
-        expect(board2).toContain("style={{ opacity: mapOpacity }}");
-        expect(board2).toContain("opacity: l.opacity");
-        expect(board2).toContain("opacity: x.opacity");
-        expect(board2).toContain("opacity: m.opacity");
-        expect(board2).toContain("opacity: s.opacity");
-        expect(board2).toContain("opacity: tok.opacity");
+        // opacity goes in as a custom property, read by raidplan.css (#441)
+        expect(board2).toContain("style={{ \"--rp-mo\": mapOpacity } as CSSProperties}");
+        expect(board2).toContain("\"--rp-o\": l.opacity");
+        expect(board2).toContain("\"--rp-o\": x.opacity");
+        expect(board2).toContain("\"--rp-o\": m.opacity");
+        expect(board2).toContain("\"--rp-o\": s.opacity");
+        expect(board2).toContain("\"--rp-o\": tok.opacity");
         expect(board2).toContain("\"--zo\": z.opacity");
     });
 
@@ -157,7 +160,7 @@ describe("the pages", () => {
 
     it("fits any map: the board takes the map's aspect ratio", () => {
         expect(board2).toContain("naturalWidth / i.naturalHeight");
-        expect(board2).toContain("aspectRatio: String(ar)");
+        expect(board2).toContain("\"--rp-aspect\": String(ar)");
         expect(board2).toContain("100vh - 420px");
     });
 
@@ -231,7 +234,7 @@ describe("the new pages", () => {
     const board2 = read("components/raidplan/PlanBoard.tsx");
     const palette = read("pages/raid-detail/raidplan/Palette.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
-    const css = read("styles/raidplan.css");
+    const css = read("styles/raidplan/index.css");
     const pub = read("pages/PlanPublicPage.tsx");
 
     it("scales objects by a grip, by + / -, by Alt + wheel and by the inspector; Shift keeps a zone's proportions", () => {
@@ -286,7 +289,7 @@ describe("template overview", () => {
 describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
     const fs = require("fs");
     const p = require("path");
-    const css = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
+    const css = require("../clientSource").read("styles/raidplan/index.css");
     it("a read-only card's columns are as wide as their longest chip (up to 320 px), a card at least 240 px", () => {
         expect(css).toContain(".rp-alist.rp-linelist.is-ro.rp-read-lines { grid-template-columns: 26px fit-content(320px) 18px fit-content(320px); }");
         expect(css).toContain(".rp-rgrid > .rp-rsec { min-width: min(100%, 240px); }");
@@ -316,7 +319,7 @@ describe("the section bar names every section (feature/raidplan-16)", () => {
         const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
         expect(sheet).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
-        const css = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
+        const css = require("../clientSource").read("styles/raidplan/index.css");
         expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");
     });
 });

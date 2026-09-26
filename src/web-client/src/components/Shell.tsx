@@ -71,7 +71,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
         return (
             <nav className="menu">
                 <div className="menu-label">{t("shell.noArea.label")}</div>
-                <p className="hint" style={{ padding: "0 14px" }}>
+                <p className="hint menu-hint">
                     {t("shell.noArea.text")}
                 </p>
             </nav>

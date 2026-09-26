@@ -96,3 +96,11 @@ describe("placements", () => {
         expect(lib.samePosition(null, { left: 1 })).toBe(false);
     });
 });
+
+describe("popoverVars (#441)", () => {
+    it("hands the placement to the stylesheet as custom properties in px, only what it set", () => {
+        expect(lib.popoverVars(null)).toEqual({});
+        expect(lib.popoverVars({ top: 40, right: 12 })).toEqual({ "--pop-top": "40px", "--pop-right": "12px" });
+        expect(lib.popoverVars({ left: 8, width: 340, bottom: 20, maxHeight: 300 })).toEqual({ "--pop-left": "8px", "--pop-width": "340px", "--pop-bottom": "20px", "--pop-max-h": "300px" });
+    });
+});

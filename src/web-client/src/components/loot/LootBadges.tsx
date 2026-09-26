@@ -200,7 +200,7 @@ export function StackBar({ parts, size, tip, tipSub }: {
             aria-label={reasonSummary(parts)}
         >
             {total > 0 && parts.map((p) => (
-                <span key={p.id} style={{ width: `${(p.count / total) * 100}%`, background: reasonColor(p.tone) }} />
+                <span key={p.id} style={{ "--hl-w": `${(p.count / total) * 100}%`, "--hl-c": reasonColor(p.tone) } as React.CSSProperties} />
             ))}
         </span>
     );

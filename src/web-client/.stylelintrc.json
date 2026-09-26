@@ -1,0 +1,16 @@
+{
+    "rules": {
+        "color-no-hex": true,
+        "color-no-invalid-hex": true,
+        "function-disallowed-list": ["rgb", "rgba"]
+    },
+    "overrides": [
+        {
+            "files": ["src/styles/tokens.css"],
+            "rules": {
+                "color-no-hex": null,
+                "function-disallowed-list": null
+            }
+        }
+    ]
+}

@@ -1,15 +1,12 @@
 // Unsaved changes stand out in the plan and template editor: the wiring of the save button, the strip, the chips, Ctrl+S and the
 // warning on leaving (pages/raid-detail/raidplan/SaveState.tsx), checked on the source. Which sections differ from the saved plan
 // (lib/raidplan/model.ts dirtyKeys) runs in Vitest: src/web-client/src/lib/raidplan/saveState.test.ts.
-const fs = require("fs");
-const path = require("path");
 
-const dir = path.join(__dirname, "../../../src/web-client/src");
-const read = (f) => fs.readFileSync(path.join(dir, f), "utf8");
+const { read } = require("../clientSource"); // inlines the @imports of a stylesheet (#441)
 
 describe("the unsaved state is loud and accessible", () => {
     const save = read("pages/raid-detail/raidplan/SaveState.tsx");
-    const css = read("styles/raidplan.css");
+    const css = read("styles/raidplan/index.css");
     it("Ctrl+S saves (the browser's own is suppressed), the tab title gets a dot, leaving asks", () => {
         expect(save).toMatch(/e\.key\.toLowerCase\(\) === "s"/);
         expect(save).toContain("e.preventDefault();");

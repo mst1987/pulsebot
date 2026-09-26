@@ -96,7 +96,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
     };
 
     return (
-        <table className="idx loot-table" style={{ margin: 0 }}>
+        <table className="idx loot-table flush">
             <thead>
                 <tr>
                     <SortTh sortKey="item" label={t("raidDetail.loot.colItem")} sort={sort} dir={dir} onSort={onSort} />
@@ -134,7 +134,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                         <td className="small">{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</td>
                         {onDelete && (
                             <td className="cell-actions">
-                                <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                                <div className="row-actions is-end">
                                     <IconButton
                                         icon={<TrashIcon />} tone="danger" size="sm"
                                         tip={t("raidDetail.loot.deleteEntry")} tipSub={t("raidDetail.loot.deleteEntrySub")}

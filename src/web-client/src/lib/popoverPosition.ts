@@ -79,3 +79,19 @@ export function samePosition(a: PopoverStyle | null, b: PopoverStyle | null): bo
     if (!a || !b) return a === b;
     return a.left === b.left && a.top === b.top && a.right === b.right && a.bottom === b.bottom && a.width === b.width && a.maxHeight === b.maxHeight;
 }
+
+/**
+ * A placement as custom properties (--pop-left, --pop-top, ... #441): the box
+ * reads them in the stylesheet (.ui-pop in index.css for the coordinates, the
+ * box's own rule for width and height), so no coordinate is an inline style.
+ */
+export function popoverVars(pos: PopoverStyle | null): Record<string, string> {
+    const out: Record<string, string> = {};
+    if (!pos) return out;
+    const names: Record<keyof PopoverStyle, string> = { left: "--pop-left", top: "--pop-top", right: "--pop-right", bottom: "--pop-bottom", width: "--pop-width", maxHeight: "--pop-max-h" };
+    for (const key of Object.keys(names) as (keyof PopoverStyle)[]) {
+        const v = pos[key];
+        if (v !== undefined) out[names[key]] = `${v}px`;
+    }
+    return out;
+}

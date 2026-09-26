@@ -113,7 +113,7 @@ export function dropGone(board: RaidplanBoard, roster: RaidplanPlayer[]): Raidpl
 
 function fillBesetzung(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): RaidplanBoard {
     const want = slotCounts(effectiveCounts(board, besetzung, roster));
-    const missing = [];
+    const missing: { kind: string; n: number }[] = [];
     for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
         for (let n = 1; n <= countOf(want, kind); n += 1) if (!board.slots.some((s) => s.kind === kind && s.n === n)) missing.push({ kind, n });
     }
@@ -132,6 +132,9 @@ function fillBesetzung(board: RaidplanBoard, besetzung: Besetzung, roster: Raidp
     return { ...board, slots: [...board.slots, ...added] };
 }
 
+/** A slot while repairSlots works on it: `__dupe` marks a leftover that still needs a free number (taken off before the board goes out). */
+type MarkedSlot = RaidplanSlot & { __dupe?: boolean };
+
 /**
  * Mends a board whose role slots got out of step (older versions let the palette make extra slots): the same kind and
  * number more than once is merged into one — it keeps the player, the map position and the size of the ones it
@@ -141,9 +144,9 @@ function fillBesetzung(board: RaidplanBoard, besetzung: Besetzung, roster: Raidp
  */
 export function repairSlots(board: RaidplanBoard, besetzung: Besetzung, roster: RaidplanPlayer[]): RaidplanBoard {
     const want = slotCounts(effectiveCounts(board, besetzung, roster));
-    const seen = new Map();
+    const seen: Map<string, MarkedSlot> = new Map();
     let changed = false;
-    const out = [];
+    const out: MarkedSlot[] = [];
     for (const s of board.slots) {
         if (!isRoleKind(s.kind)) { out.push(s); continue; }
         const key = `${s.kind}:${s.n}`;
@@ -174,16 +177,16 @@ function slotLimit(kind: string, besetzung: Besetzung, want: BesetzungCounts): n
     return kind === "group" ? besetzung.groups : countOf(want, kind);
 }
 
-function withoutMark(s: RaidplanSlot): RaidplanSlot {
+function withoutMark(s: MarkedSlot): RaidplanSlot {
     const c = { ...s };
     Reflect.deleteProperty(c, "__dupe");
     return c;
 }
 
 /** Two slots of the same kind and number become one: the first takes the player, the position and the size the second has and it lacks; what cannot be taken over stays as a slot of its own (`rest`). */
-function mergeSlot(a: RaidplanSlot, b: RaidplanSlot): { keep: RaidplanSlot; rest: RaidplanSlot | null } {
+function mergeSlot(a: RaidplanSlot, b: RaidplanSlot): { keep: RaidplanSlot; rest: MarkedSlot | null } {
     let keep = a;
-    let rest = null;
+    let rest: MarkedSlot | null = null;
     if (!a.userId && b.userId) keep = { ...keep, userId: b.userId };
     else if (a.userId && b.userId && a.userId !== b.userId) rest = { ...b, placed: false, __dupe: true };
     if (a.placed === false && b.placed !== false) keep = { ...keep, placed: true, x: b.x, y: b.y };

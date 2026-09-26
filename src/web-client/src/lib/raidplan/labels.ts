@@ -42,7 +42,7 @@ export function ringNameWidth(count: number, spacePx: number, memberPx: number):
  * w × h px and tokens of tokenPx.
  */
 export function ringOffsets(count: number, w: number, h: number, tokenPx: number): { dx: number; dy: number }[] {
-    const out = [];
+    const out: { dx: number; dy: number }[] = [];
     if (count <= 0 || w <= 0 || h <= 0) return out;
     const radius = ringRadius(count, tokenPx);
     for (let i = 0; i < count; i++) {
@@ -194,8 +194,8 @@ export function objectName(board: RaidplanBoard, kind: ObjectKind, id: string, p
 
 /** Every object of the board, front to back — the layer list. Within a kind the last one added is in front. */
 export function layerList(board: RaidplanBoard, players: Map<string, RaidplanPlayer>): LayerRow[] {
-    const rows = [];
-    const add = (kind, list, idOf) => {
+    const rows: LayerRow[] = [];
+    const add = <T extends { lock?: boolean; hidden?: boolean }>(kind: ObjectKind, list: T[], idOf: (o: T) => string) => {
         for (let i = list.length - 1; i >= 0; i--) {
             const o = list[i];
             rows.push({ kind, id: idOf(o), name: objectName(board, kind, idOf(o), players), lock: !!o.lock, hidden: !!o.hidden });

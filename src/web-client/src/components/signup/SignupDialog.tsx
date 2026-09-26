@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
     saveSignup,
@@ -175,7 +175,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved }
                                     data-tip-sub={allowed ? SIGNUP_STATUS[s].tip : t("signups.dialog.notAfterDeadline")}
                                     onClick={() => pickStatus(s)}
                                 >
-                                    <i className="an-dot" style={{ background: SIGNUP_STATUS[s].color }} />
+                                    <i className="an-dot" style={{ "--an-c": SIGNUP_STATUS[s].color } as CSSProperties} />
                                     {SIGNUP_STATUS[s].label}
                                 </button>
                             );

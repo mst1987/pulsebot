@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
     saveSignupsBulk,
     type ApiError, type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
@@ -107,7 +107,7 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
                                         data-tip={SIGNUP_STATUS[s].label} data-tip-sub={SIGNUP_STATUS[s].tip}
                                         onClick={() => setStatus(s)}
                                     >
-                                        <i className="an-dot" style={{ background: SIGNUP_STATUS[s].color }} />
+                                        <i className="an-dot" style={{ "--an-c": SIGNUP_STATUS[s].color } as CSSProperties} />
                                         {SIGNUP_STATUS[s].label}
                                     </button>
                                 ))}

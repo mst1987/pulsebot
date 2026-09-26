@@ -21,7 +21,7 @@ import { applyTactic, stepsOf } from "../../lib/raidplan/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";
-import "../../styles/raidplan.css";
+import "../../styles/raidplan/index.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "./raidplan/RhSource";
 

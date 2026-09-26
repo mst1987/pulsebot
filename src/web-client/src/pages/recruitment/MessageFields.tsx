@@ -79,7 +79,7 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
                         onChange={(e) => setContent(e.target.value)} placeholder={t("recruitment.fields.contentPlaceholder")}
                     />
                 </div>
-                <div className="field" style={{ marginBottom: 0 }}>
+                <div className="field is-last">
                     <TipLabel label={t("recruitment.fields.button")} htmlFor="rc-button" tip={t("recruitment.fields.button")} tipSub={t("recruitment.fields.buttonSub")} />
                     {/* The placeholder is the bot's default label (German in the posted message), not UI text. */}
                     <input id="rc-button" type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Jetzt bewerben" />

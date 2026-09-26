@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { HistoryCharData, RosterCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { itemQualityColor, qualityName } from "../../lib/itemQuality";
@@ -26,7 +27,7 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
         <Modal
             open
             onClose={onClose}
-            icon={g.iconUrl ? <img className="ros-dlg-icon" src={g.iconUrl} alt="" style={{ borderColor: itemQualityColor(g.quality) || undefined }} /> : "inv_misc_questionmark"}
+            icon={g.iconUrl ? <img className="ros-dlg-icon" src={g.iconUrl} alt="" style={{ "--ros-q": itemQualityColor(g.quality) || undefined } as CSSProperties} /> : "inv_misc_questionmark"}
             kicker={kicker}
             title={g.name || SLOT_LABELS[slot] || slot}
             width={600}

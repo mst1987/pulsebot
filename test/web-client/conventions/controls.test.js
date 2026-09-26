@@ -12,7 +12,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const css = fs.readFileSync(path.join(CLIENT, "index.css"), "utf8");
+const css = require("../clientSource").read("index.css");
 
 // The blocks that define the palette: :root (dark) plus the two the light theme
 // needs — the prefers-color-scheme one and the explicit [data-theme="light"].

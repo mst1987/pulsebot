@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 
 // A WCL-style bar for numbers a reader compares down a column: the value sits on
 // a bar whose length is its share of `max`. The width is fixed by the class, so
@@ -16,7 +16,7 @@ export default function Bar({ value, max = 100, tone, label, tip, wide = false }
     const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
     return (
         <span className={["bar", tone || "", wide ? "wide" : ""].filter(Boolean).join(" ")} data-tip={tip}>
-            <i style={{ width: `${pct}%` }} />
+            <i style={{ "--fill": `${pct}%` } as CSSProperties} />
             <span>{label ?? Math.round(value)}</span>
         </span>
     );

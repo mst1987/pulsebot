@@ -1,0 +1,222 @@
+/* Raidplan (docs/raidplan.md): the board editor in Raid-Detail and the public
+   read view /p/<token>. Calm on purpose — the board is the picture, everything
+   else (rows, tactics, maps, sharing) sits in the side column or behind a dialog.
+   Own namespace: rp-. Colours come from the app's tokens; only the three role
+   colours are local (tank blue, healer cyan, damage orange). */
+
+.rp-editor, .rp-public, .rp-ghost {
+    --rp-tank: var(--rp-role-tank); --rp-healer: var(--rp-role-healer); --rp-melee: var(--rp-role-melee); --rp-ranged: var(--rp-role-ranged); --rp-dps: var(--rp-role-dps);
+}
+
+.rp-muted { color: var(--muted); font-size: 13px; margin: 0; }
+.rp-warn { color: var(--medium); font-size: 13px; margin: 0; padding: 8px 12px; border-left: 3px solid var(--medium); background: var(--medium-bg); border-radius: 6px; }
+.rp-kicker { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.rp-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 48px 16px; text-align: center; background: var(--panel); border: 1px dashed var(--line); border-radius: 12px; }
+
+/* ---- editor frame ---- */
+.rp-editor { display: flex; flex-direction: column; gap: 12px; }
+.rp-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; }
+.rp-bar-act { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.rp-conflict { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+
+.rp-title { margin: 0; font-size: 20px; font-weight: 800; }
+.rp-hint { font-size: 12.5px; }
+
+/* ---- the board ---- */
+.rp-board { position: relative; width: 100%; max-width: 150vh; margin: 0 auto; aspect-ratio: 16 / 10; background: var(--rp-board-bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.rp-map { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.rp-grid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background-color: var(--rp-grid-bg); background-image: linear-gradient(var(--rp-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--rp-grid-line) 1px, transparent 1px); background-size: 40px 40px; }
+.rp-grid-icon { width: 96px; height: 96px; border-radius: 16px; opacity: .22; filter: grayscale(.4); pointer-events: none; }
+.rp-grid-text { position: absolute; left: 12px; right: 12px; bottom: 10px; text-align: center; font-size: 12px; color: var(--rp-grid-text); pointer-events: none; }
+
+/* a token is a zero-size anchor at x/y: the icon is centred on it, the name hangs below */
+.rp-token { position: absolute; width: 0; height: 0; z-index: 1; }
+.rp-token.is-drag { z-index: 5; }
+.rp-token.is-me { z-index: 4; }
+.rp-token-btn { position: absolute; left: calc(var(--rp-s, 38px) / -2); top: calc(var(--rp-s, 38px) / -2); padding: 0; border: 0; background: transparent; border-radius: 50%; cursor: default; }
+.rp-token.is-editable .rp-token-btn { cursor: grab; touch-action: none; }
+.rp-token.is-drag .rp-token-btn { cursor: grabbing; }
+.rp-token-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.rp-token-name { position: absolute; top: calc(var(--rp-s, 38px) / 2 + 3px); left: 0; transform: translateX(-50%); max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: 6px; background: var(--rp-label-bg); font-size: 11.5px; font-weight: 600; pointer-events: none; }
+/* the label sits on the board, which is dark in both themes: the raw class colour, not the light theme's darkened one */
+.rp-token-name .class-colored { color: var(--cc) !important; }
+.rp-token.is-me .rp-ico { box-shadow: 0 0 0 3px var(--accent), 0 0 18px 4px var(--accent); }
+.rp-token-me { position: absolute; top: calc(var(--rp-s, 38px) / -2 - 15px); left: 0; transform: translateX(-50%); padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; pointer-events: none; }
+
+.rp-token.is-selected .rp-ico, .rp-token.is-selected .rp-mark-svg { filter: drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 2px var(--accent)); }
+.rp-token-btn { color: inherit; }
+.rp-token.is-drag { pointer-events: none; }
+.rp-slot-name { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.rp-slot-title { font-size: 10.5px; font-weight: 700; color: var(--rp-slot-title); text-transform: uppercase; letter-spacing: .04em; }
+.rp-ico-open { border-style: dashed; background: var(--rp-label-bg-soft); align-items: center; justify-content: center; opacity: .85; }
+.rp-ico-open .wi { opacity: .55; }
+.rp-slotobj.is-open .rp-token-name { background: var(--rp-label-bg-soft); }
+.rp-mark-btn { left: calc(var(--rp-s, 34px) / -2); top: calc(var(--rp-s, 34px) / -2); border-radius: 6px; }
+.rp-mark-svg { display: block; filter: drop-shadow(0 1px 2px var(--shade-60)); }
+.rp-groupchip { left: 0; top: 0; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px; padding: 4px 10px; border: 2px solid var(--accent); border-radius: 10px; background: var(--rp-group-bg); color: var(--rp-group-ink); font: inherit; }
+.rp-token.is-editable .rp-groupchip { cursor: grab; }
+.rp-groupchip-names .class-colored { color: var(--cc) !important; }
+.rp-groupchip-title { white-space: nowrap; font-size: 12px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+.rp-groupchip-names { display: flex; flex-direction: column; align-items: center; font-size: 11px; font-weight: 600; line-height: 1.25; }
+.rp-groupchip-names .is-me { text-decoration: underline; }
+.rp-token.is-me .rp-groupchip { box-shadow: 0 0 0 3px var(--accent), 0 0 16px 3px var(--accent); }
+
+/* zones: the type is a pattern and a label as well as a colour (--zc / --zo come from the zone) */
+.rp-zone { position: absolute; z-index: 0; box-sizing: border-box; border: 2px solid var(--zc); background-color: color-mix(in srgb, var(--zc) calc(var(--zo, .3) * 100%), transparent); }
+.rp-zone.rp-shape-ellipse { border-radius: 50%; }
+.rp-zone-danger { border-style: solid; background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--zc) 55%, transparent) 0 6px, transparent 6px 14px); }
+.rp-zone-healthy { border-style: dotted; border-width: 3px; background-image: radial-gradient(circle, color-mix(in srgb, var(--zc) 60%, transparent) 2px, transparent 2.5px); background-size: 14px 14px; }
+.rp-zone-neutral { border-style: dashed; }
+.rp-zone-custom { border-style: solid; }
+.rp-zone-label { position: absolute; left: 6px; top: 4px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 7px; border-radius: 6px; background: var(--rp-label-bg); color: var(--rp-zone-ink); font-size: 11.5px; font-weight: 700; pointer-events: none; }
+.rp-zone-label.is-glyph { padding: 1px 5px; }
+.rp-zone.is-editable { cursor: move; touch-action: none; }
+.rp-zone.is-selected { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 1; }
+/* a selected zone in the editor lies above tokens and icons: its grips (corners, edges, turning) must be reachable (#raidplan-16) */
+.rp-canvas .rp-zone.is-selected.is-editable { z-index: 6; }
+.rp-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rp-zone.is-drag { opacity: .85; }
+.rp-handle { position: absolute; width: 14px; height: 14px; border-radius: 4px; background: var(--accent); border: 2px solid var(--rp-handle-edge); touch-action: none; }
+.rp-h-nw { left: -8px; top: -8px; cursor: nwse-resize; }
+.rp-h-ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.rp-h-sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
+.rp-h-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+/* the middle of a zone's edge: only that side (a narrow melee strip gets taller or wider on its own) */
+.rp-h-n { left: calc(50% - 7px); top: -8px; cursor: ns-resize; border-radius: 50%; }
+.rp-h-s { left: calc(50% - 7px); bottom: -8px; cursor: ns-resize; border-radius: 50%; }
+.rp-h-e { right: -8px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 50%; }
+.rp-h-w { left: -8px; top: calc(50% - 7px); cursor: ew-resize; border-radius: 50%; }
+
+/* the spec icon on a tile tinted in the class colour, ringed in the role colour */
+.rp-ico { --ring: var(--rp-dps); position: relative; display: inline-flex; box-sizing: border-box; width: var(--rp-s, 38px); height: var(--rp-s, 38px); border-radius: 50%; border: 3px solid var(--ring); overflow: hidden; background: color-mix(in srgb, var(--cc, var(--rp-ico-base)) 42%, var(--rp-ico-mix)); }
+.rp-ico img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.rp-ico-ph { width: 100%; height: 100%; }
+.rp-ico-sm { width: 24px; height: 24px; border-width: 2px; }
+.rp-role-tank { --ring: var(--rp-tank); }
+.rp-role-healer { --ring: var(--rp-healer); }
+.rp-role-dps { --ring: var(--rp-dps); }
+.rp-role-melee { --ring: var(--rp-melee); }
+/* ranged: violet AND a double ring, so it is told from melee by more than its colour (an open slot also shows the role's own icon) */
+.rp-role-ranged { --ring: var(--rp-ranged); border-style: double; border-width: 4px; }
+.rp-ico-sm.rp-role-ranged { border-width: 3px; }
+
+/* dragging from the list: a token following the pointer */
+.rp-ghost { left: var(--rp-x); top: var(--rp-y); position: fixed; z-index: 1000; transform: translate(-50%, -50%); pointer-events: none; opacity: .92; filter: drop-shadow(0 6px 12px var(--shade-50)); }
+
+/* ---- side column ---- */
+.rp-side-block { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.rp-side-head { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.rp-tactic-btn { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.rp-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rp-row { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
+.rp-row-head { display: flex; align-items: center; gap: 6px; }
+.rp-row-title { flex: 1; min-width: 0; padding: 4px 6px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--text); font: inherit; font-size: 15px; font-weight: 600; }
+.rp-row-title:hover:not(:disabled) { border-color: var(--line); }
+.rp-row-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; background: var(--panel); }
+.rp-row-title:disabled { opacity: 1; }
+.rp-row-people { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-add { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; }
+.rp-add svg { width: 14px; height: 14px; }
+.rp-add:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+.rp-add:disabled { opacity: .5; cursor: not-allowed; }
+.rp-notes { display: flex; flex-direction: column; gap: 6px; }
+.rp-notes textarea, .rp-form textarea, .rp-form input, .rp-form select, .rp-search, .rp-share-line input { width: 100%; box-sizing: border-box; padding: 8px 10px; background-color: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; font-size: 14px; }
+.rp-notes textarea, .rp-form textarea { resize: vertical; }
+.rp-notes textarea:focus-visible, .rp-form textarea:focus-visible, .rp-form input:focus-visible, .rp-form select:focus-visible, .rp-search:focus-visible, .rp-share-line input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rp-notes textarea:disabled { opacity: 1; }
+
+/* a player: icon and name in a pill — in the list of the unplaced, on a row, in the read view */
+.rp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel2); font-size: 13.5px; font-weight: 600; }
+.rp-chip.is-drag { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.rp-chip.is-drag:hover { border-color: var(--accent); }
+.rp-static { padding-right: 8px; }
+.rp-chip.is-me { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.rp-chip-add { padding: 3px 10px; border-style: dashed; color: var(--muted); background: transparent; font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.rp-chip-add svg { width: 12px; height: 12px; }
+.rp-chip-add:hover { color: var(--text); border-color: var(--accent); }
+.rp-chip-x { display: inline-flex; padding: 2px; margin-left: 2px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.rp-chip-x svg { width: 12px; height: 12px; }
+.rp-chip-x:hover { color: var(--high); }
+
+
+/* ---- dialogs ---- */
+.rp-group { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.rp-group:first-of-type { margin-top: 8px; }
+.rp-pick { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px; }
+.rp-group .rp-pick { margin-top: 0; max-height: none; }
+.rp-pick-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.rp-pick-row:hover { border-color: var(--accent); }
+.rp-pick-row.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.rp-pick-profile { flex-direction: column; align-items: flex-start; gap: 2px; }
+.rp-pick-name { font-weight: 700; }
+.rp-pick-check { margin-left: auto; color: var(--accent); font-weight: 800; }
+.rp-form { display: flex; flex-direction: column; gap: 12px; }
+.rp-form label { display: flex; flex-direction: column; gap: 5px; }
+.rp-share { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.rp-share-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rp-share-line input { flex: 1 1 220px; }
+.rp-map-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.rp-map-row:last-child { border-bottom: 0; }
+.rp-map-info { flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* ---- the public read view ---- */
+.rp-public { max-width: 1800px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 16px; }
+.rp-public-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.rp-public-title { margin: 2px 0 0; font-size: 26px; font-weight: 800; line-height: 1.2; }
+.rp-public-tools { display: flex; align-items: center; gap: 8px; }
+.rp-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.rp-tab { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--muted); font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer; }
+.rp-tab img { border-radius: 5px; }
+.rp-tab:hover { color: var(--text); }
+.rp-tab.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); font-weight: 600; }
+.rp-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rp-public-body { display: flex; flex-direction: column; gap: 18px; }
+.rp-public-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-h2 { margin-top: 6px; }
+.rp-me-note { margin: 0; color: var(--accent); font-weight: 700; font-size: 14px; }
+.rp-table { width: 100%; border-collapse: collapse; }
+.rp-table th, .rp-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.rp-table th { width: 38%; font-size: 14px; font-weight: 700; }
+.rp-table td .rp-chip { margin: 2px 6px 2px 0; }
+.rp-table tr.is-me th { color: var(--accent); }
+.rp-notes-text { margin: 0; white-space: pre-wrap; font-size: 14px; }
+
+@media (max-width: 720px) {
+    .rp-layout { grid-template-columns: minmax(0, 1fr); }
+    .rp-bosses { flex-direction: row; overflow-x: auto; padding: 8px; }
+    .rp-bosses .rp-kicker { display: none; }
+    .rp-boss { width: auto; white-space: nowrap; }
+    .rp-public-title { font-size: 21px; }
+}
+
+/* ---- work area: tool bar, board, then the folds underneath ---- */
+.rp-work { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-board-wrap { width: 100%; }
+.rp-below { display: flex; flex-direction: column; gap: 12px; }
+.rp-bar-template { flex: 1 1 auto; }
+.rp-linkbtn { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+
+/* ---- dialogs of the objects ---- */
+.rp-add-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.rp-add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.rp-add-marks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.rp-add-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.rp-add-btn:hover { border-color: var(--accent); }
+.rp-add-mark { padding: 6px; }
+.rp-add-swatch { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; color: var(--rp-board-bg); font-size: 14px; font-weight: 800; }
+.rp-add-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rp-add-line input:not([type]) { flex: 1 1 200px; padding: 8px 10px; background-color: var(--panel2); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit; font-size: 14px; }
+.rp-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.rp-color-line { display: flex; align-items: flex-end; gap: 12px; }
+.rp-color { width: 64px; height: 36px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--panel2); cursor: pointer; }
+.rp-form input[type="range"] { padding: 0; }
+.rp-form input[type="number"] { max-width: 120px; }
+
+/* ---- template list ---- */
+.rp-templates { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 900px) {
+    .rp-add-marks { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

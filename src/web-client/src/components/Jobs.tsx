@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
 import { AlertIcon, CheckIcon, XIcon } from "./icons";
@@ -246,7 +246,7 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
                             </div>
                             {job.detail && <div className="toast-detail">{job.detail}</div>}
                             <div className={`toast-bar${determinate ? "" : " is-indeterminate"}`}>
-                                <i style={determinate ? { width: `${pct}%` } : undefined} />
+                                <i style={determinate ? ({ "--fill": `${pct}%` } as CSSProperties) : undefined} />
                             </div>
                         </>
                     )

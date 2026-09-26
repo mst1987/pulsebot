@@ -1,7 +1,7 @@
 // Selecting several objects of a board at once and acting on them together (rubber band, Ctrl/Shift click, Ctrl+A, delete,
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
 // Tests: src/web-client/src/lib/multiSelect.test.ts.
-import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../../api";
+import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanLook, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../../api";
 import { MIN_ZONE, SIZE_RANGES, clamp01, newRowId } from "./model.ts";
 import { turnedBox } from "./roleGroups.ts";
 import { arrowOf, autoStyleOf, patchArrow, patchAutoStyle, scaleArrow } from "./autoStyle.ts";
@@ -118,7 +118,7 @@ export function selectionBox(board: RaidplanBoard, sel: SelItem[], px: BoardPx):
 
 /** Every object a rubber band or Ctrl+A may take: on the map, not hidden, not locked (members of a split group are their marker's business). */
 export function selectableItems(board: RaidplanBoard): SelItem[] {
-    const out = [];
+    const out: SelItem[] = [];
     for (const z of board.zones) if (!z.hidden && !z.lock) out.push({ kind: "zone", id: z.id });
     for (const l of board.lines) if (!l.hidden && !l.lock) out.push({ kind: "line", id: l.id });
     for (const m of board.marks) if (!m.hidden && !m.lock) out.push({ kind: "mark", id: m.id });
@@ -227,7 +227,7 @@ function isFree(board: RaidplanBoard, it: SelItem): boolean {
 /** Duplicates the free objects of the selection (marks, icons, zones, lines, texts, labels). Slots of the Besetzung and players are NOT copied: the Besetzung must not grow. `skipped` counts them. */
 export function duplicateSelection(board: RaidplanBoard, sel: SelItem[]): { board: RaidplanBoard; sel: SelItem[]; skipped: number } {
     let out = board;
-    const made = [];
+    const made: SelItem[] = [];
     let skipped = 0;
     for (const it of sel) {
         if (!isFree(board, it)) { skipped += 1; continue; }
@@ -238,27 +238,32 @@ export function duplicateSelection(board: RaidplanBoard, sel: SelItem[]): { boar
     return { board: out, sel: made, skipped };
 }
 
+/** Adds an object that was found (one that has vanished is left out: pasting skipped it anyway). */
+function keep<T>(list: T[], o: T | undefined): void {
+    if (o) list.push(o);
+}
+
 /** What Ctrl+C keeps: copies of the free objects of the selection (the same rule as duplicating). */
 export function copySelection(board: RaidplanBoard, sel: SelItem[]): { snap: Snapshot; skipped: number } {
-    const snap = { marks: [], icons: [], zones: [], lines: [], texts: [], labels: [] };
+    const snap: Snapshot = { marks: [], icons: [], zones: [], lines: [], texts: [], labels: [] };
     let skipped = 0;
     for (const it of sel) {
         if (!isFree(board, it)) { skipped += 1; continue; }
-        if (it.kind === "mark") snap.marks.push(board.marks.find((o) => o.id === it.id));
-        else if (it.kind === "icon") snap.icons.push(board.icons.find((o) => o.id === it.id));
-        else if (it.kind === "zone") snap.zones.push(board.zones.find((o) => o.id === it.id));
-        else if (it.kind === "line") snap.lines.push(board.lines.find((o) => o.id === it.id));
-        else if (it.kind === "text") snap.texts.push(board.texts.find((o) => o.id === it.id));
-        else snap.labels.push(board.slots.find((o) => o.id === it.id));
+        if (it.kind === "mark") keep(snap.marks, board.marks.find((o) => o.id === it.id));
+        else if (it.kind === "icon") keep(snap.icons, board.icons.find((o) => o.id === it.id));
+        else if (it.kind === "zone") keep(snap.zones, board.zones.find((o) => o.id === it.id));
+        else if (it.kind === "line") keep(snap.lines, board.lines.find((o) => o.id === it.id));
+        else if (it.kind === "text") keep(snap.texts, board.texts.find((o) => o.id === it.id));
+        else keep(snap.labels, board.slots.find((o) => o.id === it.id));
     }
     return { snap, skipped };
 }
 
 /** Ctrl+V: puts the copies on the board a little off (`off` grows with every paste), with new ids, unlocked; returns the new selection. */
 export function pasteSnapshot(board: RaidplanBoard, snap: Snapshot, off: number): { board: RaidplanBoard; sel: SelItem[] } {
-    const made = [];
+    const made: SelItem[] = [];
     const out = { ...board };
-    const move = (v) => clamp01(v + off);
+    const move = (v: number) => clamp01(v + off);
     out.marks = [...board.marks, ...snap.marks.filter(Boolean).map((o) => { const id = newRowId(); made.push({ kind: "mark", id }); return { ...o, id, lock: false, hidden: false, x: move(o.x), y: move(o.y) }; })];
     out.icons = [...board.icons, ...snap.icons.filter(Boolean).map((o) => { const id = newRowId(); made.push({ kind: "icon", id }); return { ...o, id, lock: false, hidden: false, x: move(o.x), y: move(o.y) }; })];
     out.texts = [...board.texts, ...snap.texts.filter(Boolean).map((o) => { const id = newRowId(); made.push({ kind: "text", id }); return { ...o, id, lock: false, hidden: false, x: move(o.x), y: move(o.y) }; })];
@@ -287,9 +292,9 @@ export const ALIGN_MODES = ["left", "right", "top", "bottom", "centerH", "center
 
 /** Lines the selection up on the box's edge or middle, or spreads it evenly (distH / distV need three or more). Locked objects stay. */
 export function alignSelection(board: RaidplanBoard, sel: SelItem[], mode: string, px: BoardPx): RaidplanBoard {
-    const rows = sel.filter((it) => !isLocked(board, it.kind, it.id)).map((it) => ({ it, box: objectBox(board, it, px) })).filter((r) => r.box !== null);
-    if (rows.length < 2) return board;
+    const rows = sel.filter((it) => !isLocked(board, it.kind, it.id)).map((it) => ({ it, box: objectBox(board, it, px) })).filter((r): r is { it: SelItem; box: Box } => r.box !== null);
     const all = unionBox(rows.map((r) => r.box));
+    if (rows.length < 2 || all === null) return board;
     const shift = new Map();
     for (const r of rows) {
         const b = r.box;
@@ -359,7 +364,7 @@ export function reorderSelection(board: RaidplanBoard, sel: SelItem[], dir: stri
 export function lookSummary(board: RaidplanBoard, sel: SelItem[]): { opacity: number | null; lock: boolean | null; hidden: boolean | null } {
     const looks = sel.map((it) => lookOf(board, it.kind, it.id)).filter((l) => l !== null);
     if (looks.length === 0) return { opacity: null, lock: null, hidden: null };
-    const same = (pick) => (looks.every((l) => pick(l) === pick(looks[0])) ? pick(looks[0]) : null);
+    const same = <T>(pick: (l: RaidplanLook) => T): T | null => (looks.every((l) => pick(l) === pick(looks[0])) ? pick(looks[0]) : null);
     return { opacity: same((l) => l.opacity), lock: same((l) => l.lock), hidden: same((l) => l.hidden) };
 }
 
@@ -392,7 +397,7 @@ function facingState(board: RaidplanBoard, it: SelItem): { auto: boolean; rotati
  * the facing and its arrow (boss / mob / enemy icons and the mobs of the tank rows). Opacity, lock and hidden everything has.
  */
 export function sharedOptions(board: RaidplanBoard, sel: SelItem[]): { ring: boolean; showName: boolean; color: boolean; facing: boolean } {
-    const all = (fn) => sel.length > 0 && sel.every(fn);
+    const all = (fn: (it: SelItem) => boolean) => sel.length > 0 && sel.every(fn);
     return {
         ring: all((it) => it.kind === "token" || it.kind === "slot" || it.kind === "icon" || it.kind === "zone" || it.kind === "auto"),
         showName: all((it) => it.kind === "token" || it.kind === "slot" || it.kind === "icon" || it.kind === "auto"),
@@ -404,7 +409,7 @@ export function sharedOptions(board: RaidplanBoard, sel: SelItem[]): { ring: boo
 /** The shared values of a selection: a value when all agree, null where they differ ("gemischt"); a group none of them has stays null. */
 export function optionSummary(board: RaidplanBoard, sel: SelItem[]): { ring: boolean | null; showName: boolean | null; color: string | null; autoFace: boolean | null; rotation: number | null; arrowScale: number | null; arrowHidden: boolean | null; arrowColor: string | null; arrowOpacity: number | null } {
     const has = sharedOptions(board, sel);
-    const same = (list) => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
+    const same = <T>(list: T[]): T | null => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
     const looks = sel.map((it) => lookOf(board, it.kind, it.id)).filter((l) => l !== null);
     const faces = has.facing ? sel.map((it) => facingState(board, it)) : [];
     const arrows = has.facing ? sel.map((it) => arrowOf(board, it.kind, it.id)).filter((a) => a !== null) : [];
@@ -458,7 +463,7 @@ export function setFacingSelection(board: RaidplanBoard, sel: SelItem[], patch: 
 
 /** The role groups of a selection (an empty list when anything else is in it: then these options are not offered). */
 export function roleZonesOf(board: RaidplanBoard, sel: SelItem[]): RaidplanZone[] {
-    const out = [];
+    const out: RaidplanZone[] = [];
     for (const it of sel) {
         const z = it.kind === "zone" ? board.zones.find((o) => o.id === it.id) : undefined;
         if (!z || z.type !== "role") return [];
@@ -470,13 +475,13 @@ export function roleZonesOf(board: RaidplanBoard, sel: SelItem[]): RaidplanZone[
 /** What the role groups of a selection share: a value when all agree, null ("gemischt") otherwise. */
 export function roleZoneSummary(board: RaidplanBoard, sel: SelItem[]): { rotation: number | null; iconScale: number | null; labelPos: string | null } {
     const zs = roleZonesOf(board, sel);
-    const same = (list) => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
+    const same = <T>(list: T[]): T | null => (list.length > 0 && list.every((v) => v === list[0]) ? list[0] : null);
     return { rotation: same(zs.map((z) => z.rotation || 0)), iconScale: same(zs.map((z) => z.iconScale || 1)), labelPos: same(zs.map((z) => z.labelPos || "in")) };
 }
 
 /** Sets the angle (0 .. 359), the symbol's scale (0.25 .. 3) and / or the label's place of every role group of the selection; locked ones keep theirs. */
 export function setRoleZoneSelection(board: RaidplanBoard, sel: SelItem[], patch: { rotation?: number; iconScale?: number; labelPos?: "in" | "top" | "bottom" | "left" | "right" }): RaidplanBoard {
-    const p = {};
+    const p: Partial<RaidplanZone> = {};
     if (patch.rotation !== undefined) p["rotation"] = normAngle(patch.rotation);
     if (patch.iconScale !== undefined) p["iconScale"] = Math.max(0.25, Math.min(3, Math.round(patch.iconScale * 100) / 100));
     if (patch.labelPos !== undefined) p["labelPos"] = patch.labelPos;

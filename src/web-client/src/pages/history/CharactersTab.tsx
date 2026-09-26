@@ -44,7 +44,7 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
 }) {
     const t = useT();
     return (
-        <table className="idx" style={{ margin: 0 }}>
+        <table className="idx flush">
             <thead>
                 <tr>
                     <SortTh sortKey="character" label={t("history.chars.colCharacter")} sort={sort} dir={dir} onSort={onSort} />
@@ -60,7 +60,7 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                         <td><CharacterLink character={c.character} classColor={c.classColor} /></td>
                         <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
                         <td className="small">
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            <div className="hl-cats">
                                 {c.categoryIds.length
                                     ? c.categoryIds.map((id) => <Badge key={id} tone="accent">{categoryNameById.get(id) || id}</Badge>)
                                     : <span className="sub">—</span>}

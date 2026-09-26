@@ -155,8 +155,8 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onCl
                                     <span className="hl-raider">
                                         <Link
                                             to={`/history/char?name=${encodeURIComponent(a.character)}`}
-                                            className={colored.className || undefined}
-                                            style={{ ...colored.style, fontWeight: 700, textDecoration: "none" }}
+                                            className={colored.className ? `hl-raider-link ${colored.className}` : "hl-raider-link"}
+                                            style={colored.style}
                                         >
                                             {a.character}
                                         </Link>

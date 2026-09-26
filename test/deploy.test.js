@@ -203,7 +203,7 @@ describe("CI workflow (#414)", () => {
         expect(web).toMatch(/working-directory: src\/web-client/);
         expect(web).toMatch(/cache-dependency-path: src\/web-client\/package-lock\.json/);
         expect(web).toContain("node-version-file: \".nvmrc\"");
-        const steps = ["npm ci", "npm run lint -- --max-warnings=", "npm test", "npx tsc -b", "npm run build"];
+        const steps = ["npm ci", "npm run lint -- --max-warnings=", "npm run lint:css", "npm test", "npx tsc -b", "npm run build"];
         const at = steps.map((s) => web.indexOf(`run: ${s}`));
         for (const i of at) expect(i).toBeGreaterThan(-1);
         expect(at).toEqual([...at].sort((a, b) => a - b));

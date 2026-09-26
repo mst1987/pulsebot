@@ -8,7 +8,7 @@
 // over the same rows the list renders, so header and list cannot disagree, and
 // it stays on the whole roster: a headline that shrinks while you type would
 // answer a different question than the one it asks.
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import type { RosterStats } from "../../api";
 import { IconTile, type TileTone } from "../../components/ui";
 import { attendanceTone, share } from "../../lib/rosterView";
@@ -37,7 +37,7 @@ function Kpi({ icon, tone, label, tip, tipSub, value, of, meter, onClick, active
             <span className="ros-kpi-body">
                 <span className="ros-kpi-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
                 <span className="ros-kpi-value">{value}{of !== undefined && <span className="ros-kpi-of">{of}</span>}</span>
-                {meter !== undefined && <span className="ros-meter" aria-hidden="true"><i style={{ width: `${meter}%` }} /></span>}
+                {meter !== undefined && <span className="ros-meter" aria-hidden="true"><i style={{ "--fill": `${meter}%` } as CSSProperties} /></span>}
             </span>
         </>
     );

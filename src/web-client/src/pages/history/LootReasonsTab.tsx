@@ -134,7 +134,7 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
                         {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                 )}
-                <div className="badge-row" style={{ marginLeft: "auto" }}>
+                <div className="badge-row is-end">
                     {totals.map((r) => <ReasonBadge key={r.id} label={r.label} tone={r.tone} count={r.count} />)}
                 </div>
             </div>

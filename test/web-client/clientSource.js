@@ -27,7 +27,19 @@ function read(...parts) {
             .join("\n")
             .replace(/\r\n/g, "\n");
     }
-    return fs.readFileSync(full, "utf8").replace(/\r\n/g, "\n");
+    return readFile(full);
+}
+
+/**
+ * A file with LF line endings; a stylesheet with its `@import "./x.css";` lines
+ * replaced by the imported files, in order (#441: index.css is only imports of
+ * styles/tokens.css, base.css, ..., the raid plan is styles/raidplan/index.css
+ * over its parts), so a convention reads what the bundle gets.
+ */
+function readFile(full) {
+    const text = fs.readFileSync(full, "utf8").replace(/\r\n/g, "\n");
+    if (!full.endsWith(".css")) return text;
+    return text.replace(/^@import "(\.[^"]+\.css)";$/gm, (_, rel) => readFile(path.join(path.dirname(full), rel)));
 }
 
 /**

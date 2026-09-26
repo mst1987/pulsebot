@@ -43,7 +43,7 @@ export function withPlaces<T extends { pos?: number }>(slots: T[]): T[] {
 /** A group's five places as drawn: the raider on each, or null for a free one. */
 export function placeGrid<T extends { pos?: number }>(slots: T[]): (T | null)[] {
     const placed = withPlaces(slots);
-    const grid = [];
+    const grid: (T | null)[] = [];
     for (let p = 1; p <= GROUP_SIZE; p++) grid.push(placed.find((s) => s.pos === p) || null);
     return grid;
 }
@@ -86,7 +86,7 @@ export function toInput(setup: StoredSetup): SetupPlacementInput {
 
 /** All groups 1…count, the empty ones included, so a drop target exists for each. */
 export function withAllGroups(groups: SetupEditorGroup[], count: number): SetupEditorGroup[] {
-    const out = [];
+    const out: SetupEditorGroup[] = [];
     for (let i = 1; i <= Math.max(count, 1); i++) {
         const hit = groups.find((g) => g.index === i);
         out.push(hit || { index: i, slots: [] });
@@ -265,7 +265,7 @@ export function resizeLineup(input: SetupPlacementInput, newSize: number, groupS
  * to drop somebody without the last card looking closed off.
  */
 export function benchChunks(bench: SetupPerson[], groupSize = GROUP_SIZE): SetupPerson[][] {
-    const chunks = [];
+    const chunks: SetupPerson[][] = [];
     for (let i = 0; i < bench.length; i += groupSize) chunks.push(bench.slice(i, i + groupSize));
     if (!chunks.length || chunks[chunks.length - 1].length >= groupSize) chunks.push([]);
     return chunks;
@@ -314,7 +314,7 @@ export function peopleOf(setup: StoredSetup): Map<string, SetupPerson> {
 
 /** The group with a free place where what the raider brings helps most (`fit`, from the server), or null when nowhere does — the drag glow. */
 export function suggestGroup(person: SetupPerson, groups: SetupEditorGroup[]): number | null {
-    let best = null;
+    let best: number | null = null;
     let bestFit = 0;
     for (const g of groups) {
         if (g.slots.length >= GROUP_SIZE || g.slots.some((s) => s.userId === person.userId)) continue;
@@ -404,7 +404,7 @@ export function publishHint(publish: SetupPublish | undefined, approved: boolean
     }
     const edited = (publish.posted.editedAt || 0) > (publish.posted.postedAt || 0);
     const parts = [t(edited ? "setup.publish.updatedAt" : "setup.publish.postedAt", { time: time(lastPost), channel })];
-    const lines = [];
+    const lines: string[] = [];
     const dms = publish.dms;
     const running = !!dms && dms.status === "running";
     const failed = !running && !!dms && publish.dmsEnabled && dms.failed.length > 0;
@@ -430,7 +430,7 @@ export function publishHint(publish: SetupPublish | undefined, approved: boolean
 
 /** The missing buffs, one row per set of specs that brings them — six blessings of the same paladin specs are one row, not six. */
 export function groupSearchBuffs(buffs: SetupSearch["buffs"]): { id: string; required: boolean; specs: string[]; buffs: SetupSearch["buffs"] }[] {
-    const groups = [];
+    const groups: { id: string; required: boolean; specs: string[]; buffs: SetupSearch["buffs"] }[] = [];
     for (const b of buffs) {
         const id = `${b.required}:${b.specs.join(",")}`;
         const hit = groups.find((g) => g.id === id);

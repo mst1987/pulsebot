@@ -1,0 +1,179 @@
+/* Design variables (#441): every colour, shadow and control metric of the
+   client, dark in :root and light under the two light selectors (the OS
+   preference, and data-theme="light" from the theme toggle). A stylesheet uses
+   var(--name) and never a colour value of its own: a new colour gets a
+   variable here first, in :root and, where the themes differ, in both light
+   blocks. Loaded first (index.css). */
+
+/* Theme tokens + shell layout. Visual identity 2026-07 (feature/visual-redesign):
+   violet/cyan accent duo + clipped-corner panel geometry, replacing the earlier
+   flat arcane-blue pass — see the approved design entwurf for the full plan. */
+
+:root {
+    --bg: #16181d; --panel: #1f232b; --panel2: #272c36; --panel3: #30353f;
+    --text: #e6e6e6; --muted: #9aa0aa; --line: #2c313b; --line-soft: #23272f;
+    --high: #e0524f; --high-bg: rgba(224, 82, 79, .16);
+    --medium: #e0a23a; --medium-bg: rgba(224, 162, 58, .16);
+    --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16);
+    --accent: #8a7cff; --accent-2: #35d6c4; --accent-soft: rgba(138, 124, 255, .16); --accent-ink: #130f26;
+    --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+    /* ---- control metrics: one height for everything that shares a line ---- */
+    --ctl-h: 38px; --ctl-h-sm: 32px; --ctl-radius: 8px;
+    /* The select chevron, drawn by us instead of by the OS widget (see the form
+       controls section). It has to be restated per theme because a data URI
+       cannot read a custom property. */
+    --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0aa' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a7cff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    /* Pinned instead of "light dark": the theme toggle can put the app in dark
+       mode on a light OS, and the native select popup + scrollbars have to
+       follow the app, not the OS. */
+    color-scheme: dark;
+    /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
+    --area-recruitment: #34d399; --area-recruitment-soft: rgba(52, 211, 153, .16);
+    --area-cla: #ff8a65; --area-cla-soft: rgba(255, 138, 101, .16);
+    --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
+    --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
+    --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
+    --area-home: #8a7cff; --area-home-soft: rgba(138, 124, 255, .16);
+    --area-profile: #38bdf8; --area-profile-soft: rgba(56, 189, 248, .16);
+    --area-signups: #4ade80; --area-signups-soft: rgba(74, 222, 128, .16);
+    --area-raids: #60a5fa; --area-raids-soft: rgba(96, 165, 250, .16);
+    --area-roster: #a3e635; --area-roster-soft: rgba(163, 230, 53, .16);
+    --area-lootcouncil: #e879f9; --area-lootcouncil-soft: rgba(232, 121, 249, .16);
+    /* ---- loot award reasons: a green→yellow→orange→red scale, see .rbadge ---- */
+    --reason-bis: #35d6a4; --reason-bis-bg: rgba(53, 214, 164, .16);
+    --reason-mainspec: #7fd17f; --reason-mainspec-bg: rgba(127, 209, 127, .16);
+    --reason-upgrade: #b9d96a; --reason-upgrade-bg: rgba(185, 217, 106, .16);
+    --reason-minor: #e3cf5c; --reason-minor-bg: rgba(227, 207, 92, .16);
+    --reason-offspec: #eb9440; --reason-offspec-bg: rgba(235, 148, 64, .16);
+    --reason-pvp: #e0524f; --reason-pvp-bg: rgba(224, 82, 79, .16);
+    --reason-greed: #6fa8dc; --reason-greed-bg: rgba(111, 168, 220, .16);
+    --reason-disenchant: #b083f0; --reason-disenchant-bg: rgba(176, 131, 240, .16);
+    --reason-bank: #9aa0aa; --reason-bank-bg: rgba(154, 160, 170, .16);
+    /* ---- signup status (Anwesenheit): icon-only colours, see .sig-ico ---- */
+    --sig-signed: #7fd17f; --sig-tentative: #e3cf5c; --sig-late: #eb9440;
+    --sig-bench: #6fa8dc; --sig-absence: #e0524f;
+    /* ---- the same in both themes: ink on a coloured fill, shadows, overlays ---- */
+    --on-fill: #fff; --on-good: #10240f; --on-medium: #1c1305;
+    /* the dark a colour is mixed with to stay readable on the light theme (.class-colored, .item-quality) */
+    --ink-shade: #0d0f14;
+    --shade-12: rgba(0, 0, 0, .12); --shade-28: rgb(0 0 0 / .28); --shade-35: rgba(0, 0, 0, .35); --shade-40: rgba(0, 0, 0, .4);
+    --shade-45: rgba(0, 0, 0, .45); --shade-50: rgba(0, 0, 0, .5); --shade-55: rgba(0, 0, 0, .55); --shade-60: rgba(0, 0, 0, .6);
+    --shade-65: rgba(0, 0, 0, .65); --shade-70: rgba(0, 0, 0, .7); --shade-90: rgba(0, 0, 0, .9);
+    --overlay-dialog: rgba(10, 11, 14, .62); --overlay-loader: rgba(9, 11, 18, .66); --loader-hit-glow: rgba(224, 82, 79, .35);
+    /* the bot's own avatar (violet/cyan duo of the dark theme, fixed) */
+    --brand-violet: #8a7cff; --brand-cyan: #35d6c4; --brand-ink: #130f26;
+    /* WoW item quality; on the light theme epic and uncommon get a darker shade */
+    --q-uncommon: #1eff00; --q-rare: #0070dd; --q-epic: #a335ee; --q-legendary: #ff8000;
+    --q-uncommon-light: #178a00; --q-epic-light: #7b1fc4;
+    /* loot council: a worn item without enchant, the third need step */
+    --worn-alert: #e5484d; --lc-need-3: #5badde;
+    /* Mein Profil: one colour per weekday, and its darker shade for text on light */
+    --day-mo: #5b8def; --day-mo-dark: #2f5fbf; --day-di: #22b8cf; --day-di-dark: #0f7f91;
+    --day-mi: #3fbf73; --day-mi-dark: #1f8a4c; --day-do: #8fbf3f; --day-do-dark: #5a7f1f;
+    --day-fr: #f0883e; --day-fr-dark: #b5561a; --day-sa: #e0569b; --day-sa-dark: #b02f70;
+    --day-so: #9b72f0; --day-so-dark: #6a43c4;
+    /* Discord's own palette for the message previews: dark (always, in the call
+       templates) and light (the recruitment preview follows the theme) */
+    --discord-dark-bg: #313338; --discord-dark-text: #dbdee1; --discord-dark-strong: #f2f3f5; --discord-dark-muted: #949ba4;
+    --discord-dark-code: #2b2d31; --discord-dark-codeblock: #1e1f22; --discord-dark-quote: #4e5058;
+    --discord-dark-mention: rgba(88, 101, 242, .3); --discord-dark-mention-text: #c9cdfb;
+    --discord-light-bg: #ffffff; --discord-light-text: #313338; --discord-light-strong: #060607; --discord-light-muted: #5c5e66;
+    --discord-light-code: #ebedef; --discord-light-quote: #c4c9ce;
+    --discord-light-mention: rgba(88, 101, 242, .15); --discord-light-mention-text: #505cdc;
+    --discord-blurple: #5865f2; --discord-green: #248046;
+    /* ---- raid plan (styles/raidplan.css, rp-): the board is a dark picture in both themes ---- */
+    --rp-role-tank: #60a5fa; --rp-role-healer: #35d6c4; --rp-role-melee: #f97316; --rp-role-ranged: #a78bfa; --rp-role-dps: #f5c542;
+    --rp-board-bg: #0f1115; --rp-grid-bg: #14171d; --rp-grid-line: #1c2028; --rp-grid-text: #7c8496; --rp-slot-title: #cfd5e2;
+    --rp-label-bg: rgba(15, 17, 21, .78); --rp-label-bg-soft: rgba(15, 17, 21, .55); --rp-names-bg: rgba(15, 17, 21, .72);
+    --rp-icon-outline: rgba(15, 17, 21, .85); --rp-icon-ring: rgba(255, 255, 255, .6); --rp-text-halo: #000;
+    --rp-group-bg: rgba(19, 15, 38, .82); --rp-group-ink: #ece9ff; --rp-zone-ink: #f1f3f8; --rp-rg-ink: #121212;
+    --rp-ico-base: #4a5060; --rp-ico-mix: #10131a; --rp-handle-edge: #fff;
+    --rp-enemy: #b91c1c; --rp-bosspos: #7e22ce; --rp-du-ink: #14112e; --rp-fly-backdrop: rgba(8, 10, 18, .55);
+    --rp-onme: #e0a020; --rp-onme-ink: #1a1205; --rp-oop: #d99a1e; --rp-bad: #f87171; --rp-autotank-miss: #fbbf24;
+    /* status: ok / unsaved (warn) / conflict (danger) */
+    --rp-ok: #22c55e; --rp-ok-glow: rgba(34, 197, 94, .6); --rp-ok-glow-0: rgba(34, 197, 94, 0);
+    --rp-warn: #f59e0b; --rp-warn-strong: #d97706; --rp-warn-ink: #1a1204;
+    --rp-warn-a15: rgba(245, 158, 11, .15); --rp-warn-a30: rgba(245, 158, 11, .30); --rp-warn-a35: rgba(245, 158, 11, .35);
+    --rp-warn-a45: rgba(245, 158, 11, .45); --rp-warn-a50: rgba(245, 158, 11, .5); --rp-warn-a55: rgba(245, 158, 11, .55);
+    --rp-danger: #ef4444; --rp-danger-strong: #b91c1c; --rp-danger-a45: rgba(239, 68, 68, .45);
+    /* the unsaved strip's and the save button's text: light on dark, dark on light */
+    --rp-unsaved-ink: #fcd34d; --rp-conflict-ink: #fca5a5; --rp-saved-ink: #4ade80;
+    /* action icons of the assignment lines */
+    --rp-act-tank: #60a5fa; --rp-act-tank-ink: #3b82f6; --rp-act-ctl: #8a7cff; --rp-act-ctl-ink: #7c6cf0;
+    --rp-act-pos: #f59e0b; --rp-act-pos-ink: #d97706; --rp-act-sup: #35d6c4; --rp-act-sup-ink: #0f9f90;
+    /* task badges (.rp-tbadge): one hue per kind of task */
+    --rp-tb-default: #7c86a0; --rp-tb-tank: #3b82f6; --rp-tb-heal: #22b573; --rp-tb-kick: #ef4444; --rp-tb-md: #f59e0b;
+    --rp-tb-ss: #a855f7; --rp-tb-fearward: #eab308; --rp-tb-special: #60a5fa; --rp-tb-dispel: #14b8a6; --rp-tb-cc: #ec4899;
+    --rp-tb-buff: #84cc16; --rp-tb-curse: #8b5cf6; --rp-tb-aoe: #f97316;
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --bg: #f2f4f8; --panel: #ffffff; --panel2: #eef1f6; --panel3: #e2e6ee;
+        --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
+        --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
+        --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
+        --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+        --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+        --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        color-scheme: light;
+        --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
+        --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
+        --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
+        --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
+        --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+        --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
+        --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
+        --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
+        --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
+        --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
+        --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
+        --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
+        --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
+        --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
+        --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
+        --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
+        --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
+        --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
+        --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
+        --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
+        --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
+        --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+        --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+    }
+}
+:root[data-theme="light"] {
+    --bg: #f2f4f8; --panel: #ffffff; --panel2: #eef1f6; --panel3: #e2e6ee;
+    --text: #1b1e27; --muted: #5b616e; --line: #dde1eb; --line-soft: #e8ebf2;
+    --high: #cf3b37; --high-bg: rgba(207, 59, 55, .12);
+    --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
+    --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
+    --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+    --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: light;
+    --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
+    --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
+    --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
+    --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
+    --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+    --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
+    --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
+    --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
+    --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
+    --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
+    --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
+    --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
+    --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
+    --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
+    --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
+    --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
+    --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
+    --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
+    --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
+    --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
+    --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
+    --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
+        --rp-unsaved-ink: #92400e; --rp-conflict-ink: #991b1b; --rp-saved-ink: #15803d;
+}

@@ -70,10 +70,10 @@ function ItemPicker({ items, value, onPick }: {
 
     if (value) {
         return (
-            <div className="row-actions" style={{ gap: 8 }}>
+            <div className="row-actions">
                 {value.iconUrl && <img className="loot-ico" src={value.iconUrl} alt="" loading="lazy" />}
                 <span {...itemQualityProps(value.quality)}>{value.name}</span>
-                <span className="sub" style={{ margin: 0 }}>{value.boss || t("history.manual.noBoss")}</span>
+                <span className="sub is-inline">{value.boss || t("history.manual.noBoss")}</span>
                 <button className="btn btn-sm btn-ghost" type="button" onClick={() => onPick(null)}>{t("history.manual.otherItem")}</button>
             </div>
         );
@@ -91,7 +91,7 @@ function ItemPicker({ items, value, onPick }: {
                     <div key={it.id} className="hr-row" onMouseDown={(e) => { e.preventDefault(); onPick(it); setQuery(""); setOpen(false); }}>
                         {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
                         <span {...itemQualityProps(it.quality)}>{it.name}</span>
-                        <span className="sub" style={{ margin: 0, marginLeft: "auto" }}>{it.boss || "—"}</span>
+                        <span className="sub is-trailing">{it.boss || "—"}</span>
                     </div>
                 ))}
             </div>
@@ -155,7 +155,7 @@ function RaiderPicker({ characters, roster, value, onChange }: {
                             : <span className="raider-badge-ico raider-badge-ico-ph" />}
                         <span {...classColorProps(c.classColor)}>{c.character}</span>
                         {!!c.className && (
-                            <span className="sub" style={{ margin: 0, marginLeft: "auto" }}>
+                            <span className="sub is-trailing">
                                 {c.spec ? `${c.spec} ${c.className}` : c.className}
                             </span>
                         )}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { SignupClass, SignupProfile, SignupStatus } from "../../api";
 import { IconButton, WowIcon } from "../ui";
 import { classColorProps } from "../ClassSpec";
@@ -70,7 +71,7 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                                     data-tip={t("signups.picks.statusTip")}
                                     data-tip-sub={t("signups.picks.statusTipSub")}
                                 >
-                                    <i className="an-dot" style={{ background: SIGNUP_STATUS[p.status || "signed"].color }} />
+                                    <i className="an-dot" style={{ "--an-c": SIGNUP_STATUS[p.status || "signed"].color } as CSSProperties} />
                                     <select
                                         aria-label={t("signups.picks.statusAria", { n: i + 1 })}
                                         value={p.status || "signed"}

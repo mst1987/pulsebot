@@ -60,12 +60,12 @@ export function clearAllSlots(board: RaidplanBoard): RaidplanBoard {
  * whoever is left. A player fills one slot. Returns the same board when nothing could be filled.
  */
 export function fillOpenSlots(board: RaidplanBoard, roster: RaidplanPlayer[]): RaidplanBoard {
-    const taken = {};
+    const taken: Record<string, boolean> = {};
     for (const s of board.slots) if (s.userId) taken[s.userId] = true;
-    const free = (kind, extra) => roster.filter((p) => !taken[p.userId] && fitsSlot(kind, roleOn(board, p)) && extra(p));
-    const fills = {};
-    const bound = {};
-    const open = (kind) => board.slots.filter((s) => s.kind === kind && !s.userId).sort((a, b) => a.n - b.n);
+    const free = (kind: string, extra: (p: RaidplanPlayer) => boolean) => roster.filter((p) => !taken[p.userId] && fitsSlot(kind, roleOn(board, p)) && extra(p));
+    const fills: Record<string, string> = {};
+    const bound: Record<string, boolean> = {};
+    const open = (kind: string) => board.slots.filter((s) => s.kind === kind && !s.userId).sort((a, b) => a.n - b.n);
     for (const kind of ["tank", "healer", "melee", "ranged", "dps"]) {
         for (const s of open(kind)) {
             const wish = s.preferredClasses || [];
@@ -94,7 +94,7 @@ export function fillOpenSlots(board: RaidplanBoard, roster: RaidplanPlayer[]): R
 /** Which players a slot's picker offers: the ones that fit its role first (its classes first among them), then everybody else; each with the slot he stands in now. */
 export function slotCandidates(board: RaidplanBoard, slot: RaidplanSlot, roster: RaidplanPlayer[]): { player: RaidplanPlayer; fits: boolean; at: RaidplanSlot | null }[] {
     const wish = slot.preferredClasses || [];
-    function rank(p) {
+    function rank(p: RaidplanPlayer) {
         const i = wish.indexOf(p.classId);
         return i < 0 ? wish.length : i;
     }
@@ -132,7 +132,7 @@ export function classStatus(slot: RaidplanSlot, roster: RaidplanPlayer[], board:
 
 /** The classes the role slots named as assignees of a row ask for (in the order of the row's assignees, each class once). */
 export function slotClassesOfRow(board: RaidplanBoard, row: { assignees: string[] }): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const ref of row.assignees || []) {
         const p = ref.split(":");
         if (p[0] !== "slot") continue;
@@ -150,7 +150,7 @@ export function effectiveClasses(board: RaidplanBoard, row: { assignees: string[
 
 /** Assigns the class-bound slots anew: a bound slot whose player is not of its class, or who was put there by class, is emptied; then the open slots are filled. */
 export function refillByClass(board: RaidplanBoard, roster: RaidplanPlayer[]): RaidplanBoard {
-    const byId = {};
+    const byId: Record<string, RaidplanPlayer> = {};
     for (const p of roster) byId[p.userId] = p;
     const cleared = {
         ...board,

@@ -9,6 +9,7 @@
 // Welche Zustände es gibt und welche Tat ansteht, entscheidet der Server
 // (src/web/raidDetailSteps.js' eventSteps); die Texte drumherum stehen rein in
 // lib/raidSteps.ts. Hier wird nur gezeichnet.
+import type { CSSProperties } from "react";
 import type { RaidEventStep, RaidEventSteps, RaidStepDeed } from "../../api";
 import { deedLabel, stepStateLabel, stepStateTone, stepSummary, stepTipSub, stepTitle } from "../../lib/raidSteps";
 import { Button } from "../../components/ui/Button";
@@ -43,7 +44,7 @@ function StepCell({ step, running, onDeed }: {
                 {step.unit && <small>{step.unit}</small>}
             </span>
             {typeof step.fill === "number" && (
-                <span className="rd-ck-bar"><i style={{ width: `${Math.round(step.fill * 100)}%` }} /></span>
+                <span className="rd-ck-bar"><i style={{ "--fill": `${Math.round(step.fill * 100)}%` } as CSSProperties} /></span>
             )}
             <span className="rd-ck-state">
                 <Badge tone={tone}>{stepStateLabel(step.state)}</Badge>

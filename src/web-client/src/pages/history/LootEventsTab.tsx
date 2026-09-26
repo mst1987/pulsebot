@@ -82,7 +82,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
     return (
         <div className="dash-card hl-card">
             {head}
-            <table className="idx" style={{ margin: 0 }}>
+            <table className="idx flush">
                 <thead>
                     <tr>
                         <SortTh sortKey="event" label={t("history.shared.colEvent")} sort={sort} dir={dir} onSort={onSort} />
@@ -121,7 +121,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
                                 <div className="badge-row">{(e.sources || []).map((s) => <Badge key={s}>{LOOT_TOOL_LABELS[s] || s}</Badge>)}</div>
                             </td>
                             <td className="cell-actions">
-                                <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                                <div className="row-actions is-end">
                                     <IconButton
                                         icon={<ChevronRightIcon />} size="sm" tip={t("history.shared.viewLoot")} tipSub={t("history.lootEvents.viewSub")}
                                         onClick={() => navigate(`/history/event?event=${encodeURIComponent(e.eventId)}`)}

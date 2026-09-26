@@ -108,7 +108,7 @@ export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; o
                 </Badge>
             ))}
             {onReset && filters.length > 1 && (
-                <button type="button" className="mlink hl-reset" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={onReset}>
+                <button type="button" className="mlink hl-reset" onClick={onReset}>
                     {t("history.filters.resetAll")}
                 </button>
             )}
