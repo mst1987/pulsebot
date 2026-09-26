@@ -4,7 +4,7 @@
 // failure leaves the record in place so the next sweep retries.
 
 const Drive = require("../../classes/drive");
-const { listEventSheets, deleteEventSheet } = require("../../web/eventSheetStore");
+const { listEventSheets, deleteEventSheet } = require("../../stores/eventSheetStore");
 
 /**
  * Delete every tracked copy whose deleteAfter is due (<= now). Best-effort:

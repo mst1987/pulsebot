@@ -28,9 +28,9 @@ const REQUEST_TIMEOUT_MS = 60000;
  *                                 read as v1 answers throughout the analyzers
  *   - commands/apply/applyModal   getParses (character rankings on the fresh
  *                                 host, analyzeApplicant), then report.js
- *   - web/characterInfo.js        getSummary: the gear snapshot of a report
- *   - web/logGearStore.js         getCasts: the gear of every raider
- *   - web/logChannel.js           getFights for title and raid progress. v2 has
+ *   - services/characters/characterInfo.js        getSummary: the gear snapshot of a report
+ *   - stores/logGearStore.js         getCasts: the gear of every raider
+ *   - services/logcheck/logChannel.js           getFights for title and raid progress. v2 has
  *                                 both, but only with the optional OAuth client
  *                                 and in another shape (raidProgress reads v1's
  *                                 boss/kill/zoneName), so a v2 path would need

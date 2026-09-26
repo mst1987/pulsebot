@@ -72,7 +72,7 @@ describe("config/variables", () => {
     });
 
     // The guild the bot is installed in: used for the admin-role check and
-    // preselected in the admin menu's server switcher (web/activeGuild.js).
+    // preselected in the admin menu's server switcher (web/http/activeGuild.js).
     it("defaults the guild id to the guild's own server", () => {
         expect(variables.guildId).toBe("1354128137792917555");
     });

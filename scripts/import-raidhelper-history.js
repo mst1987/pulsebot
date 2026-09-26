@@ -52,8 +52,8 @@ function formatResult(result) {
 async function main(argv, { log = console.log } = {}) {
     const flags = parseArgs(argv);
     require("dotenv").config({ path: flags.dev ? ".env.dev" : ".env" });
-    const { getConfig } = require("../src/web/settingsStore");
-    const { runImport } = require("../src/web/raidhelperHistoryImport");
+    const { getConfig } = require("../src/stores/settingsStore");
+    const { runImport } = require("../src/web/events/raidhelperHistoryImport");
     const guildId = flags.guildId || getConfig().guildId || "";
     const result = await runImport({
         guildId, perCategory: flags.perCategory, dryRun: flags.dryRun, live: flags.live, byName: "Skript",

@@ -1,20 +1,20 @@
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendResult } = require("../apiResult");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
-const { getConfig, listRaidTemplates } = require("../settingsStore");
-const { createEvent, updateEvent } = require("../eventCreate");
-const { decorateTemplate } = require("../raidTemplates");
-const eventStore = require("../eventStore");
-const { getChannelConfig } = require("../channelArchiveStore");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendResult } = require("../http/apiResult");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
+const { upcomingRows, loadPastRaids, raidContentIds } = require("../../services/events/raidListing");
+const { getConfig, listRaidTemplates } = require("../../stores/settingsStore");
+const { createEvent, updateEvent } = require("../../services/events/eventCreate");
+const { decorateTemplate } = require("../../services/events/raidTemplates");
+const eventStore = require("../../stores/eventStore");
+const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
-const { deriveChannelName } = require("../channelNaming");
-const { signupSourceFor } = require("../eventSources");
-const { listSignups } = require("../signupStore");
-const discord = require("../discord");
+const { deriveChannelName } = require("../../services/discord/channelNaming");
+const { signupSourceFor } = require("../../services/events/eventSources");
+const { listSignups } = require("../../stores/signupStore");
+const discord = require("../../services/discord/discord");
 
 /**
  * GET /api/raids — the active guild's upcoming events of both sources

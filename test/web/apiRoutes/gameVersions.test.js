@@ -1,8 +1,8 @@
 // GET /api/game-versions (src/web/apiRoutes/gameVersions.js): the rule sets as
 // JSON, behind the menu login.
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
 
-const { requireAdmin } = require("../../../src/web/apiMiddleware");
+const { requireAdmin } = require("../../../src/web/http/apiMiddleware");
 const { getGameVersions } = require("../../../src/web/apiRoutes/gameVersions");
 
 const { mockRes, body: payload } = require("../../helpers/http");

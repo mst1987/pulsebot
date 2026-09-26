@@ -18,7 +18,7 @@ import SignupDialog from "./SignupDialog";
 vi.mock("../api", async (orig) => ({ ...(await orig<typeof import("../api")>()), saveSignup: vi.fn() }));
 
 const { SIGNUP_STATUSES } = requireBackend("utils/attendance");
-const { CHARACTER_STATUSES } = requireBackend("web/signupCharacters");
+const { CHARACTER_STATUSES } = requireBackend("services/signups/signupCharacters");
 
 function show(row: OwnSignupRow = ownRow()) {
     const onSaved = vi.fn();

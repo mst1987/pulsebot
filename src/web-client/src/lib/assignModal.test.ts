@@ -178,7 +178,7 @@ describe("a class of any spec (a mage tank) and missing classes", () => {
         expect(al.openAssignments([{ key: "k1", name: "Council", board: b1 }], raid)).toHaveLength(1);
     });
     it("the client and the server resolve 'any' alike", () => {
-        const server = requireBackend("web/raidplanAssign");
+        const server = requireBackend("services/raidplan/raidplanAssign");
         const list = [row({ id: "a", type: "tank", assignees: ["class:Mage:1:any", "class:Warrior:1"] }), row({ id: "b", type: "heal", assignees: ["class:Paladin:1:any"] })];
         expect(cr.expandClassRefs(list, [], raid, {})).toEqual(server.expandClassRefs(list, [], raid, {}));
     });

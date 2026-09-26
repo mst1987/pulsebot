@@ -2,7 +2,7 @@
 // fights per boss and the folded detail sections.
 const { plural } = require("../../utils/text");
 const { bossIconUrl } = require("../../config/bosses");
-const { PX_PER_SEC } = require("../charts");
+const { PX_PER_SEC } = require("./charts");
 const { esc, shellPage, renderNotFound } = require("./layout");
 const { classIconUrl, expBtn, badge, LINE, armoryLink, dlgClose, groupHead, barCell, barPct, hicon, classColorOf, fmtK, kpi, avgOf } = require("./widgets");
 const { groupByBoss } = require("./fightTopics");

@@ -11,7 +11,7 @@ import { t } from "../i18n";
 import { BACKEND_SRC, requireBackend } from "../test/backend";
 import { inLang } from "../test/i18n";
 
-const { eventSteps, STEP_IDS, STEP_STATES } = requireBackend("web/raidDetailSteps");
+const { eventSteps, STEP_IDS, STEP_STATES } = requireBackend("web/events/raidDetailSteps");
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
 const inHours = (h: number) => Math.floor((NOW + h * 3600 * 1000) / 1000);
@@ -96,7 +96,7 @@ describe("the step bar's words", () => {
 // fixed id; the client shows them in the menu language by that id (#i18n).
 describe("the cockpit in the menu language", () => {
     // every deed the server can send, read off its deed("id", "Label", …) calls
-    const server = fs.readFileSync(path.join(BACKEND_SRC, "web", "raidDetailSteps.js"), "utf8");
+    const server = fs.readFileSync(path.join(BACKEND_SRC, "web", "events", "raidDetailSteps.js"), "utf8");
     const deeds = [...server.matchAll(/deed\("(\w+)", "([^"]+)"/g)].map((m) => ({ id: m[1], label: m[2] }));
     // "CLA auswerten" carries the analysis' name and stays as the server sends it
     const named = deeds.filter((d) => d.id !== "evaluate");

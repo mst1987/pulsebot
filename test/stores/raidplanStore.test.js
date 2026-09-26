@@ -1,0 +1,266 @@
+// The raid plan store (src/stores/raidplanStore.js): bosses of an event, strict
+// validation of a save, version check, publishing and the room-map files.
+const fs = require("fs");
+const path = require("path");
+const { tempStoreFile } = require("../helpers/tempStore");
+const store = require("../../src/stores/raidplanStore");
+
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
+const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32)]);
+const WEBP = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBP"), Buffer.alloc(16)]);
+
+const BOSS = "bt/supremus";
+const CTX = { bossKeys: ["bt/supremus", "bt/shade-of-akama"], allowedUserIds: ["u1", "u2", "u3"], profileIds: ["p1"], userId: "orga" };
+
+beforeEach(() => store.useFile(tempStoreFile("raidplans.json")));
+afterAll(() => store.useFile());
+
+describe("bosses of an event", () => {
+    it("lists the bosses of every instance in raid order with a stable key and an icon", () => {
+        const list = store.bossesForInstances(["bt"]);
+        // "Allgemein" first, then the bosses in raid order, then the trash
+        expect(list[0]).toMatchObject({ key: "general", general: true });
+        expect(list[1]).toMatchObject({ key: "bt/high-warlord-najentus", instanceId: "bt", name: "High Warlord Naj'entus" });
+        expect(list[list.length - 1]).toMatchObject({ key: "bt/trash", trash: true });
+        expect(list.map((b) => b.key)).toContain("bt/illidan-stormrage");
+        expect(list.find((b) => b.key === BOSS).iconUrl).toBe("/bosses/602.jpg");
+        // the rule set's "Reliquary of the Lost" is WCL's "Reliquary of Souls" (606): its own picture, not the instance icon
+        expect(list.find((b) => b.key === "bt/reliquary-of-the-lost").iconUrl).toBe("/bosses/606.jpg");
+        // an encounter WCL does not list falls back to the instance icon
+        expect(store.bossesForInstances(["kara"]).find((b) => b.key === "kara/chess-event").iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com/);
+    });
+
+    it("knows nothing for unknown or missing instances and never repeats a boss", () => {
+        expect(store.bossesForInstances(["nope"])).toEqual([]);
+        expect(store.bossesForInstances(undefined)).toEqual([]);
+        expect(store.bossesForInstances(["bt", "bt"])).toHaveLength(store.bossesForInstances(["bt"]).length);
+    });
+
+    it("accepts only known instance ids and boss keys as a map key", () => {
+        expect(store.isMapKey("bt")).toBe(true);
+        expect(store.isMapKey(BOSS)).toBe(true);
+        for (const bad of ["", "nope", "bt/nope", "../etc/passwd", "bt/../x", "bt/supremus/x", "BT"]) expect(store.isMapKey(bad)).toBe(false);
+    });
+});
+
+describe("saving a plan", () => {
+    it("starts empty, creates the plan on the first save and bumps the version", () => {
+        expect(store.getPlan("e1")).toBeNull();
+        expect(store.emptyPlan("e1")).toMatchObject({ version: 0, status: "draft", publicToken: "", bosses: {} });
+        const r = store.savePlan("e1", { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0.25, y: 0.5 }], targets: [], notes: "" } } }, CTX);
+        expect(r.plan.version).toBe(1);
+        expect(store.getPlan("e1").bosses[BOSS].tokens).toMatchObject([{ userId: "u1", x: 0.25, y: 0.5, opacity: 1 }]);
+        expect(store.getPlan("e1")).toMatchObject({ updatedBy: "orga" });
+    });
+
+    it("refuses a save made on an old version", () => {
+        store.savePlan("e1", { version: 0, bosses: {} }, CTX);
+        const r = store.savePlan("e1", { version: 0, bosses: {} }, CTX);
+        expect(r.code).toBe("conflict");
+        expect(store.getPlan("e1").version).toBe(1);
+        expect(store.savePlan("e1", { version: 1, bosses: {} }, CTX).plan.version).toBe(2);
+    });
+
+    it("clamps coordinates and drops what is not valid instead of storing it", () => {
+        const r = store.savePlan("e1", {
+            version: 0,
+            bosses: {
+                [BOSS]: {
+                    tokens: [
+                        { userId: "u1", x: -3, y: 9 },
+                        { userId: "u1", x: 0.1, y: 0.1 }, // duplicate
+                        { userId: "stranger", x: 0.1, y: 0.1 }, // not in the setup
+                        { userId: "u2", x: "abc", y: null },
+                        { x: 0.5, y: 0.5 },
+                    ],
+                    targets: [{ id: "a b!", title: "  Main-Tank  ", userIds: ["u1", "u1", "nobody", "u3"] }],
+                    notes: "  hi ",
+                },
+                "bt/does-not-exist": { tokens: [{ userId: "u1", x: 0.5, y: 0.5 }] },
+            },
+        }, CTX);
+        const board = r.plan.bosses[BOSS];
+        expect(board.tokens).toMatchObject([{ userId: "u1", x: 0, y: 1 }, { userId: "u2", x: 0, y: 0 }]);
+        expect(board.targets).toEqual([{ id: "ab", title: "Main-Tank", userIds: ["u1", "u3"] }]);
+        expect(board.notes).toBe("  hi ");
+        expect(r.plan.bosses["bt/does-not-exist"]).toBeUndefined();
+        expect(r.dropped).toBeGreaterThanOrEqual(5);
+    });
+
+    it("cuts long texts, gives rows without a usable id a new one and stores no untouched boss", () => {
+        const r = store.savePlan("e1", {
+            version: 0,
+            bosses: {
+                [BOSS]: { targets: [{ id: "x", title: "T".repeat(500) }, { id: "x", title: "dup id" }], notes: "n".repeat(5000) },
+                "bt/shade-of-akama": { tokens: [], targets: [], notes: "   " },
+            },
+        }, CTX);
+        const board = r.plan.bosses[BOSS];
+        expect(board.targets[0].title).toHaveLength(store.LIMITS.title);
+        expect(board.targets[1].id).not.toBe("x");
+        expect(board.notes).toHaveLength(store.LIMITS.notes);
+        expect(Object.keys(r.plan.bosses)).toEqual([BOSS]);
+    });
+
+    it("keeps a known profile id and forgets an unknown one", () => {
+        const r = store.savePlan("e1", {
+            version: 0,
+            bosses: { [BOSS]: { profileId: "p1" }, "bt/shade-of-akama": { profileId: "gone", notes: "x" } },
+        }, CTX);
+        expect(r.plan.bosses[BOSS].profileId).toBe("p1");
+        expect(r.plan.bosses["bt/shade-of-akama"].profileId).toBe("");
+    });
+
+    it("rejects a body that is no plan and too many tokens or rows", () => {
+        expect(store.savePlan("e1", { version: 0, bosses: [] }, CTX).code).toBe("invalid");
+        expect(store.savePlan("e1", { version: 0, bosses: "x" }, CTX).code).toBe("invalid");
+        const many = { ...CTX, allowedUserIds: Array.from({ length: 70 }, (_, i) => `u${i}`) };
+        const tokens = Array.from({ length: 61 }, (_, i) => ({ userId: `u${i}`, x: 0.5, y: 0.5 }));
+        expect(store.savePlan("e1", { version: 0, bosses: { [BOSS]: { tokens } } }, many).code).toBe("invalid");
+        const targets = Array.from({ length: 31 }, () => ({ title: "t" }));
+        expect(store.savePlan("e1", { version: 0, bosses: { [BOSS]: { targets } } }, CTX).code).toBe("invalid");
+    });
+
+    it("survives a broken file", () => {
+        const file = tempStoreFile("broken.json");
+        fs.writeFileSync(file, "{ nope");
+        store.useFile(file);
+        expect(store.getPlan("e1")).toBeNull();
+        expect(store.savePlan("e1", { version: 0, bosses: {} }, CTX).plan.version).toBe(1);
+    });
+});
+
+describe("publishing", () => {
+    it("mints a token on the first publish, keeps it while unpublished and answers only when published", () => {
+        expect(store.getPublishedByToken("whatever-token-1234567")).toBeNull();
+        const first = store.setPublished("e1", true, { userId: "orga" }).plan;
+        expect(first.status).toBe("published");
+        expect(first.publicToken).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
+        expect(store.getPublishedByToken(first.publicToken).eventId).toBe("e1");
+        store.setPublished("e1", false);
+        expect(store.getPublishedByToken(first.publicToken)).toBeNull();
+        const again = store.setPublished("e1", true).plan;
+        expect(again.publicToken).toBe(first.publicToken);
+    });
+
+    it("rotates the token, which kills the old link", () => {
+        const a = store.setPublished("e1", true).plan.publicToken;
+        const b = store.setPublished("e1", true, { rotate: true }).plan.publicToken;
+        expect(b).not.toBe(a);
+        expect(store.getPublishedByToken(a)).toBeNull();
+        expect(store.getPublishedByToken(b)).not.toBeNull();
+    });
+
+    it("does not look up a malformed token and keeps a save from touching the token", () => {
+        expect(store.getPublishedByToken("")).toBeNull();
+        expect(store.getPublishedByToken("short")).toBeNull();
+        expect(store.getPublishedByToken("../../etc/passwd/xxxxxxxx")).toBeNull();
+        const token = store.setPublished("e1", true).plan.publicToken;
+        store.savePlan("e1", { version: 0, bosses: {} }, CTX);
+        expect(store.getPlan("e1")).toMatchObject({ publicToken: token, status: "published" });
+    });
+
+    it("deletes a plan with its event", () => {
+        store.setPublished("e1", true);
+        expect(store.deletePlan("e1")).toBe(true);
+        expect(store.deletePlan("e1")).toBe(false);
+        expect(store.getPlan("e1")).toBeNull();
+    });
+});
+
+describe("room maps", () => {
+    it("recognises an image by its bytes, not by what the upload claims", () => {
+        expect(store._internal.sniffImage(PNG)).toMatchObject({ mime: "image/png", ext: "png" });
+        expect(store._internal.sniffImage(JPG)).toMatchObject({ mime: "image/jpeg", ext: "jpg" });
+        expect(store._internal.sniffImage(WEBP)).toMatchObject({ mime: "image/webp", ext: "webp" });
+        expect(store._internal.sniffImage(Buffer.from("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"))).toBeNull();
+        expect(store._internal.sniffImage(Buffer.from("GIF89a" + "x".repeat(20)))).toBeNull();
+        expect(store._internal.sniffImage(Buffer.alloc(3))).toBeNull();
+        expect(store._internal.sniffImage("not a buffer")).toBeNull();
+    });
+
+    it("stores, reads, replaces and deletes a map per boss and per instance", () => {
+        expect(store.readMap(BOSS)).toBeNull();
+        expect(store.saveMap(BOSS, PNG)).toEqual({ ok: true, mime: "image/png" });
+        expect(store.readMap(BOSS)).toMatchObject({ mime: "image/png" });
+        // a new upload of another type replaces the old file
+        expect(store.saveMap(BOSS, JPG).mime).toBe("image/jpeg");
+        expect(store.readMap(BOSS).mime).toBe("image/jpeg");
+        expect(store.saveMap("bt", WEBP).ok).toBe(true);
+        expect(store.deleteMap(BOSS)).toBe(true);
+        expect(store.deleteMap(BOSS)).toBe(false);
+        expect(store.readMap("bt").mime).toBe("image/webp");
+    });
+
+    it("refuses unknown keys, non-images and files over 3 MB", () => {
+        expect(store.saveMap("../../evil", PNG).code).toBe("invalid");
+        expect(store.saveMap(BOSS, Buffer.from("just text, long enough")).code).toBe("invalid");
+        expect(store.saveMap(BOSS, Buffer.alloc(0)).code).toBe("invalid");
+        const big = Buffer.concat([PNG, Buffer.alloc(3 * 1024 * 1024)]);
+        expect(store.saveMap(BOSS, big).code).toBe("too_large");
+        expect(store.readMap(BOSS)).toBeNull();
+        expect(store.readMap("../x")).toBeNull();
+    });
+
+    it("gives a boss its own map, else its instance's, and none when neither exists", () => {
+        const boss = store.bossesForInstances(["bt"]).find((b) => b.key === BOSS);
+        expect(store.mapForBoss(boss)).toBeNull();
+        store.saveMap("bt", PNG);
+        expect(store.mapForBoss(boss)).toMatchObject({ key: "bt", source: "instance" });
+        store.saveMap(BOSS, PNG);
+        expect(store.mapForBoss(boss)).toMatchObject({ key: BOSS, source: "boss" });
+        expect(store.mapForBoss(boss).version).toBeGreaterThan(0);
+    });
+
+    it("writes only into its own folder", () => {
+        const file = tempStoreFile("plans.json");
+        store.useFile(file);
+        store.saveMap(BOSS, PNG);
+        const dir = path.join(path.dirname(file), "raidplan-maps");
+        expect(fs.readdirSync(dir)).toEqual(["bt__supremus.png"]);
+    });
+});
+
+describe("Raid-Helper events: the switch and the remembered line-up", () => {
+    const EV = "1400000000000000009";
+
+    it("normalizeLink keeps only a Raid-Helper switch with known instances, sane size and composition", () => {
+        expect(store._internal.normalizeLink(null)).toBeNull();
+        expect(store._internal.normalizeLink({ source: "own" })).toBeNull();
+        expect(store._internal.normalizeLink({ source: "raidhelper", enabled: true, instanceIds: ["bt", "nope", "bt"], size: 99, composition: { tank: 3, healer: "x", foo: 1 }, versionId: "!!", guildId: "abc" }))
+            .toMatchObject({ enabled: true, instanceIds: ["bt"], size: 0, composition: { tank: 3 }, versionId: "tbc", guildId: "" });
+    });
+
+    it("setLink creates the record, refuses no instance, switching off keeps the bosses and withdraws the link", () => {
+        expect(store.setLink(EV, { enabled: true, instanceIds: [] })).toMatchObject({ code: "invalid" });
+        expect(store.setLink("x", { enabled: true, instanceIds: ["bt"] })).toMatchObject({ code: "invalid" });
+        const on = store.setLink(EV, { enabled: true, instanceIds: ["bt"], size: 25, title: "BT" }, { userId: "orga", knownRoster: [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }] });
+        expect(on.plan.link).toMatchObject({ source: "raidhelper", enabled: true, instanceIds: ["bt"], size: 25, title: "BT", changedBy: "orga" });
+        expect(on.plan.known).toEqual({ u1: { character: "Tanky", spec: "Warrior-Protection", rhName: "", group: 1 } });
+        store.savePlan(EV, { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0.1, y: 0.1 }] } } }, { ...CTX, allowedUserIds: ["u1"] });
+        store.setPublished(EV, true);
+        const off = store.setLink(EV, { enabled: false });
+        expect(off.plan).toMatchObject({ status: "draft", link: { enabled: false, instanceIds: ["bt"] } });
+        expect(off.plan.bosses[BOSS].tokens).toHaveLength(1);
+        expect(store.getPublishedByToken(off.plan.publicToken)).toBeNull();
+    });
+
+    it("a save with ANY_PLAYER keeps every well-formed player id; with a known roster it remembers the line-up and the gone players it still names", () => {
+        const { ANY_PLAYER } = require("../../src/services/raidplan/raidplanBoard");
+        const r = store.savePlan(EV, { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0, y: 0 }, { userId: "u-gone", x: 0, y: 0 }, { userId: "bad id!", x: 0, y: 0 }] } } }, { ...CTX, allowedUserIds: ANY_PLAYER });
+        expect(r.plan.bosses[BOSS].tokens.map((t) => t.userId)).toEqual(["u1", "u-gone"]);
+        expect(r.dropped).toBe(1);
+        const before = { "u-gone": { character: "Weg", spec: "Mage-Fire", rhName: "", group: 2 } };
+        expect(store._internal.knownAfter(r.plan.bosses, [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }, { userId: "u2", character: "Gone", gone: true }], before))
+            .toEqual({ u1: { character: "Tanky", spec: "Warrior-Protection", rhName: "", group: 1 }, "u-gone": before["u-gone"] });
+    });
+
+    it("playersOf finds a player wherever the plan names one", () => {
+        const ids = store.playersOf({
+            a: { tokens: [{ userId: "t1" }], slots: [{ userId: "s1" }], roles: { f1: "melee" } },
+            b: { assignments: [{ assignees: ["user:a1", "slot:tank:1"], targets: [{ kind: "player", ref: "p1" }, { kind: "group", ref: "2" }], picks: { "class:Mage:1": "k1" } }] },
+            c: { steps: [{ participants: ["user:st1"] }] },
+        });
+        expect([...ids].sort()).toEqual(["a1", "f1", "k1", "p1", "s1", "st1", "t1"]);
+    });
+});

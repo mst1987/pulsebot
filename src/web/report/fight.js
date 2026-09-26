@@ -1,6 +1,6 @@
 // One boss fight on the report page: the topic parts (table + chart), the DPS/HPS
 // strip, the chart dialogs, the Kennzahlenzeile and the whole fight section.
-const { markerChart, ribbonChart, fmtTime, lineChart, PX_PER_SEC } = require("../charts");
+const { markerChart, ribbonChart, fmtTime, lineChart, PX_PER_SEC } = require("./charts");
 const { dipShare } = require("../../utils/logcheck/fightSeries");
 const { esc } = require("./layout");
 const { tile, badge, LINE, dlgClose, hicon, classColorOf, pctTone, classIconName, fmtK } = require("./widgets");

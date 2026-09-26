@@ -1,14 +1,14 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
     getConfig,
-} = require("../settingsStore");
-const discord = require("../discord");
+} = require("../../stores/settingsStore");
+const discord = require("../../services/discord/discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
-const { annotateApplication } = require("../recruitmentApplications");
+const { annotateApplication } = require("../recruitment/recruitmentApplications");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>

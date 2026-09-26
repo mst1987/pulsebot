@@ -3,9 +3,9 @@ const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { botEditReply } = require("../../utils/discord/reply");
-const { isOwnEventId, getEvent } = require("../../web/eventStore");
-const { ownEventInChannel } = require("../../web/eventSources");
-const { raidHelperSlots } = require("../../web/setupEditor");
+const { isOwnEventId, getEvent } = require("../../stores/eventStore");
+const { ownEventInChannel } = require("../../services/events/eventSources");
+const { raidHelperSlots } = require("../../services/setup/setupEditor");
 
 /**
  * The own EventHelper event the command is about (#291): an `eh-` id given as

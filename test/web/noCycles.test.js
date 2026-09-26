@@ -10,13 +10,13 @@
 // A new cycle fails with its members. The usual fix: move what both sides need
 // into a small module below them (setupCore.js, raidplanConstants.js). Since
 // the second part of #424 the whole tree is checked: utils/raidhelper/channelEvents.js,
-// utils/raidhelper/queries.js and utils/raidhelper/fixture.js require their web modules
+// utils/raidhelper/queries.js and utils/raidhelper/fixture.js require their service and store modules
 // at the top now, which is safe exactly because this graph has no cycle.
 const fs = require("fs");
 const path = require("path");
 
 const SRC = path.join(__dirname, "..", "..", "src");
-const WEB = path.join(SRC, "web");
+const SETUP = path.join(SRC, "services", "setup");
 const SKIP = new Set(["web-client", "node_modules"]);
 
 function srcFiles(dir) {
@@ -88,9 +88,9 @@ describe("src require graph", () => {
     it("reads the modules and their requires", () => {
         expect(files.length).toBeGreaterThan(300);
         expect(files.some((f) => f.includes(`${path.sep}web-client${path.sep}`))).toBe(false);
-        expect(graph.get(path.join(WEB, "setupMessage.js"))).toContain(path.join(WEB, "setupCore.js"));
-        // across the layers too: utils -> web
-        expect(graph.get(path.join(SRC, "utils", "raidhelper", "queries.js"))).toContain(path.join(WEB, "eventStore.js"));
+        expect(graph.get(path.join(SETUP, "setupMessage.js"))).toContain(path.join(SETUP, "setupCore.js"));
+        // across the layers too: utils -> stores
+        expect(graph.get(path.join(SRC, "utils", "raidhelper", "queries.js"))).toContain(path.join(SRC, "stores", "eventStore.js"));
     });
 
     it("has no require cycle", () => {

@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe("rightsStatus", () => {
     it("judges the bot's rights with the server's words and tones", () => {
-        const { channelStatus } = requireBackend("web/channelPurposes");
+        const { channelStatus } = requireBackend("web/channels/channelPurposes");
         const cases: [Partial<Channel>, "send" | "read"][] = [
             [{ botCanView: false }, "send"],
             [{ botCanSend: false }, "send"],
@@ -65,7 +65,7 @@ describe("runInSteps", () => {
 
 describe("the purposes the server defines", () => {
     it("carry WoW icons, not line icons", () => {
-        const { PURPOSES } = requireBackend("web/channelPurposes");
+        const { PURPOSES } = requireBackend("web/channels/channelPurposes");
         expect(PURPOSES.map((p: { icon: string }) => p.icon)).toEqual([
             "inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "achievement_boss_illidan",
         ]);

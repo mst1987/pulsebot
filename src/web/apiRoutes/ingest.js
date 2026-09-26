@@ -9,16 +9,16 @@
 // inbox for a human to confirm — except when that same session was already
 // accepted before, in which case its new items append straight to the event it
 // was accepted into (see lootInboxStore.js's header for why that matters).
-const { ok, error } = require("../apiResponse");
-const { readJsonBody } = require("../apiBody");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { addImport: addLootImport, eventsWithLoot } = require("../lootStore");
-const { rememberFromLoot } = require("../characterInfo");
+const { ok, error } = require("../http/apiResponse");
+const { readJsonBody } = require("../http/apiBody");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
+const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
+const { rememberFromLoot } = require("../../services/characters/characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { bestDayMatch } = require("../lootEventMatch");
-const { verifyToken, touchToken, bearerFrom } = require("../ingestTokenStore");
-const { upsertPending, resolutionFor, noteAppended, listPending } = require("../lootInboxStore");
+const { bestDayMatch } = require("../loot/lootEventMatch");
+const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
+const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {

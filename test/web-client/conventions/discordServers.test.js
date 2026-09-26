@@ -20,7 +20,7 @@ const api = read("api", "discordServers.ts");
 describe("Discord-Server section", () => {
     it("loads from the endpoint the router serves and the access table lists", () => {
         expect(api).toContain("get<DiscordServersData>(\"/api/settings/discord-servers\")");
-        const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/settings/discord-servers"]).toBe("settings");
         expect(section).toContain("getDiscordServers()");
     });
@@ -124,7 +124,7 @@ describe("raid overview row (#257, #361)", () => {
     it("talks to the endpoint the router serves and re-posts with the CSRF token and guild id", () => {
         expect(api).toContain("get<{ statuses: TalkOverviewStatus[] }>(\"/api/settings/talk-overview?preview=0\")");
         expect(api).toContain("send(\"POST\", \"/api/settings/talk-overview\", { repost: true, guildId });");
-        const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
         expect(row).toContain("repostTalkOverview(guildId)");
     });

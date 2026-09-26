@@ -1,6 +1,6 @@
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { deployStatus } = require("../deployStatus");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { deployStatus } = require("../http/deployStatus");
 
 /**
  * GET /api/version — which commit the server runs and how far behind main it is

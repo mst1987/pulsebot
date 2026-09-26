@@ -7,7 +7,7 @@ import { requireBackend } from "../test/backend";
 
 describe("SignupDialog", () => {
     it("sends every picked character in priority order (#293)", () => {
-        expect(picksLib.MAX_CHARACTERS).toBe(requireBackend("web/signupCharacters").MAX_CHARACTERS);
+        expect(picksLib.MAX_CHARACTERS).toBe(requireBackend("services/signups/signupCharacters").MAX_CHARACTERS);
     });
 });
 

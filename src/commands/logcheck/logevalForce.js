@@ -1,10 +1,10 @@
 const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
+const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
-const logStore = require("../../web/logStore");
-const discord = require("../../web/discord");
+const logStore = require("../../stores/logStore");
+const discord = require("../../services/discord/discord");
 
 // "Trotzdem auswerten" — the deliberate way past the guard that refuses to
 // evaluate a raid whose final boss is not down yet (see utils/logcheck/
@@ -125,7 +125,7 @@ async function runForcedReport(interaction, reportId) {
 module.exports = {
     name: FORCE_PREFIX,
     description: "Bestätigt die Auswertung eines Logs, dessen Raid noch nicht abgeschlossen ist.",
-    // A component of /logcheck: it needs the same access (web/botAccess.js).
+    // A component of /logcheck: it needs the same access (services/discord/botAccess.js).
     accessOf: "logcheck",
     FORCE_PREFIX,
     CONFIRM_WORD,

@@ -1,6 +1,6 @@
 // Turn raw Raid-Helper raidplan slots into display-ready, role-grouped data for
 // the web admin (class icons + WoW class colours). Discord server emojis don't
-// render on the web, so we use the zamimg class-icon CDN like src/web/render.js.
+// render on the web, so we use the zamimg class-icon CDN like src/web/report/render.js.
 
 // A slot's spec resolves by Raid-Helper alias ("Destro") AND by Raid-Helper's
 // own spec name ("Destruction") — Raid-Helper may send either form.

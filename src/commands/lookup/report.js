@@ -1,8 +1,8 @@
 // /report — the latest log evaluations, each linked to its report page (#265).
 // Building one stays /logcheck; this only finds what exists.
 const { SlashCommandBuilder } = require("discord.js");
-const { listReports } = require("../../web/reportStore");
-const { prepareReportList } = require("../../web/reportList");
+const { listReports } = require("../../stores/reportStore");
+const { prepareReportList } = require("../../services/logcheck/reportList");
 const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/discord/botLookup");
 
 /** How many evaluations the reply lists. */

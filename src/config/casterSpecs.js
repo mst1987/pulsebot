@@ -1,7 +1,7 @@
 // Which specs the caster loot council covers, and what each of them values.
 //
 // The key is `"<Class>-<Spec>"` in Warcraft Logs' own spelling, because that is
-// where class and spec come from (see web/characterInfo.js — the loot exports
+// where class and spec come from (see services/characters/characterInfo.js — the loot exports
 // carry a class at best, never a spec). Everything else hangs off that key:
 // the BiS list, the rotation to sim with, and the stat weights the fallback
 // scoring uses when no sim result is available.

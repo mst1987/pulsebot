@@ -1,8 +1,8 @@
 // scripts/import-raidhelper-history.js (#291): flags, the console summary, and a
 // run that hands its flags to the import. Nothing is read or written for real.
 jest.mock("dotenv", () => ({ config: jest.fn() }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "g-config" })) }));
-jest.mock("../../src/web/raidhelperHistoryImport", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "g-config" })) }));
+jest.mock("../../src/web/events/raidhelperHistoryImport", () => ({
     runImport: jest.fn(async (opts) => ({
         dryRun: opts.dryRun, perCategory: 10, liveError: null, stored: opts.dryRun ? null : { events: 1, entries: 2, users: 2 },
         categories: [{ categoryId: "c1", categoryName: "Mittwoch", events: 1, entries: 2, skipped: 0 }],
@@ -10,7 +10,7 @@ jest.mock("../../src/web/raidhelperHistoryImport", () => ({
     })),
 }));
 
-const { runImport } = require("../../src/web/raidhelperHistoryImport");
+const { runImport } = require("../../src/web/events/raidhelperHistoryImport");
 const { parseArgs, formatResult, main } = require("../../scripts/import-raidhelper-history");
 
 describe("scripts/import-raidhelper-history", () => {

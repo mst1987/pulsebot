@@ -1,7 +1,7 @@
-const { getEvent } = require("../../web/eventStore");
-const { getSignup } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
-const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../web/signupService");
+const { getEvent } = require("../../stores/eventStore");
+const { getSignup } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../services/signups/signupService");
 const {
     STATUS_PREFIX, parseStatusId, resolveState, classLabel, buildSignupDialog, buildCharacterModal,
     savedNotice, plainUpdate,

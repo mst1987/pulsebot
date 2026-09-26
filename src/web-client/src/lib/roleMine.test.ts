@@ -6,7 +6,7 @@ import * as assign from "./assign";
 import * as mv from "./mineView";
 import { requireBackend } from "../test/backend";
 
-const server = requireBackend("web/raidplanAssign");
+const server = requireBackend("services/raidplan/raidplanAssign");
 
 const P = (userId, role) => ({ userId, character: userId, classId: "Rogue", className: "", classColor: "", spec: "", role, group: 1 });
 const players = new Map([["m", P("m", "melee")], ["r", P("r", "ranged")], ["h", P("h", "healer")], ["t", P("t", "tank")], ["d", P("d", "dps")]]);

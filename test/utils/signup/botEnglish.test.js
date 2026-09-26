@@ -7,7 +7,7 @@ const GERMAN = /[äöüÄÖÜß]|\b(der|die|das|du|dich|deinem|nicht|nur|noch|bi
 
 /** The fixed (non-template) sentences a module hands to `fail(...)` / `error:` / `notice:`. */
 function literalSentences(file, pattern) {
-    const src = fs.readFileSync(path.join(__dirname, "../../../src/web", file), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "../../../src/services/signups", file), "utf8");
     return [...src.matchAll(pattern)].map((m) => m[1]);
 }
 

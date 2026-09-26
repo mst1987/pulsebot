@@ -48,7 +48,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   (`wow.zamimg.com/images/wow/journal/ui-ej-boss-*.png` exist for whole encounters, e.g. `illidari-council`,
   not for single adds), the WCL asset CDN has no NPC images (`img/warcraft/npcs/...` answers 403), and guide
   screenshots of other sites are not scraped. `--force` fetches the renders again, `--offline` only re-derives
-  the mapping. `test/web/raidplanMobPortraits.test.js` fails when an NPC of the table has no verified
+  the mapping. `test/services/raidplan/raidplanMobPortraits.test.js` fails when an NPC of the table has no verified
   portrait, no stored file or a wrong size; `test/scripts/png.test.js` covers the codec and the crop.
 - **Placeholder mob icons** (`scripts/fetch-mob-icons.js` -> generated `src/config/generated/mobIcons.json`, the table
   to edit is `scripts/data/raidplanMobIconRules.js`; never edit the JSON). **Source check:** the boss icons come
@@ -59,7 +59,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   files in the repo), picked by the kind of creature; the catalog marks them "Platzhalter-Icon" and an admin
   can override any of them (an override is not marked). The script requests every candidate (HTTP 200 and an
   image), takes the first that exists and writes the check of each icon into the JSON — nothing is entered
-  blind; `test/web/raidplanCatalog.test.js` fails when a default mob has no icon or an icon that was not
+  blind; `test/stores/raidplanCatalogStore.test.js` fails when a default mob has no icon or an icon that was not
   checked. Mapping kind -> icon: infernal spell_shadow_summoninfernal; doomguard spell_shadow_summonfelguard;
   demon spell_shadow_summonvoidwalker; fel spell_fire_felflamestrike; undead spell_shadow_animatedead;
   necromancer spell_shadow_deathcoil; caster spell_frost_frostbolt02; priest spell_holy_holybolt; rogue
@@ -160,7 +160,7 @@ what for the whole fight (cards per type, no order); **Taktik** = the sequence: 
 as numbered steps with a sentence ("Magier-Tank tankt Zerevor · Pull"). Rule of thumb: a line with a moment or
 a verb is a step.
 
-- **Data** (`src/web/raidplanSteps.js`, client `lib/steps.ts`): every section board (boss, trash, Allgemein;
+- **Data** (`src/services/raidplan/raidplanSteps.js`, client `lib/steps.ts`): every section board (boss, trash, Allgemein;
   also in templates) has `steps: [{ id, action, participants, sentence, targets, timing }]`, at most 30.
   `action` is one of 13 fixed actions (tank, swap, kite, adds, interrupt, dispel, cc, soak, focus, buff, heal,
   wait, note; each with an inline line icon, the colour = its group: tanks blue, control violet, position
@@ -214,7 +214,7 @@ a verb is a step.
   — his player or his group —, the verb in the du form `duForm`: "tankt" -> "tankst", "hält" -> "hältst",
   English "tanks" -> "tank"; his chip carries "DU", the one mark), then "Alle Schritte" in their order (his
   own dimmed there so the numbers do not jump); on a phone the rows wrap.
-- Tests: `test/web/raidplanSteps.test.js` (validation, template without players, clamping, board, resolution
+- Tests: `test/services/raidplan/raidplanSteps.test.js` (validation, template without players, clamping, board, resolution
   incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/steps.test.ts` (editing and
   sorting, timing words, sentence parts, du form, @ mentions, resolution, library, starters, structure,
   texts).

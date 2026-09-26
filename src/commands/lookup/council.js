@@ -4,7 +4,7 @@
 // the link.
 const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/tbcLootNames");
-const { itemCatalog } = require("../../web/lootStats");
+const { itemCatalog } = require("../../services/loot/lootStats");
 const { itemLink } = require("../../utils/loot/wowhead");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
 

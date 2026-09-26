@@ -2,7 +2,7 @@
 // channel names, ...), and their tests check both sides agree. The backend is
 // CommonJS, so it is loaded with Node's own require, not through Vite:
 //
-//   const { listRaidTemplates } = requireBackend("web/raidTemplates");
+//   const { listRaidTemplates } = requireBackend("services/events/raidTemplates");
 import { createRequire } from "node:module";
 import path from "node:path";
 

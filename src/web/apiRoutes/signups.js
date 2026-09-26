@@ -8,18 +8,18 @@
 // The PUT works on `user.id` from the session and nothing else: a `userId` in
 // the body is ignored, so nobody changes someone else's signup through it. The
 // rules themselves are signupService.js', shared with the Discord signup (#258).
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups } = require("../raidEventGroups");
-const { getConfig } = require("../settingsStore");
-const discord = require("../discord");
-const profiles = require("../raiderProfileStore");
-const { getEvent, isOwnEventId } = require("../eventStore");
-const { listSignups } = require("../signupStore");
-const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../signupService");
-const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signupView");
-const { noteMode, isNoteStatus, MIN_NOTE } = require("../signupNotes");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups } = require("../../services/events/raidEventGroups");
+const { getConfig } = require("../../stores/settingsStore");
+const discord = require("../../services/discord/discord");
+const profiles = require("../../stores/raiderProfileStore");
+const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const { listSignups } = require("../../stores/signupStore");
+const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
+const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signups/signupView");
+const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 

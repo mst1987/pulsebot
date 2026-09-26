@@ -204,7 +204,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   the tables. "Tasks by player" is gone.
 - **TBC correctness.** Catalog entries may carry `versions` (default: all); the catalog, the pickers and the
   suggestions filter by the event's game version. Misdirection is a hunter's; Tricks of the Trade (Patch
-  3.0.2) is limited to `wotlk` (`SINCE` + `test/web/raidplanCatalogAudit.test.js`). Fear Ward is a spell of
+  3.0.2) is limited to `wotlk` (`SINCE` + `test/services/raidplan/raidplanCatalogAudit.test.js`). Fear Ward is a spell of
   all priests since Patch 2.3.0 (Warcraft Wiki). Only the nine TBC classes exist.
 - **Crash guard.** `RaidplanBoundary` wraps the editors: a render error shows "Etwas ist schiefgelaufen" with
   reload / retry / details instead of a white page. The crash "assignments is not iterable" came from the
@@ -213,7 +213,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 
 ## Count and round robin of class references (feature/raidplan-6b)
 
-- **One resolution, two twins.** `expandClassRefs` in `src/web/raidplanAssign.js` (sheet `/p/<token>`,
+- **One resolution, two twins.** `expandClassRefs` in `src/services/raidplan/raidplanAssign.js` (sheet `/p/<token>`,
   suggestions) and in `src/web-client/src/lib/classRefs.ts` (editor, template editor, facing, "Meine
   Aufgaben") are the same algorithm; `src/web-client/src/lib/classCount.test.ts` runs both on the same boards and
   compares. Per board and **kind of task**: raiders named by hand (`user:`, a filled slot, `picks`) are taken
@@ -255,7 +255,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 - **Seed.** `scripts/seed-test-raid.js` adds on the trash "Beliebiger Tank" and "Tank (Paladin)" rows (the
   paladin row is served first, "any tank" takes the next free tank) and a third misdirect row at the council
   that stays open (two hunters, both already misdirect there).
-- Tests: `test/web/raidplanRoundRobin.test.js` (2 hunters / 3 rows, count, general tank without a ret paladin,
+- Tests: `test/services/raidplan/raidplanRoundRobin.test.js` (2 hunters / 3 rows, count, general tank without a ret paladin,
   no fallback, allow several, migration, suggestions with `keep`), `src/web-client/src/lib/classCount.test.ts`
   (count, carry, candidates, twin check, dialog structure), updated `raidplanClassRefs.test.js` /
   `classRefs.test.js`.
@@ -336,7 +336,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
   Magier, Jäger fehlen". The sheet shows only the chip. A template has no setup and no such warning.
 - Tests: `src/web-client/src/lib/assignModal.test.ts` (categories, people list and filter, counters, class counts,
   preview, row states, card counter, any-spec roles and names, open rows plan-wide, twin check, structure,
-  texts), `classCount.test.js` (count / role of a class in the dialog), `test/web/raidplanRoundRobin.test.js`
+  texts), `classCount.test.js` (count / role of a class in the dialog), `test/services/raidplan/raidplanRoundRobin.test.js`
   (mage tank with `any`, no fallback, healing keeps its role, `any` saved).
 - **Seed**: the council gets "Magier-Tank -> High Nethermancer Zerevor" and a soulstone row for three warlocks
   (the raid has two: one place open).
@@ -471,7 +471,7 @@ mob in the board's order), stored for the label where the map is not at hand.
   the kind and each icon once; `raidplanBoard.cleanBoard` drops an `oid` whose icon is gone or stands for
   another mob (the target means the kind again, its `n` stays); `reidBoard` (a template applied) moves the
   `oid` to the icon's new id.
-- Tests: `src/web-client/src/lib/mobInstances.test.ts`, the `oid` part of `test/web/raidplanBoard.test.js`.
+- Tests: `src/web-client/src/lib/mobInstances.test.ts`, the `oid` part of `test/services/raidplan/raidplanBoard.test.js`.
 
 ### The zoom as in the sheet
 

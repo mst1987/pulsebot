@@ -53,12 +53,12 @@ function arg(name) {
 
 /** The demo template and the event's raid plan (production stores, no HTTP). */
 function seedPlan(eventId, event) {
-    const raidplan = require("../src/web/raidplan");
-    const planStore = require("../src/web/raidplanStore");
-    const templates = require("../src/web/raidplanTemplateStore");
-    const assign = require("../src/web/raidplanAssign");
+    const raidplan = require("../src/web/raidplan/raidplan");
+    const planStore = require("../src/stores/raidplanStore");
+    const templates = require("../src/stores/raidplanTemplateStore");
+    const assign = require("../src/services/raidplan/raidplanAssign");
 
-    const catalog = require("../src/web/raidplanCatalogStore");
+    const catalog = require("../src/stores/raidplanCatalogStore");
     const btBosses = planStore.bossesForInstances(["bt"]);
     const autoDemo = process.argv.includes("--auto-demo");
     const councilMob = (re) => catalog.listMobs().find((m) => m.bossKey === "bt/the-illidari-council" && re.test(m.name));
@@ -200,9 +200,9 @@ function main() {
     if (fs.existsSync(envFile)) require("dotenv").config({ path: envFile });
     const { logcheckAdminIds } = require("../src/config/variables");
     const meId = arg("me") || logcheckAdminIds[0] || "dev";
-    const eventStore = require("../src/web/eventStore");
-    const signupStore = require("../src/web/signupStore");
-    const editor = require("../src/web/setupEditor");
+    const eventStore = require("../src/stores/eventStore");
+    const signupStore = require("../src/stores/signupStore");
+    const editor = require("../src/services/setup/setupEditor");
     const { spec } = require("../src/config/gameVersions");
 
     const wanted = arg("event");

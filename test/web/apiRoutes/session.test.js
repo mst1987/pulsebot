@@ -1,6 +1,6 @@
 const { mockRes, json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -44,13 +44,13 @@ jest.mock("../../../src/web/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 // The account's menu language: none saved unless a test says otherwise.
-jest.mock("../../../src/web/userPrefsStore", () => ({
+jest.mock("../../../src/stores/userPrefsStore", () => ({
     getLang: jest.fn(() => ""),
     setLang: jest.fn((userId, lang) => (["de", "en"].includes(String(lang).trim().toLowerCase()) ? { lang: String(lang).trim().toLowerCase() } : { code: "unknown_lang" })),
 }));
-jest.mock("../../../src/web/dashboardData", () => ({
+jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
     loadLatestReport: jest.fn(() => null),
@@ -65,10 +65,10 @@ jest.mock("../../../src/web/dashboardData", () => ({
 // The dashboard asks GitHub how far the server is behind main. Unmocked, this
 // suite really called api.github.com (found by the network guard, #432) - and
 // its task list then depended on whether the checkout was current.
-jest.mock("../../../src/web/deployStatus", () => ({
+jest.mock("../../../src/web/http/deployStatus", () => ({
     deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
 }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -77,11 +77,11 @@ jest.mock("../../../src/web/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../src/web/categoryNames", () => ({
-    listKnownCategories: (guildId) => (guildId ? require("../../../src/web/discord").listCategories(guildId) : []),
+jest.mock("../../../src/services/discord/categoryNames", () => ({
+    listKnownCategories: (guildId) => (guildId ? require("../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -98,7 +98,7 @@ jest.mock("../../../src/web/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/reportList", () => ({
+jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
@@ -109,15 +109,15 @@ jest.mock("../../../src/web/reportList", () => ({
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
     // the Log-Auswertung list is pure; the route tests run the real one
-    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").prepareClaList(...args)),
-    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").claRowFromLog(...args)),
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
-jest.mock("../../../src/web/logEventMatch", () => ({
+jest.mock("../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -129,26 +129,26 @@ jest.mock("../../../src/web/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/lootAwards", () => ({
+jest.mock("../../../src/web/loot/lootAwards", () => ({
     listAwards: jest.fn(() => ({
         items: [], page: 1, pageSize: 25, total: 0, totalPages: 1,
         topItemCount: 0, contents: [], reasons: [], unknownContentCount: 0,
     })),
     PAGE_SIZE: 25,
 }));
-jest.mock("../../../src/web/characterInfo", () => ({
+jest.mock("../../../src/services/characters/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(() => Promise.resolve({
         fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
     })),
 }));
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -156,7 +156,7 @@ jest.mock("../../../src/web/raiderCharactersStore", () => ({
 }));
 // The report-file scan behind the gear-issue column has its own test
 // (charGearIssues.test.js) — here it is only an input to the roster join.
-jest.mock("../../../src/web/charGearIssues", () => ({
+jest.mock("../../../src/web/characters/charGearIssues", () => ({
     latestIssuesByCharacter: jest.fn(() => ({})),
     issuesForCharacter: jest.fn(() => null),
 }));
@@ -177,7 +177,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -200,15 +200,15 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../src/web/raidListing", () => ({
-    ...jest.requireActual("../../../src/web/raidListing"),
+jest.mock("../../../src/services/events/raidListing", () => ({
+    ...jest.requireActual("../../../src/services/events/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
@@ -225,18 +225,18 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventLootSystemStore", () => ({
+jest.mock("../../../src/stores/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -261,14 +261,14 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 const mockRaidHelperSlots = jest.fn(() => []);
-jest.mock("../../../src/web/setupEditor", () => ({
-    ...jest.requireActual("../../../src/web/setupEditor"),
+jest.mock("../../../src/services/setup/setupEditor", () => ({
+    ...jest.requireActual("../../../src/services/setup/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
-const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
-const discord = require("../../../src/web/discord");
+const auth = require("../../../src/web/http/auth");
+const settingsStore = require("../../../src/stores/settingsStore");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const discord = require("../../../src/services/discord/discord");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../../src/config/permissions");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/session"));
 
@@ -458,7 +458,7 @@ describe("web/apiRoutes/session", () => {
     });
 
     describe("POST /api/session/lang", () => {
-        const userPrefs = require("../../../src/web/userPrefsStore");
+        const userPrefs = require("../../../src/stores/userPrefsStore");
 
         it("saves the language for the caller's own account", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });

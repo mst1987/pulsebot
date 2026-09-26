@@ -1,16 +1,16 @@
-jest.mock("../../../src/web/logChannel.js");
-jest.mock("../../../src/web/discord.js");
-jest.mock("../../../src/web/logStore.js");
+jest.mock("../../../src/services/logcheck/logChannel.js");
+jest.mock("../../../src/services/discord/discord.js");
+jest.mock("../../../src/stores/logStore.js");
 jest.mock("../../../src/utils/logcheck/report.js", () => ({
     reportSummaryLines: jest.fn(() => ["👥 Raider: **25**"]),
 }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/logcheck/logeval.js");
-const { evaluateLog } = require("../../../src/web/logChannel.js");
+const { evaluateLog } = require("../../../src/services/logcheck/logChannel.js");
 const { reportSummaryLines } = require("../../../src/utils/logcheck/report.js");
-const logStore = require("../../../src/web/logStore.js");
-const discord = require("../../../src/web/discord.js");
+const logStore = require("../../../src/stores/logStore.js");
+const discord = require("../../../src/services/discord/discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 beforeEach(() => {

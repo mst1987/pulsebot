@@ -1,38 +1,38 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData");
-const { getConfig, saveConfig } = require("../settingsStore");
-const { listLogs, deleteLog } = require("../logStore");
-const { logPostedAt } = require("../reportList");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
+const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboard/dashboardData");
+const { getConfig, saveConfig } = require("../../stores/settingsStore");
+const { listLogs, deleteLog } = require("../../stores/logStore");
+const { logPostedAt } = require("../../services/logcheck/reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
     decorate: decorateLootItem,
-} = require("../lootStore");
-const { lootStats } = require("../lootStats");
-const { listAwards } = require("../lootAwards");
-const { withClassLook: withLootClassLook } = require("../lootClassLook");
-const { lootCatalog, suggestedContents } = require("../lootCatalog");
+} = require("../../stores/lootStore");
+const { lootStats } = require("../../services/loot/lootStats");
+const { listAwards } = require("../loot/lootAwards");
+const { withClassLook: withLootClassLook } = require("../loot/lootClassLook");
+const { lootCatalog, suggestedContents } = require("../loot/lootCatalog");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
-const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
-const { getCharacter } = require("../characterStore");
-const { issuesForCharacter } = require("../charGearIssues");
+const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../../services/characters/characterInfo");
+const { getCharacter } = require("../../stores/characterStore");
+const { issuesForCharacter } = require("../characters/charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
-const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
+const { bestDayMatch, formatDayDisplay, dayKey } = require("../loot/lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions,
-} = require("../lootInboxStore");
-const { sessionContentLabel } = require("../lootSessionContent");
-const { previewImport } = require("../lootImportPreview");
+} = require("../../stores/lootInboxStore");
+const { sessionContentLabel } = require("../loot/lootSessionContent");
+const { previewImport } = require("../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
-const { armoryUrlFor, wclUrlFor } = require("../charLinks");
+const { armoryUrlFor, wclUrlFor } = require("../characters/charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
-const discord = require("../discord");
-const { listKnownCategories } = require("../categoryNames");
+const discord = require("../../services/discord/discord");
+const { listKnownCategories } = require("../../services/discord/categoryNames");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

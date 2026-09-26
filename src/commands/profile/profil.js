@@ -8,7 +8,7 @@
 // The switches belong to a character; the buttons act on the main — the other
 // characters are switched on the web page.
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
-const profiles = require("../../web/raiderProfileStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 
 const GEAR_LABELS = { none: "no gear", usable: "usable", ready: "raid ready" };

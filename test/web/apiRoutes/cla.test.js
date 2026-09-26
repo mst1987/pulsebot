@@ -1,6 +1,6 @@
 const { json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -44,13 +44,13 @@ jest.mock("../../../src/web/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -67,7 +67,7 @@ jest.mock("../../../src/web/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/reportList", () => ({
+jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
@@ -78,19 +78,19 @@ jest.mock("../../../src/web/reportList", () => ({
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
     // the Log-Auswertung list is pure; the route tests run the real one
-    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").prepareClaList(...args)),
-    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").claRowFromLog(...args)),
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
-jest.mock("../../../src/web/logEventMatch", () => ({
+jest.mock("../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/logChannel", () => ({
+jest.mock("../../../src/services/logcheck/logChannel", () => ({
     evaluateLog: jest.fn(),
     scanLogChannels: jest.fn(),
     backfillLogTitles: jest.fn(() => Promise.resolve(0)),
 }));
-jest.mock("../../../src/web/manualLog", () => ({ linkLogByUrl: jest.fn() }));
+jest.mock("../../../src/web/logcheck/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../../src/utils/logcheck/report", () => {
     class ReportError extends Error {}
     const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"];
@@ -108,12 +108,12 @@ jest.mock("../../../src/utils/logcheck/report", () => {
     };
 });
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -136,7 +136,7 @@ jest.mock("../../../src/utils/loot/lootImport", () => {
         LootParseError,
     };
 });
-jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
@@ -159,7 +159,7 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
@@ -188,19 +188,19 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
         itemLink: actual.itemLink,
     };
 });
-const auth = require("../../../src/web/auth");
-const reportStore = require("../../../src/web/reportStore");
-const settingsStore = require("../../../src/web/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
-const discord = require("../../../src/web/discord");
-const logStore = require("../../../src/web/logStore");
-const reportList = require("../../../src/web/reportList");
-const logEventMatch = require("../../../src/web/logEventMatch");
-const logChannel = require("../../../src/web/logChannel");
-const evalJobs = require("../../../src/web/evalJobs");
+const auth = require("../../../src/web/http/auth");
+const reportStore = require("../../../src/stores/reportStore");
+const settingsStore = require("../../../src/stores/settingsStore");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const discord = require("../../../src/services/discord/discord");
+const logStore = require("../../../src/stores/logStore");
+const reportList = require("../../../src/services/logcheck/reportList");
+const logEventMatch = require("../../../src/services/logcheck/logEventMatch");
+const logChannel = require("../../../src/services/logcheck/logChannel");
+const evalJobs = require("../../../src/web/logcheck/evalJobs");
 // Background jobs settle a microtask after they are queued.
 const flushJobs = () => new Promise((r) => setImmediate(r));
-const manualLog = require("../../../src/web/manualLog");
+const manualLog = require("../../../src/web/logcheck/manualLog");
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/cla"));
 

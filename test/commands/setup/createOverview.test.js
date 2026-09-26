@@ -22,7 +22,7 @@ describe("commands/setup/createOverview", () => {
     });
 
     it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
-        // The check itself runs centrally before execute (src/web/botAccess.js).
+        // The check itself runs centrally before execute (src/services/discord/botAccess.js).
         expect(createOverview.defaultAccess).toBe("admins");
         expect(typeof createOverview.group).toBe("string");
     });

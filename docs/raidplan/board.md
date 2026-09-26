@@ -67,10 +67,10 @@ proxy's HTML.
   (or the deep link).
 - The right-click on a boss chip opens a small menu: "Aus dem Sheet ausklammern / Ins Sheet aufnehmen" and
   (boss / trash) "Karte ausblenden / anzeigen" (`BossNav` `onMap`). A test that `showMap` travels with
-  "Vorlage anwenden" and "Vorlage duplizieren": `test/web/raidplanAutoPlace.test.js`.
-- Tests: `src/web-client/src/lib/raidplanSection.test.ts`, `test/web/raidplanBoard.test.js` (flag),
-  `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/web/raidplanStore.test.js`,
-  `test/web/raidplanInherit.test.js`.
+  "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
+- Tests: `src/web-client/src/lib/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
+  `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
+  `test/services/raidplan/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)
 
@@ -143,7 +143,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   auto tank (`autoPlaces` into `board.places`).
 - Tests: `src/web-client/src/lib/autoPlace.test.ts` (derivation, instances, layout without overlap, overrides, one
   place per player, template placeholder vs. event player vs. missing, facing, the menu helpers, wiring),
-  `test/web/raidplanAutoPlace.test.js` (validation, mob numbers, reidBoard / apply / duplicate keep positions
+  `test/services/raidplan/raidplanAutoPlace.test.js` (validation, mob numbers, reidBoard / apply / duplicate keep positions
   and `showMap`), `test/web/apiRoutes/raidplan.test.js` (public API with and without the map).
 - **Look of the auto objects** (`board.autoStyle { [key]: { size, opacity, ring, showName, label, showLabel,
   rotation, autoFace, hidden, lock, z } }`, only what differs from the default, validated by
@@ -166,7 +166,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   lock of a selection include them, "delete" leaves them (they go with their row).
 - Tests (look): `src/web-client/src/lib/autoStyle.test.ts` (style through the lib functions, ranges, lock, order,
   reset, the plan uses it, spacing grows without overlap, multi selection),
-  `test/web/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
+  `test/services/raidplan/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
   apply and duplicate), `test/web/apiRoutes/raidplan.test.js` (public API).
 
 ## Facing arrow per icon and role group placeholders (feature/raidplan-10)
@@ -200,7 +200,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   and in the targets. Shown as a role chip with its icon (editor rows, sheet tables, preview, steps).
 - Tests: `src/web-client/src/lib/arrowRoleGroup.test.ts` (arrow functions and clamps, auto mobs, several at once, the
   CSS rule in reference units, inserting / moving / sizing a role group, role references in the dialog and in
-  steps), `test/web/raidplanRoleArrow.test.js` (validation of the arrow fields and of role groups, role
+  steps), `test/services/raidplan/raidplanRoleArrow.test.js` (validation of the arrow fields and of role groups, role
   references in rows and steps, copies keep them).
 
 ## Round 11 (feature/raidplan-11): width, role groups for "Meine Aufgaben", a turned role group
@@ -278,7 +278,7 @@ Tests: "a group's own token size" in `src/web-client/src/lib/raidplan.roleGroups
   zero-wide anchor, so every name broke at its spaces ("Darkdisi /" + "Lakunoc").
 
 Tests: "role groups and group chips scale with themselves" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`, "a group
-chip's width" in `test/web/raidplanBoard.test.js`.
+chip's width" in `test/services/raidplan/raidplanBoard.test.js`.
 
 ## Role groups: turned, names inside, symbol size, label outside (feature/raidplan-16)
 
@@ -316,7 +316,7 @@ chip's width" in `test/web/raidplanBoard.test.js`.
 
 Tests: "role groups turned, their names inside" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`, "role groups in a
 multi-selection" in `src/web-client/src/lib/multiOptions.test.ts`, "a role group's symbol size and label place" in
-`test/web/raidplanBoard.test.js`.
+`test/services/raidplan/raidplanBoard.test.js`.
 
 ## Section bar and boss icons (feature/raidplan-16, part 3)
 

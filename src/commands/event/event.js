@@ -1,18 +1,18 @@
 // /event anlegen (#260): step 1 of creating an event from Discord — an
 // ephemeral message with the selects. The selects and buttons are
 // eventCreateStep.js, the modal is eventCreateModal.js, the logic is
-// web/eventDraft.js and the creation itself web/eventCreate.js.
+// services/events/eventDraft.js and the creation itself services/events/eventCreate.js.
 //
 // /event verwalten (#288): the actions for an EventHelper event — the one named
 // in `event` (autocomplete), else the one of the current channel. Its buttons
 // are eventManageStep.js, its modals eventManageForm.js, the logic
-// web/eventManageBot.js on top of web/eventManage.js. The message context menu
+// services/events/eventManageBot.js on top of services/events/eventManage.js. The message context menu
 // "Event verwalten" (eventManageContext.js) opens the same message.
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
-const { openPayload } = require("../../web/eventManageBot");
-const { listEvents } = require("../../web/eventStore");
-const { whenLabel } = require("../../web/eventManage");
+const { guildFor, initialState, stepMessage } = require("../../services/events/eventDraft");
+const { openPayload } = require("../../services/events/eventManageBot");
+const { listEvents } = require("../../stores/eventStore");
+const { whenLabel } = require("../../services/events/eventManage");
 const { respondChoices } = require("../../utils/discord/botLookup");
 
 // Events that started more than a day ago are no longer offered.

@@ -3,7 +3,7 @@
 // on top of them, so the rules under test are the real ones. Use from a
 // jest.mock factory:
 //
-//   jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
+//   jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 //
 // The raider profiles use the real store on a temp file (raiderProfileStore.useFile).
 const events = new Map();
@@ -48,7 +48,7 @@ function eventStore() {
 }
 
 function signupStore() {
-    const actual = jest.requireActual("../../src/web/signupStore");
+    const actual = jest.requireActual("../../src/stores/signupStore");
     const list = (eventId) => [...signups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
     return {
         normalizeSignup: actual.normalizeSignup,

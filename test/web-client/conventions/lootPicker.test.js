@@ -4,7 +4,7 @@
 // The item picker lists one raid's closed drop table; the raider picker lists an
 // open-ended set of names. Only the second may be cut short — capping the first
 // turned "Alle Bosse" into "the alphabetically first boss", because the
-// catalogue arrives sorted by boss (src/web/lootCatalog.js's byBossThenName).
+// catalogue arrives sorted by boss (src/web/loot/lootCatalog.js's byBossThenName).
 // There is no React renderer here, so what is checked is the source invariant.
 const fs = require("fs");
 const path = require("path");

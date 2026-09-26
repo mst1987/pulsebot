@@ -4,7 +4,7 @@ const { botEditReply } = require("../../utils/discord/reply");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const { setupResponse } = require("../../utils/setup/response");
 const messages = require("../../config/messages");
-const { ownSignedUpEvents } = require("../../web/eventSources");
+const { ownSignedUpEvents } = require("../../services/events/eventSources");
 
 module.exports = {
     name: "show-allsetups",

@@ -1,5 +1,5 @@
 // The step bar of an own event (#319) as drawn from what the server sends
-// (src/web/raidDetailSteps.js' eventSteps): the route in the server's order,
+// (src/web/events/raidDetailSteps.js' eventSteps): the route in the server's order,
 // the open step marked with the one loud button, every other step quiet, the
 // one-line summary a phone falls back to, and no native title or glyph icons.
 // The words behind it run in lib/raidSteps.test.ts; the wiring into the page
@@ -14,7 +14,7 @@ import { requireBackend } from "../../test/backend";
 import { eventStep, ownSteps } from "../../test/fixtures/raidDetail";
 import StepBar from "./StepBar";
 
-const { eventSteps } = requireBackend("web/raidDetailSteps");
+const { eventSteps } = requireBackend("web/events/raidDetailSteps");
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
 const inHours = (h: number) => Math.floor((NOW + h * 3600 * 1000) / 1000);

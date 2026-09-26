@@ -108,7 +108,9 @@ A rough map without file lists (`ls` is always current); each row names the doc 
 | `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
 | `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
 | `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
-| `src/web/` | HTTP server, `apiRoutes/`, stores (`*Store.js`), report rendering, Discord side of web features | docs/web-admin.md |
+| `src/stores/` | The JSON stores (`*Store.js` on `jsonStore.js`), `configStore`/`configSchema`, the `settingsStore` facade | docs/data-storage.md |
+| `src/services/<area>/` | Domain logic commands, utils and web share (`events/`, `signups/`, `setup/`, `raidplan/`, `discord/`, `loot/`, `characters/`, `logcheck/`, `talk/`) | docs/web-admin.md |
+| `src/web/` | HTTP only: `http/` (server, router, auth, jobs), `apiRoutes/`, `report/` + `pages/` (SSR), per area what only the web reads (`events/`, `loot/`, …). `commands/` and `utils/` never require from here (`test/docs/layering.test.js`) | docs/web-admin.md |
 | `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
 | `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
 | `assets/` | Checked-in images (app emojis) | docs/signups.md |
@@ -172,16 +174,16 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 ## Testing
 
 The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
-- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
-- A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
-- A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/lootCouncil.gear.test.js`).
+- `utils/`, `classes/`, `commands/`, `config/`, `stores/`, `services/` and `web/` are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
+- A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/http/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
+- A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/loot/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
 - The React client has its own suite: **Vitest** (jsdom + Testing Library), `cd src/web-client && npm test`, tests as `*.test.ts(x)` next to the module; behaviour is tested by rendering, only structural conventions stay as source scans in `test/web-client/conventions/` (Jest). Details in docs/testing.md, "Web-Client".
 
 - Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
 - **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request; `test/setup/noNetwork.js` (`setupFiles`) enforces it: unmocked axios, `http(s).request/get` and `fetch` throw and fail the test, even when the code swallows the error (loopback stays open). `coverageThreshold` in `jest.config.js` sits about a point under the measured coverage, so `npm run test:coverage` fails when it sinks; console output is shown only for failing tests.
-- **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/web/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
+- **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/stores/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
 - Prefer testing pure logic directly (formatters in `utils/format.js`, date math in `utils/time/index.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
 - ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 

@@ -190,7 +190,7 @@ function accessForUser(userPermissions, userId) {
 }
 
 /**
- * Whether a session user (see web/auth.js) may read/write the given area.
+ * Whether a session user (see web/http/auth.js) may read/write the given area.
  * Full admins always may.
  */
 function userCan(user, area, level = "read") {

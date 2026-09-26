@@ -5,8 +5,8 @@ jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/utils/discord/reply.js");
 jest.mock("../../../src/utils/raidhelper/queries.js");
 jest.mock("../../../src/utils/setup/response.js");
-jest.mock("../../../src/web/eventSources", () => ({ ownSignedUpEvents: jest.fn(() => []) }));
-const eventSources = require("../../../src/web/eventSources");
+jest.mock("../../../src/services/events/eventSources", () => ({ ownSignedUpEvents: jest.fn(() => []) }));
+const eventSources = require("../../../src/services/events/eventSources");
 
 const Raidhelper = require("../../../src/classes/raidhelper.js");
 const reply = require("../../../src/utils/discord/reply.js");

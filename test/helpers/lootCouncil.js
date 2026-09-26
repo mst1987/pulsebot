@@ -1,4 +1,4 @@
-// Shared rows for the web/lootCouncil suites (test/web/lootCouncil.*.test.js):
+// Shared rows for the web/loot/lootCouncil suites (test/web/lootCouncil.*.test.js):
 // a loot row, a charGear entry and a worn item, all relative to one `now`.
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();

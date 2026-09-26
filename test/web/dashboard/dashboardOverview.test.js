@@ -1,0 +1,254 @@
+// The rules behind the start page ("Übersicht"): which raid icon, how full a
+// role is, which tasks are open, what the evaluation tile counts.
+const {
+    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    _internal: {
+        roleBucket, FALLBACK_ZONE_ICON,
+    },
+} = require("../../../src/web/dashboard/dashboardOverview");
+
+describe("web/dashboard/dashboardOverview", () => {
+    describe("zoneForEvent (#291)", () => {
+        it("takes an own event's raids, newest content first, and the title otherwise", () => {
+            expect(zoneForEvent({ source: "eventhelper", title: "Mittwoch", instanceIds: ["tk", "ssc"] })).toEqual({ contentId: "tk", icon: "achievement_boss_kael'thassunstrider_01" });
+            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["ony"] }).contentId).toBe("kara");
+            expect(zoneForEvent({ source: "raidhelper", title: "Black Temple", instanceIds: ["kara"] }).contentId).toBe("bt");
+            expect(zoneForEvent(null).contentId).toBe("");
+        });
+    });
+
+    describe("zoneFor", () => {
+        it("names the final boss of the raid a title names", () => {
+            expect(zoneFor("Black Temple – Clear")).toEqual({ contentId: "bt", icon: "achievement_boss_illidan" });
+            expect(zoneFor("Hyjal Montag").icon).toBe("achievement_boss_archimonde-");
+            expect(zoneFor("SSC").icon).toBe("achievement_boss_ladyvashj");
+        });
+
+        it("takes the newest content of a combined night", () => {
+            expect(zoneFor("Hyjal + BT").contentId).toBe("bt");
+        });
+
+        it("never guesses a boss for an unknown title", () => {
+            expect(zoneFor("Gildenabend")).toEqual({ contentId: "", icon: FALLBACK_ZONE_ICON });
+        });
+    });
+
+    describe("raidSize", () => {
+        it("prefers the softres list's size, then the content", () => {
+            expect(raidSize("bt", 10)).toBe(10);
+            expect(raidSize("kara", 0)).toBe(10);
+            expect(raidSize("bt", 0)).toBe(25);
+            expect(raidSize("", 0)).toBe(25);
+        });
+    });
+
+    describe("roleBucket / roleFill", () => {
+        it("reads Raid-Helper's role name first, the spec second", () => {
+            expect(roleBucket({ roleName: "Tanks", specName: "Fury" })).toBe("tank");
+            expect(roleBucket({ specName: "Protection1" })).toBe("tank");
+            expect(roleBucket({ specName: "Holy1" })).toBe("healer");
+            expect(roleBucket({ specName: "Retribution" })).toBe("dps");
+            expect(roleBucket({ specName: "" })).toBe("dps");
+        });
+
+        it("counts the raidplan when one is built, the attending signups otherwise", () => {
+            const signUps = [
+                { specName: "Protection1" }, { specName: "Holy1" }, { specName: "Retribution" },
+                { specName: "Absence" }, { specName: "Holy1", status: "tentative" },
+            ];
+            const fromSignups = roleFill({ signUps, size: 25 });
+            expect(fromSignups.map((r) => [r.key, r.filled, r.target])).toEqual([["tank", 1, 3], ["healer", 1, 6], ["dps", 1, 16]]);
+
+            const slots = [{ name: "A", specName: "Protection1" }, { name: "B", specName: "Protection1" }, { name: "", specName: "Holy1" }];
+            const fromSetup = roleFill({ setupSlots: slots, signUps, size: 10 });
+            expect(fromSetup.map((r) => [r.key, r.filled, r.target])).toEqual([["tank", 2, 2], ["healer", 0, 3], ["dps", 0, 5]]);
+        });
+    });
+
+    it("groups attending signups by class, biggest first", () => {
+        const out = classCounts([
+            { specName: "Holy1" }, { specName: "Retribution" }, { specName: "Protection1" },
+            { specName: "Absence" }, { specName: "Unknown" },
+        ]);
+        expect(out[0]).toMatchObject({ className: "Paladin", label: "Paladin", count: 3, icon: "classicon_paladin" });
+        expect(out).toHaveLength(1);
+    });
+
+    it("lists who has not said yes, tentative first, with the assigned character's name", () => {
+        const rows = notSignedUp({
+            missing: [{ id: "u1", displayName: "Zed" }],
+            responded: [
+                { id: "u2", displayName: "Anna", status: "tentative", character: "Mondklinge", profile: { className: "Druid", classColor: "#FF7D0A" } },
+                { id: "u3", displayName: "Bob", status: "signed" },
+                { id: "u4", displayName: "Cid", status: "absence" },
+            ],
+            specHistory: { u2: "Restoration" },
+        });
+        expect(rows.map((r) => [r.name, r.status, r.statusLabel])).toEqual([
+            ["Mondklinge", "tentative", "Tentative"], ["Zed", "none", "keine Antwort"], ["Cid", "absence", "Abwesend"],
+        ]);
+        expect(rows[0]).toMatchObject({ className: "Druid", role: "Heiler" });
+    });
+
+    it("counts only recommendations nobody decided on", () => {
+        expect(openRecommendations(null)).toBe(0);
+        expect(openRecommendations({
+            raid: [{ approved: null }, { approved: true }],
+            players: [{ items: [{ approved: null }, { approved: false }] }, { items: [{ approved: null }] }],
+        })).toBe(3);
+    });
+
+    describe("lastReportArea", () => {
+        it("adds gear, consumables and buffs to the problem count and keeps the parts for the tooltip", () => {
+            const area = lastReportArea(
+                { id: "r1", title: "BT", zone: "Black Temple", generatedAt: 5 },
+                {
+                    timeline: { fights: [{ encounterId: 1, kill: false }, { encounterId: 1, kill: true }, { encounterId: 2, kill: true }] },
+                    mechanics: { deaths: { total: 7, avoidable: 3 } },
+                    players: [{ issues: [1, 2] }, { issues: [3] }],
+                    consumables: { players: [{ buffed: 40 }, { buffed: 95 }] },
+                    raidBuffs: { players: [{ missing: 2 }, { missing: 0 }] },
+                },
+            );
+            expect(area).toMatchObject({
+                id: "r1", icon: "achievement_boss_illidan", bosses: 2, kills: 2, deaths: 7, avoidableDeaths: 3,
+                gear: 3, consumables: 1, buffs: 1, problems: 5,
+            });
+        });
+
+        it("is null without a report and tolerates an unreadable one", () => {
+            expect(lastReportArea(null, null)).toBeNull();
+            expect(lastReportArea({ id: "r", zone: "" }, null)).toMatchObject({ problems: 0, deaths: null, bosses: 0 });
+        });
+    });
+
+    it("counts awards since a raid, with a little slack before its start", () => {
+        const start = 10 * 3600 * 1000;
+        const awards = [{ awardedAt: start + 1 }, { awardedAt: start - 3600 * 1000 }, { awardedAt: start - 7 * 3600 * 1000 }];
+        expect(newLootSince(awards, start)).toBe(2);
+        expect(newLootSince(awards, 0)).toBe(0);
+    });
+
+    describe("buildTasks", () => {
+        it("has no task when nothing is open", () => {
+            expect(buildTasks({})).toEqual([]);
+            expect(buildTasks({
+                nextRaids: [{ id: "n1", sheet: { url: "x" } }],
+                recentEvents: [{ id: "e1", pendingLogCount: 0 }],
+                report: { id: "r1", open: 0 },
+                inbox: [],
+            })).toEqual([]);
+        });
+
+        it("shows every open task once, each leading to where it is done", () => {
+            const tasks = buildTasks({
+                nextRaids: [{ id: "n1", title: "BT", startTime: 100, sheet: null }, { id: "n2", title: "Hyjal", startTime: 200, sheet: null }],
+                recentEvents: [{ id: "e1", title: "Hyjal", startTime: 50, pendingLogCount: 2 }, { id: "e2", pendingLogCount: 1 }],
+                report: { id: "r1", zone: "Black Temple", generatedAt: 9, open: 7 },
+                inbox: [{ items: [1, 2, 3] }],
+            });
+            expect(tasks.map((t) => [t.id, t.tone, t.count, t.href])).toEqual([
+                ["sheet", "bad", 2, "/raids/detail?event=n1"],
+                ["recommendations", "mid", 7, "/r/r1#raid"],
+                ["logs", "mid", 3, "/raids/detail?event=e1&tab=logs"],
+                ["inbox", "accent", 1, "/history?tab=inbox"],
+            ]);
+            expect(tasks[0].ref).toEqual({ title: "BT", at: 100000 });
+            expect(tasks[3].ref).toEqual({ text: "1 Sitzung · 3 Items" });
+            for (const t of tasks) {
+                expect(t.tip).toBeTruthy();
+                expect(t.tipSub).toBeTruthy();
+            }
+        });
+
+        it("drops the count badge for a single missing sheet", () => {
+            const [task] = buildTasks({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null }] });
+            expect(task.count).toBe(0);
+        });
+
+        // Issue #259: archived channels wait for an admin, never for a timer.
+        it("reminds of archived channels and turns yellow past the deadline", () => {
+            expect(buildTasks({ archive: { count: 0, overdue: 0, hintDays: 14 } })).toEqual([]);
+            const [waiting] = buildTasks({ archive: { count: 3, overdue: 0, hintDays: 14 } });
+            expect(waiting).toMatchObject({ id: "channels", tone: "accent", tile: "channels", count: 3, href: "/channels?tab=archive" });
+            expect(waiting.ref.text).toBe("3 Kanäle warten auf Löschung");
+            const [overdue] = buildTasks({ archive: { count: 3, overdue: 1, hintDays: 14 } });
+            expect(overdue).toMatchObject({ tone: "mid", tile: "mid" });
+            expect(overdue.ref.text).toBe("1 Kanal wartet länger als 14 Tage");
+        });
+    });
+});
+
+// "Server ist n Commits hinter main" (#314): eight merged PRs never reached the
+// server because the deploy failed silently every single time.
+describe("deployTask", () => {
+    const { buildTasks: tasksFor, _internal: { deployTask, DEPLOY_GUIDE_URL } } = require("../../../src/web/dashboard/dashboardOverview");
+    const NOW = Date.parse("2026-09-20T12:00:00Z");
+    const behind = (over) => ({
+        status: "behind", behind: 9, short: "a1b2c3d", committedAt: "2026-09-12T10:00:00Z",
+        behindSince: "2026-09-14T12:00:00Z", latest: { short: "9f8e7d6" }, ...over,
+    });
+
+    it("has no task while the server is current", () => {
+        expect(deployTask({ status: "current", behind: 0, short: "a1b2c3d" }, NOW)).toBeNull();
+    });
+
+    it("has no task when the distance is not checkable — a footnote, never an open item", () => {
+        expect(deployTask({ status: "unknown", reason: "unreachable", behind: 0, short: "a1b2c3d" }, NOW)).toBeNull();
+        expect(deployTask(null, NOW)).toBeNull();
+        expect(deployTask({ status: "behind", behind: 0 }, NOW)).toBeNull();
+    });
+
+    it("names the number of commits, the age and both shas, and links to the guide", () => {
+        const task = deployTask(behind(), NOW);
+        expect(task).toMatchObject({ id: "deploy", tone: "mid", tile: "settings", count: 9, href: DEPLOY_GUIDE_URL });
+        expect(task.title).toBe("Server ist 9 Commits hinter main (seit 6 Tagen)");
+        expect(task.ref.text).toBe("läuft auf a1b2c3d · main auf 9f8e7d6");
+        expect(DEPLOY_GUIDE_URL).toMatch(/^https:\/\/github\.com\//);
+    });
+
+    it("is yellow from the first commit and red once the backlog is a week old", () => {
+        expect(deployTask(behind({ behind: 1, behindSince: "2026-09-20T09:00:00Z" }), NOW)).toMatchObject({ tone: "mid", count: 1 });
+        expect(deployTask(behind({ behindSince: "2026-09-13T11:00:00Z" }), NOW).tone).toBe("bad");
+        // Exactly seven days is already red.
+        expect(deployTask(behind({ behindSince: "2026-09-13T12:00:00Z" }), NOW).tone).toBe("bad");
+        expect(deployTask(behind({ behindSince: "2026-09-13T13:00:00Z" }), NOW).tone).toBe("mid");
+    });
+
+    it("says one Commit in the singular and leaves the age out without a date", () => {
+        expect(deployTask(behind({ behind: 1, behindSince: "" }), NOW).title).toBe("Server ist 1 Commit hinter main");
+    });
+
+    it("leads the task list — everything else may be about code that is not running", () => {
+        const tasks = tasksFor({ deploy: behind(), roleDrift: { total: 1, groups: [{ roleName: "R", guildName: "T", members: [{}] }] } });
+        expect(tasks[0].id).toBe("deploy");
+    });
+
+    it("is absent from the list for a dashboard without deploy data", () => {
+        expect(tasksFor({}).map((t) => t.id)).not.toContain("deploy");
+    });
+});
+
+// Role-sync drift (#264) as a dashboard task.
+describe("roleDriftTask", () => {
+    const { buildTasks: tasksFor, _internal: { roleDriftTask } } = require("../../../src/web/dashboard/dashboardOverview");
+
+    it("has no task without drift", () => {
+        expect(roleDriftTask(null)).toBeNull();
+        expect(roleDriftTask({ groups: [], total: 0 })).toBeNull();
+    });
+
+    it("names the first role and the server the members kept it on", () => {
+        const drift = {
+            total: 4,
+            groups: [
+                { roleName: "Raider", guildName: "Pulse Talk", members: [{}, {}, {}] },
+                { roleName: "Trial", guildName: "Pulse Talk", members: [{}] },
+            ],
+        };
+        const task = roleDriftTask(drift);
+        expect(task).toMatchObject({ id: "rolesync", tone: "mid", count: 4, href: "/settings?section=discordserver" });
+        expect(task.ref.text).toBe("3 Mitglieder haben @Raider nur noch auf Pulse Talk · +1 Rolle");
+        expect(tasksFor({ roleDrift: drift }).map((t) => t.id)).toEqual(["rolesync"]);
+    });
+});

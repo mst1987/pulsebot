@@ -42,7 +42,7 @@ describe("Recruitment page conventions", () => {
 
     it("gives the preview's button the same default label as the message the bot posts", () => {
         const preview = read("components", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
-        const bot = fs.readFileSync(path.join(ROOT, "src", "web", "discord.js"), "utf8").match(/template\.buttonLabel \|\| "([^"]+)"/);
+        const bot = fs.readFileSync(path.join(ROOT, "src", "services", "discord", "discord.js"), "utf8").match(/template\.buttonLabel \|\| "([^"]+)"/);
         expect(preview).not.toBeNull();
         expect(bot).not.toBeNull();
         expect(preview[1]).toBe(bot[1]);

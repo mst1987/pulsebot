@@ -1,6 +1,6 @@
 // Draws the bot's flat UI icons (leader, date, time, the signup statuses, …) and
 // rasterises them into the PNGs that are uploaded as application emojis
-// `eh_ui_<name>` (src/web/appEmojis.js, UI_ICONS).
+// `eh_ui_<name>` (src/services/discord/appEmojis.js, UI_ICONS).
 //
 //   node scripts/render-ui-emojis.js     writes assets/emojis/eh_ui_<name>.png
 //
@@ -12,7 +12,7 @@
 // the application by deleting the old one in the developer portal first.
 const fs = require("fs");
 const path = require("path");
-const { UI_ICONS, uiIconFile } = require("../src/web/appEmojis");
+const { UI_ICONS, uiIconFile } = require("../src/services/discord/appEmojis");
 
 const SIZE = 128;
 const COLOR = "#B9BBBE";

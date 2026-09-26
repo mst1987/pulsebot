@@ -6,7 +6,7 @@ import { t } from "../i18n";
 import { inLang } from "../test/i18n";
 import { requireBackend } from "../test/backend";
 
-const server = requireBackend("web/raidplanAssign");
+const server = requireBackend("services/raidplan/raidplanAssign");
 
 const P = (userId, classId, role) => ({ userId, character: userId, classId, role, group: 1 });
 const row = (id, type, assignees, targets = [], extra = {}) => ({ id, type, title: "", spell: null, assignees, targets, note: "", suggested: false, ...extra });

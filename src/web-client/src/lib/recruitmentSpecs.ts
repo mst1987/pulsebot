@@ -1,4 +1,4 @@
-// Ported 1:1 from src/utils/recruitmentSpecs.js (the SSR admin's spec-picker
+// Ported 1:1 from src/utils/recruitment/recruitmentSpecs.js (the SSR admin's spec-picker
 // parsing logic) — same regex, same block-detection/insert/remove behavior, so
 // a template's "## <emoji> Spec Name" block round-trips identically whether
 // edited in the classic admin or here. The class/spec catalog itself is NOT
@@ -112,7 +112,7 @@ export type WantedSpec = { name: string; iconName: string; iconId: string };
 /**
  * The specs a message asks for, in the order its wanted-specs block lists them —
  * one entry per line that resolves to a known spec. Twin of specsInContent() in
- * src/utils/recruitmentSpecs.js, which the tests exercise.
+ * src/utils/recruitment/recruitmentSpecs.js, which the tests exercise.
  */
 export function specsInContent(body: string, catalog: SpecCatalogEntry[]): WantedSpec[] {
     return parseWantedBlock(body, catalog).entries

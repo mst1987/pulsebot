@@ -1,12 +1,12 @@
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
-const { buildRoster, rosterCharacter } = require("../roster");
-const { rosterStats } = require("../rosterStats");
-const rosterHidden = require("../rosterHiddenStore");
-const { repairItemNames: repairLootItemNames } = require("../lootStore");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
+const { buildRoster, rosterCharacter } = require("../characters/roster");
+const { rosterStats } = require("../characters/rosterStats");
+const rosterHidden = require("../../stores/rosterHiddenStore");
+const { repairItemNames: repairLootItemNames } = require("../../stores/lootStore");
 const { sourceForItem, content, tier } = require("../../config/tbcContent");
-const { bisSpecsView } = require("../lootCouncil");
+const { bisSpecsView } = require("../loot/lootCouncil");
 
 // How many item ids one character request may ask about — a paperdoll has 19.
 const MAX_ITEM_IDS = 30;

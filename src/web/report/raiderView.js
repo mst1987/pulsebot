@@ -3,8 +3,8 @@
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
 const { plural } = require("../../utils/text");
-const { fmtTime, PX_PER_SEC } = require("../charts");
-const { ICONS } = require("../adminChrome");
+const { fmtTime, PX_PER_SEC } = require("./charts");
+const { ICONS } = require("./adminChrome");
 const { esc } = require("./layout");
 const { iconUrl, classIconUrl, expBtn, tile, badge, LINE, ibtn, armoryButton, dlgClose, detailDialog, barCell, barPct, hicon, iconTile, iconRow, classColorOf, fmtK, fmtSecs, naCell, num } = require("./widgets");
 const { CONS_HOW } = require("./panels/consumables");

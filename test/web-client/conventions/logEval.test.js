@@ -13,8 +13,8 @@ describe("Log-Auswertung: conventions", () => {
         // One list for both menus (src/config/menu.json), rendered by Shell.tsx and adminChrome.js.
         const menu = require("../../../src/config/menu.json");
         expect(menu.find((e) => e.id === "cla")).toMatchObject({ label: "Log-Auswertung", href: "/cla" });
-        const chrome = fs.readFileSync(path.join(ROOT, "src", "web", "adminChrome.js"), "utf8");
-        expect(chrome).toContain("require(\"../config/menu\")");
+        const chrome = fs.readFileSync(path.join(ROOT, "src", "web", "report", "adminChrome.js"), "utf8");
+        expect(chrome).toContain("require(\"../../config/menu\")");
     });
 
     it("keeps its styles in its own file", () => {

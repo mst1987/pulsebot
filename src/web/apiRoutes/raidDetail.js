@@ -5,36 +5,36 @@
 // Raidsheet füllen, Sheet/Softres posten, Softres-Liste erstellen/verlinken.
 // Both are faithful JSON ports of the SSR routes in server.js, minus the HTML
 // rendering/redirects.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { AppError, sendResult } = require("../apiResult");
-const { q } = require("../apiParams");
-const { activeGuildFor } = require("../activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../settingsStore");
-const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
-const { sourceOfEventId } = require("../eventSources");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { AppError, sendResult } = require("../http/apiResult");
+const { q } = require("../http/apiParams");
+const { activeGuildFor } = require("../http/activeGuild");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
+const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
+const { sourceOfEventId } = require("../../services/events/eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
-} = require("../eventSoftresStore");
+} = require("../../stores/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
-const { setEventLootSystem, lootSystemOf } = require("../eventLootSystemStore");
-const { normalizeLootSystem } = require("../lootSystem");
+const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
+const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/time");
-const discord = require("../discord");
-const { getEvent } = require("../eventStore");
-const { raidHelperSlots } = require("../setupEditor");
-const { invitePlan, callInvite } = require("../inviteCall");
+const discord = require("../../services/discord/discord");
+const { getEvent } = require("../../stores/eventStore");
+const { raidHelperSlots } = require("../../services/setup/setupEditor");
+const { invitePlan, callInvite } = require("../../services/setup/inviteCall");
 const {
     normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
-} = require("../pingDelivery");
-const { pingMissingRaiders } = require("../missingPing");
-const { buildRaidDetail } = require("../raidDetailView");
+} = require("../../services/discord/pingDelivery");
+const { pingMissingRaiders } = require("../../services/events/missingPing");
+const { buildRaidDetail } = require("../events/raidDetailView");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in

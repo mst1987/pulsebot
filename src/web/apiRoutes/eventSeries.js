@@ -7,14 +7,14 @@
 //   PUT    /api/raids/series            { categoryId, enabled, weekdays, time, raidTemplateId, daysBefore, title, skipDates }
 //   DELETE /api/raids/series            { categoryId }
 //   POST   /api/raids/series/run        { categoryId?, retryDate? } — sweep now; retryDate clears a failed date first
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendResult } = require("../apiResult");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendResult } = require("../http/apiResult");
+const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
-const { listRaidTemplates } = require("../settingsStore");
-const store = require("../eventSeriesStore");
-const series = require("../eventSeries");
+const { listRaidTemplates } = require("../../stores/settingsStore");
+const store = require("../../stores/eventSeriesStore");
+const series = require("../events/eventSeries");
 
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
 const list = (value) => value.split(",").map((s) => s.trim()).filter(Boolean);

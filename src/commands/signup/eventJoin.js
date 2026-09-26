@@ -1,10 +1,10 @@
 const { MessageFlags } = require("discord.js");
-const { getEvent } = require("../../web/eventStore");
-const { getSignup } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
-const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../web/signupService");
-const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../web/eventMessage");
-const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
+const { getEvent } = require("../../stores/eventStore");
+const { getSignup } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../services/signups/signupService");
+const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/eventMessage");
+const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signup/signupDialog");
 const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/signup/joinPicker");
 const { toEnglish } = require("../../utils/signup/botEnglish");

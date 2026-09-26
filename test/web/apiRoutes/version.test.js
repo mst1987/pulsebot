@@ -1,12 +1,12 @@
 // GET /api/version, called directly: the deploy state from deployStatus.js,
 // with ?force=1 passed on as the cache bypass and the usual session gate.
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 let mockUser = null;
-jest.mock("../../../src/web/deployStatus", () => ({
+jest.mock("../../../src/web/http/deployStatus", () => ({
     deployStatus: jest.fn(async ({ force }) => ({ commit: "abc1234", behind: 2, force })),
 }));
 
-const { deployStatus } = require("../../../src/web/deployStatus");
+const { deployStatus } = require("../../../src/web/http/deployStatus");
 const { getVersion, routes } = require("../../../src/web/apiRoutes/version");
 const { mockRes, status, body, json } = require("../../helpers/http");
 

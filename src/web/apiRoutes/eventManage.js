@@ -13,12 +13,12 @@
 //   POST /api/raids/manage/cancel                      { event, reason, archiveChannel, notify }
 //   POST /api/raids/manage/reopen                      { event }
 //   POST /api/raids/manage/delete                      { event, archiveChannel, notify, confirmStarted }
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendResult } = require("../apiResult");
-const { q } = require("../apiParams");
-const { activeGuildFor } = require("../activeGuild");
-const manage = require("../eventManage");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendResult } = require("../http/apiResult");
+const { q } = require("../http/apiParams");
+const { activeGuildFor } = require("../http/activeGuild");
+const manage = require("../../services/events/eventManage");
 
 /** A read that prepares an action: menu user with `raids` write. */
 const reader = (fn) => withUser({ write: "raids" }, fn);

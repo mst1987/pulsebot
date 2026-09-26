@@ -1,8 +1,8 @@
 const Raidhelper = require("../../classes/raidhelper");
-const { getConfig } = require("../../web/settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 // Single place that knows about the admin-editable serverId override, so every
-// call site gets it automatically without depending on web/settingsStore itself.
+// call site gets it automatically without depending on stores/settingsStore itself.
 //
 // It is also the one switch that turns Raid-Helper off (#291, Einstellungen →
 // Verbindungen → Raid-Helper, "Raid-Helper-Abfragen abschalten"): once

@@ -1,5 +1,5 @@
 // Raid buffs: a fight's buff topic and the raid-wide player × buff matrix.
-const { ribbonChart, fmtTime } = require("../../charts");
+const { ribbonChart, fmtTime } = require("../charts");
 const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../../../config/raidBuffs");
 const { esc } = require("../layout");
 const { pctCell, hicon, classColorOf } = require("../widgets");

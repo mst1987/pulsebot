@@ -1,7 +1,7 @@
 // /profil: kurze Zusammenfassung des eigenen Profils, Link ins Web und die
 // Schnell-Schalter "kann Offtank" / "kann heilen".
 const { MessageFlags } = require("discord.js");
-const store = require("../../../src/web/raiderProfileStore");
+const store = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/profile/profil");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");

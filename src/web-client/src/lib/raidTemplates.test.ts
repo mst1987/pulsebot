@@ -7,7 +7,7 @@ import { requireBackend } from "../test/backend";
 import { inLang } from "../test/i18n";
 
 const { publicVersions } = requireBackend("config/gameVersions");
-const server = requireBackend("web/raidTemplates");
+const server = requireBackend("services/events/raidTemplates");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
 const logic: any = mod;
@@ -75,7 +75,7 @@ describe("Raid-Vorlagen rules (client)", () => {
     });
 
     describe("Aussehen (#307)", () => {
-        const look = requireBackend("web/embedLook");
+        const look = requireBackend("services/events/embedLook");
 
         it("beurteilt Farbe und Bild wortgleich mit dem Server", () => {
             for (const color of ["", "#1f8ba5", "#1F8BA5", "1f8ba5", "#abc", "rot", "#12345g"]) {

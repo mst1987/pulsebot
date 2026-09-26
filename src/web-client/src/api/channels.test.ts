@@ -95,7 +95,7 @@ describe("purposes are settings", () => {
     it("nests the signup channel under raidDefaults, the key the server names", async () => {
         await saveChannelPurpose(purpose({ key: "raidDefaults.channelId" }), ["c1"]);
         expect(client.send).toHaveBeenLastCalledWith("PATCH", "/api/settings", { raidDefaults: { channelId: "c1" } });
-        const { PURPOSES } = requireBackend("web/channelPurposes");
+        const { PURPOSES } = requireBackend("web/channels/channelPurposes");
         expect(PURPOSES.map((p: { key: string }) => p.key)).toContain("raidDefaults.channelId");
     });
 });
@@ -109,7 +109,7 @@ describe("the create dialog's channel name suggestion (#285)", () => {
     });
 
     it("is guarded as part of the raids area", () => {
-        const { AREA_BY_PATH } = requireBackend("web/apiAccess");
+        const { AREA_BY_PATH } = requireBackend("web/http/apiAccess");
         expect(AREA_BY_PATH["/api/raids/channel-name"]).toBe("raids");
     });
 });
