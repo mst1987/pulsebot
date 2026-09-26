@@ -68,11 +68,26 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 ## Core Utilities
 
-### `botReply(interaction, title, message, timeout, ephemeral, components)`
-Standard way to send a Discord reply. Sends an embed with `title` and `description`. Default: ephemeral=true, timeout=60000ms (auto-deletes). Pass `timeout=0` to keep permanently.
+`src/utils/` is split by area (#427); a new helper goes into the folder of its area, not next to it:
 
-### `botEditReply(interaction, title, message, ...)`
-Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
+| Folder | What lives there |
+|---|---|
+| `utils/discord/` | `reply.js`: `botReply`, `botEditReply`, `botFollowup`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
+| `utils/signup/` | Signup buttons, dialog, multi-signup, join picker, character-name rule, `botEnglish.js` (German service messages → English) |
+| `utils/setup/` | Setup proposal (`model`, `proposal`, `score`, …), `fillSetup.js`, `setupView.js`, `raidsheets.js`, `sheetCleanup.js`, `response.js` (the line per raid of `/mysetups`) |
+| `utils/raidhelper/` | `client.js` (`createRaidhelperClient`, switch-off), `fixture.js` (dev stand-in), `queries.js` (signups/setups of a category), `channelEvents.js` (events of a category from both sources) |
+| `utils/loot/` | `lootImport.js`, `lootReasons.js`, `softres.js`, `wowhead.js` |
+| `utils/logcheck/` | The log analyzers and `wclRoster.js` (docs/logcheck.md) |
+| `utils/recruitment/` | `recruitmentSpecs.js`, `applicationState.js` |
+| `utils/time/` | One module (`index.js`): German date formats and parsers, Discord timestamps and server-time texts, raid duration (`clampDuration`, `eventEndTime`); the zone is `config/timezone.js` |
+| `utils/wowsims/` | The WoWSims engine and presets |
+| flat | `format.js` (`formatSpecs`, `formatSignUps` of `/signup`), `text.js`, `ids.js`, `publicUrl.js`, `httpAgent.js`, `attendance.js`, `channelNames.js` |
+
+### `botReply(interaction, title, message, timeout, ephemeral, components)`
+Standard way to send a Discord reply (`utils/discord/reply.js`). Sends an embed with `title` and `description`. Default: ephemeral=true, timeout=60000ms (auto-deletes). Pass `timeout=0` to keep permanently.
+
+### `botEditReply(interaction, title, message, timeout, ephemeral, components)`
+Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond. `timeout` and `ephemeral` have no effect on an edit; they only keep `components` in sixth place.
 
 ## API Clients
 

@@ -107,7 +107,7 @@ A rough map without file lists (`ls` is always current); each row names the doc 
 | `src/commands/<area>/` | One module per command or component; `loader.js` collects them for bot and `npm run register` | docs/bot-commands.md |
 | `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
 | `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
-| `src/utils/` | Domain logic without HTTP; `logcheck/`, `setup/`, `wowsims/` | docs/logcheck.md, docs/setup.md |
+| `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
 | `src/web/` | HTTP server, `apiRoutes/`, stores (`*Store.js`), report rendering, Discord side of web features | docs/web-admin.md |
 | `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
 | `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
