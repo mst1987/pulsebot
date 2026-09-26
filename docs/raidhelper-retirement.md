@@ -18,3 +18,5 @@ The last package of #286: everything the EventHelper needs to replace Raid-Helpe
 | `/fillsetup` | `setup_id` optional: `eh-…` or empty (= the channel's own event) fills from the **approved** setup; a number is still a Raid-Helper raidplan |
 | `/saveraid` | Own event of the channel first (approved setup, refused without one), else the Raid-Helper post; clear error without any event |
 | `/show-signups`, `/show-mysetups`, `/show-allsetups`, `/createoverview`, `update-events` | Both sources (`helper.getCategoryEvents`, `ownSignedUpEvents`, `ownApprovedSetup`); a failing Raid-Helper leaves the own events. The overview's successor is the raid overview on the talk server |
+
+Once every server has switched off Raid-Helper for good, `commands/setup/signup.js` (the legacy `/signup` above, which only ever spoke Raid-Helper), `show-*`, `update-events` and `createoverview` are candidates to remove together in one pass rather than one at a time — see #430.
