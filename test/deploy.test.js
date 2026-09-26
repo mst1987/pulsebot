@@ -207,6 +207,9 @@ describe("CI workflow (#414)", () => {
         const at = steps.map((s) => web.indexOf(`run: ${s}`));
         for (const i of at) expect(i).toBeGreaterThan(-1);
         expect(at).toEqual([...at].sort((a, b) => a - b));
+        // the client tests load backend twins (test/backend.ts): the backend's runtime deps come first
+        expect(web).toMatch(/working-directory: \.\n\s+run: npm ci --omit=dev/);
+        expect(web.indexOf("run: npm ci --omit=dev")).toBeLessThan(web.indexOf("run: npm test"));
     });
 
     it("never lets the client's warning budget grow", () => {
