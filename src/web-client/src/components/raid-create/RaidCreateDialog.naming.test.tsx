@@ -3,15 +3,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as api from "../api";
+import * as api from "../../api";
 import RaidCreateDialog from "./RaidCreateDialog";
-import { renderPage } from "../test/render";
-import { t } from "../i18n";
-import { stepLabel } from "../lib/eventPlan";
-import type { ChannelNameSuggestion, RaidCreateContext } from "../api";
+import { renderPage } from "../../test/render";
+import { t } from "../../i18n";
+import { stepLabel } from "../../lib/eventPlan";
+import type { ChannelNameSuggestion, RaidCreateContext } from "../../api";
 
-vi.mock("../api", async (orig) => ({
-    ...(await orig<typeof import("../api")>()),
+vi.mock("../../api", async (orig) => ({
+    ...(await orig<typeof import("../../api")>()),
     getRaidCreateContext: vi.fn(),
     getChannelNameSuggestion: vi.fn(),
 }));

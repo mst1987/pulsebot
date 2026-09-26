@@ -1,7 +1,7 @@
 // Conventions of the Raid-Events module (design issue #222): what a render test
 // cannot see. The behaviour of the list, the create dialog and the Aufruf-Vorlagen
 // is tested in Vitest next to the components (pages/RaidsPage.test.tsx,
-// components/RaidCreateDialog.test.tsx, pages/NotifyTemplatesPage.test.tsx).
+// components/raid-create/RaidCreateDialog.test.tsx, pages/NotifyTemplatesPage.test.tsx).
 const fs = require("fs");
 const path = require("path");
 
@@ -16,7 +16,7 @@ const MODULE_FILES = {
     page,
     notify,
     list: read("components", "RaidList.tsx"),
-    dialog: read("components", "RaidCreateDialog.tsx"),
+    dialog: read("components", "raid-create"),
     templates: read("pages", "RaidTemplatesPage.tsx"),
     createPage: read("pages", "RaidCreatePage.tsx"),
     icons: read("lib", "raidIcons.ts"),

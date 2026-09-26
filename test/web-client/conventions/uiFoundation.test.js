@@ -167,7 +167,7 @@ describe("tooltips and modal dialogs", () => {
             .filter(([name, src]) => name !== "components/Shell.tsx" && name !== "components/ui/Tip.tsx" && /<TipLayer\s*\/>/.test(src))
             .map(([name]) => name);
         expect(layers).toEqual([]);
-        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx", "pages/recruitment/RecruitmentPage.tsx"]) {
+        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx", "pages/recruitment/Editors.tsx", "pages/recruitment/PostDialog.tsx", "pages/recruitment/ApplicationsTab.tsx"]) {
             expect({ name, footFocus: /initialFocus="\.dlg-foot/.test(sources[name]) }).toEqual({ name, footFocus: false });
         }
     });

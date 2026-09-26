@@ -7,7 +7,7 @@ import { usePersistedSearchParam, usePersistedState } from "../lib/persistedStat
 import { knownContents, raidIconName } from "../lib/raidIcons";
 import type { ShellContext } from "../components/Shell";
 import { UpcomingRaidList, PastRaidList } from "../components/RaidList";
-import RaidCreateDialog from "../components/RaidCreateDialog";
+import RaidCreateDialog from "../components/raid-create/RaidCreateDialog";
 import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";

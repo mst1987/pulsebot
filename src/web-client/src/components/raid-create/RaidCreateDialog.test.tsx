@@ -8,14 +8,14 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import * as api from "../api";
-import type { RaidCreateContext, RaidTemplate } from "../api";
-import { t } from "../i18n";
-import { renderPage } from "../test/render";
+import * as api from "../../api";
+import type { RaidCreateContext, RaidTemplate } from "../../api";
+import { t } from "../../i18n";
+import { renderPage } from "../../test/render";
 import RaidCreateDialog from "./RaidCreateDialog";
 
-vi.mock("../api", async (orig) => ({
-    ...(await orig<typeof import("../api")>()),
+vi.mock("../../api", async (orig) => ({
+    ...(await orig<typeof import("../../api")>()),
     getRaidCreateContext: vi.fn(),
     getChannelNameSuggestion: vi.fn(),
     createRaid: vi.fn(),

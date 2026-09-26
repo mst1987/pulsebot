@@ -29,7 +29,7 @@ import HistoryModal from "./raid-detail/manage/HistoryModal";
 import InviteModal from "./raid-detail/manage/InviteModal";
 import RaidplanLinkModal from "./raid-detail/manage/RaidplanLinkModal";
 import "../styles/event-manage.css";
-import RaidCreateDialog from "../components/RaidCreateDialog";
+import RaidCreateDialog from "../components/raid-create/RaidCreateDialog";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
