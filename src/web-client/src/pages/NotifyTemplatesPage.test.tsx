@@ -4,9 +4,10 @@
 // nodes — never injected HTML.
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import { renderPage } from "../test/render";
+import { switchLang } from "../test/i18n";
 import NotifyTemplatesPage from "./NotifyTemplatesPage";
 
 vi.mock("../api", async (orig) => ({
@@ -64,5 +65,21 @@ describe("Aufruf-Vorlagen", () => {
         // HTML stays text, as it would in Discord
         expect(msg.querySelector("img[src=\"x\"]")).toBeNull();
         expect(msg).toHaveTextContent("<img src=x onerror=alert(1)>");
+    });
+});
+
+describe("Aufruf-Vorlagen in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the list, the editor and the Discord preview in English", async () => {
+        await switchLang("en");
+        renderPage(<NotifyTemplatesPage />, { route: "/raids/templates?edit=n1" });
+        const dialog = await screen.findByRole("dialog");
+        expect(screen.getByRole("heading", { name: /Call templates/ })).toBeInTheDocument();
+        expect(within(dialog).getByLabelText("Message title")).toHaveValue("Anmeldung offen!");
+        const msg = screen.getByLabelText("Preview of the Discord message");
+        expect(within(msg).getByText("@role")).toBeInTheDocument();
+        expect(within(msg).getByText(/^Today at /)).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: "Save" })).toBeInTheDocument();
     });
 });

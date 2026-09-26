@@ -4,11 +4,12 @@
 // icons) stay in test/web-client/conventions/rosterCharakter.test.js.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { RosterChar, RosterData } from "../../api";
 import RosterPage from "./RosterPage";
 import { adminUser, renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import { gearWithIssues, rosterChar, rosterData } from "./RosterPage.fixture";
 
 vi.mock("../../api", async (orig) => ({
@@ -229,5 +230,23 @@ describe("RosterPage — hiding a character", () => {
         expect(screen.queryByRole("button", { name: "Ausblenden" })).not.toBeInTheDocument();
         // nobody hidden and no right to hide: no list switch either
         expect(screen.queryByRole("radiogroup", { name: "Liste" })).not.toBeInTheDocument();
+    });
+});
+
+describe("RosterPage — in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names filters, class chips, columns and figures in English", async () => {
+        await switchLang("en");
+        vi.mocked(api.getRoster).mockResolvedValue(rosterData([rosterChar("Alpha"), rosterChar("Beta", { role: "healer", className: "Priest", spec: "Holy" })]));
+        renderPage(<RosterPage />, { route: "/roster" });
+        await screen.findByRole("radiogroup", { name: "Role" });
+        expect(screen.getByRole("searchbox", { name: "Search character" })).toHaveAttribute("placeholder", "Search character …");
+        expect(screen.getByRole("radio", { name: "Healer" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Priest · 1" })).toBeInTheDocument();
+        expect(within(group("Montagsraid")).getByRole("button", { name: "Attendance" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Gear problems/ })).toBeInTheDocument();
+        expect(screen.getAllByRole("button", { name: "Hide" }).length).toBeGreaterThan(0);
+        expect(screen.getByRole("radio", { name: "Hidden (0)" })).toBeInTheDocument();
     });
 });

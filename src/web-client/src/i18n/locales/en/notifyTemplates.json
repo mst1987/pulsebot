@@ -1,0 +1,49 @@
+{
+    "preview": {
+        "aria": "Preview of the Discord message",
+        "role": "@role",
+        "channel": "#channel",
+        "app": "App",
+        "today": "Today at {time}",
+        "empty": "No title and no text yet."
+    },
+    "form": {
+        "nameSub": "Only for picking it when posting – not part of the message.",
+        "namePlaceholder": "e.g. Kara reminder",
+        "title": "Message title",
+        "titlePlaceholder": "Signups open!",
+        "text": "Text",
+        "textSub": "Discord markdown allowed (**bold**, *italic*, __underline__). The role pings are chosen per event when posting.",
+        "textPlaceholder": "Please sign up for the raid …",
+        "preview": "Preview in Discord",
+        "ping": "Role ping",
+        "pingNote": "chosen per event when posting"
+    },
+    "toast": {
+        "saved": "Saved.",
+        "created": "Template created.",
+        "deleted": "Deleted."
+    },
+    "delete": {
+        "title": "Delete template?",
+        "text": "“{name}” will be deleted."
+    },
+    "page": {
+        "loadError": "Failed to load: {message}",
+        "loading": "Loading templates",
+        "kicker": "Raid events › Templates",
+        "title": "Call templates",
+        "infoSub": "Messages the bot posts in the event with a role ping (Event → Signup → Post call).",
+        "new": "New template",
+        "colText": "Text",
+        "noName": "(no name)",
+        "noTitle": "no title",
+        "empty": "No call templates created yet."
+    },
+    "modal": {
+        "kickerEdit": "Edit call template",
+        "kickerNew": "New call template",
+        "draft": "Draft",
+        "draftSub": "Unsaved changes – kept in the browser until you save or cancel."
+    }
+}

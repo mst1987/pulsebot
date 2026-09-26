@@ -5,92 +5,95 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } from "../../api";
+import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { ROLE_META, attendanceTone, nightLabel } from "../../lib/rosterView";
+import { roleLabel } from "../../lib/wowNames";
 import { Badge, WowIcon } from "../ui";
 
 export function RoleBadge({ role }: { role: RosterRole }) {
-    if (!role) return <Badge tip="Rolle unbekannt" tipSub="Weder ein Log noch die Spec sagen, was der Charakter spielt.">–</Badge>;
+    const t = useT();
+    if (!role) return <Badge tip={t("roster.badge.roleUnknown")} tipSub={t("roster.badge.roleUnknownSub")}>–</Badge>;
     const meta = ROLE_META[role];
+    const label = roleLabel(role);
     return (
         <Badge
             icon={meta.icon}
-            tip={meta.label}
-            tipSub="Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec."
+            tip={label}
+            tipSub={t("roster.cols.roleSub")}
         >
-            {meta.label}
+            {label}
         </Badge>
     );
 }
 
 /** The attendance of one category as a fixed-width WCL bar with the missed nights in its tooltip. */
 export function AttendanceBar({ attendance, categoryName }: { attendance: RosterAttendance | undefined; categoryName: string }) {
+    const t = useT();
     if (!attendance || !attendance.total) {
         return (
             <span
                 className="bar ros-bar is-empty"
-                data-tip="Keine Raids gezählt"
-                data-tip-sub={`${categoryName || "Diese Kategorie"}: kein zugeordnetes Log, in dem der Charakter vorkommen könnte, und keine Raider-Zuordnung, deren Anmeldungen zählen.`}
+                data-tip={t("roster.badge.noRaids")}
+                data-tip-sub={t("roster.badge.noRaidsSub", { category: categoryName || t("roster.badge.thisCategory") })}
             >
                 <span>–</span>
             </span>
         );
     }
     const { attended, total, pct, missed } = attendance;
-    const lines = [`${categoryName || "Kategorie"}, gezählt aus Anmeldungen und Logs der letzten ${total} Raids.`];
-    if (missed.length) lines.push(`Gefehlt: ${missed.map((m) => `${nightLabel(m.startTime * 1000)} (${m.reason})`).join(", ")}.`);
-    else lines.push("Keinen gezählten Raid verpasst.");
+    const lines = [t("roster.badge.counted", { category: categoryName || t("roster.badge.category"), total })];
+    if (missed.length) lines.push(t("roster.badge.missed", { list: missed.map((m) => `${nightLabel(m.startTime * 1000)} (${m.reason})`).join(", ") }));
+    else lines.push(t("roster.badge.noneMissed"));
     return (
-        <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={`${attended} von ${total} Raids · ${pct} %`} data-tip-sub={lines.join("\n")}>
+        <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={t("roster.badge.attendanceTip", { attended, total, pct })} data-tip-sub={lines.join("\n")}>
             <i style={{ width: `${pct}%` }} />
             <span>{pct} %<small>{attended}/{total}</small></span>
         </span>
     );
 }
 
-function plural(n: number, one: string, many: string): string {
-    return `${n} ${n === 1 ? one : many}`;
-}
-
 /** Gear state of the newest evaluation: clean, n findings, or never evaluated. */
 export function GearStateBadge({ gear }: { gear: CharGearReport | null }) {
+    const t = useT();
     if (!gear) {
         return (
-            <Badge icon="inv_misc_pocketwatch_01" tip="nicht ausgewertet" tipSub="Der Charakter kommt in keiner der gespeicherten Log-Auswertungen vor.">
-                nicht ausgewertet
+            <Badge icon="inv_misc_pocketwatch_01" tip={t("roster.badge.notEvaluated")} tipSub={t("roster.badge.notEvaluatedSub")}>
+                {t("roster.badge.notEvaluated")}
             </Badge>
         );
     }
     const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
     const source = [gear.reportTitle || gear.zone, when].filter(Boolean).join(" · ");
     if (!gear.issueCount) {
-        return <Badge tone="ok" icon="trade_engraving" tip="Sauber" tipSub={`Keine Gear-Probleme in der Auswertung ${source}.`}>Sauber</Badge>;
+        return <Badge tone="ok" icon="trade_engraving" tip={t("roster.badge.clean")} tipSub={t("roster.badge.cleanSub", { source })}>{t("roster.badge.clean")}</Badge>;
     }
     const high = gear.issues.filter((i) => i.severity === "high").length;
-    const summary = gear.issues.slice(0, 4).map((i) => `${i.slotName || i.itemName || "Gear"}: ${i.label}`);
-    if (gear.issues.length > 4) summary.push(`… und ${gear.issues.length - 4} weitere auf der Charakter-Seite`);
+    const summary = gear.issues.slice(0, 4).map((i) => `${i.slotName || i.itemName || t("roster.badge.gear")}: ${i.label}`);
+    if (gear.issues.length > 4) summary.push(t("roster.badge.moreOnChar", { count: gear.issues.length - 4 }));
     return (
         <Badge
             tone={high ? "bad" : "mid"}
             icon="inv_misc_gem_variety_02"
-            tip={`${plural(gear.issueCount, "Gear-Problem", "Gear-Probleme")}${high ? ` · ${high} schwer` : ""}`}
-            tipSub={`${summary.join("\n")}\nAus der Auswertung ${source}.`}
+            tip={`${t("roster.badge.gearProblems", { count: gear.issueCount })}${high ? t("roster.badge.high", { count: high }) : ""}`}
+            tipSub={`${summary.join("\n")}\n${t("roster.badge.fromEvaluation", { source })}`}
         >
-            {plural(gear.issueCount, "Problem", "Probleme")}
+            {t("roster.badge.problems", { count: gear.issueCount })}
         </Badge>
     );
 }
 
 /** Loot count linking to the character's loot history, the newest items in its tooltip. */
 export function LootBadge({ count, items, to }: { count: number; items: CharLootPreview[]; to: string }) {
+    const t = useT();
     const shown = items.slice(0, 6).map((it) => {
         const meta = [it.reasonLabel, it.awardedAt ? nightLabel(it.awardedAt) : ""].filter(Boolean).join(" · ");
-        return `${it.itemName || `Item ${it.itemId}`}${meta ? ` — ${meta}` : ""}`;
+        return `${it.itemName || t("roster.badge.item", { id: it.itemId })}${meta ? ` — ${meta}` : ""}`;
     });
-    if (count > shown.length && shown.length) shown.push(`… und ${count - shown.length} weitere`);
-    const sub = count ? `${shown.join("\n")}\nKlick öffnet die ganze Loot-Historie.` : "Noch kein Loot importiert.";
+    if (count > shown.length && shown.length) shown.push(t("roster.badge.more", { count: count - shown.length }));
+    const sub = count ? `${shown.join("\n")}\n${t("roster.badge.lootHint")}` : t("roster.badge.noLootYet");
     return (
-        <Link className="ros-badge-link" to={to} data-tip={count ? `${plural(count, "Item", "Items")} erhalten` : "Kein Loot"} data-tip-sub={sub}>
+        <Link className="ros-badge-link" to={to} data-tip={count ? t("roster.badge.itemsReceived", { count }) : t("roster.badge.noLoot")} data-tip-sub={sub}>
             <Badge icon="inv_misc_bag_10">{count}</Badge>
         </Link>
     );

@@ -6,12 +6,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../api/client";
 import type { GameVersion, RaidTemplate } from "../api";
 import { t } from "../i18n";
 import { proposeComposition } from "../lib/raidTemplates";
 import { requireBackend } from "../test/backend";
+import { switchLang } from "../test/i18n";
 import { adminUser, renderPage } from "../test/render";
 import RaidTemplatesPage from "./RaidTemplatesPage";
 
@@ -84,6 +85,23 @@ describe("the Raid-Vorlagen list", () => {
         view.unmount();
         await show();
         expect(rowNames()).toEqual(["Kara Donnerstag", "Altes Raid-Helper-Event"]);
+    });
+});
+
+describe("the Raid-Vorlagen page in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the list and the editor in English", async () => {
+        await switchLang("en");
+        renderPage(<RaidTemplatesPage />, { route: "/raids/raid-templates?edit=t2", user: adminUser() });
+        await screen.findByRole("heading", { name: "Raid templates" });
+        expect(within(row("Altes Raid-Helper-Event")).getByText("Info missing")).toBeInTheDocument();
+        expect(within(row("Kara Donnerstag")).getByText("Healers").nextSibling).toHaveTextContent("3");
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText(/^More:/)).toBeInTheDocument();
+        expect(within(dialog).getByLabelText("Signup deadline (hours before start)")).toBeInTheDocument();
+        expect(within(dialog).getByRole("checkbox", { name: "Wishes" })).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     });
 });
 

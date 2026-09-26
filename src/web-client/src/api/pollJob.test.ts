@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pollJob, RAID_INCOMPLETE, type IncompleteRaidError, type JobPollStatus } from "./client";
 import type { ClaRaid } from "./cla";
+import { switchLang } from "../test/i18n";
 
 const HYJAL: ClaRaid = {
     contentId: "hyjal", label: "Hyjal", killed: 4, total: 5, finalKilled: false, finalBoss: "Archimonde",
@@ -39,6 +40,18 @@ describe("pollJob", () => {
         const err = await refusalOf([{ status: "error" }]);
         expect(err.code).toBe("job_failed");
         expect(err.message).toBe("Fehlgeschlagen.");
+    });
+
+    it("says a vanished job was interrupted, in the menu language", async () => {
+        expect((await refusalOf([{ status: "unknown" }])).message).toBe("Der Vorgang wurde unterbrochen. Bitte erneut starten.");
+        await switchLang("en");
+        try {
+            const err = await refusalOf([{ status: "unknown" }]);
+            expect(err.code).toBe("job_lost");
+            expect(err.message).toBe("The process was interrupted. Please start it again.");
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("resolves with the finished state", async () => {

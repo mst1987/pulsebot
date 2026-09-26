@@ -1,7 +1,8 @@
 // The roster's hint on characters two accounts put into "Mein Profil" (#255):
 // one badge in the page head, the list in its tooltip, nothing without claims.
 import { screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { switchLang } from "../../test/i18n";
 import * as api from "../../api";
 import type { CharacterClaim, RosterData } from "../../api";
 import { renderPage } from "../../test/render";
@@ -57,4 +58,15 @@ describe("RosterPage – double-claimed characters", () => {
         await screen.findByRole("heading", { name: /Roster/ });
         expect(screen.queryByText(/doppelt vergeben/)).not.toBeInTheDocument();
     });
+
+    it("says it in English, too", async () => {
+        await switchLang("en");
+        vi.mocked(api.getCharacterClaims).mockResolvedValue({ claims: CLAIMS });
+        renderPage(<RosterPage />, { route: "/roster" });
+        const badge = await screen.findByText("2 claimed twice");
+        expect(badge).toHaveAttribute("data-tip", "2 characters claimed twice");
+        expect(screen.getByText("0 raid categories")).toBeInTheDocument();
+    });
 });
+
+afterEach(() => switchLang("de"));
