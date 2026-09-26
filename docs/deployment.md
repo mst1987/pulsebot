@@ -68,6 +68,29 @@ einer Stelle:
 Liegt der Checkout auf dem Server woanders, genügt es, `DEPLOY_DIR` auf diesen
 Pfad zu setzen; an den Dateien im Repo ist nichts zu ändern.
 
+## Deploy pausieren und gesammelt nachholen
+
+Landen viele PRs kurz nacheinander auf `main`, deployt sonst jeder Merge
+einzeln (je 5–6 Minuten, Bot-Neustart inklusive). Die Repository-Variable
+`DEPLOY_PAUSED` schaltet den Deploy-Job ab, Lint, Tests und Client-Build
+laufen weiter:
+
+```bash
+gh variable set DEPLOY_PAUSED --body 1 --repo mst1987/pulsebot   # Pause an
+gh variable delete DEPLOY_PAUSED --repo mst1987/pulsebot         # Pause aus
+```
+
+Während der Pause erscheint der Job „Deploy to Production“ in jedem Lauf als
+übersprungen. Am Ende einmal von Hand deployen — der manuelle Lauf ignoriert
+die Pause:
+
+```bash
+gh workflow run ci.yml --ref main --repo mst1987/pulsebot
+gh run watch    # oder unter Actions -> CI zusehen
+```
+
+Danach die Variable löschen, sonst bleibt der nächste Merge ohne Deploy.
+
 ## Von Hand deployen
 
 Auf dem Server, als der Benutzer, dem der Checkout gehört:
