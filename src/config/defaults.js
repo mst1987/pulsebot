@@ -24,10 +24,6 @@ const categoryIds = [
     "1157813724741128293",
 ];
 
-// Bootstrap: channel and message of the "highest bids" board.
-const highestBidsChannelId = "1145659881362313248";
-const highestBidsMessageId = "1147062559036416191";
-
 // Bootstrap: tab and sheet id of the default "Tier 4/5" raidsheet; further
 // raidsheets are added in the admin menu.
 const googleSheetName = "Setup";
@@ -50,8 +46,6 @@ module.exports = {
     adminUserId,
     guildId,
     categoryIds,
-    highestBidsChannelId,
-    highestBidsMessageId,
     googleSheetName,
     googleSheetGid,
     blizzardRegion,

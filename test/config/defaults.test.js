@@ -4,7 +4,7 @@ const { isSnowflake } = require("../../src/utils/ids");
 
 describe("config/defaults", () => {
     it("holds Discord snowflakes for every bootstrap id", () => {
-        for (const id of [defaults.adminUserId, defaults.guildId, defaults.highestBidsChannelId, defaults.highestBidsMessageId, ...defaults.categoryIds]) {
+        for (const id of [defaults.adminUserId, defaults.guildId, ...defaults.categoryIds]) {
             expect(isSnowflake(id)).toBe(true);
         }
     });

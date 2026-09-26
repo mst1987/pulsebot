@@ -124,7 +124,7 @@ describe("save bar change list", () => {
     const base = () => ({
         adminRoleIds: ["a1"], rolePermissions: { raidlead: { history: { read: true, write: false } } },
         baseAccess: {}, userPermissions: {},
-        officerRoleId: "", applicationChannelId: "", highestBidsChannelId: "", highestBidsMessageId: "",
+        officerRoleId: "", applicationChannelId: "",
         categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannelIds: ["l1", "l2"],
         raidChannelId: "",
         categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],

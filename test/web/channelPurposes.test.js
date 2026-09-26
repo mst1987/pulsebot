@@ -3,12 +3,11 @@ const { PURPOSES, resolvePurposes, purposeSummary, channelStatus, idsFor } = req
 const ch = (id, name, rights = {}) => ({ id, name, type: 0, botCanView: true, botCanSend: true, ...rights });
 
 describe("channelPurposes", () => {
-    it("lists the five purposes with their WoW icons and config keys", () => {
+    it("lists the four purposes with their WoW icons and config keys", () => {
         expect(PURPOSES.map((p) => [p.id, p.icon, p.key])).toEqual([
             ["raid", "inv_misc_note_02", "raidDefaults.channelId"],
             ["logs", "inv_misc_pocketwatch_01", "logChannelIds"],
             ["application", "inv_misc_grouplooking", "applicationChannelId"],
-            ["highestBids", "inv_misc_coin_01", "highestBidsChannelId"],
             ["eventCategories", "achievement_boss_illidan", "categoryIds"],
         ]);
         expect(PURPOSES.filter((p) => p.multiple).map((p) => p.id)).toEqual(["logs", "eventCategories"]);
@@ -47,7 +46,6 @@ describe("channelPurposes", () => {
             raidDefaults: { templateId: "x", channelId: "an" },
             logChannelIds: ["mo", "do"],
             applicationChannelId: "bw",
-            highestBidsChannelId: "",
             categoryIds: ["k1", "k2"],
         };
 
@@ -57,8 +55,6 @@ describe("channelPurposes", () => {
             expect(byId.logs.items.map((i) => i.name)).toEqual(["mo-logs", "do-logs"]);
             expect(byId.logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
             expect(byId.application.status).toMatchObject({ tone: "ok", label: "Bot schreibt" });
-            expect(byId.highestBids.status).toMatchObject({ tone: "bad", label: "fehlt" });
-            expect(byId.highestBids.status.tip).toMatch(/Höchstgebote-Übersicht/);
             expect(byId.eventCategories.items.map((i) => i.name)).toEqual(["Raid Montag", "Raid Donnerstag"]);
             expect(byId.eventCategories.status).toMatchObject({ tone: "ok", label: "2 Kategorien" });
             // The page stores a change under exactly this key; the fallback text stays on the server.
@@ -83,11 +79,10 @@ describe("channelPurposes", () => {
             const list = resolvePurposes(config, [], [], false);
             expect(list.find((p) => p.id === "application").status).toMatchObject({ tone: "", label: "gesetzt" });
             expect(list.find((p) => p.id === "eventCategories").status).toMatchObject({ tone: "", label: "2 Kategorien" });
-            expect(list.find((p) => p.id === "highestBids").status.tone).toBe("bad");
         });
 
         it("summarises set, missing and not-working purposes", () => {
-            expect(purposeSummary(resolvePurposes(config, channels, categories))).toEqual({ set: 4, missing: 1, warnings: 1 });
+            expect(purposeSummary(resolvePurposes(config, channels, categories))).toEqual({ set: 4, missing: 0, warnings: 1 });
             expect(purposeSummary(undefined)).toEqual({ set: 0, missing: 0, warnings: 0 });
         });
     });

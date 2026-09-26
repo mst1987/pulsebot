@@ -4,7 +4,7 @@
 // settingsMigration.js (run once at start), so this is all a read ever does.
 const {
     officerRoleId, applicationChannelId,
-    highestBidsChannelId, highestBidsMessageId, categoryIds,
+    categoryIds,
     guildId, raidhelperServerId,
     blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug, blizzardNamespace,
 } = require("../config/variables");
@@ -58,9 +58,6 @@ const CONFIG_DEFAULTS = {
     officerRoleId: officerRoleId || "",
     // Channel new applications are posted to.
     applicationChannelId: applicationChannelId || "",
-    // Auction "highest bids" overview message (channel + message id).
-    highestBidsChannelId: highestBidsChannelId || "",
-    highestBidsMessageId: highestBidsMessageId || "",
     // Discord category IDs that contain the event channels.
     categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
     // Per-category expected raider roles: { [categoryId]: [roleId, ...] }. Used to

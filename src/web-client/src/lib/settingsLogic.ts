@@ -91,8 +91,6 @@ export type DraftShape = {
     userPermissions: GrantMap;
     officerRoleId: string;
     applicationChannelId: string;
-    highestBidsChannelId: string;
-    highestBidsMessageId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
@@ -125,8 +123,6 @@ export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: 
 const SIMPLE_FIELDS: [string, string][] = [
     ["officerRoleId", "Offizier-Rolle"],
     ["applicationChannelId", "Bewerbungs-Kanal"],
-    ["highestBidsChannelId", "Höchstgebote-Kanal"],
-    ["highestBidsMessageId", "Höchstgebote-Nachricht"],
     ["raidChannelId", "Standard-Kanal"],
 ];
 
