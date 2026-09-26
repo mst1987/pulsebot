@@ -17,8 +17,7 @@
 // simulator.
 
 const { ok, error: apiError } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
@@ -55,9 +54,7 @@ function categoryOptions(guildId) {
  *
  * Query: role, tiers, contents, category, bisTier, item (candidates for one item)
  */
-async function getLootCouncil(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
 
     const role = url.searchParams.get("role") || "";
@@ -134,21 +131,16 @@ async function getLootCouncil(req, res, url) {
         },
         activeGuildId: guildId,
     });
-}
+});
 
 /**
  * POST /api/lootcouncil/sim — start simulating.
  * Body: { id, subjects: [{key, specKey}], items: [itemId] }
+ *
+ * Running a simulation is work the server does on request, so it takes write
+ * level (`write: "lootcouncil"`) - a read-only council member sees the numbers.
  */
-async function postLootCouncilSim(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    // Running a simulation is work the server does on request, so it takes write
-    // level — a read-only council member sees the stat-weight numbers.
-    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id) return apiError(res, 400, "Job-Id fehlt.");
     const subjects = (Array.isArray(body.subjects) ? body.subjects : [])
@@ -162,7 +154,7 @@ async function postLootCouncilSim(req, res) {
     }
     const started = startCouncilSim(id, subjects, items);
     ok(res, { ...started, id });
-}
+});
 
 /**
  * POST /api/lootcouncil/exclude — stop planning with a raider, or resume.
@@ -173,13 +165,7 @@ async function postLootCouncilSim(req, res) {
  * not raiding — their drought grows forever. Excluding is reversible and never
  * touches the loot history, so the numbers stay whole.
  */
-async function postExclude(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
 
@@ -193,7 +179,7 @@ async function postExclude(req, res) {
     });
     if (!entry) return apiError(res, 400, "Kein Charakter angegeben.");
     ok(res, { character, excluded: true, entry });
-}
+});
 
 /**
  * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
@@ -204,13 +190,7 @@ async function postExclude(req, res) {
  * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht
  * hervor, also ist es eine Festlegung; ein leeres `role` nimmt sie zurück.
  */
-async function postRole(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
     const role = String(body.role || "").trim();
@@ -218,7 +198,7 @@ async function postRole(req, res) {
 
     const entry = councilStore.setRole(character, role, { by: user.name || user.id });
     ok(res, { character, role: entry ? entry.role : "", entry });
-}
+});
 
 /**
  * GET /api/lootcouncil/export?character=… — that raider's loadout as a WoWSims
@@ -229,9 +209,7 @@ async function postRole(req, res) {
  * than a different one — an export that quietly differs would make the page
  * look wrong when it is not.
  */
-async function getExport(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getExport = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
 
     const character = String(url.searchParams.get("character") || "").trim();
@@ -272,7 +250,7 @@ async function getExport(req, res, url) {
         warnings: [...built.warnings, ...substitutions, ...stillSituational],
         json: JSON.stringify(built.data, null, 2),
     });
-}
+});
 
 // Which WoWSims page an export belongs on. The individual import reads gear and
 // talents from the JSON but not the class, so pasting a priest export on the
@@ -305,9 +283,7 @@ const SIM_URLS = {
  * whom* it is best in slot. An item on nobody's list comes back with an empty
  * `bisSpecs` — which is the answer, not a gap.
  */
-async function getItemSearch(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getItemSearch = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
     const tier = url.searchParams.get("tier") || "";
     const items = searchItems(url.searchParams.get("q") || "").map((it) => {
@@ -320,7 +296,7 @@ async function getItemSearch(req, res, url) {
         };
     });
     ok(res, { items });
-}
+});
 
 /**
  * POST /api/lootcouncil/armory — fetch the current gear of these raiders from
@@ -331,13 +307,7 @@ async function getItemSearch(req, res, url) {
  * would spend somebody else's rate limit on a page nobody is reading. And it is
  * a decision — "nimm den Stand von jetzt" — which belongs to the reader.
  */
-async function postArmoryRefresh(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const characters = Array.isArray(body.characters) ? body.characters : [];
     if (!characters.length) return apiError(res, 400, "Keine Charaktere angegeben.");
 
@@ -346,7 +316,7 @@ async function postArmoryRefresh(req, res) {
         return apiError(res, 400, "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
     }
     ok(res, result);
-}
+});
 
 /**
  * POST /api/lootcouncil/loggear — load one raider's gear from a Warcraft-Logs
@@ -357,13 +327,7 @@ async function postArmoryRefresh(req, res) {
  * replaces the armory's answer for that raider (it is the newer request), so
  * the armory cache entry is dropped with it.
  */
-async function postLogGear(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
     if (body.clear) {
@@ -387,30 +351,41 @@ async function postLogGear(req, res) {
         if (e && e.logGear) return apiError(res, e.status || 404, e.message);
         throw e;
     }
-}
+});
 
 /**
  * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
  * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
  */
-async function getBisLists(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getBisLists = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
     ok(res, bisLists(url.searchParams.get("tier") || ""));
-}
+});
 
 /** GET /api/lootcouncil/sim?id=… — poll a running simulation. */
-async function getLootCouncilSim(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootCouncilSim = withUser({}, async ({ user, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
     const job = getJob(url.searchParams.get("id") || "");
     if (!job) return ok(res, { status: "unknown" });
     ok(res, job);
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/lootcouncil", handler: getLootCouncil, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/export", handler: getExport, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/exclude", handler: postExclude, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/item-search", handler: getItemSearch, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/role", handler: postRole, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/armory", handler: postArmoryRefresh, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/bislists", handler: getBisLists, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/sim", handler: getLootCouncilSim, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/sim", handler: postLootCouncilSim, area: "lootcouncil" },
+];
 
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
+    routes,
 };

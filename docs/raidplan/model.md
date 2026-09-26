@@ -12,7 +12,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Tactic profiles (collection store) | `src/web/raidplanProfileStore.js` |
 | Raid plan templates (collection store) | `src/web/raidplanTemplateStore.js` |
 | What the editor and the public page are shown | `src/web/raidplan.js` |
-| API | `src/web/apiRoutes/raidplan.js` (routes in `apiRouter.js`, areas in `apiAccess.js`) |
+| API | `src/web/apiRoutes/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
 | Editor (tab of the raid detail) | `src/web-client/src/pages/raid-detail/RaidplanTab.tsx` and `raidplan/` |
 | The working area of a boss, shared by the event editor and the template editor | `raidplan/BoardWorkspace.tsx` (+ `Palette.tsx`, `Inspector.tsx`, `LayerList.tsx`, `MapPanel.tsx`, `ContextMenu.tsx`, `useDraftHistory.ts`) |
@@ -220,9 +220,10 @@ stay on rows whose title stays), typed rows are kept.
 
 ## Permissions
 
-All `/api/raidplan…` paths are area **`raids`** (read = GET, write = everything else), listed in
-`apiAccess.js` (fail-closed) except `/api/raidplan/public`. Mutating calls use `requireAdmin` + `requireCsrf`.
-Deleting an event deletes its plan (`eventManage.deleteEvent`).
+All `/api/raidplan…` paths are area **`raids`** (read = GET, write = everything else), in
+the module's `routes` table (fail-closed, see docs/permissions.md) except `/api/raidplan/public`. Mutating calls
+are wrapped in `withUser({ write: "raids", csrf: true, body: true })`. Deleting an event deletes its plan
+(`eventManage.deleteEvent`).
 
 ## Test raid (dev)
 
