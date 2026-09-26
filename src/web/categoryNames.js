@@ -20,12 +20,11 @@
 // channel, loot import target) must keep using discord.listCategories(), which
 // answers "does this exist in Discord right now".
 const fs = require("fs");
-const path = require("path");
 const discord = require("./discord");
 const { listStoredEvents } = require("./eventSources");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const CATEGORY_NAMES_FILE = path.join(SETTINGS_DIR, "category-names.json");
+const { SETTINGS_DIR, settingsPath } = require("../config/paths");
+const CATEGORY_NAMES_FILE = settingsPath("category-names.json");
 
 /** @returns {Object<string, Object<string, string>>} guildId -> { categoryId: name } */
 function readSnapshot() {

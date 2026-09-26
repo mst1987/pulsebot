@@ -2,18 +2,7 @@
 // message — move, close/open, sign raiders up and off, cancel, reopen, the log.
 // Stores run for real on an in-memory fs; Discord, the message, the talk
 // overview and every DM/ping are mocks.
-jest.mock("fs", () => {
-    const store = new Map();
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => store.set(p, String(data))),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw new Error("ENOENT");
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({
     listAllChannels: jest.fn(() => []),
     resolveUserNames: jest.fn(async () => ({})),

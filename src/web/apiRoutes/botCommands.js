@@ -9,6 +9,10 @@ const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
 
+// The files under src/commands/ do not change while the process runs: scanned
+// once on the first call instead of on every request (#419).
+let scannedCommands = null;
+
 /**
  * The command modules: the ones the bot loaded, or — when the web server runs
  * without them (tests, a bare web start) — read from src/commands/ directly.
@@ -16,6 +20,11 @@ const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
 function loadedCommands() {
     const client = discord.getClient();
     if (client && client.commands && client.commands.size) return [...client.commands.values()];
+    if (!scannedCommands) scannedCommands = scanCommandsDir();
+    return [...scannedCommands];
+}
+
+function scanCommandsDir() {
     const out = [];
     for (const folder of fs.readdirSync(COMMANDS_DIR)) {
         const dir = path.join(COMMANDS_DIR, folder);

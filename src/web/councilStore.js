@@ -16,25 +16,24 @@
 // Excluding is reversible and remembers why and when, so a council in three
 // months can tell a deliberate decision from an accident.
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { characterKeyOf } = require("../utils/lootImport");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const EXCLUDED_FILE = path.join(SETTINGS_DIR, "council-excluded.json");
+const EXCLUDED_FILE = settingsPath("council-excluded.json");
+
+const store = createJsonStore({
+    file: EXCLUDED_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data.excluded === "object" && !Array.isArray(data.excluded) ? data.excluded : {}),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(EXCLUDED_FILE, "utf8"));
-        return data && typeof data.excluded === "object" && !Array.isArray(data.excluded) ? data.excluded : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(excluded) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(EXCLUDED_FILE, JSON.stringify({ excluded }, null, 2));
+    store.write({ excluded });
 }
 
 /**
@@ -98,20 +97,20 @@ function include(character) {
 // nur die *Rolle*; welche Spec das ist, folgt daraus (specForRole in
 // config/casterSpecs.js).
 
-const ROLES_FILE = path.join(SETTINGS_DIR, "council-roles.json");
+const ROLES_FILE = settingsPath("council-roles.json");
+
+const rolesStore = createJsonStore({
+    file: ROLES_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data.roles === "object" && !Array.isArray(data.roles) ? data.roles : {}),
+});
 
 function readRoles() {
-    try {
-        const data = JSON.parse(fs.readFileSync(ROLES_FILE, "utf8"));
-        return data && typeof data.roles === "object" && !Array.isArray(data.roles) ? data.roles : {};
-    } catch {
-        return {};
-    }
+    return rolesStore.read();
 }
 
 function writeRoles(roles) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(ROLES_FILE, JSON.stringify({ roles }, null, 2));
+    rolesStore.write({ roles });
 }
 
 /** All role decisions as `{ [characterKey]: { character, role, at, by } }`. */
@@ -160,13 +159,8 @@ function setRole(character, role, { by = "" } = {}) {
 
 /** Drop everything — tests only. */
 function reset() {
-    for (const file of [EXCLUDED_FILE, ROLES_FILE]) {
-        try {
-            fs.unlinkSync(file);
-        } catch {
-            // never existed
-        }
-    }
+    store.remove();
+    rolesStore.remove();
 }
 
 module.exports = {

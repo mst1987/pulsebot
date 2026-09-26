@@ -2,9 +2,11 @@ const fs = require("fs");
 const path = require("path");
 const { raidSummary } = require("../utils/logcheck/raidProgress");
 const { newId } = require("../utils/ids");
+const { dataPath } = require("../config/paths");
+const { writeJsonAtomic, readJsonFile } = require("./jsonStore");
 
 // Reports are stored as JSON files under data/reports/<id>.json
-const REPORTS_DIR = path.join(__dirname, "..", "..", "data", "reports");
+const REPORTS_DIR = dataPath("reports");
 
 function ensureDir() {
     fs.mkdirSync(REPORTS_DIR, { recursive: true });
@@ -30,18 +32,14 @@ function saveReport(report, id) {
     ensureDir();
     const reportId = id && /^[a-f0-9]{6,}$/i.test(id) ? id : newId();
     const payload = { ...report, id: reportId, generatedAt: report.generatedAt || Date.now() };
-    fs.writeFileSync(filePath(reportId), JSON.stringify(payload));
+    writeJsonAtomic(filePath(reportId), payload, { space: 0 });
     return reportId;
 }
 
 /** Load a report by id, or null if it does not exist / is unreadable. */
 function getReport(id) {
     if (!/^[a-f0-9]{6,}$/i.test(id)) return null;
-    try {
-        return JSON.parse(fs.readFileSync(filePath(id), "utf8"));
-    } catch {
-        return null;
-    }
+    return readJsonFile(filePath(id), null);
 }
 
 /** Delete a report by id. Returns true if a file was removed. */

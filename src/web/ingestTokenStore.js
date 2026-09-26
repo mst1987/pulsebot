@@ -13,30 +13,29 @@
 //     never read or change anything else (see apiAccess.js's TOKEN_AUTH).
 //
 // Revoking is immediate: every upload re-checks the store.
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const TOKENS_FILE = path.join(SETTINGS_DIR, "ingest-tokens.json");
+const TOKENS_FILE = settingsPath("ingest-tokens.json");
 
 // Recognisable prefix so a token found in a log or a pasted config is obviously
 // an EventHelper loot-sync credential and can be revoked without guesswork.
 const TOKEN_PREFIX = "ehl_";
 const TOKEN_BYTES = 24;
 
+const store = createJsonStore({
+    file: TOKENS_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.tokens) ? data.tokens : []),
+});
+
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8"));
-        return Array.isArray(data.tokens) ? data.tokens : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(tokens) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(TOKENS_FILE, JSON.stringify({ tokens }, null, 2));
+    store.write({ tokens });
 }
 
 function hashToken(raw) {
@@ -139,5 +138,5 @@ function bearerFrom(req) {
 
 module.exports = {
     listTokens, createToken, revokeToken, verifyToken, touchToken, bearerFrom,
-    TOKEN_PREFIX,
+    TOKEN_PREFIX, useFile: store.useFile,
 };

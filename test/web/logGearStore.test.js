@@ -2,23 +2,7 @@
 // The WCL client is a fake handed in, the log list is mocked, and the file
 // lives in an in-memory fs — what is under test is which report is read, how
 // the raider is found in it, what is kept, and what a failure says.
-jest.mock("fs", () => {
-    const store = new Map();
-    const enoent = (p) => {
-        const e = new Error(`ENOENT: no such file '${p}'`);
-        e.code = "ENOENT";
-        return e;
-    };
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => { store.set(p, String(data)); }),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw enoent(p);
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const mockListLogs = jest.fn(() => []);
 jest.mock("../../src/web/logStore", () => ({ listLogs: (...a) => mockListLogs(...a) }));

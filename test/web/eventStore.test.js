@@ -1,20 +1,5 @@
 // In-memory fs, so the store never touches the repo's disk.
-jest.mock("fs", () => {
-    const store = new Map();
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => store.set(p, String(data))),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) {
-                const e = new Error("ENOENT");
-                e.code = "ENOENT";
-                throw e;
-            }
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
