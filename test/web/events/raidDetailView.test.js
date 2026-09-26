@@ -33,7 +33,7 @@ jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/logChannel", () => ({ backfillLogTitles: jest.fn(async () => {}) }));
+jest.mock("../../../src/services/logcheck/logChannel", () => ({ backfillLogTitles: jest.fn(async () => {}) }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ ...jest.requireActual("../../../src/services/discord/pingDelivery"), pingTargetInfo: jest.fn(() => ({ talk: false })) }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
@@ -46,7 +46,7 @@ const { listSignups } = require("../../../src/stores/signupStore");
 const raidplanStore = require("../../../src/stores/raidplanStore");
 const { getEventSoftres } = require("../../../src/stores/eventSoftresStore");
 const logStore = require("../../../src/stores/logStore");
-const { backfillLogTitles } = require("../../../src/web/logChannel");
+const { backfillLogTitles } = require("../../../src/services/logcheck/logChannel");
 const { buildRaidDetail, _internal } = require("../../../src/web/events/raidDetailView");
 const { getRaidDetail } = require("../../../src/web/apiRoutes/raidDetail");
 const { mockRes, status, json } = require("../../helpers/http");

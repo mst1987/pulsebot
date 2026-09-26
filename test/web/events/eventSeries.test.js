@@ -36,7 +36,7 @@ const { loadEventGroups } = require("../../../src/services/events/raidEventGroup
 const eventStore = require("../../../src/stores/eventStore");
 const store = require("../../../src/stores/eventSeriesStore");
 const series = require("../../../src/web/events/eventSeries");
-const { buildTasks, _internal: { eventSeriesTask } } = require("../../../src/web/dashboardOverview");
+const { buildTasks, _internal: { eventSeriesTask } } = require("../../../src/web/dashboard/dashboardOverview");
 const { series: baseSeries } = require("../../factories/events");
 
 const ZONE = "Europe/Berlin";

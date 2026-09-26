@@ -8,7 +8,7 @@
 // events fetched from Raid-Helper.
 
 const { logPostedAt } = require("./reportList");
-const { LOG_WINDOW_BEFORE_MS, LOG_WINDOW_AFTER_MS } = require("../services/events/recentEvents");
+const { LOG_WINDOW_BEFORE_MS, LOG_WINDOW_AFTER_MS } = require("../events/recentEvents");
 
 const HOUR_MS = 60 * 60 * 1000;
 

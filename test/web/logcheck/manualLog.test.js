@@ -1,12 +1,12 @@
 // In-memory fs so the real logStore never touches the repo disk.
-jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
+jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 // matchableEvents pulls in the Discord client wrapper at require time; only its
 // pure eventLinkFields() is used here, so keep the heavy module out entirely.
-jest.mock("../../src/services/discord/discord.js", () => ({}));
+jest.mock("../../../src/services/discord/discord.js", () => ({}));
 
 const fs = require("fs");
-const logStore = require("../../src/stores/logStore.js");
-const { linkLogByUrl } = require("../../src/web/manualLog.js");
+const logStore = require("../../../src/stores/logStore.js");
+const { linkLogByUrl } = require("../../../src/web/logcheck/manualLog.js");
 
 const EVENT = { id: "e1", title: "SSC/TK", startTime: 1750000000 }; // seconds
 
@@ -14,7 +14,7 @@ beforeEach(() => {
     fs.__store.clear();
 });
 
-describe("web/manualLog — linkLogByUrl", () => {
+describe("web/logcheck/manualLog — linkLogByUrl", () => {
     it("rejects text without a Warcraft-Logs report link", () => {
         for (const bad of ["", "abc123", "https://example.com/reports/abc", "warcraftlogs"]) {
             const result = linkLogByUrl(bad, EVENT, "g1");

@@ -1,38 +1,38 @@
 // Data assembly shared by the dashboard's SSR route (server.js) and its JSON
 // counterpart (apiRouter.js) — moved out of server.js so both can require it
 // without a circular dependency (server.js requires apiRouter.js).
-const { listStoredEvents, ownUpcomingRaw } = require("../services/events/eventSources");
-const { scanRaidEvents } = require("../services/events/raidEventScan");
-const { listByEvent: listLootByEvent } = require("../stores/lootStore");
-const { getEventSheet } = require("../stores/eventSheetStore");
-const { getEventSoftres } = require("../stores/eventSoftresStore");
-const { lootSystemOf } = require("../stores/eventLootSystemStore");
-const { listLogs } = require("../stores/logStore");
-const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../services/events/recentEvents");
-const { autoLinkLogs } = require("./logAutoLink");
-const { logPostedAt } = require("./reportList");
-const { listAwards } = require("./loot/lootAwards");
-const { createRaidhelperClient } = require("../utils/raidhelper/client");
-const discord = require("../services/discord/discord");
-const { getConfig, resolveEventSheetLink } = require("../stores/settingsStore");
-const { loadEventGroups } = require("../services/events/raidEventGroups");
-const { listReports, getReport } = require("../stores/reportStore");
-const { listPending } = require("../stores/lootInboxStore");
-const { getChannelConfig, listArchived, archiveHint } = require("../stores/channelArchiveStore");
-const { buildRoster } = require("./characters/roster");
-const { rosterStats } = require("./characters/rosterStats");
-const { resolveAssignmentProfiles } = require("../stores/raiderCharactersStore");
-const { applyReview } = require("../utils/logcheck/recommendations");
-const softres = require("../utils/loot/softres");
+const { listStoredEvents, ownUpcomingRaw } = require("../../services/events/eventSources");
+const { scanRaidEvents } = require("../../services/events/raidEventScan");
+const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
+const { getEventSheet } = require("../../stores/eventSheetStore");
+const { getEventSoftres } = require("../../stores/eventSoftresStore");
+const { lootSystemOf } = require("../../stores/eventLootSystemStore");
+const { listLogs } = require("../../stores/logStore");
+const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/recentEvents");
+const { autoLinkLogs } = require("../../services/logcheck/logAutoLink");
+const { logPostedAt } = require("../../services/logcheck/reportList");
+const { listAwards } = require("../loot/lootAwards");
+const { createRaidhelperClient } = require("../../utils/raidhelper/client");
+const discord = require("../../services/discord/discord");
+const { getConfig, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { loadEventGroups } = require("../../services/events/raidEventGroups");
+const { listReports, getReport } = require("../../stores/reportStore");
+const { listPending } = require("../../stores/lootInboxStore");
+const { getChannelConfig, listArchived, archiveHint } = require("../../stores/channelArchiveStore");
+const { buildRoster } = require("../characters/roster");
+const { rosterStats } = require("../characters/rosterStats");
+const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
+const { applyReview } = require("../../utils/logcheck/recommendations");
+const softres = require("../../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
-} = require("../utils/attendance");
+} = require("../../utils/attendance");
 const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
-const { getEvent } = require("../stores/eventStore");
-const { raidHelperSlots } = require("../services/setup/setupEditor");
+const { getEvent } = require("../../stores/eventStore");
+const { raidHelperSlots } = require("../../services/setup/setupEditor");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 

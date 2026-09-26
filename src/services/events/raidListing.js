@@ -8,11 +8,11 @@ const { contentsForText, CONTENTS } = require("../../config/tbcContent");
 const { instanceById } = require("../../config/gameVersions");
 const { listStoredEvents } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
-const { autoLinkLogs } = require("../../web/logAutoLink");
+const { autoLinkLogs } = require("../logcheck/logAutoLink");
 const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { listLogs } = require("../../stores/logStore");
-const { logPostedAt } = require("../../web/reportList");
+const { logPostedAt } = require("../logcheck/reportList");
 const { buildRecentEvents, pendingLogsForEvent } = require("./recentEvents");
 
 // The size a night is measured against when no content was recognised.

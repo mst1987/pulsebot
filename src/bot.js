@@ -6,7 +6,7 @@ require("dotenv").config({ path: envFile });
 require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/http/server.js");
-const { handleLogMessage } = require("./web/logChannel.js");
+const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { ensureAppEmojis } = require("./services/discord/appEmojiSync.js");

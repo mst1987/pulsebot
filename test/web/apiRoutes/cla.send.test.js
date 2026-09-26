@@ -14,19 +14,19 @@ jest.mock("../../../src/stores/reportStore.js", () => ({
 }));
 jest.mock("../../../src/web/http/apiMiddleware.js", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody.js", () => require("../../helpers/http").apiBodyMock({ body: () => mockBody }));
-jest.mock("../../../src/web/recommendationSend.js", () => ({ sendApproved: (...a) => mockSendApproved(...a), sendStatus: (...a) => mockSendStatus(...a) }));
+jest.mock("../../../src/web/logcheck/recommendationSend.js", () => ({ sendApproved: (...a) => mockSendApproved(...a), sendStatus: (...a) => mockSendStatus(...a) }));
 jest.mock("../../../src/stores/raiderCharactersStore.js", () => ({ listAllAssignments: () => mockAssignments() }));
 jest.mock("../../../src/services/discord/discord.js", () => ({ getClient: () => mockClient, sendDirectMessage: jest.fn(), embed: jest.fn() }));
 jest.mock("../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../../src/web/reportList.js", () => ({ prepareReportList: jest.fn(), prepareLogList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
+jest.mock("../../../src/services/logcheck/reportList.js", () => ({ prepareReportList: jest.fn(), prepareLogList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
 jest.mock("../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
-jest.mock("../../../src/web/logEventMatch.js", () => ({ annotateMatches: jest.fn(), autoMatches: jest.fn() }));
-jest.mock("../../../src/web/logChannel.js", () => ({ evaluateLog: jest.fn(), scanLogChannels: jest.fn(), backfillLogTitles: jest.fn() }));
-jest.mock("../../../src/web/evalJobs.js", () => ({ startJob: jest.fn(), getJob: jest.fn() }));
+jest.mock("../../../src/services/logcheck/logEventMatch.js", () => ({ annotateMatches: jest.fn(), autoMatches: jest.fn() }));
+jest.mock("../../../src/services/logcheck/logChannel.js", () => ({ evaluateLog: jest.fn(), scanLogChannels: jest.fn(), backfillLogTitles: jest.fn() }));
+jest.mock("../../../src/web/logcheck/evalJobs.js", () => ({ startJob: jest.fn(), getJob: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/utils/logcheck/report.js", () => ({ buildReport: jest.fn(), stripSection: jest.fn(), ReportError: class extends Error {} }));
-jest.mock("../../../src/web/matchableEvents.js", () => ({ loadMatchableEvents: jest.fn(), eventLinkFields: jest.fn() }));
-jest.mock("../../../src/web/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
+jest.mock("../../../src/services/logcheck/matchableEvents.js", () => ({ loadMatchableEvents: jest.fn(), eventLinkFields: jest.fn() }));
+jest.mock("../../../src/web/logcheck/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
 
 const { recommendationSendStatus, sendRecommendations } = require("../../../src/web/apiRoutes/cla.js");
 

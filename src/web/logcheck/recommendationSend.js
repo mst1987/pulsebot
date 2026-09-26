@@ -7,8 +7,8 @@
 // assigned to, or that two accounts claim, is reported instead of guessed.
 // Every send is remembered on the report (recommendationSent), so a second
 // click sends nothing twice unless the approved set changed.
-const { applyReview } = require("../utils/logcheck/recommendations");
-const { publicBaseUrl } = require("../config/variables");
+const { applyReview } = require("../../utils/logcheck/recommendations");
+const { publicBaseUrl } = require("../../config/variables");
 
 /**
  * Invert the assignment map: character name (lower case) → { userId } or

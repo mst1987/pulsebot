@@ -67,7 +67,7 @@ jest.mock("../../../src/stores/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/reportList", () => ({
+jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
@@ -78,19 +78,19 @@ jest.mock("../../../src/web/reportList", () => ({
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
     // the Log-Auswertung list is pure; the route tests run the real one
-    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").prepareClaList(...args)),
-    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").claRowFromLog(...args)),
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
-jest.mock("../../../src/web/logEventMatch", () => ({
+jest.mock("../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/logChannel", () => ({
+jest.mock("../../../src/services/logcheck/logChannel", () => ({
     evaluateLog: jest.fn(),
     scanLogChannels: jest.fn(),
     backfillLogTitles: jest.fn(() => Promise.resolve(0)),
 }));
-jest.mock("../../../src/web/manualLog", () => ({ linkLogByUrl: jest.fn() }));
+jest.mock("../../../src/web/logcheck/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../../src/utils/logcheck/report", () => {
     class ReportError extends Error {}
     const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"];
@@ -194,13 +194,13 @@ const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
 const logStore = require("../../../src/stores/logStore");
-const reportList = require("../../../src/web/reportList");
-const logEventMatch = require("../../../src/web/logEventMatch");
-const logChannel = require("../../../src/web/logChannel");
-const evalJobs = require("../../../src/web/evalJobs");
+const reportList = require("../../../src/services/logcheck/reportList");
+const logEventMatch = require("../../../src/services/logcheck/logEventMatch");
+const logChannel = require("../../../src/services/logcheck/logChannel");
+const evalJobs = require("../../../src/web/logcheck/evalJobs");
 // Background jobs settle a microtask after they are queued.
 const flushJobs = () => new Promise((r) => setImmediate(r));
-const manualLog = require("../../../src/web/manualLog");
+const manualLog = require("../../../src/web/logcheck/manualLog");
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/cla"));
 

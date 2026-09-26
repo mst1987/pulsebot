@@ -10,23 +10,23 @@ const { AppError } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
-const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
+const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../services/logcheck/reportList");
 const { contentsForText } = require("../../config/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../stores/logStore");
-const { annotateMatches, autoMatches } = require("../logEventMatch");
-const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
-const { startJob, getJob } = require("../evalJobs");
+const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
+const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../../services/logcheck/logChannel");
+const { startJob, getJob } = require("../logcheck/evalJobs");
 const { getConfig } = require("../../stores/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { applyReview } = require("../../utils/logcheck/recommendations");
-const { sendApproved, sendStatus } = require("../recommendationSend");
+const { sendApproved, sendStatus } = require("../logcheck/recommendationSend");
 const { phraseReport } = require("../../utils/logcheck/recommendationText");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
-const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
-const { linkLogByUrl } = require("../manualLog");
+const { loadMatchableEvents, eventLinkFields } = require("../../services/logcheck/matchableEvents");
+const { linkLogByUrl } = require("../logcheck/manualLog");
 const discord = require("../../services/discord/discord");
 
 /**

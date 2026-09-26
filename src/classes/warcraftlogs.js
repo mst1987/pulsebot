@@ -30,7 +30,7 @@ const REQUEST_TIMEOUT_MS = 60000;
  *                                 host, analyzeApplicant), then report.js
  *   - services/characters/characterInfo.js        getSummary: the gear snapshot of a report
  *   - stores/logGearStore.js         getCasts: the gear of every raider
- *   - web/logChannel.js           getFights for title and raid progress. v2 has
+ *   - services/logcheck/logChannel.js           getFights for title and raid progress. v2 has
  *                                 both, but only with the optional OAuth client
  *                                 and in another shape (raidProgress reads v1's
  *                                 boss/kill/zoneName), so a v2 path would need

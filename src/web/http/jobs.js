@@ -12,11 +12,11 @@
 const discord = require("../../services/discord/discord");
 const sheetCleanup = require("../../utils/setup/sheetCleanup");
 const raidEventScan = require("../../services/events/raidEventScan");
-const logAutoLink = require("../logAutoLink");
+const logAutoLink = require("../../services/logcheck/logAutoLink");
 const eventMessage = require("../../services/events/eventMessage");
 const reminders = require("../events/reminders");
 const roleSync = require("../../services/discord/roleSync");
-const talkOverview = require("../talkOverview");
+const talkOverview = require("../../services/talk/talkOverview");
 const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 

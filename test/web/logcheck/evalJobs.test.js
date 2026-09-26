@@ -1,4 +1,4 @@
-const { startJob, getJob, isRunning, reset, KEEP_FINISHED_MS } = require("../../src/web/evalJobs");
+const { startJob, getJob, isRunning, reset, KEEP_FINISHED_MS } = require("../../../src/web/logcheck/evalJobs");
 
 /** Let the queued promise callbacks run. */
 const flush = () => new Promise((r) => setImmediate(r));
@@ -8,7 +8,7 @@ beforeEach(() => {
     jest.restoreAllMocks();
 });
 
-describe("web/evalJobs", () => {
+describe("web/logcheck/evalJobs", () => {
     it("reports a job as running right after it starts", () => {
         const res = startJob("l1", "rpb", () => new Promise(() => {}));
         expect(res).toEqual({ status: "running", alreadyRunning: false });

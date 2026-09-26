@@ -2,13 +2,13 @@
 // log channels, tracks them, and evaluates them once (via the shared buildReport
 // pipeline). Used by both the live messageCreate listener and the admin menu.
 
-const { getConfig } = require("../stores/settingsStore");
-const logStore = require("../stores/logStore");
-const discord = require("../services/discord/discord");
-const { extractWclLinks } = require("../utils/logcheck/logLinks");
-const { buildReport, ReportError } = require("../utils/logcheck/report");
-const WarcraftLogs = require("../classes/warcraftlogs");
-const { analyzeRaidProgress, raidSummary } = require("../utils/logcheck/raidProgress");
+const { getConfig } = require("../../stores/settingsStore");
+const logStore = require("../../stores/logStore");
+const discord = require("../discord/discord");
+const { extractWclLinks } = require("../../utils/logcheck/logLinks");
+const { buildReport, ReportError } = require("../../utils/logcheck/report");
+const WarcraftLogs = require("../../classes/warcraftlogs");
+const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raidProgress");
 const { autoLinkLogs } = require("./logAutoLink");
 
 // In-process guard so a double click (or a click racing the web button) cannot

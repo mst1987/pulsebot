@@ -19,19 +19,19 @@
 // A channel link crosses servers as a plain URL — `<#id>` only resolves on the
 // server it is posted on.
 const crypto = require("crypto");
-const { discordTimestamp, shortServerTime } = require("../utils/time");
+const { discordTimestamp, shortServerTime } = require("../../utils/time");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
 } = require("discord.js");
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
-const discord = require("../services/discord/discord");
-const guildRoles = require("../services/discord/guildRoles");
-const { loadEventGroups } = require("../services/events/raidEventGroups");
-const { getConfig } = require("../stores/settingsStore");
-const { onSignupsChanged } = require("../stores/signupStore");
-const { getOverviewState, setOverviewState } = require("../stores/talkOverviewStore");
-const { signupStatus } = require("../utils/attendance");
-const { appEmojiMap, emojiText, uiEmojiName } = require("../services/discord/appEmojis");
+const { embedAccentColor, publicBaseUrl } = require("../../config/variables");
+const discord = require("../discord/discord");
+const guildRoles = require("../discord/guildRoles");
+const { loadEventGroups } = require("../events/raidEventGroups");
+const { getConfig } = require("../../stores/settingsStore");
+const { onSignupsChanged } = require("../../stores/signupStore");
+const { getOverviewState, setOverviewState } = require("../../stores/talkOverviewStore");
+const { signupStatus } = require("../../utils/attendance");
+const { appEmojiMap, emojiText, uiEmojiName } = require("../discord/appEmojis");
 
 // Between two raid stanzas (each three lines) — a blank line for breathing room.
 const RAID_SEP = "\n\n";

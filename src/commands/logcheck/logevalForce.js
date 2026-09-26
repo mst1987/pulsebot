@@ -1,7 +1,7 @@
 const {
     MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
+const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const logStore = require("../../stores/logStore");
 const discord = require("../../services/discord/discord");

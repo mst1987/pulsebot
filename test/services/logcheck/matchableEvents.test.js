@@ -1,24 +1,24 @@
 const mockGetPastEvents = jest.fn();
-jest.mock("../../src/classes/raidhelper", () =>
+jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
-jest.mock("../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
-jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
+jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+jest.mock("../../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const eventStore = require("../../src/stores/eventStore");
-const { autoMatches } = require("../../src/web/logEventMatch");
-const discord = require("../../src/services/discord/discord");
-const { listRaidEvents } = require("../../src/stores/raidEventStore");
-const { loadMatchableEvents, eventLinkFields } = require("../../src/web/matchableEvents");
-const { event: baseEvent } = require("../factories/events");
+const eventStore = require("../../../src/stores/eventStore");
+const { autoMatches } = require("../../../src/services/logcheck/logEventMatch");
+const discord = require("../../../src/services/discord/discord");
+const { listRaidEvents } = require("../../../src/stores/raidEventStore");
+const { loadMatchableEvents, eventLinkFields } = require("../../../src/services/logcheck/matchableEvents");
+const { event: baseEvent } = require("../../factories/events");
 
 const event = (over = {}) => baseEvent({ channelId: "chan1", ...over });
 
-describe("web/matchableEvents", () => {
+describe("services/logcheck/matchableEvents", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         discord.getChannelCategoryMap.mockReturnValue({});
@@ -207,7 +207,7 @@ describe("web/matchableEvents", () => {
     });
 });
 
-describe("web/matchableEvents eventLinkFields", () => {
+describe("services/logcheck/matchableEvents eventLinkFields", () => {
     it("builds the stored link fields from an event, preferring its title over its id", () => {
         expect(eventLinkFields({ id: "e1", title: "Kara", startTime: "123" }, "manual")).toEqual({
             eventId: "e1", eventLabel: "Kara", eventStartTime: 123, source: "manual",

@@ -13,7 +13,7 @@
 // the *result* is persisted anyway (the report file plus the log's `sections`),
 // so the UI recovers the final state from the regular log list.
 
-const { raidSummary } = require("../utils/logcheck/raidProgress");
+const { raidSummary } = require("../../utils/logcheck/raidProgress");
 
 // key -> { status, section, logId, url, id, error, incomplete, raids, startedAt, finishedAt }
 const jobs = new Map();

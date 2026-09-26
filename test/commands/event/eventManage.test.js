@@ -23,7 +23,7 @@ jest.mock("../../../src/services/discord/discordChannels", () => ({
 }));
 jest.mock("../../../src/services/discord/channelNaming", () => ({ deriveChannelName: jest.fn(), namingLine: jest.fn(() => "") }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),

@@ -5,9 +5,9 @@ const {
     _internal: {
         roleBucket, FALLBACK_ZONE_ICON,
     },
-} = require("../../src/web/dashboardOverview");
+} = require("../../../src/web/dashboard/dashboardOverview");
 
-describe("web/dashboardOverview", () => {
+describe("web/dashboard/dashboardOverview", () => {
     describe("zoneForEvent (#291)", () => {
         it("takes an own event's raids, newest content first, and the title otherwise", () => {
             expect(zoneForEvent({ source: "eventhelper", title: "Mittwoch", instanceIds: ["tk", "ssc"] })).toEqual({ contentId: "tk", icon: "achievement_boss_kael'thassunstrider_01" });
@@ -182,7 +182,7 @@ describe("web/dashboardOverview", () => {
 // "Server ist n Commits hinter main" (#314): eight merged PRs never reached the
 // server because the deploy failed silently every single time.
 describe("deployTask", () => {
-    const { buildTasks: tasksFor, _internal: { deployTask, DEPLOY_GUIDE_URL } } = require("../../src/web/dashboardOverview");
+    const { buildTasks: tasksFor, _internal: { deployTask, DEPLOY_GUIDE_URL } } = require("../../../src/web/dashboard/dashboardOverview");
     const NOW = Date.parse("2026-09-20T12:00:00Z");
     const behind = (over) => ({
         status: "behind", behind: 9, short: "a1b2c3d", committedAt: "2026-09-12T10:00:00Z",
@@ -231,7 +231,7 @@ describe("deployTask", () => {
 
 // Role-sync drift (#264) as a dashboard task.
 describe("roleDriftTask", () => {
-    const { buildTasks: tasksFor, _internal: { roleDriftTask } } = require("../../src/web/dashboardOverview");
+    const { buildTasks: tasksFor, _internal: { roleDriftTask } } = require("../../../src/web/dashboard/dashboardOverview");
 
     it("has no task without drift", () => {
         expect(roleDriftTask(null)).toBeNull();

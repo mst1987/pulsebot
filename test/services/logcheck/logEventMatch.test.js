@@ -1,8 +1,8 @@
 const {
     candidatesFor, bestMatch, autoMatches, annotateMatches, isLinked, eventStartMs,
     HOUR_MS,
-} = require("../../src/web/logEventMatch");
-const { event: baseEvent } = require("../factories/events");
+} = require("../../../src/services/logcheck/logEventMatch");
+const { event: baseEvent } = require("../../factories/events");
 
 // Raid-Helper hands out start times in SECONDS; the logs carry ms timestamps.
 const START = Date.UTC(2026, 6, 24, 18, 0, 0); // Fri 24.07.2026 18:00 UTC
@@ -15,7 +15,7 @@ const log = (over = {}) => ({
     id: "l1", reportId: "RPT1", postedAt: START + 30 * 60 * 1000, ...over,
 });
 
-describe("web/logEventMatch", () => {
+describe("services/logcheck/logEventMatch", () => {
     describe("eventStartMs", () => {
         it("converts second-based Raid-Helper times to ms", () => {
             expect(eventStartMs({ startTime: secs(START) })).toBe(START);

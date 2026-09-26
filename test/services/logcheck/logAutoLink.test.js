@@ -1,20 +1,20 @@
 const mockListLogs = jest.fn(() => []);
 const mockLinkEvent = jest.fn();
-jest.mock("../../src/stores/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: (...a) => mockListLogs(...a),
     linkEvent: (...a) => mockLinkEvent(...a),
 }));
 
 const mockListGuilds = jest.fn(() => []);
-jest.mock("../../src/services/discord/discord", () => ({ listGuilds: (...a) => mockListGuilds(...a) }));
+jest.mock("../../../src/services/discord/discord", () => ({ listGuilds: (...a) => mockListGuilds(...a) }));
 
 const mockLoadMatchableEvents = jest.fn(async () => ({ events: [], error: null }));
-jest.mock("../../src/web/matchableEvents", () => ({
+jest.mock("../../../src/services/logcheck/matchableEvents", () => ({
     loadMatchableEvents: (...a) => mockLoadMatchableEvents(...a),
-    eventLinkFields: jest.requireActual("../../src/web/matchableEvents").eventLinkFields,
+    eventLinkFields: jest.requireActual("../../../src/services/logcheck/matchableEvents").eventLinkFields,
 }));
 
-const { autoLinkLogs, autoLinkAllGuilds, startLogAutoLink, _resetTimerForTests } = require("../../src/web/logAutoLink.js");
+const { autoLinkLogs, autoLinkAllGuilds, startLogAutoLink, _resetTimerForTests } = require("../../../src/services/logcheck/logAutoLink.js");
 
 const HOUR = 3600000;
 const NOW = 1_700_000_000_000;
@@ -24,7 +24,7 @@ const raidB = { id: "evB", title: "Gruul", startTime: Math.floor((NOW - 3 * HOUR
 
 const log = (id, postedAt, extra = {}) => ({ id, guildId: "g1", reportId: `rep-${id}`, postedAt, ...extra });
 
-describe("web/logAutoLink", () => {
+describe("services/logcheck/logAutoLink", () => {
     beforeEach(() => {
         mockListLogs.mockReset().mockReturnValue([]);
         mockLinkEvent.mockReset();

@@ -45,7 +45,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/dashboardData", () => ({
+jest.mock("../../../src/web/dashboard/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
     loadLatestReport: jest.fn(() => null),
@@ -87,7 +87,7 @@ jest.mock("../../../src/stores/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/web/reportList", () => ({
+jest.mock("../../../src/services/logcheck/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
         items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
     })),
@@ -98,10 +98,10 @@ jest.mock("../../../src/web/reportList", () => ({
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
     // the Log-Auswertung list is pure; the route tests run the real one
-    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").prepareClaList(...args)),
-    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/web/reportList").claRowFromLog(...args)),
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
-jest.mock("../../../src/web/logEventMatch", () => ({
+jest.mock("../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
@@ -269,7 +269,7 @@ jest.mock("../../../src/services/setup/setupEditor", () => ({
 const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
-const dashboardData = require("../../../src/web/dashboardData");
+const dashboardData = require("../../../src/web/dashboard/dashboardData");
 const discord = require("../../../src/services/discord/discord");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
@@ -280,7 +280,7 @@ const characterStore = require("../../../src/stores/characterStore");
 const charGearIssues = require("../../../src/web/characters/charGearIssues");
 const lootImport = require("../../../src/utils/loot/lootImport");
 const lootEventMatch = require("../../../src/web/loot/lootEventMatch");
-const reportList = require("../../../src/web/reportList");
+const reportList = require("../../../src/services/logcheck/reportList");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/history"));
 

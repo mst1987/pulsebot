@@ -8,7 +8,7 @@ const mockLogin = jest.fn(() => Promise.resolve("ok"));
 jest.mock("../src/web/http/server", () => ({ startWebServer: mockStartWebServer }));
 const mockStartJobs = jest.fn();
 jest.mock("../src/web/http/jobs", () => ({ startJobs: mockStartJobs }));
-jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
+jest.mock("../src/services/logcheck/logChannel", () => ({ handleLogMessage: jest.fn() }));
 // The start-up upgrade of old settings files (#420) must not touch the real data/.
 const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
 jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));

@@ -1,5 +1,5 @@
 const { MessageFlags } = require("discord.js");
-const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
+const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
 const logStore = require("../../stores/logStore");

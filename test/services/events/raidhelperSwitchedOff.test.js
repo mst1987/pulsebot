@@ -28,7 +28,7 @@ const { saveRaidEvents } = require("../../../src/stores/raidEventStore");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../../src/utils/raidhelper/client");
 const { scanRaidEvents } = require("../../../src/services/events/raidEventScan");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../../src/services/events/raidEventGroups");
-const { loadMatchableEvents } = require("../../../src/web/matchableEvents");
+const { loadMatchableEvents } = require("../../../src/services/logcheck/matchableEvents");
 
 describe("Raid-Helper switched off (#291)", () => {
     beforeEach(() => {

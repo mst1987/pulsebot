@@ -8,7 +8,7 @@
 // Kept framework-free and side-effect-free so it is trivially unit-testable.
 
 const { DateTime } = require("luxon");
-const { eventStartMs } = require("../logEventMatch");
+const { eventStartMs } = require("../../services/logcheck/logEventMatch");
 
 const { TIMEZONE } = require("../../config/timezone");
 

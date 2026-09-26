@@ -29,7 +29,7 @@ const setupMessage = require("../../services/setup/setupMessage");
 const { saveSetupPingText } = require("../../services/setup/setupPing");
 const { setupAttendance } = require("../setup/setupAttendance");
 const { postSearch, textForNeeds } = require("../../services/setup/raidSearch");
-const { startJob, getJob } = require("../evalJobs");
+const { startJob, getJob } = require("../logcheck/evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
 const EXPLAIN_SECTION = "setup-explain";

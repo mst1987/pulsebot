@@ -49,7 +49,7 @@ The raid overview on the talk server carries *Für alle Raids anmelden* and *Meh
 - **State under a token**, not in the customId (≤ 100): `signup-multi:<token>:r|s` (step-1 selects), `:go:<page>` (opens a modal), `:m:<page>` (the modal) — raids, picked raids, status, option orders and results in memory for 30 minutes, only for the member who started (`getSession`); an expired or foreign token answers „Die Auswahl ist abgelaufen …“ and saves nothing. The last page ends the session.
 - **Result:** one line per raid — `✅ **SSC + TK** · Mi 24.09.: Zibbo · Heilig, +Zibbowar · Schutz`, `⏭️ … übersprungen (kein Charakter gewählt)`, `⛔ …: <the service's reason>` with skipped characters and why; a page submitted twice replaces its lines.
 - **At one event:** the character select of the event message (`utils/signup/joinPicker.js`) shows *Mehrere Charaktere …* (`signup-multi:e:<eventId>:<code>`) when the member has more than one character · spec — the same modal for that one raid, status from the select, refused first after the deadline or without raider role.
-- **Access:** the three handlers declare `accessOf: "talk-signup"`. Tests: `test/commands/signup/signupMulti.test.js`, `test/web/talkOverview.test.js`.
+- **Access:** the three handlers declare `accessOf: "talk-signup"`. Tests: `test/commands/signup/signupMulti.test.js`, `test/services/talk/talkOverview.test.js`.
 
 ## Anmelder-Nachricht (`src/services/events/eventMessage.js`, `commands/signup/eventPick.js` + `eventButton.js`, #287, #303)
 

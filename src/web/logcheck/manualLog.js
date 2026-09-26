@@ -3,10 +3,10 @@
 // Shared by server.js's SSR route and apiRoutes/cla.js's JSON route (same
 // pairing as matchableEvents.js), so both admin UIs behave identically.
 
-const { extractWclLinks } = require("../utils/logcheck/logLinks");
-const { eventStartMs } = require("./logEventMatch");
-const { eventLinkFields } = require("./matchableEvents");
-const logStore = require("../stores/logStore");
+const { extractWclLinks } = require("../../utils/logcheck/logLinks");
+const { eventStartMs } = require("../../services/logcheck/logEventMatch");
+const { eventLinkFields } = require("../../services/logcheck/matchableEvents");
+const logStore = require("../../stores/logStore");
 
 /**
  * Register (if needed) and link a Warcraft-Logs report to an event, given the

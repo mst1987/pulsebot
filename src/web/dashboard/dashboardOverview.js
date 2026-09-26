@@ -7,11 +7,11 @@
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
-const { contentsForText } = require("../config/tbcContent");
-const { enrichSlot, CLASS_COLORS } = require("../utils/setup/setupView");
-const { signupStatus } = require("../utils/attendance");
-const { plural } = require("../utils/text");
-const { TIMEZONE } = require("../config/timezone");
+const { contentsForText } = require("../../config/tbcContent");
+const { enrichSlot, CLASS_COLORS } = require("../../utils/setup/setupView");
+const { signupStatus } = require("../../utils/attendance");
+const { plural } = require("../../utils/text");
+const { TIMEZONE } = require("../../config/timezone");
 
 // The boss icon a raid is recognised by — its final boss, the one the raid is
 // named after in everyone's head. Names verified against the zamimg CDN; the

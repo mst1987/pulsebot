@@ -1,6 +1,6 @@
-jest.mock("../../src/config/variables.js", () => ({ publicBaseUrl: "http://localhost:3005", embedAccentColor: 0x123456 }));
+jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://localhost:3005", embedAccentColor: 0x123456 }));
 
-const { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature } = require("../../src/web/recommendationSend.js");
+const { characterOwners, approvedPerPlayer, buildRaiderMessage, sendApproved, sendStatus, sentSignature } = require("../../../src/web/logcheck/recommendationSend.js");
 
 /** A minimal EmbedBuilder stand-in that records what was set. */
 function fakeEmbed() {

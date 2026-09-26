@@ -1,8 +1,8 @@
 // The start page's data assembly: the top-item card, the next raids and their
 // details modal, and the area figures. Raid-Helper, Discord and the stores are
 // mocked; the rules applied to their data live in dashboardOverview.js (own test).
-jest.mock("../../src/stores/lootStore", () => {
-    const actual = jest.requireActual("../../src/stores/lootStore");
+jest.mock("../../../src/stores/lootStore", () => {
+    const actual = jest.requireActual("../../../src/stores/lootStore");
     return {
         listAll: jest.fn(() => []),
         listByEvent: jest.fn(() => []),
@@ -11,53 +11,53 @@ jest.mock("../../src/stores/lootStore", () => {
         charLootPreview: actual.charLootPreview,
     };
 });
-jest.mock("../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     resolveEventSheetLink: jest.fn((own) => (own && own.url ? { url: own.url } : null)),
 }));
-jest.mock("../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
-jest.mock("../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
-jest.mock("../../src/stores/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
-jest.mock("../../src/web/characters/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
-jest.mock("../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
-jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
+jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../../src/stores/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
+jest.mock("../../../src/web/characters/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 // The EventHelper's own events, read through the real adapter (eventSources.js).
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/services/events/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
-jest.mock("../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
-jest.mock("../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../src/services/events/recentEvents", () => ({
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/services/events/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
+jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
+jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/services/events/recentEvents", () => ({
     buildRecentEvents: jest.fn(() => []),
     matchLogsForEvent: jest.fn(() => []),
     pendingLogsForEvent: jest.fn(() => []),
 }));
-jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
-jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
-jest.mock("../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
-jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn() }));
-jest.mock("../../src/services/discord/discord", () => ({
+jest.mock("../../../src/services/logcheck/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
+jest.mock("../../../src/services/logcheck/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
+jest.mock("../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
 }));
 
-const lootStore = require("../../src/stores/lootStore");
-const settingsStore = require("../../src/stores/settingsStore");
-const charStore = require("../../src/stores/characterStore");
-const eventSheetStore = require("../../src/stores/eventSheetStore");
-const eventSoftresStore = require("../../src/stores/eventSoftresStore");
-const raidEventGroups = require("../../src/services/events/raidEventGroups");
-const reportStore = require("../../src/stores/reportStore");
-const lootInboxStore = require("../../src/stores/lootInboxStore");
-const { buildRoster } = require("../../src/web/characters/roster");
-const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
-const discord = require("../../src/services/discord/discord");
+const lootStore = require("../../../src/stores/lootStore");
+const settingsStore = require("../../../src/stores/settingsStore");
+const charStore = require("../../../src/stores/characterStore");
+const eventSheetStore = require("../../../src/stores/eventSheetStore");
+const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
+const raidEventGroups = require("../../../src/services/events/raidEventGroups");
+const reportStore = require("../../../src/stores/reportStore");
+const lootInboxStore = require("../../../src/stores/lootInboxStore");
+const { buildRoster } = require("../../../src/web/characters/roster");
+const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client");
+const discord = require("../../../src/services/discord/discord");
 const {
     loadTopLoot, loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
-} = require("../../src/web/dashboardData");
+} = require("../../../src/web/dashboard/dashboardData");
 
 // A loot row as lootStore.listAll() hands it out (already decorated).
 const lootRow = (over = {}) => ({
@@ -76,7 +76,7 @@ beforeEach(() => {
     charStore.characterMap.mockReturnValue({});
 });
 
-describe("web/dashboardData loadTopLoot", () => {
+describe("web/dashboard/dashboardData loadTopLoot", () => {
     it("returns nothing and reports no configuration when no top items are defined", () => {
         lootStore.listAll.mockReturnValue([lootRow()]);
         expect(loadTopLoot()).toEqual({ items: [], configured: 0 });
@@ -177,7 +177,7 @@ describe("web/dashboardData loadTopLoot", () => {
     });
 });
 
-describe("web/dashboardData loadNextRaids", () => {
+describe("web/dashboard/dashboardData loadNextRaids", () => {
     const rh = { getAllEvents: jest.fn(), getSetup: jest.fn() };
     beforeEach(() => {
         createRaidhelperClient.mockReturnValue(rh);
@@ -218,8 +218,8 @@ describe("web/dashboardData loadNextRaids", () => {
     });
 
     it("puts the EventHelper's own raids between Raid-Helper's, with their planned size and composition", async () => {
-        const eventStore = require("../../src/stores/eventStore");
-        const { listSignups } = require("../../src/stores/signupStore");
+        const eventStore = require("../../../src/stores/eventStore");
+        const { listSignups } = require("../../../src/stores/signupStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
         rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
         rh.getSetup.mockResolvedValue({ setup: [] });
@@ -244,7 +244,7 @@ describe("web/dashboardData loadNextRaids", () => {
     });
 
     it("counts an own event's approved setup (never a draft) and takes its icon from its raids (#291)", async () => {
-        const eventStore = require("../../src/stores/eventStore");
+        const eventStore = require("../../../src/stores/eventStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
         rh.getAllEvents.mockResolvedValue([]);
         const approved = {
@@ -276,7 +276,7 @@ describe("web/dashboardData loadNextRaids", () => {
     });
 });
 
-describe("web/dashboardData loadNextRaidDetails", () => {
+describe("web/dashboard/dashboardData loadNextRaidDetails", () => {
     const rh = { getSetup: jest.fn(() => Promise.resolve({ setup: [] })) };
     const event = {
         id: "e1", title: "Black Temple", startTime: 100, channelId: "c1", channelName: "bt",
@@ -320,7 +320,7 @@ describe("web/dashboardData loadNextRaidDetails", () => {
     });
 });
 
-describe("web/dashboardData area loaders", () => {
+describe("web/dashboard/dashboardData area loaders", () => {
     it("reads the newest report with its open recommendations", () => {
         reportStore.listReports.mockReturnValue([{ id: "r2", zone: "Black Temple", generatedAt: 9 }, { id: "r1" }]);
         reportStore.getReport.mockReturnValue({

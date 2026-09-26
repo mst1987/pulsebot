@@ -1,15 +1,15 @@
-jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
-jest.mock("../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/signupStore", () => ({
     onSignupsChanged: jest.fn((fn) => {
         mockListeners.push(fn);
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     }),
 }));
 let mockStates = {}; // { [guildId]: state }
-jest.mock("../../src/stores/talkOverviewStore", () => ({
+jest.mock("../../../src/stores/talkOverviewStore", () => ({
     getOverviewState: jest.fn((guildId) => ({
         channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "", ...mockStates[guildId],
     })),
@@ -21,17 +21,17 @@ jest.mock("../../src/stores/talkOverviewStore", () => ({
 // Most tests configure exactly one event server ("111", see `config` below).
 const stateOf = (guildId = "111") => mockStates[guildId] || {};
 
-const discord = require("../../src/services/discord/discord");
-const { getConfig } = require("../../src/stores/settingsStore");
-const { loadEventGroups } = require("../../src/services/events/raidEventGroups");
+const discord = require("../../../src/services/discord/discord");
+const { getConfig } = require("../../../src/stores/settingsStore");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const {
     channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
     _internal: {
         buildOverviewMessage, formatStart, payloadHash, overviewLinks,
     },
-} = require("../../src/web/talkOverview");
-const { event: baseEvent } = require("../factories/events");
-const { makeClient, makeChannel } = require("../helpers/discordClient");
+} = require("../../../src/services/talk/talkOverview");
+const { event: baseEvent } = require("../../factories/events");
+const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
 const NOW = Date.UTC(2026, 8, 16, 12, 0); // Wed 16.09.2026 14:00 Berlin
 const sec = (y, m, d, h, min) => Math.floor(Date.UTC(y, m - 1, d, h, min) / 1000);
@@ -44,7 +44,7 @@ const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ 
 
 const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example/", now: NOW };
 
-describe("web/talkOverview — buildOverviewMessage", () => {
+describe("services/talk/talkOverview — buildOverviewMessage", () => {
     it("formats the start in Berlin time with a German weekday", () => {
         expect(formatStart(sec(2026, 9, 17, 17, 30))).toBe("Thu 17 Sep 19:30");
         expect(formatStart(0)).toBe("");
@@ -194,7 +194,7 @@ function fakeDiscord({ fetchError, sendId = "m-new" } = {}) {
 const eventGuild = (guildId, extra = {}) => ({ guildId, label: "", overviewGuildId: "222", overviewChannelId: "ov", ...extra });
 const config = { guildId: "111", discordServers: { eventGuilds: [eventGuild("111")], talkGuildId: "222" } };
 
-describe("web/talkOverview — syncOverview", () => {
+describe("services/talk/talkOverview — syncOverview", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockStates = {};
@@ -298,7 +298,7 @@ describe("web/talkOverview — syncOverview", () => {
     });
 });
 
-describe("web/talkOverview — triggers", () => {
+describe("services/talk/talkOverview — triggers", () => {
     beforeEach(() => {
         jest.useFakeTimers();
         jest.clearAllMocks();

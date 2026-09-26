@@ -9,7 +9,7 @@ jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupM
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
-jest.mock("../../../src/web/talkOverview", () => ({ SELECT_ID: "talk-signup", ALL_BUTTON_ID: "talk-signup-all", MULTI_BUTTON_ID: "talk-signup-multi" }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup", ALL_BUTTON_ID: "talk-signup-all", MULTI_BUTTON_ID: "talk-signup-multi" }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");

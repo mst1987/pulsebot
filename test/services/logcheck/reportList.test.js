@@ -1,7 +1,7 @@
 const {
     prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents,
     DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp,
-} = require("../../src/web/reportList.js");
+} = require("../../../src/services/logcheck/reportList.js");
 
 // Build n reports with ascending generatedAt (id0 oldest … id{n-1} newest).
 function makeReports(n) {
@@ -15,7 +15,7 @@ function makeReports(n) {
     }));
 }
 
-describe("web/reportList prepareReportList", () => {
+describe("services/logcheck/reportList prepareReportList", () => {
     it("defaults to sort=date dir=desc page=1 (newest first)", () => {
         const rp = prepareReportList(makeReports(5));
         expect(rp.sort).toBe("date");
@@ -85,7 +85,7 @@ describe("web/reportList prepareReportList", () => {
     });
 });
 
-describe("web/reportList prepareLogList", () => {
+describe("services/logcheck/reportList prepareLogList", () => {
     const logs = [
         { id: "a", title: "Kara A", status: "open", detectedAt: 9999, postedAt: 100 },
         { id: "b", title: "Kara B", status: "done", detectedAt: 1, postedAt: 300 },
@@ -195,7 +195,7 @@ describe("web/reportList prepareLogList", () => {
     });
 });
 
-describe("web/reportList annotateReportEvents", () => {
+describe("services/logcheck/reportList annotateReportEvents", () => {
     const logs = [
         { id: "l1", reportRefId: "r1", eventId: "e1", eventLabel: "Gruul", eventStartTime: 500 },
         { id: "l2", reportRefId: "r2" }, // evaluated, but not assigned to a raid
@@ -239,7 +239,7 @@ describe("web/reportList annotateReportEvents", () => {
 });
 
 describe("prepareClaList — the Log-Auswertung's one list", () => {
-    const { prepareClaList, claRowFromLog, CLA_FILTERS } = require("../../src/web/reportList.js");
+    const { prepareClaList, claRowFromLog, CLA_FILTERS } = require("../../../src/services/logcheck/reportList.js");
     const hyjal = { contentId: "hyjal", label: "Hyjal", killed: 5, total: 5, finalKilled: true, finalBoss: "Archimonde", missing: [], bosses: [] };
 
     const logs = [

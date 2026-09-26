@@ -6,9 +6,9 @@ const discord = require("../../services/discord/discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
-} = require("../dashboardData");
+} = require("../dashboard/dashboardData");
 const { userCanAny } = require("../../config/permissions");
-const { buildTasks, zoneFor } = require("../dashboardOverview");
+const { buildTasks, zoneFor } = require("../dashboard/dashboardOverview");
 const { loadDrift } = require("../../services/discord/roleSync");
 const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");

@@ -24,7 +24,7 @@ jest.mock("../../../src/services/discord/discordEvent", () => ({
     warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
 }));
 jest.mock("../../../src/services/events/eventAnnounce", () => ({ announceEvent: jest.fn(async () => ({ announced: true, target: "event" })) }));
-jest.mock("../../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -40,7 +40,7 @@ const discordChannels = require("../../../src/services/discord/discordChannels")
 const { getConfig, getRaidTemplate } = require("../../../src/stores/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../../src/services/events/eventMessage");
 const { announceEvent } = require("../../../src/services/events/eventAnnounce");
-const { scheduleOverviewSync } = require("../../../src/web/talkOverview");
+const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../../src/stores/channelArchiveStore");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");

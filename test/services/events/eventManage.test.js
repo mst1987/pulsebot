@@ -18,7 +18,7 @@ jest.mock("../../../src/services/discord/discordChannels", () => ({
 }));
 jest.mock("../../../src/services/discord/channelNaming", () => ({ deriveChannelName: jest.fn() }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
+jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
@@ -41,7 +41,7 @@ const discordChannels = require("../../../src/services/discord/discordChannels")
 const channelNaming = require("../../../src/services/discord/channelNaming");
 const { refreshEventMessage } = require("../../../src/services/events/eventMessage");
 const { refreshSetupMessage } = require("../../../src/services/setup/setupMessage");
-const { scheduleOverviewSync } = require("../../../src/web/talkOverview");
+const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { deliverUserPing, sendDms } = require("../../../src/services/discord/pingDelivery");
 const discord = require("../../../src/services/discord/discord");
 const settings = require("../../../src/stores/settingsStore");

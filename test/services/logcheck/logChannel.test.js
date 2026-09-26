@@ -1,24 +1,24 @@
-jest.mock("../../src/stores/settingsStore.js");
-jest.mock("../../src/stores/logStore.js");
-jest.mock("../../src/services/discord/discord.js");
-jest.mock("../../src/utils/logcheck/report.js", () => {
+jest.mock("../../../src/stores/settingsStore.js");
+jest.mock("../../../src/stores/logStore.js");
+jest.mock("../../../src/services/discord/discord.js");
+jest.mock("../../../src/utils/logcheck/report.js", () => {
     class ReportError extends Error {}
     return { buildReport: jest.fn(), ReportError };
 });
 const mockGetFights = jest.fn();
-jest.mock("../../src/classes/warcraftlogs.js", () =>
+jest.mock("../../../src/classes/warcraftlogs.js", () =>
     jest.fn().mockImplementation(() => ({ getFights: mockGetFights })));
 
 const { ChannelType } = require("discord.js");
-const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
-const { getConfig } = require("../../src/stores/settingsStore.js");
-const logStore = require("../../src/stores/logStore.js");
-const discord = require("../../src/services/discord/discord.js");
-require("../helpers/discordMock").withClientHelpers(discord);
-const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");
-const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../src/web/logChannel.js");
+const WarcraftLogs = require("../../../src/classes/warcraftlogs.js");
+const { getConfig } = require("../../../src/stores/settingsStore.js");
+const logStore = require("../../../src/stores/logStore.js");
+const discord = require("../../../src/services/discord/discord.js");
+require("../../helpers/discordMock").withClientHelpers(discord);
+const { buildReport, ReportError } = require("../../../src/utils/logcheck/report.js");
+const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../../src/services/logcheck/logChannel.js");
 
-const { makeClient, makeChannel } = require("../helpers/discordClient");
+const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
 const BOT = { id: "botself" };
 const CLIENT = makeClient({ user: BOT });
@@ -60,7 +60,7 @@ beforeEach(() => {
     discord.postLogButton.mockResolvedValue({ channelId: "logch", messageId: "btn1" });
 });
 
-describe("web/logChannel — messageText", () => {
+describe("services/logcheck/logChannel — messageText", () => {
     it("gathers text from content, embeds and link buttons", () => {
         const text = messageText(msg({
             content: "hi https://classic.warcraftlogs.com/reports/AAA",
@@ -74,7 +74,7 @@ describe("web/logChannel — messageText", () => {
     });
 });
 
-describe("web/logChannel — handleLogMessage", () => {
+describe("services/logcheck/logChannel — handleLogMessage", () => {
     it("registers a fresh log and posts the evaluate buttons", async () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000 }));
@@ -126,7 +126,7 @@ describe("web/logChannel — handleLogMessage", () => {
     });
 });
 
-describe("web/logChannel — evaluateLog", () => {
+describe("services/logcheck/logChannel — evaluateLog", () => {
     it("returns an error for an unknown log", async () => {
         logStore.getLog.mockReturnValue(null);
         const res = await evaluateLog("missing");
@@ -186,7 +186,7 @@ describe("web/logChannel — evaluateLog", () => {
     });
 });
 
-describe("web/logChannel — scanLogChannels", () => {
+describe("services/logcheck/logChannel — scanLogChannels", () => {
     it("returns 0 when the bot client is not connected", async () => {
         discord.getClient.mockReturnValue(null);
         expect(await scanLogChannels("g1")).toBe(0);
@@ -218,7 +218,7 @@ describe("web/logChannel — scanLogChannels", () => {
     });
 });
 
-describe("web/logChannel — backfillLogTitles", () => {
+describe("services/logcheck/logChannel — backfillLogTitles", () => {
     const OLD_KEY = process.env.WARCRAFTLOGS_API_KEY;
     beforeEach(() => {
         process.env.WARCRAFTLOGS_API_KEY = "wcl-key";
