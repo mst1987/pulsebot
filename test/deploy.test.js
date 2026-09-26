@@ -81,3 +81,65 @@ describe("deploy.sh", () => {
         expect(deploy).toMatch(/command -v pm2/);
     });
 });
+
+describe("CI workflow (#414)", () => {
+    // Line endings depend on core.autocrlf; the checks below read LF.
+    const ci = read(".github/workflows/ci.yml").replace(/\r\n/g, "\n");
+    // The body of one job: from its key up to the next top-level job key.
+    const job = (name) => {
+        const start = ci.indexOf(`\n  ${name}:\n`);
+        expect(start).toBeGreaterThan(-1);
+        const rest = ci.slice(start + 1);
+        const next = rest.slice(1).search(/\n {2}[A-Za-z][\w-]*:\n/);
+        return next === -1 ? rest : rest.slice(0, next + 1);
+    };
+
+    it("runs on pushes to main only, no longer on dev", () => {
+        expect(ci).toMatch(/push:\n\s+branches: \[main\]/);
+        expect(ci).not.toMatch(/branches: \[[^\]]*\bdev\b/);
+    });
+
+    it("lints, type-checks and builds the web client in its own directory", () => {
+        const web = job("web-client");
+        expect(web).toMatch(/working-directory: src\/web-client/);
+        expect(web).toMatch(/cache-dependency-path: src\/web-client\/package-lock\.json/);
+        expect(web).toContain("node-version-file: \".nvmrc\"");
+        const steps = ["npm ci", "npm run lint -- --max-warnings=", "npx tsc -b", "npm run build"];
+        const at = steps.map((s) => web.indexOf(`run: ${s}`));
+        for (const i of at) expect(i).toBeGreaterThan(-1);
+        expect(at).toEqual([...at].sort((a, b) => a - b));
+    });
+
+    it("never lets the client's warning budget grow", () => {
+        // A ratchet from the 30 warnings at the time of #414: lower it, never raise it.
+        const budget = Number(job("web-client").match(/--max-warnings=(\d+)/)[1]);
+        expect(budget).toBeLessThanOrEqual(30);
+    });
+
+    it("deploys only after lint, tests and the web client passed", () => {
+        const needs = job("deploy").match(/needs: \[([^\]]*)\]/);
+        expect(needs).not.toBeNull();
+        expect(needs[1].split(",").map((s) => s.trim()).sort()).toEqual(["lint", "test", "web-client"]);
+    });
+
+    it("runs the tests with coverage", () => {
+        expect(job("test")).toContain("run: npm run test:coverage");
+    });
+
+    it("audits the runtime dependencies of the bot and the client", () => {
+        expect(job("lint")).toContain("npm audit --omit=dev --audit-level=");
+        expect(job("web-client")).toContain("npm audit --omit=dev --audit-level=");
+    });
+
+    it("keeps dependencies current through Dependabot", () => {
+        const bot = read(".github/dependabot.yml").replace(/\r\n/g, "\n");
+        for (const dir of ["\"/\"", "\"/src/web-client\""]) expect(bot).toContain(`directory: ${dir}`);
+        expect(bot).toMatch(/package-ecosystem: "github-actions"/);
+        expect(bot.match(/interval: "weekly"/g)).toHaveLength(3);
+    });
+
+    it("gives the web client the same Node requirement as the bot", () => {
+        const client = JSON.parse(read("src/web-client/package.json"));
+        expect(client.engines?.node).toBe(`>=${requiredMajor}`);
+    });
+});

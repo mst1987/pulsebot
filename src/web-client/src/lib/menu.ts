@@ -3,6 +3,7 @@
 // (src/web/adminChrome.js via src/config/menu.js), so the two can no longer
 // drift apart.
 import MENU_JSON from "../../../config/menu.json";
+import { canAccessAny, type SessionUser } from "../api";
 
 /**
  * One menu entry. `areas` are the permission areas from
@@ -24,3 +25,13 @@ export type MenuEntry = {
 };
 
 export const MENU: MenuEntry[] = MENU_JSON;
+
+/**
+ * The first entry the user may open — where a limited user lands instead of "/".
+ * It lives here and not in Shell.tsx so that App.tsx can ask for it without
+ * pulling the whole shell into the first chunk: the shell is loaded lazily
+ * (App.tsx, #436).
+ */
+export function firstAllowedTab(user: SessionUser): MenuEntry | null {
+    return MENU.find((t) => canAccessAny(user, t.areas)) || null;
+}

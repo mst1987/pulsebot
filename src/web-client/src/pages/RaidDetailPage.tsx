@@ -10,7 +10,7 @@
 // it as `data.steps`, every step names at most one deed, and this file is the
 // one place that turns such a deed into a dialog, a tab, a menu action or an
 // evaluation. A Raid-Helper event has no `steps` and keeps today's view.
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
@@ -39,7 +39,6 @@ import StepBar from "./raid-detail/StepBar";
 import RosterTab from "./raid-detail/RosterTab";
 import LootTab from "./raid-detail/LootTab";
 import LogsTab from "./raid-detail/LogsTab";
-import RaidplanTab from "./raid-detail/RaidplanTab";
 import SetupEditor from "./raid-detail/SetupEditor";
 import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
@@ -55,7 +54,11 @@ import "../styles/raid-detail.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { useT } from "../i18n";
 
-type Tab = "roster" | "setup" | "loot" | "logs" | "plan";
+// The raidplan editor (board, workspace, its css) is by far the heaviest part
+// of this page and only one of five tabs — it is a chunk of its own (#436).
+const RaidplanTab = lazy(() => import("./raid-detail/RaidplanTab"));
+
+type Tab ="roster" | "setup" | "loot" | "logs" | "plan";
 const TABS: Tab[] = ["roster", "setup", "plan", "loot", "logs"];
 
 /**
@@ -277,7 +280,7 @@ export default function RaidDetailPage() {
             {shown === "setup" && <SetupEditor ctx={ctx} />}
             {shown === "loot" && <LootTab ctx={ctx} />}
             {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
-            {shown === "plan" && <RaidplanTab ctx={ctx} />}
+            {shown === "plan" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}
 
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
             <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />
