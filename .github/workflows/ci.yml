@@ -79,11 +79,11 @@ jobs:
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      # A ratchet: 30 warnings today (29 react-refresh/only-export-components,
+      # A ratchet: 18 warnings today (17 react-refresh/only-export-components,
       # 1 react-hooks/exhaustive-deps). A new one fails the job; lower the
       # number whenever one is fixed, down to 0.
       - name: Run ESLint
-        run: npm run lint -- --max-warnings=30
+        run: npm run lint -- --max-warnings=18
 
       - name: Type-check
         run: npx tsc -b

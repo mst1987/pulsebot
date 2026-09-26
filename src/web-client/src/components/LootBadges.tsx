@@ -33,7 +33,7 @@ export function reasonToneClass(tone?: string): string {
 }
 
 /** The token a reason tone is drawn in — for a bar segment rather than a badge. */
-export function reasonColor(tone?: string): string {
+function reasonColor(tone?: string): string {
     return tone && TONES.has(tone) && tone !== "other" ? `var(--reason-${tone})` : "var(--muted)";
 }
 
@@ -175,7 +175,7 @@ export function tallyReasons(
 }
 
 /** "BiS 2 · Mainspec 6 · Zweitspec 1" — the tooltip line under a stacked bar. */
-export function reasonSummary(parts: ReasonCount[]): string {
+function reasonSummary(parts: ReasonCount[]): string {
     return parts.map((p) => `${p.label} ${p.count}`).join(" · ");
 }
 
