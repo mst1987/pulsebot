@@ -1,5 +1,6 @@
 import type { Channel, ChannelArchiveRow, ChannelChanges, ChannelResult, ChannelsData, PurposeStatus } from "../api";
 import { normalizeForType } from "./channelNames";
+import { formatDateTime, formatWith } from "./format";
 
 // Pure helpers of the Kanäle page (design issue #216, tree/bulk/archive #259).
 
@@ -37,7 +38,7 @@ export function changedFields(channel: Channel, data: ChannelsData, form: { name
 /** "archiviert am 03.09.2026 von Nerathil · aus Mittwoch-Raid" / "von Hand verschoben". */
 export function archivedLabel(row: ChannelArchiveRow): string {
     if (!row.at) return "von Hand ins Archiv verschoben";
-    const date = new Date(row.at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const date = formatWith(row.at, { day: "2-digit", month: "2-digit", year: "numeric" });
     return `archiviert am ${date}${row.by ? ` von ${row.by}` : ""}${row.fromCategory ? ` · aus ${row.fromCategory}` : ""}`;
 }
 
@@ -55,11 +56,7 @@ export function slowmodeLabel(seconds: number): string {
 /** "Mi 17.09. 19:30" for an event start in seconds. */
 export function eventDateLabel(startTime: number): string {
     if (!startTime) return "";
-    const d = new Date(startTime * 1000);
-    const day = d.toLocaleDateString("de-DE", { weekday: "short", timeZone: "Europe/Berlin" }).replace(".", "");
-    const date = d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", timeZone: "Europe/Berlin" });
-    const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
-    return `${day} ${date} ${time}`;
+    return formatDateTime(startTime * 1000);
 }
 
 /**

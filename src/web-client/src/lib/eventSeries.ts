@@ -4,8 +4,7 @@
 // preview request. No React in here, and strippable (one-line signatures, no
 // types inside bodies), so src/web-client/src/lib/eventSeries.test.ts runs it for real.
 import type { EventSeries, EventSeriesInput, SeriesDate, SeriesDateState } from "../api";
-
-const TZ = "Europe/Berlin";
+import { formatTime, isoDay } from "./format";
 
 export const WEEKDAYS = [
     { value: 1, short: "Mo", long: "Montag" },
@@ -28,14 +27,12 @@ export function dayLabel(date: string): string {
 /** A moment as Berlin "Do 17.09." */
 export function momentDay(ms: number): string {
     if (!ms) return "";
-    const iso = new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
-    return dayLabel(iso);
+    return dayLabel(isoDay(ms));
 }
 
 /** A moment as Berlin "19:30". */
 export function momentTime(ms: number): string {
-    if (!ms) return "";
-    return new Date(ms).toLocaleTimeString("de-DE", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+    return formatTime(ms);
 }
 
 export type StateTone = "ok" | "mid" | "bad" | "accent" | "";

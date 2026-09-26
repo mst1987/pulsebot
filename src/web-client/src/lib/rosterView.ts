@@ -1,6 +1,7 @@
 // Plain helpers of the roster and the character page (design issue #218),
 // kept apart from the components so fast refresh keeps working.
 import type { GearIssue, GearItem, RosterAttendance, RosterRole } from "../api";
+import { formatDayDate } from "./format";
 
 export const ROLE_META: Record<Exclude<RosterRole, "">, { label: string; icon: string }> = {
     tank: { label: "Tank", icon: "inv_shield_06" },
@@ -25,10 +26,7 @@ export function classIconName(className: string): string {
 export function nightLabel(ms: number): string {
     const n = Number(ms);
     if (!n) return "";
-    const parts = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", weekday: "short", day: "2-digit", month: "2-digit" })
-        .formatToParts(new Date(n));
-    const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
-    return `${get("weekday").replace(".", "")} ${get("day")}.${get("month")}.`;
+    return formatDayDate(n);
 }
 
 /** ok ≥ 80 %, mid ≥ 60 %, bad below — the attendance bar's tone. */

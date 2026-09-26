@@ -23,7 +23,8 @@ describe("setup namespace", () => {
 
     it("imports the translation functions", () => {
         expect(editor).toMatch(/import \{[^}]*\buseT\b[^}]*\} from "\.\.\/\.\.\/\.\.\/i18n";/);
-        expect(editor).toMatch(/import \{[^}]*\blocale\b[^}]*\} from "\.\.\/\.\.\/\.\.\/i18n";/);
+        // dates go through lib/format.ts, which carries the locale (#440)
+        expect(editor).toMatch(/import \{[^}]*\bformatWith\b[^}]*\} from "\.\.\/\.\.\/\.\.\/lib\/format";/);
         expect(lib).toContain("import { t } from \"../i18n\";");
     });
 

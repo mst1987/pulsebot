@@ -18,7 +18,7 @@ import {
     acceptLootInbox, dismissLootInbox,
     type ApiError, type Category, type HistoryEvent, type InboxLinkedSession, type InboxMatchEvent, type InboxSession, type LootItem,
 } from "../../api";
-import { formatEventTime } from "../../lib/format";
+import { formatEventTime, formatTime as hhmm } from "../../lib/format";
 import { LootTable } from "../../components/loot/LootTable";
 import { useToast } from "../../components/Jobs";
 import { Modal, useConfirm } from "../../components/ui/Modal";
@@ -31,8 +31,6 @@ import { InfoIcon, TrashIcon } from "../../components/icons";
 import { ItemIcon, contentIcon } from "../../components/loot/LootBadges";
 import { shortDay } from "./ItemAwardsDialog";
 
-const DISPLAY_TZ = "Europe/Berlin";
-const hhmm = (ms: number) => new Date(ms).toLocaleTimeString("de-DE", { timeZone: DISPLAY_TZ, hour: "2-digit", minute: "2-digit" });
 
 /** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
 function sessionSpan(s: { startedAt: number; endedAt: number }): string {

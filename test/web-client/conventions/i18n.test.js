@@ -2,7 +2,7 @@
 // test/web-client/i18n.test.js). The core, the dictionaries and the keys the
 // client asks for are tested in Vitest (src/web-client/src/i18n/core.test.ts),
 // the switch itself in components/LangToggle.test.tsx.
-const { read } = require("../clientSource");
+const { read, clientSources, stripComments } = require("../clientSource");
 
 describe("the language switch", () => {
     const shell = read("components/Shell.tsx");
@@ -25,5 +25,16 @@ describe("the language switch", () => {
         const format = read("lib/format.ts");
         expect(format).not.toContain("\"de-DE\"");
         expect(format).toContain("locale()");
+    });
+
+    // #440: one time zone constant and one locale for the whole client — a
+    // page formats through lib/format.ts, never with its own "de-DE" or zone.
+    it("names the locale and the time zone only in lib/format.ts and i18n/", () => {
+        const found = clientSources()
+            .filter(([rel]) => rel !== "lib/format.ts" && !rel.startsWith("i18n/"))
+            .filter(([, src]) => /"de-DE"|"Europe\/Berlin"|toLocale\w*String\(\s*(\[\]|undefined)/.test(stripComments(src)))
+            .map(([rel]) => rel);
+        expect(found).toEqual([]);
+        expect(read("lib/format.ts")).toContain("export const DISPLAY_TZ = \"Europe/Berlin\";");
     });
 });

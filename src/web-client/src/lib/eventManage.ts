@@ -5,6 +5,7 @@
 // src/web-client/src/lib/eventManage.test.ts runs it for real.
 import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
 import { t } from "../i18n";
+import { DISPLAY_TZ } from "./format";
 
 export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
     | "notify" | "sheet" | "softres" | "invite" | "raidplanOn" | "raidplanOff";
@@ -98,7 +99,7 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
 export function berlinDateTime(startTime: number): { date: string; time: string } {
     if (!startTime) return { date: "", time: "" };
     const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+        timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
     }).formatToParts(new Date(startTime * 1000));
     const at = Object.fromEntries(parts.map((p) => [p.type, p.value]));
     return { date: `${at.year}-${at.month}-${at.day}`, time: `${at.hour}:${at.minute}` };

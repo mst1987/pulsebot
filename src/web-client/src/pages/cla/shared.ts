@@ -1,4 +1,5 @@
 import type { ClaFilter, ClaRow, LogSection } from "../../api";
+import { formatDateTime, formatDayDate } from "../../lib/format";
 
 export const FILTERS: ClaFilter[] = ["all", "open", "unlinked", "done"];
 
@@ -53,25 +54,16 @@ export const FILTER_META: Record<ClaFilter, { label: string; tip: string; sub: s
 
 // ---- small formatting helpers ----
 
-const TZ = "Europe/Berlin";
-
 /** "So 14.09. 21:58" (epoch ms). */
 export function fmtPosted(ms: number): string {
     if (!ms) return "";
-    const d = new Date(ms);
-    const wd = d.toLocaleString("de-DE", { timeZone: TZ, weekday: "short" }).replace(".", "");
-    const day = d.toLocaleString("de-DE", { timeZone: TZ, day: "2-digit", month: "2-digit" });
-    const time = d.toLocaleString("de-DE", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
-    return `${wd} ${day.endsWith(".") ? day : `${day}.`} ${time}`;
+    return formatDateTime(ms);
 }
 
 /** "Do 11.09." (event start in seconds). */
 export function fmtEventDay(startTime: number): string {
     if (!startTime) return "";
-    const d = new Date(startTime * 1000);
-    const wd = d.toLocaleString("de-DE", { timeZone: TZ, weekday: "short" }).replace(".", "");
-    const day = d.toLocaleString("de-DE", { timeZone: TZ, day: "2-digit", month: "2-digit" });
-    return `${wd} ${day.endsWith(".") ? day : `${day}.`}`;
+    return formatDayDate(startTime * 1000);
 }
 
 /** "2 h 13 min nach Start" — how far a log's post lies from an event's start. */

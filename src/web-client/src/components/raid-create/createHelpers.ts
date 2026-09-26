@@ -2,6 +2,7 @@
 // repeated event, the channel name for a new date, the start step's list.
 import type { ReusableEvent } from "../../api";
 import { eventDay } from "../../lib/raidTime";
+import { DISPLAY_TZ } from "../../lib/format";
 
 export type Choice = { kind: "event" | "template" | "empty"; id: string } | null;
 export type ChannelMode = "new" | "clone" | "existing";
@@ -14,7 +15,7 @@ export const EMPTY_ICON = "inv_misc_note_02";
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** YYYY-MM-DD of an event start in the guild's time zone. */
-export const berlinDay = (startTime: number) => new Date(startTime * 1000).toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+export const berlinDay = (startTime: number) => new Date(startTime * 1000).toLocaleDateString("sv-SE", { timeZone: DISPLAY_TZ });
 
 /**
  * The next date on the template's weekday, at least a day from now and after the

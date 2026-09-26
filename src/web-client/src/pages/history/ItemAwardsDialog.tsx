@@ -15,6 +15,7 @@ import {
     type ApiError, type CharReasonBucket, type CharReasonRow, type LootCatalogItem, type LootContent, type LootReason, type LootTier,
 } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { formatWith } from "../../lib/format";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -29,18 +30,16 @@ import { useToast } from "../../components/Jobs";
 // token handed out forty times does not push the foot off the screen.
 const FIRST_ROWS = 5;
 
-const DISPLAY_TZ = "Europe/Berlin";
-
 /** "11.09. 22:48" — the year is in the event name already. */
 function shortWhen(ms: number): string {
     if (!ms) return "";
-    return new Date(ms).toLocaleString("de-DE", { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    return formatWith(ms, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 /** "Do 11.09." */
 export function shortDay(ms: number): string {
     if (!ms) return "";
-    return new Date(ms).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ, weekday: "short", day: "2-digit", month: "2-digit" }).replace(",", "");
+    return formatWith(ms, { weekday: "short", day: "2-digit", month: "2-digit" }).replace(",", "");
 }
 
 export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onClose, onChanged }: {

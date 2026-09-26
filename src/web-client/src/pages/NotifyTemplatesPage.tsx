@@ -3,6 +3,7 @@ import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
     type ApiError, type NotifyTemplate } from "../api";
 import { useApi } from "../hooks/useApi";
+import { formatTime } from "../lib/format";
 import { useDraftState } from "../lib/persistedState";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
@@ -66,7 +67,7 @@ function discordInline(text: string, keyPrefix = "m"): ReactNode[] {
 }
 
 function DiscordPreview({ title, body }: { title: string; body: string }) {
-    const now = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    const now = formatTime(Date.now());
     const lines = body.split("\n");
     return (
         <div className="dc-msg" aria-label="Vorschau der Discord-Nachricht">

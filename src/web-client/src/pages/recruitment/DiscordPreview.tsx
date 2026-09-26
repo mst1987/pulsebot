@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Emoji, TextChannel } from "../../api";
 import { CrestIcon } from "../../components/icons";
 import { parseDiscordMarkdown, type InlineToken, type MdBlock } from "../../lib/discordMarkdown";
+import { formatTime } from "../../lib/format";
 
 // How a recruitment message will look in Discord: the bot's name and avatar,
 // the text with Discord's markdown rendered and the server's own emojis in
@@ -69,7 +70,7 @@ function Block({ block, emojis, channels }: { block: MdBlock; emojis: Emoji[]; c
 }
 
 function nowLabel(): string {
-    return `Heute um ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+    return `Heute um ${formatTime(Date.now())}`;
 }
 
 export default function DiscordPreview({ content, buttonLabel, emojis, channels = [], botName = "EventHelper" }: {

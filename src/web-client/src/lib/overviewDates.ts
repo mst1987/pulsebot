@@ -1,11 +1,7 @@
 // Date wording of the start page ("Übersicht") and its raid-details modal —
 // always in the guild's time zone, like lib/format.ts, in the menu's language.
-import { locale, t } from "../i18n";
-
-const TZ = "Europe/Berlin";
-
-const fmt = (ms: number, opts: Intl.DateTimeFormatOptions) =>
-    new Date(ms).toLocaleString(locale(), { timeZone: TZ, ...opts });
+import { t } from "../i18n";
+import { formatWith as fmt } from "./format";
 
 /** "Montag, 14. September" */
 export function longDay(ms: number): string {

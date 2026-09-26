@@ -6,11 +6,12 @@ import type { RaidplanRosterSource } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { rhSourceText } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
+import { formatTime } from "../../../lib/format";
 
 export default function RhSource({ src, busy, onReload }: { src: RaidplanRosterSource; busy: boolean; onReload: () => void }) {
     const t = useT();
     const text = rhSourceText(src);
-    const at = src.fetchedAt ? new Date(src.fetchedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+    const at = formatTime(src.fetchedAt || 0);
     return (
         <div className={`rp-rhsrc${src.stale || !src.available ? " is-stale" : ""}`}>
             <div className="rp-rhsrc-line">
