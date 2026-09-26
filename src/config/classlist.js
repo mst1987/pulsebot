@@ -1,429 +1,154 @@
-﻿const extendedClassList = {
-    // Pala
-    Holy1: {
-        icon: "holypala",
-        name: "Holy Paladin",
-        clazz: "Paladin",
-        sodclazz: "Healer",
-        spec: "Holy1",
-    },
-    HolyPala: {
-        icon: "holypala",
-        name: "Holy Paladin",
-        clazz: "Paladin",
-        sodclazz: "Healer",
-        spec: "Holy1",
-    },
-    Protection1: {
-        icon: "protpala",
-        name: "Protection Pala",
-        clazz: "Tank",
-        sodclazz: "Tank",
-        spec: "Protection1",
-    },
-    ProtPala: {
-        icon: "protpala",
-        name: "Protection Pala",
-        clazz: "Tank",
-        sodclazz: "Tank",
-        spec: "Protection1",
-    },
-    Retribution: {
-        icon: "retribution",
-        name: "Retribution Pala",
-        clazz: "Paladin",
-        sodclazz: "melee",
-        spec: "Retribution",
-    },
-    Retri: {
-        icon: "retribution",
-        name: "Retribution Pala",
-        clazz: "Paladin",
-        sodclazz: "melee",
-        spec: "Retribution",
-    },
-    PALADIN: {
-        icon: "paladin",
-        name: "Paladin",
-        clazz: "Paladin",
-        spec: "paladin",
-    },
-    //Warrior
-    Fury: {
-        icon: "fury",
-        name: "Fury Warrior",
-        clazz: "Warrior",
-        sodclazz: "melee",
-        spec: "Fury",
-    },
-    Arms: {
-        icon: "arms",
-        name: "Arms Warrior",
-        clazz: "Warrior",
-        sodclazz: "melee",
-        spec: "Arms",
-    },
-    Protection: {
-        icon: "protection",
-        name: "Protection Warrior",
-        clazz: "Warrior",
-        sodclazz: "tank",
-        spec: "Protection",
-    },
-    ProtWarrior: {
-        icon: "protection",
-        name: "Protection Warrior",
-        clazz: "Tank",
-        sodclazz: "tank",
-        spec: "Protection",
-    },
-    WARRIOR: { icon: "warrior", name: "Warrior", clazz: "Tank", spec: "Warrior" },
-    //Rogue
-    Assassination: {
-        icon: "assassination",
-        name: "Assassination Rogue",
-        clazz: "Rogue",
-        sodclazz: "melee",
-        spec: "Assassination",
-    },
-    Assa: {
-        icon: "assassination",
-        name: "Assassination Rogue",
-        clazz: "Rogue",
-        sodclazz: "melee",
-        spec: "Assassination",
-    },
-    Sublety: {
-        icon: "sublety",
-        name: "Sublety Rogue",
-        clazz: "Rogue",
-        sodclazz: "melee",
-        spec: "Sublety",
-    },
-    Sub: {
-        icon: "sublety",
-        name: "Sublety Rogue",
-        clazz: "Rogue",
-        sodclazz: "melee",
-        spec: "Sublety",
-    },
-    Combat: {
-        icon: "combat",
-        name: "Combat Rogue",
-        clazz: "Rogue",
-        sodclazz: "melee",
-        spec: "Combat",
-    },
-    TankRogue: {
-        icon: "combat",
-        name: "Combat Rogue",
-        clazz: "Rogue",
-        sodclazz: "tank",
-        spec: "Combat",
-    },
-    ROGUE: { icon: "rogue", name: "Rogue", clazz: "Rogue", spec: "rogue" },
-    //Priest
-    Discipline: {
-        icon: "discipline",
-        name: "Discipline Priest",
-        clazz: "Priest",
-        sodclazz: "Healer",
-        spec: "Discipline",
-    },
-    Disc: {
-        icon: "discipline",
-        name: "Discipline Priest",
-        clazz: "Priest",
-        sodclazz: "Healer",
-        spec: "Discipline",
-    },
-    Shadow: {
-        icon: "shadow",
-        name: "Shadow Priest",
-        clazz: "Priest",
-        sodclazz: "ranged",
-        spec: "Shadow",
-    },
-    HolyPriest: {
-        icon: "holypriest",
-        name: "Holy Priest",
-        clazz: "Priest",
-        sodclazz: "Healer",
-        spec: "HolyPriest",
-    },
-    Holy: {
-        icon: "holypriest",
-        name: "Holy Priest",
-        clazz: "Priest",
-        sodclazz: "Healer",
-        spec: "HolyPriest",
-    },
-    PRIEST: { icon: "priest", name: "Priest", clazz: "Priest", spec: "Priest" },
-    //Hunter
-    Survival: {
-        icon: "survival",
-        name: "Survival Hunter",
-        clazz: "Hunter",
-        sodclazz: "melee",
-        spec: "Survival",
-    },
-    SV: {
-        icon: "survival",
-        name: "Survival Hunter",
-        clazz: "Hunter",
-        sodclazz: "melee",
-        spec: "Survival",
-    },
-    Marksmanship: {
-        icon: "marksman",
-        name: "Marksman Hunter",
-        clazz: "Hunter",
-        sodclazz: "ranged",
-        spec: "Marksmanship",
-    },
-    Marksman: {
-        icon: "marksman",
-        name: "Marksman Hunter",
-        clazz: "Hunter",
-        sodclazz: "ranged",
-        spec: "Marksmanship",
-    },
-    MM: {
-        icon: "marksman",
-        name: "Marksman Hunter",
-        clazz: "Hunter",
-        sodclazz: "ranged",
-        spec: "Marksmanship",
-    },
-    Beastmastery: {
-        icon: "beastmaster",
-        name: "Beastmaster Hunter",
-        clazz: "Hunter",
-        sodclazz: "ranged",
-        spec: "Beastmastery",
-    },
-    BM: {
-        icon: "beastmaster",
-        name: "Beastmaster Hunter",
-        clazz: "Hunter",
-        sodclazz: "ranged",
-        spec: "Beastmastery",
-    },
-    HUNTER: {
-        icon: "survival",
-        name: "Survival Hunter",
-        clazz: "Hunter",
-        spec: "Survival",
-    },
+// Raid-Helper's spec names, resolved to the rule set's classes and specs.
+//
+// Raid-Helper names a spec in a signup, a raidplan slot or a /signup argument
+// with its own strings — "Holy1" for a holy paladin, "Destro", "RestoSham",
+// several aliases for one spec. This file is only the table from those names
+// to the rule-set key `"<Class>-<Spec>"` (a bare class id for Raid-Helper's
+// class-only entries). Everything about a class or spec — its class, its role,
+// how Raid-Helper and the guild's emojis call it — comes from
+// config/gameVersions/classes.js, the one place classes are described.
+
+const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES } = require("./gameVersions/classes");
+
+// Raid-Helper name → rule-set key. The order is the order the entries were
+// always listed in: the first name of a spec is the one a catalog shows.
+const ALIASES = {
+    // Paladin
+    Holy1: "Paladin-Holy",
+    HolyPala: "Paladin-Holy",
+    Protection1: "Paladin-Protection",
+    ProtPala: "Paladin-Protection",
+    Retribution: "Paladin-Retribution",
+    Retri: "Paladin-Retribution",
+    PALADIN: "Paladin",
+    // Warrior
+    Fury: "Warrior-Fury",
+    Arms: "Warrior-Arms",
+    Protection: "Warrior-Protection",
+    ProtWarrior: "Warrior-Protection",
+    WARRIOR: "Warrior",
+    // Rogue
+    Assassination: "Rogue-Assassination",
+    Assa: "Rogue-Assassination",
+    Sublety: "Rogue-Subtlety",
+    Sub: "Rogue-Subtlety",
+    Combat: "Rogue-Combat",
+    TankRogue: "Rogue-Combat",
+    ROGUE: "Rogue",
+    // Priest
+    Discipline: "Priest-Discipline",
+    Disc: "Priest-Discipline",
+    Shadow: "Priest-Shadow",
+    HolyPriest: "Priest-Holy",
+    Holy: "Priest-Holy",
+    PRIEST: "Priest",
+    // Hunter (Raid-Helper's class-only hunter has always meant survival)
+    Survival: "Hunter-Survival",
+    SV: "Hunter-Survival",
+    Marksmanship: "Hunter-Marksmanship",
+    Marksman: "Hunter-Marksmanship",
+    MM: "Hunter-Marksmanship",
+    Beastmastery: "Hunter-BeastMastery",
+    BM: "Hunter-BeastMastery",
+    HUNTER: "Hunter-Survival",
     // Warlock
-    Demonology: {
-        icon: "demonology",
-        name: "Demonology Warlock",
-        clazz: "Warlock",
-        sodclazz: "ranged",
-        spec: "Demonology",
-    },
-    Demo: {
-        icon: "demonology",
-        name: "Demonology Warlock",
-        clazz: "Warlock",
-        sodclazz: "ranged",
-        spec: "Demonology",
-    },
-    TankWL: {
-        icon: "demonology",
-        name: "Demonology Warlock",
-        clazz: "Warlock",
-        sodclazz: "tank",
-        spec: "Demonology",
-    },
-    Affliction: {
-        icon: "affliction",
-        name: "Affliction Warlock",
-        clazz: "Warlock",
-        sodclazz: "ranged",
-        spec: "Affliction",
-    },
-    Affli: {
-        icon: "affliction",
-        name: "Affliction Warlock",
-        clazz: "Warlock",
-        sodclazz: "ranged",
-        spec: "Affliction",
-    },
-    Destro: {
-        icon: "destruction",
-        name: "Destruction Warlock",
-        clazz: "Warlock",
-        sodclazz: "ranged",
-        spec: "Destruction",
-    },
-    WARLOCK: {
-        icon: "warlock",
-        name: "Warlock",
-        clazz: "Warlock",
-        spec: "warlock",
-    },
-    //Mage
-    Fire: {
-        icon: "firemage",
-        name: "Fire Mage",
-        clazz: "Mage",
-        sodclazz: "ranged",
-        spec: "Fire",
-    },
-    Arcane: {
-        icon: "arcane",
-        name: "Arcane Mage",
-        clazz: "Mage",
-        sodclazz: "ranged",
-        spec: "Arcane",
-    },
-    Frost: {
-        icon: "frostmage",
-        name: "Frost Mage",
-        clazz: "Mage",
-        sodclazz: "ranged",
-        spec: "Frost",
-    },
-    MAGE: { icon: "mage", name: "Mage", clazz: "Mage", spec: "mage" },
-    //Druid
-    Feral: {
-        icon: "feral",
-        name: "Feral Druid",
-        clazz: "Druid",
-        sodclazz: "melee",
-        spec: "Feral",
-    },
-    Guardian: {
-        icon: "guardian",
-        name: "Feral Tank",
-        clazz: "Druid",
-        sodclazz: "tank",
-        spec: "Guardian",
-    },
-    Balance: {
-        icon: "balance",
-        name: "Balance Druid",
-        clazz: "Druid",
-        sodclazz: "ranged",
-        spec: "Balance",
-    },
-    Restoration: {
-        icon: "restoration",
-        name: "Restoration Druid",
-        clazz: "Druid",
-        sodclazz: "Healer",
-        spec: "Restoration",
-    },
-    RestoDruid: {
-        icon: "restoration",
-        name: "Restoration Druid",
-        clazz: "Druid",
-        sodclazz: "Healer",
-        spec: "Restoration",
-    },
-    DRUID: { icon: "druid", name: "Druid", clazz: "Druid", spec: "druid" },
-    //Death Knight
-    Unholy_DPS: {
-        icon: "unholy",
-        name: "Unholy Deathknight",
-        clazz: "DK",
-        spec: "Unholy_DPS",
-    },
-    UnholyDK: {
-        icon: "unholy",
-        name: "Unholy Deathknight",
-        clazz: "DK",
-        spec: "Unholy_DPS",
-    },
-    Frost_DPS: {
-        icon: "frostdk",
-        name: "Frost Deathknight",
-        clazz: "DK",
-        spec: "Frost_DPS",
-    },
-    FrostDK: {
-        icon: "frostdk",
-        name: "Frost Deathknight",
-        clazz: "DK",
-        spec: "Frost_DPS",
-    },
-    Blood_Tank: {
-        icon: "blooddk",
-        name: "Blood Tank",
-        clazz: "Tank",
-        spec: "Blood_Tank",
-    },
-    BloodTank: {
-        icon: "blooddk",
-        name: "Blood Tank",
-        clazz: "Tank",
-        spec: "Blood_Tank",
-    },
-    BloodDK: {
-        icon: "blooddk",
-        name: "Blood Deathknight",
-        clazz: "DK",
-        spec: "Blood_Tank",
-    },
-    DEATHKNIGHT: {
-        icon: "deathknight",
-        name: "Deathknight",
-        clazz: "DK",
-        spec: "Deathknight",
-    },
-    //Shaman
-    Restoration1: {
-        icon: "restosham",
-        name: "Restoration Shaman",
-        clazz: "Shaman",
-        sodclazz: "Healer",
-        spec: "Restoration1",
-    },
-    RestoSham: {
-        icon: "restosham",
-        name: "Restoration Shaman",
-        clazz: "Shaman",
-        sodclazz: "Healer",
-        spec: "Restoration1",
-    },
-    Elemental: {
-        icon: "elemental",
-        name: "Elemental Shaman",
-        clazz: "Shaman",
-        sodclazz: "ranged",
-        spec: "Elemental",
-    },
-    EleSham: {
-        icon: "elemental",
-        name: "Elemental Shaman",
-        clazz: "Shaman",
-        sodclazz: "ranged",
-        spec: "Elemental",
-    },
-    Enhancement: {
-        icon: "enhancement",
-        name: "Enhancement Shaman",
-        clazz: "Shaman",
-        sodclazz: "melee",
-        spec: "Enhancement",
-    },
-    Enhancer: {
-        icon: "enhancement",
-        name: "Enhancement Shaman",
-        clazz: "Shaman",
-        sodclazz: "melee",
-        spec: "Enhancement",
-    },
-    TankShaman: {
-        icon: "enhancement",
-        name: "Enhancement Shaman",
-        clazz: "Shaman",
-        sodclazz: "tank",
-        spec: "Enhancement",
-    },
-    SHAMAN: { icon: "shaman", name: "Shaman", clazz: "Shaman", spec: "Shaman" },
+    Demonology: "Warlock-Demonology",
+    Demo: "Warlock-Demonology",
+    TankWL: "Warlock-Demonology",
+    Affliction: "Warlock-Affliction",
+    Affli: "Warlock-Affliction",
+    Destro: "Warlock-Destruction",
+    WARLOCK: "Warlock",
+    // Mage
+    Fire: "Mage-Fire",
+    Arcane: "Mage-Arcane",
+    Frost: "Mage-Frost",
+    MAGE: "Mage",
+    // Druid
+    Feral: "Druid-Feral",
+    Guardian: "Druid-Guardian",
+    Balance: "Druid-Balance",
+    Restoration: "Druid-Restoration",
+    RestoDruid: "Druid-Restoration",
+    DRUID: "Druid",
+    // Death Knight (no rule set plays one; see RAID_HELPER_ONLY_CLASSES)
+    Unholy_DPS: "DK-Unholy",
+    UnholyDK: "DK-Unholy",
+    Frost_DPS: "DK-Frost",
+    FrostDK: "DK-Frost",
+    Blood_Tank: "DK-Blood",
+    BloodTank: "DK-Blood",
+    BloodDK: "DK-Blood",
+    DEATHKNIGHT: "DK",
+    // Shaman
+    Restoration1: "Shaman-Restoration",
+    RestoSham: "Shaman-Restoration",
+    Elemental: "Shaman-Elemental",
+    EleSham: "Shaman-Elemental",
+    Enhancement: "Shaman-Enhancement",
+    Enhancer: "Shaman-Enhancement",
+    TankShaman: "Shaman-Enhancement",
+    SHAMAN: "Shaman",
 };
 
-module.exports = extendedClassList;
+// Season of Discovery's tank runes: Raid-Helper names them apart, the talent
+// tree is the damage spec's, the role is not.
+const ROLE_OVERRIDES = { TankRogue: "tank", TankWL: "tank", TankShaman: "tank" };
+
+// The names Raid-Helper files under its own "Tank" class. /signup has to send
+// that class name back to Raid-Helper's API (utils/helper.js formatSpecs), and
+// the setup view counts them as tanks whatever the spec.
+const RAIDHELPER_TANK_CLASS = new Set(["Protection1", "ProtPala", "ProtWarrior", "WARRIOR", "Blood_Tank", "BloodTank"]);
+
+const ALL_CLASSES = [...CLASSES, ...RAID_HELPER_ONLY_CLASSES];
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+/**
+ * The resolved entry of one alias:
+ *   key             rule-set key ("Paladin-Protection", or "Paladin" for a class-only name)
+ *   clazz           the WoW class id ("Paladin", "DK")
+ *   role            tank / healer / melee / ranged, "" for a class-only name
+ *   spec            Raid-Helper's own spec name ("Protection1")
+ *   icon            the guild's Discord emoji name for it ("protpala")
+ *   name            the label the bot shows ("Protection Pala")
+ *   raidhelperClass the class name Raid-Helper's API expects ("Tank" for its tank entries)
+ */
+function buildEntry(alias, key) {
+    const [classId, specId] = key.split("-");
+    const cls = ALL_CLASSES.find((c) => c.id === classId);
+    const spec = specId && cls ? cls.specs.find((s) => s.id === specId) : null;
+    const names = RAID_HELPER_NAMES[key];
+    if (!cls || (specId && !spec) || !names) throw new Error(`classlist: unknown key ${key} for ${alias}`);
+    return Object.freeze({
+        key,
+        clazz: classId,
+        role: ROLE_OVERRIDES[alias] || (spec ? spec.role : ""),
+        spec: names.spec,
+        icon: names.icon,
+        name: names.name,
+        raidhelperClass: RAIDHELPER_TANK_CLASS.has(alias) ? "Tank" : classId,
+    });
+}
+
+const ENTRIES = Object.freeze(Object.fromEntries(Object.entries(ALIASES).map(([alias, key]) => [alias, buildEntry(alias, key)])));
+
+// Raid-Helper's own spec name ("Destruction", "Unholy_DPS") → the first alias
+// entry carrying it, for callers that may be handed either form.
+const BY_SPEC = {};
+for (const entry of Object.values(ENTRIES)) {
+    if (!hasOwn(BY_SPEC, entry.spec)) BY_SPEC[entry.spec] = entry;
+}
+
+/** The entry of a Raid-Helper alias ("Destro", "ProtPala"), or null. */
+function entryFor(name) {
+    const key = String(name === null || name === undefined ? "" : name);
+    return hasOwn(ENTRIES, key) ? ENTRIES[key] : null;
+}
+
+/** Like entryFor(), also accepting Raid-Helper's own spec name ("Destruction"). */
+function entryForSpec(name) {
+    const key = String(name === null || name === undefined ? "" : name);
+    return entryFor(key) || (hasOwn(BY_SPEC, key) ? BY_SPEC[key] : null);
+}
+
+module.exports = { ALIASES, ROLE_OVERRIDES, ENTRIES, entryFor, entryForSpec };

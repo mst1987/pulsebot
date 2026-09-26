@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const characterStore = require("./characterStore");
 
 // Manual, per-raid-category mapping of a raider (Discord user id) to the WoW
@@ -9,25 +9,20 @@ const characterStore = require("./characterStore");
 // reliably from past signups alone. Used to enrich the "missing" list on the
 // raid-event detail page with the character (and class/spec) that is
 // actually expected, even when the raider hasn't signed up recently.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const RAIDER_CHARACTERS_FILE = path.join(SETTINGS_DIR, "raider-characters.json");
+const RAIDER_CHARACTERS_FILE = settingsPath("raider-characters.json");
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
+const store = createJsonStore({
+    file: RAIDER_CHARACTERS_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data === "object" && !Array.isArray(data) ? data : {}),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(RAIDER_CHARACTERS_FILE, "utf8"));
-        return data && typeof data === "object" && !Array.isArray(data) ? data : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(byCategory) {
-    ensureDir();
-    fs.writeFileSync(RAIDER_CHARACTERS_FILE, JSON.stringify(byCategory, null, 2));
+    store.write(byCategory);
 }
 
 /** Raider (userId) -> character name assigned for one category. Never undefined. */
@@ -117,5 +112,5 @@ function charactersForUser(userId) {
 
 module.exports = {
     getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles, charactersForUser,
-    RAIDER_CHARACTERS_FILE,
+    RAIDER_CHARACTERS_FILE, useFile: store.useFile,
 };

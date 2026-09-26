@@ -1,13 +1,17 @@
 const path = require("path");
 const fs = require("fs");
 const { ok } = require("../apiResponse");
-const { requireFullAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { getConfig } = require("../settingsStore");
 const discord = require("../discord");
 const { eventGuildId, ruleFor } = require("../botAccess");
 const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
+
+// The files under src/commands/ do not change while the process runs: scanned
+// once on the first call instead of on every request (#419).
+let scannedCommands = null;
 
 /**
  * The command modules: the ones the bot loaded, or — when the web server runs
@@ -16,6 +20,11 @@ const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
 function loadedCommands() {
     const client = discord.getClient();
     if (client && client.commands && client.commands.size) return [...client.commands.values()];
+    if (!scannedCommands) scannedCommands = scanCommandsDir();
+    return [...scannedCommands];
+}
+
+function scanCommandsDir() {
     const out = [];
     for (const folder of fs.readdirSync(COMMANDS_DIR)) {
         const dir = path.join(COMMANDS_DIR, folder);
@@ -87,8 +96,7 @@ function buildBotCommandList(commands, config) {
 }
 
 /** GET /api/bot-commands */
-async function getBotCommands(req, res) {
-    if (!requireFullAdmin(req, res)) return;
+const getBotCommands = withUser({ full: true }, async ({ res }) => {
     const config = getConfig();
     const guildId = eventGuildId(config);
     const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
@@ -101,6 +109,11 @@ async function getBotCommands(req, res) {
         guildId,
         guildName: guild ? guild.name : "",
     });
-}
+});
 
-module.exports = { getBotCommands, buildBotCommandList, loadedCommands };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/bot-commands", handler: getBotCommands, area: "settings" },
+];
+
+module.exports = { getBotCommands, buildBotCommandList, loadedCommands, routes };

@@ -61,6 +61,21 @@ describe("GET /api/bot-commands", () => {
         expect(all.map((c) => c.name)).toEqual(expect.arrayContaining(["signup", "fillsetup", "logcheck-eval"]));
     });
 
+    it("scans the command folder once, not on every request (#419)", () => {
+        const fs = require("fs");
+        loadedCommands();
+        const readdir = jest.spyOn(fs, "readdirSync");
+        try {
+            const again = loadedCommands();
+            expect(readdir).not.toHaveBeenCalled();
+            expect(again.map((c) => c.name)).toEqual(expect.arrayContaining(["signup"]));
+            // a copy each time: a caller sorting its list cannot reorder the next one's
+            expect(loadedCommands()).not.toBe(again);
+        } finally {
+            readdir.mockRestore();
+        }
+    });
+
     it("answers with the used groups, the commands and the event guild's roles with member counts", async () => {
         discord.getClient.mockReturnValue({ commands: new Map([
             ["signup", { name: "signup", description: "Anmelden", group: "signup", defaultAccess: "everyone" }],

@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { normalizeLootSystem, resolveLootSystem } = require("./lootSystem");
 
 // The loot system of one raid where it differs from its category's
@@ -13,27 +13,21 @@ const { normalizeLootSystem, resolveLootSystem } = require("./lootSystem");
 // An entry that says nothing (no system of its own, no extra softres) is
 // removed, so "wie die Kategorie" is the absence of an entry.
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const DEFAULT_FILE = path.join(SETTINGS_DIR, "event-loot-system.json");
-let storeFile = DEFAULT_FILE;
+const store = createJsonStore({
+    file: settingsPath("event-loot-system.json"),
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data.events === "object" && !Array.isArray(data.events) ? data.events : {}),
+});
 
-/** Tests only: read and write another file. */
-function useFile(file) {
-    storeFile = file || DEFAULT_FILE;
-}
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(storeFile, "utf8"));
-        return data && typeof data.events === "object" && !Array.isArray(data.events) ? data.events : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(events) {
-    fs.mkdirSync(path.dirname(storeFile), { recursive: true });
-    fs.writeFileSync(storeFile, JSON.stringify({ events }, null, 2));
+    store.write({ events });
 }
 
 /** The override of one raid, or null when it follows its category. */

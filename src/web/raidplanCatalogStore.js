@@ -10,42 +10,40 @@
 //
 //   mob   { id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note }
 //   spell { id, name, nameEn, icon, type, classes: [class id], note }
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 const defaults = require("./raidplanCatalogDefaults");
 const { instanceById } = require("../config/gameVersions");
 const { ASSIGN_TYPES } = require("./raidplanAssign");
 const { str } = require("../utils/text");
 
-const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-catalog.json");
+const DEFAULT_FILE = settingsPath("raidplan-catalog.json");
 const LIMITS = { mobs: 400, spells: 300, name: 60, note: 200 };
 const KINDS = ["boss", "add", "trash", "other"];
 const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
 // a Wowhead icon name (spell_fire_fireball) or a boss icon (boss:<encounter id>) or a mob's portrait (mob:<NPC id>), "" = the generic enemy icon
 const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 
-let file = DEFAULT_FILE;
 
-/** Tests point the store at a file of their own. */
-function useFile(f) {
-    file = f || DEFAULT_FILE;
-}
-
-
-function readAll() {
-    try {
-        const d = JSON.parse(fs.readFileSync(file, "utf8"));
+const store = createJsonStore({
+    file: DEFAULT_FILE,
+    defaults: () => ({ mobs: {}, spells: {}, hiddenMobs: [], hiddenSpells: [] }),
+    normalize: (d) => {
         const obj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
         return { mobs: obj(d.mobs), spells: obj(d.spells), hiddenMobs: Array.isArray(d.hiddenMobs) ? d.hiddenMobs : [], hiddenSpells: Array.isArray(d.hiddenSpells) ? d.hiddenSpells : [] };
-    } catch {
-        return { mobs: {}, spells: {}, hiddenMobs: [], hiddenSpells: [] };
-    }
+    },
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
+
+function readAll() {
+    return store.read();
 }
 
 function writeAll(data) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    store.write(data);
 }
 
 const cleanIcon = (v) => (ICON.test(str(v).toLowerCase()) ? str(v).toLowerCase() : "");

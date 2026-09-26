@@ -16,7 +16,7 @@ const { logcheckAdminIds } = require("../config/variables");
 
 const FIXTURE_EVENT_ID = "1400000000000000001";
 const MODES = ["on", "nogroups", "signups", "gone", "down"];
-const MODE_FILE = require("path").join(__dirname, "..", "..", "data", "rh-fixture-mode.txt");
+const MODE_FILE = require("../config/paths").dataPath("rh-fixture-mode.txt");
 
 /** The mode the file names, or "" (no file, or nothing it knows). */
 function fileMode(file = MODE_FILE) {
@@ -130,7 +130,6 @@ function fixtureClient({ mode: baseMode = fixtureMode(), channelIdOf = defaultCh
         createEvent: refuse,
         signUpToRaid: refuse,
         signUp: refuse,
-        saveRaid: refuse,
     };
 }
 

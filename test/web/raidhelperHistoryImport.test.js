@@ -1,16 +1,5 @@
 // #291: the Raid-Helper signups as spec history — mapping, idempotence, dry run.
-jest.mock("fs", () => {
-    const store = new Map();
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => store.set(p, String(data))),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw new Error("ENOENT");
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../src/web/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),

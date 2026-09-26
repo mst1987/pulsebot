@@ -7,8 +7,7 @@
 
 const pendingApplications = new Map();
 
-const STALE_AFTER_MS = 30 * 60 * 1000;
-const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+const { APPLICATION_STALE_AFTER_MS: STALE_AFTER_MS, APPLICATION_SWEEP_INTERVAL_MS: SWEEP_INTERVAL_MS } = require("../config/constants");
 
 function sweepStaleApplications(now = Date.now()) {
     const cutoff = now - STALE_AFTER_MS;

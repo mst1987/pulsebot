@@ -7,7 +7,7 @@ const logger = require("../logger.js").child("raidhelper");
 // that is what made "fehlende Raider pingen" appear to do nothing at all.
 // Every request below arms the same hard cap and fails with a real error, so
 // callers can fall back (raidEventGroups' last-good cache) or report it.
-const REQUEST_TIMEOUT_MS = 20000;
+const { RAIDHELPER_REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS } = require("../config/constants.js");
 
 // Abort `request` if the server hasn't answered in time. Destroying it with an
 // Error makes the request emit "error" with that Error, so the existing error
@@ -357,41 +357,6 @@ class Raidhelper {
       });
 
       request.on("error", (error) => reject(error));
-      armTimeout(request);
-      request.write(postData);
-      request.end();
-    });
-  }
-
-  async saveRaid(data) {
-    return new Promise(async (resolve, reject) => {
-      const postData = JSON.stringify(data);
-
-      const options = {
-        host: "pulse-gdkp.de",
-        port: 3001,
-        path: "/api/raids/import",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      };
-
-      const request = https.request(options, (response) => {
-        let responseData = "";
-        response.on("data", (chunk) => {
-          responseData += chunk;
-        });
-
-        response.on("end", () => {
-          resolve(JSON.parse(responseData));
-        });
-      });
-
-      request.on("error", (error) => {
-        reject(error);
-      });
-
       armTimeout(request);
       request.write(postData);
       request.end();

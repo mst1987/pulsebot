@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Generates everything the loot council needs out of WoWSims-TBC (wowsims/tbc-new, MIT):
 //
-//   src/config/wowsims/items.json      — the raid-relevant slice of the item DB
+//   src/config/generated/wowsims/items.json      — the raid-relevant slice of the item DB
 //                                        (stats, slot, sockets, weapon), by item id
-//   src/config/wowsims/bisSets.json    — the BiS gear sets per spec and phase
-//   src/config/wowsims/apls/*.json     — the ground-truth rotations, verbatim
+//   src/config/generated/wowsims/bisSets.json    — the BiS gear sets per spec and phase
+//   src/config/generated/wowsims/apls/*.json     — the ground-truth rotations, verbatim
 //
 // Run it to refresh those files; do NOT hand-edit them (same rule as the
 // RAID_LOOT block in config/tbcContent.js):
@@ -33,7 +33,7 @@ const BIS_VERSION = "v0.0.126";
 // The tables land as JSON next to the module that reads them (index.js), not as
 // generated JavaScript: 3000 items are ~650 KB, which as a JS literal would be
 // one unreadable line for ESLint to walk and for every diff to re-print.
-const OUT_DIR = path.join(__dirname, "..", "src", "config", "wowsims");
+const OUT_DIR = path.join(__dirname, "..", "src", "config", "generated", "wowsims");
 const APL_DIR = path.join(OUT_DIR, "apls");
 
 // Which gear set files are the BiS list for a spec, newest phase last. WoWSims
@@ -516,7 +516,7 @@ function writeJson(fileName, payload) {
         ...payload,
     };
     fs.writeFileSync(path.join(OUT_DIR, fileName), `${JSON.stringify(data)}\n`);
-    console.log(`-> src/config/wowsims/${fileName}`);
+    console.log(`-> src/config/generated/wowsims/${fileName}`);
 }
 
 main().catch((e) => {

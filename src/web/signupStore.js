@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { spec: specOf, ROLES, DEFAULT_VERSION } = require("../config/gameVersions");
 const { SIGNUP_STATUSES } = require("../utils/attendance");
 
@@ -18,8 +18,7 @@ const { SIGNUP_STATUSES } = require("../utils/attendance");
 // `spec` is a rule-set key ("Priest-Shadow", config/gameVersions), `status` one
 // of attendance.js' SIGNUP_STATUSES — so eventSources.js can hand the signups
 // to every reader in the shape Raid-Helper's normalised signups already have.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const SIGNUPS_FILE = path.join(SETTINGS_DIR, "signups.json");
+const SIGNUPS_FILE = settingsPath("signups.json");
 
 const MAX_COMMENT = 300;
 const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
@@ -27,18 +26,18 @@ const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupChar
 // Whoever wants to know that a roster changed (the bot's event message).
 const listeners = new Set();
 
+const store = createJsonStore({
+    file: SIGNUPS_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && data.signups && typeof data.signups === "object" ? data.signups : {}),
+});
+
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(SIGNUPS_FILE, "utf8"));
-        return data && data.signups && typeof data.signups === "object" ? data.signups : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(signups) {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-    fs.writeFileSync(SIGNUPS_FILE, JSON.stringify({ signups }, null, 2));
+    store.write({ signups });
 }
 
 function notify(eventId) {
@@ -224,5 +223,5 @@ function deleteEventSignups(eventId) {
 
 module.exports = {
     listSignups, getSignup, signupsOfUser, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
-    normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS,
+    normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS, useFile: store.useFile,
 };

@@ -251,4 +251,10 @@ async function ingestRaidStatus(req, res) {
     ok(res, { raids });
 }
 
-module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
+    { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
+];
+
+module.exports = { ingestLoot, ingestRaidStatus, computeRaidStatus, routes };

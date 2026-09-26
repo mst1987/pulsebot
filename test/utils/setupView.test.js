@@ -126,12 +126,18 @@ describe("utils/setupView", () => {
     });
 
     describe("roleOf / realClass helpers", () => {
-        it("buckets by sodclazz", () => {
-            expect(roleOf({ sodclazz: "Healer" })).toBe("healer");
-            expect(roleOf({ sodclazz: "melee" })).toBe("melee");
-            expect(roleOf({ sodclazz: "ranged" })).toBe("ranged");
-            expect(roleOf({ clazz: "Tank" })).toBe("tank");
+        it("buckets by role", () => {
+            expect(roleOf({ role: "healer" })).toBe("healer");
+            expect(roleOf({ role: "melee" })).toBe("melee");
+            expect(roleOf({ role: "ranged" })).toBe("ranged");
+            expect(roleOf({ role: "tank" })).toBe("tank");
+            expect(roleOf({ role: "", raidhelperClass: "Tank" })).toBe("tank");
+            expect(roleOf({ role: "" })).toBe("dps");
             expect(roleOf(null)).toBe("dps");
+        });
+
+        it("realClass is the entry's class", () => {
+            expect(realClass({ clazz: "Paladin" })).toBe("Paladin");
         });
 
         it("realClass returns null for an empty entry", () => {
@@ -227,7 +233,8 @@ describe("utils/setupView", () => {
 
     describe("tankCandidates / isTankSpec", () => {
         it("accepts explicit tank specs and off-tank-capable classes", () => {
-            expect(isTankSpec({ sodclazz: "tank", clazz: "Tank" })).toBe(true); // prot pala
+            expect(isTankSpec({ role: "tank", clazz: "Rogue" })).toBe(true); // SoD tank rune
+            expect(isTankSpec({ role: "", raidhelperClass: "Tank", clazz: "Mage" })).toBe(true);
             expect(isTankSpec({ clazz: "Warrior" })).toBe(true);  // fury warrior can tank
             expect(isTankSpec({ clazz: "Druid" })).toBe(true);    // feral -> bear
             expect(isTankSpec({ clazz: "DK" })).toBe(true);

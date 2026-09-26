@@ -1,6 +1,5 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
@@ -16,9 +15,7 @@ const { annotateApplication } = require("../recruitmentApplications");
  * Applications are only fetched (a Discord API call) when the applications tab
  * is actually open, mirroring the SSR page's loadRecruitmentOpts().
  */
-async function getRecruitmentData(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const editId = (url.searchParams.get("edit") || "").trim();
     const editPostId = (url.searchParams.get("editpost") || "").trim();
@@ -49,34 +46,22 @@ async function getRecruitmentData(req, res, url) {
         applicationChannelId,
         activeGuildId: guildId,
     });
-}
+});
 
 /** POST /api/recruitment — create/update a template. Body: { id?, name, content, buttonLabel }. */
-async function saveRecruitmentTemplate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const saveRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     ok(res, saveRecruitment(body), 201);
-}
+});
 
 /** POST /api/recruitment/delete — body: { id }. */
-async function deleteRecruitmentTemplate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id || !deleteRecruitment(id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     ok(res, { id });
-}
+});
 
 /** POST /api/recruitment/post — post a template into a channel and track the message. Body: { templateId, channelId }. */
-async function postRecruitmentTemplate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const template = getRecruitment(String(body.templateId || "").trim());
     const channelId = String(body.channelId || "").trim();
     if (!template || !channelId) return error(res, 400, "invalid", "Vorlage oder Channel fehlt.");
@@ -99,14 +84,10 @@ async function postRecruitmentTemplate(req, res) {
     } catch (e) {
         error(res, 400, "post_failed", e.message || "Posten fehlgeschlagen.");
     }
-}
+});
 
 /** POST /api/recruitment/post-update — edit an already-posted message. Body: { id, content, buttonLabel }. */
-async function updateRecruitmentPost(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const post = getRecruitmentPost(String(body.id || "").trim());
     if (!post) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
     const template = { content: body.content || "", title: "", body: "", buttonLabel: body.buttonLabel || "" };
@@ -117,24 +98,17 @@ async function updateRecruitmentPost(req, res) {
     } catch (e) {
         error(res, 400, "update_failed", e.message || "Aktualisieren fehlgeschlagen.");
     }
-}
+});
 
 /** POST /api/recruitment/post-delete — stop tracking a post (the Discord message stays). Body: { id }. */
-async function deleteRecruitmentPostHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteRecruitmentPostHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id || !deleteRecruitmentPost(id)) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
     ok(res, { id });
-}
+});
 
 /** POST /api/recruitment/scan — scan the active guild's channels for bot recruitment messages. */
-async function scanRecruitmentPosts(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const scanRecruitmentPosts = withUser({ csrf: true }, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
     try {
@@ -144,7 +118,18 @@ async function scanRecruitmentPosts(req, res) {
     } catch (e) {
         error(res, 400, "scan_failed", e.message || "Scan fehlgeschlagen.");
     }
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/recruitment", handler: getRecruitmentData, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment", handler: saveRecruitmentTemplate, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/delete", handler: deleteRecruitmentTemplate, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/post", handler: postRecruitmentTemplate, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/post-update", handler: updateRecruitmentPost, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/post-delete", handler: deleteRecruitmentPostHandler, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/scan", handler: scanRecruitmentPosts, area: "recruitment" },
+];
 
 module.exports = {
     getRecruitmentData,
@@ -154,4 +139,5 @@ module.exports = {
     updateRecruitmentPost,
     deleteRecruitmentPostHandler,
     scanRecruitmentPosts,
+    routes,
 };

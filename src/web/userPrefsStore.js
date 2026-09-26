@@ -3,33 +3,26 @@
 // localStorage as well; this store is what makes it follow the account to
 // another device. Keyed by Discord user id, stored under
 // data/settings/user-prefs.json like the other stores.
-const fs = require("fs");
-const path = require("path");
-
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const DEFAULT_FILE = path.join(SETTINGS_DIR, "user-prefs.json");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
 const LANGS = ["de", "en"];
 
-let prefsFile = DEFAULT_FILE;
+const store = createJsonStore({
+    file: settingsPath("user-prefs.json"),
+    defaults: () => ({}),
+    normalize: (data) => (data && data.users && typeof data.users === "object" && !Array.isArray(data.users) ? data.users : {}),
+});
 
 /** Tests point the store at a file of their own. */
-function useFile(file) {
-    prefsFile = file || DEFAULT_FILE;
-}
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(prefsFile, "utf8"));
-        return data && data.users && typeof data.users === "object" && !Array.isArray(data.users) ? data.users : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(users) {
-    fs.mkdirSync(path.dirname(prefsFile), { recursive: true });
-    fs.writeFileSync(prefsFile, JSON.stringify({ users }, null, 2));
+    store.write({ users });
 }
 
 /** "EN", " en " -> "en"; anything that is not a supported language -> "". */

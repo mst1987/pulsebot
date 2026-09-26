@@ -8,15 +8,15 @@
 // pill state at render time) and client-side (live re-parse on add/remove).
 // Keep every exported function pure and self-contained for that to keep working.
 
-const extendedClassList = require("../config/classlist.js");
+const { ENTRIES } = require("../config/classlist.js");
 
 // One entry per distinct spec (aliases in classlist.js like "Holy1"/"HolyPala"
 // share the same `spec` key and collapse into a single catalog entry).
 const SPEC_CATALOG = (() => {
     const bySpec = new Map();
-    for (const entry of Object.values(extendedClassList)) {
+    for (const entry of Object.values(ENTRIES)) {
         if (!bySpec.has(entry.spec)) {
-            bySpec.set(entry.spec, { key: entry.spec, name: entry.name, icon: entry.icon, sodclazz: entry.sodclazz || "" });
+            bySpec.set(entry.spec, { key: entry.spec, name: entry.name, icon: entry.icon, role: entry.role });
         }
     }
     return [...bySpec.values()].sort((a, b) => a.name.localeCompare(b.name));
