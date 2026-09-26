@@ -1,8 +1,9 @@
 // scripts/register-commands.js registers for every configured server (#251).
 // Nothing here talks to Discord: the REST client is a jest double.
 const {
-    commands, parseArgs, targetGuildIds, registerCommands,
+    collectCommands, parseArgs, targetGuildIds, registerCommands,
 } = require("../../scripts/register-commands");
+const { commandDefinitions } = require("../../src/commands/loader");
 
 const routes = {
     applicationCommands: (app) => `/applications/${app}/commands`,
@@ -10,9 +11,13 @@ const routes = {
 };
 
 describe("scripts/register-commands", () => {
-    it("does not register anything on require", () => {
-        expect(Array.isArray(commands)).toBe(true);
-        expect(commands.length).toBeGreaterThan(0);
+    it("collects the definitions from the command modules (#413)", () => {
+        const commands = collectCommands();
+        expect(commands.length).toBeGreaterThan(15);
+        expect(commands).toEqual(commandDefinitions());
+        expect(commands.map((c) => c.name)).toEqual(expect.arrayContaining(["event", "Event verwalten", "kanal", "signup"]));
+        // gone with #413: never registered, and it posted to a dead backend
+        expect(commands.map((c) => c.name)).not.toContain("saveraid");
     });
 
     describe("parseArgs", () => {
@@ -65,7 +70,7 @@ describe("scripts/register-commands", () => {
             rest.put.mockClear();
             await registerCommands({ rest, routes, clientId: "app", guildIds: ["200", "300"], global: true, log: jest.fn() });
             expect(rest.put).toHaveBeenCalledTimes(1);
-            expect(rest.put).toHaveBeenCalledWith("/applications/app/commands", { body: commands });
+            expect(rest.put).toHaveBeenCalledWith("/applications/app/commands", { body: collectCommands() });
         });
 
         it("keeps going when one server fails and reports it", async () => {

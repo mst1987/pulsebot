@@ -296,50 +296,105 @@ function seen(status) {
  */
 function buffsForFight({ fight, roster, bandsByName, deaths, icons, untracked, inferred }) {
     if (!roster || roster.length === 0) return null;
-    const blind = untracked instanceof Set ? untracked : new Set(untracked || []);
-    const inferredKeys = inferred instanceof Set ? inferred : new Set(inferred || []);
-    const start = fight.start_time;
-    const end = fight.end_time;
-    const duration = end - start;
-    // the first death ends the judged window — the same reading totems.js takes
+    const ctx = {
+        start: fight.start_time,
+        end: fight.end_time,
+        duration: fight.end_time - fight.start_time,
+        blind: untracked instanceof Set ? untracked : new Set(untracked || []),
+        inferredKeys: inferred instanceof Set ? inferred : new Set(inferred || []),
+        icons,
+        classes: new Set(roster.map((p) => p.type)),
+        paladins: roster.filter((p) => p.type === "Paladin").length,
+        diedAt: firstDeaths(deaths),
+    };
+    // First pass: every buff's status on every player, before deciding what
+    // was expected — the "majority" rule needs the whole picture.
+    const { cells, judged } = judgeRoster(roster, bandsByName, ctx);
+    ctx.majority = majorityBuffs(roster, judged, cells);
+
+    const coverage = new Map();
+    const tally = (key, field) => {
+        if (!coverage.has(key)) coverage.set(key, { key, ...emptyTally() });
+        coverage.get(key)[field]++;
+    };
+    const players = [];
+    for (const p of roster) {
+        if (!judged.has(p.name)) continue;
+        const judgeEnd = judged.get(p.name);
+        const row = cells.get(p.name);
+        const { expected, wrong } = expectationsFor(p, row, ctx);
+        const { buffs, missing, late, partial } = playerBuffs(row, expected, wrong, ctx, tally);
+        players.push({
+            name: p.name, type: p.type, role: p.role,
+            judgedUntil: judgeEnd, diedAt: judgeEnd < ctx.duration ? judgeEnd : null,
+            buffs, missing, late, partial, wrong: [...wrong],
+        });
+    }
+    if (players.length === 0) return null;
+    const keys = BUFFS.map((b) => b.key);
+    return {
+        paladins: ctx.paladins,
+        expected: keys.filter((k) => coverage.has(k) && (coverage.get(k).expected > 0 || coverage.get(k).unknown > 0)),
+        untracked: keys.filter((k) => ctx.blind.has(k)),
+        inferred: keys.filter((k) => ctx.inferredKeys.has(k)),
+        players,
+        coverage: keys.filter((k) => coverage.has(k)).map((k) => coverage.get(k)),
+    };
+}
+
+// ---- buffsForFight's phases (#431) ------------------------------------------
+
+/** Fight-relative first death per player: it ends the judged window — the same reading totems.js takes. */
+function firstDeaths(deaths) {
     const diedAt = new Map();
     for (const d of deaths || []) {
         if (!d || !Number.isFinite(d.at)) continue;
         if (!diedAt.has(d.name) || d.at < diedAt.get(d.name)) diedAt.set(d.name, d.at);
     }
-    const classes = new Set(roster.map((p) => p.type));
-    const paladins = roster.filter((p) => p.type === "Paladin").length;
+    return diedAt;
+}
 
-    // First pass: every buff's status on every player, before deciding what
-    // was expected — the "majority" rule needs the whole picture.
-    const cells = new Map(); // name -> key -> { status, uptimePct, bands }
-    const judged = new Map(); // name -> judgeEnd
+/** One buff on one player over the judged window: `{ status, uptimePct, bands }`. */
+function buffCell(def, entry, judgeEnd, ctx) {
+    const mine = entry.byKey || {};
+    const bands = judgedBands(clipBands(mine[def.key] || [], ctx.start, ctx.end), judgeEnd);
+    const gaps = gapsBetween(bands, judgeEnd);
+    let status = statusOf(bands, judgeEnd, gaps.uptimePct);
+    // an inferred buff without a band: missing only if a death in the
+    // judged window proved it, otherwise simply not shown by the log
+    if (status === "none" && ctx.inferredKeys.has(def.key)) {
+        const absentAt = entry.absentAt || {};
+        const proven = (absentAt[def.key] || []).some((t) => t >= ctx.start && t <= ctx.start + judgeEnd + STRIP_WINDOW_MS);
+        status = proven ? "none" : "unknown";
+    }
+    return { status, uptimePct: gaps.uptimePct, bands };
+}
+
+/**
+ * Every buff's cell on every judged player (`cells`: name -> key -> cell) and
+ * how long each was judged (`judged`: name -> judgeEnd). A player without a
+ * buffs table, or dead at the pull, is not judged (see the header).
+ */
+function judgeRoster(roster, bandsByName, ctx) {
+    const cells = new Map();
+    const judged = new Map();
     for (const p of roster) {
-        // no buffs table for this player: not judged (see the header)
         if (!bandsByName || !bandsByName[p.name]) continue;
-        const judgeEnd = diedAt.has(p.name) ? Math.min(duration, diedAt.get(p.name)) : duration;
+        const judgeEnd = ctx.diedAt.has(p.name) ? Math.min(ctx.duration, ctx.diedAt.get(p.name)) : ctx.duration;
         if (judgeEnd <= 0) continue;
         judged.set(p.name, judgeEnd);
-        const mine = bandsByName[p.name].byKey || {};
-        const absentAt = bandsByName[p.name].absentAt || {};
         const row = new Map();
-        for (const def of BUFFS) {
-            const bands = judgedBands(clipBands(mine[def.key] || [], start, end), judgeEnd);
-            const gaps = gapsBetween(bands, judgeEnd);
-            let status = statusOf(bands, judgeEnd, gaps.uptimePct);
-            // an inferred buff without a band: missing only if a death in the
-            // judged window proved it, otherwise simply not shown by the log
-            if (status === "none" && inferredKeys.has(def.key)) {
-                const proven = (absentAt[def.key] || []).some((t) => t >= start && t <= start + judgeEnd + STRIP_WINDOW_MS);
-                status = proven ? "none" : "unknown";
-            }
-            row.set(def.key, { status, uptimePct: gaps.uptimePct, bands });
-        }
+        for (const def of BUFFS) row.set(def.key, buffCell(def, bandsByName[p.name], judgeEnd, ctx));
         cells.set(p.name, row);
     }
+    return { cells, judged };
+}
 
-    // Which majority-buffs the raid meant to use in this fight: at least half
-    // of the players it is for carried it at some point.
+/**
+ * Which majority-buffs the raid meant to use in this fight: at least half of
+ * the players it is for carried it at some point.
+ */
+function majorityBuffs(roster, judged, cells) {
     const majority = new Set();
     for (const def of BUFFS) {
         if (def.expect !== "majority") continue;
@@ -347,97 +402,103 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons, untracked, i
         const carrying = fitting.filter((p) => seen(cells.get(p.name).get(def.key).status));
         if (carrying.length > 0 && carrying.length * 2 >= fitting.length) majority.add(def.key);
     }
+    return majority;
+}
 
-    const players = [];
-    const coverage = new Map();
-    const tally = (key, field) => {
-        if (!coverage.has(key)) coverage.set(key, { key, ...emptyTally() });
-        coverage.get(key)[field]++;
-    };
-    for (const p of roster) {
-        if (!judged.has(p.name)) continue;
-        const judgeEnd = judged.get(p.name);
-        const row = cells.get(p.name);
-        const expected = new Set();
-        const wrong = new Set();
-        for (const def of BUFFS) {
-            const fits = buffFits(def, p);
-            // the log cannot show it: never expected, whatever the roster says
-            if (blind.has(def.key)) continue;
-            if (def.expect === "class") {
-                if (fits && classes.has(def.provider)) expected.add(def.key);
-            } else if (def.expect === "majority") {
-                if (fits && majority.has(def.key)) expected.add(def.key);
-            } else if (def.expect === "blessing") {
-                // a `neverWrong` blessing (Light, Sanctuary) is usual on any
-                // role in TBC and never a wrong one — see config/raidBuffs.js
-                if (!fits && !def.neverWrong && seen(row.get(def.key).status)) wrong.add(def.key);
-            }
-        }
-        // Blessings: the paladins limit how many, the role says which. A slot
-        // filled by any fitting blessing is filled — the raid may hand a
-        // caster Salvation over Wisdom on purpose; only a slot left empty
-        // names the highest-priority blessing that is not there. A blessing
-        // that is never wrong fills a slot on any role.
-        const wanted = expectedBlessings(p, paladins);
-        let slots = wanted.length;
-        for (const b of BLESSINGS) {
-            if (slots === 0) break;
-            if ((!buffFits(b, p) && !b.neverWrong) || row.get(b.key).status !== "full") continue;
-            expected.add(b.key);
-            slots--;
-        }
-        for (const b of wanted) {
-            if (slots === 0) break;
-            if (row.get(b.key).status === "full") continue;
-            expected.add(b.key);
-            slots--;
-        }
+/**
+ * What a buff's `expect` kind means for one player (config/raidBuffs.js).
+ * `class`: expected where it fits and its class raided; `majority`: where it
+ * fits and the raid used it; `blessing`: the slots are counted apart
+ * (addBlessingSlots), here only a blessing on a role it does not fit is wrong
+ * — unless it is `neverWrong` (Light, Sanctuary: usual on any role in TBC).
+ * `never` has no rule.
+ */
+const EXPECTATION_RULES = {
+    class: ({ def, fits, ctx, expected }) => {
+        if (fits && ctx.classes.has(def.provider)) expected.add(def.key);
+    },
+    majority: ({ def, fits, ctx, expected }) => {
+        if (fits && ctx.majority.has(def.key)) expected.add(def.key);
+    },
+    blessing: ({ def, fits, row, wrong }) => {
+        if (!fits && !def.neverWrong && seen(row.get(def.key).status)) wrong.add(def.key);
+    },
+};
 
-        const buffs = [];
-        const missing = [];
-        const late = [];
-        const partial = [];
-        for (const def of BUFFS) {
-            const c = row.get(def.key);
-            const isExpected = expected.has(def.key);
-            const isWrong = wrong.has(def.key);
-            if (!seen(c.status) && !isExpected) continue;
-            buffs.push({
-                key: def.key, label: def.label, icon: (icons && icons[def.key]) || def.icon,
-                status: c.status, uptimePct: c.uptimePct, expected: isExpected, wrong: isWrong,
-                untracked: blind.has(def.key) || undefined,
-                inferred: inferredKeys.has(def.key) || undefined,
-                bands: seen(c.status) ? c.bands : [],
-            });
-            if (seen(c.status)) tally(def.key, "present");
-            if (isWrong) tally(def.key, "wrong");
-            if (isExpected && c.status === "unknown") {
-                tally(def.key, "unknown");
-            } else if (isExpected) {
-                tally(def.key, "expected");
-                tally(def.key, c.status);
-                if (c.status === "none") missing.push(def.key);
-                else if (c.status === "late") late.push(def.key);
-                else if (c.status === "partial") partial.push(def.key);
-            }
-        }
-        players.push({
-            name: p.name, type: p.type, role: p.role,
-            judgedUntil: judgeEnd, diedAt: judgeEnd < duration ? judgeEnd : null,
-            buffs, missing, late, partial, wrong: [...wrong],
-        });
+/**
+ * Blessings: the paladins limit how many, the role says which. A slot filled
+ * by any fitting blessing is filled — the raid may hand a caster Salvation
+ * over Wisdom on purpose; only a slot left empty names the highest-priority
+ * blessing that is not there. A blessing that is never wrong fills a slot on
+ * any role.
+ */
+function addBlessingSlots(p, row, paladins, expected) {
+    const wanted = expectedBlessings(p, paladins);
+    let slots = wanted.length;
+    for (const b of BLESSINGS) {
+        if (slots === 0) break;
+        if ((!buffFits(b, p) && !b.neverWrong) || row.get(b.key).status !== "full") continue;
+        expected.add(b.key);
+        slots--;
     }
-    if (players.length === 0) return null;
-    const expectedKeys = BUFFS.map((b) => b.key).filter((k) => coverage.has(k) && (coverage.get(k).expected > 0 || coverage.get(k).unknown > 0));
+    for (const b of wanted) {
+        if (slots === 0) break;
+        if (row.get(b.key).status === "full") continue;
+        expected.add(b.key);
+        slots--;
+    }
+}
+
+/** The buffs expected on a player and the blessings on the wrong role. */
+function expectationsFor(p, row, ctx) {
+    const expected = new Set();
+    const wrong = new Set();
+    for (const def of BUFFS) {
+        const fits = buffFits(def, p);
+        // the log cannot show it: never expected, whatever the roster says
+        if (ctx.blind.has(def.key)) continue;
+        const rule = EXPECTATION_RULES[def.expect];
+        if (rule) rule({ def, fits, row, ctx, expected, wrong });
+    }
+    addBlessingSlots(p, row, ctx.paladins, expected);
+    return { expected, wrong };
+}
+
+/** An expected buff's status -> the player's list it names it in (`full` names it nowhere). */
+const LIST_OF_STATUS = { none: "missing", late: "late", partial: "partial" };
+
+function buffEntry(def, c, isExpected, isWrong, ctx) {
     return {
-        paladins,
-        expected: expectedKeys,
-        untracked: BUFFS.map((b) => b.key).filter((k) => blind.has(k)),
-        inferred: BUFFS.map((b) => b.key).filter((k) => inferredKeys.has(k)),
-        players,
-        coverage: BUFFS.map((b) => b.key).filter((k) => coverage.has(k)).map((k) => coverage.get(k)),
+        key: def.key, label: def.label, icon: (ctx.icons && ctx.icons[def.key]) || def.icon,
+        status: c.status, uptimePct: c.uptimePct, expected: isExpected, wrong: isWrong,
+        untracked: ctx.blind.has(def.key) || undefined,
+        inferred: ctx.inferredKeys.has(def.key) || undefined,
+        bands: seen(c.status) ? c.bands : [],
     };
+}
+
+/** A player's buff rows (seen or expected ones) and their missing/late/partial lists; tallies the coverage. */
+function playerBuffs(row, expected, wrong, ctx, tally) {
+    const out = { buffs: [], missing: [], late: [], partial: [] };
+    for (const def of BUFFS) {
+        const c = row.get(def.key);
+        const isExpected = expected.has(def.key);
+        const isWrong = wrong.has(def.key);
+        if (!seen(c.status) && !isExpected) continue;
+        out.buffs.push(buffEntry(def, c, isExpected, isWrong, ctx));
+        if (seen(c.status)) tally(def.key, "present");
+        if (isWrong) tally(def.key, "wrong");
+        if (!isExpected) continue;
+        if (c.status === "unknown") {
+            tally(def.key, "unknown");
+            continue;
+        }
+        tally(def.key, "expected");
+        tally(def.key, c.status);
+        const list = LIST_OF_STATUS[c.status];
+        if (list) out[list].push(def.key);
+    }
+    return out;
 }
 
 /**

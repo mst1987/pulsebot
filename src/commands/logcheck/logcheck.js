@@ -1,3 +1,4 @@
+const { SlashCommandBuilder } = require("discord.js");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
@@ -8,6 +9,10 @@ module.exports = {
     description: "Prüft einen Warcraft-Logs-Report: Gear, Consumables, Drums, Potions, Shadow-Resi.",
     group: "logs",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("logcheck")
+        .setDescription("Prüft einen Warcraft-Logs-Report auf Gear-Probleme (Verzauberungen, Edelsteine)")
+        .addStringOption((o) => o.setName("link").setDescription("Warcraft-Logs-Report-Link oder Report-ID").setRequired(true)),
     async execute(interaction) {
         const link = interaction.options.getString("link");
 

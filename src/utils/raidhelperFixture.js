@@ -130,7 +130,6 @@ function fixtureClient({ mode: baseMode = fixtureMode(), channelIdOf = defaultCh
         createEvent: refuse,
         signUpToRaid: refuse,
         signUp: refuse,
-        saveRaid: refuse,
     };
 }
 

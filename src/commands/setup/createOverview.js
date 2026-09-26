@@ -1,4 +1,4 @@
-﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
 const messages = require("../../config/messages");
 const {
     findServerEmoji,
@@ -11,6 +11,9 @@ module.exports = {
     description: "Postet die Event-Übersicht mit Buttons für diese Kategorie",
     group: "raids",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("createoverview")
+        .setDescription("Creates an event overview for the current category"),
     async execute(interaction, client) {
         try {
             if (!interaction.channel.parent) {
