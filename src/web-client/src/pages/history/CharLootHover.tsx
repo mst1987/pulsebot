@@ -10,6 +10,7 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { HoverPanel } from "../../components/HoverPanel";
 import { LootResponseBadge } from "../../components/loot/LootTable";
+import { useT } from "../../i18n";
 
 export function CharLootHover({ items, count, categoryNameById, showCategory }: {
     items: CharLootPreview[];
@@ -19,16 +20,17 @@ export function CharLootHover({ items, count, categoryNameById, showCategory }: 
      *  the count alone wouldn't say which raid a piece came from. */
     showCategory: boolean;
 }) {
+    const t = useT();
     if (!items.length) return <>{count}</>;
     return (
-        <HoverPanel trigger={count} head={`${items.length} Item${items.length === 1 ? "" : "s"}`}>
+        <HoverPanel trigger={count} head={t("history.shared.itemCount", { count: items.length })}>
             {items.map((it, i) => (
                 <div className="loot-pop-row" key={`${it.itemId}-${it.awardedAt}-${i}`}>
                     {it.itemIconUrl
                         ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                         : <span className="loot-pop-ico loot-pop-ico-ph" />}
                     <div className="loot-pop-body">
-                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} data-tip={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
+                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} data-tip={it.itemName || t("history.shared.itemFallback", { id: it.itemId })}>{it.itemName || t("history.shared.itemFallback", { id: it.itemId })}</div>
                         <div className="loot-pop-meta">
                             <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
                             {showCategory && !!it.categoryId && (

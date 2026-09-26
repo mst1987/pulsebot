@@ -3,13 +3,14 @@
 // url, attendance night by night, and loot that only a writer may delete.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLocation } from "react-router-dom";
 import * as api from "../../api";
 import type { GearItem, HistoryCharData, LootItem, RosterCharData } from "../../api";
 import HistoryCharPage from "./HistoryCharPage";
 import { adminUser, renderPage } from "../../test/render";
 import { t } from "../../i18n";
+import { switchLang } from "../../test/i18n";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -200,5 +201,26 @@ describe("HistoryCharPage — loot and attendance", () => {
         expect(screen.queryByText(/\.01\.$/)).not.toBeInTheDocument();
         expect(screen.getByText("da")).toBeInTheDocument();
         expect(screen.getByText("gefehlt")).toBeInTheDocument();
+    });
+});
+
+describe("HistoryCharPage — in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the sections, the gear rows and the attendance in English", async () => {
+        await switchLang("en");
+        vi.mocked(api.getHistoryChar).mockResolvedValue(charData());
+        renderPage(<HistoryCharPage />, { route: "/roster/char?name=Alpha" });
+        const tabs = within(await screen.findByRole("tablist", { name: "Area" })).getAllByRole("tab");
+        expect(tabs.map((tab) => tab.textContent)).toEqual([
+            expect.stringMatching(/^Gear/), expect.stringMatching(/^Loot history/), expect.stringMatching(/^Attendance/),
+        ]);
+        expect(screen.getAllByText("empty").length).toBeGreaterThan(0);
+        expect(screen.getByText("Gear issues")).toBeInTheDocument();
+
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("tab", { name: /Attendance/ }));
+        expect(await screen.findByText("present")).toBeInTheDocument();
+        expect(screen.getByText("missed")).toBeInTheDocument();
     });
 });

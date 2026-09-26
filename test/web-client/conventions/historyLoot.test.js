@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const { read } = require("../clientSource");
+const { read, dictionary } = require("../clientSource");
 
 const MODULE_FILES = [
     "pages/history/HistoryPage.tsx",
@@ -50,7 +50,8 @@ describe("Historie & Loot module", () => {
         expect(src["pages/history/LootReasonsTab.tsx"]).toContain("<RaiderReasonDialog");
         // the whole row opens it, and a square icon button does too
         expect(src["pages/history/LootItemsTab.tsx"]).toMatch(/className="hl-grid items hl-row"[\s\S]*?onClick=\{open\}/);
-        expect(src["pages/history/LootItemsTab.tsx"]).toContain("tip=\"Details\"");
+        expect(src["pages/history/LootItemsTab.tsx"]).toContain("tip={t(\"history.items.details\")}");
+        expect(dictionary("de")["history.items.details"]).toBe("Details");
     });
 
     it("deletes a single award from the dialog only with write access and behind the confirm dialog", () => {
@@ -84,7 +85,8 @@ describe("Historie & Loot module", () => {
         expect(items).toContain("<FilterPopover");
         expect(items).toContain("<ActiveFilters");
         // removable through the shared Badge (ui/Badge onRemove, #439)
-        expect(src["components/loot/LootFilters.tsx"]).toContain("onRemove={f.onRemove} removeLabel={`Filter „${f.label}\" entfernen`}");
+        expect(src["components/loot/LootFilters.tsx"]).toContain("onRemove={f.onRemove} removeLabel={t(\"history.filters.removeLabel\", { label: f.label })}");
+        expect(dictionary("de")["history.filters.removeLabel"]).toBe("Filter „{label}\" entfernen");
     });
 
     it("imports in a dialog that keeps the draft and previews before saving", () => {
