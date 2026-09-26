@@ -1,0 +1,111 @@
+{
+    "weekday": {
+        "short": {
+            "1": "Mon",
+            "2": "Tue",
+            "3": "Wed",
+            "4": "Thu",
+            "5": "Fri",
+            "6": "Sat",
+            "7": "Sun"
+        },
+        "long": {
+            "1": "Monday",
+            "2": "Tuesday",
+            "3": "Wednesday",
+            "4": "Thursday",
+            "5": "Friday",
+            "6": "Saturday",
+            "7": "Sunday"
+        }
+    },
+    "state": {
+        "planned": "planned",
+        "due": "due",
+        "creating": "creating",
+        "interrupted": "interrupted",
+        "created": "created",
+        "existing": "exists",
+        "cancelled": "cancelled",
+        "deleted": "deleted",
+        "failed": "Error",
+        "skipped": "skipped",
+        "off": "Series off"
+    },
+    "line": {
+        "planned": "will be created on {day} at {time}",
+        "due": "is up — will be created within the next 5 minutes",
+        "creating": "is being created right now",
+        "interrupted": "Creation interrupted — please check whether channel and event exist",
+        "created": "created on {day} {time}{channel}",
+        "channel": " as #{name}",
+        "existing": "Event already existed{channel} — nothing created",
+        "cancelled": "cancelled — will not be created again",
+        "deleted": "Event deleted — will not be created again",
+        "failed": "failed: {error}{retry}",
+        "unknownError": "unknown error",
+        "retry": " · will be retried",
+        "skipped": "skipped — nothing is created here",
+        "off": "Series is off",
+        "lastCreated": "last created: {day}{channel} (on {at})"
+    },
+    "date": {
+        "retry": "Try again",
+        "skipTip": "Skip date",
+        "skipSub": "No event is created for this day, e.g. on a holiday. Takes effect after saving.",
+        "skip": "skip"
+    },
+    "modal": {
+        "kicker": "Series",
+        "deleteTitle": "Delete series?",
+        "deleteText": "No further events will be created. Events and channels already created stay.",
+        "raidHelperBefore": "New events of this category run through Raid-Helper — the series is paused until the category is set to EventHelper under ",
+        "raidHelperAfter": ".",
+        "settingsLink": "Settings → Categories",
+        "active": "Series active",
+        "activeTip": "Off = no events are created; the settings are kept.",
+        "summaryTip": "How the series reads in the list",
+        "weekdays": "Weekdays",
+        "time": "Time",
+        "daysBefore": "Create days before",
+        "daysBeforeSub": "This many calendar days before the raid the bot creates channel, event and signup message — at the same time of day.",
+        "template": "Raid template",
+        "templateDefault": "Category default ({name})",
+        "templatePick": "— please choose —",
+        "noName": "(no name)",
+        "title": "Title",
+        "titleSub": "Empty = name of the raid template.",
+        "titlePlaceholder": "Template name",
+        "next": "Next 4 dates",
+        "nextHint": "Channel, signup message and the entry in the talk overview are created at the time shown.",
+        "computing": "Calculating dates"
+    },
+    "row": {
+        "unknownCategory": "Unknown category",
+        "raidHelperBefore": "New events via Raid-Helper — series only with “New events: EventHelper” (",
+        "raidHelperLink": "Categories",
+        "raidHelperAfter": ")",
+        "none": "no series",
+        "setUp": "Set up series",
+        "openAria": "Open series {name}",
+        "off": "off",
+        "restingTip": "Series paused",
+        "restingSub": "New events of this category run through Raid-Helper. Switch it to EventHelper under Settings → Categories.",
+        "errors": {
+            "one": "{count} error",
+            "other": "{count} errors"
+        },
+        "next": "Next date",
+        "noDate": "no date in sight",
+        "edit": "Edit series"
+    },
+    "page": {
+        "loading": "Loading series",
+        "loadError": "Failed to load: {message}",
+        "kicker": "Raid events",
+        "title": "Series",
+        "runNow": "Check now",
+        "runNowSub": "Creates all due dates right away instead of waiting for the next run (every 5 minutes).",
+        "empty": "No raid categories yet — they are switched on under Settings → Categories."
+    }
+}

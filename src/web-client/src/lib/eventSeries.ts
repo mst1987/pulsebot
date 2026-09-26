@@ -4,24 +4,27 @@
 // preview request. No React in here, and strippable (one-line signatures, no
 // types inside bodies), so src/web-client/src/lib/eventSeries.test.ts runs it for real.
 import type { EventSeries, EventSeriesInput, SeriesDate, SeriesDateState } from "../api";
-import { formatTime, isoDay } from "./format";
+import { t } from "../i18n";
+import { formatDayDate, formatTime, isoDay } from "./format";
 
-export const WEEKDAYS = [
-    { value: 1, short: "Mo", long: "Montag" },
-    { value: 2, short: "Di", long: "Dienstag" },
-    { value: 3, short: "Mi", long: "Mittwoch" },
-    { value: 4, short: "Do", long: "Donnerstag" },
-    { value: 5, short: "Fr", long: "Freitag" },
-    { value: 6, short: "Sa", long: "Samstag" },
-    { value: 7, short: "So", long: "Sonntag" },
-];
+/** The weekdays as the series stores them (1 = Monday … 7 = Sunday); names via weekdayShort/weekdayLong. */
+export const WEEKDAYS = [{ value: 1 }, { value: 2 }, { value: 3 }, { value: 4 }, { value: 5 }, { value: 6 }, { value: 7 }];
 
-/** "2026-09-23" → "Mi 23.09." (a calendar day, no time zone involved). */
+/** 3 → "Mi" / "Wed". */
+export function weekdayShort(value: number): string {
+    return t(`series.weekday.short.${value}`);
+}
+
+/** 3 → "Mittwoch" / "Wednesday". */
+export function weekdayLong(value: number): string {
+    return t(`series.weekday.long.${value}`);
+}
+
+/** "2026-09-23" → "Mi 23.09." / "Wed 23/09" (a calendar day: noon UTC is the same day in DISPLAY_TZ). */
 export function dayLabel(date: string): string {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || "");
     if (!m) return date || "";
-    const weekday = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12)).getUTCDay();
-    return `${WEEKDAYS[(weekday + 6) % 7].short} ${m[3]}.${m[2]}.`;
+    return formatDayDate(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12));
 }
 
 /** A moment as Berlin "Do 17.09." */
@@ -37,43 +40,46 @@ export function momentTime(ms: number): string {
 
 export type StateTone = "ok" | "mid" | "bad" | "accent" | "";
 
-function badge(label: string, tone: StateTone): { label: string; tone: StateTone } {
-    return { label, tone };
-}
-
-const STATE_BADGE = {
-    planned: badge("geplant", ""),
-    due: badge("fällig", "accent"),
-    creating: badge("wird angelegt", "accent"),
-    interrupted: badge("unterbrochen", "bad"),
-    created: badge("angelegt", "ok"),
-    existing: badge("vorhanden", "ok"),
-    cancelled: badge("abgesagt", "mid"),
-    deleted: badge("gelöscht", "mid"),
-    failed: badge("Fehler", "bad"),
-    skipped: badge("übersprungen", "mid"),
-    off: badge("Serie aus", ""),
-};
+// The tone per state; the label is series.state.<state>, looked up when asked for.
+const STATE_TONE = {
+    planned: "",
+    due: "accent",
+    creating: "accent",
+    interrupted: "bad",
+    created: "ok",
+    existing: "ok",
+    cancelled: "mid",
+    deleted: "mid",
+    failed: "bad",
+    skipped: "mid",
+    off: "",
+} as Record<string, StateTone>;
 
 export function stateBadge(state: SeriesDateState): { label: string; tone: StateTone } {
-    return STATE_BADGE[state] || STATE_BADGE.planned;
+    const known = Object.prototype.hasOwnProperty.call(STATE_TONE, state) ? state : "planned";
+    return { label: t(`series.state.${known}`), tone: STATE_TONE[known] };
+}
+
+/** " als #mi-23-09" / " as #mi-23-09", or nothing without a channel. */
+function channelPart(name: string): string {
+    return name ? t("series.line.channel", { name }) : "";
 }
 
 /** What happens to one date, as one short sentence. */
 export function dateLine(o: SeriesDate): string {
-    const channel = o.channelName ? ` als #${o.channelName}` : "";
+    const channel = channelPart(o.channelName);
     switch (o.state) {
-        case "planned": return `wird am ${momentDay(o.createAt)} um ${momentTime(o.createAt)} angelegt`;
-        case "due": return "ist dran — wird in den nächsten 5 Minuten angelegt";
-        case "creating": return "wird gerade angelegt";
-        case "interrupted": return "Anlage unterbrochen — bitte prüfen, ob Kanal und Event existieren";
-        case "created": return `angelegt am ${momentDay(o.at)} ${momentTime(o.at)}${channel}`;
-        case "existing": return `Event gab es schon${channel} — nichts angelegt`;
-        case "cancelled": return "abgesagt — wird nicht neu angelegt";
-        case "deleted": return "Event gelöscht — wird nicht neu angelegt";
-        case "failed": return `fehlgeschlagen: ${o.error || "unbekannter Fehler"}${o.willRetry ? " · neuer Versuch folgt" : ""}`;
-        case "skipped": return "übersprungen — hier wird nichts angelegt";
-        case "off": return "Serie ist aus";
+        case "planned": return t("series.line.planned", { day: momentDay(o.createAt), time: momentTime(o.createAt) });
+        case "due": return t("series.line.due");
+        case "creating": return t("series.line.creating");
+        case "interrupted": return t("series.line.interrupted");
+        case "created": return t("series.line.created", { day: momentDay(o.at), time: momentTime(o.at), channel });
+        case "existing": return t("series.line.existing", { channel });
+        case "cancelled": return t("series.line.cancelled");
+        case "deleted": return t("series.line.deleted");
+        case "failed": return t("series.line.failed", { error: o.error || t("series.line.unknownError"), retry: o.willRetry ? t("series.line.retry") : "" });
+        case "skipped": return t("series.line.skipped");
+        case "off": return t("series.line.off");
         default: return "";
     }
 }
@@ -98,8 +104,7 @@ export function channelOf(o: SeriesDate): string {
 /** "zuletzt angelegt: Mo 21.09. als #mo-21-09-ssc-tk (am Mi 16.09.)". */
 export function lastCreatedLine(last: { date: string; at: number; channelName: string } | null): string {
     if (!last) return "";
-    const channel = last.channelName ? ` als #${last.channelName}` : "";
-    return `zuletzt angelegt: ${dayLabel(last.date)}${channel} (am ${momentDay(last.at)})`;
+    return t("series.line.lastCreated", { day: dayLabel(last.date), channel: channelPart(last.channelName), at: momentDay(last.at) });
 }
 
 /** The modal's starting point: the stored series, else Wednesday 19:30, 6 days before. */

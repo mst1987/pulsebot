@@ -7,7 +7,8 @@ import { useApi } from "../hooks/useApi";
 import AsyncView from "../components/ui/AsyncView";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday } from "../lib/eventSeries";
+    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/eventSeries";
+import { useT } from "../i18n";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -36,6 +37,7 @@ function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
     onSkip?: (date: string) => void;
     onRetry?: (date: string) => void;
 }) {
+    const t = useT();
     const badge = stateBadge(o.state);
     const channel = channelOf(o);
     // Only a date that has not happened yet can be skipped (or un-skipped).
@@ -56,11 +58,11 @@ function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
                 )}
                 <div className="sr-line">{dateLine(o)}</div>
             </div>
-            {retry && <Button size="sm" variant="ghost" onClick={() => onRetry(o.date)}>Erneut versuchen</Button>}
+            {retry && <Button size="sm" variant="ghost" onClick={() => onRetry(o.date)}>{t("series.date.retry")}</Button>}
             {skippable && onSkip && (
-                <label className="sr-skip" data-tip="Termin überspringen" data-tip-sub="Für diesen Tag wird kein Event angelegt, z. B. an einem Feiertag. Wirkt nach dem Speichern.">
+                <label className="sr-skip" data-tip={t("series.date.skipTip")} data-tip-sub={t("series.date.skipSub")}>
                     <input type="checkbox" checked={draft.skipDates.includes(o.date)} onChange={() => onSkip(o.date)} disabled={!canWrite} />
-                    überspringen
+                    {t("series.date.skip")}
                 </label>
             )}
         </li>
@@ -74,6 +76,7 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
     onChanged: (msg: string, close: boolean) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     const toast = useToast();
     const ask = useConfirm();
     const [draft, setDraft] = useState<EventSeriesInput>(() => draftOf(category.series, category.id));
@@ -109,7 +112,7 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
     };
 
     const remove = async () => {
-        if (!(await ask({ title: "Serie löschen?", text: "Es werden keine weiteren Events angelegt. Bereits angelegte Events und Kanäle bleiben.", action: "Löschen" }))) return;
+        if (!(await ask({ title: t("series.modal.deleteTitle"), text: t("series.modal.deleteText"), action: t("common.delete") }))) return;
         try {
             const r = await deleteEventSeries(category.id);
             onChanged(r.message, true);
@@ -137,34 +140,34 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
             onClose={onClose}
             icon={ICON}
             tone="raids"
-            kicker="Serie"
-            title={category.name || "Unbekannte Kategorie"}
+            kicker={t("series.modal.kicker")}
+            title={category.name || t("series.row.unknownCategory")}
             width={720}
-            hint={category.series && canWrite ? <Button variant="danger" size="sm" onClick={remove}>Löschen</Button> : undefined}
+            hint={category.series && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>Speichern</Button>}
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    {canWrite && <Button running={saving} disabled={!!problem || !preview} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >
             {raidHelper && (
-                <div className="sr-warn" role="note"><WarnIcon /> Neue Events dieser Kategorie laufen über Raid-Helper — die Serie ruht, bis die Kategorie unter <Link to="/settings?section=kategorien">Einstellungen → Kategorien</Link> auf EventHelper steht.</div>
+                <div className="sr-warn" role="note"><WarnIcon /> {t("series.modal.raidHelperBefore")}<Link to="/settings?section=kategorien">{t("series.modal.settingsLink")}</Link>{t("series.modal.raidHelperAfter")}</div>
             )}
             <div className="sr-top">
-                <SwitchRow label="Serie aktiv" tip="Aus = es werden keine Events angelegt; die Einstellungen bleiben." checked={draft.enabled} onChange={(enabled) => patch({ enabled })} />
-                <div className="sr-summary" data-tip="So liest sich die Serie in der Liste">{preview && preview.summary ? preview.summary : "…"}</div>
+                <SwitchRow label={t("series.modal.active")} tip={t("series.modal.activeTip")} checked={draft.enabled} onChange={(enabled) => patch({ enabled })} />
+                <div className="sr-summary" data-tip={t("series.modal.summaryTip")}>{preview && preview.summary ? preview.summary : "…"}</div>
             </div>
 
             <div className="sr-field">
-                <span className="sr-label">Wochentage</span>
-                <div className="sr-days" role="group" aria-label="Wochentage">
+                <span className="sr-label">{t("series.modal.weekdays")}</span>
+                <div className="sr-days" role="group" aria-label={t("series.modal.weekdays")}>
                     {WEEKDAYS.map((d) => {
                         const on = draft.weekdays.includes(d.value);
                         return (
-                            <button key={d.value} type="button" className={`sr-daychip${on ? " on" : ""}`} aria-pressed={on} data-tip={d.long}
+                            <button key={d.value} type="button" className={`sr-daychip${on ? " on" : ""}`} aria-pressed={on} data-tip={weekdayLong(d.value)}
                                 onClick={() => setDraft((x) => toggleWeekday(x, d.value))} disabled={!canWrite}>
-                                {d.short}
+                                {weekdayShort(d.value)}
                             </button>
                         );
                     })}
@@ -173,35 +176,35 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
 
             <div className="sr-grid">
                 <div className="sr-field">
-                    <label className="sr-label" htmlFor="sr-time">Uhrzeit</label>
+                    <label className="sr-label" htmlFor="sr-time">{t("series.modal.time")}</label>
                     <input id="sr-time" type="time" value={draft.time} onChange={(e) => patch({ time: e.target.value })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
-                    <label className="sr-label" htmlFor="sr-before" data-tip="Tage vorher anlegen" data-tip-sub="So viele Kalendertage vor dem Raid legt der Bot Kanal, Event und Anmelder-Nachricht an — zur selben Uhrzeit.">Tage vorher anlegen</label>
+                    <label className="sr-label" htmlFor="sr-before" data-tip={t("series.modal.daysBefore")} data-tip-sub={t("series.modal.daysBeforeSub")}>{t("series.modal.daysBefore")}</label>
                     <input id="sr-before" type="number" min={data.limits.minDaysBefore} max={data.limits.maxDaysBefore} value={draft.daysBefore}
                         onChange={(e) => patch({ daysBefore: Number(e.target.value) })} disabled={!canWrite} />
                 </div>
                 <div className="sr-field">
-                    <label className="sr-label" htmlFor="sr-template">Raid-Vorlage</label>
+                    <label className="sr-label" htmlFor="sr-template">{t("series.modal.template")}</label>
                     <select id="sr-template" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} disabled={!canWrite}>
-                        <option value="">{defaultTemplate ? `Standard der Kategorie (${defaultTemplate.name})` : "— bitte wählen —"}</option>
-                        {data.templates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                        <option value="">{defaultTemplate ? t("series.modal.templateDefault", { name: defaultTemplate.name }) : t("series.modal.templatePick")}</option>
+                        {data.templates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("series.modal.noName")}</option>)}
                     </select>
                 </div>
             </div>
             <div className="sr-field">
-                <label className="sr-label" htmlFor="sr-title" data-tip="Titel" data-tip-sub="Leer = Name der Raid-Vorlage.">Titel</label>
-                <input id="sr-title" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || "Name der Vorlage"}
+                <label className="sr-label" htmlFor="sr-title" data-tip={t("series.modal.title")} data-tip-sub={t("series.modal.titleSub")}>{t("series.modal.title")}</label>
+                <input id="sr-title" type="text" value={draft.title} placeholder={(preview && preview.template && preview.template.name) || t("series.modal.titlePlaceholder")}
                     onChange={(e) => patch({ title: e.target.value })} disabled={!canWrite} />
             </div>
 
             <div className="sr-part">
                 <div className="sr-part-head">
-                    <span className="sr-label">Nächste 4 Termine</span>
-                    <span className="sr-muted">Kanal, Anmelder-Nachricht und Eintrag in der Talk-Übersicht entstehen zum genannten Zeitpunkt.</span>
+                    <span className="sr-label">{t("series.modal.next")}</span>
+                    <span className="sr-muted">{t("series.modal.nextHint")}</span>
                 </div>
                 {problem && <div className="sr-problem" role="alert">{problem}</div>}
-                {!preview && <RaidLoader compact text="Termine werden berechnet" />}
+                {!preview && <RaidLoader compact text={t("series.modal.computing")} />}
                 {preview && !problem && (
                     <ul className="sr-dates">
                         {preview.upcoming.map((o) => (
@@ -216,10 +219,11 @@ function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
 }
 
 function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boolean; onOpen: () => void }) {
+    const t = useT();
     const next = nextDate(c.upcoming);
     const raidHelper = c.source !== "eventhelper";
     const failed = c.upcoming.filter((o) => o.state === "failed" || o.state === "interrupted").length;
-    const name = c.name || "Unbekannte Kategorie";
+    const name = c.name || t("series.row.unknownCategory");
 
     if (!c.series) {
         return (
@@ -228,24 +232,24 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
                     <div className="sr-name">{name}</div>
                     <div className="sr-sub">
                         {raidHelper
-                            ? <span className="sr-muted">Neue Events über Raid-Helper — Serien nur mit „Neue Events: EventHelper“ (<Link to="/settings?section=kategorien">Kategorien</Link>)</span>
-                            : <span className="sr-muted">keine Serie</span>}
+                            ? <span className="sr-muted">{t("series.row.raidHelperBefore")}<Link to="/settings?section=kategorien">{t("series.row.raidHelperLink")}</Link>{t("series.row.raidHelperAfter")}</span>
+                            : <span className="sr-muted">{t("series.row.none")}</span>}
                     </div>
                 </div>
-                {!raidHelper && canWrite && <Button size="sm" variant="ghost" icon={ICON} onClick={onOpen}>Serie einrichten</Button>}
+                {!raidHelper && canWrite && <Button size="sm" variant="ghost" icon={ICON} onClick={onOpen}>{t("series.row.setUp")}</Button>}
             </li>
         );
     }
 
     return (
         <li className={`sr-row${c.series.enabled && !raidHelper ? "" : " sr-off"}`} data-category={c.id}>
-            <button type="button" className="sr-open" onClick={onOpen} aria-label={`Serie ${name} öffnen`} />
+            <button type="button" className="sr-open" onClick={onOpen} aria-label={t("series.row.openAria", { name })} />
             <div className="sr-main">
                 <div className="sr-name">
                     {name}
-                    {!c.series.enabled && <Badge>aus</Badge>}
-                    {raidHelper && <Badge tone="mid" icon={<WarnIcon />} tip="Serie ruht" tipSub="Neue Events dieser Kategorie laufen über Raid-Helper. Unter Einstellungen → Kategorien auf EventHelper stellen.">Raid-Helper</Badge>}
-                    {failed > 0 && <Badge tone="bad" icon={<WarnIcon />}>{failed === 1 ? "1 Fehler" : `${failed} Fehler`}</Badge>}
+                    {!c.series.enabled && <Badge>{t("series.row.off")}</Badge>}
+                    {raidHelper && <Badge tone="mid" icon={<WarnIcon />} tip={t("series.row.restingTip")} tipSub={t("series.row.restingSub")}>Raid-Helper</Badge>}
+                    {failed > 0 && <Badge tone="bad" icon={<WarnIcon />}>{t("series.row.errors", { count: failed })}</Badge>}
                 </div>
                 <div className="sr-sub mono">{c.summary}</div>
             </div>
@@ -253,30 +257,31 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
                 {next ? (
                     <>
                         <div className="sr-next-head">
-                            <span className="sr-label">Nächster Termin</span>
+                            <span className="sr-label">{t("series.row.next")}</span>
                             <span className="sr-day">{dayLabel(next.date)}</span>
                             {channelOf(next) && <span className="mono sr-chan">#{channelOf(next)}</span>}
                         </div>
                         <div className="sr-line">{dateLine(next)}</div>
                     </>
-                ) : <div className="sr-line">kein Termin in Sicht</div>}
+                ) : <div className="sr-line">{t("series.row.noDate")}</div>}
                 {c.lastCreated && next && next.date !== c.lastCreated.date && (
                     <div className="sr-line sr-muted">{lastCreatedLine(c.lastCreated)}</div>
                 )}
             </div>
-            <IconButton size="sm" icon={<PenIcon />} tip="Serie bearbeiten" onClick={onOpen} />
+            <IconButton size="sm" icon={<PenIcon />} tip={t("series.row.edit")} onClick={onOpen} />
         </li>
     );
 }
 
 export default function EventSeriesPage() {
+    const t = useT();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const series = useApi(() => getEventSeries(), []);
     const [running, setRunning] = useState(false);
 
     return (
-        <AsyncView state={series} loading={<RaidLoader text="Serien werden geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+        <AsyncView state={series} loading={<RaidLoader text={t("series.page.loading")} />} error={(err) => <div className="empty">{t("series.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const canWrite = data.canWrite;
                 const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;
@@ -299,15 +304,15 @@ export default function EventSeriesPage() {
                         <PageHead
                             icon={ICON}
                             tone="raids"
-                            kicker="Raid-Events"
-                            title="Serien"
+                            kicker={t("series.page.kicker")}
+                            title={t("series.page.title")}
                             action={canWrite ? (
-                                <IconButton icon={<RefreshIcon />} tip="Jetzt prüfen" tipSub="Legt alle fälligen Termine sofort an, statt auf den nächsten Durchlauf zu warten (alle 5 Minuten)." disabled={running} onClick={runNow} />
+                                <IconButton icon={<RefreshIcon />} tip={t("series.page.runNow")} tipSub={t("series.page.runNowSub")} disabled={running} onClick={runNow} />
                             ) : undefined}
                         />
 
                         {data.categories.length === 0
-                            ? <div className="empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
+                            ? <div className="empty">{t("series.page.empty")}</div>
                             : (
                                 <ul className="sr-list">
                                     {data.categories.map((c) => (
