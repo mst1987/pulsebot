@@ -245,8 +245,8 @@ export type SentencePart = { text: string; target: number };
  * Arena"); `target` = the index of the target (-1 = plain words). Targets the sentence does not name are listed in `rest` (shown after it).
  */
 export function sentenceParts(sentence: string, names: string[]): { parts: SentencePart[]; rest: number[] } {
-    const parts = [];
-    const used = [];
+    const parts: SentencePart[] = [];
+    const used: number[] = [];
     let text = sentence;
     for (;;) {
         let best = -1;
@@ -263,7 +263,7 @@ export function sentenceParts(sentence: string, names: string[]): { parts: Sente
         text = text.slice(at + names[best].length);
     }
     if (text) parts.push({ text, target: -1 });
-    const rest = [];
+    const rest: number[] = [];
     names.forEach((_n, i) => { if (used.indexOf(i) < 0) rest.push(i); });
     return { parts, rest };
 }

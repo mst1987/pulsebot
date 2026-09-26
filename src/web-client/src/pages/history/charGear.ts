@@ -45,6 +45,8 @@ export function isEnchantable(g: GearItem, slot: string): boolean {
 
 // Wowhead item URL carrying the character's actual enchant + gems.
 export function gearWowheadUrl(g: GearItem): string {
+    // an empty slot has no item page (the modal only links an item with an id)
+    if (g.itemId === null) return "";
     const params: string[] = [];
     if (g.enchantIds.length) params.push(`ench=${g.enchantIds[0]}`);
     const gemIds = g.sockets.map((s) => s.gemId).filter((id): id is number => !!id);

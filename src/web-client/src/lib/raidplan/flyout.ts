@@ -17,7 +17,7 @@ export const SEARCH_FROM = 24;
 
 /** The entries grouped in sections, in the order the groups first appear. */
 export function sectionsOf(items: FlyItem[]): FlySection[] {
-    const out = [];
+    const out: FlySection[] = [];
     for (const it of items) {
         let s = out.find((x) => x.title === it.group);
         if (!s) { s = { title: it.group, items: [] }; out.push(s); }
@@ -38,7 +38,7 @@ export function filterItems(items: FlyItem[], query: string, tab: string): FlyIt
  */
 export function paginate(sections: FlySection[], capacity: number): FlyPage[] {
     const cap = Math.max(TITLE_COST + 1, Math.floor(capacity));
-    const pages = [];
+    const pages: FlyPage[] = [];
     let page = emptyPage();
     let used = 0;
     const flush = () => { if (page.sections.length > 0) pages.push(page); page = emptyPage(); used = 0; };

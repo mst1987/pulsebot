@@ -77,7 +77,7 @@ export function sectionLabel(b: { name: string; trash?: boolean; general?: boole
 
 /** Whether a plan's sections come from more than one instance (then a trash chip names its instance). */
 export function severalInstances(bosses: { key?: string; instanceId?: string; general?: boolean; defaults?: boolean }[]): boolean {
-    const ids = [];
+    const ids: string[] = [];
     // the sheet's sections carry no instanceId: their key starts with it ("bt/supremus")
     for (const b of bosses) { const id = b.instanceId || (b.key && b.key.indexOf("/") > 0 ? b.key.split("/")[0] : ""); if (!b.general && !b.defaults && id && ids.indexOf(id) < 0) ids.push(id); }
     return ids.length > 1;

@@ -198,7 +198,7 @@ export function fitsType(type: string, player: RaidplanPlayer, catalog?: Catalog
 
 /** The classes that can do a type: the catalog's spells of that type say it, else the built in list (none = everybody). */
 export function classesForType(type: string, catalog?: Catalog | null): string[] {
-    const own = [];
+    const own: string[] = [];
     if (catalog) for (const s of catalog.spells) if (s.type === type) for (const c of s.classes) if (own.indexOf(c) < 0) own.push(c);
     return own.length > 0 ? own : (ASSIGN_META[type] || ASSIGN_META.other).classes;
 }
@@ -260,7 +260,7 @@ export function mobTarget(m: RaidplanMobRef): RaidplanAssignTarget {
  * the instance) and the mobs added to the board — each once, in that order.
  */
 export function sectionMobs(scope: string, bossKey: string, bossName: string, bossIcon: string, instanceId: string, board: RaidplanBoard, catalog: Catalog | null | undefined): RaidplanMobRef[] {
-    const out = [];
+    const out: RaidplanMobRef[] = [];
     if (scope === "boss") pushUnique(out, { id: `b:${bossKey}`, name: bossName, icon: bossIcon });
     // the Standard has no boss of its own: "the boss of the section this row lands in"
     if (scope === "defaults") pushUnique(out, { id: "b:this", name: t("raidBoard.defaults.thisBoss"), icon: "" });
@@ -275,8 +275,8 @@ export function sectionMobs(scope: string, bossKey: string, bossName: string, bo
 
 /** The slot placeholders a board can be referred by, in role order: `{ ref: "healer:2", kind, n }`. */
 export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string; n: number }[] {
-    const seen = new Set();
-    const out = [];
+    const seen: Set<string> = new Set();
+    const out: { ref: string; kind: string; n: number }[] = [];
     for (const s of slots) {
         const key = `${s.kind}:${s.n}`;
         if (SLOT_ORDER.indexOf(s.kind) < 0 || seen.has(key)) continue;
@@ -541,7 +541,7 @@ function linkPlayer(board: RaidplanBoard, kind: string, ref: string): string {
 
 /** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are ON THE MAP: a slot or group that only stands in the Besetzung (placed: false) has no place, so no line is drawn to or from it. */
 export function assignmentLinks(board: RaidplanBoard, me: string[] = []): AssignLink[] {
-    const out = [];
+    const out: AssignLink[] = [];
     for (const a of board.assignments || []) {
         if (a.type !== "heal") continue;
         for (const r of a.assignees) {
@@ -564,7 +564,7 @@ export function assignmentLinks(board: RaidplanBoard, me: string[] = []): Assign
  * section (its own rows and the ones it inherits from the Standard, class references resolved) - that is what the callers hand over.
  */
 export function tanksOfMob(board: RaidplanBoard, mobId: string, iconId = ""): { x: number; y: number }[] {
-    const out = [];
+    const out: { x: number; y: number }[] = [];
     if (!mobId) return out;
     for (const a of board.assignments || []) {
         const type = a.type as string;
@@ -595,7 +595,7 @@ function placedIcon(board: RaidplanBoard, tg: RaidplanAssignTarget): boolean {
 
 /** The icons of a mob some row means one by one (a target with their `oid`): the kind's rows leave them alone. */
 function namedIcons(board: RaidplanBoard, mobId: string): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const a of board.assignments || []) for (const tg of a.targets || []) if (tg.kind === "mob" && tg.ref === mobId && tg.oid && placedIcon(board, tg) && out.indexOf(tg.oid) < 0) out.push(tg.oid);
     return out;
 }
@@ -604,7 +604,7 @@ function namedIcons(board: RaidplanBoard, mobId: string): string[] {
 function mobRefsOfIcon(board: RaidplanBoard, icon: FacingIcon): string[] {
     if (icon.mobId) return [icon.mobId];
     if (String(icon.iconKey || "").indexOf("boss:") !== 0) return [];
-    const out = [];
+    const out: string[] = [];
     for (const a of board.assignments || []) {
         if ((a.type as string) !== "tank" && (a.type as string) !== "trashtank") continue;
         for (const tg of a.targets || []) if (tg.kind === "mob" && tg.ref.indexOf("b:") === 0 && out.indexOf(tg.ref) < 0) out.push(tg.ref);
@@ -636,7 +636,7 @@ export function facingOf(board: RaidplanBoard, icon: FacingIcon, ar: number): nu
         const own = tanksOfMob(board, icon.mobId, icon.id);
         return own.length > 0 ? angleBetween(icon, own[0], ar) : icon.rotation || 0;
     }
-    const all = [];
+    const all: { x: number; y: number }[] = [];
     for (const r of refs) for (const t of tanksOfMob(board, r)) if (!all.some((x) => x.x === t.x && x.y === t.y)) all.push(t);
     if (all.length === 0) return icon.rotation || 0;
     // the icons that stand for the same mob, in the board's order: the n-th takes the n-th tank (the ones a row means by themselves are not counted)

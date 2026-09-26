@@ -118,7 +118,7 @@ export function selectionBox(board: RaidplanBoard, sel: SelItem[], px: BoardPx):
 
 /** Every object a rubber band or Ctrl+A may take: on the map, not hidden, not locked (members of a split group are their marker's business). */
 export function selectableItems(board: RaidplanBoard): SelItem[] {
-    const out = [];
+    const out: SelItem[] = [];
     for (const z of board.zones) if (!z.hidden && !z.lock) out.push({ kind: "zone", id: z.id });
     for (const l of board.lines) if (!l.hidden && !l.lock) out.push({ kind: "line", id: l.id });
     for (const m of board.marks) if (!m.hidden && !m.lock) out.push({ kind: "mark", id: m.id });
@@ -227,7 +227,7 @@ function isFree(board: RaidplanBoard, it: SelItem): boolean {
 /** Duplicates the free objects of the selection (marks, icons, zones, lines, texts, labels). Slots of the Besetzung and players are NOT copied: the Besetzung must not grow. `skipped` counts them. */
 export function duplicateSelection(board: RaidplanBoard, sel: SelItem[]): { board: RaidplanBoard; sel: SelItem[]; skipped: number } {
     let out = board;
-    const made = [];
+    const made: SelItem[] = [];
     let skipped = 0;
     for (const it of sel) {
         if (!isFree(board, it)) { skipped += 1; continue; }
@@ -238,25 +238,30 @@ export function duplicateSelection(board: RaidplanBoard, sel: SelItem[]): { boar
     return { board: out, sel: made, skipped };
 }
 
+/** Adds an object that was found (one that has vanished is left out: pasting skipped it anyway). */
+function keep<T>(list: T[], o: T | undefined): void {
+    if (o) list.push(o);
+}
+
 /** What Ctrl+C keeps: copies of the free objects of the selection (the same rule as duplicating). */
 export function copySelection(board: RaidplanBoard, sel: SelItem[]): { snap: Snapshot; skipped: number } {
-    const snap = { marks: [], icons: [], zones: [], lines: [], texts: [], labels: [] };
+    const snap: Snapshot = { marks: [], icons: [], zones: [], lines: [], texts: [], labels: [] };
     let skipped = 0;
     for (const it of sel) {
         if (!isFree(board, it)) { skipped += 1; continue; }
-        if (it.kind === "mark") snap.marks.push(board.marks.find((o) => o.id === it.id));
-        else if (it.kind === "icon") snap.icons.push(board.icons.find((o) => o.id === it.id));
-        else if (it.kind === "zone") snap.zones.push(board.zones.find((o) => o.id === it.id));
-        else if (it.kind === "line") snap.lines.push(board.lines.find((o) => o.id === it.id));
-        else if (it.kind === "text") snap.texts.push(board.texts.find((o) => o.id === it.id));
-        else snap.labels.push(board.slots.find((o) => o.id === it.id));
+        if (it.kind === "mark") keep(snap.marks, board.marks.find((o) => o.id === it.id));
+        else if (it.kind === "icon") keep(snap.icons, board.icons.find((o) => o.id === it.id));
+        else if (it.kind === "zone") keep(snap.zones, board.zones.find((o) => o.id === it.id));
+        else if (it.kind === "line") keep(snap.lines, board.lines.find((o) => o.id === it.id));
+        else if (it.kind === "text") keep(snap.texts, board.texts.find((o) => o.id === it.id));
+        else keep(snap.labels, board.slots.find((o) => o.id === it.id));
     }
     return { snap, skipped };
 }
 
 /** Ctrl+V: puts the copies on the board a little off (`off` grows with every paste), with new ids, unlocked; returns the new selection. */
 export function pasteSnapshot(board: RaidplanBoard, snap: Snapshot, off: number): { board: RaidplanBoard; sel: SelItem[] } {
-    const made = [];
+    const made: SelItem[] = [];
     const out = { ...board };
     const move = (v) => clamp01(v + off);
     out.marks = [...board.marks, ...snap.marks.filter(Boolean).map((o) => { const id = newRowId(); made.push({ kind: "mark", id }); return { ...o, id, lock: false, hidden: false, x: move(o.x), y: move(o.y) }; })];
@@ -287,9 +292,9 @@ export const ALIGN_MODES = ["left", "right", "top", "bottom", "centerH", "center
 
 /** Lines the selection up on the box's edge or middle, or spreads it evenly (distH / distV need three or more). Locked objects stay. */
 export function alignSelection(board: RaidplanBoard, sel: SelItem[], mode: string, px: BoardPx): RaidplanBoard {
-    const rows = sel.filter((it) => !isLocked(board, it.kind, it.id)).map((it) => ({ it, box: objectBox(board, it, px) })).filter((r) => r.box !== null);
-    if (rows.length < 2) return board;
+    const rows = sel.filter((it) => !isLocked(board, it.kind, it.id)).map((it) => ({ it, box: objectBox(board, it, px) })).filter((r): r is { it: SelItem; box: Box } => r.box !== null);
     const all = unionBox(rows.map((r) => r.box));
+    if (rows.length < 2 || all === null) return board;
     const shift = new Map();
     for (const r of rows) {
         const b = r.box;
@@ -458,7 +463,7 @@ export function setFacingSelection(board: RaidplanBoard, sel: SelItem[], patch: 
 
 /** The role groups of a selection (an empty list when anything else is in it: then these options are not offered). */
 export function roleZonesOf(board: RaidplanBoard, sel: SelItem[]): RaidplanZone[] {
-    const out = [];
+    const out: RaidplanZone[] = [];
     for (const it of sel) {
         const z = it.kind === "zone" ? board.zones.find((o) => o.id === it.id) : undefined;
         if (!z || z.type !== "role") return [];

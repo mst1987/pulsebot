@@ -17,7 +17,7 @@ export function item(id: string, section: string, disabled: boolean, danger: boo
  */
 export function contextMenuItems(target: string, opts: { locked: boolean; hasPlayer: boolean; isEvent: boolean; kind: string; hideMembers?: boolean; split?: boolean; ringOff?: boolean; inGroup?: boolean; faces?: boolean }): MenuItem[] {
     if (target === "board") {
-        const out = [];
+        const out: MenuItem[] = [];
         for (const k of ["tank", "healer", "melee", "ranged", "dps", "group", "label"]) out.push(item(`insert:slot:${k}`, "slots", false, false));
         for (const m of RAID_MARKS) out.push(item(`insert:mark:${m}`, "marks", false, false));
         for (const z of ZONE_TYPES) out.push(item(`insert:zone:${z}`, "zones", false, false));

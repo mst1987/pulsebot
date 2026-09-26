@@ -95,18 +95,18 @@ export function placeOf(board: RaidplanBoard, userId: string, roster: RaidplanPl
  * are placeholders, not missing), `opts.roster` = the setup (who is in which group). Pure; the positions come from layoutAuto.
  */
 export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opts: AutoOptions): AutoPlan {
-    const plan = { mobs: [], tanks: [], users: [] };
+    const plan: AutoPlan = { mobs: [], tanks: [], users: [] };
     if (board.autoPlace === false) return plan;
     const tankRows = (rows || []).filter((a) => AUTO_TANK_TYPES.indexOf(String(a.type)) >= 0);
     if (tankRows.length === 0) return plan;
     // 1. the mob instances, in the order of the rows; a target of one placed icon is that icon (its number is the icon's)
-    const explicit = {};
+    const explicit: Record<string, number[]> = {};
     for (const a of tankRows) for (const tg of a.targets || []) if (tg.kind === "mob" && tg.n) (explicit[tg.ref] = explicit[tg.ref] || []).push(tg.n);
-    const given = {};
-    const bound = {};
-    const rowMobs = [];
+    const given: Record<string, number[]> = {};
+    const bound: Record<string, string> = {};
+    const rowMobs: string[][] = [];
     for (const a of tankRows) {
-        const keys = [];
+        const keys: string[] = [];
         for (const tg of a.targets || []) {
             if (tg.kind !== "mob") continue;
             const ic = targetIcon(board, tg);
@@ -137,7 +137,7 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     // 2. an icon placed by hand for a mob plays its instances: a named icon its own one, the others in the order of the board (the first
     //    icon nobody named = the lowest number)
     const icons = (board.icons || []).filter((ic) => !ic.hidden);
-    const refs = [];
+    const refs: string[] = [];
     for (const m of plan.mobs) if (refs.indexOf(m.ref) < 0) refs.push(m.ref);
     let legacyBoss = false;
     for (const m of plan.mobs) {
@@ -155,11 +155,11 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     }
     // 3. the tanks
     const roster = opts.roster || [];
-    const byUser = {};
+    const byUser: Record<string, string> = {};
     tankRows.forEach((a, i) => {
         const mobs = rowMobs[i];
         (a.assignees || []).forEach((ref, j) => {
-            const t = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false, size: 0, style: {} };
+            const t: AutoTank = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false, size: 0, style: {} };
             const p = ref.split(":");
             let uid = "";
             if (p[0] === "user") uid = p[1];
@@ -214,8 +214,8 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     const S = AUTO_SIZES;
     const over = board.autoPos || {};
     const scale = board.objectScale || 1;
-    const placed = [];
-    const add = (x, y, r) => { placed.push({ x, y, r }); };
+    const placed: { x: number; y: number; r: number }[] = [];
+    const add = (x: number, y: number, r: number) => { placed.push({ x, y, r }); };
     for (const ic of board.icons || []) if (!ic.hidden) add(ic.x * W, ic.y * H, ((ic.size || 48) * scale) / 2);
     for (const k of board.tokens || []) if (!k.hidden) add(k.x * W, k.y * H, ((k.size || 38) * scale) / 2);
     for (const s of board.slots || []) if (!s.hidden && s.placed !== false) add(s.x * W, s.y * H, ((s.size || 38) * scale) / 2);
@@ -265,9 +265,9 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     });
     // the tanks: in front of their mob, side by side when there are several
     const need = tanks.filter((t) => !t.existing && !t.moved);
-    const byMob = {};
-    const order = [];
-    const loose = [];
+    const byMob: Record<string, AutoTank[]> = {};
+    const order: string[] = [];
+    const loose: AutoTank[] = [];
     for (const t of need) {
         const m = t.mobKey ? mobs.find((x) => x.key === t.mobKey) : undefined;
         if (!m) { loose.push(t); continue; }
@@ -276,6 +276,7 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     }
     for (const key of order) {
         const m = mobs.find((x) => x.key === key);
+        if (!m) continue; // cannot happen: a key is only in `order` when its mob was found above
         const mx = m.x * W;
         const my = m.y * H;
         let dx = 0;
@@ -342,7 +343,7 @@ export function autoFacing(plan: AutoPlan, id: string, from: AutoPoint, board: R
 
 /** The places of the raiders the auto tanks stand for (the thin lines of the heal rows find a tank there). */
 export function autoPlaces(plan: AutoPlan): Record<string, AutoPoint> {
-    const out = {};
+    const out: Record<string, AutoPoint> = {};
     for (const t of plan.tanks) if (t.state === "player" && t.userId && !t.existing) out[t.userId] = { x: t.x, y: t.y };
     return out;
 }
@@ -356,7 +357,7 @@ export function setMobCount(rows: RaidplanAssignment[], rowId: string, ref: stri
         const at = a.targets.indexOf(first);
         const rest = a.targets.filter((x) => !(x.kind === "mob" && x.ref === ref));
         const n = Math.max(1, Math.min(20, Math.floor(count) || 1));
-        const made = [];
+        const made: RaidplanAssignTarget[] = [];
         if (n === 1) made.push({ kind: "mob", ref, name: first.name, icon: first.icon });
         else for (let i = 1; i <= n; i++) made.push({ kind: "mob", ref, name: first.name, icon: first.icon, n: i });
         return { ...a, suggested: false, targets: [...rest.slice(0, at), ...made, ...rest.slice(at)] };
@@ -411,8 +412,8 @@ export function tankTo(board: RaidplanBoard, ref: string, target: RaidplanAssign
 
 /** "Tankt nicht mehr": the assignee leaves every own tank row; a row nobody is left in goes. */
 export function untank(board: RaidplanBoard, ref: string): RaidplanBoard {
-    const hit = (a) => AUTO_TANK_TYPES.indexOf(String(a.type)) >= 0 && a.assignees.indexOf(ref) >= 0;
-    const rows = [];
+    const hit = (a: RaidplanAssignment) => AUTO_TANK_TYPES.indexOf(String(a.type)) >= 0 && a.assignees.indexOf(ref) >= 0;
+    const rows: RaidplanAssignment[] = [];
     for (const a of board.assignments || []) {
         if (!hit(a)) { rows.push(a); continue; }
         const rest = a.assignees.filter((r) => r !== ref);

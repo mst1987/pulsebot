@@ -36,7 +36,7 @@ function Head({ sortKey, label, tipSub, sort }: {
 export function RaiderHints({ raider }: { raider: CouncilRaider }) {
     const t = useT();
     const g = raider.gear;
-    const out = [];
+    const out: JSX.Element[] = [];
     if (!g) {
         out.push(<Badge key="nogear" tip={t("lootcouncil.candidates.noGearTip")} tipSub={t("lootcouncil.list.noGearTipSub")}>{t("lootcouncil.candidates.noGear")}</Badge>);
     } else {

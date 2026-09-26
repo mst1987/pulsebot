@@ -57,7 +57,7 @@ export function rowMode(a: RaidplanAssignment, ctx: AssignCtx, me: string[], nam
 }
 
 function blocksOf(rows: MineRow[]): MineBlock[] {
-    const out = [];
+    const out: MineBlock[] = [];
     for (const g of TASK_GROUPS) {
         const list = rows.filter((r) => taskGroupOf(r.a.type) === g.id);
         if (list.length > 0) out.push({ group: g.id, badge: g.badge, rows: list });
@@ -67,9 +67,9 @@ function blocksOf(rows: MineRow[]): MineBlock[] {
 
 /** The visitor's tasks and what acts on him, each grouped by kind of task in the fixed order, and the mode of every row by id (for highlighting the tables). */
 export function splitMine(assignments: RaidplanAssignment[], ctx: AssignCtx, me: string[], names: string[]): { mine: MineBlock[]; onMe: MineBlock[]; modes: Record<string, string> } {
-    const mine = [];
-    const onMe = [];
-    const modes = {};
+    const mine: MineRow[] = [];
+    const onMe: MineRow[] = [];
+    const modes: Record<string, string> = {};
     for (const a of assignments) {
         const r = rowMode(a, ctx, me, names);
         if (!r) continue;
@@ -96,7 +96,7 @@ export function mineCard(r: MineRow): MineCard {
  */
 export function mergeGroupRuns(list: Resolved[], label: (from: number, to: number) => string): Resolved[] {
     const nums = list.filter((r) => r.kind === "group").map((r) => r.group).sort((a, b) => a - b);
-    const runs = [];
+    const runs: { from: number; to: number }[] = [];
     for (const n of nums) {
         const last = runs[runs.length - 1];
         if (last && n === last.to + 1) last.to = n;
@@ -104,7 +104,7 @@ export function mergeGroupRuns(list: Resolved[], label: (from: number, to: numbe
     }
     const merged = runs.filter((r) => r.to - r.from >= 2);
     if (merged.length === 0) return list;
-    const out = [];
+    const out: Resolved[] = [];
     for (const r of list) {
         if (r.kind !== "group") { out.push(r); continue; }
         const run = merged.find((m) => r.group >= m.from && r.group <= m.to);

@@ -46,9 +46,9 @@ export function peopleGroupOf(kindOrRole: string): string {
  * group by slot number / setup order.
  */
 export function peopleEntries(slots: RaidplanSlot[], roster: RaidplanPlayer[], mode: string, slot: string): PeopleEntry[] {
-    const byId = {};
+    const byId: Record<string, RaidplanPlayer> = {};
     for (const p of roster) byId[p.userId] = p;
-    const out = [];
+    const out: PeopleEntry[] = [];
     if (mode === "player") {
         for (const p of roster) out.push({ key: slot === "who" ? `user:${p.userId}` : `player|${p.userId}`, kind: "player", group: peopleGroupOf(p.role), n: 0, player: p, label: p.character });
     } else {
@@ -76,7 +76,7 @@ export function filterPeople(list: PeopleEntry[], tab: string, query: string): P
 
 /** The people list split into its groups (tank, healer, dps), only the groups that have entries. */
 export function peopleGroups(list: PeopleEntry[]): { group: string; entries: PeopleEntry[] }[] {
-    const out = [];
+    const out: { group: string; entries: PeopleEntry[] }[] = [];
     for (const g of ["tank", "healer", "dps"]) {
         const entries = list.filter((e) => e.group === g);
         if (entries.length > 0) out.push({ group: g, entries });
@@ -112,7 +112,7 @@ export function categoryOfKey(slot: string, key: string): string {
 
 /** How many entries of each category the slot holds (the counters of the navigation). */
 export function chosenCounts(row: RaidplanAssignment, slot: string): Record<string, number> {
-    const out = {};
+    const out: Record<string, number> = {};
     for (const k of chosenKeys(row, slot)) {
         const c = categoryOfKey(slot, k);
         out[c] = (out[c] || 0) + 1;

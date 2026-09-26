@@ -165,7 +165,7 @@ export function deleteLines(d: ManageDeletion): { gone: string[]; stays: string[
     const gone = [d.signups ? t("raidDetail.manage.signups", { count: d.signups }) : t("raidDetail.manage.noSignups")];
     if (d.started && d.signups) gone.push(t("raidDetail.manage.attendance"));
     if (d.messages) gone.push(d.messages === 1 ? t("raidDetail.manage.messageOne") : t("raidDetail.manage.messageBoth"));
-    const stays = [];
+    const stays: string[] = [];
     if (d.logs) stays.push(t("raidDetail.manage.logs", { count: d.logs }));
     if (d.loot) stays.push(t("raidDetail.manage.loot", { count: d.loot }));
     return { gone, stays };

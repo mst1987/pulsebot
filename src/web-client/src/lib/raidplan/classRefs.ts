@@ -67,7 +67,7 @@ export function parseClassRef(ref: string): { classId: string; n: number; role: 
 
 /** The next free number for a class among references already chosen (Hunter 1 taken -> 2); `role` limits it to references of that role when given. */
 export function nextClassN(refs: string[], classId: string, role?: string): number {
-    const taken = {};
+    const taken: Record<number, boolean> = {};
     for (const r of refs) {
         const q = parseClassRef(r);
         if (q && q.classId === classId && (role === undefined || q.role === role)) taken[q.n] = true;
@@ -79,7 +79,7 @@ export function nextClassN(refs: string[], classId: string, role?: string): numb
 
 /** The class references (assignee form) of every row of one kind of task: what the running number counts over. `target` = the target references instead. */
 export function classRefsOfType(assignments: RaidplanAssignment[], type: string, target: boolean): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const a of assignments) {
         if (a.type !== type) continue;
         if (target) { for (const tg of a.targets) if (tg.kind === "class") out.push(tg.ref); } else for (const r of a.assignees) if (isClassRef(r)) out.push(r);
@@ -94,7 +94,7 @@ export function refsOfClass(refs: string[], classId: string, role: string): stri
 
 /** The class references of a row grouped per class and role, in the order they first appear: one chip "Hunter x 2" each. */
 export function classGroups(refs: string[]): { classId: string; role: string; refs: string[]; ns: number[] }[] {
-    const out = [];
+    const out: { classId: string; role: string; refs: string[]; ns: number[] }[] = [];
     for (const r of refs) {
         const q = parseClassRef(r);
         if (!q) continue;
@@ -127,8 +127,8 @@ export function setClassCount(assignments: RaidplanAssignment[], rowId: string, 
     const want = Math.max(0, Math.min(MAX_CLASS_N, Math.floor(count)));
     if (want === mine.length) return assignments;
     const all = classRefsOfType(assignments, row.type, target);
-    const add = [];
-    const drop = {};
+    const add: string[] = [];
+    const drop: Record<string, boolean> = {};
     if (want > mine.length) {
         const known = [...all];
         for (let i = mine.length; i < want; i += 1) {
@@ -221,11 +221,11 @@ export function poolOf(q: { classId: string; role: string }, type: string, roste
 export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind: string; n: number; userId: string }[], roster: RaidplanPlayer[], roles: Record<string, string>): RaidplanAssignment[] {
     const wantsExpansion = assignments.some((a) => a.assignees.some((r) => isClassRef(r)) || a.targets.some((tg) => tg.kind === "class"));
     if (!wantsExpansion) return assignments;
-    const byId = {};
+    const byId: Record<string, RaidplanPlayer> = {};
     for (const p of roster) byId[p.userId] = p;
-    const used = {};
-    const usedAt = {};
-    function take(bag, type, id) {
+    const used: Record<string, Record<string, boolean>> = {};
+    const usedAt: Record<string, Record<string, boolean>> = {};
+    function take(bag: Record<string, Record<string, boolean>>, type: string, id: string) {
         if (!bag[type]) bag[type] = {};
         bag[type][id] = true;
     }
@@ -241,7 +241,7 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         const picks = a.picks || {};
         for (const key of Object.keys(picks)) if (byId[picks[key]]) take(key.indexOf("t:") === 0 ? usedAt : used, a.type, picks[key]);
     }
-    function pick(bag, a, ref, key) {
+    function pick(bag: Record<string, Record<string, boolean>>, a: RaidplanAssignment, ref: string, key: string): string {
         const hand = (a.picks || {})[key];
         if (hand && byId[hand]) return hand;
         const q = parseClassRef(ref);
@@ -255,7 +255,7 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         }
         return a.allowMulti && pool.length > 0 ? pool[(q.n - 1) % pool.length].userId : "";
     }
-    const got = {};
+    const got: Record<string, string> = {};
     // pass 1: a named class; pass 2: "Any"
     for (const anyPass of [false, true]) {
         assignments.forEach((a, i) => {

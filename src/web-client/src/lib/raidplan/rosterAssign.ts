@@ -132,7 +132,7 @@ export function classStatus(slot: RaidplanSlot, roster: RaidplanPlayer[], board:
 
 /** The classes the role slots named as assignees of a row ask for (in the order of the row's assignees, each class once). */
 export function slotClassesOfRow(board: RaidplanBoard, row: { assignees: string[] }): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const ref of row.assignees || []) {
         const p = ref.split(":");
         if (p[0] !== "slot") continue;

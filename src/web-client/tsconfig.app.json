@@ -21,7 +21,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "strictNullChecks": true
   },
   "include": ["src"],
   // Tests run in Vitest (vitest.config.ts), not in the app build (#435).
