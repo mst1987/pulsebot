@@ -31,7 +31,7 @@ module.exports = {
                     formattedSignUps.signUps
                 )
             );
-        } catch (error) {
+        } catch {
             await botEditReply(
                 interaction,
                 messages.general.errorTitle,

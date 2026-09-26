@@ -5,7 +5,7 @@ import jest from "eslint-plugin-jest";
 // Rules shared by every CommonJS block (src/, scripts/, hooks, test/).
 const sharedRules = {
     "no-undef": "error",
-    "no-unused-vars": ["error", { argsIgnorePattern: "^_", caughtErrors: "none" }],
+    "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "prefer-const": "error",
     "no-var": "error",
     "no-useless-escape": "error",
@@ -56,7 +56,7 @@ export default [
         // until that work lands, so this change does not collide with it.
         files: ["src/utils/helper.js", "src/utils/raidhelper.js"],
         rules: {
-            "no-unused-vars": ["warn", { argsIgnorePattern: "^_", caughtErrors: "none" }],
+            "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
             "prefer-const": "warn",
             "no-var": "warn",
             // utils/raidhelper.js is still indented with two spaces.
