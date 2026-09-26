@@ -32,6 +32,7 @@ const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTim
 const { normalizeColor, normalizeImage, normalizeLook } = require("./embedLook");
 // The emoji style of the event message: letter tiles and role icons (arcane unless chosen otherwise).
 const { emojiStyleOf } = require("./appEmojis");
+const { str } = require("../utils/text");
 
 function ensureDir() {
     fs.mkdirSync(SETTINGS_DIR, { recursive: true });
@@ -60,7 +61,6 @@ function isOwnEventId(id) {
     return String(id || "").startsWith(ID_PREFIX);
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const int = (v) => {
     const n = Math.floor(Number(v));
     return Number.isFinite(n) && n > 0 ? n : 0;

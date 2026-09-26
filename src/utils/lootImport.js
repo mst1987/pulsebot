@@ -49,6 +49,12 @@ function characterKey(character) {
     return String(character || "").trim().toLowerCase();
 }
 
+/** The grouping key of a player name as the loot exports carry it: realm suffix
+ * ("Name-Realm") dropped, then characterKey. The one key every store uses. */
+function characterKeyOf(name) {
+    return characterKey(splitPlayer(name).character);
+}
+
 class LootParseError extends Error {
     constructor(message) {
         super(message);
@@ -418,6 +424,6 @@ async function enrichItemNames(items) {
 module.exports = {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
     buildManualItem, detectImportDate, enrichItemNames, needsLookup,
-    splitPlayer, characterKey, itemLink, LootParseError,
+    splitPlayer, characterKey, characterKeyOf, itemLink, LootParseError,
     EH_FORMAT, EH_VERSION, MANUAL_SOURCE,
 };

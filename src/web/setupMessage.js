@@ -30,7 +30,7 @@
 //
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
-const { publicBaseUrl } = require("../config/variables");
+const { publicBaseUrl } = require("../utils/publicUrl");
 const { embedColor } = require("./embedLook");
 const eventStore = require("./eventStore");
 const { getConfig } = require("./settingsStore");
@@ -41,6 +41,7 @@ const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
+const { str, clip } = require("../utils/text");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
 const CANCELLED_COLOR = 0xe0524f;
@@ -54,14 +55,8 @@ const PRIVATE_REASON = /wunsch/i;
 const CLASSES = buildClasses();
 const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s])));
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
-const clip = (text, max) => {
-    const s = String(text || "");
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 /** A name as plain text — no bold, links or mentions through markdown. */
 const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$1").replace(/@/g, "@\u200b");
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 const specLabel = (key) => { const s = SPEC_BY_KEY.get(key) || {}; return s.labelEn || s.label || ""; };
 const nameOf = (p) => escapeMd(p.character) || `<@${p.userId}>`;
 
@@ -173,7 +168,7 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } 
     const description = descLines.join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
     const bench = approved.bench || [];
-    const base = baseUrl();
+    const base = publicBaseUrl();
     const link = base ? `[View on the web](${base}/signups?event=${encodeURIComponent(event.id)})` : "";
 
     // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
@@ -343,14 +338,6 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
 
 // ---- the message in Discord ---------------------------------------------------
 
-async function textChannel(channelId) {
-    const client = discord.getClient();
-    if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Kanal nicht gefunden oder kein Textkanal.");
-    return channel;
-}
-
 const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.test(e.message || "")));
 
 async function payloadFor(event, approved) {
@@ -380,7 +367,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() }
         const payload = await payloadFor(event, approved);
         if (post.messageId) {
             try {
-                const channel = await textChannel(post.channelId);
+                const channel = await discord.fetchTextChannel(post.channelId);
                 const message = await channel.messages.fetch(post.messageId);
                 await message.edit(payload);
                 eventStore.setEventSetupPost(event.id, { version: approved.version, editedAt: now, editedBy: str(userId), error: "", errorAt: 0 });
@@ -390,7 +377,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() }
                 if (!isUnknownMessage(e) || cancelled) throw e;
             }
         }
-        const channel = await textChannel(event.channelId);
+        const channel = await discord.fetchTextChannel(event.channelId);
         const sent = await channel.send(payload);
         eventStore.setEventSetupPost(event.id, {
             channelId: String(channel.id), messageId: String(sent.id), version: approved.version,

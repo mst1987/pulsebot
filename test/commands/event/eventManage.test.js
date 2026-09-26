@@ -16,7 +16,7 @@ jest.mock("fs", () => {
         existsSync: jest.fn(() => false),
     };
 });
-jest.mock("../../../src/web/discord", () => ({
+jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listAllChannels: jest.fn(() => [{ id: "200000000000000001", name: "mi-24-09-ssc-tk", parentId: "100000000000000001" }]),
     listCategories: jest.fn(() => []),
     resolveUserNames: jest.fn(async () => ({})),
@@ -238,7 +238,7 @@ describe("actions", () => {
 
     it("deletes only with LÖSCHEN typed: the event and its signups go, the message is deleted, the panel says so", async () => {
         const message = { delete: jest.fn(async () => ({})) };
-        const client = { channels: { fetch: jest.fn(async () => ({ messages: { fetch: jest.fn(async () => message) } })) } };
+        const client = { channels: { fetch: jest.fn(async () => ({ isTextBased: () => true, messages: { fetch: jest.fn(async () => message) } })) } };
         require("../../../src/web/discord").getClient.mockReturnValue(client);
 
         const modal = interaction({ customId: bot.manageId("l", event.id) });

@@ -12,8 +12,8 @@
 // plan then sees no role for it and never guesses a class.
 const { specKeyFromRaidHelper } = require("./eventSources");
 const { signupStatus } = require("../utils/attendance");
+const { str } = require("../utils/text");
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const nameKey = (name) => str(name).split("-")[0].toLowerCase();
 
 /**

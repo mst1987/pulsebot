@@ -10,8 +10,8 @@
 const DEFAULTS_KEY = "defaults";
 const THIS_BOSS = "b:this";
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
-const newId = () => require("crypto").randomBytes(5).toString("hex");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
 
 /** The icon key of a boss image url (/bosses/601.jpg -> boss:601, an icon CDN url -> its name), "" for none. */
 function bossIconKey(url) {
@@ -65,7 +65,7 @@ function inheritedRows(defaultRows, off, section) {
  */
 function effectiveRows(defaultRows, boardObj, section) {
     // `_key`: the id the row had in the template, so the positions of what it puts on the map (autoPos) move to the new id (raidplanBoard.reidBoard)
-    const inherited = inheritedRows(defaultRows, boardObj && boardObj.inheritOff, section).map((r) => ({ ...r, _key: r.id, id: newId(), origin: "default", suggested: false }));
+    const inherited = inheritedRows(defaultRows, boardObj && boardObj.inheritOff, section).map((r) => ({ ...r, _key: r.id, id: newId(5), origin: "default", suggested: false }));
     return [...inherited, ...((boardObj && boardObj.assignments) || [])];
 }
 

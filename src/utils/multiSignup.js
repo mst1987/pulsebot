@@ -27,7 +27,8 @@
 //   signup-multi:e:<eventId>:<code> "Mehrere Charaktere …" of one event
 const crypto = require("crypto");
 const { shortServerTime, shortServerDate, discordTimestamp } = require("./discordTime");
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
+const { embedAccentColor } = require("../config/variables");
+const { publicBaseUrl } = require("./publicUrl");
 const eventStore = require("../web/eventStore");
 const { getSignup, lastSignupOf } = require("../web/signupStore");
 const { migrateSignup, MAX_CHARACTERS } = require("../web/signupCharacters");
@@ -49,7 +50,6 @@ const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
 const STATUS_ORDER = ["signed", "tentative", "late", "bench", "absence"];
 
 const sessions = new Map();
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
 /** Remember a flow for one member; returns its token. */
 function createSession(userId, { mode, eventIds, status = "signed" }, now = Date.now()) {
@@ -366,7 +366,7 @@ function buildResults(token, session, { nextPage = null, profile = null } = {}) 
     if (nextPage !== null) {
         buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: `Next: ${pageRange(session, nextPage)}` });
     }
-    if (/^https?:\/\//.test(baseUrl())) buttons.push({ type: 2, style: 5, label: "My signups", url: `${baseUrl()}/signups` });
+    if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: "My signups", url: `${publicBaseUrl()}/signups` });
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {
         embeds: [{ color: embedAccentColor, title, description: description || "Nothing picked." }],

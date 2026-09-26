@@ -24,7 +24,7 @@
 // getReportRoster, not getReport: this walk reads the roster and three header
 // fields, and a stored report is mostly timeline (see reportStore.js).
 const { listReports, getReportRoster } = require("./reportStore");
-const { characterKey, splitPlayer } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole, isPvpSet } = require("./gearProfile");
 const { situationalItem } = require("../config/situationalItems");
@@ -54,10 +54,6 @@ function itemIconUrl(icon) {
 // charGearIssues.js's MAX_REPORTS: far enough back to cover everyone who raided
 // recently, without reading years of files on every page view.
 const MAX_REPORTS = 40;
-
-function charKey(character) {
-    return characterKey(splitPlayer(character).character);
-}
 
 /**
  * One armory entry, trimmed to what the council needs. Slots are WCL's numbers
@@ -356,7 +352,7 @@ function gearByCharacter({ roleFor } = {}) {
         const report = getReportRoster(meta.id);
         if (!report || !Array.isArray(report.roster)) continue;
         for (const entry of report.roster) {
-            const key = charKey(entry.name);
+            const key = characterKeyOf(entry.name);
             if (!key) continue;
             if (out.has(key)) {
                 // This raider's set is settled — the only reason to look at an
@@ -500,7 +496,7 @@ function gearByCharacter({ roleFor } = {}) {
 
 /** The gear snapshot for one character, or null when no report shows them. */
 function gearFor(character, opts) {
-    return gearByCharacter(opts).get(charKey(character)) || null;
+    return gearByCharacter(opts).get(characterKeyOf(character)) || null;
 }
 
 /** The item a character has in one equip slot, or null. */
@@ -509,4 +505,4 @@ function itemInSlot(gear, slot) {
     return gear.items.find((it) => it.slot === Number(slot)) || null;
 }
 
-module.exports = { gearByCharacter, gearFor, itemInSlot, charKey, itemIconUrl, DISPLAY_ORDER, MAX_REPORTS };
+module.exports = { gearByCharacter, gearFor, itemInSlot, charKey: characterKeyOf, itemIconUrl, DISPLAY_ORDER, MAX_REPORTS };

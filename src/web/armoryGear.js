@@ -22,7 +22,7 @@ const { getConfig } = require("./settingsStore");
 const { situationalItem } = require("../config/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../config/wowsims");
-const { characterKey, splitPlayer } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/lootImport");
 
 // Blizzard names the equip slots, Warcraft Logs numbers them. Only the slots
 // both sides agree on are listed; a slot missing here simply has no armory
@@ -43,10 +43,6 @@ const TTL_MS = 10 * 60 * 1000;
 const CONCURRENCY = 5;
 
 const cache = new Map();
-
-function keyOf(character) {
-    return characterKey(splitPlayer(character).character);
-}
 
 /** The armory rows of one character, in the shape charGear reads. */
 function toArmoryRows(gear) {
@@ -90,7 +86,7 @@ async function primeArmoryGear(characters, { full = false, force = false } = {})
     const wanted = [...new Set((characters || []).map((c) => String(c || "").trim()).filter(Boolean))]
         .filter((name) => {
             if (force) return true;
-            const hit = cache.get(keyOf(name));
+            const hit = cache.get(characterKeyOf(name));
             if (!hit) return true;
             // An entry fetched for one slot does not satisfy a request for the
             // whole set — the caller wants more than it holds.
@@ -115,7 +111,7 @@ async function primeArmoryGear(characters, { full = false, force = false } = {})
             // A failed lookup is cached too, as "no answer": otherwise every
             // page view retries a character the API does not know, and the
             // council waits for it every time.
-            cache.set(keyOf(name), { at: Date.now(), rows, full });
+            cache.set(characterKeyOf(name), { at: Date.now(), rows, full });
             if (rows && rows.length) answered += 1;
         }
     };
@@ -138,7 +134,7 @@ async function primeArmoryGear(characters, { full = false, force = false } = {})
  * @returns {{at: number, rows: object[]}|null}
  */
 function armorySetFor(character) {
-    const hit = cache.get(keyOf(character));
+    const hit = cache.get(characterKeyOf(character));
     if (!hit || !hit.full || !hit.rows || !hit.rows.length) return null;
     return { at: hit.at, rows: hit.rows };
 }
@@ -150,7 +146,7 @@ function armorySetFor(character) {
  * the arena trinket, and that is no answer to "what do they raid with".
  */
 function armoryItemInSlot(character, slot) {
-    const hit = cache.get(keyOf(character));
+    const hit = cache.get(characterKeyOf(character));
     if (!hit || !hit.rows) return null;
     const item = hit.rows.find((it) => it.slot === Number(slot));
     if (!item || situationalItem(item.itemId) || isPvpItem(item.itemId)) return null;
@@ -159,7 +155,7 @@ function armoryItemInSlot(character, slot) {
 
 /** Whether an armory answer exists for this character at all. */
 function hasArmoryGear(character) {
-    const hit = cache.get(keyOf(character));
+    const hit = cache.get(characterKeyOf(character));
     return !!(hit && hit.rows && hit.rows.length);
 }
 
@@ -174,7 +170,7 @@ function clearArmoryCache() {
  * (charGear.js), and the button would look as if it had done nothing.
  */
 function clearArmoryFor(character) {
-    cache.delete(keyOf(character));
+    cache.delete(characterKeyOf(character));
 }
 
 module.exports = {

@@ -16,6 +16,7 @@ const { TANK_AURAS } = require("../config/healerSpells");
 const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../config/raidBuffs");
 const { applyReview } = require("../utils/logcheck/recommendations");
 const { dipShare } = require("../utils/logcheck/fightSeries");
+const { plural } = require("../utils/text");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -2834,7 +2835,6 @@ function reportContext(report, user) {
 
 const sumOf = (list, pick) => (list || []).reduce((n, x) => n + (Number(pick(x)) || 0), 0);
 const avgOf = (list, pick) => ((list || []).length ? Math.round(sumOf(list, pick) / list.length) : 0);
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 const AREA_HOW = {
     raidbuffs: "Anteil der erwarteten Buff-Zellen (Spieler × Bosskampf), in denen der Buff die ganze Zeit lag. Erwartet wird, was die Aufstellung hergibt. Klick öffnet die Matrix je Raider.",

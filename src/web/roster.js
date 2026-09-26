@@ -16,7 +16,7 @@ const { annotatedCharacters } = require("./characterInfo");
 const { listAllAssignments } = require("./raiderCharactersStore");
 const { characterMap } = require("./characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
 const { armoryUrlFor, wclUrlFor } = require("./charLinks");
 const { listKnownCategories } = require("./categoryNames");
@@ -25,10 +25,6 @@ const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
 const MAX_LOOT_PREVIEW = 20;
-
-function charKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
 
 
 /**
@@ -43,7 +39,7 @@ function buildRoster(guildId) {
     const rows = new Map();
 
     const ensure = (name) => {
-        const key = charKey(name);
+        const key = characterKeyOf(name);
         if (!key) return null;
         if (!rows.has(key)) {
             rows.set(key, {
@@ -151,7 +147,7 @@ function buildRoster(guildId) {
  * raids in with their attendance night by night.
  */
 function rosterCharacter(guildId, name) {
-    const key = charKey(name);
+    const key = characterKeyOf(name);
     if (!key) return null;
     const roster = buildRoster(guildId);
     const row = roster.chars.find((c) => c.key === key);
@@ -161,7 +157,7 @@ function rosterCharacter(guildId, name) {
     const attendance = {};
     for (const id of row.categoryIds) {
         const userIds = Object.entries(assignments[id] || {})
-            .filter(([, charName]) => charKey(charName) === key)
+            .filter(([, charName]) => characterKeyOf(charName) === key)
             .map(([userId]) => userId);
         attendance[id] = attendanceFor(ctx, id, row.character, userIds);
     }
