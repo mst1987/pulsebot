@@ -330,3 +330,47 @@ describe("logcheck/recommendations — applyReview", () => {
         expect(applyReview(null, {})).toBeNull();
     });
 });
+
+describe("raidRules — edge cases (characterisation, #431)", () => {
+    // Pinned before raidRules became a rule table.
+    const titles = (report) => raidRules(report).map((i) => [i.key, i.impact, i.title]);
+
+    test("a debuff that fell short in one fight, and one only thin", () => {
+        expect(titles({ raidDebuffs: { rows: [
+            { key: "a", label: "A", expected: true, missing: 1, avgUptime: 70 },
+            { key: "b", label: "B", expected: true, missing: 0, avgUptime: 10, maxStacks: 5, avgBelowMax: null },
+            { key: "c", label: "C", expected: false, missing: 3, avgUptime: 0 },
+        ] } })).toEqual([
+            ["raid.debuff.a", "high", "A: Ø 70 %, fehlte in 1 Kampf"],
+            ["raid.debuff.b", "medium", "B: Ø 10 %"],
+        ]);
+    });
+
+    test("a buff the rules do not know, one by the paladins, one over a single fight", () => {
+        const raid = raidRules({ raidBuffs: { rows: [
+            { key: "mystery", label: "Rätsel", expected: true, missingPlayers: 9, coveragePct: NaN, fights: 1, wrong: 0 },
+            { key: "might", label: "Macht", expected: true, missingPlayers: 9, coveragePct: 60, fights: 2, wrong: 9 },
+        ] } });
+        expect(raid.map((i) => [i.key, i.impact, i.text])).toEqual([
+            ["raid.buff.mystery", "medium", "Wer den Buff liefert,: Rätsel vor dem Pull auf alle und nach jedem Wipe erneuern. Abdeckung NaN % über 1 Kampf."],
+            ["raid.buff.might", "medium", "Die Paladine: Macht vor dem Pull auf Tank, Nahkampf und nach jedem Wipe erneuern. Abdeckung 60 % über 2 Kämpfe."],
+            ["raid.buffWrong.might", "medium", "Die Paladine teilen die Segen nach Rolle auf: Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster, Könige auf alle."],
+        ]);
+    });
+
+    test("pieces missing from the report say nothing", () => {
+        expect(raidRules({
+            mechanics: { mechanics: [{ key: "x", label: "X", hits: 50, fights: 2 }] },
+            timeline: { fights: [{}, { cooldowns: { lust: null } }, { cooldowns: { lust: { casts: 1, spreadMs: 99999 } } }] },
+            healers: { players: [] },
+            activity: { players: [{ activeAvg: 10 }] },
+        }).map((i) => i.key)).toEqual(["raid.mechanic.x"]);
+    });
+});
+
+describe("raidRules - a busy raid (#431)", () => {
+    test("no activity finding when five or more raiders were busy enough", () => {
+        const players = [99, 98, 97, 96, 95].map((activeAvg) => ({ activeAvg }));
+        expect(raidRules({ activity: { players } })).toEqual([]);
+    });
+});
