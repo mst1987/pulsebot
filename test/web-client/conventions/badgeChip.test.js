@@ -33,7 +33,7 @@ describe("ui/Chip", () => {
         expect(css).toContain(".chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }");
         expect(css).toContain(".badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }");
         expect(css).toContain(".badge.chip .badge-x svg { width: 12px; height: 12px; }");
-        expect(read("styles/einstellungen.css")).not.toContain(".badge.chip");
+        expect(read("styles/settings.css")).not.toContain(".badge.chip");
     });
 
     it("is exported with the other building blocks", () => {

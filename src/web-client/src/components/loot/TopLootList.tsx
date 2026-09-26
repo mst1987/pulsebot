@@ -18,7 +18,7 @@ import { CharacterLink } from "../ClassSpec";
 import { LootResponseBadge } from "./LootTable";
 import WowIcon from "../ui/WowIcon";
 import { t as translate, useT } from "../../i18n";
-import "../../styles/uebersicht.css";
+import "../../styles/dashboard.css";
 
 const awardKey = (it: TopLootAward) => `${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`;
 

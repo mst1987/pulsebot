@@ -10,7 +10,7 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 const page = read("pages", "ChannelsPage.tsx");
-const css = read("styles", "kanaele.css");
+const css = read("styles", "channels.css");
 const PARTS = ["ArchiveTab", "CategorySchemaDialog", "channelBits", "ChannelBulk", "ChannelDialogs", "ChannelEditDialog", "ChannelTree", "NamingBadge", "PurposeList", "QuickCreateDialog"];
 const ALL = [page, ...PARTS.map((name) => read("components", "channels", `${name}.tsx`))].join("\n");
 
@@ -25,7 +25,7 @@ describe("ChannelsPage — conventions", () => {
     });
 
     it("keeps its styles in its own stylesheet, everything in it namespaced", () => {
-        expect(page).toContain("import \"../styles/kanaele.css\";");
+        expect(page).toContain("import \"../styles/channels.css\";");
         // everything is namespaced, apart from the badge variants it adds
         const selectors = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/^[^@\s}][^{]*\{/gm) || [];
         expect(selectors.length).toBeGreaterThan(0);

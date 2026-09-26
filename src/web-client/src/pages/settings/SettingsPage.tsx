@@ -18,7 +18,7 @@ import { draftChanges, missingConnections, serverIssues } from "../../lib/settin
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
-import "../../styles/einstellungen.css";
+import "../../styles/settings.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";

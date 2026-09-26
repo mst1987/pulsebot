@@ -7,7 +7,7 @@ const { read } = require("../clientSource");
 const field = read("components/ui/Field.tsx");
 const settingsUi = read("components/settings/settingsUi.tsx");
 const indexCss = read("index.css");
-const settingsCss = read("styles/einstellungen.css");
+const settingsCss = read("styles/settings.css");
 
 describe("ui/Field", () => {
     it("draws label, control, hint and error in that order", () => {

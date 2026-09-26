@@ -20,8 +20,8 @@ describe("Übersicht (DashboardPage)", () => {
     });
 
     it("keeps its styles in its own file", () => {
-        expect(page).toContain("import \"../styles/uebersicht.css\";");
-        const css = read("styles", "uebersicht.css");
+        expect(page).toContain("import \"../styles/dashboard.css\";");
+        const css = read("styles", "dashboard.css");
         expect(css).toMatch(/\.ov-grid-top \{/);
         expect(css).not.toMatch(/gold|#ffd700|goldenrod/i);
     });

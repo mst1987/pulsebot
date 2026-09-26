@@ -1,5 +1,5 @@
 // Guards for Einstellungen → Kategorien (src/web-client/src/pages/settings/CategoryMatrix.tsx
-// and the .cat-* rules in src/web-client/src/styles/einstellungen.css).
+// and the .cat-* rules in src/web-client/src/styles/settings.css).
 //
 // The page used to show one card per Discord category — typically 13 of 17
 // of them inactive — and kept the raider → character assignment in a separate
@@ -12,7 +12,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const css = fs.readFileSync(path.join(CLIENT, "styles", "einstellungen.css"), "utf8");
+const css = fs.readFileSync(path.join(CLIENT, "styles", "settings.css"), "utf8");
 const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryMatrix.tsx"), "utf8");
 const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
 

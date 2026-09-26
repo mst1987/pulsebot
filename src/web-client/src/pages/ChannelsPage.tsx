@@ -19,7 +19,7 @@ import { CategorySchemaDialog } from "../components/channels/CategorySchemaDialo
 import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
 import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
-import "../styles/kanaele.css";
+import "../styles/channels.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
 // Kanäle (design #216, reworked as the Discord overview in #259): one list —

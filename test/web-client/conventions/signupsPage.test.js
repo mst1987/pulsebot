@@ -14,7 +14,7 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 
 const page = read("pages", "SignupsPage.tsx");
-const css = read("styles", "anmeldung.css");
+const css = read("styles", "signups.css");
 
 describe("SignupsPage", () => {
     it("is routed under /signups for the signup area and listed in the menu next to the profile", () => {
@@ -28,7 +28,7 @@ describe("SignupsPage", () => {
     it("uses the shared blocks and keeps its styles in its own file, every selector its own", () => {
         expect(page).toContain("<PageHead");
         expect(page).toContain("<RaidLoader");
-        expect(page).toContain("import \"../styles/anmeldung.css\";");
+        expect(page).toContain("import \"../styles/signups.css\";");
         for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || []) {
             expect(sel).toMatch(/^\.(an-|wi$|field$|seg-opt$|is-on$|is-mine$)/);
         }

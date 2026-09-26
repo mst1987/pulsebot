@@ -14,7 +14,7 @@ import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } 
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
-import "../styles/anmeldung.css";
+import "../styles/signups.css";
 
 // "Anmeldungen" (#256): the member's coming raids, one calm row each — the raid
 // icon, the title large, date and deadline small, how full it is as a bar, and

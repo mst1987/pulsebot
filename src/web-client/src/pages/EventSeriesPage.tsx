@@ -18,7 +18,7 @@ import NamingBadge from "../components/channels/NamingBadge";
 import { SwitchRow } from "../components/RaidPlanFields";
 import { RefreshIcon } from "../components/icons";
 import { PenIcon, WarnIcon } from "../components/settings/settingsUi";
-import "../styles/serien.css";
+import "../styles/series.css";
 
 // Wiederkehrende Events (#289): one compact line per event category —
 // "Mi 19:30 · SSC + TK 25er · 6 Tage vorher" and, on the right, the next date

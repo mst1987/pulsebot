@@ -27,7 +27,7 @@ import { RoleBar, IconLink } from "../components/OverviewParts";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import { relativeDayLabel } from "../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../lib/overviewDates";
-import "../styles/uebersicht.css";
+import "../styles/dashboard.css";
 import RaidLoader from "../components/ui/RaidLoader";
 import { useT } from "../i18n";
 import { roleLabel } from "../lib/wowNames";
