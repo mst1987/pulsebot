@@ -46,7 +46,7 @@ describe("the pages load through useApi", () => {
         // DropCheckPage and LootCouncilPage load through useJobs().run() (a job toast the
         // page survives); everything else asks useApi. A new page goes on that list only
         // with a reason.
-        const allowed = ["pages/lootcouncil/DropCheckPage.tsx", "pages/LootCouncilPage.tsx"];
+        const allowed = ["pages/lootcouncil/DropCheckPage.tsx", "pages/lootcouncil/LootCouncilPage.tsx"];
         const own = files.filter((f) => /useState<ApiError \| null>/.test(f.src)).map((f) => f.rel);
         expect(own.sort()).toEqual(allowed.sort());
     });

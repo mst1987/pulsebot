@@ -62,9 +62,12 @@ function clientSources(dir = "", ext = /\.tsx?$/, options = {}) {
 }
 
 // The folders #438 made out of files that used to lie flat in pages/ and
-// components/: a scan over "every page and component" reads them too.
+// components/: a scan over "every page and component" reads them too. The loot
+// council's folder is older than that and only its former LootCouncilPage.tsx
+// counts (the drop check and the dialog were never part of these scans).
 const SPLIT_FOLDERS = [
     "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster",
+    ["pages/lootcouncil", ["LootCouncilPage.tsx", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"]],
 ];
 
 /**
@@ -76,7 +79,11 @@ const SPLIT_FOLDERS = [
 function pageSources(ext = /\.tsx$/) {
     return [
         ...["pages", "components"].flatMap((dir) => clientSources(dir, ext, { recursive: false })),
-        ...SPLIT_FOLDERS.flatMap((dir) => clientSources(dir, ext)),
+        ...SPLIT_FOLDERS.flatMap((entry) => {
+            if (typeof entry === "string") return clientSources(entry, ext);
+            const [dir, names] = entry;
+            return clientSources(dir, ext, { recursive: false }).filter(([name]) => names.includes(name.slice(dir.length + 1)));
+        }),
     ];
 }
 

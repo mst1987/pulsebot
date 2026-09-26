@@ -1,5 +1,5 @@
 // Guards for the loot council's actions and waits
-// (src/web-client/src/pages/LootCouncilPage.tsx + pages/lootcouncil/*):
+// (src/web-client/src/pages/lootcouncil/LootCouncilPage.tsx + pages/lootcouncil/*):
 //   * per-raider actions go through one busy guard, keyed per raider, and
 //     reload before the spinner goes away;
 //   * no estimates: a gain appears once simulated, never before;
@@ -86,7 +86,7 @@ describe("loot council — no estimates", () => {
 
 describe("loot council — waits are toasts", () => {
     it("reports through the shared job channel", () => {
-        expect(page).toMatch(/import \{ useJobs, useToast \} from "\.\.\/components\/Jobs";/);
+        expect(page).toMatch(/import \{ useJobs, useToast \} from "\.\.\/\.\.\/components\/Jobs";/);
         for (const label of ["Loot-Council wird geladen", "Armory wird geladen", "Log wird geladen"]) {
             expect(page).toContain(`label: "${label}"`);
         }

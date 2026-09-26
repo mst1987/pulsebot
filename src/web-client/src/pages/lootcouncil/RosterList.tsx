@@ -10,7 +10,8 @@ import { SortLabel, ariaSort } from "../../components/SortTh";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/tableSort";
 import { gearCounts, raiderHref, waitedTip, type RosterSortKey } from "./council";
-import { LootCount, NeedBar, RaiderIdent } from "./parts";
+import { LootCount, RaiderIdent } from "./ItemBits";
+import { NeedBar } from "./NeedBar";
 
 /** A sortable column head of the list, with its meaning in the tooltip. */
 function Head({ sortKey, label, tipSub, sort }: {

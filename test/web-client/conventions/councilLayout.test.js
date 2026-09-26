@@ -62,7 +62,7 @@ describe("loot council — page structure", () => {
     });
 
     it("imports its own stylesheet instead of appending to index.css", () => {
-        expect(page).toContain("import \"../styles/loot-council.css\";");
+        expect(page).toContain("import \"../../styles/loot-council.css\";");
         expect(drop).toContain("import \"../../styles/loot-council.css\";");
     });
 });
@@ -254,8 +254,7 @@ describe("loot council — icons, buttons, tooltips", () => {
     });
 
     it("uses the shared building blocks", () => {
-        expect(page).toMatch(/from "\.\.\/components\/ui";/);
-        for (const src of [parts, filterBar, roster, dialog, drop]) expect(src).toMatch(/from "\.\.\/\.\.\/components\/ui";/);
+        for (const src of [page, parts, filterBar, roster, dialog, drop]) expect(src).toMatch(/from "\.\.\/\.\.\/components\/ui";/);
     });
 
     it("draws the rich tooltips in the shared tooltip box", () => {

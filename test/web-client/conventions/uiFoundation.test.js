@@ -143,7 +143,7 @@ describe("tooltips instead of native title", () => {
         // Sanity: a broken tag scanner would make the test above vacuous.
         // The loot council page is split over pages/lootcouncil/ (#223) — scanned together.
         const council = clientSources()
-            .filter(([name]) => name === "pages/LootCouncilPage.tsx" || name.startsWith("pages/lootcouncil/"))
+            .filter(([name]) => name.startsWith("pages/lootcouncil/"))
             .map(([, src]) => src).join("\n");
         const tags = intrinsicTags(council);
         expect(tags.length).toBeGreaterThan(300);

@@ -23,7 +23,10 @@ import { itemQualityProps } from "../../lib/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
-import { BisSpecs, CandidateTable, ContentBadge, FoldRow, ListBadge, LootCount, NeedBar, RaiderIdent, SlotOptions } from "./parts";
+import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
+import { CandidateTable, ListBadge } from "./CandidateTable";
+import { NeedBar } from "./NeedBar";
+import { SlotOptions } from "./GearBadges";
 import "../../styles/loot-council.css";
 
 export default function DropCheckPage() {

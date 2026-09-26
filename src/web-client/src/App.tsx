@@ -36,7 +36,7 @@ const RosterPage = lazy(() => import("./pages/roster/RosterPage"));
 const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazy(() => import("./pages/SignupsPage"));
 const ClaPage = lazy(() => import("./pages/cla/ClaPage"));
-const LootCouncilPage = lazy(() => import("./pages/LootCouncilPage"));
+const LootCouncilPage = lazy(() => import("./pages/lootcouncil/LootCouncilPage"));
 const DropCheckPage = lazy(() => import("./pages/lootcouncil/DropCheckPage"));
 
 /**

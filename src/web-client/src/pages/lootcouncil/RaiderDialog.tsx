@@ -17,7 +17,9 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { ROLE_LABEL, dropHref, gearCounts, wornWowheadUrl } from "./council";
-import { ContentBadge, GearBadges, ItemLink, NeedBar, RaiderIdent, WornIcon } from "./parts";
+import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
+import { GearBadges, WornIcon } from "./GearBadges";
+import { NeedBar } from "./NeedBar";
 
 type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };
