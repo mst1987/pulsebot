@@ -206,7 +206,7 @@ async function analyzeRaidDebuffs(wcl, reportId, fights, players, timeline) {
         }
         const eventsByKey = {};
         if (stackIds.length) {
-            let events = [];
+            let events;
             try {
                 events = await wcl.getAllEvents(reportId, "debuffs", f.start_time, f.end_time, { hostility: 1, filter: idFilter(stackIds) }, { maxPages: 200 });
             } catch {

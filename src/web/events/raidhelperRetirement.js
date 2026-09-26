@@ -278,7 +278,7 @@ async function loadChecklist({ config = getConfig() } = {}) {
         missing: catalog.filter((n) => !have[n]),
     };
 
-    let permissions = null;
+    let permissions;
     try {
         permissions = eventGuildId ? discord.botPermissionsIn(eventGuildId) : null;
     } catch {
@@ -287,7 +287,7 @@ async function loadChecklist({ config = getConfig() } = {}) {
 
     // The categories that want a Discord event per raid, and whether the bot may
     // make one (#305) — both best-effort like everything else here.
-    let canManage = null;
+    let canManage;
     try {
         canManage = eventGuildId ? discord.botCanManageEvents(eventGuildId) : null;
     } catch {

@@ -40,7 +40,7 @@ function recruitmentPostsByChannel(guildId) {
 async function eventsFor(guildId) {
     // Both sources: the stored past events and the EventHelper's own upcoming ones.
     const stored = [...listStoredEvents(guildId), ...ownUpcomingRaw(guildId)];
-    let upcoming = [];
+    let upcoming;
     let timer = null;
     try {
         const result = await Promise.race([

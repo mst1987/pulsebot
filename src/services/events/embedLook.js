@@ -76,7 +76,7 @@ function colorValue(hex) {
 function usableUrl(raw) {
     const s = String(raw === null || raw === undefined ? "" : raw).trim();
     if (!s || s.length > MAX_URL) return false;
-    let url = null;
+    let url;
     try {
         url = new URL(s);
     } catch {

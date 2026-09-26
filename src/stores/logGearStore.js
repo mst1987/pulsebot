@@ -171,7 +171,7 @@ async function loadLogGear(character, { reportId = "", link = "", wcl = null } =
     let tried = 0;
     for (const log of logs) {
         tried += 1;
-        let snapshot = null;
+        let snapshot;
         try {
             snapshot = await gearFromReport(client, log.reportId, name);
         } catch {

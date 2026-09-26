@@ -91,7 +91,7 @@
      * @returns {{ raider: string } | { view: string } | null}
      */
     function viewTarget(hash, search) {
-        var h = "";
+        var h;
         try {
             h = decodeURIComponent(hash || "").replace(/^#/, "");
         } catch {

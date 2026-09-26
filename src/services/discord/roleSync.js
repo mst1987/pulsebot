@@ -196,7 +196,7 @@ async function syncMember(member, { config = getConfig() } = {}) {
     const srv = servers(config);
     if (srv.error) return null;
     const other = side === "event" ? "talk" : "event";
-    let otherMember = null;
+    let otherMember;
     try {
         otherMember = await srv.guilds[other].members.fetch(String(member.id));
     } catch {

@@ -18,7 +18,7 @@ const { benchHistory } = require("../../services/setup/setupInput");
 const classOfSpec = (spec) => String(spec || "").split("-")[0];
 
 function classOfCharacter(name, fallback) {
-    let rec = null;
+    let rec;
     try {
         rec = characterStore.getCharacter(name);
     } catch {
@@ -109,7 +109,7 @@ function setupAttendance(events, { now = Date.now() } = {}) {
     }
     // Last time somebody signed up but stood on the bench instead of in the setup — the fairness history
     // (approved setups, else the stored signups), newest night first.
-    let history = [];
+    let history;
     try {
         history = benchHistory(list, { guildId: list[0].guildId, now }).history || [];
     } catch {

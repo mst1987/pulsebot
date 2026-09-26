@@ -113,7 +113,7 @@ const aplCache = new Map();
 /** The ground-truth APL of a spec as protojson, or null when none is vendored. */
 function aplFor(specKey) {
     if (aplCache.has(specKey)) return aplCache.get(specKey);
-    let apl = null;
+    let apl;
     try {
         apl = JSON.parse(fs.readFileSync(path.join(APL_DIR, `${specKey}.apl.json`), "utf8"));
     } catch {

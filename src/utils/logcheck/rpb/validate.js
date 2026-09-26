@@ -82,7 +82,7 @@ async function analyzeValidation(wcl, reportId, fights) {
     const bossesKilled = bosses.filter((f) => f.kill).length;
 
     const end = (fights && fights.end) || 999999999999;
-    let deaths = null;
+    let deaths;
     try {
         deaths = await wcl.getDeaths(reportId, 0, end, { hostility: 1, filter: EXCLUDE_KALECGOS });
     } catch {

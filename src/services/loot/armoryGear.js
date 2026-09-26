@@ -101,7 +101,7 @@ async function primeArmoryGear(characters, { full = false, force = false } = {})
     const queue = [...wanted];
     const worker = async () => {
         for (let name = queue.shift(); name !== undefined; name = queue.shift()) {
-            let rows = null;
+            let rows;
             try {
                 const gear = await client.getEquipment(name);
                 rows = gear ? toArmoryRows(gear) : null;

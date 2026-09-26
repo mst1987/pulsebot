@@ -107,7 +107,6 @@ function raiderPrep(ctx, p, i) {
 
     // Buffs: one line per buff with its bar, "?" for a buff the log cannot prove
     const b = ctx.buffsByName.get(name);
-    let buffIssuesN = 0;
     if (b) {
         const cols = ((report.raidBuffs && report.raidBuffs.rows) || []).filter((r) => r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0);
         const rows = cols.map((r) => {
@@ -121,7 +120,7 @@ function raiderPrep(ctx, p, i) {
             else right = `${barPct(c.pct, r.label, counts)}${c.unknown ? `<span class="badge count" data-tip="${esc(`${c.unknown}× nicht nachweisbar`)}" data-tip-sub="${esc(INFERRED_HOW)}">?</span>` : ""}`;
             return kv(r.icon, esc(r.label), right, ` data-tip="${esc(r.label)}" data-tip-sub="${esc(`${r.provider}. ${counts}`)}"`);
         }).join("");
-        buffIssuesN = (b.missing || 0) + (b.partial || 0) + (b.late || 0) + (b.wrong || 0);
+        const buffIssuesN = (b.missing || 0) + (b.partial || 0) + (b.late || 0) + (b.wrong || 0);
         boxes.push(infoBox("spell_magic_greaterblessingofkings", "Buffs", buffIssuesN ? badge(`${buffIssuesN} lückenhaft`, (b.missing || 0) >= 2 ? "bad" : "mid") : badge("alle da", "ok"), rows));
     }
 

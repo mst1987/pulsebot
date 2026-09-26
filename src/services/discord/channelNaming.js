@@ -81,13 +81,13 @@ async function loadNamingInputs(guildId, { events } = {}) {
             list = [];
         }
     }
-    let channels = [];
+    let channels;
     try {
         channels = discord.listAllChannels(guildId) || [];
     } catch {
         channels = [];
     }
-    let schemas = {};
+    let schemas;
     try {
         schemas = archiveStore.getChannelConfig(guildId).schemas || {};
     } catch {

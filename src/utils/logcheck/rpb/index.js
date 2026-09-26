@@ -59,7 +59,7 @@ async function analyzeRpb(wcl, reportId, fights, players) {
     const tables = {};
     const usage = [];
     for (const p of players) {
-        let all = null;
+        let all;
         let trash = null;
         let buffs = null;
         try {

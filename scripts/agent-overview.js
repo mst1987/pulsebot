@@ -206,11 +206,11 @@ function parseActivity(tailText) {
  */
 function findAgents({ projectDir, hours = 24, now = Date.now() }) {
     const out = [];
-    let sessions = [];
+    let sessions;
     try { sessions = fs.readdirSync(projectDir, { withFileTypes: true }).filter((d) => d.isDirectory()); } catch { return out; }
     for (const s of sessions) {
         const dir = path.join(projectDir, s.name, "subagents");
-        let files = [];
+        let files;
         try { files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")); } catch { continue; }
         for (const f of files) {
             const full = path.join(dir, f);

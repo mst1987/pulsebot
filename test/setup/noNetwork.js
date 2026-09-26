@@ -57,7 +57,7 @@ function hostOfUrl(url) {
  */
 function targetOf(args) {
     const [first, second] = args;
-    let host = "";
+    let host;
     let socketPath = "";
     if (typeof first === "string" || first instanceof URL) {
         host = hostOfUrl(first);

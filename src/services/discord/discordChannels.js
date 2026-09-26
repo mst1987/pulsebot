@@ -36,7 +36,7 @@ function listChannelDetails(guildId) {
     const out = {};
     for (const c of guild.channels.cache.values()) {
         if (c.type === ChannelType.GuildCategory) continue;
-        let locked = null;
+        let locked;
         try {
             locked = typeof c.permissionsLocked === "boolean" ? c.permissionsLocked : null;
         } catch {

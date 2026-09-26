@@ -17,10 +17,10 @@ const sharedRules = {
     // git stores LF blobs, so a fixed "windows" rule fails the Linux CI while a
     // "unix" rule fails local Windows checkouts. So linebreak-style stays off.
     "linebreak-style": "off",
-    // New in @eslint/js 10 recommended. The code base predates them (about 30
-    // hits, nearly all no-useless-assignment), so they warn until cleaned up.
-    "no-useless-assignment": "warn",
-    "preserve-caught-error": "warn",
+    // New in @eslint/js 10 recommended. Cleaned up (32 hits, mostly
+    // no-useless-assignment) and enforced since.
+    "no-useless-assignment": "error",
+    "preserve-caught-error": "error",
     // Core formatting rules (indent/quotes/semi) are deprecated in favour of
     // @stylistic but still ship until ESLint 11 — one move for all three later.
     indent: ["error", 4, { SwitchCase: 1 }],

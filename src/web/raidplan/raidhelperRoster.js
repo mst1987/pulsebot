@@ -42,7 +42,7 @@ function toSlot(s, profileOf) {
     const spec = FOREIGN_CLASS.test(str(s.className)) ? "" : specKeyFromRaidHelper(s.className, s.specName);
     const userId = str(s.id || s.userId || s.userid);
     const classId = spec ? spec.split("-")[0] : "";
-    let profile = null;
+    let profile;
     try { profile = profileOf && userId ? profileOf(userId) : null; } catch { profile = null; }
     const who = characterFor({ name: s.name || s.charName || s.characterName, classId }, profile);
     return {

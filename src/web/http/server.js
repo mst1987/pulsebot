@@ -17,7 +17,7 @@ const { findPageRoute, send } = require("./pageRoutes");
  */
 async function handle(req, res) {
     const url = new URL(req.url, "http://localhost");
-    let pathname = "/";
+    let pathname;
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
 
     const hit = findPageRoute(req.method, pathname);
