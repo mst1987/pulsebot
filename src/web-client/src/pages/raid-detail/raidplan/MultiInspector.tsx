@@ -3,7 +3,7 @@ import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEn
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { NumberField, SliderField } from "../../../components/raidplan/NumberField";
-import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/multiSelect";
+import { alignSelection, resizeSelection, deleteSelection, duplicateSelection, lookSummary, optionSummary, patchArrowSelection, reorderSelection, roleZoneSummary, roleZonesOf, scaleSelection, setColorSelection, setFacingSelection, setRingSelection, setRoleZoneSelection, selectionBox, setLookSelection, sharedOptions, type BoardPx, type SelItem } from "../../../lib/raidplan/multiSelect";
 import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, COMPASS, COMPASS_NAMES, LABEL_POS, clampOpacity } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 

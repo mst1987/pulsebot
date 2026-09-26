@@ -1,5 +1,5 @@
 // One mob of several (docs/raidplan.md, "One mob of several"): the dialogs, the map menu and the sheet use it; the logic of
-// lib/autoPlace.ts and lib/assign.ts is tested in src/web-client/src/lib/mobInstances.test.ts.
+// lib/raidplan/autoPlace.ts and lib/raidplan/assign.ts is tested in src/web-client/src/lib/mobInstances.test.ts.
 const fs = require("fs");
 const path = require("path");
 const { readWorkspace } = require("../clientSource");

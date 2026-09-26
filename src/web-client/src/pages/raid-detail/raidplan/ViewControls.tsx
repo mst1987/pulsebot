@@ -3,9 +3,9 @@ import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, L
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
-import { sameView, type BoardView } from "../../../lib/boardView";
+import { sameView, type BoardView } from "../../../lib/raidplan/boardView";
 import { SCALE_MAX, SCALE_MIN, setAutoScale, setObjectScale } from "../../../lib/raidplan";
-import type { ViewPrefs } from "../../../lib/useViewPrefs";
+import type { ViewPrefs } from "../../../hooks/useViewPrefs";
 import { useT } from "../../../i18n";
 import { useDismiss } from "../../../hooks/useDismiss";
 

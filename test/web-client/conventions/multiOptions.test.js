@@ -1,6 +1,6 @@
 // Two more things of feature/raidplan-13 (docs/raidplan.md), checked on the source: the inspector of a multi-selection shows every
 // option ALL selected objects have (MultiInspector), and the editor opens a board with the cutout the sheet opens it with
-// (BoardWorkspace applies board.view like PlanPublicPage). The libs (lib/multiSelect.ts, lib/boardView.ts) run in Vitest:
+// (BoardWorkspace applies board.view like PlanPublicPage). The libs (lib/raidplan/multiSelect.ts, lib/raidplan/boardView.ts) run in Vitest:
 // src/web-client/src/lib/multiOptions.test.ts.
 const fs = require("fs");
 const path = require("path");

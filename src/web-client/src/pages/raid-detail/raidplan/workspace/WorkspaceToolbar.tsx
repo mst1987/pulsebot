@@ -4,9 +4,9 @@ import type { RaidplanBoard } from "../../../../api";
 import { IconButton } from "../../../../components/ui";
 import WowIcon from "../../../../components/ui/WowIcon";
 import { useT } from "../../../../i18n";
-import { savedView, viewFromSaved } from "../../../../lib/boardView";
-import type { useBoardView } from "../../../../lib/useBoardView";
-import type { useViewPrefs } from "../../../../lib/useViewPrefs";
+import { savedView, viewFromSaved } from "../../../../lib/raidplan/boardView";
+import type { useBoardView } from "../../../../hooks/useBoardView";
+import type { useViewPrefs } from "../../../../hooks/useViewPrefs";
 import type { InsertSpec, MapSize } from "../../../../lib/raidplan";
 import { ViewOptions, ZoomControls } from "../ViewControls";
 

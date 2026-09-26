@@ -1,7 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent, type MutableRefObject, type RefObject } from "react";
 import type { RaidplanBoard } from "../../../../api";
-import type { AutoPlan } from "../../../../lib/autoPlace";
-import { hasItem, moveSelection, scaleArrowSelection, scaleSelection, selectableItems, type SelItem, type Snapshot } from "../../../../lib/multiSelect";
+import type { AutoPlan } from "../../../../lib/raidplan/autoPlace";
+import { hasItem, moveSelection, scaleArrowSelection, scaleSelection, selectableItems, type SelItem, type Snapshot } from "../../../../lib/raidplan/multiSelect";
 import { arrowOf, autoStyleOf, canFace, moveObject, nudgeObject, patchAutoStyle, removeObject, scaleArrow, scaleObject, turnIcon, updateZone, type ObjectKind, type Selection } from "../../../../lib/raidplan";
 
 /**

@@ -1,9 +1,9 @@
 import type { RaidplanAssignment, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer } from "../../../../api";
 import type { useT } from "../../../../i18n";
-import { deviate } from "../../../../lib/inherit";
-import { iconTarget, mobIconsOf, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../../lib/autoPlace";
-import { classPlaceNameFor, mobTarget } from "../../../../lib/assign";
-import { ANY } from "../../../../lib/classRefs";
+import { deviate } from "../../../../lib/raidplan/inherit";
+import { iconTarget, mobIconsOf, rowOfMob, tankTo, untank, type AutoPlan, type AutoTank } from "../../../../lib/raidplan/autoPlace";
+import { classPlaceNameFor, mobTarget } from "../../../../lib/raidplan/assign";
+import { ANY } from "../../../../lib/raidplan/classRefs";
 import { isRoleKind, parseMemberId, type ObjectKind } from "../../../../lib/raidplan";
 
 /**

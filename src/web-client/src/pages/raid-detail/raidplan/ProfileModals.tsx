@@ -8,7 +8,7 @@ import { Button, Modal, useConfirm } from "../../../components/ui";
 import { useToast } from "../../../components/Jobs";
 import { ActionIcon } from "../../../components/raidplan/ActionIcon";
 import { groupProfiles, profilesFor } from "../../../lib/raidplan";
-import { libraryCategories, libraryView, stepsOf } from "../../../lib/steps";
+import { libraryCategories, libraryView, stepsOf } from "../../../lib/raidplan/steps";
 import { useT } from "../../../i18n";
 
 /** Where a profile applies, as the short line under its name. */

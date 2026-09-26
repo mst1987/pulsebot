@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent } from "react";
 import type { RaidplanBoard } from "../../../../api";
 import type { Handle } from "../../../../components/raidplan/PlanBoard";
-import { hasItem, moveSelection, toggleItem, type SelItem } from "../../../../lib/multiSelect";
+import { hasItem, moveSelection, toggleItem, type SelItem } from "../../../../lib/raidplan/multiSelect";
 import {
     angleTo, assignSlot, dropChip, isLocked, moveLine, moveLineEnd, moveObject, moveRect, patchAutoStyle, placeToken, removeToken, resizeRect, resizeTurned, setObjectSize,
     sizeOf, snapAngle, updateIcon, updateLine, updateZone, type InsertSpec, type ObjectKind, type Rect, type Selection, type ZoneGrip,

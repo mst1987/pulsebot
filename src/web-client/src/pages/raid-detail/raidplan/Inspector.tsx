@@ -9,12 +9,12 @@ import {
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
-import { followsTank } from "../../../lib/assign";
+import { followsTank } from "../../../lib/raidplan/assign";
 import MultiInspector from "./MultiInspector";
-import type { SelItem } from "../../../lib/multiSelect";
+import type { SelItem } from "../../../lib/raidplan/multiSelect";
 import GroupStyle from "./GroupStyle";
-import { REF_W } from "../../../lib/boardScale";
-import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../../lib/labelScale";
+import { REF_W } from "../../../lib/raidplan/boardScale";
+import { ICON_NAME_FACTOR, NAME_FACTOR, labelMetrics } from "../../../lib/raidplan/labelScale";
 
 const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u2199", "\u2190", "\u2196"];
 import { useT } from "../../../i18n";

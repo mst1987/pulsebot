@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
-import { formatNumber, parseNumberText, stepNumber } from "../../lib/numberField";
+import { formatNumber, parseNumberText, stepNumber } from "../../lib/raidplan/numberField";
 
 /**
  * The one number field of the raid plan: a fixed width, right-aligned digits, the unit INSIDE the field (px, %, °), no

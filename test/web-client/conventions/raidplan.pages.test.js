@@ -1,7 +1,7 @@
 // The raid plan pages checked on their source: the editor, the texts, the new
 // pages, the template overview, the read-only sheet and the section bar.
 // The pages' structure is checked on the source here; the logic parts (raid mark
-// icons, placeholders, section labels) run in Vitest (src/web-client/src/lib/raidplan.pages.test.ts).
+// icons, placeholders, section labels) run in Vitest (src/web-client/src/lib/raidplan/raidplan.pages.test.ts).
 const fs = require("fs");
 const path = require("path");
 const { readWorkspace, read, stripComments, dictionary } = require("../clientSource");

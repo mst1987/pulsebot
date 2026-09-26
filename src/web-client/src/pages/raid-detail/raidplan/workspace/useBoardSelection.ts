@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { RaidplanBoard } from "../../../../api";
-import { copySelection, deleteSelection, duplicateSelection, liveItems, pasteSnapshot, selectionBox, type SelItem, type Snapshot } from "../../../../lib/multiSelect";
+import { copySelection, deleteSelection, duplicateSelection, liveItems, pasteSnapshot, selectionBox, type SelItem, type Snapshot } from "../../../../lib/raidplan/multiSelect";
 import type { Selection } from "../../../../lib/raidplan";
 
 /**

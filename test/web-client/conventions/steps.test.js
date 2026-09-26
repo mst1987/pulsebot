@@ -1,4 +1,4 @@
-// The tactic components are wired and have their texts; the logic of lib/steps.ts is tested in
+// The tactic components are wired and have their texts; the logic of lib/raidplan/steps.ts is tested in
 // src/web-client/src/lib/steps.test.ts.
 const fs = require("fs");
 const path = require("path");

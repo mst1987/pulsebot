@@ -1,5 +1,5 @@
 // The switch that plans a boss / trash section without its map (components wiring in BoardWorkspace / PlanPublicPage), checked on
-// the source. Which section a plan opens on and the section remembered per plan (lib/raidplan.ts) run in Vitest:
+// the source. Which section a plan opens on and the section remembered per plan (lib/raidplan/model.ts) run in Vitest:
 // src/web-client/src/lib/raidplanSection.test.ts.
 const fs = require("fs");
 const path = require("path");

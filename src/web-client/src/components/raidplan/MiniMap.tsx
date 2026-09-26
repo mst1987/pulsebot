@@ -1,5 +1,5 @@
 import { useRef, type PointerEvent } from "react";
-import { visibleRect, type BoardView } from "../../lib/boardView";
+import { visibleRect, type BoardView } from "../../lib/raidplan/boardView";
 
 /**
  * A small overview of the whole picture with a rectangle for what the frame shows now (when zoomed in): a click or a drag on it moves the view there.

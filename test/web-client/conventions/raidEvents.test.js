@@ -2,11 +2,8 @@
 // cannot see. The behaviour of the list, the create dialog and the Aufruf-Vorlagen
 // is tested in Vitest next to the components (pages/RaidsPage.test.tsx,
 // components/raid-create/RaidCreateDialog.test.tsx, pages/NotifyTemplatesPage.test.tsx).
-const fs = require("fs");
-const path = require("path");
-
-const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
+// a folder reads as all of its sources (components/raid-create/, #438)
+const { read } = require("../clientSource");
 
 const page = read("pages", "RaidsPage.tsx");
 const notify = read("pages", "NotifyTemplatesPage.tsx");

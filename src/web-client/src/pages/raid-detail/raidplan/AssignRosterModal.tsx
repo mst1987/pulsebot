@@ -4,8 +4,8 @@ import type { RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { CLASS_IDS, ROLE_ICON, classIconOf } from "../../../lib/assign";
-import { ROLE_SLOT_KINDS, assignOrSwap, classStatus, clearAllSlots, clearSlot, fillOpenSlots, roleSlots, slotCandidates, toggleSlotClass } from "../../../lib/rosterAssign";
+import { CLASS_IDS, ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
+import { ROLE_SLOT_KINDS, assignOrSwap, classStatus, clearAllSlots, clearSlot, fillOpenSlots, roleSlots, slotCandidates, toggleSlotClass } from "../../../lib/raidplan/rosterAssign";
 import { useT } from "../../../i18n";
 
 /**

@@ -1,5 +1,5 @@
 // The turned role group and the editor on a phone (PlanBoard, BoardWorkspace, the stylesheet); the role group logic of
-// lib/assign.ts and lib/mineView.ts is tested in src/web-client/src/lib/roleMine.test.ts.
+// lib/raidplan/assign.ts and lib/raidplan/mineView.ts is tested in src/web-client/src/lib/roleMine.test.ts.
 const fs = require("fs");
 const path = require("path");
 const { readWorkspace } = require("../clientSource");

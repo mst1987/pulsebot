@@ -3,9 +3,9 @@ import type { RaidplanAutoStyle, RaidplanBoard, RaidplanPlayer } from "../../../
 import { Button, IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { classPlaceNameFor } from "../../../lib/assign";
-import { ANY } from "../../../lib/classRefs";
-import type { AutoPlan, AutoTank } from "../../../lib/autoPlace";
+import { classPlaceNameFor } from "../../../lib/raidplan/assign";
+import { ANY } from "../../../lib/raidplan/classRefs";
+import type { AutoPlan, AutoTank } from "../../../lib/raidplan/autoPlace";
 import { COMPASS, COMPASS_NAMES, autoStyleOf, normAngle, objectPercent, patchAutoStyle, reorderObject, resetAutoAll, resetAutoPos, setAutoScale, setObjectPercent } from "../../../lib/raidplan";
 import { ArrowFields, OpacityField, SizeField } from "./Inspector";
 import { useT } from "../../../i18n";

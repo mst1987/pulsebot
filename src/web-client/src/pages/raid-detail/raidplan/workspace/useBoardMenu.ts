@@ -1,8 +1,8 @@
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import type { RaidplanBoard, RaidplanMobRef, RaidplanPlayer } from "../../../../api";
 import type { useT } from "../../../../i18n";
-import { mobIconNo, mobIconsOf, mobOfIcon, type AutoPlan } from "../../../../lib/autoPlace";
-import { alignSelection, hasItem, reorderSelection, scaleArrowSelection, setLookSelection, setRingSelection, type SelItem } from "../../../../lib/multiSelect";
+import { mobIconNo, mobIconsOf, mobOfIcon, type AutoPlan } from "../../../../lib/raidplan/autoPlace";
+import { alignSelection, hasItem, reorderSelection, scaleArrowSelection, setLookSelection, setRingSelection, type SelItem } from "../../../../lib/raidplan/multiSelect";
 import {
     applyMenuAction, autoStyleOf, canFace, compassName, contextMenuItems, lookOf, ownBadgeGroup, resetAutoAll, resetAutoPos, scaleArrow, SIZE_STEPS,
     type MenuItem, type ObjectKind, type Selection,

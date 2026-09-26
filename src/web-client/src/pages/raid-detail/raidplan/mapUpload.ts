@@ -1,5 +1,5 @@
 import { locale, t } from "../../../i18n";
-import { MAP_TARGET_BYTES, attempts, formatBytes, isMapType, needsCompression, outputType, renamedFor, scaledSize } from "../../../lib/mapImage";
+import { MAP_TARGET_BYTES, attempts, formatBytes, isMapType, needsCompression, outputType, renamedFor, scaledSize } from "../../../lib/raidplan/mapImage";
 
 export type PreparedMap = { file: File; /** what was done, for the toast ("4,8 MB -> 1,9 MB, 2560x1600"), "" = sent as it is */ note: string };
 

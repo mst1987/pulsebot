@@ -9,7 +9,7 @@ Readable width (`.rp-read-assign`, at most 1180 px; the board may stay wide), th
 by side per type** (320-400 px, stacked on a phone), real WoW icons on everything (a row shows its spell's
 icon or the icon a word in its task names — `TEXT_ICONS` / `iconForText` as the fallback —, a slot its role
 icon, a group, a mark, a mob its own; the raider his spec icon). Above them the visitor's own block "Meine
-Einteilungen" (`isMine` in `lib/assign.ts`: assignee, target or a name mention in a note or free text). There
+Einteilungen" (`isMine` in `lib/raidplan/assign.ts`: assignee, target or a name mention in a note or free text). There
 is no list of all tasks by player any more (removed: it repeated what the tables say); the derivation helpers
 for it (`tasksByAssignee`, `myTasks`, `taskText`) are gone.
 

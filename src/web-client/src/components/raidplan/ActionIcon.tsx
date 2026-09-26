@@ -1,4 +1,4 @@
-import { ACTION_GROUP, ACTION_PATH, TIMING_PATH } from "../../lib/steps";
+import { ACTION_GROUP, ACTION_PATH, TIMING_PATH } from "../../lib/raidplan/steps";
 
 /** The icon of a tactic action: a line icon on a tile in the colour of its group (tanks, control, position, support, flow). */
 export function ActionIcon({ action, size = 30, label }: { action: string; size?: number; label?: string }) {

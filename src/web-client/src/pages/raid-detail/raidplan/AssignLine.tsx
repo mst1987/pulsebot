@@ -4,11 +4,11 @@ import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon, playerLabel } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, classPlaceNameFor, classRefIcon, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/assign";
-import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/assignLine";
-import { groupColor } from "../../../lib/groupStyle";
+import { ROLE_ICON, classPlaceNameFor, classRefIcon, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
+import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/raidplan/assignLine";
+import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { MobIcon } from "./AssignPanel";
-import { ROLE_TONE } from "../../../lib/assign";
+import { ROLE_TONE } from "../../../lib/raidplan/assign";
 import { useT } from "../../../i18n";
 
 /** One chip of a row container: it only shows (no "+", no "x"); a missing place is the one yellow mark, the viewer's own chip carries "DU". */

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject, type PointerEvent } from "react";
 import type { RaidplanBoard } from "../../../../api";
-import { addItems, bandBox, hitObjects, scaleSelection, type Box, type SelItem } from "../../../../lib/multiSelect";
+import { addItems, bandBox, hitObjects, scaleSelection, type Box, type SelItem } from "../../../../lib/raidplan/multiSelect";
 import type { ObjectKind, Selection } from "../../../../lib/raidplan";
 import { LONG_PRESS_MS, type BoardPoint } from "./types";
 

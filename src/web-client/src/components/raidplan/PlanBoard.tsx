@@ -1,8 +1,8 @@
-import { REF_W, boardScale, canvasStyle } from "../../lib/boardScale";
-import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/labelScale";
-import { FIT, type BoardView } from "../../lib/boardView";
-import { ringShownFor, selectionDrawn } from "../../lib/viewRules";
-import { groupColor, groupMark, inkOn } from "../../lib/groupStyle";
+import { REF_W, boardScale, canvasStyle } from "../../lib/raidplan/boardScale";
+import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/raidplan/labelScale";
+import { FIT, type BoardView } from "../../lib/raidplan/boardView";
+import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
+import { groupColor, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
 import { groupScales, rhNote } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
@@ -14,9 +14,9 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
-import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/assign";
-import { ANY } from "../../lib/classRefs";
-import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/autoPlace";
+import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/raidplan/assign";
+import { ANY } from "../../lib/raidplan/classRefs";
+import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
 import "../../styles/raidplan.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).

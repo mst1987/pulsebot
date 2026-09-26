@@ -3,8 +3,8 @@ import { BookOpen, Copy, GripVertical, ListOrdered, Pencil, Plus, Save, Trash2 }
 import type { Catalog, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanStep } from "../../../api";
 import { useConfirm } from "../../../components/ui";
 import { ActionIcon } from "../../../components/raidplan/ActionIcon";
-import type { AssignCtx } from "../../../lib/assign";
-import { appendSteps, blankStep, duplicateStep, moveStep, moveStepTo, putStep, removeStep, resolveParticipants, starterTactics, stepsOf, timingLabel } from "../../../lib/steps";
+import type { AssignCtx } from "../../../lib/raidplan/assign";
+import { appendSteps, blankStep, duplicateStep, moveStep, moveStepTo, putStep, removeStep, resolveParticipants, starterTactics, stepsOf, timingLabel } from "../../../lib/raidplan/steps";
 import StepModal from "./StepModal";
 import { StepPeople, StepSentence, TimingChip } from "./StepParts";
 import { useT } from "../../../i18n";

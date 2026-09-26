@@ -1,7 +1,7 @@
 const { readWorkspace } = require("../clientSource");
 // Group rings and role groups (feature/raidplan-14..16) checked on the source:
 // the stylesheet and the board. The ring and role group logic runs in Vitest
-// (src/web-client/src/lib/raidplan.roleGroups.test.ts).
+// (src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts).
 describe("names on a group ring (feature/raidplan-14)", () => {
     it("the stylesheet: the name hangs under its icon at a share of it, the ring caps its width, the group badge sits at the top", () => {
         const css = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");

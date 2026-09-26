@@ -1,5 +1,5 @@
 // Auto placement from the tank rows: the wiring of the editor, the template and the sheet, checked on the source. The layout
-// itself (lib/autoPlace.ts) runs in Vitest: src/web-client/src/lib/autoPlace.test.ts.
+// itself (lib/raidplan/autoPlace.ts) runs in Vitest: src/web-client/src/lib/autoPlace.test.ts.
 const fs = require("fs");
 const path = require("path");
 const { readWorkspace } = require("../clientSource");
@@ -19,7 +19,7 @@ describe("wiring", () => {
         const pb = read("components/raidplan/PlanBoard.tsx");
         expect(pb).toContain("data-obj={`auto:${k.key}`}");
         expect(pb).toContain("raidBoard.auto.missing");
-        const rp = read("lib/raidplan.ts");
+        const rp = read("lib/raidplan/objects.ts");
         expect(rp).toContain("if (kind === \"auto\") return board;");
     });
 });

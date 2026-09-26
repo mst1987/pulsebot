@@ -1,4 +1,4 @@
-// The wiring of the assignments in the pages and their catalog texts; the logic of lib/assign.ts is tested in
+// The wiring of the assignments in the pages and their catalog texts; the logic of lib/raidplan/assign.ts is tested in
 // src/web-client/src/lib/assign.test.ts.
 const fs = require("fs");
 const path = require("path");

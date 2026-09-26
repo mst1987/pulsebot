@@ -3,8 +3,8 @@
 // is on the board.
 import type { RaidplanBoard } from "../../../../api";
 import type { Handle } from "../../../../components/raidplan/PlanBoard";
-import type { AutoPlan } from "../../../../lib/autoPlace";
-import type { SelItem } from "../../../../lib/multiSelect";
+import type { AutoPlan } from "../../../../lib/raidplan/autoPlace";
+import type { SelItem } from "../../../../lib/raidplan/multiSelect";
 import type { InsertSpec, ObjectKind, Rect, Selection } from "../../../../lib/raidplan";
 
 /** Nothing the tank rows put on the map (no map, "Allgemein", the Standard). */
