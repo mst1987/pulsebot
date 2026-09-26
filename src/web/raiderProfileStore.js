@@ -16,10 +16,10 @@
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
 const { instanceById } = require("../config/gameVersions");
-const { validateCharacterName, NAME_MAX } = require("../utils/characterNames");
+const { validateCharacterName, NAME_MAX } = require("../utils/signup/characterNames");
 const { isSnowflake } = require("../utils/ids");
 
 const PROFILES_FILE = settingsPath("raider-profiles.json");
@@ -34,7 +34,7 @@ const MAX_CHARACTERS = 12;
 const MAX_WISHES = 10;
 const MAX_AVOID = 10;
 const MAX_NOTE = 500;
-// Forever's "Vorname Nachname": 12 + 1 + 12 (utils/characterNames.js).
+// Forever's "Vorname Nachname": 12 + 1 + 12 (utils/signup/characterNames.js).
 const MAX_NAME = NAME_MAX;
 
 const SPEC_BY_KEY = new Map();
@@ -244,7 +244,7 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
  * rule refuses or a full list.
  *
  * A *new* typed name (anything but `source: "log"`) must pass
- * utils/characterNames.js — letters, 2–12 per name, the profanity filter, a
+ * utils/signup/characterNames.js — letters, 2–12 per name, the profanity filter, a
  * last name only where `versionId` allows one (none given = the web profile,
  * which is not tied to a version, allows it).
  */

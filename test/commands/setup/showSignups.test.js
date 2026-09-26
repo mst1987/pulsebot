@@ -1,11 +1,11 @@
 const { MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-jest.mock("../../../src/utils/helper.js");
-jest.mock("../../../src/utils/raidhelper.js");
+jest.mock("../../../src/utils/discord/reply.js");
+jest.mock("../../../src/utils/raidhelper/queries.js");
 
-const helper = require("../../../src/utils/helper.js");
-const utilsRaidhelper = require("../../../src/utils/raidhelper.js");
+const reply = require("../../../src/utils/discord/reply.js");
+const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const messages = require("../../../src/config/messages.js");
 const showSignups = require("../../../src/commands/setup/showSignups.js");
 
@@ -35,8 +35,8 @@ describe("commands/setup/showSignups", () => {
 
         await showSignups.execute(interaction, {});
 
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Fehler");
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
         expect(utilsRaidhelper.getAllSignUps).not.toHaveBeenCalled();
     });
 
@@ -50,10 +50,10 @@ describe("commands/setup/showSignups", () => {
         await showSignups.execute(interaction, {});
 
         expect(utilsRaidhelper.getAllSignUps).toHaveBeenCalledWith(interaction, "cat-1");
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Raids");
-        expect(helper.botEditReply.mock.calls[0][2]).toContain("<#111>");
-        expect(helper.botEditReply.mock.calls[0][2]).toContain("<#222>");
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Raids");
+        expect(reply.botEditReply.mock.calls[0][2]).toContain("<#111>");
+        expect(reply.botEditReply.mock.calls[0][2]).toContain("<#222>");
     });
 
     it("falls back to a generic error reply when the query throws", async () => {
@@ -62,7 +62,7 @@ describe("commands/setup/showSignups", () => {
 
         await showSignups.execute(interaction, {});
 
-        const lastCall = helper.botEditReply.mock.calls.at(-1);
+        const lastCall = reply.botEditReply.mock.calls.at(-1);
         expect(lastCall[1]).toBe(messages.general.errorTitle);
         expect(lastCall[2]).toBe(messages.general.errorMessage);
     });

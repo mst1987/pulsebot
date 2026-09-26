@@ -8,7 +8,7 @@
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
 const { contentsForText } = require("../config/tbcContent");
-const { enrichSlot, CLASS_COLORS } = require("../utils/setupView");
+const { enrichSlot, CLASS_COLORS } = require("../utils/setup/setupView");
 const { signupStatus } = require("../utils/attendance");
 const { plural } = require("../utils/text");
 const { TIMEZONE } = require("../config/timezone");

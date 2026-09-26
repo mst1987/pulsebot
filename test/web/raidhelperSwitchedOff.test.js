@@ -25,7 +25,7 @@ jest.mock("../../src/web/eventStore", () => ({
 jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 
 const { saveRaidEvents } = require("../../src/web/raidEventStore");
-const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelper/client");
 const { scanRaidEvents } = require("../../src/web/raidEventScan");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");
 const { loadMatchableEvents } = require("../../src/web/matchableEvents");

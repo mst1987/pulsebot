@@ -3,9 +3,9 @@ const { getSignup } = require("../../web/signupStore");
 const { submitSignup } = require("../../web/signupService");
 const {
     COMMENT_PREFIX, parseCommentId, buildSignupDialog, buildCommentModal, plainUpdate,
-} = require("../../utils/signupDialog");
+} = require("../../utils/signup/signupDialog");
 
-// "Kommentar" in the signup dialog (utils/signupDialog.js). Two interactions
+// "Kommentar" in the signup dialog (utils/signup/signupDialog.js). Two interactions
 // share the customId `signup-comment:<eventId>:<state>`, like logevalForce.js:
 // the click opens a modal prefilled with the current comment, the submitted
 // modal saves it onto the existing signup — status, character and spec stay as

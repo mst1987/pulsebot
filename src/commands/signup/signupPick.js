@@ -5,9 +5,9 @@ const { defaultCanAlso } = require("../../web/signupService");
 const { ROLES } = require("../../config/gameVersions/classes");
 const {
     PICK_PREFIX, parsePickId, resolveState, classesFor, buildSignupDialog, plainUpdate,
-} = require("../../utils/signupDialog");
+} = require("../../utils/signup/signupDialog");
 
-// The selects of the signup dialog (utils/signupDialog.js):
+// The selects of the signup dialog (utils/signup/signupDialog.js):
 //
 //   signup-pick:<eventId>:k:<state>   class (only without a profile character)
 //   signup-pick:<eventId>:s:<state>   character · spec ("<characterKey>|<specKey>")

@@ -1,8 +1,8 @@
 const messages = require("../../config/messages");
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-const { botEditReply } = require("../../utils/helper");
-const { getCategorySetups } = require("../../utils/raidhelper");
-const { setupResponse } = require("../../utils/responses");
+const { botEditReply } = require("../../utils/discord/reply");
+const { getCategorySetups } = require("../../utils/raidhelper/queries");
+const { setupResponse } = require("../../utils/setup/response");
 
 module.exports = {
     name: "show-mysetups",

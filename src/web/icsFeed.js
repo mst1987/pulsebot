@@ -19,10 +19,10 @@
 // newlines), and every time is UTC — a local time would need a VTIMEZONE block,
 // and the store keeps unix seconds anyway.
 //
-// The end comes from the duration (#305, utils/eventTime.js); an event without
+// The end comes from the duration (#305, utils/time/index.js); an event without
 // a start has no VEVENT worth writing and answers "".
 const { publicBaseUrl } = require("../utils/publicUrl");
-const { eventEndTime } = require("../utils/eventTime");
+const { eventEndTime } = require("../utils/time");
 const { str, clip } = require("../utils/text");
 
 const PRODID = "-//EventHelper//Raid-Kalender//DE";

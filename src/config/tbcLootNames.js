@@ -11,7 +11,7 @@
 //
 // Entries are `[name, icon, quality]` — the same three fields Wowhead's tooltip
 // endpoint returns, and exactly what the picker renders (the icon URL is built
-// from `icon` by utils/wowhead.js's iconUrl(), never stored twice). Names are
+// from `icon` by utils/loot/wowhead.js's iconUrl(), never stored twice). Names are
 // English, like the exports and the loot tables. Regenerate the JSON instead
 // of hand-editing it.
 

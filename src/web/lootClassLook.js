@@ -11,7 +11,7 @@
 // web-client's ClassSpec.tsx). A character nobody has resolved yet simply keeps
 // empty fields and renders uncoloured.
 const { characterMap } = require("./characterStore");
-const { characterProfile } = require("../utils/setupView");
+const { characterProfile } = require("../utils/setup/setupView");
 
 /**
  * The class look of one character, from a map read once for the whole list.

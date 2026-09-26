@@ -5,9 +5,9 @@ const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../web/si
 const {
     STATUS_PREFIX, parseStatusId, resolveState, classLabel, buildSignupDialog, buildCharacterModal,
     savedNotice, plainUpdate,
-} = require("../../utils/signupDialog");
+} = require("../../utils/signup/signupDialog");
 
-// The status buttons of the signup dialog (utils/signupDialog.js):
+// The status buttons of the signup dialog (utils/signup/signupDialog.js):
 // `signup-status:<eventId>:<code>:<state>` — Dabei / Vielleicht / Spät / Bank /
 // Abmelden. A click saves the picks carried in the customId through
 // signupService.submitSignup (deadline, start, profile and spec rules all live

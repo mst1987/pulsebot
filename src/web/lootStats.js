@@ -9,7 +9,7 @@
 const { listAll, charLootPreview } = require("./lootStore");
 const { wowheadLink } = require("../config/wowheadItemAliases");
 const { annotatedCharacters } = require("./characterInfo");
-const { reasonCatalog, reasonMeta } = require("../utils/lootReasons");
+const { reasonCatalog, reasonMeta } = require("../utils/loot/lootReasons");
 const { CONTENTS, TIERS, content: contentMeta } = require("../config/tbcContent");
 
 // The one response wording shared by every item of a bucket, or "" when they

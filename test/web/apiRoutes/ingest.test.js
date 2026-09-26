@@ -49,7 +49,7 @@ jest.mock("../../../src/web/raidEventGroups", () => ({
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // Import-time item enrichment must never hit the network.
-jest.mock("../../../src/utils/wowhead", () => ({
+jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
     searchItems: jest.fn(async () => []),
 }));
@@ -59,7 +59,7 @@ const { upsertPending, resolutionFor } = require("../../../src/web/lootInboxStor
 const { addImport } = require("../../../src/web/lootStore");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const { handle } = require("../../../src/web/apiRouter");
-const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/lootImport");
+const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
 
 const TOKEN = { id: "t1", name: "Raidlead-PC" };
 

@@ -7,7 +7,7 @@ const {
     getConfig,
 } = require("../settingsStore");
 const discord = require("../discord");
-const { SPEC_CATALOG } = require("../../utils/recruitmentSpecs");
+const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitmentApplications");
 
 /**

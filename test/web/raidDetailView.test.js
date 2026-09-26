@@ -17,7 +17,7 @@ jest.mock("../../src/web/discord", () => ({
     resolveUserNames: jest.fn(async (g, ids) => Object.fromEntries(ids.map((id) => [id, `Name ${id}`]))),
     getGuild: jest.fn(() => null),
 }));
-jest.mock("../../src/utils/raidhelperClient", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
+jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(() => null) }));
 jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
@@ -39,7 +39,7 @@ jest.mock("../../src/web/pingDelivery", () => ({ ...jest.requireActual("../../sr
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const settingsStore = require("../../src/web/settingsStore");
 const discord = require("../../src/web/discord");
-const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelper/client");
 const { getRaidEvent } = require("../../src/web/raidEventStore");
 const { getEvent } = require("../../src/web/eventStore");
 const { listSignups } = require("../../src/web/signupStore");

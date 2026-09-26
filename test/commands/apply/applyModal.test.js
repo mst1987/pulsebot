@@ -4,7 +4,7 @@ jest.mock("../../../src/classes/warcraftlogs.js", () =>
 jest.mock("../../../src/utils/logcheck/applicant.js");
 
 const command = require("../../../src/commands/apply/applyModal.js");
-const { pendingApplications } = require("../../../src/utils/applicationState.js");
+const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 const { analyzeApplicant } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const discordClient = require("../../helpers/discordClient.js");

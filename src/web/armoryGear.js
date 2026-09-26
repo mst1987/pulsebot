@@ -22,7 +22,7 @@ const { getConfig } = require("./settingsStore");
 const { situationalItem } = require("../config/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../config/wowsims");
-const { characterKeyOf } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/loot/lootImport");
 
 // Blizzard names the equip slots, Warcraft Logs numbers them. Only the slots
 // both sides agree on are listed; a slot missing here simply has no armory

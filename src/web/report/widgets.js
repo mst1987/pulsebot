@@ -1,7 +1,7 @@
 // Small HTML building blocks every part of the report pages uses: icons, badges,
 // tiles, bars, metric cards, dialogs, number formats and the class colours.
-const { itemLink: wowheadItemLink } = require("../../utils/wowhead");
-const { CLASS_COLORS } = require("../../utils/setupView");
+const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
+const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const { armoryUrlFor } = require("../charLinks");
 const rpbData = require("../../config/rpbData");
 const { esc } = require("./layout");

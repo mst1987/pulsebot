@@ -15,11 +15,11 @@ const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
 const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { lootCatalog, suggestedContents } = require("../lootCatalog");
-const { reasonCatalog } = require("../../utils/lootReasons");
+const { reasonCatalog } = require("../../utils/loot/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
-const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
+const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
@@ -27,7 +27,7 @@ const {
 } = require("../lootInboxStore");
 const { sessionContentLabel } = require("../lootSessionContent");
 const { previewImport } = require("../lootImportPreview");
-const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
+const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");

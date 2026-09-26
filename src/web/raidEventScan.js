@@ -5,7 +5,7 @@
 // view, see server.js's loadRecentEvents) and on a background interval, so a
 // finished raid shows up even if nobody opens the dashboard right after it ends.
 
-const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
 const discord = require("./discord");
 const { saveRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");

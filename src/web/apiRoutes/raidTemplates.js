@@ -6,7 +6,7 @@ const {
 const { decorateTemplate } = require("../raidTemplates");
 const discord = require("../discord");
 const { activeGuildFor } = require("../activeGuild");
-const { createRaidhelperClient } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 
 /** Every template as the list shows it, with its badges and the categories using it as default. */
 function decoratedTemplates() {

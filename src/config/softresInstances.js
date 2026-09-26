@@ -10,7 +10,7 @@
 // list, which the site ships as page props on its start page.
 //
 // `keywords` are lower-cased, accent-free tokens; a title matches an instance
-// when it contains one of them as a word/abbreviation. See utils/softres.js
+// when it contains one of them as a word/abbreviation. See utils/loot/softres.js
 // (parseInstancesFromTitle) for the matching logic.
 
 const INSTANCES = {

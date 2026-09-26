@@ -1,8 +1,8 @@
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-const { createRaidhelperClient } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const SheetsClient = require("../../classes/sheets");
-const { fillSetupSheet } = require("../../utils/fillSetup");
-const { botEditReply } = require("../../utils/helper");
+const { fillSetupSheet } = require("../../utils/setup/fillSetup");
+const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../web/eventStore");
 const { ownEventInChannel } = require("../../web/eventSources");
 const { raidHelperSlots } = require("../../web/setupEditor");

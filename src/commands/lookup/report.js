@@ -3,7 +3,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { listReports } = require("../../web/reportStore");
 const { prepareReportList } = require("../../web/reportList");
-const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/botLookup");
+const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/discord/botLookup");
 
 /** How many evaluations the reply lists. */
 const MAX_REPORTS = 5;

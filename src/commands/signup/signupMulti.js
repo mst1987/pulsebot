@@ -6,12 +6,12 @@ const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
 const {
     PREFIX, createSession, getSession, endSession, parseMultiId, pageCount,
     buildRaidPicker, buildCharacterModal, entriesFromModal, buildResults,
-} = require("../../utils/multiSignup");
-const { STATUS_CODES } = require("../../utils/signupDialog");
-const { toEnglish } = require("../../utils/botEnglish");
+} = require("../../utils/signup/multiSignup");
+const { STATUS_CODES } = require("../../utils/signup/signupDialog");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 
 // Every step of signing up for several raids at once (#293) after the first
-// click — see utils/multiSignup.js for the flow and the customIds:
+// click — see utils/signup/multiSignup.js for the flow and the customIds:
 //
 //   signup-multi:<token>:r | :s      step 1 selects (raids, status) — redraw
 //   signup-multi:<token>:go:<page>   opens the modal of a page (never after a defer)

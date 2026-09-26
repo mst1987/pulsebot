@@ -2,7 +2,7 @@
 // ({ groups: [{ index, slots: [{ userId, character, spec, role, classId, rhName, nameFromRh }] }], bench }), so raidplan.rosterFrom()
 // builds its roster from it unchanged (docs/raidplan.md, "Raid-Helper-Events"). Two inputs:
 //   - the Raid-Helper Aufstellung (GET /api/raidplan/<id> -> `slots`, classes/raidhelper.js getSetup): { id, name, className, specName,
-//     groupNumber } per placed raider; the group comes from `groupNumber`, else 5 per group by position (like utils/setupView.js
+//     groupNumber } per placed raider; the group comes from `groupNumber`, else 5 per group by position (like utils/setup/setupView.js
 //     groupOf) - `hasGroups` says which;
 //   - without an Aufstellung, the event's signups ({ userId, name, className, specName, status }): the signed-up raiders in their order,
 //     in blocks of five; bench goes to `bench`, absence / tentative / late are not placed.

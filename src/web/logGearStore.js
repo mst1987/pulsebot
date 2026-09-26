@@ -21,7 +21,7 @@ const { buildArmory } = require("../utils/logcheck/gearIssues");
 const { selectPlayers } = require("../utils/logcheck/common");
 const { resolveSituationalGear } = require("../utils/logcheck/gearVariants");
 const { listLogs } = require("./logStore");
-const { characterKeyOf } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/loot/lootImport");
 
 const LOG_GEAR_FILE = settingsPath("logGear.json");
 

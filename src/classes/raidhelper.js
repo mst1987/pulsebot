@@ -2,7 +2,7 @@ const { createClient } = require("./httpClient");
 const logger = require("../logger.js").child("raidhelper");
 
 // Client for the raid-helper.xyz API (v4 events, raidplan). Every caller gets
-// it through utils/raidhelperClient.js, which may hand out a disabled or a
+// it through utils/raidhelper/client.js, which may hand out a disabled or a
 // fixture client with the same method names instead.
 //
 // Error contract (unchanged by the move to httpClient, #429):
@@ -44,7 +44,7 @@ function hasSignUp(event, userid) {
 
 class Raidhelper {
     // opts.serverId lets callers override the raid-helper.xyz server id from the
-    // admin-editable settings store (see utils/raidhelperClient.js); apiKey stays
+    // admin-editable settings store (see utils/raidhelper/client.js); apiKey stays
     // env-only since it's a real secret.
     constructor(opts = {}) {
         this.apiKey = process.env.RAIDHELPER_API_KEY;

@@ -15,7 +15,7 @@ const profiles = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventButton");
 const {
     parseButtonId, orderedValues, firstCharacterTo, withAddedCharacter, refusal,
-} = require("../../../src/utils/signupButtons");
+} = require("../../../src/utils/signup/signupButtons");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");

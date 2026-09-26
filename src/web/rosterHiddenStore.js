@@ -14,7 +14,7 @@
 // character page, the loot history and every evaluation stay exactly as they
 // were, and the roster's own "Ausgeblendet" tab lists them.
 
-const { characterKeyOf } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/loot/lootImport");
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 

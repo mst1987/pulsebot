@@ -22,7 +22,7 @@ const mockClient = {
     getSetup: jest.fn(async () => (mockRh.down || !mockRh.slots ? undefined : { raidid: "x", setup: mockRh.slots })),
     createEvent: jest.fn(), signUp: jest.fn(), signUpToRaid: jest.fn(),
 };
-jest.mock("../../src/utils/raidhelperClient", () => ({
+jest.mock("../../src/utils/raidhelper/client", () => ({
     createRaidhelperClient: jest.fn(() => (mockRh.disabled ? { disabled: true } : mockClient)),
     raidhelperDisabled: jest.fn(() => mockRh.disabled),
 }));

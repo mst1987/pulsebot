@@ -38,7 +38,7 @@ jest.mock("../../src/web/recentEvents", () => ({
 jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
 jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
 jest.mock("../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
-jest.mock("../../src/utils/raidhelperClient", () => ({ createRaidhelperClient: jest.fn() }));
+jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
@@ -53,7 +53,7 @@ const raidEventGroups = require("../../src/web/raidEventGroups");
 const reportStore = require("../../src/web/reportStore");
 const lootInboxStore = require("../../src/web/lootInboxStore");
 const { buildRoster } = require("../../src/web/roster");
-const { createRaidhelperClient } = require("../../src/utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
 const discord = require("../../src/web/discord");
 const {
     loadTopLoot, loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,

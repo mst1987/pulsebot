@@ -1,5 +1,5 @@
 // A Raid-Helper event's raidplan / signups as the line-up the raid plan reads (src/web/raidhelperRoster.js), fed through the raid plan's
-// own rosterFrom(). The input shapes are the ones the code base already reads from Raid-Helper (utils/setupView.js,
+// own rosterFrom(). The input shapes are the ones the code base already reads from Raid-Helper (utils/setup/setupView.js,
 // raidhelperHistoryImport.js, raidEventScan.js): raidplan slots { id, name, className, specName, groupNumber }, signups
 // { userId, name, className, specName, status }. Tank specs come as className "Tank".
 const { raidhelperLineup, characterFor } = require("../../src/web/raidhelperRoster");

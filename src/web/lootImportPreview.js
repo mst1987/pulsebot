@@ -8,7 +8,7 @@
 // preview can never promise something the import then does differently.
 //
 // Pure apart from reading the loot store; the route loads the events.
-const { parseLoot, detectImportDate, LootParseError, EH_FORMAT } = require("../utils/lootImport");
+const { parseLoot, detectImportDate, LootParseError, EH_FORMAT } = require("../utils/loot/lootImport");
 const { deriveContent } = require("./lootSessionContent");
 const { bestDayMatch } = require("./lootEventMatch");
 const { eventStartMs } = require("./logEventMatch");

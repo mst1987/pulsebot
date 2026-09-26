@@ -14,7 +14,7 @@
 
 const { getConfig, saveConfig } = require("./settingsStore");
 const { signupSourceFor } = require("./eventSources");
-const { raidhelperDisabled } = require("../utils/raidhelperClient");
+const { raidhelperDisabled } = require("../utils/raidhelper/client");
 const { TIMEZONE } = require("../config/timezone");
 const discord = require("./discord");
 const guildRoles = require("./guildRoles");

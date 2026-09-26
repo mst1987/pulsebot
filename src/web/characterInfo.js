@@ -15,7 +15,7 @@ const { listReports, getReportRoster } = require("./reportStore");
 const { listLogsForEvent } = require("./logStore");
 const charStore = require("./characterStore");
 const WarcraftLogs = require("../classes/warcraftlogs");
-const { rosterFromFights, rosterFromTable, mergeRosters } = require("../utils/wclRoster");
+const { rosterFromFights, rosterFromTable, mergeRosters } = require("../utils/logcheck/wclRoster");
 const { VALID_CLASSES } = require("../utils/logcheck/common");
 
 // How many CLA reports are read for their roster, and how many Warcraft-Logs

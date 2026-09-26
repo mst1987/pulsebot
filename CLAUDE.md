@@ -107,7 +107,7 @@ A rough map without file lists (`ls` is always current); each row names the doc 
 | `src/commands/<area>/` | One module per command or component; `loader.js` collects them for bot and `npm run register` | docs/bot-commands.md |
 | `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
 | `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
-| `src/utils/` | Domain logic without HTTP; `logcheck/`, `setup/`, `wowsims/` | docs/logcheck.md, docs/setup.md |
+| `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
 | `src/web/` | HTTP server, `apiRoutes/`, stores (`*Store.js`), report rendering, Discord side of web features | docs/web-admin.md |
 | `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
 | `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
@@ -166,13 +166,13 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 - **Semicolons:** Always (enforced by ESLint).
 - **Line endings:** LF, set by `.gitattributes` (`* text=auto eol=lf`) — not enforced by ESLint (a fixed rule broke the Linux CI).
 - **Lint rules:** `@eslint/js` recommended plus `no-undef`, `no-unused-vars` (unused args as `_x`), `prefer-const`, `no-var`, `indent` 4 (`SwitchCase: 1`) and `complexity` (warn at 30) for `src/`, `scripts/`, hooks and `test/` (there also `eslint-plugin-jest`); the client adds `eslint-plugin-react` and `jsx-a11y`.
-- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/signups.md, docs/bot-commands.md.
+- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/signup/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/signups.md, docs/bot-commands.md.
 - **No TypeScript** in the bot (the web client in `src/web-client/` is TypeScript).
 
 ## Testing
 
 The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
-- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/date.js` → `test/utils/date.test.js`.
+- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
 - A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
 - A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
@@ -181,7 +181,7 @@ The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
 - **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request; `test/setup/noNetwork.js` (`setupFiles`) enforces it: unmocked axios, `http(s).request/get` and `fetch` throw and fail the test, even when the code swallows the error (loopback stays open). `coverageThreshold` in `jest.config.js` sits about a point under the measured coverage, so `npm run test:coverage` fails when it sinks; console output is shown only for failing tests.
 - **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/web/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
-- Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/date.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
+- Prefer testing pure logic directly (formatters in `utils/format.js`, date math in `utils/time/index.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
 - ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 
 ## What NOT To Do

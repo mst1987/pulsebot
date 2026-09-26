@@ -3,8 +3,8 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 // repairItemNames() runs the import-time Wowhead enrichment — mock the lookup
 // so no test ever hits the network (id 100 resolves, everything else misses).
-jest.mock("../../src/utils/wowhead", () => ({
-    ...jest.requireActual("../../src/utils/wowhead"),
+jest.mock("../../src/utils/loot/wowhead", () => ({
+    ...jest.requireActual("../../src/utils/loot/wowhead"),
     lookupItem: jest.fn(async (id) => (Number(id) === 100
         ? { id: 100, name: "Thing", icon: "inv_thing", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_thing.jpg", quality: 4 }
         : null)),

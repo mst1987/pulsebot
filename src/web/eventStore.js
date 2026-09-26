@@ -27,9 +27,9 @@ const COMPOSITION_ROLES = ["tank", "healer", "melee", "ranged"];
 const MAX_SIZE = 40;
 
 // How long a raid takes (#305): a planning field like the size, inherited from
-// the raid template. The rule itself lives in utils/eventTime.js — several
+// the raid template. The rule itself lives in utils/time/index.js — several
 // readers mock this store, and a pure calculation must not be mocked with it.
-const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime } = require("../utils/eventTime");
+const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime } = require("../utils/time");
 
 // Colour and picture of the event message (#307) — a planning field like the
 // duration, inherited from the raid template. The rules live in embedLook.js.

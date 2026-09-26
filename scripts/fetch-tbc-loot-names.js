@@ -24,7 +24,7 @@
 const fs = require("fs");
 const path = require("path");
 const { RAID_LOOT } = require("../src/config/tbcContent");
-const { lookupItem } = require("../src/utils/wowhead");
+const { lookupItem } = require("../src/utils/loot/wowhead");
 const { GENERATED_DIR, writeGeneratedJson } = require("./lib/generatedJson");
 
 const TARGET = path.join(GENERATED_DIR, "tbcLootNames.json");

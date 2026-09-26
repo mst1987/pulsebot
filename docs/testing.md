@@ -8,7 +8,7 @@ Die Regel (#434), kurz auch in CLAUDE.md:
 
 | Quelle | Test |
 |---|---|
-| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/web/*Store.js`) und die übrigen Module unter `src/web/` | gespiegelt: `src/utils/date.js` → `test/utils/date.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
+| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/web/*Store.js`) und die übrigen Module unter `src/web/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
 | ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
 | der Dispatcher `src/web/apiRouter.js` | `test/web/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
 | eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |

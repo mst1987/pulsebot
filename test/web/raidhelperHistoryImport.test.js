@@ -7,12 +7,12 @@ jest.mock("../../src/web/eventStore", () => ({
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 const mockGetPastEvents = jest.fn();
 const mockClient = { getPastEvents: (...a) => mockGetPastEvents(...a) };
-jest.mock("../../src/utils/raidhelperClient", () => ({ createRaidhelperClient: jest.fn(() => mockClient) }));
+jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(() => mockClient) }));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn(() => ({})) }));
 
 const fs = require("fs");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
-const { createRaidhelperClient } = require("../../src/utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
 const discord = require("../../src/web/discord");
 const specHistory = require("../../src/web/specHistoryStore");
 const { planImport, runImport, perCategoryOf } = require("../../src/web/raidhelperHistoryImport");

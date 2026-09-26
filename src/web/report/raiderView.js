@@ -1,7 +1,7 @@
 // Sicht Raider: one card per raider with four sections, the paperdoll, the send
 // dialog, and the role filter above the cards.
-const { CLASS_COLORS } = require("../../utils/setupView");
-const { itemLink: wowheadItemLink } = require("../../utils/wowhead");
+const { CLASS_COLORS } = require("../../utils/setup/setupView");
+const { itemLink: wowheadItemLink } = require("../../utils/loot/wowhead");
 const { plural } = require("../../utils/text");
 const { fmtTime, PX_PER_SEC } = require("../charts");
 const { ICONS } = require("../adminChrome");
@@ -15,7 +15,7 @@ const { IMPACT_LABEL, IMPACT_TONE, recItem } = require("./recommendations");
 const { abilityIcon } = require("./panels/damage");
 const { RPB_ACTIVITY_HOW, spellTiles } = require("./panels/rpb");
 const { ROLE_LABEL } = require("./context");
-const { formatGermanDateTime } = require("../../utils/date");
+const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Sicht Raider: one card per raider ------------------------------------------
 

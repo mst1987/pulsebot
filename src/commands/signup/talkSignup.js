@@ -5,12 +5,12 @@ const { getEvent, isOwnEventId } = require("../../web/eventStore");
 const { SELECT_ID } = require("../../web/talkOverview");
 const guildRoles = require("../../web/guildRoles");
 const { checkRaiderRole } = require("../../web/signupService");
-const { buildSignupDialog } = require("../../utils/signupDialog");
-const { toEnglish } = require("../../utils/botEnglish");
+const { buildSignupDialog } = require("../../utils/signup/signupDialog");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 
 // The select "Raid wählen, um dich anzumelden" under the raid overview on the
 // talk server (customId `talk-signup`, web/talkOverview.js). An own event opens
-// the signup dialog (utils/signupDialog.js) right here, only for the member; a
+// the signup dialog (utils/signup/signupDialog.js) right here, only for the member; a
 // Raid-Helper event keeps its signup at Raid-Helper, so the answer links into
 // its event channel on the event server.
 module.exports = {

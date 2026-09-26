@@ -13,7 +13,7 @@ const { listSignups } = require("../../src/web/signupStore");
 const { listRaidEvents, getRaidEvent } = require("../../src/web/raidEventStore");
 const { getConfig } = require("../../src/web/settingsStore");
 const sources = require("../../src/web/eventSources");
-const { specProfile } = require("../../src/utils/setupView");
+const { specProfile } = require("../../src/utils/setup/setupView");
 const { signupStatus } = require("../../src/utils/attendance");
 const { buildClasses, CLASSES } = require("../../src/config/gameVersions/classes");
 

@@ -13,7 +13,7 @@ const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
 const { openPayload } = require("../../web/eventManageBot");
 const { listEvents } = require("../../web/eventStore");
 const { whenLabel } = require("../../web/eventManage");
-const { respondChoices } = require("../../utils/botLookup");
+const { respondChoices } = require("../../utils/discord/botLookup");
 
 // Events that started more than a day ago are no longer offered.
 const LOOKBACK_SECONDS = 24 * 3600;

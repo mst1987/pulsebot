@@ -5,17 +5,17 @@ const profiles = require("../../web/raiderProfileStore");
 const { submitSignup, checkRaiderRole } = require("../../web/signupService");
 const { BUTTON_PREFIX } = require("../../web/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
-const { characterOptions } = require("../../utils/joinPicker");
-const { classLabel } = require("../../utils/signupDialog");
+const { characterOptions } = require("../../utils/signup/joinPicker");
+const { classLabel } = require("../../utils/signup/signupDialog");
 const {
     parseButtonId, refusal, savedText, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
-} = require("../../utils/signupButtons");
-const { toEnglish } = require("../../utils/botEnglish");
+} = require("../../utils/signup/signupButtons");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 const { noteMode, MIN_NOTE } = require("../../web/signupNotes");
 
 // The signup buttons under an EventHelper event message and every step after
-// them — see utils/signupButtons.js for the flow and the customIds. Every answer
+// them — see utils/signup/signupButtons.js for the flow and the customIds. Every answer
 // is ephemeral: a click on the public message replies, a step inside the
 // member's own message updates it. Saves go through signupService.submitSignup.
 const STATUS_ACTIONS = ["late", "tentative", "bench"];

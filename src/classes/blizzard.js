@@ -1,5 +1,5 @@
 const { createClient } = require("./httpClient");
-const wowhead = require("../utils/wowhead");
+const wowhead = require("../utils/loot/wowhead");
 
 const TOKEN_TIMEOUT_MS = 10000;
 const PROFILE_TIMEOUT_MS = 12000;
@@ -238,7 +238,7 @@ class Blizzard {
      * static stat-text → gem-name table (TBC_GEM_NAME_BY_TEXT) + Wowhead
      * name search. Unresolvable gems keep their stat text so the information
      * is never dropped. Icons come from Wowhead (the Blizzard endpoint has no
-     * media URLs), like utils/lootImport.js's enrichItemNames — best-effort.
+     * media URLs), like utils/loot/lootImport.js's enrichItemNames — best-effort.
      * Returns null on any problem (not configured, auth failure, 403/404,
      * unknown character, network error) so the caller can fall back to a
      * classic-armory.org link.

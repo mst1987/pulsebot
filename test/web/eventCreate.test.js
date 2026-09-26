@@ -1,7 +1,7 @@
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 const mockCreateEvent = jest.fn();
 const mockGetEvent = jest.fn();
-jest.mock("../../src/utils/raidhelperClient", () => ({
+jest.mock("../../src/utils/raidhelper/client", () => ({
     createRaidhelperClient: () => ({ createEvent: mockCreateEvent, getEvent: mockGetEvent }),
 }));
 jest.mock("../../src/web/discord", () => ({

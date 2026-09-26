@@ -1,5 +1,5 @@
 const command = require("../../../src/commands/apply/applySpec.js");
-const { pendingApplications } = require("../../../src/utils/applicationState.js");
+const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 describe("commands/apply/applySpec", () => {

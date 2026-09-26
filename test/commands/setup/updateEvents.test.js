@@ -1,14 +1,14 @@
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/raidhelper/channelEvents.js");
 
-const helper = require("../../../src/utils/helper.js");
+const channelEvents = require("../../../src/utils/raidhelper/channelEvents.js");
 const updateEvents = require("../../../src/commands/setup/updateEvents.js");
 
 describe("commands/setup/updateEvents", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        helper.showAllEvents.mockResolvedValue("formatted raids");
+        channelEvents.showAllEvents.mockResolvedValue("formatted raids");
     });
 
     it("exports the correct command contract", () => {
@@ -30,7 +30,7 @@ describe("commands/setup/updateEvents", () => {
         expect(interaction.reply).toHaveBeenCalledTimes(1);
         expect(interaction.reply.mock.calls[0][0].content).toMatch(/Kategorie/);
         expect(interaction.update).not.toHaveBeenCalled();
-        expect(helper.showAllEvents).not.toHaveBeenCalled();
+        expect(channelEvents.showAllEvents).not.toHaveBeenCalled();
     });
 
     it("updates the message embed with the refreshed events", async () => {
@@ -40,7 +40,7 @@ describe("commands/setup/updateEvents", () => {
 
         await updateEvents.execute(interaction, {});
 
-        expect(helper.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
+        expect(channelEvents.showAllEvents).toHaveBeenCalledWith(interaction, "cat-1");
         expect(interaction.update).toHaveBeenCalledTimes(1);
         const embed = interaction.update.mock.calls[0][0].embeds[0];
         expect(embed.title).toBe("GDKP Raids");

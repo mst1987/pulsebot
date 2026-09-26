@@ -14,7 +14,7 @@
 // DMs are a switch per category (`config.categorySetupDms`, off by default):
 // placed raiders read "You are in Group 2 as Healer (Zibbo · Holy)", the
 // bench "This time on the bench …" with the proposal's reasons (translated by
-// utils/botEnglish.js). A raider is told once per
+// utils/signup/botEnglish.js). A raider is told once per
 // placement — `setupPost.told[userId]` keeps what they were told, so a new
 // approval only writes to those whose place changed, and a failed DM is tried
 // again on the next run. DMs go out one after the other with a pause between
@@ -36,7 +36,7 @@ const eventStore = require("./eventStore");
 const { getConfig } = require("./settingsStore");
 const discord = require("./discord");
 const { buildClasses, ROLE_LABELS_EN } = require("../config/gameVersions/classes");
-const { toEnglish } = require("../utils/botEnglish");
+const { toEnglish } = require("../utils/signup/botEnglish");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,

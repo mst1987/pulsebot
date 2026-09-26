@@ -1,8 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
-const {
-    showAllEvents,
-    botReply,
-} = require("../../utils/helper");
+const { showAllEvents } = require("../../utils/raidhelper/channelEvents");
+const { botReply } = require("../../utils/discord/reply");
 
 module.exports = {
     name: "createoverview",

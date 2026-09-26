@@ -1,4 +1,4 @@
-// Blizzard talks through classes/httpClient.js, utils/wowhead.js through
+// Blizzard talks through classes/httpClient.js, utils/loot/wowhead.js through
 // axios.get directly. Both end up in the same two fakes, `axios.get` and
 // `axios.post`, so a test programs one place and reads what either sent.
 jest.mock("axios", () => {

@@ -1,5 +1,5 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require("discord.js");
-const { pendingApplications } = require("../../utils/applicationState");
+const { pendingApplications } = require("../../utils/recruitment/applicationState");
 
 module.exports = {
     name: "apply-spec",
