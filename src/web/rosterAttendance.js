@@ -30,7 +30,7 @@
 const { listStoredEvents } = require("./eventSources");
 const { listLogs } = require("./logStore");
 const { listReports, getReport } = require("./reportStore");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/lootImport");
 const { contentsForText, content: contentMeta } = require("../config/tbcContent");
 
 /** How many raid nights of a category attendance looks back over. */
@@ -63,10 +63,6 @@ const CONTENT_ICONS = {
 const TANK_SPECS = new Set(["protection", "prot", "tank", "feral tank", "guardian"]);
 const HEALER_SPECS = new Set(["holy", "discipline", "disc", "restoration", "resto", "healer"]);
 
-function charKey(name) {
-    return lootCharacterKey(splitPlayer(name).character);
-}
-
 /** Role from a spec name alone: "tank" | "healer" | "dps", or "" when unknown. */
 function roleFromSpec(className, spec) {
     const s = String(spec || "").trim().toLowerCase();
@@ -90,7 +86,7 @@ function condenseReport(meta) {
     // key -> class ("druid"), for the account-based attendance's class match
     const classes = {};
     for (const entry of report.roster || report.players || []) {
-        const key = charKey(entry && entry.name);
+        const key = characterKeyOf(entry && entry.name);
         if (!key) continue;
         keys.add(key);
         const cls = String((entry && (entry.className || entry.class || entry.type)) || "").trim().toLowerCase();
@@ -100,15 +96,15 @@ function condenseReport(meta) {
     // of any fight, then the RPB's roles for reports without the timeline.
     const roles = {};
     for (const p of (report.healers && report.healers.players) || []) {
-        const key = charKey(p && p.name);
+        const key = characterKeyOf(p && p.name);
         if (key) roles[key] = "healer";
     }
     for (const f of (report.timeline && report.timeline.fights) || []) {
-        const key = charKey(f && f.healers && f.healers.tank && f.healers.tank.name);
+        const key = characterKeyOf(f && f.healers && f.healers.tank && f.healers.tank.name);
         if (key) roles[key] = "tank";
     }
     for (const [name, role] of Object.entries((report.rpb && report.rpb.roles) || {})) {
-        const key = charKey(name);
+        const key = characterKeyOf(name);
         if (!key || roles[key]) continue;
         if (role === "Tank") roles[key] = "tank";
         else if (role === "Healer") roles[key] = "healer";
@@ -194,7 +190,7 @@ function nightStatus(raid, key, userIds) {
  *            missed: {eventId, title, startTime, reason}[]}}
  */
 function attendanceFor(ctx, categoryId, character, userIds = []) {
-    const key = charKey(character);
+    const key = characterKeyOf(character);
     const ids = (userIds || []).map(String);
     const raids = [];
     for (const raid of ctx.raidsByCategory.get(categoryId) || []) {
@@ -234,7 +230,7 @@ function attendanceFor(ctx, categoryId, character, userIds = []) {
  */
 function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const list = (accounts || []).filter((a) => a && a.userId && (a.chars || []).length);
-    const claimed = new Set(list.flatMap((a) => a.chars.map((c) => charKey(c.name))));
+    const claimed = new Set(list.flatMap((a) => a.chars.map((c) => characterKeyOf(c.name))));
     const acc = new Map(list.map((a) => [String(a.userId), { raids: [], inferred: 0 }]));
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
     const notInLog = (r) => r && !r.attended && r.reason === "nicht im Log";
@@ -244,7 +240,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     for (const raid of raidNights) {
         const results = new Map();
         for (const a of list) {
-            const nights = a.chars.map((c) => nightStatus(raid, charKey(c.name), [String(a.userId)])).filter(Boolean);
+            const nights = a.chars.map((c) => nightStatus(raid, characterKeyOf(c.name), [String(a.userId)])).filter(Boolean);
             const hit = nights.find((n) => n.attended) || nights[0];
             if (hit) results.set(String(a.userId), hit);
         }
@@ -310,7 +306,7 @@ function categoryInfo(ctx, categoryId) {
 
 /** The character's role: the newest log's, else the spec's, else "". */
 function roleFor(ctx, character, className, spec) {
-    return ctx.roleByKey[charKey(character)] || roleFromSpec(className, spec);
+    return ctx.roleByKey[characterKeyOf(character)] || roleFromSpec(className, spec);
 }
 
 module.exports = {

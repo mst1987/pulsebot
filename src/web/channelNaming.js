@@ -29,11 +29,11 @@ const {
     prefixOf, describeReplaced, listParts, placementFor,
 } = require("../utils/channelNames");
 
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 
 /** An event start (unix seconds) as its Berlin day, "2026-09-17". */
 function berlinDay(startTime) {
-    return startTime ? DateTime.fromSeconds(Number(startTime), { zone: ZONE }).toISODate() : "";
+    return startTime ? DateTime.fromSeconds(Number(startTime), { zone: TIMEZONE }).toISODate() : "";
 }
 
 /** The instances of an event: its own plan, else what its title or channel names. */

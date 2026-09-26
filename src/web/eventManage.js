@@ -40,10 +40,11 @@ const { setupSummary } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { toRaidHelperDate } = require("../utils/date");
 const { SIGNUP_STATUSES } = require("../utils/attendance");
+const { str } = require("../utils/text");
+const { isSnowflake } = require("../utils/ids");
 
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const SNOWFLAKE = /^\d{5,25}$/;
 const MIN_REASON = 3;
 const MAX_REASON = 300;
 
@@ -69,13 +70,12 @@ const STATUS_LABELS = {
 };
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 /** "Do 24.09. 19:30" in Berlin time. */
 function whenLabel(startTime) {
     const n = Number(startTime) || 0;
     if (!n) return "";
-    const dt = DateTime.fromSeconds(n, { zone: ZONE });
+    const dt = DateTime.fromSeconds(n, { zone: TIMEZONE });
     return `${WEEKDAYS[dt.weekday - 1]} ${dt.toFormat("dd.MM. HH:mm")}`;
 }
 
@@ -84,7 +84,7 @@ function startTimeOf(date, time) {
     const d = toRaidHelperDate(date);
     const t = String(time || "").trim();
     if (!d || !/^\d{1,2}:\d{2}$/.test(t)) return 0;
-    const dt = DateTime.fromFormat(`${d} ${t}`, "dd-MM-yyyy H:mm", { zone: ZONE });
+    const dt = DateTime.fromFormat(`${d} ${t}`, "dd-MM-yyyy H:mm", { zone: TIMEZONE });
     return dt.isValid ? Math.floor(dt.toSeconds()) : 0;
 }
 
@@ -149,7 +149,7 @@ function channelNameOf(event) {
     return event.channelName || "";
 }
 
-const isoDay = (startTime) => DateTime.fromSeconds(Number(startTime), { zone: ZONE }).toISODate();
+const isoDay = (startTime) => DateTime.fromSeconds(Number(startTime), { zone: TIMEZONE }).toISODate();
 
 /**
  * What moving the channel along means (#285's naming): the name the channel
@@ -325,7 +325,7 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
     const found = ownEvent(guildId, eventId);
     if (found.error) return found;
     const uid = str(userId);
-    if (!SNOWFLAKE.test(uid)) return fail(400, "bad_request", "Kein Raider gewählt.");
+    if (!isSnowflake(uid)) return fail(400, "bad_request", "Kein Raider gewählt.");
     const name = str(character);
     if (!name) return fail(400, "character", "Bitte einen Charakter angeben.");
     if (!SIGNUP_STATUSES.includes(status)) return fail(400, "status", `Unbekannter Anmeldestatus „${status}“.`);
@@ -511,16 +511,14 @@ const isGone = (e) => !!(e && (e.code === 10008 || e.code === 10003 || /unknown 
 /** Delete one bot message; a message that is already gone counts as deleted. Throws on anything else. */
 async function deleteMessage(where) {
     if (!where || !where.messageId || !where.channelId) return false;
-    const client = discord.getClient();
-    if (!client) throw new Error("Bot nicht verbunden.");
+    if (!discord.isOnline()) throw new Error("Bot nicht verbunden.");
     try {
-        const channel = await client.channels.fetch(where.channelId);
-        if (!channel || !channel.messages) return false;
+        const channel = await discord.fetchTextChannel(where.channelId);
         const message = await channel.messages.fetch(where.messageId);
         await message.delete();
         return true;
     } catch (e) {
-        if (isGone(e)) return false;
+        if (isGone(e) || (e && e.code === "channel_not_found")) return false;
         throw e;
     }
 }
@@ -729,7 +727,7 @@ async function raiderCandidates({ guildId, eventId }) {
     const byId = new Map();
     const add = (userId, name) => {
         const id = str(userId);
-        if (!SNOWFLAKE.test(id)) return null;
+        if (!isSnowflake(id)) return null;
         const row = byId.get(id) || { userId: id, name: "", characters: [], signup: null };
         if (name && !row.name) row.name = name;
         byId.set(id, row);

@@ -10,6 +10,8 @@ const { DateTime } = require("luxon");
 const { contentsForText } = require("../config/tbcContent");
 const { enrichSlot, CLASS_COLORS } = require("../utils/setupView");
 const { signupStatus } = require("../utils/attendance");
+const { plural } = require("../utils/text");
+const { TIMEZONE } = require("../config/timezone");
 
 // The boss icon a raid is recognised by — its final boss, the one the raid is
 // named after in everyone's head. Names verified against the zamimg CDN; the
@@ -220,7 +222,6 @@ function newLootSince(awards, sinceMs) {
     return (awards || []).filter((a) => (Number(a.awardedAt) || 0) >= from).length;
 }
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * The open tasks, one row each and only when there is something to do. Every
@@ -348,7 +349,7 @@ function eventSeriesTask(failures) {
     const list = failures || [];
     if (!list.length) return null;
     const first = list[0];
-    const day = DateTime.fromISO(first.date, { zone: "Europe/Berlin" }).setLocale("de");
+    const day = DateTime.fromISO(first.date, { zone: TIMEZONE }).setLocale("de");
     const when = day.isValid ? day.toFormat("ccc dd.MM.") : first.date;
     // The reason's last part is short enough for the title ("fehlende Rechte"); the whole sentence goes into the tooltip.
     const reason = String(first.error || "").split(": ").pop();

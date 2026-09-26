@@ -30,6 +30,7 @@ const { layout, esc } = require("./render");
 // times are written out in server time (a web page cannot render a Discord timestamp).
 const { serverDateTime } = require("../utils/discordTime");
 const { ROLE_LABELS_EN } = require("../config/gameVersions/classes");
+const { str, clip } = require("../utils/text");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -58,11 +59,6 @@ const PHASE_BADGE = {
     deadline: { label: "Signup deadline passed", tone: "medium" },
 };
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
-const clip = (text, max) => {
-    const s = str(text);
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 
 /** A spec table of the event's rule set: key → { spec, class }. */
 function specTable(event) {
@@ -134,7 +130,7 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
     return {
         id: str(event.id),
         title: str(event.title) || "Raid",
-        description: clip(event.description, 1500),
+        description: clip(str(event.description), 1500),
         startTime: Number(event.startTime) || 0,
         endTime: eventEndTime(event),
         durationMinutes: clampDuration(event.durationMinutes),
@@ -142,7 +138,7 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
         size: Number(event.size) || 0,
         status: event.status === "cancelled" ? "cancelled" : "active",
         signupsClosed: !!event.signupsClosed,
-        cancelReason: clip((event.cancel && event.cancel.reason) || "", 300),
+        cancelReason: clip(str(event.cancel && event.cancel.reason), 300),
         phase,
         icsUrl: `/r/cal/${encodeURIComponent(event.id)}.ics`,
         signupUrl: `/signups?event=${encodeURIComponent(event.id)}`,

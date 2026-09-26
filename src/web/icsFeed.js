@@ -21,8 +21,9 @@
 //
 // The end comes from the duration (#305, utils/eventTime.js); an event without
 // a start has no VEVENT worth writing and answers "".
-const { publicBaseUrl } = require("../config/variables");
+const { publicBaseUrl } = require("../utils/publicUrl");
 const { eventEndTime } = require("../utils/eventTime");
+const { str, clip } = require("../utils/text");
 
 const PRODID = "-//EventHelper//Raid-Kalender//DE";
 // The raider's own status, in the words the bot uses in Discord (English, like
@@ -38,17 +39,16 @@ const MAX_DESCRIPTION = 400;
 // would not (they pass 2^31 in 2038).
 const SEQUENCE_EPOCH = Date.UTC(2020, 0, 1);
 
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
 /** The public calendar url of an event, "" without a configured base url. */
 function icsUrlFor(eventId) {
-    const base = baseUrl();
+    const base = publicBaseUrl();
     return base && eventId ? `${base}/r/cal/${encodeURIComponent(eventId)}.ics` : "";
 }
 
 /** The public event page of an event, "" without a configured base url. */
 function publicEventUrl(eventId) {
-    const base = baseUrl();
+    const base = publicBaseUrl();
     return base && eventId ? `${base}/e/${encodeURIComponent(eventId)}` : "";
 }
 
@@ -100,10 +100,6 @@ function channelUrl(event) {
     return guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "";
 }
 
-const clip = (text, max) => {
-    const s = String(text || "").trim();
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 
 /**
  * One VEVENT for an event, as an array of unfolded content lines. Empty for an
@@ -137,10 +133,10 @@ function vevent(event, { now = Date.now(), status = "", changedAt = 0 } = {}) {
     const where = channelUrl(event);
 
     const description = [];
-    const text = clip(event.description, MAX_DESCRIPTION);
+    const text = clip(str(event.description), MAX_DESCRIPTION);
     if (cancelled) {
         const reason = (event.cancel && event.cancel.reason) || "";
-        description.push(`Cancelled${reason ? `: ${clip(reason, 200)}` : "."}`);
+        description.push(`Cancelled${reason ? `: ${clip(str(reason), 200)}` : "."}`);
     }
     if (status && STATUS_LABELS[status]) description.push(`Your signup: ${STATUS_LABELS[status]}`);
     if (text) description.push(text);
@@ -217,7 +213,7 @@ function icsFileName(eventId) {
 
 /** The subscription url of a calendar token, "" without a configured base url. */
 function userIcsUrl(token) {
-    const base = baseUrl();
+    const base = publicBaseUrl();
     return base && token ? `${base}/r/cal/user/${encodeURIComponent(token)}.ics` : "";
 }
 

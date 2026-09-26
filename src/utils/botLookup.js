@@ -7,7 +7,9 @@
 
 // MessageFlags.Ephemeral as a plain number, so this file stays free of discord.js.
 const EPHEMERAL = 64;
-const { publicBaseUrl, embedAccentColor } = require("../config/variables");
+const { embedAccentColor } = require("../config/variables");
+const { publicBaseUrl } = require("./publicUrl");
+const { clip, plural } = require("./text");
 
 /** Discord's embed limits — a reply above any of them is refused as a whole. */
 const EMBED_LIMITS = { title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, footer: 2048, total: 6000 };
@@ -17,15 +19,9 @@ const CHOICE_TEXT_MAX = 100;
 /** Link buttons Discord accepts per row. */
 const MAX_BUTTONS = 5;
 
-/** A text cut to `max` characters, with an ellipsis when something was dropped. */
-function clip(value, max) {
-    const text = String(value === null || value === undefined ? "" : value);
-    return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text;
-}
-
 /** An absolute link into the web menu, e.g. webUrl("/raids") → "https://…/raids". */
 function webUrl(pathname = "/") {
-    const base = String(publicBaseUrl || "").replace(/\/+$/, "");
+    const base = publicBaseUrl();
     const path = String(pathname || "/");
     return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
@@ -145,9 +141,6 @@ function discordTime(time, style = "d") {
     const seconds = n > 1e12 ? Math.floor(n / 1000) : Math.floor(n);
     return `<t:${seconds}:${style}>`;
 }
-
-/** "3 Items" / "1 Item". */
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 module.exports = {
     EMBED_LIMITS, MAX_CHOICES, CHOICE_TEXT_MAX,
