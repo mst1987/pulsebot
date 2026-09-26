@@ -11,11 +11,12 @@ const mockPost = jest.fn();
 jest.mock("../../src/web/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
 
 const { suggestSearch, textForNeeds, postSearch } = require("../../src/web/raidSearch");
+const { event: baseEvent } = require("../factories/events");
 
 const slots = (n) => Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
 function event(over = {}) {
-    return {
-        id: "eh-1", guildId: "g1", channelId: "c1", title: "Gruul's Lair", startTime: 2000000000, size: 25, versionId: "tbc", status: "open",
+    return baseEvent({
+        id: "eh-1", guildId: "g1", title: "Gruul's Lair", size: 25, versionId: "tbc", status: "open",
         message: { messageId: "m1" },
         setup: {
             groups: [{ index: 1, slots: slots(5) }, { index: 2, slots: slots(5) }, { index: 3, slots: slots(5) }, { index: 4, slots: slots(3) }],
@@ -29,7 +30,7 @@ function event(over = {}) {
             },
         },
         ...over,
-    };
+    });
 }
 
 describe("suggestSearch", () => {

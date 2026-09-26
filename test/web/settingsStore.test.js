@@ -11,6 +11,7 @@ const {
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers, normalizeEventGuilds,
     normalizeRoleSync, normalizeCategoryReminders,
 } = require("../../src/web/settingsStore.js");
+const { migrateSettings } = require("../../src/web/settingsMigration");
 
 beforeEach(() => {
     fs.__store.clear();
@@ -551,8 +552,10 @@ describe("web/settingsStore", () => {
             expect(listRaidTemplates()).toEqual([]);
         });
 
+        // Since #420 the upgrade runs once at start (settingsMigration.js), not on a read.
         it("migrates the old Raid-Helper list into templates without size, and writes it back once", () => {
             fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "3", name: "GDKP Kara", createdAt: 5, updatedAt: 6 }] }));
+            migrateSettings({ log: () => {} });
             const [t] = listRaidTemplates();
             expect(t).toMatchObject({
                 id: "rh-3", name: "GDKP Kara", versionId: "tbc", instanceIds: [], size: null,
@@ -567,6 +570,7 @@ describe("web/settingsStore", () => {
         it("hands the old global default template to every raid category", () => {
             fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "3", name: "GDKP Kara" }] }));
             fs.__store.set(CONFIG_FILE, JSON.stringify({ categoryIds: ["c1", "c2"], raidDefaults: { templateId: "3", channelId: "ch" } }));
+            migrateSettings({ log: () => {} });
             const cfg = getConfig();
             expect(cfg.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
             expect(cfg.raidDefaults).toEqual({ channelId: "ch" });

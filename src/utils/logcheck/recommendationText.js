@@ -10,7 +10,7 @@
 //
 // Without an API key (Einstellungen → Verbindungen → KI-Formulierung) this
 // module is never called; the page then shows the rule text.
-const Anthropic = require("@anthropic-ai/sdk");
+const { createAnthropicClient } = require("../../classes/anthropic");
 
 const DEFAULT_MODEL = "claude-opus-5";
 const CONCURRENCY = 4;
@@ -95,7 +95,7 @@ async function phrasePlayer(client, report, player, { model = DEFAULT_MODEL } = 
  */
 async function phraseReport(report, { apiKey, model = DEFAULT_MODEL, only = null, client = null, concurrency = CONCURRENCY } = {}) {
     if (!client && !apiKey) throw new Error("Kein Anthropic-API-Key hinterlegt.");
-    const api = client || new Anthropic({ apiKey });
+    const api = client || createAnthropicClient({ apiKey });
     const rec = report.recommendations || { players: [] };
     const players = (rec.players || []).filter((p) => p.items.length && (!only || only.includes(p.name)));
     const errors = [];

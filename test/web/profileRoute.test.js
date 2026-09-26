@@ -3,11 +3,8 @@
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
 
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 
 const mockReports = [];
 jest.mock("../../src/web/reportStore", () => ({
@@ -36,18 +33,11 @@ const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false };
 const ORGA = { id: "200000000000000009", name: "Orga", isAdmin: true };
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-function body(res) {
-    return JSON.parse(res.end.mock.calls[0][0]);
-}
-function status(res) {
-    return res.writeHead.mock.calls[0][0];
-}
-async function call(handler, user, { json = {}, query = "" } = {}) {
+const { mockRes, status, json } = require("../helpers/http");
+
+async function call(handler, user, { json: payload = {}, query = "" } = {}) {
     mockUser = user;
-    readJsonBody.mockResolvedValue(json);
+    readJsonBody.mockResolvedValue(payload);
     const res = mockRes();
     await handler({}, res, new URL(`http://x/api?${query}`));
     return res;
@@ -67,7 +57,7 @@ beforeEach(() => {
 describe("GET/PUT /api/profile", () => {
     it("liefert das eigene Profil mit Klassen, Raids, Tagen und Gear-Stufen", async () => {
         const res = await call(route.getProfile, ANNA);
-        const data = body(res).data;
+        const data = json(res).data;
         expect(data.profile).toMatchObject({ userId: ANNA.id, name: "Anna", characters: [] });
         expect(data.isNew).toBe(true);
         expect(data.classes).toHaveLength(9);
@@ -83,7 +73,7 @@ describe("GET/PUT /api/profile", () => {
                 { userId: ANNA.id, spec: "Mage-Frost", eventId: "rh-1", at: 1000, character: "Nerathil" },
                 { userId: BERT.id, spec: "Priest-Shadow", eventId: "rh-1", at: 1000, character: "Ysolde" },
             ], { eventIds: ["rh-1"] });
-            const data = body(await call(route.getProfile, ANNA)).data;
+            const data = json(await call(route.getProfile, ANNA)).data;
             expect(data.specHistory).toEqual([{ spec: "Mage-Frost", count: 1, lastAt: 1000, lastEventId: "rh-1", character: "Nerathil" }]);
             expect(JSON.stringify(data)).not.toContain("Ysolde");
         } finally {
@@ -101,18 +91,18 @@ describe("GET/PUT /api/profile", () => {
     it("nimmt Wünsche nur für Raider mit Profil an", async () => {
         store.addCharacter(BERT.id, { name: "Ysolde", className: "Mage" }, { name: "Bert" });
         const res = await call(route.putProfile, ANNA, { json: { wishes: [BERT.id, "200000000000000077"] } });
-        expect(body(res).data.profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
+        expect(json(res).data.profile.wishes).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
     });
 
     it("schlägt Offtank/Heilen je Charakter aus dessen Specs vor, bis der Raider selbst schaltet", async () => {
         store.addCharacter(ANNA.id, { name: "Bärbel", className: "Druid", specs: ["Druid-Balance", "Druid-Guardian"] });
         store.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
         const char = (p, key) => p.characters.find((c) => c.key === key);
-        let profile = body(await call(route.getProfile, ANNA)).data.profile;
+        let profile = json(await call(route.getProfile, ANNA)).data.profile;
         expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: false, suggested: { canOfftank: true, canHeal: false } });
         expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false, possible: { canOfftank: false, canHeal: false } });
         expect(char(profile, "bärbel").possible).toEqual({ canOfftank: true, canHeal: true });
-        profile = body(await call(route.putProfile, ANNA, { json: { characters: [{ key: "bärbel", canHeal: true }, { key: "nerathil", canHeal: true }] } })).data.profile;
+        profile = json(await call(route.putProfile, ANNA, { json: { characters: [{ key: "bärbel", canHeal: true }, { key: "nerathil", canHeal: true }] } })).data.profile;
         expect(char(profile, "bärbel")).toMatchObject({ canOfftank: true, canHeal: true });
         // ein Magier kann nicht heilen, egal was der Body sagt
         expect(char(profile, "nerathil")).toMatchObject({ canOfftank: false, canHeal: false });
@@ -131,30 +121,30 @@ describe("Nicht mit X raiden", () => {
     });
 
     it("ist aus, bis der Raider es einschaltet, und vergisst die Namen beim Ausschalten", async () => {
-        let profile = body(await call(route.getProfile, ANNA)).data.profile;
+        let profile = json(await call(route.getProfile, ANNA)).data.profile;
         expect(profile).toMatchObject({ avoidEnabled: false, avoid: [] });
         // ausgeschaltet nimmt es keine Namen an
-        profile = body(await call(route.putProfile, ANNA, { json: { avoid: [BERT.id] } })).data.profile;
+        profile = json(await call(route.putProfile, ANNA, { json: { avoid: [BERT.id] } })).data.profile;
         expect(profile.avoid).toEqual([]);
-        profile = body(await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id, "200000000000000077"] } })).data.profile;
+        profile = json(await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id, "200000000000000077"] } })).data.profile;
         expect(profile).toMatchObject({ avoidEnabled: true, avoid: [{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }] });
-        profile = body(await call(route.putProfile, ANNA, { json: { avoidEnabled: false } })).data.profile;
+        profile = json(await call(route.putProfile, ANNA, { json: { avoidEnabled: false } })).data.profile;
         expect(profile).toMatchObject({ avoidEnabled: false, avoid: [] });
         expect(store.getProfile(ANNA.id).avoid).toEqual([]);
     });
 
     it("kommt beim Genannten nie an — auch nicht in der Orga-Ansicht", async () => {
         await call(route.putProfile, ANNA, { json: { avoidEnabled: true, avoid: [BERT.id] } });
-        const own = JSON.stringify(body(await call(route.getProfile, BERT)).data);
+        const own = JSON.stringify(json(await call(route.getProfile, BERT)).data);
         expect(own).not.toContain(ANNA.id);
-        const orga = body(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data.profile;
+        const orga = json(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data.profile;
         expect(JSON.stringify(orga)).not.toContain(ANNA.id);
-        const search = JSON.stringify(body(await call(route.getRaiderSearch, BERT, { query: "q=ner" })).data);
+        const search = JSON.stringify(json(await call(route.getRaiderSearch, BERT, { query: "q=ner" })).data);
         expect(search).not.toContain("avoid");
     });
 
     it("streicht einen Namen, der zugleich ein Wunsch ist", async () => {
-        const profile = body(await call(route.putProfile, ANNA, { json: { wishes: [BERT.id], avoidEnabled: true, avoid: [BERT.id] } })).data.profile;
+        const profile = json(await call(route.putProfile, ANNA, { json: { wishes: [BERT.id], avoidEnabled: true, avoid: [BERT.id] } })).data.profile;
         expect(profile.wishes.map((w) => w.userId)).toEqual([BERT.id]);
         expect(profile.avoid).toEqual([]);
     });
@@ -169,7 +159,7 @@ describe("Wünsche bleiben bei der Orga", () => {
     });
 
     it("zeigt einem Mitglied weder fremde Wünsche noch ob ein Wunsch gegenseitig ist", async () => {
-        const text = JSON.stringify(body(await call(route.getProfile, ANNA)).data);
+        const text = JSON.stringify(json(await call(route.getProfile, ANNA)).data);
         expect(text).not.toContain("mutual");
         expect(text).not.toContain("wishedBy");
         expect(text).not.toContain("nur für die Orga");
@@ -178,12 +168,12 @@ describe("Wünsche bleiben bei der Orga", () => {
     });
 
     it("liefert in der Raider-Suche nur Namen", async () => {
-        const data = body(await call(route.getRaiderSearch, ANNA, { query: "q=ys" })).data;
+        const data = json(await call(route.getRaiderSearch, ANNA, { query: "q=ys" })).data;
         expect(data.raiders).toEqual([{ userId: BERT.id, name: "Bert", main: "Ysolde", className: "Mage" }]);
     });
 
     it("zeigt der Orga das Profil mit gegenseitigen Wünschen und wer sich wen wünscht", async () => {
-        const data = body(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data;
+        const data = json(await call(route.getUserProfile, ORGA, { query: `id=${BERT.id}` })).data;
         expect(data.profile.wishes).toEqual([{ userId: ANNA.id, name: "Anna", main: "Nerathil", className: "Mage", mutual: true }]);
         expect(data.profile.wishedBy).toEqual([{ userId: ANNA.id, name: "Anna", main: "Nerathil", className: "Mage" }]);
         expect(data.profile.note).toBe("nur für die Orga");
@@ -202,7 +192,7 @@ describe("POST /api/profile/characters", () => {
         mockCharacters.push({ character: "Nerathil", className: "Mage", spec: "Arcane", source: "wcl", updatedAt: 1 });
 
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "log", name: "nerathil", className: "Warrior" } });
-        const { character } = body(res).data;
+        const { character } = json(res).data;
         expect(character).toMatchObject({ name: "Nerathil", className: "Mage", source: "log", main: true });
         expect(character.specs).toEqual([expect.objectContaining({ key: "Mage-Arcane", gear: "ready", logs: { status: "seen", reports: 2, source: "wcl" } })]);
     });
@@ -216,13 +206,13 @@ describe("POST /api/profile/characters", () => {
         mockReports.push({ id: "r1", generatedAt: 1000, roster: [{ name: "Nerathil", type: "Mage" }] });
         mockCharacters.push({ character: "Nerathil", className: "Mage", spec: "Arcane", source: "wcl" });
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Nerathil", className: "Mage", specs: ["Mage-Frost"] } });
-        expect(body(res).data.character.specs[0].logs).toEqual({ status: "other", reports: 1, loggedSpec: "Mage-Arcane" });
+        expect(json(res).data.character.specs[0].logs).toEqual({ status: "other", reports: 1, loggedSpec: "Mage-Arcane" });
     });
 
     it("verknüpft mit der Armory und übernimmt Klasse, Stufe und Gilde", async () => {
         mockSummary.mockResolvedValue({ className: "Priest", level: 70, guild: "Pulse" });
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "armory", name: "Nerasol", realm: "Die Aldor" } });
-        const data = body(res).data;
+        const data = json(res).data;
         expect(mockSummary).toHaveBeenCalledWith("Nerasol", { realmSlug: "die-aldor" });
         expect(data.armory).toEqual({ linked: true, fetched: true });
         expect(data.character).toMatchObject({ className: "Priest", realm: "Die Aldor", armory: { level: 70, guild: "Pulse" } });
@@ -232,7 +222,7 @@ describe("POST /api/profile/characters", () => {
     it("bleibt beim Link, wenn die Armory ausfällt – mit der Klasse von Hand", async () => {
         mockSummary.mockRejectedValue(new Error("503"));
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "armory", name: "Nerasol", className: "Priest" } });
-        const data = body(res).data;
+        const data = json(res).data;
         expect(data.armory).toEqual({ linked: true, fetched: false });
         expect(data.character).toMatchObject({ className: "Priest", armory: null });
     });
@@ -241,16 +231,16 @@ describe("POST /api/profile/characters", () => {
         mockConfigured = false;
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "armory", name: "Nerasol" } });
         expect(status(res)).toBe(422);
-        expect(body(res).error.code).toBe("class_required");
+        expect(json(res).error.code).toBe("class_required");
         expect(mockSummary).not.toHaveBeenCalled();
     });
 
     it("vergibt einen Charakter ein zweites Mal, zeigt es aber an und listet es fürs Roster", async () => {
         await call(route.postProfileCharacter, BERT, { json: { source: "manual", name: "Nerathil", className: "Mage" } });
         const res = await call(route.postProfileCharacter, ANNA, { json: { source: "manual", name: "Nerathil", className: "Mage" } });
-        expect(body(res).data.character.claimedBy).toEqual([{ userId: BERT.id, name: "Bert" }]);
+        expect(json(res).data.character.claimedBy).toEqual([{ userId: BERT.id, name: "Bert" }]);
 
-        const claims = body(await call(route.getCharacterClaims, ORGA)).data.claims;
+        const claims = json(await call(route.getCharacterClaims, ORGA)).data.claims;
         expect(claims).toHaveLength(1);
         expect(claims[0].claims.map((c) => c.name).sort()).toEqual(["Anna", "Bert"]);
     });
@@ -258,7 +248,7 @@ describe("POST /api/profile/characters", () => {
     it("entfernt nur aus dem eigenen Profil", async () => {
         store.addCharacter(BERT.id, { name: "Ysolde", className: "Mage" });
         const res = await call(route.postProfileCharacter, ANNA, { json: { remove: "ysolde" } });
-        expect(body(res).data.removed).toBe(false);
+        expect(json(res).data.removed).toBe(false);
         expect(store.getProfile(BERT.id).characters).toHaveLength(1);
     });
 });
@@ -272,7 +262,7 @@ describe("GET /api/profile/log-characters", () => {
         store.addCharacter(ANNA.id, { name: "Schon", className: "Mage" });
         store.addCharacter(BERT.id, { name: "Brokk", className: "Warrior" }, { name: "Bert" });
 
-        const list = body(await call(route.getLogCharacters, ANNA)).data.characters;
+        const list = json(await call(route.getLogCharacters, ANNA)).data.characters;
         expect(list.map((c) => [c.character, c.match])).toEqual([["Zuordnung", "assigned"], ["Annabell", "name"], ["Brokk", ""]]);
         expect(list[2].claimedBy).toEqual([{ userId: BERT.id, name: "Bert" }]);
     });
@@ -293,11 +283,11 @@ describe("Kalender-Abo (/api/profile/calendar)", () => {
     afterAll(() => calStore.useFile(null));
 
     it("gibt das Geheimnis genau einmal heraus – die Liste danach nie wieder", async () => {
-        const made = body(await call(route.postCalendarToken, ANNA)).data;
+        const made = json(await call(route.postCalendarToken, ANNA)).data;
         expect(made.token).toMatch(/^ehc_[a-f0-9]+$/);
         expect(made.url).toContain(made.token);
 
-        const list = body(await call(route.getCalendarTokens, ANNA)).data;
+        const list = json(await call(route.getCalendarTokens, ANNA)).data;
         expect(list.tokens).toHaveLength(1);
         expect(JSON.stringify(list)).not.toContain(made.token);
         expect(list.tokens[0]).not.toHaveProperty("hash");
@@ -307,20 +297,20 @@ describe("Kalender-Abo (/api/profile/calendar)", () => {
     it("zeigt nur die eigenen Links", async () => {
         await call(route.postCalendarToken, ANNA);
         await call(route.postCalendarToken, BERT);
-        expect(body(await call(route.getCalendarTokens, ANNA)).data.tokens).toHaveLength(1);
-        expect(body(await call(route.getCalendarTokens, BERT)).data.tokens).toHaveLength(1);
+        expect(json(await call(route.getCalendarTokens, ANNA)).data.tokens).toHaveLength(1);
+        expect(json(await call(route.getCalendarTokens, BERT)).data.tokens).toHaveLength(1);
     });
 
     it("widerruft sofort – und nie den Link eines anderen", async () => {
-        const mine = body(await call(route.postCalendarToken, ANNA)).data;
+        const mine = json(await call(route.postCalendarToken, ANNA)).data;
         const id = mine.tokens[0].id;
 
         // Bert versucht es mit Annas Id: nichts passiert, kein Hinweis
-        const foreign = body(await call(route.postCalendarToken, BERT, { json: { revoke: id } })).data;
+        const foreign = json(await call(route.postCalendarToken, BERT, { json: { revoke: id } })).data;
         expect(foreign.revoked).toBe(false);
         expect(calStore.verifyToken(mine.token)).toBeTruthy();
 
-        const own = body(await call(route.postCalendarToken, ANNA, { json: { revoke: id } })).data;
+        const own = json(await call(route.postCalendarToken, ANNA, { json: { revoke: id } })).data;
         expect(own.revoked).toBe(true);
         expect(own.tokens).toHaveLength(0);
         expect(calStore.verifyToken(mine.token)).toBeNull();
@@ -328,11 +318,11 @@ describe("Kalender-Abo (/api/profile/calendar)", () => {
 
     it("begrenzt die Zahl der Links pro Konto", async () => {
         for (let i = 0; i < calStore.MAX_PER_USER; i += 1) {
-            expect(body(await call(route.postCalendarToken, ANNA)).data.token).toBeTruthy();
+            expect(json(await call(route.postCalendarToken, ANNA)).data.token).toBeTruthy();
         }
         const res = await call(route.postCalendarToken, ANNA);
         expect(status(res)).toBe(400);
-        expect(body(res).error.code).toBe("too_many");
+        expect(json(res).error.code).toBe("too_many");
     });
 
     it("braucht ein CSRF-Token zum Erzeugen", async () => {

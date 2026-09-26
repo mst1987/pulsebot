@@ -6,9 +6,7 @@ const { serve } = require("../../src/web/staticClient");
 
 const DIST_DIR = path.join(__dirname, "..", "..", "src", "web-client", "dist");
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
+const { mockRes } = require("../helpers/http");
 
 describe("web/staticClient serve", () => {
     it("ignores non-GET requests", async () => {

@@ -70,10 +70,7 @@ const listenArgsAtLoad = http.__fakeServer.listen.mock.calls[0];
 const jobsStartedAtLoad = jobs.startJobs.mock.calls.length;
 
 const flush = () => new Promise((r) => setImmediate(r));
-
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
+const { mockRes, json } = require("../helpers/http");
 
 // exercise a single request against the captured handler
 async function request(req) {
@@ -110,7 +107,7 @@ describe("web/server", () => {
         it("GET /health answers with the running version as JSON", async () => {
             const res = await request({ url: "/health", method: "GET", headers: {} });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "application/json; charset=utf-8" }));
-            const body = JSON.parse(res.end.mock.calls[0][0]);
+            const body = json(res);
             expect(body.status).toBe("ok");
             expect(Object.keys(body).sort()).toEqual(["commit", "committedAt", "startedAt", "status", "subject"]);
             // Whatever git said, the fields are strings — no git leaves them empty.
@@ -477,7 +474,7 @@ describe("web/server", () => {
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.objectContaining({
                 "Content-Type": "application/json; charset=utf-8",
             }));
-            const payload = JSON.parse(res.end.mock.calls[0][0]);
+            const payload = json(res);
             expect(payload.error).toEqual({
                 code: "internal_error", message: "RPB-Auswertung geplatzt",
             });

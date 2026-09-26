@@ -2,9 +2,10 @@
     analyzeHealers, healersForFight, healingOf, manaOf, manaCurve, dispelsForFight, tankOf, shieldsForFight, summarize,
     STEP_MS, LOW_MANA_PCT, EMPTY_MANA_PCT, POTION_WORTH_MS, POTION_WORTH_PCT,
 } = require("../../../src/utils/logcheck/healers");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 const START = 500000;
-const fight = { id: 4, boss: 650, name: "Gruul the Dragonkiller", start_time: START, end_time: START + 240000 };
+const fight = gruulFight({ id: 4, start_time: START, end_time: START + 240000 });
 const players = { 1: { name: "Elun", type: "Priest" }, 2: { name: "Gwen", type: "Druid" }, 3: { name: "Brokk", type: "Warrior" }, 4: { name: "Aldra", type: "Mage" }, 5: { name: "Dorn", type: "Shaman" } };
 
 const sample = (actor, at, amount, max = 10000) => ({ type: "cast", timestamp: START + at, sourceID: actor, targetID: 3, classResources: [{ type: 0, amount, max }] });

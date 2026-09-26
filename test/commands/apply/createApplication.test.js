@@ -2,13 +2,12 @@ jest.mock("../../../src/utils/helper.js");
 
 const command = require("../../../src/commands/apply/createApplication.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const discordClient = require("../../helpers/discordClient.js");
 
 function makeClient(sourceMessage) {
-    const sourceChannel = {
-        messages: { fetch: jest.fn().mockResolvedValue(sourceMessage) },
-    };
+    const sourceChannel = discordClient.makeChannel({ id: "src-channel", messages: [["123456789", sourceMessage]] });
     return {
-        client: { channels: { fetch: jest.fn().mockResolvedValue(sourceChannel) } },
+        client: discordClient.makeClient({ channels: [sourceChannel] }),
         sourceChannel,
     };
 }
@@ -54,7 +53,7 @@ describe("commands/apply/createApplication", () => {
     });
 
     it("reports when the source message cannot be fetched", async () => {
-        const client = { channels: { fetch: jest.fn().mockRejectedValue(new Error("404")) } };
+        const client = discordClient.makeClient(); // the source channel is unknown
         const targetChannel = { send: jest.fn() };
 
         const interaction = mockInteraction({

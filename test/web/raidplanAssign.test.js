@@ -4,11 +4,12 @@ const board = require("../../src/web/raidplanBoard");
 const raidplan = require("../../src/web/raidplan");
 const catalogStore = require("../../src/web/raidplanCatalogStore");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { person: basePerson } = require("../factories/raidplan");
 
 beforeAll(() => catalogStore.useFile(tempStoreFile("assign-catalog.json")));
 
 const slot = (kind, n, userId = "") => ({ kind, n, userId });
-const person = (userId, classId, role, group = 1) => ({ userId, classId, role, group });
+const person = (userId, classId, role, group = 1) => basePerson({ userId, classId, role, group });
 const refs = (list) => list.map((a) => `${a.assignees.join("+")}>${a.targets.map((t) => `${t.kind}:${t.ref}`).join(",")}`);
 
 describe("cleanAssignments", () => {

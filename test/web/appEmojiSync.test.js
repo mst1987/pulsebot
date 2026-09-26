@@ -3,6 +3,7 @@
 // the client are doubles.
 const { ensureAppEmojis } = require("../../src/web/appEmojiSync");
 const { appEmojiMap, resetAppEmojis, emojiCatalog } = require("../../src/web/appEmojis");
+const { makeClient } = require("../helpers/discordClient");
 
 const okFetch = jest.fn(async () => ({
     ok: true,
@@ -21,7 +22,7 @@ function fakeClient(existing) {
         }),
     };
     const fetchEmojis = jest.fn(async () => stored.slice());
-    return { rest, application: { id: "app", emojis: { fetch: fetchEmojis } }, fetchEmojis };
+    return { ...makeClient({ rest, application: { id: "app", emojis: { fetch: fetchEmojis } } }), fetchEmojis };
 }
 
 describe("web/appEmojiSync ensureAppEmojis", () => {

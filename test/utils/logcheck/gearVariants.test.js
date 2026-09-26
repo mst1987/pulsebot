@@ -2,6 +2,8 @@
 // der WCL-Client — geprüft wird, wann überhaupt gefragt wird, was als Ersatz
 // durchgeht und dass ein Fehlschlag den Report nicht mitnimmt.
 const { resolveSituationalGear, situationalSlots, MAX_FIGHTS } = require("../../../src/utils/logcheck/gearVariants");
+// fights(n): n boss pulls, 900 ms each, 1000 ms apart - wclWith() keys its answers on start / 1000.
+const { fights } = require("../../factories/wcl");
 
 const MOTC = "23207";
 const TRINKET = "29370";
@@ -25,12 +27,6 @@ const entry = (name, gear) => ({
     type: "Priest",
     total: 999,
     gear: gear.map(([slot, id]) => ({ slot, id: String(id), name: `Item ${id}`, quality: 4, itemLevel: 141, gems: [] })),
-});
-
-const fights = (count) => ({
-    fights: Array.from({ length: count }, (_, i) => ({
-        id: i + 1, boss: 600 + i, name: `Boss ${i + 1}`, start_time: i * 1000, end_time: i * 1000 + 900,
-    })),
 });
 
 function wclWith(perFight) {

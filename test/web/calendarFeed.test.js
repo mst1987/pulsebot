@@ -10,6 +10,7 @@ const eventStore = require("../../src/web/eventStore");
 const signupStore = require("../../src/web/signupStore");
 const tokens = require("../../src/web/calendarTokenStore");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { event: baseEvent, signup: baseSignup } = require("../factories/events");
 const { feedFor, collectEntries, clearCache, BACK_DAYS, FORWARD_DAYS, MAX_EVENTS, CACHE_MS } = require("../../src/web/calendarFeed");
 
 const FILE = tempStoreFile("calendar-feed-tokens.json");
@@ -19,7 +20,7 @@ const NOW = Date.UTC(2026, 8, 20, 12, 0);
 const DAY = 86400;
 const sec = (offsetDays) => Math.floor(NOW / 1000) + offsetDays * DAY;
 
-const event = (over = {}) => ({
+const event = (over = {}) => baseEvent({
     id: "eh-1",
     guildId: "999999999999999999",
     channelId: "888888888888888888",
@@ -31,7 +32,7 @@ const event = (over = {}) => ({
     ...over,
 });
 
-const signup = (over = {}) => ({ userId: BROKK, status: "signed", character: "Brokk", at: NOW - 5000, ...over });
+const signup = (over = {}) => baseSignup({ userId: BROKK, at: NOW - 5000, ...over });
 
 /** The store answers with the events the test set up, honouring the bounds. */
 function haveEvents(list) {

@@ -1,4 +1,5 @@
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables");
+const { makeWcl: wclDouble } = require("../../factories/wcl");
 
 // GUIDs taken from src/config/generated/claData.json CONSUMABLES.
 const FLASK = "28518";
@@ -19,11 +20,7 @@ const fights = {
     ],
 };
 
-function makeWcl(buffsById) {
-    return {
-        getBuffs: jest.fn(async (report, start, end, opts) => buffsById[opts.sourceid]),
-    };
-}
+const makeWcl = (buffsById) => wclDouble({ getBuffs: jest.fn(async (report, start, end, opts) => buffsById[opts.sourceid]) });
 
 describe("logcheck/consumables analyzeConsumables", () => {
     test("player with a flask is fully buffed on the boss fight", async () => {
@@ -70,7 +67,7 @@ describe("logcheck/consumables analyzeConsumables", () => {
     });
 
     test("player with no buffs data (API failure) reports all zeros", async () => {
-        const wcl = { getBuffs: jest.fn(async () => { throw new Error("boom"); }) };
+        const wcl = wclDouble({ getBuffs: jest.fn(async () => { throw new Error("boom"); }) });
         const rows = (await analyzeConsumables(wcl, "rep", fights, [{ id: 14, name: "Nada", type: "Druid" }])).players;
         expect(rows[0]).toMatchObject({ flask: 0, elixir: 0, buffed: 0, food: 0 });
     });

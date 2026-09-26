@@ -2,11 +2,8 @@
 // from Raid-Helper (raidplanRosterSource.js - read only, mocked here), the fallbacks and the protection against losing players.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn(), readRawBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 jest.mock("../../src/web/eventStore", () => ({
     ...jest.requireActual("../../src/web/eventStore"),
@@ -49,13 +46,12 @@ const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const EV = "1400000000000000009";
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => { const p = JSON.parse(r.end.mock.calls[0][0]); return p.data || p.error; };
+const { mockRes, status, json } = require("../helpers/http");
+const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, query = "") {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
 }
@@ -130,14 +126,14 @@ describe("the switch", () => {
         await call(route.putPlan, ORGA, { event: EV, version: 0, bosses: { "bt/illidan-stormrage": { tokens: [tokenOf("u1")] } } });
         const pub = body(await call(route.postPublish, ORGA, { event: EV, published: true }));
         const token = pub.plan.publicPath.replace("/p/", "");
-        const r1 = res();
+        const r1 = mockRes();
         await route.getPublic({ headers: {} }, r1, new URL(`http://x/api/raidplan/public?token=${token}`));
         expect(status(r1)).toBe(200);
         expect(body(r1).roster.map((p) => p.userId)).toEqual(["u1"]);
 
         const off = body(await call(route.postLink, ORGA, { event: EV, enabled: false }));
         expect(off).toMatchObject({ enabled: false, published: false, hasPlan: true });
-        const r2 = res();
+        const r2 = mockRes();
         await route.getPublic({ headers: {} }, r2, new URL(`http://x/api/raidplan/public?token=${token}`));
         expect(status(r2)).toBe(404);
         expect(status(await call(route.getPlan, ORGA, null, `event=${EV}`))).toBe(409);
@@ -239,7 +235,7 @@ describe("the players come from Raid-Helper, never at the plan's cost", () => {
         // the public page does not name him
         await call(route.postPublish, ORGA, { event: EV, published: true });
         const token = store.getPlan(EV).publicToken;
-        const r = res();
+        const r = mockRes();
         await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${token}`));
         expect(body(r).roster.map((p) => p.userId)).toEqual(["u1"]);
         // the next save with a loaded line-up drops him

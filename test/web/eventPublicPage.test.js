@@ -12,6 +12,7 @@ const signupStore = require("../../src/web/signupStore");
 const {
     VIEW_KEYS, publicEventView, renderPublicEventPage, renderEventPage,
 } = require("../../src/web/eventPublicPage");
+const { ownEvent } = require("../factories/events");
 
 const NOW = Date.UTC(2026, 8, 20, 12, 0);
 const START = Math.floor(Date.UTC(2026, 8, 24, 17, 30) / 1000);
@@ -19,7 +20,7 @@ const START = Math.floor(Date.UTC(2026, 8, 24, 17, 30) / 1000);
 // The three user ids the tests hunt for in the output.
 const IDS = { brokk: "111111111111111111", zibbo: "222222222222222222", kael: "333333333333333333" };
 
-const event = (over = {}) => ({
+const event = (over = {}) => ownEvent({
     id: "eh-1",
     guildId: "999999999999999999",
     channelId: "888888888888888888",
@@ -28,7 +29,6 @@ const event = (over = {}) => ({
     startTime: START,
     durationMinutes: 180,
     signupDeadline: START - 86400,
-    versionId: "tbc",
     instanceIds: ["ssc"],
     size: 25,
     composition: { tank: 2, healer: 6, melee: 0, ranged: 0 },

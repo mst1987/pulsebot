@@ -36,8 +36,27 @@ Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und a
 - **`DATA_DIR`** kommt aus `src/config/paths.js`: `<repo>/data`, oder `EVENTHELPER_DATA_DIR`, wenn gesetzt (Docker-Volume, zweite Instanz mit eigenen Daten; ein relativer Wert gilt ab Repo-Wurzel). Pfade immer über `dataPath(...)` bzw. `settingsPath(name)` bauen, nie selbst per `__dirname` + `"data"`.
 - **`createJsonStore({ file, defaults, normalize, cache, space })`** liefert `read()`, `write(value)`, `update(fn)`, `remove()`, `ensureDir()` und `useFile()`. `read()` gibt `normalize(Datei)` zurück; fehlt die Datei, ist sie kein JSON oder wirft `normalize`, gibt es `defaults`. Ein Store behält seine öffentlichen Funktionen und reicht intern nur durch (`readAll = () => store.read()`, `writeAll = (events) => store.write({ events })`).
 - **Geschrieben wird atomar**: erst eine versteckte Temp-Datei im selben Verzeichnis (`.<name>.<pid>.<id>.tmp`), dann `renameSync` darüber. Ein Absturz oder eine volle Platte mitten im Schreiben lässt die alte Datei heil, statt eine halbe zu hinterlassen, die der nächste Start als „leer“ liest. Windows verweigert das Umbenennen kurz, solange ein anderer Prozess (Virenscanner, Editor) die Datei offen hält: `EPERM`/`EACCES`/`EBUSY` werden bis zu fünfmal wiederholt. Für Stores mit einer Datei je Datensatz (`reportStore`) gibt es `writeJsonAtomic`/`readJsonFile` einzeln.
-- **`cache: true`** merkt sich den normalisierten Wert und liest die Datei erst wieder, wenn sich `mtime`, Größe oder Inode ändern (auch eine Änderung von Hand zählt); jeder Aufruf bekommt eine Kopie, eine Änderung am Ergebnis landet also nie im Cache. Eingeschaltet für `config.json` (`getConfig()`, fast jeder Request) — die Normalisierung in `getConfig()` läuft weiterhin bei jedem Aufruf.
+- **`cache: true`** merkt sich den normalisierten Wert und liest die Datei erst wieder, wenn sich `mtime`, Größe oder Inode ändern (auch eine Änderung von Hand zählt); jeder Aufruf bekommt eine Kopie, eine Änderung am Ergebnis landet also nie im Cache. Eingeschaltet für `config.json` (`getConfig()`, fast jeder Request) — mit der ganzen Schema-Normalisierung als `normalize`, sie läuft also nur, wenn die Datei eine neue Version hat (siehe unten).
 - **Tests**: `store.useFile(tempStoreFile("x.json"))` richtet einen Store auf eine eigene Datei, `useFile(null)` zurück auf die Vorgabe — das ist der eine Hook (früher gab es daneben `_setFileForTests`). Wer gar nicht auf die Platte will, mockt `fs` mit `test/helpers/memoryFs.js` (`jest.mock("fs", () => require("../helpers/memoryFs").memoryFs())`); der kennt auch `renameSync` und `statSync`, die das atomare Schreiben und der Cache brauchen.
+
+### Die Einstellungen unter `data/settings/` (#420)
+
+`src/web/settingsStore.js` war früher ein Store für fünf Sammlungen. Heute ist es nur noch eine **Fassade**, die alle bisherigen Exporte unverändert weiterreicht — die ~50 Importeure und die vielen `jest.mock(".../settingsStore")` in Tests laufen ohne Änderung weiter. **Neuer Code importiert den Fach-Store**, den er braucht:
+
+| Datei | Inhalt |
+|---|---|
+| `recruitmentStore.js` | Recruitment-Vorlagen (`recruitment.json`) und gepostete Nachrichten (`recruitment-posts.json`); `useFile(templates, posts)` |
+| `raidTemplateStore.js` | Raid-Vorlagen (`raid-templates.json`); Form und Regeln bleiben die reinen Funktionen in `raidTemplates.js` |
+| `notifyTemplateStore.js` | Anmelde-Aufruf-Vorlagen (`notify.json`) |
+| `raidsheetStore.js` | Google-Sheets-Ziele — die Liste `raidsheets` in `config.json`, liest und schreibt über `configStore` |
+| `configStore.js` | `getConfig()`, `saveConfig()`, `resolveEventSheetLink()`, dazu `readStored()`/`writeStored()` für die Datei, wie sie liegt |
+| `configSchema.js` | `CONFIG_DEFAULTS`, `normalizeConfig()` und die `normalize*`-Funktionen — rein, ohne Datei |
+| `settingsMigration.js` | `migrateSettings()`: einmalige Umstellung alter Dateien beim Start |
+
+- **`getConfig()` ist gecacht**: `configStore` hängt `normalizeConfig` als `normalize` an die Basis mit `cache: true`. Normalisiert wird nur, wenn die Datei eine neue Version hat (`mtime`/Größe/Inode), jedes Schreiben verwirft den Cache, jeder Aufrufer bekommt eine eigene Kopie — wer das Ergebnis verändert, verändert nie den Cache (heute tut das auch kein Aufrufer). Eine fehlende Datei liest sich als `normalizeConfig({})`, einmal berechnet.
+- **Keine Migration mehr im Lesepfad.** `bot.js` ruft beim Start einmal `migrateSettings()` auf. Die stellt um: alte Raid-Helper-Einträge `{ id, name }` in `raid-templates.json` → Vorlage ohne Größe (`rh-<id>`); einen alten Server-Block (`discordServers.eventGuildId`/`talkOverviewChannelId` ohne `eventGuilds`) → ein Eintrag in `eventGuilds`; den alten globalen `raidDefaults.templateId` → `categoryRaidTemplate` für jede Raid-Kategorie. Sie ist idempotent, schreibt nur bei einer Änderung, loggt jede Änderung als `[settings] Migration: …` und wirft nie (ein Fehler wird geloggt, der Start läuft weiter). Beim zweiten Start: keine Zeile, kein Schreiben. Danach normalisiert `getConfig()` nur noch das Schema. Die Fassade behält für `normalizeDiscordServers`/`normalizeEventGuilds` das alte Verhalten (alter Block zählt mit), `configSchema` kennt ihn nicht.
+- `signupSourcesOf()` (#291) bleibt bewusst im Schema: es hängt nur an der Datei selbst und wird mit ihr gecacht.
+- **Tests**: je Store `test/web/<name>.test.js`; `test/web/configSchema.test.js` ist ein Golden Master — `test/fixtures/configSchema/golden.json` ist die Ausgabe von `getConfig()`/`listRaidTemplates()` für die Stände in `cases.json`, eingefroren *vor* dem Umbau. Wer das Schema ändert, ändert bewusst auch `golden.json`.
 
 ## Hintergrundjobs (`src/web/jobs.js`, #424)
 

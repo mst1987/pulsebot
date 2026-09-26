@@ -20,11 +20,13 @@ const { ChannelType, GuildScheduledEventEntityType, GuildScheduledEventStatus } 
 const discord = require("../../src/web/discord");
 const eventStore = require("../../src/web/eventStore");
 const de = require("../../src/web/discordEvent");
+const { event: baseEvent } = require("../factories/events");
+const { makeGuild, makeChannel } = require("../helpers/discordClient");
 
-const START = 2000000000;
-const event = (over = {}) => ({
-    id: "eh-1", guildId: "g1", categoryId: "cat1", channelId: "c1", channelName: "do-24-09-bt",
-    title: "Hyjal + BT", description: "Treffpunkt Eingang", startTime: START, durationMinutes: 180,
+const START = 2000000000; // the factory's start time
+const event = (over = {}) => baseEvent({
+    id: "eh-1", guildId: "g1", categoryId: "cat1", channelName: "do-24-09-bt",
+    title: "Hyjal + BT", description: "Treffpunkt Eingang", durationMinutes: 180,
     voiceChannelId: "", status: "active", cancel: null, message: { channelId: "c1", messageId: "m1" },
     discordEvent: null, ...over,
 });
@@ -33,7 +35,6 @@ const event = (over = {}) => ({
 function fakeGuild({ channels = { v1: ChannelType.GuildVoice, c1: ChannelType.GuildText }, createError = null, fetchError = null } = {}) {
     const stored = new Map();
     let made = 0;
-    const cache = new Map(Object.entries(channels).map(([id, type]) => [id, { id, type }]));
     const wrap = (id, data) => ({
         id,
         data,
@@ -51,9 +52,9 @@ function fakeGuild({ channels = { v1: ChannelType.GuildVoice, c1: ChannelType.Gu
             return Promise.resolve();
         }),
     });
-    const guild = {
+    const guild = makeGuild({
         id: "g1",
-        channels: { cache },
+        channels: Object.entries(channels).map(([id, type]) => makeChannel({ id, type })),
         scheduledEvents: {
             create: jest.fn((payload) => {
                 if (createError) return Promise.reject(createError);
@@ -69,7 +70,7 @@ function fakeGuild({ channels = { v1: ChannelType.GuildVoice, c1: ChannelType.Gu
                 return Promise.resolve(row);
             }),
         },
-    };
+    });
     discord.getGuild.mockReturnValue(guild);
     return { guild, stored };
 }
