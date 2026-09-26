@@ -170,7 +170,11 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 
 ## Testing
 
-The project uses [Jest](https://jestjs.io/). Tests live next to the source tree under `test/`, mirroring `src/` (e.g. `src/utils/date.js` → `test/utils/date.test.js`).
+The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
+- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/date.js` → `test/utils/date.test.js`.
+- A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
+- A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/lootCouncil.gear.test.js`).
+- Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
 
 - Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
