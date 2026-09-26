@@ -1,4 +1,5 @@
 import type { HistoryImportResult, RetirementChecklist, RetirementItem, RetirementStatus } from "../api";
+import { t } from "../i18n";
 
 // The rules behind the "Umstieg von Raid-Helper" card (#291): how a checklist
 // item reads, when the switch may be pressed, and what the import dialog says.
@@ -9,54 +10,54 @@ export type BadgeLook = { tone: "ok" | "mid" | "bad" | "accent" | ""; label: str
 
 /** The badge of one item's status. */
 export function statusLook(status: RetirementStatus): BadgeLook {
-    if (status === "ok") return { tone: "ok", label: "erledigt" };
-    if (status === "bad") return { tone: "bad", label: "offen" };
-    if (status === "mid") return { tone: "mid", label: "empfohlen" };
-    if (status === "unknown") return { tone: "", label: "nicht prüfbar" };
-    return { tone: "accent", label: "Hinweis" };
+    if (status === "ok") return { tone: "ok", label: t("settings.retirement.status.ok") };
+    if (status === "bad") return { tone: "bad", label: t("settings.retirement.status.bad") };
+    if (status === "mid") return { tone: "mid", label: t("settings.retirement.status.mid") };
+    if (status === "unknown") return { tone: "", label: t("settings.retirement.status.unknown") };
+    return { tone: "accent", label: t("settings.retirement.status.info") };
 }
 
 /** The tooltip under an item's label: why it matters, then what is open, then how to fix it. */
 export function itemTip(item: RetirementItem): string {
     const parts = [item.why];
     if (item.detail.length) parts.push(item.detail.join("\n"));
-    if (item.hint) parts.push(`Befehl: ${item.hint}`);
-    parts.push(item.required ? "Pflicht vor dem Abschalten." : "Empfehlung – das Abschalten hängt nicht davon ab.");
+    if (item.hint) parts.push(t("settings.retirement.command", { hint: item.hint }));
+    parts.push(item.required ? t("settings.retirement.requiredTip") : t("settings.retirement.optionalTip"));
     return parts.join("\n\n");
 }
 
 /** The head badge: switched off, or how many checkable items are done. */
 export function headLook(list: RetirementChecklist): BadgeLook {
-    if (list.disabled) return { tone: "accent", label: "abgeschaltet" };
-    return { tone: list.done === list.total ? "ok" : list.ready ? "mid" : "bad", label: `${list.done} von ${list.total} erledigt` };
+    if (list.disabled) return { tone: "accent", label: t("settings.retirement.disabled") };
+    return { tone: list.done === list.total ? "ok" : list.ready ? "mid" : "bad", label: t("settings.retirement.doneOf", { done: list.done, total: list.total }) };
 }
 
 export type SwitchState = { checked: boolean; enabled: boolean; reason: string };
 
 /** Whether the switch can be pressed now, and the line that says why (not). */
 export function switchState(list: RetirementChecklist): SwitchState {
-    if (list.disabled) return { checked: true, enabled: true, reason: "Raid-Helper wird nicht mehr abgefragt. Die Historie bleibt lesbar; wieder einschalten geht jederzeit." };
+    if (list.disabled) return { checked: true, enabled: true, reason: t("settings.retirement.switchDisabled") };
     if (!list.ready) {
         const open = list.items.filter((i) => list.blockers.includes(i.id)).map((i) => i.label);
-        return { checked: false, enabled: false, reason: `Erst erledigen: ${open.join(", ")}.` };
+        return { checked: false, enabled: false, reason: t("settings.retirement.switchBlocked", { items: open.join(", ") }) };
     }
-    return { checked: false, enabled: true, reason: "Alle Pflichtpunkte erledigt. Abschalten stoppt alle Abfragen an Raid-Helper; vergangene Raids bleiben lesbar." };
+    return { checked: false, enabled: true, reason: t("settings.retirement.switchReady") };
 }
 
 /** "vor 3 Tagen von Orga" for the disabled state, "" without a time. */
 export function disabledSince(list: RetirementChecklist, now: number): string {
     if (!list.disabled || !list.disabledAt) return "";
     const days = Math.floor((now - list.disabledAt) / 86400000);
-    const when = days <= 0 ? "heute" : days === 1 ? "gestern" : `vor ${days} Tagen`;
-    return list.disabledBy ? `${when} von ${list.disabledBy}` : when;
+    const when = days <= 0 ? t("common.relDay.today") : days === 1 ? t("common.relDay.yesterday") : t("common.relDay.daysAgo", { count: days });
+    return list.disabledBy ? t("settings.retirement.since", { when, name: list.disabledBy }) : when;
 }
 
 /** The import dialog's result line. */
 export function importSummary(result: HistoryImportResult): string {
     const s = result.summary;
-    if (result.stored) return `${result.stored.events} Events · ${result.stored.entries} Einträge für ${result.stored.users} Raider gespeichert.`;
-    if (!s.events) return s.skippedEvents ? `Nichts Neues – ${s.skippedEvents} Events sind schon importiert.` : "Keine Raid-Helper-Events gefunden.";
-    return `${s.events} Events · ${s.entries} Einträge für ${s.users} Raider würden gespeichert.`;
+    if (result.stored) return t("settings.retirement.importStored", { events: result.stored.events, entries: result.stored.entries, users: result.stored.users });
+    if (!s.events) return s.skippedEvents ? t("settings.retirement.importNothingNew", { count: s.skippedEvents }) : t("settings.retirement.importNone");
+    return t("settings.retirement.importDry", { events: s.events, entries: s.entries, users: s.users });
 }
 
 export type SpecHistoryEntry = { spec: string; count: number; lastAt: number; character: string };
@@ -81,5 +82,7 @@ export function specSuggestion(history: SpecHistoryEntry[] | undefined): Charact
 /** The spec names nothing could be mapped to, as one line ("" when none). */
 export function unmappedText(result: HistoryImportResult): string {
     const entries = Object.entries(result.summary.unmapped || {});
-    return entries.length ? `Nicht zuordenbar: ${entries.map(([name, count]) => `${name} (${count}×)`).join(", ")}` : "";
+    return entries.length
+        ? t("settings.retirement.unmapped", { list: entries.map(([name, count]) => t("settings.retirement.unmappedItem", { name, count })).join(", ") })
+        : "";
 }

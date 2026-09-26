@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import * as logic from "./botCommandAccess";
 import type { BotAccessRule, BotCommand } from "../api";
+import { inLang } from "../test/i18n";
 
 const ORGA = "123456789012345678";
 const LEAD = "223456789012345678";
@@ -57,5 +58,14 @@ describe("Bot-Befehle rules", () => {
         expect(logic.groupSummary(auctions, map, roleName)).toBe("3 Befehle · @Orga, @Raidleiter");
         expect(logic.groupSummary(logic.commandsOfGroup(COMMANDS, "recruitment"), {}, roleName)).toBe("1 Befehl · Jeder");
         expect(logic.customizedCount(auctions, map)).toBe(3);
+    });
+
+    it("says the mode and the summary in English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(logic.modeLabel("roles")).toBe("Roles only");
+            const auctions = logic.commandsOfGroup(COMMANDS, "auctions");
+            expect(logic.groupSummary(auctions, {}, roleName)).toBe("3 commands · 1 for everyone · 2 admins only");
+            expect(logic.groupSummary(logic.commandsOfGroup(COMMANDS, "recruitment"), {}, roleName)).toBe("1 command · Everyone");
+        });
     });
 });

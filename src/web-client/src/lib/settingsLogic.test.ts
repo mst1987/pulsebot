@@ -3,6 +3,7 @@
 // cards' status and the PATCH body of a connection modal.
 import { describe, expect, it } from "vitest";
 import * as mod from "./settingsLogic";
+import { inLang } from "../test/i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
 const logic: any = mod;
@@ -396,5 +397,35 @@ describe("raid overview on the talk server (#257)", () => {
         const failed = logic.talkOverviewBadge({ ...base, error: "Bot nicht verbunden." }, NOW);
         expect(failed).toMatchObject({ label: "Fehler", tone: "mid" });
         expect(failed.tipSub).toContain("Bot nicht verbunden.");
+    });
+});
+
+describe("the labels in English", () => {
+    const NOW = 10_000_000;
+    const names = { role: (id: string) => `@${id}`, user: (id: string) => id, area: (id: string) => id, category: () => "Hyjal & BT" };
+    const draft = () => ({ adminRoleIds: [], rolePermissions: {}, baseAccess: {}, userPermissions: {}, officerRoleId: "", applicationChannelId: "",
+        categoryIds: [], categoryRoles: {}, logChannelIds: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {}, topItems: [] });
+
+    it("words the save bar, the badges and the times in English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(logic.levelLabel("write")).toBe("Write");
+            expect(logic.draftChanges(draft(), { ...draft(), categorySetupDms: { c1: true }, raidChannelId: "1" }, names))
+                .toEqual(["Hyjal & BT · setup DMs on", "Default channel"]);
+            expect(logic.connectionState("lootsync", { tokenCount: 2 }).label).toBe("2 tokens");
+            expect(logic.serverCardState({ connected: true, permissions: [], missing: ["a", "b"] }, false).label).toBe("2 permissions missing");
+            expect(logic.driftBadge(1, null).label).toBe("1 drift");
+            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h before close · 1 h before raid");
+            expect(logic.reminderSummary(undefined)).toBe("off");
+            expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("5 min ago");
+            expect(logic.noteChannelPick([], "", "").defaultLabel).toBe("Default (not set)");
+            expect(logic.areaLabel({ id: "history", label: "Historie & Loot" })).toBe("History & loot");
+            expect(logic.areaLabel({ id: "brandnew", label: "Neu vom Server" })).toBe("Neu vom Server");
+        });
+    });
+
+    it("tells an unset reminder apart without reading its text", () => {
+        expect(logic.reminderOff(undefined)).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 0, target: "event" })).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 2, target: "event" })).toBe(false);
     });
 });

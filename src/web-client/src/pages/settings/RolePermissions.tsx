@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Access, Area, Role, RolePermissions } from "../../api";
 import {
-    LEVEL_LABEL, areaCounts, isDiscordId, levelOf, nextLevel, withLevel, type Grants, type Level,
+    areaCounts, areaDescription, areaLabel, isDiscordId, levelLabel, levelOf, nextLevel, withLevel, type Grants, type Level,
 } from "../../lib/settingsLogic";
+import { t as translate, useT } from "../../i18n";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import Badge from "../../components/ui/Badge";
@@ -48,14 +49,16 @@ function TriStateCell({ owner, area, level, onSet }: {
     level: Level;
     onSet: (level: Level) => void;
 }) {
+    const t = useT();
     const next = nextLevel(level);
+    const name = areaLabel(area);
     return (
         <button
             type="button"
             className={`perm-cell lv-${level}`}
-            aria-label={`${owner} · ${area.label}: ${LEVEL_LABEL[level]}`}
-            data-tip={`${owner} · ${area.label}`}
-            data-tip-sub={`${LEVEL_LABEL[level]} — Klick schaltet auf ${LEVEL_LABEL[next]}`}
+            aria-label={t("settings.permissions.cellAria", { owner, area: name, level: levelLabel(level) })}
+            data-tip={`${owner} · ${name}`}
+            data-tip-sub={t("settings.permissions.cellSub", { level: levelLabel(level), next: levelLabel(next) })}
             onClick={() => onSet(next)}
         >
             {level === "write" ? <PenIcon /> : level === "read" ? <EyeIcon /> : <span aria-hidden="true">–</span>}
@@ -70,6 +73,7 @@ function RowName({ label, sub, avatar, onAll }: {
     avatar: ReactNode;
     onAll: (level: Level) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     useDismiss(ref, open, () => setOpen(false));
@@ -78,7 +82,7 @@ function RowName({ label, sub, avatar, onAll }: {
         <div className="perm-who" ref={ref}>
             {avatar}
             <button type="button" className="perm-who-name" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}
-                data-tip={label} data-tip-sub="Klick: ganze Zeile auf Lesen, Schreiben oder aus setzen">
+                data-tip={label} data-tip-sub={t("settings.permissions.rowSub")}>
                 <span className="perm-who-label">{label}</span>
                 <span className="perm-who-sub">{sub}</span>
             </button>
@@ -86,7 +90,7 @@ function RowName({ label, sub, avatar, onAll }: {
                 <div className="split-menu perm-menu" role="menu">
                     {(["read", "write", "none"] as Level[]).map((lv) => (
                         <button key={lv} type="button" role="menuitem" onClick={() => { setOpen(false); onAll(lv); }}>
-                            {lv === "read" ? "Alles lesen" : lv === "write" ? "Alles schreiben" : "Alles abwählen"}
+                            {lv === "read" ? t("settings.permissions.allRead") : lv === "write" ? t("settings.permissions.allWrite") : t("settings.permissions.allNone")}
                         </button>
                     ))}
                 </div>
@@ -117,8 +121,8 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
         if (lv === "read") read += 1;
         if (lv === "write") write += 1;
     }
-    if (!read && !write) return "nichts freigegeben";
-    return `${read} × Lesen · ${write} × Schreiben`;
+    if (!read && !write) return translate("settings.permissions.nothing");
+    return translate("settings.permissions.summary", { read, write });
 }
 
 export default function RolePermissionsEditor({
@@ -141,9 +145,10 @@ export default function RolePermissionsEditor({
     icon: string;
     crumb: string;
 }) {
+    const t = useT();
     const [adding, setAdding] = useState<null | "grant" | "admin">(null);
     const roleById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
-    const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : `Unbekannte Rolle (${id})`);
+    const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : t("settings.permissions.unknownRole", { id }));
 
     // Configured roles in the guild's role order, then ids the guild no longer
     // has — kept visible so they can be cleaned up instead of lingering unseen.
@@ -185,20 +190,20 @@ export default function RolePermissionsEditor({
             <PartHead
                 icon={icon}
                 tone="settings"
-                title="Berechtigungen"
-                crumb={`Einstellungen › ${crumb}`}
-                action={<>{viewSwitch}<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding("grant")}>Rolle oder Konto</Button></>}
+                title={t("settings.sections.berechtigungen.label")}
+                crumb={t("settings.crumb", { crumb })}
+                action={<>{viewSwitch}<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding("grant")}>{t("settings.permissions.addOwner")}</Button></>}
             />
             <div className="perm-legend">
-                <span className="note">Klick schaltet</span>
-                <span className="perm-cell lv-none" aria-hidden="true"><span>–</span></span><span className="note">aus</span>
+                <span className="note">{t("settings.permissions.clickToggles")}</span>
+                <span className="perm-cell lv-none" aria-hidden="true"><span>–</span></span><span className="note">{levelLabel("none")}</span>
                 <span className="note perm-sep">›</span>
-                <span className="perm-cell lv-read" aria-hidden="true"><EyeIcon /></span><span className="note">Lesen</span>
+                <span className="perm-cell lv-read" aria-hidden="true"><EyeIcon /></span><span className="note">{levelLabel("read")}</span>
                 <span className="note perm-sep">›</span>
-                <span className="perm-cell lv-write" aria-hidden="true"><PenIcon /></span><span className="note">Schreiben</span>
+                <span className="perm-cell lv-write" aria-hidden="true"><PenIcon /></span><span className="note">{levelLabel("write")}</span>
                 <span className="grow" />
-                <Badge tone="accent" tip="Rechte addieren sich" tipSub="Wer mehrere Rollen hat, bekommt die Summe ihrer Rechte; Basiszugang und einzelne Konten kommen oben drauf und nehmen nie etwas weg. Änderungen greifen für angemeldete Nutzer innerhalb von ca. 5 Minuten.">
-                    Rechte addieren sich über alle Rollen
+                <Badge tone="accent" tip={t("settings.permissions.additiveTip")} tipSub={t("settings.permissions.additiveSub")}>
+                    {t("settings.permissions.additive")}
                 </Badge>
             </div>
 
@@ -211,25 +216,25 @@ export default function RolePermissionsEditor({
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Wer</th>
+                            <th>{t("settings.permissions.who")}</th>
                             {areas.map((a) => {
                                 const counts = areaCounts(columnMaps, a.id);
                                 return (
-                                    <th key={a.id} className="perm-th" data-tip={a.label} data-tip-sub={`${a.description}\nLesen: ${counts.read} · Schreiben: ${counts.write}`} tabIndex={0}>
+                                    <th key={a.id} className="perm-th" data-tip={areaLabel(a)} data-tip-sub={`${areaDescription(a)}\n${t("settings.permissions.columnCounts", { read: counts.read, write: counts.write })}`} tabIndex={0}>
                                         <WowIcon name={AREA_ICONS[a.id] || "inv_misc_questionmark"} size={26} />
                                     </th>
                                 );
                             })}
-                            <th aria-label="Aktionen" />
+                            <th aria-label={t("settings.permissions.actions")} />
                         </tr>
                     </thead>
                     <tbody>
                         <GroupRow
                             span={span}
-                            label="Voll-Admins"
-                            tip="Voll-Admins"
-                            tipSub="Mitglieder mit einer dieser Rollen haben jeden Bereich mit Schreibrecht und als Einzige Zugriff auf Berechtigungen und Verbindungs-Secrets. Änderungen greifen innerhalb von ca. 5 Minuten ohne erneuten Login."
-                            aside={<Badge icon={<LockIcon />}>alles · Schreiben</Badge>}
+                            label={t("settings.permissions.admins")}
+                            tip={t("settings.permissions.admins")}
+                            tipSub={t("settings.permissions.adminsSub")}
+                            aside={<Badge icon={<LockIcon />}>{t("settings.permissions.adminsAside")}</Badge>}
                         />
                         <tr className="perm-admins">
                             <td colSpan={span}>
@@ -239,20 +244,20 @@ export default function RolePermissionsEditor({
                                             key={id}
                                             type="button"
                                             className="badge accent perm-admin-role"
-                                            data-tip={`${roleName(id)} entfernen`}
-                                            data-tip-sub={`Rollen-ID ${id}`}
+                                            data-tip={t("settings.permissions.removeTip", { name: roleName(id) })}
+                                            data-tip-sub={t("settings.permissions.roleId", { id })}
                                             onClick={() => onAdminRoleIds(adminRoleIds.filter((x) => x !== id))}
                                         >
                                             {roleName(id)}<XIcon />
                                         </button>
                                     ))}
                                     <button type="button" className="badge perm-add-admin" onClick={() => setAdding("admin")} disabled={!roles.length}
-                                        data-tip={roles.length ? "Admin-Rolle hinzufügen" : "Keine Rollen geladen"} data-tip-sub={roles.length ? undefined : "Server gewählt und Bot online? Die Auswahl ist verfügbar, sobald der Bot verbunden ist."}>
-                                        <PlusIcon />Admin-Rolle
+                                        data-tip={roles.length ? t("settings.permissions.addAdmin") : t("settings.permissions.noRoles")} data-tip-sub={roles.length ? undefined : t("settings.permissions.noRolesSub")}>
+                                        <PlusIcon />{t("settings.permissions.adminRole")}
                                     </button>
                                     <span className="grow" />
-                                    <span className="note" data-tip="Notfall-Zugang" data-tip-sub="Die ADMIN_USER_ID aus der .env behält immer vollen Zugang, egal was hier steht.">
-                                        Notfall-Zugang über ADMIN_USER_ID bleibt immer bestehen
+                                    <span className="note" data-tip={t("settings.permissions.emergencyTip")} data-tip-sub={t("settings.permissions.emergencySub")}>
+                                        {t("settings.permissions.emergency")}
                                     </span>
                                 </div>
                             </td>
@@ -260,27 +265,27 @@ export default function RolePermissionsEditor({
 
                         <GroupRow
                             span={span}
-                            label="Alle Angemeldeten"
-                            tip="Basiszugang"
-                            tipSub="Gilt für jedes Discord-Konto, das sich anmeldet — auch ohne Rolle und ohne Mitgliedschaft auf dem Server. Das Menü mit Logout ist immer erreichbar; sichtbar wird nur, was hier freigegeben ist."
+                            label={t("settings.permissions.allSignedIn")}
+                            tip={t("settings.permissions.base")}
+                            tipSub={t("settings.permissions.baseSub")}
                         />
                         <tr>
                             <td>
-                                <RowName label="Basiszugang" sub="ohne Rolle, auch Gäste" avatar={<span className="perm-avatar round">∗</span>} onAll={(lv) => onBaseAccessChange(allOf(lv))} />
+                                <RowName label={t("settings.permissions.base")} sub={t("settings.permissions.baseRowSub")} avatar={<span className="perm-avatar round">∗</span>} onAll={(lv) => onBaseAccessChange(allOf(lv))} />
                             </td>
-                            {cells("base", "base", "Basiszugang", baseAccess)}
+                            {cells("base", "base", t("settings.permissions.base"), baseAccess)}
                             <td />
                         </tr>
 
                         <GroupRow
                             span={span}
-                            label="Rollen"
-                            tip="Rollen"
-                            tipSub="Rollen ohne Admin-Rechte bekommen hier gezielt Zugriff auf einzelne Bereiche. Lesen = ansehen, Schreiben = dort auch handeln. Berechtigungen und Admin-Rollen bleiben Voll-Admins vorbehalten — eine Rolle mit Schreibrecht auf Einstellungen kann sich keine Rechte selbst geben."
+                            label={t("settings.permissions.roles")}
+                            tip={t("settings.permissions.roles")}
+                            tipSub={t("settings.permissions.rolesSub")}
                         />
                         {!roleIds.length && (
                             <tr><td colSpan={span} className="perm-empty">
-                                {roles.length ? "Noch keine Rolle mit eigenen Rechten — über „Rolle oder Konto“ hinzufügen." : "Keine Rollen geladen (Server gewählt und Bot online?)."}
+                                {roles.length ? t("settings.permissions.rolesEmpty") : t("settings.permissions.rolesNotLoaded")}
                             </td></tr>
                         )}
                         {roleIds.map((id) => {
@@ -291,14 +296,14 @@ export default function RolePermissionsEditor({
                                     <td>
                                         <RowName
                                             label={name}
-                                            sub={role ? grantSummary(areas, value[id]) : "nicht mehr auf dem Server"}
+                                            sub={role ? grantSummary(areas, value[id]) : t("settings.permissions.notOnServer")}
                                             avatar={<span className="perm-avatar" style={role?.color ? { "--rc": role.color } as CSSProperties : undefined}>@</span>}
                                             onAll={(lv) => setRole(id, allOf(lv))}
                                         />
                                     </td>
                                     {cells("role", id, name, value[id])}
                                     <td className="cell-act">
-                                        <IconButton icon={<TrashIcon />} tip={`${name} entfernen`} size="sm" tone="danger" onClick={() => {
+                                        <IconButton icon={<TrashIcon />} tip={t("settings.permissions.removeTip", { name })} size="sm" tone="danger" onClick={() => {
                                             const next = { ...value };
                                             delete next[id];
                                             onChange(next);
@@ -310,15 +315,15 @@ export default function RolePermissionsEditor({
 
                         <GroupRow
                             span={span}
-                            label="Einzelne Konten"
-                            tip="Einzelne Konten"
-                            tipSub="Rechte für ein bestimmtes Discord-Konto — für Bereiche, die an benannte Personen gehen statt an eine Gruppe (etwa den Loot-Council). Kommt oben drauf wie der Basiszugang und nimmt nie etwas weg."
+                            label={t("settings.permissions.users")}
+                            tip={t("settings.permissions.users")}
+                            tipSub={t("settings.permissions.usersSub")}
                         />
                         {!userIds.length && (
-                            <tr><td colSpan={span} className="perm-empty">Noch kein einzelnes Konto freigeschaltet.</td></tr>
+                            <tr><td colSpan={span} className="perm-empty">{t("settings.permissions.usersEmpty")}</td></tr>
                         )}
                         {userIds.map((id) => {
-                            const name = userNames[id] || `Konto ${id.slice(-4)}`;
+                            const name = userNames[id] || t("settings.account", { id: id.slice(-4) });
                             return (
                                 <tr key={id}>
                                     <td>
@@ -331,7 +336,7 @@ export default function RolePermissionsEditor({
                                     </td>
                                     {cells("user", id, name, userPermissions[id])}
                                     <td className="cell-act">
-                                        <IconButton icon={<TrashIcon />} tip={`${name} entfernen`} size="sm" tone="danger" onClick={() => {
+                                        <IconButton icon={<TrashIcon />} tip={t("settings.permissions.removeTip", { name })} size="sm" tone="danger" onClick={() => {
                                             const next = { ...userPermissions };
                                             delete next[id];
                                             onUserPermissionsChange(next);
@@ -384,6 +389,7 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
     const idValid = isDiscordId(trimmed);
     const duplicate = idValid && takenUsers.includes(trimmed);
     const canAdd = kind === "role" ? !!roleId : idValid && !duplicate;
+    const t = useT();
 
     return (
         <Modal
@@ -391,44 +397,44 @@ function AddOwnerModal({ mode, roles, taken, takenUsers, onClose, onAddRole, onA
             onClose={onClose}
             icon="inv_scroll_11"
             tone="settings"
-            kicker="Berechtigungen"
-            title={mode === "admin" ? "Admin-Rolle hinzufügen" : "Rolle oder Konto hinzufügen"}
+            kicker={t("settings.sections.berechtigungen.label")}
+            title={mode === "admin" ? t("settings.permissions.addAdmin") : t("settings.permissions.addTitle")}
             width={480}
             initialFocus="select, input"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>Hinzufügen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button disabled={!canAdd} onClick={() => (kind === "role" ? onAddRole(roleId) : onAddUser(trimmed))}>{t("common.add")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 {mode === "grant" && (
                     <Segment
-                        ariaLabel="Art"
+                        ariaLabel={t("settings.permissions.kind")}
                         value={kind}
                         onChange={(v) => setKind(v === "user" ? "user" : "role")}
                         options={[
-                            { value: "role", label: "Discord-Rolle", disabled: !roles.length, tip: roles.length ? undefined : "Keine Rollen geladen" },
-                            { value: "user", label: "Einzelnes Konto" },
+                            { value: "role", label: t("settings.permissions.kindRole"), disabled: !roles.length, tip: roles.length ? undefined : t("settings.permissions.noRoles") },
+                            { value: "user", label: t("settings.permissions.kindUser") },
                         ]}
                     />
                 )}
                 {kind === "role" ? (
                     <div className="dlg-field">
-                        <FieldLabel htmlFor="perm-add-role" tip="Rolle" tipSub={mode === "admin" ? "Mitglieder mit dieser Rolle erhalten vollen Admin-Zugang." : "Die Rolle startet ohne Rechte; die Zellen der neuen Zeile schalten sie frei."}>Rolle</FieldLabel>
+                        <FieldLabel htmlFor="perm-add-role" tip={t("settings.permissions.role")} tipSub={mode === "admin" ? t("settings.permissions.roleAdminSub") : t("settings.permissions.roleGrantSub")}>{t("settings.permissions.role")}</FieldLabel>
                         <select id="perm-add-role" value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                            <option value="">— Rolle wählen —</option>
+                            <option value="">{t("settings.permissions.chooseRole")}</option>
                             {addable.map((r) => <option key={r.id} value={r.id}>@{r.name}</option>)}
                         </select>
-                        {!addable.length && <div className="note">Alle Rollen sind bereits eingetragen.</div>}
+                        {!addable.length && <div className="note">{t("settings.permissions.allTaken")}</div>}
                     </div>
                 ) : (
                     <div className="dlg-field">
-                        <FieldLabel htmlFor="perm-add-user" tip="Discord-ID" tipSub="In Discord per Rechtsklick auf den Nutzer → „ID kopieren“ (Entwicklermodus muss an sein).">Discord-ID</FieldLabel>
-                        <input id="perm-add-user" className="mono" inputMode="numeric" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="z. B. 123456789012345678" />
-                        {trimmed && !idValid && <div className="note is-bad">Das sieht nicht nach einer Discord-ID aus (17–20 Ziffern).</div>}
-                        {duplicate && <div className="note is-bad">Dieses Konto ist bereits eingetragen.</div>}
+                        <FieldLabel htmlFor="perm-add-user" tip={t("settings.permissions.discordId")} tipSub={t("settings.permissions.discordIdSub")}>{t("settings.permissions.discordId")}</FieldLabel>
+                        <input id="perm-add-user" className="mono" inputMode="numeric" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder={t("settings.permissions.idPlaceholder")} />
+                        {trimmed && !idValid && <div className="note is-bad">{t("settings.permissions.invalidId")}</div>}
+                        {duplicate && <div className="note is-bad">{t("settings.permissions.duplicate")}</div>}
                     </div>
                 )}
             </div>

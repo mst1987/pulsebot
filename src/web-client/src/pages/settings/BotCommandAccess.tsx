@@ -4,9 +4,10 @@ import {
     type ApiError, type BotAccessMode, type BotAccessRule, type BotCommand, type BotCommandsData, type BotRole,
 } from "../../api";
 import {
-    MODE_LABEL, commandLabel, commandsOfGroup, customizedCount, groupSummary, ruleOf, ruleValid, sameRule,
+    commandLabel, commandsOfGroup, customizedCount, groupSummary, modeLabel, ruleOf, ruleValid, sameRule,
     withGroupRule, withRule, type AccessMap,
 } from "../../lib/botCommandAccess";
+import { t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/Jobs";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
@@ -30,28 +31,26 @@ import { FieldLabel } from "../../components/ui/Field";
 
 const MODES: BotAccessMode[] = ["everyone", "roles", "admins"];
 
-const MODE_TIPS: Record<BotAccessMode, string> = {
-    everyone: "Jedes Mitglied darf den Befehl nutzen.",
-    roles: "Nur Mitglieder mit einer der gewählten Rollen (auf dem Event-Server).",
-    admins: "Nur Admins: ADMIN_USER_ID und die Admin-Rollen aus „Zugang“.",
-};
+/** What a mode means, in the active language. */
+const modeTip = (mode: BotAccessMode): string => translate(`settings.botCommands.modeTip.${mode}`);
 
 function roleTip(role: BotRole | undefined, id: string): { tip: string; sub: string } {
-    if (!role) return { tip: "Unbekannte Rolle", sub: `Rollen-ID ${id} — gibt es auf dem Event-Server nicht mehr.` };
-    const members = role.memberCount === null ? "Mitgliederzahl unbekannt" : `${role.memberCount} ${role.memberCount === 1 ? "Mitglied" : "Mitglieder"}`;
+    if (!role) return { tip: translate("settings.botCommands.unknownRole"), sub: translate("settings.botCommands.unknownRoleSub", { id }) };
+    const members = role.memberCount === null ? translate("settings.botCommands.membersUnknown") : translate("settings.botCommands.members", { count: role.memberCount });
     return { tip: `@${role.name}`, sub: members };
 }
 
 /** The rule as badges: "Jeder", "Nur Admins" or one badge per role. */
 function RuleBadges({ rule, roleById }: { rule: BotAccessRule; roleById: Map<string, BotRole> }) {
-    if (rule.mode === "everyone") return <Badge tone="ok" tip="Jeder" tipSub={MODE_TIPS.everyone}>Jeder</Badge>;
-    if (rule.mode === "admins") return <Badge icon={<LockIcon />} tip="Nur Admins" tipSub={MODE_TIPS.admins}>Nur Admins</Badge>;
+    const t = useT();
+    if (rule.mode === "everyone") return <Badge tone="ok" tip={modeLabel("everyone")} tipSub={modeTip("everyone")}>{modeLabel("everyone")}</Badge>;
+    if (rule.mode === "admins") return <Badge icon={<LockIcon />} tip={modeLabel("admins")} tipSub={modeTip("admins")}>{modeLabel("admins")}</Badge>;
     return (
         <>
             {rule.roleIds.map((id) => {
                 const role = roleById.get(id);
                 const { tip, sub } = roleTip(role, id);
-                return <Badge key={id} tone={role ? "accent" : "bad"} tip={tip} tipSub={sub}>{role ? `@${role.name}` : "Unbekannte Rolle"}</Badge>;
+                return <Badge key={id} tone={role ? "accent" : "bad"} tip={tip} tipSub={sub}>{role ? `@${role.name}` : t("settings.botCommands.unknownRole")}</Badge>;
             })}
         </>
     );
@@ -69,6 +68,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
     const [editing, setEditing] = useState<string>("");
     const [saving, setSaving] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     useEffect(() => {
         getBotCommands()
@@ -82,20 +82,20 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
         <PartHead
             icon={icon}
             tone="settings"
-            title="Bot-Befehle"
-            crumb={`Einstellungen › ${crumb}`}
-            tip="Bot-Befehle"
-            tipSub="Wer welchen Befehl im Discord nutzen darf. Buttons und Auswahlen eines Befehls erben seine Freigabe. Admins dürfen immer alles."
+            title={t("settings.botCommands.title")}
+            crumb={t("settings.crumb", { crumb })}
+            tip={t("settings.botCommands.title")}
+            tipSub={t("settings.botCommands.tipSub")}
             action={viewSwitch}
         />
     );
 
-    if (error) return <>{head}<div className="empty">Bot-Befehle konnten nicht geladen werden: {error}</div></>;
-    if (!data) return <>{head}<RaidLoader compact text="Bot-Befehle werden geladen" /></>;
+    if (error) return <>{head}<div className="empty">{t("settings.botCommands.loadError", { message: error })}</div></>;
+    if (!data) return <>{head}<RaidLoader compact text={t("settings.botCommands.loading")} /></>;
 
     const map: AccessMap = {};
     for (const c of data.commands) if (c.access) map[c.name] = c.access;
-    const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : "Unbekannte Rolle");
+    const roleName = (id: string) => (roleById.get(id) ? `@${roleById.get(id)!.name}` : t("settings.botCommands.unknownRole"));
     const editCommand = data.commands.find((c) => c.name === editing) || null;
 
     const save = async (next: AccessMap, message: string) => {
@@ -126,10 +126,10 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
             {head}
             <div className="botc-note note">
                 <LockIcon />
-                <span>Admins dürfen immer alles{data.guildName ? <> · Rollen von <strong>{data.guildName}</strong></> : null}</span>
+                <span>{t("settings.botCommands.adminsAlways")}{data.guildName ? <> · {t("settings.botCommands.rolesOf")} <strong>{data.guildName}</strong></> : null}</span>
             </div>
             {!data.roles.length && (
-                <div className="botc-note note is-bad">Keine Rollen geladen — ist der Bot online und der Event-Server gewählt?</div>
+                <div className="botc-note note is-bad">{t("settings.botCommands.noRoles")}</div>
             )}
             <div className="botc-groups">
                 {data.groups.map((group) => {
@@ -145,8 +145,8 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
                                     <span className="kicker">{groupSummary(commands, map, roleName)}</span>
                                 </button>
                                 {changed > 0 && (
-                                    <Badge tone="mid" tip="Angepasst" tipSub={`${changed} von ${commands.length} weichen vom Standard ab.`}>
-                                        {changed} angepasst
+                                    <Badge tone="mid" tip={t("settings.botCommands.changedTip")} tipSub={t("settings.botCommands.changedSub", { changed, total: commands.length })}>
+                                        {t("settings.botCommands.changed", { count: changed })}
                                     </Badge>
                                 )}
                                 <Expand open={isOpen} onToggle={() => toggle(group.id)} />
@@ -156,7 +156,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
                                     {commands.map((command) => (
                                         <div key={command.name} className="botc-row">
                                             <div className="botc-cmd">
-                                                <span className="botc-name" data-tip={commandLabel(command)} data-tip-sub={command.inherits.length ? `Gilt auch für: ${command.inherits.join(", ")}` : undefined}>
+                                                <span className="botc-name" data-tip={commandLabel(command)} data-tip-sub={command.inherits.length ? t("settings.botCommands.inherits", { list: command.inherits.join(", ") }) : undefined}>
                                                     {commandLabel(command)}
                                                 </span>
                                                 <span className="botc-desc">{command.description}</span>
@@ -164,7 +164,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
                                             <div className="botc-badges">
                                                 <RuleBadges rule={ruleOf(command, map)} roleById={roleById} />
                                             </div>
-                                            <IconButton icon={<PenIcon />} tip={`${commandLabel(command)} bearbeiten`} size="sm" onClick={() => setEditing(command.name)} />
+                                            <IconButton icon={<PenIcon />} tip={t("settings.botCommands.editTip", { command: commandLabel(command) })} size="sm" onClick={() => setEditing(command.name)} />
                                         </div>
                                     ))}
                                 </div>
@@ -187,7 +187,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
                     onClose={() => setEditing("")}
                     onSave={(rule, wholeGroup) => save(
                         wholeGroup ? withGroupRule(map, data.commands, editCommand.group, rule) : withRule(map, editCommand, rule),
-                        wholeGroup ? "Für alle Befehle der Gruppe gespeichert." : `${commandLabel(editCommand)} gespeichert.`,
+                        wholeGroup ? t("settings.botCommands.savedGroup") : t("settings.botCommands.savedOne", { command: commandLabel(editCommand) }),
                     )}
                 />
             )}
@@ -211,6 +211,7 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
     const [mode, setMode] = useState<BotAccessMode>(rule.mode);
     const [roleIds, setRoleIds] = useState<string[]>(rule.roleIds);
     const [wholeGroup, setWholeGroup] = useState(false);
+    const t = useT();
     const draft: BotAccessRule = { mode, roleIds: mode === "roles" ? roleIds : [] };
     const isDefault = sameRule(draft, command.defaultAccess);
     const addable = roles.filter((r) => !roleIds.includes(r.id));
@@ -225,62 +226,62 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
             title={commandLabel(command)}
             width={560}
             hint={command.inherits.length ? (
-                <span data-tip="Erbt die Freigabe" data-tip-sub={command.inherits.join(", ")}>
-                    gilt auch für {command.inherits.length} {command.inherits.length === 1 ? "Button/Modal" : "Buttons/Modals"}
+                <span data-tip={t("settings.botCommands.inheritsTip")} data-tip-sub={command.inherits.join(", ")}>
+                    {t("settings.botCommands.inheritsHint", { count: command.inherits.length })}
                 </span>
             ) : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button disabled={!ruleValid(draft) || saving} running={saving} onClick={() => onSave(draft, wholeGroup)}>Speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button disabled={!ruleValid(draft) || saving} running={saving} onClick={() => onSave(draft, wholeGroup)}>{t("common.save")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 {command.description && <div className="note">{command.description}</div>}
                 <Segment<BotAccessMode>
-                    ariaLabel="Wer darf"
+                    ariaLabel={t("settings.botCommands.whoAria")}
                     value={mode}
                     onChange={setMode}
-                    options={MODES.map((m) => ({ value: m, label: MODE_LABEL[m], tip: MODE_TIPS[m] }))}
+                    options={MODES.map((m) => ({ value: m, label: modeLabel(m), tip: modeTip(m) }))}
                 />
                 {mode === "roles" && (
                     <div className="dlg-field">
-                        <FieldLabel htmlFor="botc-add-role" tip="Rollen" tipSub="Rollen des Event-Servers. Wer eine davon hat, darf den Befehl nutzen.">Rollen</FieldLabel>
+                        <FieldLabel htmlFor="botc-add-role" tip={t("settings.botCommands.roles")} tipSub={t("settings.botCommands.rolesSub")}>{t("settings.botCommands.roles")}</FieldLabel>
                         <div className="botc-roles">
                             {roleIds.map((id) => {
                                 const role = roleById.get(id);
                                 const { sub } = roleTip(role, id);
                                 return (
                                     <button key={id} type="button" className={`badge ${role ? "accent" : "bad"} botc-role`}
-                                        data-tip={`${role ? `@${role.name}` : "Unbekannte Rolle"} entfernen`} data-tip-sub={sub}
+                                        data-tip={t("settings.botCommands.removeTip", { name: role ? `@${role.name}` : t("settings.botCommands.unknownRole") })} data-tip-sub={sub}
                                         onClick={() => setRoleIds(roleIds.filter((r) => r !== id))}>
-                                        {role ? `@${role.name}` : "Unbekannte Rolle"}<XIcon />
+                                        {role ? `@${role.name}` : t("settings.botCommands.unknownRole")}<XIcon />
                                     </button>
                                 );
                             })}
                             <select id="botc-add-role" value="" disabled={!addable.length}
                                 onChange={(e) => { if (e.target.value) setRoleIds([...roleIds, e.target.value]); }}>
-                                <option value="">{roles.length ? "+ Rolle" : "Keine Rollen geladen"}</option>
+                                <option value="">{roles.length ? t("settings.botCommands.addRole") : t("settings.botCommands.noRolesLoaded")}</option>
                                 {addable.map((r) => <option key={r.id} value={r.id}>@{r.name}</option>)}
                             </select>
                         </div>
-                        {!roleIds.length && <div className="note is-bad">Mindestens eine Rolle wählen.</div>}
+                        {!roleIds.length && <div className="note is-bad">{t("settings.botCommands.atLeastOne")}</div>}
                     </div>
                 )}
                 <div className="botc-default">
-                    <span className="kicker">Standard</span>
+                    <span className="kicker">{t("settings.botCommands.default")}</span>
                     <RuleBadges rule={command.defaultAccess} roleById={roleById} />
                     <span className="grow" />
                     <Button variant="ghost" size="sm" disabled={isDefault}
                         onClick={() => { setMode(command.defaultAccess.mode); setRoleIds(command.defaultAccess.roleIds); }}>
-                        Zurücksetzen
+                        {t("common.reset")}
                     </Button>
                 </div>
                 {groupSize > 1 && (
                     <label className="botc-check">
                         <input type="checkbox" checked={wholeGroup} onChange={(e) => setWholeGroup(e.target.checked)} />
-                        <span>für alle {groupSize} Befehle der Gruppe übernehmen</span>
+                        <span>{t("settings.botCommands.wholeGroup", { count: groupSize })}</span>
                     </label>
                 )}
             </div>

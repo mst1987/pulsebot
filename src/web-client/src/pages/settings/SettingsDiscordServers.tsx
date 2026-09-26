@@ -18,6 +18,7 @@ import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AdminOnlyBadge, ChannelPicker, CheckMark, PenIcon, WarnIcon } from "../../components/settings/settingsUi";
 import { FieldLabel } from "../../components/ui/Field";
+import { t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen → Discord-Server (#251, #361): any number of
 // event servers (event channels, Raid-Helper), each optionally posting its own
@@ -28,18 +29,11 @@ import { FieldLabel } from "../../components/ui/Field";
 // this block. Deliberately little per card — the role sync and the
 // per-category sign-up come with their own issues.
 
-const ROLE_TEXT = {
-    event: {
-        kicker: "Event-Discord",
-        tip: "Event-Discord",
-        tipSub: "Hier liegen die Event-Kanäle und Raid-Helper. Der Admin-Rollencheck des Menüs läuft gegen den ersten konfigurierten Event-Server.",
-    },
-    talk: {
-        kicker: "Kommunikations-Discord",
-        tip: "Kommunikations-Discord",
-        tipSub: "Hier wird gesprochen: Anmeldung per Bot und Erinnerungen. Leer = alles läuft auf dem Event-Discord.",
-    },
-};
+/** How a server's role is named, in the active language. */
+function roleText(role: "event" | "talk"): { kicker: string; tip: string; tipSub: string } {
+    const name = translate(role === "talk" ? "settings.roleSync.talkDiscord" : "settings.roleSync.eventDiscord");
+    return { kicker: name, tip: name, tipSub: translate(role === "talk" ? "settings.discordServers.talkTipSub" : "settings.discordServers.eventTipSub") };
+}
 
 function initials(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -74,20 +68,18 @@ function noteChannels(guilds: DiscordServersData["guilds"], guildIds: string[]):
 function guildSelectOptions(guilds: DiscordServersData["guilds"], value: string, exclude: Set<string>) {
     return (
         <>
-            {value && !guilds.some((g) => g.id === value) && <option value={value}>unbekannt ({value})</option>}
+            {value && !guilds.some((g) => g.id === value) && <option value={value}>{translate("settings.ui.unknown", { id: value })}</option>}
             {guilds.filter((g) => !exclude.has(g.id)).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </>
     );
 }
-
-const NOTE_TIP = "Vielleicht- & Absage-Nachrichten";
-const NOTE_TIP_SUB = "Wer in Discord „Vielleicht“ oder „Absagen“ drückt, kann eine kurze Nachricht an die Raidleitung hinterlassen — der Bot postet sie hier. Ob gefragt wird (Pflicht, optional, keine), stellst du je Kategorie unter Kategorien ein.";
 
 export default function DiscordServersSection({ onConfig, icon, crumb }: {
     onConfig: (config: AdminConfig) => void;
     icon: string;
     crumb: string;
 }) {
+    const t = useT();
     const [data, setData] = useState<DiscordServersData | null>(null);
     const [statuses, setStatuses] = useState<TalkOverviewStatus[]>([]);
     const [error, setError] = useState("");
@@ -113,16 +105,16 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         <PartHead
             icon={icon}
             tone="settings"
-            title="Discord-Server"
-            crumb={`Einstellungen › ${crumb}`}
-            tip="Discord-Server"
-            tipSub="Der Bot kann mit mehreren Event-Servern arbeiten — jeder mit eigenen Event-Kanälen, Raid-Helper und wahlweise einer eigenen Raid-Übersicht — plus einem Kommunikations-Discord für Anmeldung per Bot und Erinnerungen."
-            action={data ? <Button variant="ghost" size="sm" icon={<PenIcon />} onClick={() => setEditing(true)}>Bearbeiten</Button> : undefined}
+            title={t("settings.sections.discordserver.label")}
+            crumb={t("settings.crumb", { crumb })}
+            tip={t("settings.sections.discordserver.label")}
+            tipSub={t("settings.discordServers.tipSub")}
+            action={data ? <Button variant="ghost" size="sm" icon={<PenIcon />} onClick={() => setEditing(true)}>{t("common.edit")}</Button> : undefined}
         />
     );
 
     if (error) return <>{head}<div className="empty">{error}</div></>;
-    if (!data) return <>{head}<RaidLoader compact text="Server werden geprüft" /></>;
+    if (!data) return <>{head}<RaidLoader compact text={t("settings.discordServers.loading")} /></>;
 
     const talkChannels = data.guilds.find((g) => g.id === data.discordServers.talkGuildId)?.channels || [];
     const overlap = overlapBadge(data.overlap);
@@ -142,7 +134,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                                 {/* Global setting, not per-server: named on the first event card only, so several servers don't repeat it. */}
                                 {i === 0 && (
                                     <div>
-                                        <dt tabIndex={0} data-tip={NOTE_TIP} data-tip-sub={NOTE_TIP_SUB}>Vielleicht/Absage</dt>
+                                        <dt tabIndex={0} data-tip={t("settings.discordServers.noteTip")} data-tip-sub={t("settings.discordServers.noteTipSub")}>{t("settings.discordServers.noteRow")}</dt>
                                         <dd>{channelName(allChannels, data.discordServers.signupNoteChannelId)}</dd>
                                     </div>
                                 )}
@@ -162,11 +154,11 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 <ServerCard card={data.talk} role="talk" onEdit={() => setEditing(true)}>
                     {data.talk && (
                         <dl className="conn-rows">
-                            <div><dt>Erinnerungen</dt><dd>{channelName(talkChannels, data.discordServers.talkPingChannelId)}</dd></div>
+                            <div><dt>{t("settings.reminders.title")}</dt><dd>{channelName(talkChannels, data.discordServers.talkPingChannelId)}</dd></div>
                             {overlap && (
                                 <div>
-                                    <dt>Auch hier</dt>
-                                    <dd><Badge tone={overlap.tone || undefined} tip="Mitglieder auf beiden Servern" tipSub={overlap.tip}>{overlap.label}</Badge></dd>
+                                    <dt>{t("settings.discordServers.alsoHere")}</dt>
+                                    <dd><Badge tone={overlap.tone || undefined} tip={t("settings.discordServers.overlapTip")} tipSub={overlap.tip}>{overlap.label}</Badge></dd>
                                 </div>
                             )}
                         </dl>
@@ -175,7 +167,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             </div>
             {data.events.length > 0 && (
                 <div className="srv-add-row">
-                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setEditing(true)}>Event-Server hinzufügen</Button>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setEditing(true)}>{t("settings.discordServers.addEvent")}</Button>
                 </div>
             )}
 
@@ -203,7 +195,8 @@ function ServerCard({ card, role, label, onEdit, children }: {
     onEdit: () => void;
     children?: ReactNode;
 }) {
-    const text = ROLE_TEXT[role];
+    const t = useT();
+    const text = roleText(role);
     const state = serverCardState(card, role === "talk");
     const avatar = card && card.iconUrl
         ? <img className="srv-icon" src={card.iconUrl} alt="" />
@@ -213,7 +206,10 @@ function ServerCard({ card, role, label, onEdit, children }: {
     // One status badge under the name, carrying the rights in its tooltip — the
     // card used to say "2 Rechte fehlen" in the head and "3 von 5" again below.
     const stateTip = card && perms
-        ? { tip: card.missing.length ? `Fehlt: ${card.missing.join(", ")}` : `Alle ${perms.length} Rechte vorhanden`, sub: perms.map((p) => `${p.label}: ${p.ok ? "vorhanden" : "fehlt"}`).join("\n") }
+        ? {
+            tip: card.missing.length ? t("settings.discordServers.missingPerms", { list: card.missing.join(", ") }) : t("settings.discordServers.allPerms", { count: perms.length }),
+            sub: perms.map((p) => `${p.label}: ${p.ok ? t("settings.discordServers.permOk") : t("settings.discordServers.permMissing")}`).join("\n"),
+        }
         : { tip: state.label, sub: text.tipSub };
 
     return (
@@ -224,14 +220,14 @@ function ServerCard({ card, role, label, onEdit, children }: {
                     <span className="kicker srv-kicker" tabIndex={0} data-tip={text.tip} data-tip-sub={text.tipSub}>
                         {text.kicker}{label && <span className="srv-label"> · {label}</span>}
                     </span>
-                    <span className="srv-name" data-tip={card ? card.name || card.id : undefined} data-tip-sub={card ? `Server-ID ${card.id}` : undefined}>
-                        {card ? card.name || card.id : role === "talk" ? "Kein zweiter Server" : "Nicht gewählt"}
+                    <span className="srv-name" data-tip={card ? card.name || card.id : undefined} data-tip-sub={card ? t("settings.discordServers.serverId", { id: card.id }) : undefined}>
+                        {card ? card.name || card.id : role === "talk" ? t("settings.state.noSecondServer") : t("settings.discordServers.notChosen")}
                     </span>
                     {card && (
                         <span className="srv-state">
                             <Badge tone={state.tone || undefined} icon={state.tone === "ok" ? <CheckMark /> : state.tone === "mid" ? <WarnIcon /> : undefined}
                                 tip={stateTip.tip} tipSub={stateTip.sub}>
-                                {state.label}{perms && card.missing.length ? ` · ${okCount} von ${perms.length}` : ""}
+                                {state.label}{perms && card.missing.length ? t("settings.discordServers.okOf", { ok: okCount, total: perms.length }) : ""}
                             </Badge>
                         </span>
                     )}
@@ -239,14 +235,14 @@ function ServerCard({ card, role, label, onEdit, children }: {
             </div>
             {card && card.connected && (
                 <dl className="conn-rows">
-                    <div><dt>Mitglieder</dt><dd>{card.memberCount ?? "—"}</dd></div>
+                    <div><dt>{t("settings.discordServers.members")}</dt><dd>{card.memberCount ?? "—"}</dd></div>
                 </dl>
             )}
             {children}
             {!card && (
                 <div className="conn-foot">
-                    <span className="srv-empty grow">{role === "talk" ? "Anmeldung und Pings laufen auf dem Event-Discord." : "Noch kein Event-Discord gewählt."}</span>
-                    <Button size="sm" variant={role === "talk" ? "ghost" : "primary"} onClick={onEdit}>Server wählen</Button>
+                    <span className="srv-empty grow">{role === "talk" ? t("settings.discordServers.talkEmpty") : t("settings.discordServers.eventEmpty")}</span>
+                    <Button size="sm" variant={role === "talk" ? "ghost" : "primary"} onClick={onEdit}>{t("settings.discordServers.choose")}</Button>
                 </div>
             )}
         </section>
@@ -262,41 +258,42 @@ function EventGuildRow({ entry, index, guilds, exclude, onChange, onRemove }: {
     onChange: (next: EventGuildEntry) => void;
     onRemove: () => void;
 }) {
+    const t = useT();
     const targetChannels = guilds.find((g) => g.id === entry.overviewGuildId)?.channels || [];
     return (
         <div className="srv-guild-row">
             <div className="srv-guild-row-head">
                 <div className="dlg-field">
-                    <FieldLabel htmlFor={`srv-eg-${index}`} tip="Event-Discord" tipSub={ROLE_TEXT.event.tipSub}>Server</FieldLabel>
+                    <FieldLabel htmlFor={`srv-eg-${index}`} tip={roleText("event").tip} tipSub={roleText("event").tipSub}>{t("settings.discordServers.server")}</FieldLabel>
                     {guilds.length ? (
                         <select id={`srv-eg-${index}`} value={entry.guildId} onChange={(e) => onChange({ ...entry, guildId: e.target.value })}>
-                            <option value="">— Server wählen —</option>
+                            <option value="">{t("settings.discordServers.chooseOption")}</option>
                             {guildSelectOptions(guilds, entry.guildId, exclude)}
                         </select>
                     ) : (
-                        <input id={`srv-eg-${index}`} type="text" className="mono" value={entry.guildId} placeholder="Discord-Server-ID" onChange={(e) => onChange({ ...entry, guildId: e.target.value })} />
+                        <input id={`srv-eg-${index}`} type="text" className="mono" value={entry.guildId} placeholder={t("settings.discordServers.serverIdPlaceholder")} onChange={(e) => onChange({ ...entry, guildId: e.target.value })} />
                     )}
                 </div>
                 <div className="dlg-field">
-                    <FieldLabel htmlFor={`srv-eg-label-${index}`} tip="Label" tipSub="Kurzer eigener Name, hilfreich sobald mehrere Event-Server laufen.">Label</FieldLabel>
-                    <input id={`srv-eg-label-${index}`} type="text" value={entry.label} placeholder="PvE, PvP, Allianz …" onChange={(e) => onChange({ ...entry, label: e.target.value })} />
+                    <FieldLabel htmlFor={`srv-eg-label-${index}`} tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}>{t("settings.discordServers.label")}</FieldLabel>
+                    <input id={`srv-eg-label-${index}`} type="text" value={entry.label} placeholder={t("settings.discordServers.labelPlaceholder")} onChange={(e) => onChange({ ...entry, label: e.target.value })} />
                 </div>
-                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Event-Server entfernen" onClick={onRemove} />
+                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeEvent")} onClick={onRemove} />
             </div>
             <div className="srv-guild-row-target">
                 <div className="dlg-field">
-                    <FieldLabel htmlFor={`srv-eg-og-${index}`} tip="Raid-Übersicht" tipSub="Wo die Raid-Übersicht dieses Servers gepostet wird — der Kommunikations-Discord, ein anderer Event-Server oder er selbst.">Übersicht auf</FieldLabel>
+                    <FieldLabel htmlFor={`srv-eg-og-${index}`} tip={t("settings.overviewBadge.title")} tipSub={t("settings.discordServers.overviewSub")}>{t("settings.discordServers.overviewOn")}</FieldLabel>
                     {guilds.length ? (
                         <select id={`srv-eg-og-${index}`} value={entry.overviewGuildId} onChange={(e) => onChange({ ...entry, overviewGuildId: e.target.value, overviewChannelId: "" })}>
-                            <option value="">— keine Übersicht —</option>
+                            <option value="">{t("settings.discordServers.noOverview")}</option>
                             {guildSelectOptions(guilds, entry.overviewGuildId, new Set())}
                         </select>
                     ) : (
-                        <input id={`srv-eg-og-${index}`} type="text" className="mono" value={entry.overviewGuildId} placeholder="Discord-Server-ID" onChange={(e) => onChange({ ...entry, overviewGuildId: e.target.value })} />
+                        <input id={`srv-eg-og-${index}`} type="text" className="mono" value={entry.overviewGuildId} placeholder={t("settings.discordServers.serverIdPlaceholder")} onChange={(e) => onChange({ ...entry, overviewGuildId: e.target.value })} />
                     )}
                 </div>
                 <div className="dlg-field">
-                    <FieldLabel htmlFor={`srv-eg-oc-${index}`} tip="Raid-Übersicht: Kanal">Kanal</FieldLabel>
+                    <FieldLabel htmlFor={`srv-eg-oc-${index}`} tip={t("settings.discordServers.channelTip")}>{t("settings.discordServers.channel")}</FieldLabel>
                     <ChannelPicker id={`srv-eg-oc-${index}`} value={entry.overviewChannelId} channels={targetChannels} onChange={(overviewChannelId) => onChange({ ...entry, overviewChannelId })} />
                 </div>
             </div>
@@ -318,6 +315,7 @@ function ServersModal({ data, onClose, onSaved }: {
     });
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
     const guilds = data.guilds;
     const talkChannels = guilds.find((g) => g.id === fields.talkGuildId)?.channels || [];
     const notePicks = noteChannels(guilds, [...fields.eventGuilds.map((e) => e.guildId), fields.talkGuildId]);
@@ -326,7 +324,7 @@ function ServersModal({ data, onClose, onSaved }: {
         setBusy(true);
         try {
             const { config } = await updateSettings(discordServersPatch(fields) as Partial<AdminConfig>);
-            toast("Discord-Server gespeichert.");
+            toast(t("settings.discordServers.saved"));
             onSaved(config);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -349,31 +347,31 @@ function ServersModal({ data, onClose, onSaved }: {
             onClose={onClose}
             icon="inv_letter_15"
             tone="settings"
-            kicker="Verbindung bearbeiten"
-            title="Discord-Server"
+            kicker={t("settings.editKicker")}
+            title={t("settings.sections.discordserver.label")}
             width={640}
             initialFocus="select, input"
             hint={<AdminOnlyBadge />}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={busy}>Abbrechen</Button>
-                    <Button onClick={save} disabled={busy}>{busy ? "Speichert…" : "Speichern"}</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+                    <Button onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 {!guilds.length && (
                     <div className="conn-status mid">
-                        <Badge tone="mid" icon={<WarnIcon />}>Bot offline</Badge>
-                        <span>Ohne Verbindung keine Serverliste — die IDs lassen sich trotzdem eintragen.</span>
+                        <Badge tone="mid" icon={<WarnIcon />}>{t("settings.state.botOffline")}</Badge>
+                        <span>{t("settings.discordServers.offlineText")}</span>
                     </div>
                 )}
 
                 <div className="dlg-field">
-                    <FieldLabel tip="Event-Server" tipSub={ROLE_TEXT.event.tipSub}>Event-Server</FieldLabel>
+                    <FieldLabel tip={t("settings.discordServers.eventServer")} tipSub={roleText("event").tipSub}>{t("settings.discordServers.eventServer")}</FieldLabel>
                 </div>
                 <div className="srv-guild-rows">
-                    {fields.eventGuilds.length === 0 && <div className="srv-empty">Noch kein Event-Server.</div>}
+                    {fields.eventGuilds.length === 0 && <div className="srv-empty">{t("settings.discordServers.noEvent")}</div>}
                     {fields.eventGuilds.map((entry, i) => {
                         const exclude = new Set([
                             ...fields.eventGuilds.filter((_, j) => j !== i).map((e) => e.guildId),
@@ -391,33 +389,33 @@ function ServersModal({ data, onClose, onSaved }: {
                             />
                         );
                     })}
-                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={addRow}>Event-Server hinzufügen</Button>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={addRow}>{t("settings.discordServers.addEvent")}</Button>
                 </div>
 
                 <div className="dlg-field">
-                    <FieldLabel htmlFor="srv-talk" tip={ROLE_TEXT.talk.tip} tipSub={ROLE_TEXT.talk.tipSub}>Kommunikations-Discord</FieldLabel>
+                    <FieldLabel htmlFor="srv-talk" tip={roleText("talk").tip} tipSub={roleText("talk").tipSub}>{t("settings.roleSync.talkDiscord")}</FieldLabel>
                     {guilds.length ? (
                         <select
                             id="srv-talk"
                             value={fields.talkGuildId}
                             onChange={(e) => setFields({ ...fields, talkGuildId: e.target.value, talkPingChannelId: "" })}
                         >
-                            <option value="">— kein zweiter Server —</option>
+                            <option value="">{t("settings.discordServers.noSecondOption")}</option>
                             {guildSelectOptions(guilds, fields.talkGuildId, new Set(fields.eventGuilds.map((e) => e.guildId).filter(Boolean)))}
                         </select>
                     ) : (
-                        <input id="srv-talk" type="text" className="mono" value={fields.talkGuildId} placeholder="Discord-Server-ID" onChange={(e) => setFields({ ...fields, talkGuildId: e.target.value })} />
+                        <input id="srv-talk" type="text" className="mono" value={fields.talkGuildId} placeholder={t("settings.discordServers.serverIdPlaceholder")} onChange={(e) => setFields({ ...fields, talkGuildId: e.target.value })} />
                     )}
                 </div>
                 {fields.talkGuildId && (
                     <div className="dlg-field">
-                        <FieldLabel htmlFor="srv-ping" tip="Erinnerungen & Pings" tipSub="Kanal für Erinnerungen und Pings. Wer nicht auf dem Server ist, bekommt sie als DM.">Erinnerungen &amp; Pings</FieldLabel>
+                        <FieldLabel htmlFor="srv-ping" tip={t("settings.discordServers.pingTip")} tipSub={t("settings.discordServers.pingSub")}>{t("settings.discordServers.pingTip")}</FieldLabel>
                         <ChannelPicker id="srv-ping" value={fields.talkPingChannelId} channels={talkChannels} onChange={(talkPingChannelId) => setFields({ ...fields, talkPingChannelId })} />
                     </div>
                 )}
                 <div className="dlg-field">
-                    <FieldLabel htmlFor="srv-note" tip={NOTE_TIP} tipSub={NOTE_TIP_SUB}>Vielleicht- &amp; Absage-Nachrichten</FieldLabel>
-                    <ChannelPicker id="srv-note" value={fields.signupNoteChannelId} channels={notePicks} placeholder="— nicht posten —"
+                    <FieldLabel htmlFor="srv-note" tip={t("settings.discordServers.noteTip")} tipSub={t("settings.discordServers.noteTipSub")}>{t("settings.discordServers.noteTip")}</FieldLabel>
+                    <ChannelPicker id="srv-note" value={fields.signupNoteChannelId} channels={notePicks} placeholder={t("settings.discordServers.noPost")}
                         onChange={(signupNoteChannelId) => setFields({ ...fields, signupNoteChannelId })} />
                 </div>
             </div>

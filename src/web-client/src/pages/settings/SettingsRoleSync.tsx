@@ -3,7 +3,8 @@ import {
     getRoleSync, updateSettings,
     type AdminConfig, type ApiError, type RoleSyncData, type RoleSyncRule,
 } from "../../api";
-import { DIRECTION_LABEL, DIRECTION_TEXT, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
+import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
+import { t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/Jobs";
 import { PlusIcon, TrashIcon } from "../../components/icons";
 import { Modal, useConfirm } from "../../components/ui/Modal";
@@ -22,10 +23,11 @@ import { FieldLabel } from "../../components/ui/Field";
 // with its fold-out list says who, with a link to the Discord profile, so a
 // person removes it there.
 
-const DIRECTIONS: { value: RoleSyncDirection; label: string; tip: string }[] = [
-    { value: "toTalk", label: "Event → Talk", tip: "Wer die Rolle auf dem Event-Discord hat, bekommt sie auf dem Kommunikations-Discord." },
-    { value: "toEvent", label: "Talk → Event", tip: "Wer die Rolle auf dem Kommunikations-Discord hat, bekommt sie auf dem Event-Discord." },
-    { value: "both", label: "Beide", tip: "In beide Richtungen." },
+/** The options of the direction segment, in the active language. */
+const directions = (): { value: RoleSyncDirection; label: string; tip: string }[] => [
+    { value: "toTalk", label: directionText("toTalk"), tip: translate("settings.roleSync.dirToTalkTip") },
+    { value: "toEvent", label: directionText("toEvent"), tip: translate("settings.roleSync.dirToEventTip") },
+    { value: "both", label: translate("settings.roleSync.dirBoth"), tip: translate("settings.roleSync.dirBothTip") },
 ];
 
 const roleName = (roles: { id: string; name: string }[], id: string) => {
@@ -42,6 +44,7 @@ export default function RoleSyncPart({ onConfig }: {
     const [driftOpen, setDriftOpen] = useState(false);
     const ask = useConfirm();
     const toast = useToast();
+    const t = useT();
 
     const load = () => {
         getRoleSync().then((d) => { setData(d); setError(""); }).catch((err: ApiError) => setError(err.message));
@@ -59,9 +62,9 @@ export default function RoleSyncPart({ onConfig }: {
         if (!data) return;
         const rule = data.roleSync[index];
         const label = `${roleName(data.eventRoles, rule.eventRoleId)} ${DIRECTION_LABEL[rule.direction]} ${roleName(data.talkRoles, rule.talkRoleId)}`;
-        if (!(await ask({ title: `Zuordnung ${label} löschen?`, text: "Vergebene Rollen bleiben, wie sie sind — der Abgleich entfernt nie etwas.", action: "Löschen", tone: "danger" }))) return;
+        if (!(await ask({ title: t("settings.roleSync.deleteAsk", { label }), text: t("settings.roleSync.deleteText"), action: t("common.delete"), tone: "danger" }))) return;
         try {
-            await save(data.roleSync.filter((_, i) => i !== index), "Zuordnung gelöscht.");
+            await save(data.roleSync.filter((_, i) => i !== index), t("settings.roleSync.deleted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -72,22 +75,22 @@ export default function RoleSyncPart({ onConfig }: {
         <PartHead
             icon="inv_misc_groupneedmore"
             tone="settings"
-            title="Rollen-Abgleich"
-            tip="Rollen-Abgleich"
-            tipSub="Ordnet eine Rolle des Event-Discords einer Rolle des Kommunikations-Discords zu. Läuft bei jeder Rollenänderung und alle 10 Minuten. Er vergibt nur und entfernt nie."
+            title={t("settings.roleSync.title")}
+            tip={t("settings.roleSync.title")}
+            tipSub={t("settings.roleSync.tipSub")}
             action={data ? (
                 <span className="sync-actions">
                     {data.roleSync.length > 0 && drift && (
                         <Badge tone={drift.tone || undefined} icon={drift.tone === "mid" ? <WarnIcon /> : undefined} tip={drift.label} tipSub={drift.tip}>{drift.label}</Badge>
                     )}
-                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setEditing(-1)}>Zuordnung</Button>
+                    <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setEditing(-1)}>{t("settings.roleSync.add")}</Button>
                 </span>
             ) : undefined}
         />
     );
 
     if (error) return <section className="sync-part">{head}<div className="empty">{error}</div></section>;
-    if (!data) return <section className="sync-part">{head}<RaidLoader compact text="Rollen werden abgeglichen" /></section>;
+    if (!data) return <section className="sync-part">{head}<RaidLoader compact text={t("settings.roleSync.loading")} /></section>;
 
     // The sides a mapping writes to, and which of them the bot may not touch.
     const needs = new Set(data.roleSync.flatMap((r) => (r.direction === "both" ? ["event", "talk"] : [r.direction === "toTalk" ? "talk" : "event"])));
@@ -98,24 +101,26 @@ export default function RoleSyncPart({ onConfig }: {
             {head}
             {blocked.length > 0 && (
                 <div className="conn-status mid">
-                    <Badge tone="mid" icon={<WarnIcon />}>Recht fehlt</Badge>
+                    <Badge tone="mid" icon={<WarnIcon />}>{t("settings.roleSync.rightMissing")}</Badge>
                     <span>
-                        „Rollen verwalten“ fehlt auf dem {blocked.map((s) => (s === "talk" ? "Kommunikations-Discord" : "Event-Discord")).join(" und dem ")} — dort vergibt der Abgleich nichts.
+                        {t("settings.roleSync.manageMissing", {
+                            servers: blocked.map((s) => t(s === "talk" ? "settings.roleSync.driftTalk" : "settings.roleSync.driftEvent")).join(t("settings.roleSync.serverJoin")),
+                        })}
                     </span>
                 </div>
             )}
             {data.roleSync.length === 0
-                ? <div className="sync-empty">Noch keine Zuordnung. Ohne Zuordnung werden keine Rollen vergeben.</div>
+                ? <div className="sync-empty">{t("settings.roleSync.empty")}</div>
                 : (
                     <ul className="sync-list">
                         {data.roleSync.map((rule, i) => (
                             <li key={`${rule.eventRoleId}:${rule.talkRoleId}`} className="sync-row">
                                 <span className="sync-role">{roleName(data.eventRoles, rule.eventRoleId)}</span>
-                                <span className="sync-dir" data-tip={DIRECTION_TEXT[rule.direction]}>{DIRECTION_LABEL[rule.direction]}</span>
+                                <span className="sync-dir" data-tip={directionText(rule.direction)}>{DIRECTION_LABEL[rule.direction]}</span>
                                 <span className="sync-role">{roleName(data.talkRoles, rule.talkRoleId)}</span>
                                 <span className="grow" />
-                                <IconButton size="sm" icon={<PenIcon />} tip="Zuordnung bearbeiten" onClick={() => setEditing(i)} />
-                                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Zuordnung löschen" onClick={() => remove(i)} />
+                                <IconButton size="sm" icon={<PenIcon />} tip={t("settings.roleSync.edit")} onClick={() => setEditing(i)} />
+                                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.roleSync.delete")} onClick={() => remove(i)} />
                             </li>
                         ))}
                     </ul>
@@ -126,17 +131,19 @@ export default function RoleSyncPart({ onConfig }: {
                         <span className="grow">
                             {data.drift.map((g) => (
                                 <span key={g.ruleIndex} className="sync-drift-line">
-                                    <b>{g.members.length}</b> {g.members.length === 1 ? "Mitglied hat" : "Mitglieder haben"} <b>@{g.roleName}</b> nur noch auf {g.guildName || (g.side === "talk" ? "dem Kommunikations-Discord" : "dem Event-Discord")}
+                                    <b>{g.members.length}</b> {t("settings.roleSync.driftHas", { count: g.members.length })} <b>@{g.roleName}</b> {t("settings.roleSync.driftOnlyOn", {
+                                        where: g.guildName || t(g.side === "talk" ? "settings.roleSync.driftTalk" : "settings.roleSync.driftEvent"),
+                                    })}
                                 </span>
                             ))}
                         </span>
-                        <Expand open={driftOpen} onToggle={() => setDriftOpen(!driftOpen)} label="Wer" />
+                        <Expand open={driftOpen} onToggle={() => setDriftOpen(!driftOpen)} label={t("settings.roleSync.who")} />
                     </div>
                     {driftOpen && (
                         <ul className="sync-drift-list">
                             {data.drift.flatMap((g) => g.members.map((m) => (
                                 <li key={`${g.ruleIndex}:${m.userId}`}>
-                                    <a href={m.profileUrl} target="_blank" rel="noreferrer" data-tip={`@${g.roleName} entfernen`} data-tip-sub={m.notOnSource ? "Nicht mehr auf dem anderen Server. Entfernen in Discord." : `Hat @${g.sourceRoleName} nicht mehr. Entfernen in Discord.`}>{m.name}</a>
+                                    <a href={m.profileUrl} target="_blank" rel="noreferrer" data-tip={t("settings.roleSync.removeTip", { role: g.roleName })} data-tip-sub={m.notOnSource ? t("settings.roleSync.notOnSource") : t("settings.roleSync.lostSource", { role: g.sourceRoleName })}>{m.name}</a>
                                     <span className="sync-muted">@{g.roleName}</span>
                                 </li>
                             )))}
@@ -151,7 +158,7 @@ export default function RoleSyncPart({ onConfig }: {
                     index={editing}
                     onClose={() => setEditing(null)}
                     onSave={async (rule) => {
-                        await save(withRoleRule(data.roleSync, editing, rule), "Zuordnung gespeichert.");
+                        await save(withRoleRule(data.roleSync, editing, rule), t("settings.roleSync.saved"));
                         setEditing(null);
                     }}
                 />
@@ -171,6 +178,7 @@ function RoleRuleModal({ data, index, onClose, onSave }: {
     const [rule, setRule] = useState<RoleSyncRule>(existing || { eventRoleId: "", talkRoleId: "", direction: "toTalk" });
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const submit = async () => {
         setBusy(true);
@@ -189,29 +197,29 @@ function RoleRuleModal({ data, index, onClose, onSave }: {
             onClose={onClose}
             icon="inv_misc_groupneedmore"
             tone="settings"
-            kicker="Rollen-Abgleich"
-            title={existing ? "Zuordnung bearbeiten" : "Zuordnung anlegen"}
+            kicker={t("settings.roleSync.title")}
+            title={existing ? t("settings.roleSync.edit") : t("settings.roleSync.create")}
             width={520}
             initialFocus="select, input"
             hint={<AdminOnlyBadge />}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={busy}>Abbrechen</Button>
-                    <Button onClick={submit} disabled={busy || !rule.eventRoleId || !rule.talkRoleId}>{busy ? "Speichert…" : "Speichern"}</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+                    <Button onClick={submit} disabled={busy || !rule.eventRoleId || !rule.talkRoleId}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 <div className="dlg-field">
-                    <FieldLabel htmlFor="sync-event" tip="Rolle auf dem Event-Discord">Event-Discord</FieldLabel>
+                    <FieldLabel htmlFor="sync-event" tip={t("settings.roleSync.eventTip")}>{t("settings.roleSync.eventDiscord")}</FieldLabel>
                     <RolePicker id="sync-event" value={rule.eventRoleId} roles={data.eventRoles} onChange={(eventRoleId) => setRule({ ...rule, eventRoleId })} />
                 </div>
                 <div className="dlg-field">
-                    <FieldLabel tip="Richtung" tipSub="Der Abgleich vergibt nur. Eine verlorene Rolle bleibt auf der anderen Seite und erscheint als Abweichung.">Richtung</FieldLabel>
-                    <Segment size="sm" ariaLabel="Richtung" options={DIRECTIONS} value={rule.direction} onChange={(direction) => setRule({ ...rule, direction })} />
+                    <FieldLabel tip={t("settings.roleSync.direction")} tipSub={t("settings.roleSync.directionSub")}>{t("settings.roleSync.direction")}</FieldLabel>
+                    <Segment size="sm" ariaLabel={t("settings.roleSync.direction")} options={directions()} value={rule.direction} onChange={(direction) => setRule({ ...rule, direction })} />
                 </div>
                 <div className="dlg-field">
-                    <FieldLabel htmlFor="sync-talk" tip="Rolle auf dem Kommunikations-Discord">Kommunikations-Discord</FieldLabel>
+                    <FieldLabel htmlFor="sync-talk" tip={t("settings.roleSync.talkTip")}>{t("settings.roleSync.talkDiscord")}</FieldLabel>
                     <RolePicker id="sync-talk" value={rule.talkRoleId} roles={data.talkRoles} onChange={(talkRoleId) => setRule({ ...rule, talkRoleId })} />
                 </div>
             </div>

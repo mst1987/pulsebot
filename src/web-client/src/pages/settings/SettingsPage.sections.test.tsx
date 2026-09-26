@@ -8,11 +8,12 @@
 // their own tests; here they are stand-ins that show which panel is open.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
-import { SETTINGS_SECTIONS, visibleSections } from "../../lib/settingsSections";
+import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settingsSections";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -81,7 +82,8 @@ describe("the section column", () => {
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
 
         const labels = within(nav()).getAllByRole("button").map((b) => b.querySelector(".section-nav-text")?.textContent);
-        expect(labels).toEqual(SETTINGS_SECTIONS.map((s) => s.label));
+        expect(labels).toEqual(SETTINGS_SECTIONS.map(sectionLabel));
+        expect(labels[0]).toBe("Berechtigungen");
         for (const group of ["Zugang", "Raid-Kategorien", "Module"]) {
             expect({ group, count: within(nav()).getAllByText(group).length }).toEqual({ group, count: 1 });
         }
@@ -93,8 +95,8 @@ describe("the section column", () => {
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
 
         for (const s of visibleSections(true)) {
-            await user.click(entry(s.label));
-            await waitFor(() => expect(entry(s.label)).toHaveAttribute("aria-current", "true"));
+            await user.click(entry(sectionLabel(s)));
+            await waitFor(() => expect(entry(sectionLabel(s))).toHaveAttribute("aria-current", "true"));
             const panel = container.querySelector(".settings-panel")!;
             expect({ section: s.id, hasPanel: panel.childElementCount > 0 && panel.textContent !== "" }).toEqual({ section: s.id, hasPanel: true });
         }
@@ -105,7 +107,7 @@ describe("the section column", () => {
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
 
         for (const s of SETTINGS_SECTIONS) {
-            expect({ id: s.id, icon: !!entry(s.label).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
+            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         // Bot online, but Battle.net, Warcraft Logs, the AI key and a loot-sync token missing.
         await waitFor(() => expect(within(entry("Verbindungen")).getByText("4")).toHaveAttribute("data-tip", "4 Verbindungen nicht eingerichtet"));
@@ -129,7 +131,7 @@ describe("a limited settings user", () => {
         expect(within(nav()).queryByRole("button", { name: /^Berechtigungen/ })).not.toBeInTheDocument();
         expect(within(nav()).queryByRole("button", { name: /^Discord-Server/ })).not.toBeInTheDocument();
         expect(screen.queryByText("Panel Berechtigungen")).not.toBeInTheDocument();
-        expect(entry(visibleSections(false)[0].label)).toHaveAttribute("aria-current", "true");
+        expect(entry(sectionLabel(visibleSections(false)[0]))).toHaveAttribute("aria-current", "true");
     });
 
     it("sees only the Battle.net card among the connections", async () => {
@@ -214,5 +216,27 @@ describe("the save bar", () => {
             cat1: { url: "", name: "Montag-Sheet" },
             cat2: { url: "https://docs.google.com/b", name: "Mittwoch" },
         });
+    });
+});
+
+describe("in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the page, the sections, the connection cards and the save bar in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+
+        const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+        expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Settings");
+        expect(within(nav).getByRole("button", { name: /^Permissions/ })).toBeInTheDocument();
+        expect(within(nav).getByText("Raid categories")).toBeInTheDocument();
+        expect(await screen.findByText("AI wording")).toBeInTheDocument();
+        expect(screen.getAllByText("Full admins only").length).toBeGreaterThan(0);
+
+        await user.click(within(nav).getByRole("button", { name: /^Raid defaults/ }));
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Default channel" }), "ch1");
+        expect(screen.getByText("1 unsaved change")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
     });
 });
