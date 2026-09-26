@@ -95,6 +95,18 @@ describe("the dictionaries", () => {
         expect(shape).toEqual([]);
     });
 
+    // A German word left in the English file would show up on the English page
+    // without any fallback warning. Proper names that need an umlaut go here.
+    const ENGLISH_UMLAUT_OK = new Set<string>([]);
+
+    it("have no German umlaut in the English texts", () => {
+        const texts = (v: core.FlatDict[string]) => (typeof v === "string" ? [v] : Object.values(v));
+        const german = Object.entries(en)
+            .filter(([k, v]) => !ENGLISH_UMLAUT_OK.has(k) && texts(v).some((s) => /[äöüÄÖÜß]/.test(String(s))))
+            .map(([k]) => k);
+        expect(german).toEqual([]);
+    });
+
     it("name the WoW roles and classes with the game's English terms", async () => {
         await inLang("en", () => {
             expect(["tank", "healer", "melee", "ranged"].map((r) => t(`wow.role.${r}`))).toEqual(["Tank", "Healer", "Melee", "Ranged"]);
