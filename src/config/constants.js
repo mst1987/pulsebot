@@ -14,7 +14,7 @@ const EMBED_ACCENT_COLOR = 0x8a7cff;
 // How long an ephemeral bot reply stays before it is deleted (utils/discord/reply.js).
 const REPLY_DELETE_AFTER_MS = 60000;
 
-// The multi-step /apply flow (utils/applicationState.js): a pending application
+// The multi-step /apply flow (utils/recruitment/applicationState.js): a pending application
 // is dropped after 30 minutes — the modal has to be submitted promptly — and a
 // sweep looks for such leftovers every 5 minutes.
 const APPLICATION_STALE_AFTER_MS = 30 * 60 * 1000;

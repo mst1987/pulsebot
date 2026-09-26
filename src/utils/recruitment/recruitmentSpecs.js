@@ -8,7 +8,7 @@
 // pill state at render time) and client-side (live re-parse on add/remove).
 // Keep every exported function pure and self-contained for that to keep working.
 
-const { ENTRIES } = require("../config/classlist.js");
+const { ENTRIES } = require("../../config/classlist.js");
 
 // One entry per distinct spec (aliases in classlist.js like "Holy1"/"HolyPala"
 // share the same `spec` key and collapse into a single catalog entry).

@@ -18,7 +18,7 @@ const reminders = require("./reminders");
 const roleSync = require("./roleSync");
 const talkOverview = require("./talkOverview");
 const eventSeries = require("./eventSeries");
-const applicationState = require("../utils/applicationState");
+const applicationState = require("../utils/recruitment/applicationState");
 
 const JOBS = [
     // Sweep due raid-sheet copies (deleted a few days after each raid).

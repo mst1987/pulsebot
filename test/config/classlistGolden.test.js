@@ -9,7 +9,7 @@ const classlist = require("../../src/config/classlist");
 const setupView = require("../../src/utils/setupView");
 const reply = require("../../src/utils/discord/reply");
 const format = require("../../src/utils/format");
-const recruitment = require("../../src/utils/recruitmentSpecs");
+const recruitment = require("../../src/utils/recruitment/recruitmentSpecs");
 const fillSetup = require("../../src/utils/fillSetup");
 const { specKeyFromRaidHelper } = require("../../src/web/eventSources");
 

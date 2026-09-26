@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const {
     SPEC_CATALOG, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine, specsInContent,
-} = require("../../src/utils/recruitmentSpecs.js");
+} = require("../../../src/utils/recruitment/recruitmentSpecs.js");
 
 // A real recruitment message body (anonymized IDs), used as the reference
 // shape the parser must handle: a "## Gesucht" heading, free text, then a
@@ -177,7 +177,7 @@ describe("utils/recruitmentSpecs", () => {
         });
 
         it("has a client twin with the same name", () => {
-            const twin = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "recruitmentSpecs.ts"), "utf8");
+            const twin = fs.readFileSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "lib", "recruitmentSpecs.ts"), "utf8");
             expect(twin).toContain("export function specsInContent(");
             expect(twin).toContain(".filter((e) => e.spec)");
         });

@@ -1,4 +1,4 @@
-const applicationState = require("../../src/utils/applicationState.js");
+const applicationState = require("../../../src/utils/recruitment/applicationState.js");
 const { pendingApplications, sweepStaleApplications } = applicationState;
 
 describe("utils/applicationState", () => {

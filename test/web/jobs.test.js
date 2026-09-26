@@ -16,7 +16,7 @@ jest.mock("../../src/web/reminders", () => mockJob("startReminders", "stopRemind
 jest.mock("../../src/web/roleSync", () => mockJob("startRoleSync", "stopRoleSync"));
 jest.mock("../../src/web/talkOverview", () => mockJob("startTalkOverview", "stopTalkOverview"));
 jest.mock("../../src/web/eventSeries", () => mockJob("startEventSeries", "stopEventSeries"));
-jest.mock("../../src/utils/applicationState", () => mockJob("start", "stop"));
+jest.mock("../../src/utils/recruitment/applicationState", () => mockJob("start", "stop"));
 
 const discord = require("../../src/web/discord");
 const { startJobs, stopJobs, JOBS } = require("../../src/web/jobs");
