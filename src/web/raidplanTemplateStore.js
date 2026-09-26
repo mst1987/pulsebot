@@ -12,8 +12,8 @@
 // changing or deleting it later never reaches a plan that already exists. Its own
 // room maps live beside the default ones (raidplanStore, key t/<id>/<boss>) and
 // go away with it.
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { instanceById } = require("../config/gameVersions");
 const board = require("./raidplanBoard");
 const planStore = require("./raidplanStore");
@@ -22,29 +22,25 @@ const inherit = require("./raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake, newId } = require("../utils/ids");
 
-const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-templates.json");
+const DEFAULT_FILE = settingsPath("raidplan-templates.json");
 const LIMITS = { templates: 100, name: 40, category: 30, description: 200 };
 
-let templateFile = DEFAULT_FILE;
 
-/** Tests point the store at a file of their own. */
-function useFile(file) {
-    templateFile = file || DEFAULT_FILE;
-}
+const store = createJsonStore({
+    file: DEFAULT_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.templates) ? data.templates : []),
+});
 
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(templateFile, "utf8"));
-        return Array.isArray(data.templates) ? data.templates : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(templates) {
-    fs.mkdirSync(path.dirname(templateFile), { recursive: true });
-    fs.writeFileSync(templateFile, JSON.stringify({ templates }, null, 2));
+    store.write({ templates });
 }
 
 function normalize(raw) {

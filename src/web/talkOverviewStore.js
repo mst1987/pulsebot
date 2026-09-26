@@ -7,25 +7,27 @@
 // every sync, and a PATCH of the settings page must never race it (or bring
 // an old message id back).
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
-let file = path.join(__dirname, "..", "..", "data", "settings", "talk-overview.json");
 
 const EMPTY = { channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "" };
 
+const store = createJsonStore({
+    file: settingsPath("talk-overview.json"),
+    defaults: () => ({}),
+    normalize: (data) => (data && typeof data === "object" && !Array.isArray(data) ? data : {}),
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
+
 function readFile() {
-    try {
-        const data = JSON.parse(fs.readFileSync(file, "utf8"));
-        return data && typeof data === "object" && !Array.isArray(data) ? data : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeFile(data) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    store.write(data);
 }
 
 // The old shape (before several event servers existed) had these fields at
@@ -56,9 +58,4 @@ function setOverviewState(guildId, patch) {
     return next[guildId];
 }
 
-/** Test-only: point the store at another file. */
-function _setFileForTests(next) {
-    file = next;
-}
-
-module.exports = { getOverviewState, setOverviewState, _setFileForTests };
+module.exports = { getOverviewState, setOverviewState, useFile };

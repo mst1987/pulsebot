@@ -13,37 +13,33 @@
 //   notes     the note the board gets when the profile is applied
 // Nothing is shipped: no boss mechanics are invented here, the orga writes the
 // profiles.
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { isMapKey } = require("./raidplanStore");
 const stepsOf = require("./raidplanSteps");
 const { str } = require("../utils/text");
 const { newId } = require("../utils/ids");
 
-const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-profiles.json");
+const DEFAULT_FILE = settingsPath("raidplan-profiles.json");
 
 const LIMITS = { profiles: 200, name: 40, category: 30, title: 80, targets: 30, notes: 1000 };
 
-let profileFile = DEFAULT_FILE;
 
-/** Tests point the store at a file of their own. */
-function useFile(file) {
-    profileFile = file || DEFAULT_FILE;
-}
+const store = createJsonStore({
+    file: DEFAULT_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.profiles) ? data.profiles : []),
+});
 
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(profileFile, "utf8"));
-        return Array.isArray(data.profiles) ? data.profiles : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(profiles) {
-    fs.mkdirSync(path.dirname(profileFile), { recursive: true });
-    fs.writeFileSync(profileFile, JSON.stringify({ profiles }, null, 2));
+    store.write({ profiles });
 }
 
 /** A profile as stored: every field present, texts cut to their limits. */

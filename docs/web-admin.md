@@ -26,6 +26,16 @@ Es gibt **eine** Liste aller `/api/*`-Routen, und sie steht bei den Handlern: je
 - **Query und Body lesen:** `q.str / q.int / q.bool / q.snowflake` aus `src/web/apiParams.js` (`q.str(query, "event")`, `q.str(body, "reportId")`) statt `String(body.x || "").trim()`; `cla.js`, `raidDetail.js` und `eventManage.js` machen es vor.
 - **Tests:** `test/web/routeTable.test.js` (Tabelle vollständig, Golden-Master der Dispatch-Liste), `test/web/apiRouter.test.js` (Dispatch, 404/405, AppError), `test/web/apiHandler.test.js` (401/403/CSRF/Body), `test/web/apiResult.test.js`, `test/web/apiParams.test.js`.
 
+## Stores (`src/web/jsonStore.js`, `src/config/paths.js`, #419)
+
+Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und alle gehen dafür über **eine** Basis statt eigener `readAll`/`writeAll`-Kopien.
+
+- **`DATA_DIR`** kommt aus `src/config/paths.js`: `<repo>/data`, oder `EVENTHELPER_DATA_DIR`, wenn gesetzt (Docker-Volume, zweite Instanz mit eigenen Daten; ein relativer Wert gilt ab Repo-Wurzel). Pfade immer über `dataPath(...)` bzw. `settingsPath(name)` bauen, nie selbst per `__dirname` + `"data"`.
+- **`createJsonStore({ file, defaults, normalize, cache, space })`** liefert `read()`, `write(value)`, `update(fn)`, `remove()`, `ensureDir()` und `useFile()`. `read()` gibt `normalize(Datei)` zurück; fehlt die Datei, ist sie kein JSON oder wirft `normalize`, gibt es `defaults`. Ein Store behält seine öffentlichen Funktionen und reicht intern nur durch (`readAll = () => store.read()`, `writeAll = (events) => store.write({ events })`).
+- **Geschrieben wird atomar**: erst eine versteckte Temp-Datei im selben Verzeichnis (`.<name>.<pid>.<id>.tmp`), dann `renameSync` darüber. Ein Absturz oder eine volle Platte mitten im Schreiben lässt die alte Datei heil, statt eine halbe zu hinterlassen, die der nächste Start als „leer“ liest. Windows verweigert das Umbenennen kurz, solange ein anderer Prozess (Virenscanner, Editor) die Datei offen hält: `EPERM`/`EACCES`/`EBUSY` werden bis zu fünfmal wiederholt. Für Stores mit einer Datei je Datensatz (`reportStore`) gibt es `writeJsonAtomic`/`readJsonFile` einzeln.
+- **`cache: true`** merkt sich den normalisierten Wert und liest die Datei erst wieder, wenn sich `mtime`, Größe oder Inode ändern (auch eine Änderung von Hand zählt); jeder Aufruf bekommt eine Kopie, eine Änderung am Ergebnis landet also nie im Cache. Eingeschaltet für `config.json` (`getConfig()`, fast jeder Request) — die Normalisierung in `getConfig()` läuft weiterhin bei jedem Aufruf.
+- **Tests**: `store.useFile(tempStoreFile("x.json"))` richtet einen Store auf eine eigene Datei, `useFile(null)` zurück auf die Vorgabe — das ist der eine Hook (früher gab es daneben `_setFileForTests`). Wer gar nicht auf die Platte will, mockt `fs` mit `test/helpers/memoryFs.js` (`jest.mock("fs", () => require("../helpers/memoryFs").memoryFs())`); der kennt auch `renameSync` und `statSync`, die das atomare Schreiben und der Cache brauchen.
+
 ## Welcher Stand läuft (`src/web/version.js`, `src/web/deployStatus.js`, #314)
 
 Acht PRs (#292–#313) galten als fertig, während das Deployment bei jedem Merge still scheiterte (`missing server host`) — nichts im Menü hätte es verraten. Seitdem sagt der Bot selbst, auf welchem Commit er läuft.

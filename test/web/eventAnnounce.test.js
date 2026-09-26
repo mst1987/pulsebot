@@ -1,18 +1,7 @@
 // "Beim Anlegen ankündigen" (#306): ein neues eigenes Event pingt einmal die
 // Raider-Rolle seiner Kategorie — über pingDelivery (#264), nicht über einen
 // zweiten Weg. Der Store läuft echt auf einem In-Memory-fs, Discord ist Mock.
-jest.mock("fs", () => {
-    const store = new Map();
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => store.set(p, String(data))),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw new Error("ENOENT");
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 jest.mock("../../src/web/pingDelivery", () => ({
     normalizePingTarget: jest.requireActual("../../src/web/pingDelivery").normalizePingTarget,
     deliverAnnouncement: jest.fn(async ({ target }) => ({ target, event: { messageId: "m1" }, talk: null, mentioned: 0, dm: null })),

@@ -37,6 +37,13 @@ jest.mock("fs", () => {
             store.delete(p);
             mtimes.delete(p);
         }),
+        // saveReport writes atomically: a temporary file, then renamed over the real one
+        renameSync: jest.fn((from, to) => {
+            if (!store.has(from)) throw enoent(from);
+            write(to, store.get(from));
+            store.delete(from);
+            mtimes.delete(from);
+        }),
         readdirSync: jest.fn(() =>
             [...store.keys()].map((p) => p.split(/[\\/]/).pop())
         ),
