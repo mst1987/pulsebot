@@ -22,7 +22,7 @@ const COMPASS_ARROWS = ["\u2191", "\u2197", "\u2192", "\u2198", "\u2193", "\u219
 
 /**
  * What a selection of several objects shares: the count, the opacity (a mixed value says "gemischt"), lock and hide, the
- * size in steps, aligning, and the actions - plus every option ALL of them have (lib/multiSelect.ts sharedOptions): ring, name, colour,
+ * size in steps, aligning, and the actions - plus every option ALL of them have (lib/raidplan/multiSelect.ts sharedOptions): ring, name, colour,
  * and for boss / mob icons the facing target and the arrow. A value all agree on is shown, else "gemischt"; a change goes to every one of
  * them and is one undo step. Nothing single is shown.
  */

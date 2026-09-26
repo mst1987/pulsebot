@@ -1,4 +1,4 @@
-// The row dialog "Variante B" (lib/assignModal.ts) and the row container (lib/assignLine.ts), run for real: categories per slot, the
+// The row dialog "Variante B" (lib/raidplan/assignModal.ts) and the row container (lib/raidplan/assignLine.ts), run for real: categories per slot, the
 // people list (slots and players in ONE list, grouped tank / healer / DPS, search and filter), the counters, the class counts, the
 // preview lines, the row states and the card counter.
 import { describe, expect, it } from "vitest";

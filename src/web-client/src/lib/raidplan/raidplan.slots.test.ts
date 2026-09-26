@@ -1,6 +1,6 @@
 // Role slots and the Besetzung: players in slots, melee/ranged, the palette,
 // mending slots, a board's numbers in an event and the sheet's sections.
-// The board logic behind the editors (lib/raidplan.ts) runs for real.
+// The board logic behind the editors (lib/raidplan/) runs for real.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 import { inLang } from "../../test/i18n";

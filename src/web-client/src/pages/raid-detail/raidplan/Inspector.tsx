@@ -409,7 +409,7 @@ export function MapOpacityField({ board, canWrite, edit }: { board: RaidplanBoar
     );
 }
 
-/** Whether the board hides this object's name by itself because the icon is too small on screen to carry it (lib/labelScale.ts); `width` = the board's width on screen in px. */
+/** Whether the board hides this object's name by itself because the icon is too small on screen to carry it (lib/raidplan/labelScale.ts); `width` = the board's width on screen in px. */
 function nameTooSmall(board: RaidplanBoard, kind: string, id: string, width: number): boolean {
     if (!(width > 0)) return false;
     const size = sizeOf(board, kind as ObjectKind, id);

@@ -3,7 +3,7 @@ import { get, send, sendRaw } from "./client";
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
-/** What the orga changed about an object the tank rows put on the map (lib/autoPlace.ts); missing = the default. */
+/** What the orga changed about an object the tank rows put on the map (lib/raidplan/autoPlace.ts); missing = the default. */
 export type RaidplanAutoStyle = { arrowScale?: number; arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number; size?: number; opacity?: number; ring?: boolean; showName?: boolean; label?: string; showLabel?: boolean; rotation?: number; autoFace?: boolean; hidden?: boolean; lock?: boolean; z?: number };
 export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean; /** false = no ring / border round it (missing = shown) */ ring?: boolean; /** false = no name label at this object (missing = shown) */ showName?: boolean };
 export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
@@ -41,7 +41,7 @@ export type RaidplanBoard = {
     steps?: RaidplanStep[];
     /** false = this boss / trash section is shown without its map (the objects stay stored) */
     showMap?: boolean;
-    /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/autoPlace.ts) */
+    /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/raidplan/autoPlace.ts) */
     autoPlace?: boolean;
     /** where an auto-placed object was moved to by hand, by its key ("t:<row>:<n>" / "m:<mob>#<n>") */
     autoPos?: Record<string, { x: number; y: number }>;

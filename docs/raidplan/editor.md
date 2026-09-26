@@ -5,7 +5,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 
 ## Layout, flyout pickers, cards, chips (Sept 2026)
 
-- **Group markers are always recognisable** (`groupTag` / `ringCover` in `lib/raidplan/index.ts`, `PlanBoard.tsx`).
+- **Group markers are always recognisable** (`groupTag` / `ringCover` in `lib/raidplan/labels.ts`, `PlanBoard.tsx`).
   Cause of the bug: a split group draws its raiders as free tokens and the marker's tag was only drawn with a
   typed label, a name list or in the editor — so in the read view (and whenever the label was empty) a split
   group had neither tag nor any sign which tokens belong together. Now the tag (group icon + number chip; the
@@ -78,7 +78,7 @@ dialogs are for the rare things (sharing, the template picker, managing tactic p
 
 - **Sticky tool bar** (icons with a tooltip and an `aria-label`, lucide): undo / redo (Ctrl+Z, Ctrl+Y /
   Ctrl+Shift+Z; one history over all bosses, a drag or a run of keystrokes is one step — `useDraftHistory`,
-  pure logic `historyRecord/Undo/Redo` in `lib/raidplan/index.ts`), quick inserts, fold-away toggles for the palette
+  pure logic `historyRecord/Undo/Redo` in `lib/raidplan/model.ts`), quick inserts, fold-away toggles for the palette
   and the panel (for a bigger board), the state ("Gespeichert" / "Ungespeichert", published, open slots,
   template) and the page's actions as icons (template, share, save).
 - **Palette (left):** the eight raid marks, the slots (tank, healer, melee, ranged, dps, group, label),
@@ -391,7 +391,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
 - **Own place leaves the group view.** A raider of a group marker who has a place of his own on the board (a
   free token, or a role slot that stands ON the map; a slot only in the Besetzung bar does not count) is not
   shown a second time in his group: `ownPlaceIds` / `splitMembers` (ring) / `groupListMembers` (name list of a
-  non-split group) in `lib/raidplan/index.ts`. The ring lays out only the remaining members (no gap), the name list
+  non-split group) in `lib/raidplan/players.ts`. The ring lays out only the remaining members (no gap), the name list
   drops him. Removing the token (Entf, "Spieler loesen") or moving the slot back to the bar returns him. A
   member moved inside the ring (offset override) stays in the ring on purpose.
 - **Manual take-out.** Context menu of a ring member: "Aus Gruppe herausnehmen" (`takeOutOfGroup`: a free

@@ -42,7 +42,7 @@ export const DEFAULT_TEXT_COLOR = "#f8fafc";
 
 const MAX_HISTORY = 100;
 
-/** The kinds of board objects one can select, move and delete; "auto" = one the tank rows put on the map (lib/autoPlace.ts), id = its key. */
+/** The kinds of board objects one can select, move and delete; "auto" = one the tank rows put on the map (lib/raidplan/autoPlace.ts), id = its key. */
 export type ObjectKind = "token" | "slot" | "mark" | "icon" | "zone" | "line" | "text" | "member" | "auto";
 
 export type Selection = { kind: ObjectKind; id: string } | null;

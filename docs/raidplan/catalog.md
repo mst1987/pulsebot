@@ -41,7 +41,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   creature** for a compact one (infernal, elemental, fiend); it is scaled to 64 px and stored as
   `src/web-client/public/mobs/<npcId>.png` (about 8 KB each, 350 KB in all). The icon key is `mob:<npcId>`
   (validated everywhere `boss:<id>` is: catalog, assignment snapshots, board icons and mobs; client
-  `portraitUrl` in `lib/raidplan/index.ts`). The JSON records per portrait the NPC id, the page's name, the display
+  `portraitUrl` in `lib/raidplan/facing.ts`). The JSON records per portrait the NPC id, the page's name, the display
   id, the crop and the request check (200, image/png). Only the mobs without a portrait stay
   "Platzhalter-Icon": **Doomfire Spirit, Towering Infernal, Giant Infernal** (their Wowhead pages name no
   display, so there is no render). Not used: the Encounter Journal images
@@ -169,7 +169,7 @@ a verb is a step.
   `class:Any:<n>:<role>`) plus `group:<n>`; `sentence` free text (160 characters); `targets` a mob (id +
   snapshot of name / icon), a zone of the map by name (`{ kind: "zone", ref: "Arena" }`), a raid mark or a
   group; `timing` `{ kind: "" | pull | phase | hp | interval | now | text, from, to, text }` (phase 1-9,
-  health 1-100 with an optional lower end, interval 1-600 s, a free word; `lib/steps.timingLabel`: "Pull",
+  health 1-100 with an optional lower end, interval 1-600 s, a free word; `lib/raidplan/steps.timingLabel`: "Pull",
   "Phase 2", "bei 30 %", "50 → 30 %", "Pull → 30 %", "alle 30 s", "sofort"). `cleanSteps` (part of
   `cleanBoard`, every save) turns an unknown action into "note", drops unknown references (a player outside
   the lineup, any player in a template or a library tactic), cuts texts, clamps numbers and drops a step

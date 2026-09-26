@@ -1,4 +1,4 @@
-// Where the visitor's characters are named in words (lib/mention.ts).
+// Where the visitor's characters are named in words (lib/raidplan/mention.ts).
 import { describe, expect, it } from "vitest";
 import * as m from "./mention";
 

@@ -132,7 +132,7 @@ type BoardProps = {
     maxHeight?: number;
     /** Shown on the grid when there is no map. */
     emptyText?: string;
-    /** what the tank rows put on the map (lib/autoPlace.ts): the mobs and tanks nobody placed by hand */
+    /** what the tank rows put on the map (lib/raidplan/autoPlace.ts): the mobs and tanks nobody placed by hand */
     auto?: AutoPlan;
 };
 
@@ -207,14 +207,14 @@ export default function PlanBoard({
     } : {});
     const ar = aspect || 16 / 10;
     // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
-    // board's real width, so editor, template preview and read view look the same at any size (see lib/boardScale.ts)
+    // board's real width, so editor, template preview and read view look the same at any size (see lib/raidplan/boardScale.ts)
     const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
     const canvas = canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy) as CSSProperties;
     const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
-    // the name label follows the icon (lib/labelScale.ts): its font is set here in reference units, and it is hidden when legibility would blow it up
+    // the name label follows the icon (lib/raidplan/labelScale.ts): its font is set here in reference units, and it is hidden when legibility would blow it up
     const screenScale = boardScale(outer.w) * view.z;
     const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
     const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
@@ -247,7 +247,7 @@ export default function PlanBoard({
         }
     }
     const boardLike = { tokens, slots, icons, assignments: assignments || [], places } as unknown as RaidplanBoard;
-    /** An icon's facing: the tank rows' tank of its mob when they know it (auto placement), else the older rule (lib/assign.ts facingOf). */
+    /** An icon's facing: the tank rows' tank of its mob when they know it (auto placement), else the older rule (lib/raidplan/assign.ts facingOf). */
     const faceOf = (i: { id: string; x: number; y: number; rotation: number; autoFace?: boolean; mobId?: string; iconKey?: string }) => {
         if (auto && i.autoFace !== false) {
             const a = autoFacing(auto, i.id, i, boardLike, places, ar);
@@ -279,7 +279,7 @@ export default function PlanBoard({
         const box = turnedBox(zw, zh, deg, z.shape);
         const inner = uprightInner(zw, zh, deg, z.shape);
         const iconScale = z.iconScale && z.iconScale > 0 ? z.iconScale : 1;
-        // everything of the placeholder is a share of the zone (lib/raidplan.ts): it scales as one piece, never distorted
+        // everything of the placeholder is a share of the zone (lib/raidplan/): it scales as one piece, never distorted
         const m = roleZoneMetrics(inner.w, inner.h, cluster, z.count || 0);
         const members = z.showNames ? roster.filter((p) => (role === "dps" ? p.role !== "tank" && p.role !== "healer" : p.role === role)) : [];
         // the names INSIDE the zone, packed in lines; what does not fit is one "+N" chip (all names in its tooltip); too small on screen = not shown
@@ -502,10 +502,10 @@ export default function PlanBoard({
                     const { gs, sp, ts } = groupScales(s);
                     const memberBase = scaled(s.size, SIZE_RANGES.member.def);
                     const memberPx = memberBase * gs * ts;
-                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan.ts ringUnit)
+                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan/labels.ts ringUnit)
                     const spacePx = ringUnit(memberBase * gs * sp, memberPx);
                     const spread = gs * sp;
-                    // a name under a ring member is never wider than the room to its neighbour (lib/raidplan.ts ringNameWidth): a long one ends in "…"
+                    // a name under a ring member is never wider than the room to its neighbour (lib/raidplan/labels.ts ringNameWidth): a long one ends in "…"
                     const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);
                     const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, "--rp-nw": `${Math.round(nameRoom)}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)) }) as CSSProperties;
                     const gcol = groupColor(groupColors, s.n);

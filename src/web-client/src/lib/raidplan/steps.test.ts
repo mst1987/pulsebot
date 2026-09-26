@@ -1,4 +1,4 @@
-// The tactic in the client (lib/steps.ts), run for real: editing and sorting the steps, the timing words, the sentence with its targets,
+// The tactic in the client (lib/raidplan/steps.ts), run for real: editing and sorting the steps, the timing words, the sentence with its targets,
 // the "du" form, the @ mentions, the resolution of a step, the library, the starters.
 import { describe, expect, it } from "vitest";
 import * as st from "./steps";

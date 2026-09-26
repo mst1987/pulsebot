@@ -1,4 +1,4 @@
-// The assignments' client logic (lib/assign.ts): resolving references, the multi-select edits,
+// The assignments' client logic (lib/raidplan/assign.ts): resolving references, the multi-select edits,
 // which types a board offers, suggestions merged in, the map lines, "is this row mine".
 import { describe, expect, it } from "vitest";
 import * as lib from "./assign";

@@ -10,7 +10,7 @@ import { clamp01, newLook, SIZE_RANGES } from "./model";
  * placed: false, does not count). A member of a group who is in here is not shown again in his group (ring or name list).
  */
 export function ownPlaceIds(board: RaidplanBoard): Set<string> {
-    // a raider the tank rows put on the map (lib/autoPlace.ts) has a place of his own too
+    // a raider the tank rows put on the map (lib/raidplan/autoPlace.ts) has a place of his own too
     const ids = new Set([...board.tokens.map((x) => x.userId), ...(board.autoUsers || [])]);
     for (const s of board.slots) if (s.userId && s.placed !== false) ids.add(s.userId);
     return ids;

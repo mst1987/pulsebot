@@ -1,4 +1,4 @@
-// The auto facing of a boss / mob icon towards its tank (lib/assign.ts facingOf): from the effective rows, never a jump, one pure function.
+// The auto facing of a boss / mob icon towards its tank (lib/raidplan/assign.ts facingOf): from the effective rows, never a jump, one pure function.
 import { describe, expect, it } from "vitest";
 import * as assign from "./assign";
 

@@ -1,6 +1,6 @@
 // Two more things of feature/raidplan-13 (docs/raidplan.md): the inspector of a multi-selection shows every option ALL selected objects
-// have (lib/multiSelect.ts sharedOptions / optionSummary and the setters), and the editor opens a board with the cutout the sheet opens
-// it with (lib/boardView.ts; BoardWorkspace applies board.view like PlanPublicPage).
+// have (lib/raidplan/multiSelect.ts sharedOptions / optionSummary and the setters), and the editor opens a board with the cutout the sheet opens
+// it with (lib/raidplan/boardView.ts; BoardWorkspace applies board.view like PlanPublicPage).
 import { describe, expect, it } from "vitest";
 import * as ms from "./multiSelect";
 import * as bv from "./boardView";

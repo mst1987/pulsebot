@@ -1,4 +1,4 @@
-// The map height (S/M/L + splitter, remembered) and the class order of a row's pickers (lib/raidplan.ts, lib/assign.ts).
+// The map height (S/M/L + splitter, remembered) and the class order of a row's pickers (lib/raidplan/, lib/raidplan/assign.ts).
 import { describe, expect, it } from "vitest";
 import * as raidplan from ".";
 import * as assign from "./assign";

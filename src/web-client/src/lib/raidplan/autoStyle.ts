@@ -2,7 +2,7 @@ import type { RaidplanBoard, RaidplanAutoStyle } from "../../api";
 import { ARROW_COLOR, ARROW_MAX, ARROW_MIN, clampOpacity, type ObjectKind, SIZE_RANGES } from "./model";
 import { isLocked } from "./objects";
 
-// ---- objects the tank rows put on the map (lib/autoPlace.ts): only what differs is stored, by their key ----
+// ---- objects the tank rows put on the map (lib/raidplan/autoPlace.ts): only what differs is stored, by their key ----
 
 /** The size range of an auto object: a tank is a token, a mob an icon. */
 export function autoRange(key: string): { def: number; min: number; max: number } {

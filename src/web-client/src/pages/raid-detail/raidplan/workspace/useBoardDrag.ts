@@ -76,7 +76,7 @@ export function useBoardDrag({ board, boardNow, edit, canWrite, multi, selectMod
                     const ratio = d.rect0.h / d.rect0.w;
                     dy = (d.handle === "nw" || d.handle === "se" ? 1 : -1) * dx * ratio;
                 }
-                // a turned role group: its grips work along its own axes, the opposite side stays where it is (lib/raidplan.ts resizeTurned)
+                // a turned role group: its grips work along its own axes, the opposite side stays where it is (lib/raidplan/roleGroups.ts resizeTurned)
                 const turned = d.handle ? (board.zones.find((z) => z.id === d.id) || { rotation: 0 }).rotation || 0 : 0;
                 const bp = boardPx();
                 const r = d.handle ? (turned ? resizeTurned(d.rect0, d.handle as ZoneGrip, dx * bp.w, dy * bp.h, turned, bp.w, bp.h) : resizeRect(d.rect0, d.handle as ZoneGrip, dx, dy)) : moveRect(d.rect0, dx, dy);

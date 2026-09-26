@@ -1,4 +1,4 @@
-// The room map's client-side shrinking (lib/mapImage.ts): when to shrink, to what size,
+// The room map's client-side shrinking (lib/raidplan/mapImage.ts): when to shrink, to what size,
 // which encoder settings are tried in which order, and the text shown.
 // The texts and the wiring are checked by source in test/web-client/mapImage.test.js.
 import { describe, expect, it } from "vitest";

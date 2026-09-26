@@ -1,4 +1,4 @@
-// A class as who does a task or at whom (lib/classRefs.ts): resolved from the setup, never a stranger, hand-made choices stay.
+// A class as who does a task or at whom (lib/raidplan/classRefs.ts): resolved from the setup, never a stranger, hand-made choices stay.
 import { describe, expect, it } from "vitest";
 import * as cr from "./classRefs";
 import * as assign from "./assign";

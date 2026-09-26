@@ -1,4 +1,4 @@
-// What dropping a chip of the Besetzung does (lib/raidplan.ts dropChip): the same reducer the workspace calls.
+// What dropping a chip of the Besetzung does (lib/raidplan/besetzung.ts dropChip): the same reducer the workspace calls.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 

@@ -1,4 +1,4 @@
-// The ring round a split group can be switched off: per group, per board, and for a selection of groups (lib/raidplan.ts, lib/multiSelect.ts).
+// The ring round a split group can be switched off: per group, per board, and for a selection of groups (lib/raidplan/, lib/raidplan/multiSelect.ts).
 import { describe, expect, it } from "vitest";
 import * as raidplan from ".";
 import * as ms from "./multiSelect";

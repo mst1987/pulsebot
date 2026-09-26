@@ -135,7 +135,7 @@ export default function BoardWorkspace({
     const inherited = useMemo(() => (defaultRows && !noBoard ? inheritedRows(defaultRows, board.inheritOff, { bossMob: scope === "boss" ? mobs.find((m) => m.id.indexOf("b:") === 0) || null : null, mobs }) : []), [defaultRows, noBoard, board.inheritOff, mobs, scope]);
     // the EFFECTIVE rows of the section: its own and the ones it inherits from the Standard, class references resolved - what the lines and the facing of icons follow
     const filledRows = useMemo(() => expandClassRefs([...board.assignments, ...inherited], board.slots, roster, board.roles), [board.assignments, inherited, board.slots, board.roles, roster]);
-    // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/autoPlace.ts); nothing without a map
+    // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/raidplan/autoPlace.ts); nothing without a map
     const auto = useMemo(() => (noMap ? NO_AUTO : deriveAuto(filledRows, board, { template: !isEvent, roster })), [noMap, filledRows, board, isEvent, roster]);
     // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
     const missing = useMemo(() => unplaced(roster, { ...board, autoUsers: auto.users }), [roster, board, auto]);

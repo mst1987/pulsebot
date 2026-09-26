@@ -1,4 +1,4 @@
-// Which section the plan, the template editor and the sheet open on (lib/raidplan.ts startSection), the section remembered per plan,
+// Which section the plan, the template editor and the sheet open on (lib/raidplan/model.ts startSection), the section remembered per plan,
 // and the switch that plans a boss / trash section without its map (components wiring in BoardWorkspace / PlanPublicPage).
 import { describe, expect, it, vi } from "vitest";
 import * as lib from ".";

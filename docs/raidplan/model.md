@@ -19,7 +19,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Template admin page (`/raids/plan-templates`) | `src/web-client/src/pages/RaidplanTemplatesPage.tsx` |
 | Board, token, slot, zone, player icon (both editors and the read view) | `src/web-client/src/components/raidplan/PlanBoard.tsx`, `MarkIcon.tsx` |
 | Read view | `src/web-client/src/pages/PlanPublicPage.tsx`, route `/p/<token>` |
-| Pure board logic | `src/web-client/src/lib/raidplan/index.ts` |
+| Pure board logic | `src/web-client/src/lib/raidplan/` (one import, `index.ts`, over the topic files `model`, `players`, `objects`, `geometry`, `labels`, `besetzung` …; the other raid plan libs such as `assign.ts`, `autoPlace.ts`, `steps.ts` sit beside them) |
 | Styles (prefix `rp-`) / texts | `styles/raidplan.css` / `i18n/locales/{de,en}/raidBoard.json` |
 
 An **own event** always has a raid plan; its players come from the event's setup. A **Raid-Helper event** has
@@ -73,7 +73,7 @@ upright; a small wedge on the rim shows the facing (only the wedge turns, never 
 name stays square and has no facing. Turning: the round handle above the selected icon (drag around the
 centre, Shift = 15° steps), the "Blickrichtung" field (0–359) and eight compass buttons in the inspector, the
 eight "Blick nach …" entries of the right-click menu, and Q / E (15°, with Shift 45°). Pure maths
-(`normAngle`, `angleTo`, `snapAngle`, `compassName`, `turnIcon`) is in `lib/raidplan/index.ts`.
+(`normAngle`, `angleTo`, `snapAngle`, `compassName`, `turnIcon`) is in `lib/raidplan/facing.ts`.
 
 **No automatic labels on the board:** only what was typed is drawn (`slotBoardLabel`, `zoneBoardLabel`,
 `iconBoardLabel`, `textShown`). No "Tank 1", no zone type, no icon name: an open role slot shows just its role
@@ -303,7 +303,7 @@ shape `raidplan.rosterFrom()` already reads:
 (`raiderProfileStore`): a) a character of **Raid-Helper's class** — the main when it is one, else the first;
 b) else a character named like the Raid-Helper name (case and realm ignored); c) else the Raid-Helper name
 itself, marked `nameFromRh` (set in italics, "Name aus Raid-Helper"). The name is display only. Chips, tables
-and the sheet show the resolved name; the tooltip adds "Raid-Helper: <name>" (`lib/raidplan/index.ts rhNote`), the
+and the sheet show the resolved name; the tooltip adds "Raid-Helper: <name>" (`lib/raidplan/players.ts rhNote`), the
 search of the assign dialogs finds both names, and the head counts "n Namen aus Raid-Helper nicht zuordenbar".
 "Meine Aufgaben" and the highlight go by the **Discord id**.
 

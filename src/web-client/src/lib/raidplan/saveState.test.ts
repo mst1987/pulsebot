@@ -1,4 +1,4 @@
-// Unsaved changes stand out in the plan and template editor: which sections differ from the saved plan (lib/raidplan.ts dirtyKeys)
+// Unsaved changes stand out in the plan and template editor: which sections differ from the saved plan (lib/raidplan/model.ts dirtyKeys)
 // and the wiring of the save button, the strip, the chips, Ctrl+S and the warning on leaving (pages/raid-detail/raidplan/SaveState.tsx).
 import { describe, expect, it, vi } from "vitest";
 import * as lib from ".";

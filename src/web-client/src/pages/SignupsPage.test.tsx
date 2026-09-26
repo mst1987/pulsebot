@@ -2,7 +2,7 @@
 // against a mocked signups API — one calm row per raid, grouped by raid ID,
 // Raid-Helper raids pointing to Discord, the dialog in the url, and several own
 // raids at once through the bulk dialog. The dialog itself is tested in
-// components/SignupDialog.test.tsx; the stylesheet and routing promises that
+// components/signup/SignupDialog.test.tsx; the stylesheet and routing promises that
 // cannot be rendered stay in test/web-client/conventions/signupsPage.test.js.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

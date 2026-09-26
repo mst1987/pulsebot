@@ -1,4 +1,4 @@
-// What is drawn and for whom (lib/viewRules.ts): plan switches, object switches, viewer preferences; persistence of the viewer's choice.
+// What is drawn and for whom (lib/raidplan/viewRules.ts): plan switches, object switches, viewer preferences; persistence of the viewer's choice.
 import { describe, expect, it } from "vitest";
 import * as vr from "./viewRules";
 

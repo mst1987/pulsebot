@@ -1,4 +1,4 @@
-// "Meine Aufgaben" / "Auf mich wirkend" (lib/mineView.ts): the split by relation to the visitor, the fixed order of the kinds of task, no mixing.
+// "Meine Aufgaben" / "Auf mich wirkend" (lib/raidplan/mineView.ts): the split by relation to the visitor, the fixed order of the kinds of task, no mixing.
 import { describe, expect, it } from "vitest";
 import * as mv from "./mineView";
 

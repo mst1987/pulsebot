@@ -1,4 +1,4 @@
-// Zoom and pan of a board (lib/boardView.ts): view only, the board points stay where they are.
+// Zoom and pan of a board (lib/raidplan/boardView.ts): view only, the board points stay where they are.
 import { describe, expect, it } from "vitest";
 import * as bv from "./boardView";
 

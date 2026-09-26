@@ -1,4 +1,4 @@
-// What a typed number becomes in the raid plan's number fields (lib/numberField.ts).
+// What a typed number becomes in the raid plan's number fields (lib/raidplan/numberField.ts).
 import { describe, expect, it } from "vitest";
 import * as nf from "./numberField";
 

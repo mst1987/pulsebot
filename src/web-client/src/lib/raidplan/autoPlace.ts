@@ -322,7 +322,7 @@ export function mobOfIcon(plan: AutoPlan, id: string): AutoMob | null {
 /**
  * The facing of an icon from the tank rows: the angle to the first tank of its instance that stands on the map (0 = up, clockwise, on a
  * board `ar` times as wide as high); -2 = the rows know the mob but none of its tanks stands anywhere (keep the own facing); -1 = the rows
- * do not know the icon (the older rule of lib/assign.ts facingOf applies).
+ * do not know the icon (the older rule of lib/raidplan/assign.ts facingOf applies).
  */
 export function autoFacing(plan: AutoPlan, id: string, from: AutoPoint, board: RaidplanBoard, places: Record<string, AutoPoint>, ar: number): number {
     const m = mobOfIcon(plan, id);

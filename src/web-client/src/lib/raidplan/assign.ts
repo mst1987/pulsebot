@@ -287,7 +287,7 @@ export function slotChoices(slots: RaidplanSlot[]): { ref: string; kind: string;
 }
 
 /** What a reference is looked up in: the board's slots and the setup's players by userId. */
-export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[]; /** who plays another role on this boss (flex): the role groups follow it */ roles?: Record<string, string>; /** the section's placed icons: a target of one of several mob icons is called by its number on the map ("Flame 2") */ icons?: { id: string; mobId?: string; hidden?: boolean }[] };
+export type AssignCtx = { slots: RaidplanSlot[]; players: Map<string, RaidplanPlayer>; catalog?: Catalog | null; /** the colour / raid mark of the groups (lib/raidplan/groupStyle.ts) */ groupColors?: Record<string, string>; groupMarks?: Record<string, string>; /** the rows with their class references resolved (lib/raidplan/classRefs.ts), same order: what the chips show */ filled?: RaidplanAssignment[]; /** who plays another role on this boss (flex): the role groups follow it */ roles?: Record<string, string>; /** the section's placed icons: a target of one of several mob icons is called by its number on the map ("Flame 2") */ icons?: { id: string; mobId?: string; hidden?: boolean }[] };
 /** A reference resolved for display: its label, who it is now (null = open or not a person), and its kind. */
 export type Resolved = { kind: string; ref: string; label: string; player: RaidplanPlayer | null; open: boolean; mark: string; group: number; role: string; icon: string; /** a class reference: the class */ classId?: string };
 
@@ -441,7 +441,7 @@ export function isMe(r: Resolved, me: string[]): boolean {
     return !!r.player && me.indexOf(r.player.userId) >= 0;
 }
 
-/** Two targets are the same one: a mob target of one placed icon (`oid`) is only that icon, never the kind (lib/autoPlace.ts sameTargetAs). */
+/** Two targets are the same one: a mob target of one placed icon (`oid`) is only that icon, never the kind (lib/raidplan/autoPlace.ts sameTargetAs). */
 function sameTarget(x: RaidplanAssignTarget, y: RaidplanAssignTarget): boolean {
     return x.kind === y.kind && x.ref === y.ref && (x.kind !== "mob" || (x.oid || "") === (y.oid || ""));
 }

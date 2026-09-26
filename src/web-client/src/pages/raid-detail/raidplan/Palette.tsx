@@ -35,7 +35,7 @@ function cleanIconName(raw: string): string {
  * The element palette on the left of the board: everything one can put on it
  * besides the players. Drag an entry onto the board (Pointer Events, so a finger
  * works too), or click / press Enter to put it near the middle. What each entry
- * inserts is an InsertSpec (lib/raidplan.ts), the same thing the tool bar and the
+ * inserts is an InsertSpec (lib/raidplan/), the same thing the tool bar and the
  * context menu insert.
  *
  * "Encounter": the icons of the plan's bosses (this boss first; a boss the

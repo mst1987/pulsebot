@@ -1,4 +1,4 @@
-// Giving roster slots to players (lib/rosterAssign.ts): assign, swap, clear, fill by role and class, candidates.
+// Giving roster slots to players (lib/raidplan/rosterAssign.ts): assign, swap, clear, fill by role and class, candidates.
 import { describe, expect, it } from "vitest";
 import * as ra from "./rosterAssign";
 

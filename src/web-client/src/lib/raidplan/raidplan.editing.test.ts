@@ -1,6 +1,6 @@
 // Editing a board: inserting, moving, locking, scaling zones, duplicating,
 // layers, the context menu and undo/redo.
-// The board logic behind the editors (lib/raidplan.ts) runs for real.
+// The board logic behind the editors (lib/raidplan/) runs for real.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 import { inLang } from "../../test/i18n";

@@ -1,4 +1,4 @@
-// The flyout's pure logic (lib/flyout.ts) and the card hide / remove logic of the assignments (lib/assign.ts).
+// The flyout's pure logic (lib/raidplan/flyout.ts) and the card hide / remove logic of the assignments (lib/raidplan/assign.ts).
 import { describe, expect, it } from "vitest";
 import * as fly from "./flyout";
 import * as assign from "./assign";

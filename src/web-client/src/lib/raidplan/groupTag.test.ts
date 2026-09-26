@@ -1,4 +1,4 @@
-// When a group marker shows its tag, the number badges and the ring (lib/raidplan.ts groupTag / ringCover).
+// When a group marker shows its tag, the number badges and the ring (lib/raidplan/labels.ts groupTag / ringCover).
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 

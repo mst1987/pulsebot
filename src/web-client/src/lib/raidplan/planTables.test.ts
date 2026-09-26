@@ -1,4 +1,4 @@
-// The read view's tables (lib/planTables.ts): Tank | Ziel | Heiler, group healing, the slim tables, "my" assignments.
+// The read view's tables (lib/raidplan/planTables.ts): Tank | Ziel | Heiler, group healing, the slim tables, "my" assignments.
 import { describe, expect, it } from "vitest";
 import * as tables from "./planTables";
 

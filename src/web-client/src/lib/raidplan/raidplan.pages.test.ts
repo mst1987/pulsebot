@@ -1,5 +1,5 @@
 // The raid plan pages' logic parts: the raid mark icons, the placeholders of
-// the texts and the section bar's labels. The board logic (lib/raidplan.ts)
+// the texts and the section bar's labels. The board logic (lib/raidplan/)
 // runs for real; the pages' structure is checked on the source in
 // test/web-client/raidplan.pages.test.js.
 import fs from "node:fs";

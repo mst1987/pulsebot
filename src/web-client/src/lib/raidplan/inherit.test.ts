@@ -1,4 +1,4 @@
-// The Standard of a template (lib/inherit.ts): inherited, deviated, switched off, the relative boss target, copy to all.
+// The Standard of a template (lib/raidplan/inherit.ts): inherited, deviated, switched off, the relative boss target, copy to all.
 import { describe, expect, it } from "vitest";
 import * as inh from "./inherit";
 

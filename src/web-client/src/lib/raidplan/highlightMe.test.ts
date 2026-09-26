@@ -1,4 +1,4 @@
-// "That is you" in the assignments: named in words, lines that concern the visitor (lib/assign.ts + lib/mention.ts).
+// "That is you" in the assignments: named in words, lines that concern the visitor (lib/raidplan/assign.ts + lib/raidplan/mention.ts).
 import { describe, expect, it } from "vitest";
 import * as assign from "./assign";
 

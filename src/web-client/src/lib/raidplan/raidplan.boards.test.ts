@@ -1,5 +1,5 @@
 // Raidplan boards: roles and clamping, empty boards, task rows and tactic profiles.
-// The board logic behind the editors (lib/raidplan.ts) runs for real.
+// The board logic behind the editors (lib/raidplan/) runs for real.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 

@@ -180,7 +180,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   %). Edited with the inspector's "Pfeilgröße" (slider + number, 25-300 %), "Pfeil ausblenden", colour and
   opacity (`ArrowFields`, also in the auto objects' panel), the right-click "Pfeil größer / kleiner" (x 1.25 /
   0.8), Alt + "+" / "-" (x 1.15), and on several at once (`multiSelect.scaleArrowSelection`, menu "Pfeile
-  größer / kleiner"). Lib: `arrowOf`, `patchArrow`, `scaleArrow` in `lib/raidplan/index.ts`. Apply / duplicate copy
+  größer / kleiner"). Lib: `arrowOf`, `patchArrow`, `scaleArrow` in `lib/raidplan/autoStyle.ts`. Apply / duplicate copy
   it (icons and `autoStyle` travel as they are).
 - **Role group placeholder** ("Melees", "Ranged", also Heiler / Tanks / DPS): a zone of type `role` with
   `role`, `count` (0..40, a badge; 0 = none), `showNames` (default off) and the shapes ellipse ("Fläche"),
@@ -261,7 +261,7 @@ Tests: "a group's own token size" in `src/web-client/src/lib/raidplan/raidplan.r
 - **Role groups** ("Melees", "Ranged", "Healer", "Tanks": zones of type `role`) draw ONE solid outline and a
   light fill in their colour; the icon is there once, a circle in the middle, never distorted (a narrow strip
   gets a smaller circle, not an ellipse). The double border of the zone and the double ring round the icon are
-  gone. Every measure is a share of the zone (`lib/raidplan/index.ts roleZoneMetrics(w, h, cluster, count)` in
+  gone. Every measure is a share of the zone (`lib/raidplan/roleGroups.ts roleZoneMetrics(w, h, cluster, count)` in
   reference px): the icon 0.45 of the smaller side (at most 96), the outline 1 .. 4 px, the label and the
   count badge, and the names listed under it. The names go by the zone's area (a narrow strip still carries
   them), at most a token name's size (11.4); too small on screen they are hidden, never enlarged (like a
@@ -288,7 +288,7 @@ chip's width" in `test/services/raidplan/raidplanBoard.test.js`.
   upright over it in its own layer (`.rp-rg-up`, rendered after all zones, no pointer events): the symbol, the
   names, the count and the label are never upside down. The grip used to MOVE the zone instead of turning it:
   the drag took the middle only from objects with a size of their own (`sizeOf`), and a zone has none.
-- **Grips of a turned zone** work along its own axes, the opposite side stays where it is (`lib/raidplan/index.ts
+- **Grips of a turned zone** work along its own axes, the opposite side stays where it is (`lib/raidplan/roleGroups.ts
   resizeTurned`); a selected zone lies above tokens and icons (z-index 6 in the editor) so its grips can be
   reached. The rubber band and the selection frame use the upright box of the turned zone (`turnedBox`, the
   smaller box for an ellipse).
@@ -322,7 +322,7 @@ multi-selection" in `src/web-client/src/lib/raidplan/multiOptions.test.ts`, "a r
 
 - **Every section carries its name** in the section bar - the editor's (`BossNav`, also the template editor)
   and the sheet's (`PlanPublicPage`) alike: icon + name as one pill, no number (the order is the raid's), the
-  chosen one filled. The label comes from `lib/raidplan/index.ts sectionLabel`: a boss by its name, "Allgemein",
+  chosen one filled. The label comes from `lib/raidplan/profiles.ts sectionLabel`: a boss by its name, "Allgemein",
   "Standard", and a trash section by its instance when the plan covers several (`severalInstances`: "Trash ·
   Der Schwarze Tempel"). The bar wraps to more lines instead of scrolling or cutting a name; on a phone (<=
   560 px) the pills are a little smaller.

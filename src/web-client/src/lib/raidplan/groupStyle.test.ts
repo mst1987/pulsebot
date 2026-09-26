@@ -1,4 +1,4 @@
-// Group colours and raid marks (lib/groupStyle.ts).
+// Group colours and raid marks (lib/raidplan/groupStyle.ts).
 import { describe, expect, it } from "vitest";
 import * as gs from "./groupStyle";
 

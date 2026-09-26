@@ -1,6 +1,6 @@
 // Tokens on the board: sizes, icons, group markers (hiding and splitting),
 // facing and board labels.
-// The board logic behind the editors (lib/raidplan.ts) runs for real.
+// The board logic behind the editors (lib/raidplan/) runs for real.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 

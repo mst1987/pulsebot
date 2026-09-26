@@ -34,7 +34,7 @@ const CAT_ICON: Record<string, ReactNode> = {
  * three slots (who, at whom, task / spell; the active one is framed and a click in the grid fills it), the categories at the left with
  * their counters, ONE grid of the active category at the right, the sheet preview below and "Zeile entfernen / Abbrechen / Fertig" in the
  * foot. Nothing scrolls: the grids are multi-column and dense. It works on a copy of the board and hands the row back with "Fertig"
- * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/assignModal.ts.
+ * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/raidplan/assignModal.ts.
  */
 export default function AssignModal({ board, rowId, title, targetOptions, spellOptions, onTarget, onText, onSpell, onSuggest, onDone, onClose, onRemove, isEvent, roster, catalog, players, initialSlot = "who", initialCat = "" }: {
     /** the slot and category the dialog opens on (the note icon of a row: task / free text) */

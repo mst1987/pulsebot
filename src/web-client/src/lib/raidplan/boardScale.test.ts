@@ -1,4 +1,4 @@
-// The board's coordinate space (lib/boardScale.ts): one reference width, one scale factor.
+// The board's coordinate space (lib/raidplan/boardScale.ts): one reference width, one scale factor.
 import { describe, expect, it } from "vitest";
 import * as bs from "./boardScale";
 

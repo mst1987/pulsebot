@@ -1,5 +1,5 @@
 // The count of a class in a row ("Jäger × 2"), the running number over the rows of a task, the general tank and the twin check of
-// the resolution (client lib/classRefs.ts against the server's src/web/raidplanAssign.js). Pure logic run for real.
+// the resolution (client lib/raidplan/classRefs.ts against the server's src/web/raidplanAssign.js). Pure logic run for real.
 import { describe, expect, it } from "vitest";
 import * as cr from "./classRefs";
 import { t } from "../../i18n";

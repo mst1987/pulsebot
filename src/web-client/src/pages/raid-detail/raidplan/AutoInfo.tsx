@@ -14,7 +14,7 @@ import { useT } from "../../../i18n";
 const COMPASS_ARROWS = [0x2191, 0x2197, 0x2192, 0x2198, 0x2193, 0x2199, 0x2190, 0x2196].map((c) => String.fromCharCode(c));
 
 /**
- * The properties of an object the tank rows put on the map (lib/autoPlace.ts), laid out like those of any other object: size (25 - 400 %),
+ * The properties of an object the tank rows put on the map (lib/raidplan/autoPlace.ts), laid out like those of any other object: size (25 - 400 %),
  * opacity, ring, name, label, for a mob its facing (by itself to its tank, or by hand), lock and order; plus where it comes from ("aus
  * Einteilung": what it tanks / who tanks it, "Zeile bearbeiten" / "Tank wählen"), "Position zurücksetzen", "Alles zurücksetzen" (place and
  * look) and the section's switches (auto placement, the size of all of them together). It cannot be deleted on its own: it goes with its

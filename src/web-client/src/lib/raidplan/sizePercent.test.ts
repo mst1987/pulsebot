@@ -1,4 +1,4 @@
-// Size in percent for every element and a group as a whole (lib/raidplan.ts, lib/multiSelect.ts): 25 % .. 400 % of the default, in reference units.
+// Size in percent for every element and a group as a whole (lib/raidplan/, lib/raidplan/multiSelect.ts): 25 % .. 400 % of the default, in reference units.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";
 import * as ms from "./multiSelect";

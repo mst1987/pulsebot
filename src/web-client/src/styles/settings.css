@@ -1,6 +1,6 @@
 /* Einstellungen (design issue #224): section column with icons and badges,
    connection status cards, the permission matrix, the category list and the
-   save bar. Imported by pages/SettingsPage.tsx; everything uses the tokens of
+   save bar. Imported by pages/settings/SettingsPage.tsx; everything uses the tokens of
    index.css, so the light theme follows on its own. */
 
 /* ---- page head: the title carries the info button ---- */

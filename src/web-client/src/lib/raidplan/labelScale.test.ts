@@ -1,4 +1,4 @@
-// The name label follows the icon's size (lib/labelScale.ts).
+// The name label follows the icon's size (lib/raidplan/labelScale.ts).
 import { describe, expect, it } from "vitest";
 import * as ls from "./labelScale";
 

@@ -1,5 +1,5 @@
 // A role group ("Melees -> Boss", "Ranged soaken hier") is a task of / acts on every raider of that role: his spec role from the setup, a
-// flex role on this boss wins, no names are split out (lib/assign.ts inRoleGroup / meInRole, lib/mineView.ts); the server twin decides the
+// flex role on this boss wins, no names are split out (lib/raidplan/assign.ts inRoleGroup / meInRole, lib/raidplan/mineView.ts); the server twin decides the
 // same (src/web/raidplanAssign.js inRoleGroup).
 import { describe, expect, it } from "vitest";
 import * as assign from "./assign";

@@ -70,7 +70,7 @@ export function tankRowActions({ board, edit, inherited, auto, mobs, scope, play
         const s = b.slots.find((x) => x.id === sel.id);
         return s && isRoleKind(s.kind) ? `slot:${s.kind}:${s.n}` : "";
     };
-    /** "Tankt → <mob>" / "Tankt nicht mehr" (mobId "") from the right-click menu: writes the tank rows (lib/autoPlace.ts tankTo / untank). */
+    /** "Tankt → <mob>" / "Tankt nicht mehr" (mobId "") from the right-click menu: writes the tank rows (lib/raidplan/autoPlace.ts tankTo / untank). */
     const tankAction = (sel: { kind: ObjectKind; id: string }, pick: string) => {
         // "<mob id>" = the mob as such, "<mob id>@<icon id>" = one of several icons of it on the map
         const at = pick.indexOf("@");

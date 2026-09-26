@@ -1,4 +1,4 @@
-// Selecting several objects and acting on them together (lib/multiSelect.ts): every action is one board in, one board out.
+// Selecting several objects and acting on them together (lib/raidplan/multiSelect.ts): every action is one board in, one board out.
 import { describe, expect, it } from "vitest";
 import * as raidplan from ".";
 import * as ms from "./multiSelect";

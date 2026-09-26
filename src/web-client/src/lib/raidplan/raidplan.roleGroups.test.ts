@@ -1,6 +1,6 @@
 // Group rings and role groups: names on a ring, a group's own token size,
 // scaling with themselves and turned role groups (feature/raidplan-14..16).
-// The board logic behind the editors (lib/raidplan.ts) runs for real; the
+// The board logic behind the editors (lib/raidplan/) runs for real; the
 // stylesheet and board checks stay in test/web-client/raidplan.roleGroups.test.js.
 import { describe, expect, it } from "vitest";
 import * as lib from ".";

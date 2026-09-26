@@ -1,4 +1,4 @@
-// Auto placement from the tank rows (lib/autoPlace.ts): what the rows put on the map (mob instances, tanks, placeholders), the
+// Auto placement from the tank rows (lib/raidplan/autoPlace.ts): what the rows put on the map (mob instances, tanks, placeholders), the
 // layout (deterministic, no overlap, positions moved by hand stay), one place per player, the facing and the editing helpers.
 import { describe, expect, it } from "vitest";
 import * as lib from "./autoPlace";
