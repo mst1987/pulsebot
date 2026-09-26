@@ -1,0 +1,152 @@
+[
+  {
+    "name": "no file",
+    "config": null
+  },
+  {
+    "name": "empty object",
+    "config": {}
+  },
+  {
+    "name": "single-server install from before the event-server list (legacy servers block)",
+    "legacy": true,
+    "config": {
+      "adminRoleIds": ["1200000000000000001"],
+      "rolePermissions": { "1200000000000000002": { "loot": { "read": true, "write": true }, "raids": { "read": true } } },
+      "baseAccess": { "loot": { "read": true } },
+      "userPermissions": { "1200000000000000003": { "loot": { "read": true, "write": true } } },
+      "botCommandAccess": { "signup": { "mode": "roles", "roleIds": ["1200000000000000004"] } },
+      "guildId": "1100000000000000001",
+      "discordServers": {
+        "eventGuildId": "1100000000000000001",
+        "talkGuildId": "1100000000000000002",
+        "talkOverviewChannelId": "1100000000000000003",
+        "talkPingChannelId": "1100000000000000004",
+        "signupNoteChannelId": "1100000000000000005"
+      },
+      "raidhelperServerId": "1100000000000000001",
+      "officerRoleId": "1200000000000000005",
+      "applicationChannelId": "1100000000000000006",
+      "highestBidsChannelId": "",
+      "highestBidsMessageId": "",
+      "categoryIds": ["1300000000000000001", "1300000000000000002"],
+      "categoryRoles": { "1300000000000000001": ["1200000000000000006"] },
+      "logChannelIds": ["1100000000000000007"],
+      "raidDefaults": { "channelId": "1100000000000000008" },
+      "blizzard": { "clientId": "blizz-client", "clientSecret": "redacted", "region": "eu", "realmSlug": "thunderstrike", "namespace": "" },
+      "categoryLootTool": { "1300000000000000001": "gargul", "1300000000000000002": "rclc" },
+      "categoryLootSystem": { "1300000000000000002": "lootcouncil" },
+      "categorySignupSource": { "1300000000000000001": "eventhelper", "1300000000000000002": "raidhelper" },
+      "signupSourceDefault": "eventhelper",
+      "raidhelperRetirement": { "disabled": false, "at": 0, "byName": "" },
+      "categorySetupDms": { "1300000000000000001": true },
+      "categoryDiscordEvent": { "1300000000000000001": true },
+      "categoryVoiceChannel": { "1300000000000000001": "1100000000000000009" },
+      "categoryMessageLook": { "1300000000000000001": { "titleSize": "huge" } },
+      "categoryAnnounce": { "1300000000000000001": { "enabled": true, "target": "both" } },
+      "categorySignupNotes": { "1300000000000000001": "required" },
+      "categorySignupNoteChannel": {},
+      "categorySheets": { "1300000000000000002": { "url": "https://docs.google.com/spreadsheets/d/abc", "name": "T5 Sheet" } },
+      "categoryRaidTemplate": { "1300000000000000001": "a1b2c3d4e5f6" },
+      "topItems": [{ "id": 32837, "name": "Warglaive of Azzinoth", "iconUrl": "https://wow.zamimg.com/images/wow/icons/large/inv_weapon_glave_01.jpg", "quality": 5 }],
+      "anthropic": { "apiKey": "", "model": "" },
+      "warcraftlogsV2": { "clientId": "", "clientSecret": "" },
+      "roleSync": [{ "eventRoleId": "1200000000000000006", "talkRoleId": "1200000000000000007", "direction": "both" }],
+      "categoryReminders": { "1300000000000000001": { "missingHours": 24, "signedHours": 2, "target": "talk" } }
+    }
+  },
+  {
+    "name": "modern multi-server install",
+    "config": {
+      "adminRoleIds": ["1200000000000000001"],
+      "guildId": "1100000000000000099",
+      "discordServers": {
+        "eventGuilds": [
+          { "guildId": "1100000000000000001", "label": "PvE", "overviewGuildId": "1100000000000000002", "overviewChannelId": "1100000000000000003" },
+          { "guildId": "1100000000000000001", "label": "duplicate" },
+          { "guildId": "1100000000000000010", "label": "  Zweiter Server  ", "overviewGuildId": "x", "overviewChannelId": "1100000000000000003" },
+          { "guildId": "not-a-snowflake" }
+        ],
+        "talkGuildId": "1100000000000000002",
+        "talkPingChannelId": "1100000000000000004",
+        "signupNoteChannelId": ""
+      },
+      "categoryIds": ["1300000000000000001"],
+      "raidDefaults": { "channelId": "1100000000000000008", "templateId": "ignored-once-a-map-exists" },
+      "categoryRaidTemplate": {},
+      "signupSourceDefault": "eventhelper",
+      "raidsheets": [{ "id": "tier6", "name": "T6", "spreadsheetId": "sheet", "sheetName": "Setup", "gid": "1", "keywords": ["hyjal", "bt"] }]
+    }
+  },
+  {
+    "name": "pre-#266/#291 install with a global Raid-Helper template default",
+    "legacy": true,
+    "raidTemplates": { "templates": [{ "id": "3", "name": "GDKP Kara", "createdAt": 5, "updatedAt": 6 }, { "id": "7", "name": "" }] },
+    "config": {
+      "categoryIds": ["1300000000000000001", "1300000000000000002"],
+      "raidDefaults": { "templateId": "3", "channelId": "1300000000000000009" },
+      "discordServers": { "eventGuildId": "1100000000000000001", "talkGuildId": "1100000000000000002", "talkOverviewChannelId": "1100000000000000003" },
+      "categoryRoles": { "1300000000000000001": ["r1", " r1 ", "", "r2"], "bad": "x" },
+      "categoryLootTool": { "1300000000000000001": "rclc" },
+      "adminRoleIds": ["111"]
+    }
+  },
+  {
+    "name": "legacy template default nobody links",
+    "legacy": true,
+    "raidTemplates": { "templates": [{ "id": "3", "name": "GDKP Kara" }] },
+    "config": { "categoryIds": ["1300000000000000001"], "raidDefaults": { "templateId": "99" } }
+  },
+  {
+    "name": "legacy default but a saved map wins",
+    "legacy": true,
+    "raidTemplates": { "templates": [{ "id": "3", "name": "GDKP Kara" }] },
+    "config": {
+      "categoryIds": ["1300000000000000001"],
+      "raidDefaults": { "templateId": "3" },
+      "categoryRaidTemplate": { "1300000000000000001": " t1 ", "x": "" },
+      "signupSourceDefault": "raidhelper"
+    }
+  },
+  {
+    "name": "legacy servers block without an event server",
+    "config": { "discordServers": { "talkGuildId": "1100000000000000002", "talkOverviewChannelId": "1100000000000000003" } }
+  },
+  {
+    "name": "malformed values everywhere",
+    "config": {
+      "adminRoleIds": "nope",
+      "guildId": "   ",
+      "discordServers": ["x"],
+      "categoryIds": "x",
+      "logChannelIds": {},
+      "rolePermissions": "x",
+      "baseAccess": { "loot": { "read": true }, "nonsense": { "write": true } },
+      "userPermissions": [],
+      "botCommandAccess": "x",
+      "categoryRoles": [],
+      "blizzard": null,
+      "anthropic": "x",
+      "warcraftlogsV2": 5,
+      "categoryLootTool": "x",
+      "categoryLootSystem": { "a": "bogus", "b": "gdkp" },
+      "categorySignupSource": { "a": "raidhelper", "b": "other" },
+      "signupSourceDefault": "bogus",
+      "raidhelperRetirement": { "disabled": "yes", "at": "12", "byName": 7 },
+      "categorySetupDms": { "a": true, "b": "true" },
+      "categoryDiscordEvent": { "a": true, "b": false },
+      "categoryVoiceChannel": { "a": "1300000000000000003", "b": "no" },
+      "categoryMessageLook": { "a": { "raidArt": false }, "b": "x" },
+      "categoryAnnounce": { "a": { "enabled": true, "target": "nowhere" }, "b": { "enabled": false } },
+      "categorySignupNotes": { "a": "optional", "b": "none", "c": "x" },
+      "categorySignupNoteChannel": { "a": "1300000000000000004" },
+      "categorySheets": { "a": { "url": " https://x " }, "b": { "url": "" } },
+      "categoryRaidTemplate": [],
+      "topItems": [{ "id": "19019", "name": " Thunderfury ", "iconUrl": "javascript:alert(1)", "quality": 5 }, { "id": 19019 }, { "id": -1 }, null],
+      "roleSync": [{ "eventRoleId": "1300000000000000005", "talkRoleId": "1300000000000000006", "direction": "sideways" }, { "eventRoleId": "x" }],
+      "categoryReminders": { "1300000000000000001": { "missingHours": 500, "signedHours": "2.4", "target": "talk" }, "1300000000000000002": { "missingHours": 0 }, "bad": {} },
+      "raidsheets": [{ "id": "a", "name": "T6" }],
+      "extraKey": { "kept": true }
+    }
+  }
+]

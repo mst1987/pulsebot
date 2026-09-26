@@ -7,6 +7,9 @@ const mockLogin = jest.fn(() => Promise.resolve("ok"));
 
 jest.mock("../src/web/server", () => ({ startWebServer: mockStartWebServer }));
 jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
+// The start-up upgrade of old settings files (#420) must not touch the real data/.
+const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
+jest.mock("../src/web/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
 const mockGuard = jest.fn(async () => true);
 jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
@@ -58,6 +61,8 @@ describe("bot start()", () => {
         // web server + commands come up synchronously, before any login attempt
         expect(mockStartWebServer).toHaveBeenCalledWith(bot.client);
         expect(bot.client.commands.size).toBeGreaterThan(0);
+        // old settings files are upgraded once, before anything reads them
+        expect(mockMigrateSettings).toHaveBeenCalledTimes(1);
         // login is deferred a microtask (so a synchronous token throw becomes a
         // catchable rejection); let it run before asserting
         await new Promise((r) => setImmediate(r));
