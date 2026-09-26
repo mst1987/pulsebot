@@ -97,6 +97,15 @@ jobs:
     needs: [lint, test, web-client]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+    # Deploys queue up instead of running side by side. Three merges within
+    # eight minutes (#472, #473, #475) each ran `git reset` + `npm ci` on the
+    # server while another one was restarting pm2: the bot crash-looped and
+    # every healthcheck timed out. Nothing is cancelled - the last deploy still
+    # brings the newest main to the server, it just waits for its turn.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
     # Which directory the checkout lives in on the server. A repository variable
     # (Settings -> Secrets and variables -> Actions -> Variables) wins, so the
     # path can be corrected without touching this file. The default is the one
@@ -135,6 +144,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           # Optional — 22 unless the server listens elsewhere.
           port: ${{ secrets.SSH_PORT || 22 }}
+          # The action's default (10 min) once cut the script off in the middle
+          # of the web client build, which alone takes 4-5 min on the server.
+          command_timeout: 20m
           envs: DEPLOY_DIR
           script: |
             set -e

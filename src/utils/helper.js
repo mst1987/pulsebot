@@ -1,5 +1,6 @@
 ﻿const { MessageFlags } = require("discord.js");
 const { createRaidhelperClient } = require("./raidhelperClient");
+const { ownUpcomingRaw } = require("../web/eventSources");
 const { entryFor } = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const {
@@ -168,7 +169,6 @@ async function delay(ms) {
 // created for it. A Raid-Helper that does not answer (or is switched off, #291)
 // leaves the own events standing instead of failing the whole command.
 async function getCategoryEvents(interaction, categoryId) {
-    const { ownUpcomingRaw } = require("../web/eventSources");
     const raidhelper = createRaidhelperClient();
     let allEvents = [];
     try {

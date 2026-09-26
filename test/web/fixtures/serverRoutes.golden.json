@@ -1,0 +1,606 @@
+[
+  {
+    "request": "GET /api/session",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "API:GET:/api/session"
+  },
+  {
+    "request": "POST /api/raids/notify",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "API:POST:/api/raids/notify"
+  },
+  {
+    "request": "GET /admin",
+    "status": 302,
+    "headers": {
+      "Location": "/"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /admin/",
+    "status": 302,
+    "headers": {
+      "Location": "/"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /admin/recruitment?view=posts",
+    "status": 302,
+    "headers": {
+      "Location": "/recruitment?view=posts"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /admin2",
+    "status": 302,
+    "headers": {
+      "Location": "/"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /admin2/history?tab=awards",
+    "status": 302,
+    "headers": {
+      "Location": "/history?tab=awards"
+    },
+    "body": null
+  },
+  {
+    "request": "POST /admin/x",
+    "status": 302,
+    "headers": {
+      "Location": "/x"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /administration",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/administration"
+  },
+  {
+    "request": "GET /auth/login",
+    "status": 302,
+    "headers": {
+      "Location": "https://discord.example/authorize?state=0a0a0a0a0a0a0a0a0a0a0a0a"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/login?next=/p/abcdefghij",
+    "status": 302,
+    "headers": {
+      "Location": "https://discord.example/authorize?state=0a0a0a0a0a0a0a0a0a0a0a0a"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/callback?code=good&state=0a0a0a0a0a0a0a0a0a0a0a0a",
+    "status": 302,
+    "headers": {
+      "Location": "/p/abcdefghij",
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/login?next=https://evil.example",
+    "status": 302,
+    "headers": {
+      "Location": "https://discord.example/authorize?state=0a0a0a0a0a0a0a0a0a0a0a0a"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/callback?code=good&state=0a0a0a0a0a0a0a0a0a0a0a0a",
+    "status": 302,
+    "headers": {
+      "Location": "/",
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/callback?code=good&state=unbekannt",
+    "status": 302,
+    "headers": {
+      "Location": "/",
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/callback?code=good",
+    "status": 302,
+    "headers": {
+      "Location": "/",
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+    },
+    "body": null
+  },
+  {
+    "request": "GET /auth/callback?error=access_denied",
+    "status": 400,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "ERROR:Login abgebrochen:Discord meldete: access_denied"
+  },
+  {
+    "request": "GET /auth/callback",
+    "status": 400,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "ERROR:Login fehlgeschlagen:Kein Autorisierungscode von Discord erhalten."
+  },
+  {
+    "request": "GET /auth/callback?code=bad",
+    "status": 500,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "ERROR:Login fehlgeschlagen:Token-Austausch mit Discord fehlgeschlagen: exchange failed"
+  },
+  {
+    "request": "GET /auth/callback?code=bad-data",
+    "status": 500,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "ERROR:Login fehlgeschlagen:Token-Austausch mit Discord fehlgeschlagen: {\"error\":\"invalid_grant\"}"
+  },
+  {
+    "request": "POST /auth/login",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /auth/logout (user)",
+    "status": 302,
+    "headers": {
+      "Location": "/",
+      "Set-Cookie": "sid=; HttpOnly; Path=/; Max-Age=0"
+    },
+    "body": null,
+    "effects": [
+      "destroy:user"
+    ]
+  },
+  {
+    "request": "GET /auth/unbekannt",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/auth/unbekannt"
+  },
+  {
+    "request": "DELETE /r/abc123",
+    "status": 403,
+    "headers": null,
+    "body": "forbidden"
+  },
+  {
+    "request": "DELETE /r/abc123 (user)",
+    "status": 403,
+    "headers": null,
+    "body": "forbidden"
+  },
+  {
+    "request": "DELETE /r/abc123 (admin)",
+    "status": 200,
+    "headers": null,
+    "body": "ok",
+    "effects": [
+      "deleteReport:abc123"
+    ]
+  },
+  {
+    "request": "DELETE /r/abc123/ (admin)",
+    "status": 200,
+    "headers": null,
+    "body": "ok",
+    "effects": [
+      "deleteReport:abc123"
+    ]
+  },
+  {
+    "request": "DELETE /r/weg (admin)",
+    "status": 404,
+    "headers": null,
+    "body": "not found",
+    "effects": [
+      "deleteReport:weg"
+    ]
+  },
+  {
+    "request": "DELETE /r/abc123/p/1 (admin)",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "PUT /r/abc123",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "POST /",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "HEAD /health",
+    "status": 405,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /health",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    },
+    "body": "{\"status\":\"ok\",\"commit\":\"c0ffee\",\"committedAt\":\"2026-09-01T00:00:00Z\",\"subject\":\"Stand\",\"startedAt\":\"2026-09-02T00:00:00Z\"}"
+  },
+  {
+    "request": "GET /health/",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/health/"
+  },
+  {
+    "request": "GET /r/cal/user/ehc_ok.ics",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/calendar; charset=utf-8",
+      "Cache-Control": "private, max-age=300",
+      "Content-Disposition": "inline; filename=\"meine-raids.ics\""
+    },
+    "body": "FEED:ehc_ok"
+  },
+  {
+    "request": "GET /r/cal/user/ehc_weg.ics",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r/cal/user/a/b.ics",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/r/cal/user/a/b.ics"
+  },
+  {
+    "request": "GET /r/cal/eh-1.ics",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/calendar; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Content-Disposition": "attachment; filename=\"raid-eh-1.ics\""
+    },
+    "body": "ICS:eh-1"
+  },
+  {
+    "request": "GET /r/cal/eh-leer.ics",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r/cal/eh-weg.ics",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r/cal/..%2f..%2f.env.ics",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/r/cal/../../.env.ics"
+  },
+  {
+    "request": "GET /e/eh-1",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "EVENT:eh-1"
+  },
+  {
+    "request": "GET /e/eh-1/",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "EVENT:eh-1"
+  },
+  {
+    "request": "GET /e/eh-weg",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /e/a/b",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/e/a/b"
+  },
+  {
+    "request": "GET /e/../../.env",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/.env"
+  },
+  {
+    "request": "GET /rp-map/bt/supremus?v=1",
+    "status": 200,
+    "headers": {
+      "Content-Type": "image/png",
+      "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "body": "MAP:bt/supremus"
+  },
+  {
+    "request": "GET /rp-map/t/abc/kara",
+    "status": 200,
+    "headers": {
+      "Content-Type": "image/png",
+      "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff"
+    },
+    "body": "MAP:t/abc/kara"
+  },
+  {
+    "request": "GET /rp-map/bt",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /rp-map/BT",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/rp-map/BT"
+  },
+  {
+    "request": "GET /rp-map/bt/a/b",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/rp-map/bt/a/b"
+  },
+  {
+    "request": "GET /r-assets/report.css?v=1",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/css; charset=utf-8"
+    },
+    "body": "ASSET:/r-assets/report.css?v=1"
+  },
+  {
+    "request": "GET /r-assets/report.js?v=old",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r-assets/nope.js",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r-assets/",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /docs",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "DOCS:-"
+  },
+  {
+    "request": "GET /docs/ (admin)",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "DOCS:adm"
+  },
+  {
+    "request": "GET /docs/x",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/docs/x"
+  },
+  {
+    "request": "GET /r/abc123/p/2",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "PLAYER:abc123:2:-"
+  },
+  {
+    "request": "GET /r/abc123/p/2/ (admin)",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "PLAYER:abc123:2:adm"
+  },
+  {
+    "request": "GET /r/weg/p/2",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r/abc123",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "REPORT:abc123:-"
+  },
+  {
+    "request": "GET /r/abc123/ (admin)",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "REPORT:abc123:adm"
+  },
+  {
+    "request": "GET /r/weg",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /r/a-b",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/r/a-b"
+  },
+  {
+    "request": "GET /p/abcdefghijklmnopqrstuv",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/p/abcdefghijklmnopqrstuv"
+  },
+  {
+    "request": "GET /",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/"
+  },
+  {
+    "request": "GET /raids/detail?event=eh-1",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/raids/detail"
+  },
+  {
+    "request": "GET /kein-build",
+    "status": 404,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache"
+    },
+    "body": "NOT_FOUND"
+  },
+  {
+    "request": "GET /%E0%A4%A",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html"
+    },
+    "body": "SPA:/"
+  }
+]

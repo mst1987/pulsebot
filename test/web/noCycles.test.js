@@ -1,4 +1,6 @@
-// Guard (#424): no require cycle between the modules of src/web. Three of them
+// Guard (#424): no require cycle anywhere in src/ (the React client in
+// src/web-client/ aside, it has its own module system). It started with
+// src/web, where three of them
 // (setupEditor <-> setupPing, setupMessage <-> setupConfirmBot, raidplanAssign
 // <-> raidplanCatalogStore) used to be hidden behind requires inside function
 // bodies; a cycle hands a half-loaded module to whoever asks first. Every
@@ -6,23 +8,29 @@
 // function still closes the cycle, it only postpones the moment it bites.
 //
 // A new cycle fails with its members. The usual fix: move what both sides need
-// into a small module below them (setupCore.js, raidplanConstants.js).
+// into a small module below them (setupCore.js, raidplanConstants.js). Since
+// the second part of #424 the whole tree is checked: utils/helper.js,
+// utils/raidhelper.js and utils/raidhelperFixture.js require their web modules
+// at the top now, which is safe exactly because this graph has no cycle.
 const fs = require("fs");
 const path = require("path");
 
-const WEB = path.join(__dirname, "..", "..", "src", "web");
+const SRC = path.join(__dirname, "..", "..", "src");
+const WEB = path.join(SRC, "web");
+const SKIP = new Set(["web-client", "node_modules"]);
 
-function webFiles(dir) {
+function srcFiles(dir) {
     const out = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) out.push(...webFiles(full));
-        else if (entry.name.endsWith(".js")) out.push(full);
+        if (entry.isDirectory()) {
+            if (!SKIP.has(entry.name)) out.push(...srcFiles(full));
+        } else if (entry.name.endsWith(".js")) out.push(full);
     }
     return out;
 }
 
-/** The src/web files a file requires by a relative path. */
+/** The src files a file requires by a relative path. */
 function requiresOf(file, known) {
     const text = fs.readFileSync(file, "utf8");
     const out = [];
@@ -72,18 +80,21 @@ function cycles(graph) {
     return found;
 }
 
-describe("src/web require graph", () => {
-    const files = webFiles(WEB);
+describe("src require graph", () => {
+    const files = srcFiles(SRC);
     const known = new Set(files);
     const graph = new Map(files.map((f) => [f, requiresOf(f, known)]));
 
     it("reads the modules and their requires", () => {
-        expect(files.length).toBeGreaterThan(100);
+        expect(files.length).toBeGreaterThan(300);
+        expect(files.some((f) => f.includes(`${path.sep}web-client${path.sep}`))).toBe(false);
         expect(graph.get(path.join(WEB, "setupMessage.js"))).toContain(path.join(WEB, "setupCore.js"));
+        // across the layers too: utils -> web
+        expect(graph.get(path.join(SRC, "utils", "raidhelper.js"))).toContain(path.join(WEB, "eventStore.js"));
     });
 
     it("has no require cycle", () => {
-        const named = cycles(graph).map((c) => c.map((f) => path.relative(WEB, f).replace(/\\/g, "/")).sort().join(" <-> "));
+        const named = cycles(graph).map((c) => c.map((f) => path.relative(SRC, f).replace(/\\/g, "/")).sort().join(" <-> "));
         expect(named).toEqual([]);
     });
 
