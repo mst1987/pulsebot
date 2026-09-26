@@ -8,8 +8,8 @@
 //   DELETE /api/raids/series            { categoryId }
 //   POST   /api/raids/series/run        { categoryId?, retryDate? } — sweep now; retryDate clears a failed date first
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
+const { sendResult } = require("../apiResult");
 const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
 const { listRaidTemplates } = require("../settingsStore");
@@ -19,9 +19,7 @@ const series = require("../eventSeries");
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
 const list = (value) => value.split(",").map((s) => s.trim()).filter(Boolean);
 
-async function getSeries(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getSeries = withUser({}, async ({ user, req, res }) => {
     const overview = await series.seriesOverview({ guildId: activeGuildFor(req) });
     ok(res, {
         ...overview,
@@ -29,11 +27,9 @@ async function getSeries(req, res) {
         canWrite: userCan(user, "raids", "write"),
         limits: { minDaysBefore: series.MIN_DAYS_BEFORE, maxDaysBefore: series.MAX_DAYS_BEFORE },
     });
-}
+});
 
-async function getPreview(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getPreview = withUser({}, async ({ req, res, url }) => {
     const input = {
         categoryId: q(url, "category"),
         weekdays: list(q(url, "weekdays")).map(Number),
@@ -45,33 +41,21 @@ async function getPreview(req, res, url) {
         title: q(url, "title"),
     };
     ok(res, await series.previewSeries({ guildId: activeGuildFor(req), input }));
-}
+});
 
-async function putSeries(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = (await readJsonBody(req)) || {};
+const putSeries = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const result = series.saveSeriesFor({ guildId: activeGuildFor(req), input: body, user });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, { series: result.series, message: result.series.enabled ? "Serie gespeichert." : "Serie gespeichert (ausgeschaltet)." });
-}
+});
 
-async function deleteSeries(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = (await readJsonBody(req)) || {};
+const deleteSeries = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!store.deleteSeries(categoryId)) return error(res, 404, "not_found", "Serie nicht gefunden.");
     ok(res, { categoryId, message: "Serie gelöscht. Bereits angelegte Events bleiben." });
-}
+});
 
-async function postRun(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = (await readJsonBody(req)) || {};
+const postRun = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const categoryId = String(body.categoryId || "").trim();
     const retryDate = String(body.retryDate || "").trim();
     if (retryDate) {
@@ -89,6 +73,15 @@ async function postRun(req, res) {
     if (summary.failed) parts.push(`${summary.failed} fehlgeschlagen: ${summary.results.filter((r) => r.error).map((r) => r.error)[0]}`);
     const message = summary.error || parts.join(" · ") || "Nichts fällig — kein Termin ist gerade dran.";
     ok(res, { ...summary, message });
-}
+});
 
-module.exports = { getSeries, getPreview, putSeries, deleteSeries, postRun };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raids/series", handler: getSeries, area: "raids" },
+    { method: "PUT", path: "/api/raids/series", handler: putSeries, area: "raids" },
+    { method: "DELETE", path: "/api/raids/series", handler: deleteSeries, area: "raids" },
+    { method: "GET", path: "/api/raids/series/preview", handler: getPreview, area: "raids" },
+    { method: "POST", path: "/api/raids/series/run", handler: postRun, area: "raids" },
+];
+
+module.exports = { getSeries, getPreview, putSeries, deleteSeries, postRun, routes };

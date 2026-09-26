@@ -9,8 +9,7 @@
 // the body is ignored, so nobody changes someone else's signup through it. The
 // rules themselves are signupService.js', shared with the Discord signup (#258).
 const { ok, error: apiError } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups } = require("../raidEventGroups");
 const { getConfig } = require("../settingsStore");
@@ -25,9 +24,7 @@ const { userCanAny } = require("../../config/permissions");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 
 /** GET /api/signups — the caller's upcoming raids, their status in each, and their characters. */
-async function getSignups(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getSignups = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     const { groups, error: err } = await loadEventGroups(guildId);
     const orga = userCanAny(user, ["raids"], "read");
@@ -40,14 +37,10 @@ async function getSignups(req, res) {
         classes: rulesFor(DEFAULT_VERSION).classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon })),
         error: err,
     });
-}
+});
 
 /** PUT /api/signups — create, change or withdraw (status "absence") the caller's own signup. */
-async function putSignup(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const putSignup = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
     // Whoever may change raids is the orga: the deadline does not bind them.
@@ -78,7 +71,7 @@ async function putSignup(req, res) {
         locked: !!result.locked,
         notice: result.notice || "",
     });
-}
+});
 
 /** At most this many raids per bulk request — more than a member has upcoming. */
 const MAX_BULK = 50;
@@ -89,11 +82,7 @@ const MAX_BULK = 50;
  * one result per raid (saved, or refused with the reason, and the characters
  * skipped there) plus the fresh counts of the saved ones.
  */
-async function postSignupsBulk(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postSignupsBulk = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const eventIds = [...new Set((Array.isArray(body.eventIds) ? body.eventIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
     if (!eventIds.length) return apiError(res, 400, "bad_request", "Keine Raids gewählt.");
     if (eventIds.length > MAX_BULK) return apiError(res, 400, "bad_request", `Höchstens ${MAX_BULK} Raids auf einmal.`);
@@ -119,12 +108,10 @@ async function postSignupsBulk(req, res) {
             };
         }),
     });
-}
+});
 
 /** GET /api/signups/event?id= — all signups of an own event with names, "kann auch" and comment. */
-async function getEventSignups(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getEventSignups = withUser({}, async ({ res, url }) => {
     const id = String(url.searchParams.get("id") || "").trim();
     if (!isOwnEventId(id)) return apiError(res, 409, "raidhelper", "Die Anmeldungen dieses Events liegen bei Raid-Helper.");
     const event = getEvent(id);
@@ -132,6 +119,14 @@ async function getEventSignups(req, res, url) {
     const signups = listSignups(id);
     const names = await discord.resolveUserNames(event.guildId, signups.map((s) => s.userId));
     ok(res, { eventId: id, counts: roleCounts(event, signups), signups: eventSignupList(signups, names) });
-}
+});
 
-module.exports = { getSignups, putSignup, postSignupsBulk, getEventSignups };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/signups", handler: getSignups, area: "signup" },
+    { method: "PUT", path: "/api/signups", handler: putSignup, area: "signup" },
+    { method: "POST", path: "/api/signups/bulk", handler: postSignupsBulk, area: "signup" },
+    { method: "GET", path: "/api/signups/event", handler: getEventSignups, area: "raids" },
+];
+
+module.exports = { getSignups, putSignup, postSignupsBulk, getEventSignups, routes };

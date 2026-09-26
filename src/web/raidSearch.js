@@ -17,12 +17,11 @@ const eventStore = require("./eventStore");
 const discord = require("./discord");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
+const { fail } = require("./apiResult");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 const ROLE_NAME = { tank: ["Tank", "Tanks"], healer: ["Healer", "Healers"], melee: ["Melee DPS", "Melee DPS"], ranged: ["Ranged DPS", "Ranged DPS"] };
 const MAX_TEXT = 1900;
-
-const fail = (status, code, message) => ({ error: { status, code, message } });
 
 function rulesOf(event) {
     return rulesFor((event && event.versionId) || DEFAULT_VERSION) || rulesFor(DEFAULT_VERSION);

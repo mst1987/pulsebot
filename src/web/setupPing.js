@@ -9,8 +9,7 @@
 const eventStore = require("./eventStore");
 const discord = require("./discord");
 const { approvedSetupOf } = require("./setupEditor");
-
-const fail = (status, code, message) => ({ error: { status, code, message } });
+const { fail } = require("./apiResult");
 
 /** The line everyone reads without the orga ever setting their own — raider-facing, so English. */
 const PING_TEXT = "📋 The setup is up — you're in!";

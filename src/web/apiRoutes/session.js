@@ -3,7 +3,8 @@ const discord = require("../discord");
 const { guildRole } = require("../guildRoles");
 const { activeGuildFor } = require("../activeGuild");
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
+const { requireCsrf } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { readJsonBody } = require("../apiBody");
 const userPrefs = require("../userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
@@ -53,32 +54,24 @@ function sessionGuilds() {
 }
 
 /** POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }. */
-async function postActiveGuild(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postActiveGuild = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = String(body.guildId || "").trim();
     if (guildId && !discord.listGuilds().some((g) => g.id === guildId)) {
         return error(res, 400, "unknown_guild", "Unbekannter Server.");
     }
     auth.setActiveGuild(req, guildId);
     ok(res, { activeGuildId: guildId });
-}
+});
 
 /**
  * POST /api/session/lang — remember the menu language for the caller's own
  * account, so it follows them to another device. Body: { lang: "de" | "en" }.
  */
-async function postLang(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postLang = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const result = userPrefs.setLang(user.id, body.lang);
     if (result.code) return error(res, 400, result.code, "Unbekannte Sprache.");
     ok(res, { lang: result.lang });
-}
+});
 
 // ---- "Ansicht als Rolle" (src/web/viewAs.js) --------------------------------
 
@@ -147,4 +140,13 @@ async function postViewAs(req, res) {
     ok(res, { viewAs: { roleIds } });
 }
 
-module.exports = { getSession, postActiveGuild, postLang, getViewAs, postViewAs };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/session", handler: getSession, auth: "none" },
+    { method: "POST", path: "/api/session/guild", handler: postActiveGuild, auth: "menu" },
+    { method: "POST", path: "/api/session/lang", handler: postLang, auth: "menu" },
+    { method: "GET", path: "/api/session/view-as", handler: getViewAs, auth: "none" },
+    { method: "POST", path: "/api/session/view-as", handler: postViewAs, auth: "none" },
+];
+
+module.exports = { getSession, postActiveGuild, postLang, getViewAs, postViewAs, routes };

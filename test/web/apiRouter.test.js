@@ -356,6 +356,7 @@ const softres = require("../../src/utils/softres");
 const wowhead = require("../../src/utils/wowhead");
 const raidsheetsUtil = require("../../src/utils/raidsheets");
 const { handle } = require("../../src/web/apiRouter");
+const { AppError } = require("../../src/web/apiResult");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../src/config/permissions");
 
 function mockRes() {
@@ -435,9 +436,39 @@ describe("web/apiRouter", () => {
 
         it("keeps the 404 JSON shape for unknown endpoints", async () => {
             const res = await get("/api/does-not-exist");
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
             expect(body(res)).toEqual({
                 error: { code: "not_found", message: "Unbekannter API-Endpunkt." },
             });
+        });
+
+        // The route table (#421): a path the API knows, called with a method it
+        // has no handler for, is told which methods it does answer to.
+        it("answers 405 with the allowed methods for a known path and a wrong method", async () => {
+            const res = await request("DELETE", "/api/dashboard", {});
+            expect(res.writeHead).toHaveBeenCalledWith(405, expect.objectContaining({ Allow: "GET" }));
+            expect(body(res).error.code).toBe("method_not_allowed");
+            expect(body(res).error.message).toContain("DELETE");
+            expect(body(res).error.message).toContain("GET");
+        });
+
+        it("lists every method of a path in the 405", async () => {
+            const res = await request("DELETE", "/api/channels", {});
+            expect(res.writeHead).toHaveBeenCalledWith(405, expect.objectContaining({ Allow: "GET, POST, PATCH" }));
+        });
+
+        it("refuses a wrong method on a path the caller may not use before saying 405", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { raids: { read: true, write: false } } });
+            const res = await request("DELETE", "/api/dashboard", {});
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+        });
+
+        // A handler's own answer, thrown instead of sent: apiResult.js's AppError
+        it("sends an AppError with its own status and code instead of a 500", async () => {
+            logStore.getLog.mockImplementation(() => { throw new AppError("busy", 409, "Gerade nicht."); });
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "busy", message: "Gerade nicht." } });
         });
     });
 

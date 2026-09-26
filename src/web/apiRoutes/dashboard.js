@@ -1,5 +1,5 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { listRecruitmentPosts, getConfig } = require("../settingsStore");
 const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
@@ -37,9 +37,7 @@ function kickerFor(guildId) {
  * open tasks, one figure per area, the newest top-item awards and the last
  * raids. See dashboardOverview.js for what decides each part.
  */
-async function getDashboard(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getDashboard = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     const [next, recentEvents] = await Promise.all([
         loadNextRaids(guildId, 2),
@@ -83,16 +81,14 @@ async function getDashboard(req, res) {
         },
         activeGuildId: guildId,
     });
-}
+});
 
 /**
  * GET /api/dashboard/next-raid?event=<id> — the "Raid-Details" modal of an
  * upcoming raid: signups per role and class, preparation, who has not signed
  * up. Loaded when the modal opens, because the member list is a Discord call.
  */
-async function getNextRaidDetails(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getNextRaidDetails = withUser({}, async ({ req, res, url }) => {
     const eventId = String((url && url.searchParams.get("event")) || "").trim();
     if (!eventId) return error(res, 400, "missing_event", "Kein Event angegeben.");
     const guildId = activeGuildFor(req);
@@ -101,6 +97,12 @@ async function getNextRaidDetails(req, res, url) {
         return error(res, result.notFound ? 404 : 400, result.notFound ? "not_found" : "events_unavailable", result.error);
     }
     ok(res, { raid: result.raid, activeGuildId: guildId });
-}
+});
 
-module.exports = { getDashboard, getNextRaidDetails };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/dashboard", handler: getDashboard, area: "dashboard" },
+    { method: "GET", path: "/api/dashboard/next-raid", handler: getNextRaidDetails, area: "dashboard" },
+];
+
+module.exports = { getDashboard, getNextRaidDetails, routes };
