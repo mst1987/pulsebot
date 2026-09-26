@@ -29,7 +29,7 @@ import { useT } from "../../../i18n";
 export function MobIcon({ icon, size = 18 }: { icon: string; size?: number }) {
     if (portraitUrl(icon)) return <img className="rp-mobicon" src={portraitUrl(icon)} alt="" width={size} height={size} draggable={false} />;
     if (icon) return <img className="rp-mobicon" src={wowIconUrl(icon, size > 24 ? 56 : 36)} alt="" width={size} height={size} draggable={false} />;
-    return <span className="rp-mobicon rp-mobicon-generic" style={{ width: size, height: size }} aria-hidden="true"><Swords size={Math.round(size * 0.66)} /></span>;
+    return <span className="rp-mobicon rp-mobicon-generic" style={{ "--rp-mob": `${size}px` } as React.CSSProperties} aria-hidden="true"><Swords size={Math.round(size * 0.66)} /></span>;
 }
 
 /** One assignee or target as a small chip: who it is now (icon and name), or the placeholder / mark / text. */
@@ -49,7 +49,7 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
     ) : r.kind === "mob" ? (
         <><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></>
     ) : r.kind === "group" ? (
-        <><span className="rp-gdot" aria-hidden="true" style={{ background: groupColor(ctx ? ctx.groupColors : undefined, r.group) }} /><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
+        <><span className="rp-gdot" aria-hidden="true" style={{ "--rp-gdot": groupColor(ctx ? ctx.groupColors : undefined, r.group) } as React.CSSProperties} /><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
     ) : r.kind === "text" ? (
         <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={18} /><span>{r.label}</span></>
     ) : (
@@ -59,7 +59,7 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
         </>
     );
     return (
-        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} style={r.kind === "group" ? { borderColor: groupColor(ctx ? ctx.groupColors : undefined, r.group), borderWidth: 2 } : undefined} data-tip={r.kind === "slot" && r.player ? r.label : r.kind === "group" && ctx ? groupMembersTip(ctx, r.group) : undefined}>
+        <span className={`rp-achip rp-achip-${r.kind}${mine ? " is-own" : ""}`} style={r.kind === "group" ? ({ "--rp-gline": groupColor(ctx ? ctx.groupColors : undefined, r.group) } as React.CSSProperties) : undefined} data-tip={r.kind === "slot" && r.player ? r.label : r.kind === "group" && ctx ? groupMembersTip(ctx, r.group) : undefined}>
             {extra}{body}
             {onRemove && <button type="button" className="rp-achip-x" aria-label={t("raidBoard.assign.remove")} onClick={onRemove}><X size={12} /></button>}
         </span>
@@ -250,7 +250,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         const push = (tg: RaidplanAssignTarget, group: string) => {
             const r = resolveTarget(tg, ctx);
             const node = tg.kind === "slot" ? <SlotPickChip r={r} n={Number(tg.ref.split(":")[1])} />
-                : tg.kind === "group" ? <><span className="rp-gdot" aria-hidden="true" style={{ background: groupColor(board.groupColors, Number(tg.ref)) }} /><Users size={16} aria-hidden="true" /><b className="rp-amb-name">{t("raidBoard.slot.group", { n: Number(tg.ref) })}</b><span className="rp-amb-cnt">{groupSize(Number(tg.ref))}</span></>
+                : tg.kind === "group" ? <><span className="rp-gdot" aria-hidden="true" style={{ "--rp-gdot": groupColor(board.groupColors, Number(tg.ref)) } as React.CSSProperties} /><Users size={16} aria-hidden="true" /><b className="rp-amb-name">{t("raidBoard.slot.group", { n: Number(tg.ref) })}</b><span className="rp-amb-cnt">{groupSize(Number(tg.ref))}</span></>
                 : tg.kind === "mark" ? <><MarkIcon mark={tg.ref as never} size={22} /><span className="rp-amb-name">{r.label}</span></>
                 : tg.kind === "mob" ? <><MobIcon icon={r.icon} size={26} /><span className="rp-amb-name">{r.label}</span></>
                 : <AssignChip r={r} />;

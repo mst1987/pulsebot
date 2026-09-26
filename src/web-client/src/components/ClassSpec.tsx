@@ -39,7 +39,7 @@ export function ClassSpecIcon({ iconUrl, size = 18 }: { iconUrl: string; size?: 
             alt=""
             width={18}
             height={18}
-            style={{ borderRadius: 4, verticalAlign: "-4px", marginRight: 6 }}
+            className="spec-ico-sm"
         />
     );
 }
@@ -77,7 +77,7 @@ export function ClassSpecIdentity({ character, className, spec, classColor, icon
 export function ClassSpecLabel({ className, spec, classColor }: { className: string; spec: string; classColor?: string }) {
     const colored = classColorProps(classColor);
     return (
-        <span className={colored.className} style={{ fontWeight: 700, ...colored.style }}>
+        <span className={colored.className ? `spec-label ${colored.className}` : "spec-label"} style={colored.style}>
             {spec ? `${spec} ${className}` : className}
         </span>
     );

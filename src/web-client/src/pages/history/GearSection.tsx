@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { CharGearReport, GearIssue, GearItem, HistoryCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
@@ -52,7 +52,7 @@ function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issu
             data-tip-sub={tipSub}
         >
             <span className="ros-iw">
-                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ros-iw-ph" />}
+                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ "--ros-q": color } as CSSProperties} /> : <span className="ros-iw-ph" />}
                 {g.enchants.length
                     ? <span className="ros-ench ok" aria-label={t("history.gear.enchanted")}><CheckIcon /></span>
                     : enchantable && <span className="ros-ench bad" aria-label={t("history.gear.notEnchanted")}><XIcon /></span>}

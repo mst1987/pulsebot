@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Copy, RotateCw, Search, Settings2, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
@@ -125,7 +125,7 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
     return (
         <div className="rp-thumb" ref={ref} aria-hidden="true">
             {boss && board ? (
-                <div className="rp-thumb-inner" style={{ width: THUMB_W, transform: `scale(${k})` }}>
+                <div className="rp-thumb-inner" style={{ "--rp-thumb-w": `${THUMB_W}px`, "--rp-thumb-k": String(k) } as CSSProperties}>
                     <PlanBoard
                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} mapOpacity={board.mapOpacity} objectScale={board.objectScale}
                         tokens={[]} assignments={board.assignments} slots={board.slots} marks={board.marks} icons={board.icons} zones={board.zones} lines={board.lines} texts={board.texts}

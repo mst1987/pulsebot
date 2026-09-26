@@ -36,7 +36,7 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
                 {step.unit && <small>{step.unit}</small>}
             </span>
             {typeof step.fill === "number" && (
-                <span className="rd-step-bar"><i style={{ width: `${Math.round(step.fill * 100)}%` }} /></span>
+                <span className="rd-step-bar"><i style={{ "--fill": `${Math.round(step.fill * 100)}%` } as CSSProperties} /></span>
             )}
             <span className="rd-step-badge">
                 {/* A neutral badge on the next step says nothing; "nächster

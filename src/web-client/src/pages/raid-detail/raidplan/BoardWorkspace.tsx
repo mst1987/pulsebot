@@ -369,12 +369,12 @@ export default function BoardWorkspace({
             {canWrite && !noMap && <p className="rp-muted rp-hint">{t(isEvent ? "raidBoard.board.hint" : "raidBoard.board.hintTemplate")}</p>}
 
             {drag && drag.kind === "tray" && dragPlayer && (
-                <div className="rp-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
+                <div className="rp-ghost" style={{ "--rp-x": `${drag.x}px`, "--rp-y": `${drag.y}px` } as React.CSSProperties} aria-hidden="true">
                     <TokenIcon player={dragPlayer} />
                 </div>
             )}
             {drag && drag.kind === "palette" && drag.spec && drag.moved && (
-                <div className="rp-ghost rp-ghost-pal" style={{ left: drag.x, top: drag.y }} aria-hidden="true">
+                <div className="rp-ghost rp-ghost-pal" style={{ "--rp-x": `${drag.x}px`, "--rp-y": `${drag.y}px` } as React.CSSProperties} aria-hidden="true">
                     {drag.spec.type === "mark" ? <MarkIcon mark={drag.spec.mark as never} size={34} /> : specLabel(drag.spec)}
                 </div>
             )}

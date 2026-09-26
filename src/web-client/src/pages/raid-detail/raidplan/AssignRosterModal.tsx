@@ -186,7 +186,7 @@ export default function AssignRosterModal({ board, roster, isEvent, canWrite, ed
                 </section>
             </div>
             {drag && drag.moved && players.get(drag.userId) && (
-                <div className="rp-ghost" style={{ left: drag.x, top: drag.y }} aria-hidden="true"><TokenIcon player={players.get(drag.userId) as RaidplanPlayer} /></div>
+                <div className="rp-ghost" style={{ "--rp-x": `${drag.x}px`, "--rp-y": `${drag.y}px` } as React.CSSProperties} aria-hidden="true"><TokenIcon player={players.get(drag.userId) as RaidplanPlayer} /></div>
             )}
         </Modal>
     );

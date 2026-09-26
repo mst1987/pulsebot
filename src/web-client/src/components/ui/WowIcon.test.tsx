@@ -84,12 +84,12 @@ describe("Bar", () => {
         const bar = container.firstElementChild as HTMLElement;
         expect(bar).toHaveClass("bar", "ok");
         expect(bar).toHaveAttribute("data-tip", "42 von 200");
-        expect(bar.querySelector("i")).toHaveStyle({ width: "21.2%" });
+        expect(bar.querySelector("i")).toHaveStyle({ "--fill": "21.2%" });
         expect(bar).toHaveTextContent("42");
         rerender(<Bar value={300} max={200} label="voll" />);
-        expect(container.querySelector("i")).toHaveStyle({ width: "100%" });
+        expect(container.querySelector("i")).toHaveStyle({ "--fill": "100%" });
         expect(container.firstElementChild).toHaveTextContent("voll");
         rerender(<Bar value={5} max={0} />);
-        expect(container.querySelector("i")).toHaveStyle({ width: "0%" });
+        expect(container.querySelector("i")).toHaveStyle({ "--fill": "0%" });
     });
 });

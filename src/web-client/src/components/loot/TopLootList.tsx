@@ -9,6 +9,7 @@
 // and the character link stay real links inside it instead of nested anchors.
 // Who won it in which spec, and what they answered in the loot addon, is the
 // winner's tooltip — not a native title.
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { TopLootAward } from "../../api";
 import { fmtMs } from "../../lib/format";
@@ -58,7 +59,7 @@ export default function TopLootList({ items }: { items: TopLootAward[] }) {
                             ? (
                                 <img
                                     className="toploot-ico" src={it.itemIconUrl} alt="" loading="lazy"
-                                    style={{ borderColor: itemQualityColor(it.itemQuality) || "var(--line)" }}
+                                    style={{ "--tl-q": itemQualityColor(it.itemQuality) || "var(--line)" } as CSSProperties}
                                 />
                             )
                             : <span className="toploot-ico toploot-ico-empty" />}

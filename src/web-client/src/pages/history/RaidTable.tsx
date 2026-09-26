@@ -99,13 +99,13 @@ export default function RaidTable({ events, guildId, error, emptyMessage, sortKe
     });
 
     if (error) {
-        return <table className="idx" style={{ margin: 0 }}><tbody><tr><td colSpan={5} className="sub" style={{ padding: 16, color: "var(--high)" }}>{error}</td></tr></tbody></table>;
+        return <table className="idx flush"><tbody><tr><td colSpan={5} className="sub hl-msg-cell hl-msg-bad">{error}</td></tr></tbody></table>;
     }
     if (!events.length) {
-        return <table className="idx" style={{ margin: 0 }}><tbody><tr><td colSpan={5} className="sub" style={{ padding: 16 }}>{emptyMessage}</td></tr></tbody></table>;
+        return <table className="idx flush"><tbody><tr><td colSpan={5} className="sub hl-msg-cell">{emptyMessage}</td></tr></tbody></table>;
     }
     return (
-        <table className="idx" style={{ margin: 0 }}>
+        <table className="idx flush">
             <thead>
                 <tr>
                     <SortTh sortKey="event" label={t("raids.table.event")} sort={sort} dir={dir} onSort={onSort} />

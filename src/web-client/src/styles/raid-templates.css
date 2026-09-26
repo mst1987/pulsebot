@@ -71,7 +71,7 @@
     display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 0;
     background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 0 0 auto;
 }
-.rt-look-bar { width: 6px; align-self: stretch; border-radius: 0; flex: 0 0 auto; margin-right: 2px; }
+.rt-look-bar { background: var(--rt-look); width: 6px; align-self: stretch; border-radius: 0; flex: 0 0 auto; margin-right: 2px; }
 .rt-look-prev .wi, .rt-look-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
 .rt-look-banner { width: 96px; height: 40px; border-radius: 6px; object-fit: cover; }
 .rt-look-fields { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }

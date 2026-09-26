@@ -48,15 +48,17 @@ export default function DataTable<T, K extends string>({ rows, columns, rowKey, 
 
     const ordered = sort && sortValue ? sort.apply(rows, sortValue) : rows;
     const shown = pageSlice(ordered, page, pageSize);
-    const widthStyle = (c: Column<T, K>): CSSProperties | undefined => (c.width !== undefined ? { width: c.width } : undefined);
+    // a column's width goes in as --th-w and is read by th.th-w (index.css)
+    const widthStyle = (c: Column<T, K>): CSSProperties | undefined => (c.width !== undefined ? ({ "--th-w": typeof c.width === "number" ? `${c.width}px` : c.width } as CSSProperties) : undefined);
+    const widthClass = (c: Column<T, K>): string | undefined => (c.width !== undefined ? "th-w" : undefined);
 
     const table = (
         <table className={className}>
             <thead>
                 <tr>
                     {columns.map((c) => (c.sortKey && sort
-                        ? <SortTh key={c.id} sortKey={c.sortKey} label={c.label || ""} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={c.tip} tipSub={c.tipSub} style={widthStyle(c)} />
-                        : <th key={c.id} style={widthStyle(c)} data-tip={c.tip} data-tip-sub={c.tipSub}>{c.label}</th>))}
+                        ? <SortTh key={c.id} sortKey={c.sortKey} label={c.label || ""} sort={sort.sort} dir={sort.dir} onSort={sort.onSort} tip={c.tip} tipSub={c.tipSub} className={widthClass(c)} style={widthStyle(c)} />
+                        : <th key={c.id} className={widthClass(c)} style={widthStyle(c)} data-tip={c.tip} data-tip-sub={c.tipSub}>{c.label}</th>))}
                 </tr>
             </thead>
             <tbody>

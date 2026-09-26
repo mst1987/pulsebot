@@ -534,7 +534,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                                     {type === "kick" && lines.length > 1 && <span className="rp-achip-no">{l.order}</span>}
                                     {l.who.player ? <><TokenIcon player={l.who.player} size="sm" /><PlayerName player={l.who.player} /></> : <><WowIcon name={l.who.icon || ROLE_ICON[l.who.role] || ROLE_ICON.dps} size={18} /><span>{l.who.label}{l.who.kind === "role" ? "" : ` · ${openWord}`}</span></>}
                                     {l.targets.length > 0 && <ArrowRight size={14} aria-hidden="true" className="rp-muted" />}
-                                    {l.targets.slice(0, 3).map((tg) => <span key={`${tg.kind}${tg.ref}`} className={`rp-amb-ptarget${tg.kind === "group" ? " is-group" : ""}`} style={tg.kind === "group" ? { borderLeftColor: groupColor(tmp.groupColors, tg.group) } : undefined}>{tg.player ? <PlayerName player={tg.player} /> : tg.label}</span>)}
+                                    {l.targets.slice(0, 3).map((tg) => <span key={`${tg.kind}${tg.ref}`} className={`rp-amb-ptarget${tg.kind === "group" ? " is-group" : ""}`} style={tg.kind === "group" ? ({ "--rp-gline": groupColor(tmp.groupColors, tg.group) } as React.CSSProperties) : undefined}>{tg.player ? <PlayerName player={tg.player} /> : tg.label}</span>)}
                                     {l.targets.length > 3 && <span className="rp-muted">+{l.targets.length - 3}</span>}
                                 </span>
                             ))}

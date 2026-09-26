@@ -126,9 +126,9 @@ export default function Palette({ onStart, onInsert, bosses, currentBoss, tally 
                 <h3 className="rp-kicker">{t("raidBoard.palette.zones")}</h3>
                 <div className="rp-pal-grid">
                     {ZONE_TYPES.map((z) => entry(z, { type: "zone", zoneType: z, shape: "rect" }, t(`raidBoard.zone.${z}`), (
-                        <span className="rp-pal-swatch" style={{ background: ZONE_COLORS[z as RaidplanZoneType] }} aria-hidden="true">{ZONE_GLYPHS[z]}</span>
+                        <span className="rp-pal-swatch" style={{ "--rp-sw": ZONE_COLORS[z as RaidplanZoneType] } as CSSProperties} aria-hidden="true">{ZONE_GLYPHS[z]}</span>
                     )))}
-                    {entry("ellipse", { type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <span className="rp-pal-swatch rp-pal-round" style={{ background: ZONE_COLORS.neutral }} aria-hidden="true" />)}
+                    {entry("ellipse", { type: "zone", zoneType: "neutral", shape: "ellipse" }, t("raidBoard.zone.ellipse"), <span className="rp-pal-swatch rp-pal-round" style={{ "--rp-sw": ZONE_COLORS.neutral } as CSSProperties} aria-hidden="true" />)}
                 </div>
             </div>
             <div className="rp-palette-group">

@@ -23,7 +23,7 @@
     border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); cursor: pointer;
 }
 .va-role.is-on { border-color: var(--accent); background: var(--accent-soft); }
-.va-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.va-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--va-c, var(--muted)); flex: none; }
 .va-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
 
 @media (max-width: 640px) {

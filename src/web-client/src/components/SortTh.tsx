@@ -45,9 +45,9 @@ export function ariaSort<K extends string>(sortKey: K, sort: K, dir: Dir): "asce
     return dir === "asc" ? "ascending" : "descending";
 }
 
-export function SortTh<K extends string>({ style, ...props }: SortLabelProps<K> & { style?: React.CSSProperties }) {
+export function SortTh<K extends string>({ className, style, ...props }: SortLabelProps<K> & { className?: string; style?: React.CSSProperties }) {
     return (
-        <th aria-sort={ariaSort(props.sortKey, props.sort, props.dir)} style={style}>
+        <th aria-sort={ariaSort(props.sortKey, props.sort, props.dir)} className={className} style={style}>
             <SortLabel {...props} />
         </th>
     );

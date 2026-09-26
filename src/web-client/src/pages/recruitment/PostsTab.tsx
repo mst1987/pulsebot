@@ -84,11 +84,11 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                     {/* The Channel column takes what the fixed ones leave: a channel
                                         name is the one cell whose length nobody controls. */}
                                     <SortTh sortKey="channel" label={t("recruitment.posts.colChannel")} sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="wanted" label={t("recruitment.posts.colWanted")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.wantedTip")} tipSub={t("recruitment.posts.wantedSub")} style={{ width: 140 }} />
-                                    <SortTh sortKey="template" label={t("recruitment.posts.colTemplate")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.templateTip")} tipSub={t("recruitment.posts.templateSub")} style={{ width: 190 }} />
-                                    <SortTh sortKey="source" label={t("recruitment.posts.colSource")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.sourceTip")} tipSub={t("recruitment.posts.sourceSub")} style={{ width: 130 }} />
-                                    <SortTh sortKey="updated" label={t("recruitment.posts.colUpdated")} sort={sort} dir={dir} onSort={onSort} style={{ width: 130 }} />
-                                    <th style={{ width: 132 }} />
+                                    <SortTh sortKey="wanted" label={t("recruitment.posts.colWanted")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.wantedTip")} tipSub={t("recruitment.posts.wantedSub")} className="rc-col-wanted" />
+                                    <SortTh sortKey="template" label={t("recruitment.posts.colTemplate")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.templateTip")} tipSub={t("recruitment.posts.templateSub")} className="rc-col-template" />
+                                    <SortTh sortKey="source" label={t("recruitment.posts.colSource")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.sourceTip")} tipSub={t("recruitment.posts.sourceSub")} className="rc-col-source" />
+                                    <SortTh sortKey="updated" label={t("recruitment.posts.colUpdated")} sort={sort} dir={dir} onSort={onSort} className="rc-col-updated" />
+                                    <th className="rc-col-postact" />
                                 </tr>
                             </thead>
                             <tbody>

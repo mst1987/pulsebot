@@ -102,7 +102,7 @@
 .rp-ico-sm.rp-role-ranged { border-width: 3px; }
 
 /* dragging from the list: a token following the pointer */
-.rp-ghost { position: fixed; z-index: 1000; transform: translate(-50%, -50%); pointer-events: none; opacity: .92; filter: drop-shadow(0 6px 12px var(--shade-50)); }
+.rp-ghost { left: var(--rp-x); top: var(--rp-y); position: fixed; z-index: 1000; transform: translate(-50%, -50%); pointer-events: none; opacity: .92; filter: drop-shadow(0 6px 12px var(--shade-50)); }
 
 /* ---- side column ---- */
 .rp-side-block { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
@@ -274,7 +274,7 @@
 .rp-pal-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rp-pal-item .wi { border-radius: 6px; }
 .rp-pal-text { font-size: 11px; font-weight: 800; }
-.rp-pal-swatch { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; color: var(--rp-board-bg); font-size: 12px; font-weight: 800; }
+.rp-pal-swatch { background: var(--rp-sw); display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 5px; color: var(--rp-board-bg); font-size: 12px; font-weight: 800; }
 .rp-pal-round { border-radius: 50%; }
 .rp-pal-hint { font-size: 11px; line-height: 1.3; margin-top: 2px; }
 
@@ -392,7 +392,7 @@
 .rp-tcard:hover, .rp-tcard:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .rp-tcard-body { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
 .rp-thumb { position: relative; height: 150px; overflow: hidden; background: var(--rp-board-bg); border-bottom: 1px solid var(--line); pointer-events: none; }
-.rp-thumb-inner { transform-origin: 0 0; }
+.rp-thumb-inner { transform-origin: 0 0; width: var(--rp-thumb-w); transform: scale(var(--rp-thumb-k)); }
 .rp-thumb-icon { position: absolute; inset: 0; margin: auto; width: 72px; height: 72px; border-radius: 14px; opacity: .55; }
 .rp-tcard-info { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; }
 .rp-tcard-title { display: flex; align-items: center; gap: 10px; padding-right: 92px; }
@@ -428,6 +428,8 @@
 .rp-achip .class-colored { color: var(--cc) !important; }
 .rp-achip-open { color: var(--muted); font-style: italic; }
 .rp-achip-mark, .rp-achip-text, .rp-achip-group { padding-left: 8px; }
+/* a group chip: framed in the group's colour (--rp-gline); !important as the inline style it replaces beat .is-own (#441) */
+.rp-achip-group { border-color: var(--rp-gline) !important; border-width: 2px !important; }
 .rp-achip-no { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--on-fill); font-size: 10px; font-weight: 800; }
 .rp-achip.is-own, tr.is-own .rp-achip { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .rp-achip-x { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; margin-left: 2px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
@@ -540,7 +542,7 @@
 .rp-mobchip-btn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--panel2); color: var(--muted); cursor: pointer; }
 .rp-mobchip-btn:hover { color: var(--text); border-color: var(--accent); }
 .rp-mobicon { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: inline-block; background: var(--panel2); }
-.rp-mobicon-generic { display: inline-flex; align-items: center; justify-content: center; background: var(--rp-enemy); color: var(--on-fill); }
+.rp-mobicon-generic { width: var(--rp-mob); height: var(--rp-mob); display: inline-flex; align-items: center; justify-content: center; background: var(--rp-enemy); color: var(--on-fill); }
 .rp-spellchip { border-color: var(--accent); }
 .rp-catalog { display: flex; flex-direction: column; gap: 12px; max-width: 980px; }
 .rp-cgroup { display: flex; flex-direction: column; gap: 6px; }
@@ -777,7 +779,7 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-amb-plines { display: flex; flex-wrap: wrap; gap: 6px 8px; }
 .rp-amb-pline { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); font-size: 13.5px; white-space: nowrap; }
 .rp-amb-pline.is-open { border-style: dashed; border-color: var(--rp-warn); color: var(--rp-warn); }
-.rp-amb-ptarget.is-group { padding-left: 6px; border-left: 3px solid var(--line); }
+.rp-amb-ptarget.is-group { padding-left: 6px; border-left: 3px solid var(--rp-gline, var(--line)); }
 
 .rp-amb-rot { display: inline-flex; align-items: center; gap: 1px; }
 .rp-amb-rotbtn { display: inline-grid; place-items: center; width: 18px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--muted); cursor: pointer; }
@@ -834,7 +836,7 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-lc .rp-ico-sm { width: 20px; height: 20px; }
 .rp-lc .rp-achip-no { margin-right: 1px; }
 .rp-line:hover .rp-lc:not(.is-open):not(.is-slot) { background: var(--panel3); }
-.rp-lc.is-grp { padding-left: 7px; border-left: 3px solid var(--line); }
+.rp-lc.is-grp { padding-left: 7px; border-left: 3px solid var(--rp-gline, var(--line)); }
 .rp-lc.is-mk { padding-left: 5px; }
 .rp-lc.is-open { background: transparent; border: 1px dashed var(--rp-warn); color: var(--rp-warn); font-weight: 400; padding-left: 6px; }
 .rp-lc.is-open .wi { opacity: .7; }
@@ -1237,7 +1239,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-gbadge.is-focus { background: var(--gc); color: var(--gi); }
 .rp-gstyle { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .rp-gswatches, .rp-gmarks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.rp-gswatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); padding: 0; cursor: pointer; }
+.rp-gswatch { background: var(--rp-sw); width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); padding: 0; cursor: pointer; }
 .rp-gswatch.is-on { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rp-gmark { padding: 3px 5px; }
 .rp-glegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; font-size: 12px; }
@@ -1353,7 +1355,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-gcell[role="button"] { cursor: pointer; }
 .rp-gcell.is-focus .rp-gnum { text-decoration: underline; }
 
-.rp-gdot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; border: 1px solid var(--shade-40); }
+.rp-gdot { background: var(--rp-gdot); width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; border: 1px solid var(--shade-40); }
 .rp-gheal .rp-rtable { width: 100%; }
 .rp-gheal .rp-rtable td .rp-who, .rp-gheal .rp-rtable td .rp-who * { white-space: nowrap; overflow-wrap: normal; }
 .rp-gheal .rp-rtable td:last-child { min-width: 128px; }
@@ -1389,7 +1391,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-minimap { position: absolute; left: 8px; bottom: 8px; z-index: 6; width: 150px; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--rp-board-bg); cursor: crosshair; touch-action: none; box-shadow: 0 4px 14px var(--shade-40); }
 .rp-minimap img { display: block; width: 100%; height: auto; opacity: .85; pointer-events: none; }
 .rp-minimap-grid { width: 100%; aspect-ratio: 16 / 10; background: var(--rp-grid-bg); }
-.rp-minimap-view { position: absolute; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; box-sizing: border-box; }
+.rp-minimap-view { position: absolute; left: var(--rp-x); top: var(--rp-y); width: var(--rp-w); height: var(--rp-h); border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; box-sizing: border-box; }
 .rp-read-right .rp-minimap { z-index: 6; }
 .rp-zoomctl-pct { width: auto !important; padding: 0 10px !important; }
 
@@ -1418,7 +1420,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-canvas .rp-mark-svg, .rp-canvas .rp-mark-img { filter: drop-shadow(0 calc(var(--rp-shd, 1px) * .5) var(--rp-shd, 2px) var(--shade-60)); }
 
 /* ---- the tactic ("Taktik"): ordered steps under the assignment cards, the step dialog, the library, the sheet ---- */
-.rp-acticon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 8px; }
+.rp-acticon { width: var(--rp-ai); height: var(--rp-ai); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 8px; }
 .rp-acticon svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .rp-acticon.is-tank { background: color-mix(in srgb, var(--rp-act-tank) 20%, var(--panel)); color: var(--rp-act-tank-ink); }
 .rp-acticon.is-ctl { background: color-mix(in srgb, var(--rp-act-ctl) 20%, var(--panel)); color: var(--rp-act-ctl-ink); }
@@ -1663,3 +1665,22 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-canvas .rp-groupchip.is-sized { width: var(--rp-cw); max-width: var(--rp-cw); }
 .rp-canvas .rp-groupchip-names { align-self: stretch; min-width: 0; }
 .rp-canvas .rp-groupchip-names > * { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- board geometry (#441) -----------------------------------------------
+   Every board object's place, size and opacity comes in as custom properties
+   (components/raidplan/PlanBoard.tsx): --rp-x/--rp-y (left/top), --rp-w/--rp-h,
+   --rp-o. They used to be inline styles; !important keeps them above the state
+   classes (.rp-groupring.is-yours, .rp-autotank.is-missing, ...) exactly as the
+   inline styles were. */
+.rp-board[data-rp-board] { aspect-ratio: var(--rp-aspect) !important; max-width: var(--rp-maxw) !important; }
+.rp-canvas { width: var(--rp-canvas-w); height: var(--rp-canvas-h); transform: var(--rp-canvas-tf); }
+.rp-board .rp-map { opacity: var(--rp-mo); }
+.rp-board :is(.rp-token, .rp-text) { left: var(--rp-x) !important; top: var(--rp-y) !important; opacity: var(--rp-o) !important; }
+.rp-board :is(.rp-zone, .rp-rg-up, .rp-band, .rp-multibox) { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; }
+.rp-board .rp-groupring { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; opacity: var(--rp-o) !important; }
+.rp-board .rp-groupring.is-colored { border-color: var(--rp-ringc) !important; }
+.rp-board .rp-h-end { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-board g.rp-line { opacity: var(--rp-o) !important; }
+.rp-board .rp-facing { transform: rotate(var(--rp-face)); }
+.rp-board .rp-wedge { opacity: var(--rp-wo, 1); }
+.rp-board .rp-text { color: var(--rp-tc, inherit); font-size: var(--rp-fs); }

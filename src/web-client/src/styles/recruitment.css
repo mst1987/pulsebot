@@ -137,3 +137,12 @@ dl.rc-meta dd { margin: 0; font-size: 14px; min-width: 0; overflow-wrap: anywher
     background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
     font-size: 14px; line-height: 1.55; white-space: pre-line;
 }
+
+/* fixed column widths of the posts and applications tables (#441, were inline styles) */
+.rc-col-discord { width: 170px; }
+.rc-col-date, .rc-col-wanted { width: 140px; }
+.rc-col-status { width: 120px; }
+.rc-col-template { width: 190px; }
+.rc-col-source, .rc-col-updated { width: 130px; }
+.rc-col-postact { width: 132px; }
+.rc-col-appact { width: 210px; }

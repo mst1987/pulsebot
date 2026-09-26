@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import WowIcon from "./WowIcon";
 import { classIconName } from "../../lib/rosterView";
 import { classLabel } from "../../lib/wowNames";
@@ -65,7 +65,7 @@ export default function RaidLoader({ text = t("common.loading"), compact = false
                             {/* every third one runs the wrong way — it is a raid, after all */}
                             <span
                                 className={`rl-icon ${i % 3 === 1 ? "flee" : "attack"}`}
-                                style={{ animationDelay: `${(i * 0.17).toFixed(2)}s` }}
+                                style={{ "--rl-delay": `${(i * 0.17).toFixed(2)}s` } as CSSProperties}
                             >
                                 <WowIcon name={classIconName(className)} size={compact ? 26 : 34} />
                             </span>

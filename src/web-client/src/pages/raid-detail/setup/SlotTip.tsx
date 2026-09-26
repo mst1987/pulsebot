@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { SetupAttendance, SetupPerson } from "../../../api";
 import { tipReasons } from "../../../lib/setupEditor";
 import { wowIconUrl } from "../../../lib/wowIcon";
@@ -29,7 +30,7 @@ function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
                     ? <span className="se-tip-link se-tip-linked"><CheckIcon /></span>
                     : <span className="se-tip-link se-tip-auto">{t("setup.person.tip.autoBadge")}</span>}
             </span>
-            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct)}`}><i style={{ width: `${a.pct}%` }} /></span>
+            <span className={`se-tip-bar se-tip-${attendanceTone(a.pct)}`}><i style={{ "--fill": `${a.pct}%` } as CSSProperties} /></span>
         </div>
     );
 }

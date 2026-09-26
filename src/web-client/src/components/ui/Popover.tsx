@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useDismiss, type DismissOptions } from "../../hooks/useDismiss";
 import { nodeOf, type DismissTarget } from "../../lib/dismiss";
-import { samePosition, type Placement, type PopoverStyle } from "../../lib/popoverPosition";
+import { popoverVars, samePosition, type Placement, type PopoverStyle } from "../../lib/popoverPosition";
 
 /**
  * The base of every floating box that belongs to an element on the page — a
@@ -24,7 +24,7 @@ import { samePosition, type Placement, type PopoverStyle } from "../../lib/popov
  *
  * Render it only while open: `{open && <Popover …/>}`.
  */
-export default function Popover({ anchor, place, onClose, dismiss = {}, follow = "close", host = "body", boxRef, style, children, ...rest }: {
+export default function Popover({ anchor, place, onClose, dismiss = {}, follow = "close", host = "body", boxRef, style, className, children, ...rest }: {
     /** What it belongs to: a ref or an element. Counts as inside for the dismiss. */
     anchor: DismissTarget;
     place: Placement;
@@ -77,7 +77,7 @@ export default function Popover({ anchor, place, onClose, dismiss = {}, follow =
     const anchorEl = nodeOf(anchor) as Element | null;
     const target = host === "dialog" && anchorEl ? anchorEl.closest("dialog") || document.body : document.body;
     return createPortal(
-        <div ref={box} style={{ ...style, ...pos }} {...rest}>{children}</div>,
+        <div ref={box} className={className ? `ui-pop ${className}` : "ui-pop"} style={{ ...style, ...popoverVars(pos) } as CSSProperties} {...rest}>{children}</div>,
         target,
     );
 }

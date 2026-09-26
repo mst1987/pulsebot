@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useState, type MouseEvent, type CSSProperties } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import {
@@ -245,7 +245,7 @@ function OwnStatus({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
                 type="button" className={`badge an-status-badge${meta.tone ? ` ${meta.tone}` : ""}`} disabled={row.started}
                 onClick={(e) => { e.stopPropagation(); onOpen(); }} data-tip={label} data-tip-sub={sub || undefined}
             >
-                <i className="an-dot" style={{ background: meta.color }} />
+                <i className="an-dot" style={{ "--an-c": meta.color } as CSSProperties} />
                 {label}
             </button>
         );

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import type { EmbedImage, EmojiStyle, GameVersion, RoleRange } from "../api";
 import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../lib/raidTemplates";
 import Segment from "./ui/Segment";
@@ -182,7 +182,7 @@ export function AppearanceFields({ version, instanceIds, color, image, emojiStyl
             <FieldLabel text={t("raidPlan.fields.look")} tip={t("raidPlan.fields.lookTip")} />
             <div className="rt-look">
                 <div className="rt-look-prev" aria-hidden="true">
-                    <span className="rt-look-bar" style={{ background: shown }} />
+                    <span className="rt-look-bar" style={{ "--rt-look": shown } as CSSProperties} />
                     {url && <img className={banner ? "rt-look-banner" : "rt-look-thumb"} src={url} alt="" />}
                 </div>
                 <div className="rt-look-fields">

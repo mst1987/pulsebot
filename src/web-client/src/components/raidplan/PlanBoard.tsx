@@ -209,8 +209,10 @@ export default function PlanBoard({
     // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
     // board's real width, so editor, template preview and read view look the same at any size (see lib/raidplan/boardScale.ts)
     const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
-    const canvas = canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy) as CSSProperties;
-    const style = { aspectRatio: String(ar), maxWidth: maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
+    // the canvas's size and pan/zoom as custom properties, read by .rp-canvas (#441)
+    const cs = canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy) as { width: number; height: number; transform: string; "--rp-k": string };
+    const canvas = { "--rp-canvas-w": `${cs.width}px`, "--rp-canvas-h": `${cs.height}px`, "--rp-canvas-tf": cs.transform, "--rp-k": cs["--rp-k"] } as CSSProperties;
+    const style = { "--rp-aspect": String(ar), "--rp-maxw": maxHeight ? `${Math.round(maxHeight * ar)}px` : `calc((100vh - 420px) * ${ar})` } as CSSProperties;
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
@@ -261,7 +263,7 @@ export default function PlanBoard({
     /** The facing wedge of an icon: its own size factor (--rp-ar), hidden, colour and opacity ("Pfeilgröße", "Pfeil ausblenden"). */
     const arrowVars = (o: { arrowScale?: number }) => ({ "--rp-ar": String(o.arrowScale || 1) }) as CSSProperties;
     const wedge = (o: { arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number }) => (o.arrowHidden ? null : (
-        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true" style={o.arrowOpacity !== undefined ? { opacity: o.arrowOpacity } : undefined}><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill={o.arrowColor || "#ffb020"} stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+        <svg className="rp-wedge" viewBox="0 0 22 20" aria-hidden="true" style={o.arrowOpacity !== undefined ? ({ "--rp-wo": o.arrowOpacity } as CSSProperties) : undefined}><path d="M11 1.5 L20.5 18.5 L1.5 18.5 Z" fill={o.arrowColor || "#ffb020"} stroke="#1c1305" strokeWidth="2.4" strokeLinejoin="round" /></svg>
     ));
     /**
      * A role group placeholder ("Melees", "Ranged" ...): the role's icon (a cluster of them for the shape "Symbole"), the label only when one
@@ -292,7 +294,7 @@ export default function PlanBoard({
         // the names do not fit at all (a thin strip turned diagonally): one chip with their number, the names in its tooltip - never silently gone
         const noRoom = !!lay && lay.shown === 0 && !(screenScale > 0 && lay.font * screenScale < HIDE_SCREEN_FONT);
         const style = {
-            left: `${(z.x + z.w / 2) * 100}%`, top: `${(z.y + z.h / 2) * 100}%`, width: `${(box.w / (size.w || 1)) * 100}%`, height: `${(box.h / (size.h || 1)) * 100}%`,
+            "--rp-x": `${(z.x + z.w / 2) * 100}%`, "--rp-y": `${(z.y + z.h / 2) * 100}%`, "--rp-w": `${(box.w / (size.w || 1)) * 100}%`, "--rp-h": `${(box.h / (size.h || 1)) * 100}%`,
             "--zc": z.color, "--rp-iw": `${Math.round(inner.w)}px`, "--rp-ih": `${Math.round(inner.h)}px`, "--rp-rg": `${Math.round(cluster ? m.icon * iconScale : icon)}px`,
             "--rp-zl": `${m.label}px`, "--rp-zk": `${m.badge}px`, "--rp-zn": `${lay ? lay.font : m.names}px`,
         } as CSSProperties;
@@ -334,7 +336,7 @@ export default function PlanBoard({
             {mapUrl ? (
                 <img
                     className="rp-map" src={mapUrl} alt={t("raidBoard.board.mapAlt", { boss: bossName })} draggable={false}
-                    style={{ opacity: mapOpacity }}
+                    style={{ "--rp-mo": mapOpacity } as CSSProperties}
                     onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth && i.naturalHeight) setAspect(i.naturalWidth / i.naturalHeight); }}
                 />
             ) : (
@@ -347,7 +349,7 @@ export default function PlanBoard({
             {zones.filter((z) => !z.hidden).map((z) => {
                 // a role group can be turned about its middle (degrees)
                 const rm = z.type === "role" ? roleZoneMetrics(z.w * size.w, z.h * size.h, z.shape === "cluster", z.count || 0) : null;
-                const zs = { left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
+                const zs = { "--rp-x": `${z.x * 100}%`, "--rp-y": `${z.y * 100}%`, "--rp-w": `${z.w * 100}%`, "--rp-h": `${z.h * 100}%`, "--zc": z.color, "--zo": z.opacity, ...(rm ? { "--rp-rg": `${rm.icon}px`, "--rp-zb": `${rm.border}px`, "--rp-zl": `${rm.label}px`, "--rp-zk": `${rm.badge}px`, "--rp-zn": `${rm.names}px` } : {}), ...(z.type === "role" && z.rotation ? { transform: `rotate(${z.rotation}deg)` } : {}) } as CSSProperties;
                 const name = z.label || (z.type === "role" ? t(`raidBoard.roleGroup.${z.role || "melee"}`) : t(`raidBoard.zone.${z.type}`));
                 const zoneLabel = zoneBoardLabel(z);
                 return (
@@ -381,7 +383,7 @@ export default function PlanBoard({
                         const x2 = px(l.x2, size.w);
                         const y2 = px(l.y2, size.h);
                         return (
-                            <g key={l.id} className={cls("rp-line", "line", l.id, "", l.lock)} style={{ opacity: l.opacity }}>
+                            <g key={l.id} className={cls("rp-line", "line", l.id, "", l.lock)} style={{ "--rp-o": l.opacity } as CSSProperties}>
                                 <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#0f1115" strokeWidth={l.width + 2.5} strokeLinecap="round" />
                                 <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={l.color} strokeWidth={l.width} strokeLinecap="round" />
                                 {l.kind === "arrow" && <polygon points={arrowHead(x1, y1, x2, y2, l.width)} fill={l.color} stroke="#0f1115" strokeWidth={1.2} strokeLinejoin="round" />}
@@ -402,14 +404,14 @@ export default function PlanBoard({
                 ["end1", "end2"].map((end) => (
                     <span
                         key={`${l.id}-${end}`} className="rp-handle rp-h-end" data-handle={end}
-                        style={{ left: `${(end === "end1" ? l.x1 : l.x2) * 100}%`, top: `${(end === "end1" ? l.y1 : l.y2) * 100}%` }}
+                        style={{ "--rp-x": `${(end === "end1" ? l.x1 : l.x2) * 100}%`, "--rp-y": `${(end === "end1" ? l.y1 : l.y2) * 100}%` } as CSSProperties}
                         onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "line", l.id, end as Handle); }}
                     />
                 ))
             ))}
 
             {marks.filter((m) => !m.hidden).map((m) => (
-                <div key={m.id} data-obj={`mark:${m.id}`} className={cls("rp-token rp-markobj", "mark", m.id, "", m.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: m.opacity, ...sizeStyle(m.size, SIZE_RANGES.mark.def) }}>
+                <div key={m.id} data-obj={`mark:${m.id}`} className={cls("rp-token rp-markobj", "mark", m.id, "", m.lock)} style={{ "--rp-x": `${m.x * 100}%`, "--rp-y": `${m.y * 100}%`, "--rp-o": m.opacity, ...sizeStyle(m.size, SIZE_RANGES.mark.def) } as CSSProperties}>
                     <button
                         type="button" className="rp-token-btn rp-mark-btn" tabIndex={editable ? 0 : -1}
                         aria-label={t(`raidBoard.mark.${m.mark}`)} data-tip={t(`raidBoard.mark.${m.mark}`)}
@@ -430,7 +432,7 @@ export default function PlanBoard({
                 const face = canFace(i.iconKey);
                 const src = type === "boss" ? portraitUrl(i.iconKey) : type === "wow" ? wowIconUrl(i.iconKey.slice(4), px) : "";
                 return (
-                    <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, `${ringShownFor(showRoleRings, i.ring) ? "" : "is-noring"}${noName(i.size, SIZE_RANGES.icon.def, 1, i.showName)}`, i.lock)} style={{ left: `${i.x * 100}%`, top: `${i.y * 100}%`, opacity: i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) }}>
+                    <div key={i.id} data-obj={`icon:${i.id}`} className={cls("rp-token rp-iconobj", "icon", i.id, `${ringShownFor(showRoleRings, i.ring) ? "" : "is-noring"}${noName(i.size, SIZE_RANGES.icon.def, 1, i.showName)}`, i.lock)} style={{ "--rp-x": `${i.x * 100}%`, "--rp-y": `${i.y * 100}%`, "--rp-o": i.opacity, ...sizeStyle(i.size, SIZE_RANGES.icon.def) } as CSSProperties}>
                         <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={name} data-tip={name} {...handlers("icon", i.id)}>
                             <span className={`rp-icon-face${face ? " is-round" : ""}`}>
                                 {src ? <img src={src} alt="" draggable={false} /> : (
@@ -439,7 +441,7 @@ export default function PlanBoard({
                                     </span>
                                 )}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${faceOf(i)}deg)`, ...arrowVars(i) }} aria-hidden="true">
+                                    <span className="rp-facing" style={{ "--rp-face": `${faceOf(i)}deg`, ...arrowVars(i) } as CSSProperties} aria-hidden="true">
                                         {wedge(i)}
                                         {editable && !i.lock && isSel("icon", i.id) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "icon", i.id, "rot"); }} />
@@ -465,12 +467,12 @@ export default function PlanBoard({
                 const a = st.autoFace === false ? st.rotation || 0 : autoFacing(auto, `auto:${m.key}`, m, boardLike, places, ar);
                 const label = st.showLabel && st.label ? st.label : "";
                 return (
-                    <div key={`auto:${m.key}`} data-obj={`auto:${m.key}`} className={cls("rp-token rp-iconobj is-auto", "auto", m.key, `${ringShownFor(showRoleRings, st.ring) ? "" : "is-noring"}${label ? noName(m.size, SIZE_RANGES.icon.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={{ left: `${m.x * 100}%`, top: `${m.y * 100}%`, opacity: st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(m.size, SIZE_RANGES.icon.def) }}>
+                    <div key={`auto:${m.key}`} data-obj={`auto:${m.key}`} className={cls("rp-token rp-iconobj is-auto", "auto", m.key, `${ringShownFor(showRoleRings, st.ring) ? "" : "is-noring"}${label ? noName(m.size, SIZE_RANGES.icon.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={{ "--rp-x": `${m.x * 100}%`, "--rp-y": `${m.y * 100}%`, "--rp-o": st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(m.size, SIZE_RANGES.icon.def) } as CSSProperties}>
                         <button type="button" className="rp-token-btn rp-icon-btn" tabIndex={editable ? 0 : -1} aria-label={`${label || name} · ${t("raidBoard.auto.fromRow")}`} data-tip={`${label || name} · ${t("raidBoard.auto.fromRow")}`} {...handlers("auto", m.key)}>
                             <span className={`rp-icon-face${face ? " is-round" : ""}`}>
                                 {src ? <img src={src} alt="" draggable={false} /> : <span className="rp-icon-builtin rp-icon-enemy" aria-hidden="true"><Swords size={Math.round(ipx * 0.62)} /></span>}
                                 {face && (
-                                    <span className="rp-facing" style={{ transform: `rotate(${a >= 0 ? a : st.rotation || 0}deg)`, ...arrowVars(st) }} aria-hidden="true">
+                                    <span className="rp-facing" style={{ "--rp-face": `${a >= 0 ? a : st.rotation || 0}deg`, ...arrowVars(st) } as CSSProperties} aria-hidden="true">
                                         {wedge(st)}
                                         {editable && !st.lock && isSel("auto", m.key) && (
                                             <span className="rp-handle rp-h-rot" data-handle="rot" onPointerDown={(e) => { e.stopPropagation(); onObjectDown!(e, "auto", m.key, "rot"); }} />
@@ -491,7 +493,7 @@ export default function PlanBoard({
                 const mine = isMe(s.userId);
                 const title = slotTitle(s);
                 const boardLabel = slotBoardLabel(s);
-                const anchor = { left: `${s.x * 100}%`, top: `${s.y * 100}%`, opacity: s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) };
+                const anchor = { "--rp-x": `${s.x * 100}%`, "--rp-y": `${s.y * 100}%`, "--rp-o": s.opacity, ...sizeStyle(s.size, SIZE_RANGES.slot.def) } as CSSProperties;
                 if (s.kind === "group") {
                     // who is shown in this group: its setup group minus everyone who has a place of his own (a free token, a role slot on the map): the ring closes up, the name list drops him
                     const members = groupListMembers(boardOwn, s, roster);
@@ -519,7 +521,7 @@ export default function PlanBoard({
                     return (
                         <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " rp-gdim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol), "--rp-gs": String(gs * objectScale) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
-                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}`} aria-hidden="true" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${cover.rx * 200}%`, height: `${cover.ry * 200}%`, opacity: s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { borderColor: s.ringColor } : {}) }} />
+                                <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}${s.ringColor ? " is-colored" : ""}`} aria-hidden="true" style={{ "--rp-x": `${s.x * 100}%`, "--rp-y": `${s.y * 100}%`, "--rp-w": `${cover.rx * 200}%`, "--rp-h": `${cover.ry * 200}%`, "--rp-o": s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { "--rp-ringc": s.ringColor } : {}) } as CSSProperties} />
                             )}
                             <div data-obj={`slot:${s.id}`} className={cls("rp-token rp-slotobj", "slot", s.id, `${members.some((p) => isMe(p.userId)) ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                                 {chipMode === "text" && <span className="rp-grouptext">{gmark && <MarkIcon mark={gmark as never} size={16} />}{boardLabel}</span>}
@@ -540,7 +542,7 @@ export default function PlanBoard({
                                 )}
                             </div>
                             {holders.map((h, i) => (
-                                <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ left: `${(s.x + h.dx) * 100}%`, top: `${(s.y + h.dy) * 100}%`, opacity: s.opacity, ...memberSize(s.size) }}>
+                                <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ "--rp-x": `${(s.x + h.dx) * 100}%`, "--rp-y": `${(s.y + h.dy) * 100}%`, "--rp-o": s.opacity, ...memberSize(s.size) } as CSSProperties}>
                                     <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
                                         <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
                                     </span><span className="rp-token-gbadge">{tag.number}</span></span>
@@ -556,7 +558,7 @@ export default function PlanBoard({
                                 return (
                                     <div
                                         key={id} data-obj={`member:${id}`} className={cls("rp-token rp-member", "member", id, `${mineHere ? "is-me" : ""}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(off && off.size ? off.size : s.size, SIZE_RANGES.member.def, gs * ts, s.showName)}`, s.lock)}
-                                        style={{ left: `${(s.x + dx) * 100}%`, top: `${(s.y + dy) * 100}%`, opacity: s.opacity, ...memberSize(off && off.size ? off.size : s.size) }}
+                                        style={{ "--rp-x": `${(s.x + dx) * 100}%`, "--rp-y": `${(s.y + dy) * 100}%`, "--rp-o": s.opacity, ...memberSize(off && off.size ? off.size : s.size) } as CSSProperties}
                                     >
                                         <button
                                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
@@ -605,7 +607,7 @@ export default function PlanBoard({
                 <div
                     key={x.id} data-obj={`text:${x.id}`} tabIndex={editable ? 0 : undefined}
                     className={cls("rp-text", "text", x.id, "", x.lock)}
-                    style={{ left: `${x.x * 100}%`, top: `${x.y * 100}%`, color: x.color, fontSize: x.size, opacity: x.opacity }}
+                    style={{ "--rp-x": `${x.x * 100}%`, "--rp-y": `${x.y * 100}%`, "--rp-tc": x.color || undefined, "--rp-fs": `${x.size}px`, "--rp-o": x.opacity } as CSSProperties}
                     {...handlers("text", x.id)}
                 >
                     {x.text ? <Mentions text={x.text} names={mineNames} /> : "\u2026"}
@@ -618,7 +620,7 @@ export default function PlanBoard({
                 if (!p) return null;
                 const mine = isMe(tok.userId);
                 return (
-                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, `${mine ? "is-me" : ""}${ringShownFor(showRoleRings, tok.ring) ? "" : " is-noring"}${noName(tok.size, SIZE_RANGES.token.def, 1, tok.showName)}`, tok.lock)} style={{ left: `${tok.x * 100}%`, top: `${tok.y * 100}%`, opacity: tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) }}>
+                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, `${mine ? "is-me" : ""}${ringShownFor(showRoleRings, tok.ring) ? "" : " is-noring"}${noName(tok.size, SIZE_RANGES.token.def, 1, tok.showName)}`, tok.lock)} style={{ "--rp-x": `${tok.x * 100}%`, "--rp-y": `${tok.y * 100}%`, "--rp-o": tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) } as CSSProperties}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}
@@ -642,7 +644,7 @@ export default function PlanBoard({
                 const p = k.state === "player" && k.userId ? players.get(k.userId) || null : null;
                 const mine = !!p && isMe(p.userId);
                 const base = `rp-token rp-autotank is-${k.state}${mine ? " is-me" : ""}`;
-                const style = { left: `${k.x * 100}%`, top: `${k.y * 100}%`, opacity: st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(k.size, SIZE_RANGES.token.def) };
+                const style = { "--rp-x": `${k.x * 100}%`, "--rp-y": `${k.y * 100}%`, "--rp-o": st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(k.size, SIZE_RANGES.token.def) } as CSSProperties;
                 const ring = ringShownFor(showRoleRings, st.ring) ? "" : " is-noring";
                 const label = st.label || "";
                 if (p) {
@@ -677,10 +679,10 @@ export default function PlanBoard({
             })}
 
             {band && (
-                <div className="rp-band" aria-hidden="true" style={{ left: `${band.x0 * 100}%`, top: `${band.y0 * 100}%`, width: `${(band.x1 - band.x0) * 100}%`, height: `${(band.y1 - band.y0) * 100}%` }} />
+                <div className="rp-band" aria-hidden="true" style={{ "--rp-x": `${band.x0 * 100}%`, "--rp-y": `${band.y0 * 100}%`, "--rp-w": `${(band.x1 - band.x0) * 100}%`, "--rp-h": `${(band.y1 - band.y0) * 100}%` } as CSSProperties} />
             )}
             {multiBox && multi.length > 1 && (
-                <div className="rp-multibox" style={{ left: `${multiBox.x0 * 100}%`, top: `${multiBox.y0 * 100}%`, width: `${(multiBox.x1 - multiBox.x0) * 100}%`, height: `${(multiBox.y1 - multiBox.y0) * 100}%` }}>
+                <div className="rp-multibox" style={{ "--rp-x": `${multiBox.x0 * 100}%`, "--rp-y": `${multiBox.y0 * 100}%`, "--rp-w": `${(multiBox.x1 - multiBox.x0) * 100}%`, "--rp-h": `${(multiBox.y1 - multiBox.y0) * 100}%` } as CSSProperties}>
                     <span className="rp-multi-count">{t("raidBoard.multi.count", { n: multi.length })}</span>
                     {editable && onMultiMove && ["n", "s", "w", "e"].map((s) => <span key={s} className={`rp-multi-edge rp-me-${s}`} onPointerDown={(e) => { e.stopPropagation(); onMultiMove(e); }} />)}
                     {editable && onMultiScale && (["nw", "ne", "sw", "se"] as Corner[]).map((c) => (

@@ -868,6 +868,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .toast-bar { margin-top: 9px; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .toast-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .9s linear; }
 /* No expected duration → a sliding sliver rather than a made-up percentage. */
+.toast-bar:not(.is-indeterminate) i { width: var(--fill); }
 .toast-bar.is-indeterminate i { width: 40%; animation: toast-slide 1.3s ease-in-out infinite; }
 @keyframes toast-slide { 0% { transform: translateX(-100%) } 100% { transform: translateX(250%) } }
 .toast-spin { display: block; width: 13px; height: 13px; margin-top: 3px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: toast-spin .8s linear infinite; }
@@ -962,6 +963,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
    panel's anchor out from under it (see the scroll handler in HistoryPage). */
 .loot-pop {
     position: fixed; z-index: 60; overflow-y: auto; overscroll-behavior: contain;
+    width: var(--pop-width); max-height: var(--pop-max-h);
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: 0 12px 30px var(--shade-28); padding: 8px; cursor: default;
 }
@@ -1726,7 +1728,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
 /* ---- bars (WCL style, fixed width) ---- */
 .bar { position: relative; display: block; width: 120px; height: 24px; border-radius: 5px; overflow: hidden; background: var(--panel2); }
 .bar.wide { width: 260px; }
-.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); border-right: 2px solid var(--accent); }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--fill); background: var(--accent-soft); border-right: 2px solid var(--accent); }
 .bar.ok i { background: var(--good-bg); border-right-color: var(--good); }
 .bar.mid i { background: var(--medium-bg); border-right-color: var(--medium); }
 .bar.bad i { background: var(--high-bg); border-right-color: var(--high); }
@@ -1809,3 +1811,26 @@ dialog.dlg.dlg-flush .dlg-foot .dlg-hint { order: -1; margin-right: auto; }
 /* sub entries of the menu (Raidplan-Vorlagen, Raidplan-Katalog under Raid-Events) */
 .nav-item.is-sub { margin-left: 16px; padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
 .nav-item.is-sub .wi { width: 20px; height: 20px; }
+
+/* ---- what used to be inline styles (#441) --------------------------------
+   A fixed look is a class; a value that differs per element (a width, a
+   colour, a position) is a custom property set on the element and read here. */
+.empty.app-notice { display: flex; flex-direction: column; gap: 10px; align-items: center; padding-top: 60px; }
+.empty.app-notice.is-login { gap: 14px; padding-top: 80px; }
+nav.menu .hint.menu-hint { padding: 0 14px; }
+img.spec-ico-sm { border-radius: 4px; vertical-align: -4px; margin-right: 6px; }
+.spec-label { font-weight: 700; }
+table.idx.flush { margin: 0; }
+.row-actions.is-end { justify-content: flex-end; }
+.sub.is-inline { margin: 0; }
+.sub.is-trailing { margin: 0 0 0 auto; }
+.badge-row.is-end { margin-left: auto; }
+.field.is-last { margin-bottom: 0; }
+/* a DataTable column with a width (--th-w from its column definition) */
+th.th-w { width: var(--th-w); }
+/* ui/Modal's width prop; the modules that pin a dialog's width do so with !important */
+dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
+/* ui/Popover: the coordinates its placement measured (lib/popoverPosition.ts popoverVars) */
+.ui-pop { left: var(--pop-left, auto); top: var(--pop-top, auto); right: var(--pop-right, auto); bottom: var(--pop-bottom, auto); }
+/* RaidLoader: the party does not swing in step */
+.rl-icon.attack, .rl-icon.flee { animation-delay: var(--rl-delay, 0s); }

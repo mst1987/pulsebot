@@ -42,7 +42,7 @@
 .an-state, .an-act { display: flex; align-items: center; justify-content: flex-end; }
 .an-status-badge { cursor: pointer; font-size: 12.5px; }
 .an-status-badge:disabled { cursor: default; }
-.an-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+.an-dot { background: var(--an-c); display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
 
 @media (max-width: 720px) {
     /* narrow: title across, bar and status/action on the line below */

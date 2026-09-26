@@ -64,7 +64,7 @@ function Guard({ user, areas, level = "read", children }: {
 function NoAreaNotice() {
     const t = useT();
     return (
-        <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", paddingTop: 60 }}>
+        <div className="empty app-notice">
             <p>{t("shell.app.noAccess")}</p>
             <p className="hint">{t("shell.app.noAccessHint")}</p>
         </div>
@@ -78,7 +78,7 @@ function NoAreaNotice() {
 function NotFound() {
     const t = useT();
     return (
-        <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", paddingTop: 60 }}>
+        <div className="empty app-notice">
             <p>{t("shell.app.notFound")}</p>
             <Link className="mlink" to="/">{t("shell.app.backHome")}</Link>
         </div>
@@ -136,7 +136,7 @@ function MenuApp() {
     // its footer and nothing to navigate to, only the way in.
     if (!user) {
         return (
-            <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
+            <div className="empty app-notice is-login">
                 <p>{t("shell.app.loginPrompt")}</p>
                 <a className="mlink" href="/auth/login">{t("shell.app.loginButton")}</a>
                 {/* The one switch a visitor gets before logging in — kept in the browser only. */}

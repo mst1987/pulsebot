@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { postRaidSearch, previewRaidSearch, type ApiError, type SetupSearch } from "../../../api";
 import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, toggleSpec, type SearchNeeds } from "../../../lib/setupEditor";
 import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wowNames";
@@ -62,8 +62,8 @@ export function SearchModal({ open, onClose, ctx, search }: { open: boolean; onC
             </>
         );
         return toggle
-            ? <button key={key} type="button" className={`se-search-chip se-search-pick${on ? " is-on" : ""}`} style={{ borderLeftColor: s.color }} aria-pressed={on} onClick={toggle}>{inner}</button>
-            : <span key={key} className="se-search-chip" style={{ borderLeftColor: s.color }}>{inner}</span>;
+            ? <button key={key} type="button" className={`se-search-chip se-search-pick${on ? " is-on" : ""}`} style={{ "--se-chip": s.color } as CSSProperties} aria-pressed={on} onClick={toggle}>{inner}</button>
+            : <span key={key} className="se-search-chip" style={{ "--se-chip": s.color } as CSSProperties}>{inner}</span>;
     };
     const chips = (keys: string[]) => keys.map((k) => chip(k, true));
     const missingRoles = Object.keys(search?.roleSpecs || {}).filter((r) => !needs.roles.some((x) => x.role === r));

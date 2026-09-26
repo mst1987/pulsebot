@@ -26,7 +26,7 @@ export default function GroupStyle({ board, n, canWrite, edit, focused, onFocus 
             <span className="rp-gswatches">
                 {GROUP_PALETTE.map((c, i) => (
                     <button
-                        key={c} type="button" disabled={!canWrite} className={`rp-gswatch${color.toLowerCase() === c.toLowerCase() ? " is-on" : ""}`} style={{ background: c }}
+                        key={c} type="button" disabled={!canWrite} className={`rp-gswatch${color.toLowerCase() === c.toLowerCase() ? " is-on" : ""}`} style={{ "--rp-sw": c } as React.CSSProperties}
                         aria-pressed={color.toLowerCase() === c.toLowerCase()} aria-label={t("raidBoard.group.paletteColor", { n: i + 1 })} onClick={() => edit((b) => setGroupColor(b, n, c === defaultGroupColor(n) ? "" : c))}
                     />
                 ))}

@@ -109,6 +109,8 @@
 .la-incomplete { display: flex; flex-direction: column; gap: 14px; color: var(--text); white-space: normal; }
 .la-incomplete p { margin: 0; font-size: 14px; line-height: 1.55; }
 .la-bossgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+/* a short raid (Hyjal, TK, Gruul) in one row: --la-cols = its number of bosses */
+.la-bossgrid.is-row { grid-template-columns: repeat(var(--la-cols), minmax(0, 1fr)); }
 .la-boss {
     border: 1px solid var(--line); border-radius: 10px; padding: 10px 4px; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: center; gap: 6px;
     text-align: center; font-size: 12px; font-weight: 600; line-height: 1.25;

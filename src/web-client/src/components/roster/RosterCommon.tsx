@@ -2,7 +2,7 @@
 // badge, the attendance bar with its tooltip, the gear-state badge, the loot
 // badge and the icon link. Built on the shared building blocks in ./ui; the plain
 // helpers behind them live in lib/rosterView.ts.
-import type { ReactNode } from "react";
+import type { ReactNode, CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { CharGearReport, CharLootPreview, RosterAttendance, RosterRole } from "../../api";
 import { useT } from "../../i18n";
@@ -47,7 +47,7 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     else lines.push(t("roster.badge.noneMissed"));
     return (
         <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={t("roster.badge.attendanceTip", { attended, total, pct })} data-tip-sub={lines.join("\n")}>
-            <i style={{ width: `${pct}%` }} />
+            <i style={{ "--fill": `${pct}%` } as CSSProperties} />
             <span>{pct} %<small>{attended}/{total}</small></span>
         </span>
     );

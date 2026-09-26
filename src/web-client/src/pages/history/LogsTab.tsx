@@ -56,7 +56,7 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
     return (
         <div className="dash-card hl-card">
             {head}
-            <table className="idx" style={{ margin: 0 }}>
+            <table className="idx flush">
                 <thead>
                     <tr>
                         <SortTh sortKey="log" label={t("history.logs.colLog")} sort={sort} dir={dir} onSort={onSort} />
@@ -83,7 +83,7 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
                                     : <span className="sub">—</span>}</td>
                                 <td>{l.status === "done" ? <Badge tone="ok">{t("history.logs.done")}</Badge> : <Badge tone="mid">{t("history.logs.open")}</Badge>}</td>
                                 <td className="cell-actions">
-                                    <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                                    <div className="row-actions is-end">
                                         {reportUrl && (
                                             <IconButton
                                                 icon={<ExternalIcon />} size="sm" tip={t("history.shared.openEvaluation")}

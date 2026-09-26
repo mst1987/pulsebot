@@ -173,12 +173,12 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                             ))}
                         </div>
                     )}
-                    <div style={{ marginTop: candidates.length ? 8 : 0 }}>
+                    <div className={candidates.length ? "hl-inbox-gap" : undefined}>
                         {candidates.length > 0 && (
                             <Expand open={otherOpen} onToggle={() => setOtherOpen((v) => !v)} label={t("history.inboxCard.other")} />
                         )}
                         {otherOpen && (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: candidates.length ? 8 : 0 }}>
+                            <div className={`hl-inbox-other${candidates.length ? " hl-inbox-gap" : ""}`}>
                                 <select aria-label={t("history.inboxCard.otherAria")} value={isCandidate ? "" : eventId} onChange={(e) => setEventId(e.target.value)}>
                                     <option value="">{t("history.inboxCard.chooseOption")}</option>
                                     {events

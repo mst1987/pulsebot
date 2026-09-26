@@ -139,12 +139,13 @@ describe("the pages", () => {
         expect(insp).toContain("OpacityField");
         expect(insp).toContain("min={10} max={100} step={5} unit=\"%\"");
         expect(insp).toContain("MapOpacityField");
-        expect(board2).toContain("style={{ opacity: mapOpacity }}");
-        expect(board2).toContain("opacity: l.opacity");
-        expect(board2).toContain("opacity: x.opacity");
-        expect(board2).toContain("opacity: m.opacity");
-        expect(board2).toContain("opacity: s.opacity");
-        expect(board2).toContain("opacity: tok.opacity");
+        // opacity goes in as a custom property, read by raidplan.css (#441)
+        expect(board2).toContain("style={{ \"--rp-mo\": mapOpacity } as CSSProperties}");
+        expect(board2).toContain("\"--rp-o\": l.opacity");
+        expect(board2).toContain("\"--rp-o\": x.opacity");
+        expect(board2).toContain("\"--rp-o\": m.opacity");
+        expect(board2).toContain("\"--rp-o\": s.opacity");
+        expect(board2).toContain("\"--rp-o\": tok.opacity");
         expect(board2).toContain("\"--zo\": z.opacity");
     });
 
@@ -159,7 +160,7 @@ describe("the pages", () => {
 
     it("fits any map: the board takes the map's aspect ratio", () => {
         expect(board2).toContain("naturalWidth / i.naturalHeight");
-        expect(board2).toContain("aspectRatio: String(ar)");
+        expect(board2).toContain("\"--rp-aspect\": String(ar)");
         expect(board2).toContain("100vh - 420px");
     });
 

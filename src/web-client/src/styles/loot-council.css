@@ -45,10 +45,12 @@
 /* ---- a raider's identity: spec icon on a class-coloured tile ---- */
 .lc-id { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .lc-id-tile {
+    width: var(--lc-tile); height: var(--lc-tile);
     display: grid; place-items: center; flex: none; border-radius: 9px;
     background: color-mix(in srgb, var(--cc, var(--muted)) 18%, transparent);
 }
 .lc-id-tile img { display: block; border-radius: 6px; }
+.lc-id-tile .lc-id-spec { width: var(--lc-tile-img); height: var(--lc-tile-img); }
 .lc-id-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .lc-id-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
 a.lc-id-name:hover { text-decoration: underline; }
@@ -57,8 +59,8 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-id.big .lc-id-name { font-size: 18px; font-weight: 800; }
 
 /* ---- the need bar: stacked in the score's weights, number on it ---- */
-.lc-needbar { position: relative; display: flex; height: 24px; border-radius: 5px; overflow: hidden; background: var(--panel2); flex: none; }
-.lc-needbar i { display: block; height: 100%; }
+.lc-needbar { width: var(--lc-nb); position: relative; display: flex; height: 24px; border-radius: 5px; overflow: hidden; background: var(--panel2); flex: none; }
+.lc-needbar i { display: block; width: var(--fill); height: 100%; }
 .lc-needbar .s1, .lc-need-dot.s1 { background: color-mix(in srgb, var(--accent) 42%, transparent); }
 .lc-needbar .s2, .lc-need-dot.s2 { background: color-mix(in srgb, var(--accent-2) 38%, transparent); }
 .lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, var(--lc-need-3) 55%, transparent); }
@@ -66,7 +68,7 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
 .lc-rtip-anchor { display: inline-flex; cursor: help; outline: none; border-radius: 5px; }
 .lc-rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
-.tip.lc-rtip { white-space: normal; max-width: calc(100vw - 16px); }
+.tip.lc-rtip { width: var(--lc-rtip-w); white-space: normal; max-width: calc(100vw - 16px); }
 .lc-need-rows { display: grid; grid-template-columns: 10px 18px 1fr auto; align-items: center; gap: 8px; margin: 4px 0 6px; }
 .lc-need-row { display: contents; }
 .lc-need-dot { width: 10px; height: 10px; border-radius: 2px; }

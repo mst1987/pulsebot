@@ -102,10 +102,10 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
                     <thead>
                         <tr>
                             <SortTh sortKey="character" label={t("recruitment.applications.colCharacter")} sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="discord" label={t("recruitment.applications.colDiscord")} sort={sort} dir={dir} onSort={onSort} style={{ width: 170 }} />
-                            <SortTh sortKey="date" label={t("recruitment.applications.colSubmitted")} sort={sort} dir={dir} onSort={onSort} style={{ width: 140 }} />
-                            <SortTh sortKey="status" label={t("recruitment.applications.colStatus")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.applications.statusTip")} tipSub={t("recruitment.applications.statusSub")} style={{ width: 120 }} />
-                            <th style={{ width: 210 }} />
+                            <SortTh sortKey="discord" label={t("recruitment.applications.colDiscord")} sort={sort} dir={dir} onSort={onSort} className="rc-col-discord" />
+                            <SortTh sortKey="date" label={t("recruitment.applications.colSubmitted")} sort={sort} dir={dir} onSort={onSort} className="rc-col-date" />
+                            <SortTh sortKey="status" label={t("recruitment.applications.colStatus")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.applications.statusTip")} tipSub={t("recruitment.applications.statusSub")} className="rc-col-status" />
+                            <th className="rc-col-appact" />
                         </tr>
                     </thead>
                     <tbody>
