@@ -12,7 +12,7 @@
 const shared = require("../clientSource");
 
 function clientSources() {
-    return ["pages", "components"].flatMap((dir) => shared.clientSources(dir, /\.tsx$/, { recursive: false }));
+    return shared.pageSources();
 }
 
 /** Every spread of classColorProps that sits in a tag which sets its own class. */

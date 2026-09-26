@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { SEARCH_FROM, filterItems, paginate, rangeKeys, sectionsOf, ticked, toggleAllKeys, type FlyItem, type FlySection } from "../../lib/flyout";
+import { SEARCH_FROM, filterItems, paginate, rangeKeys, sectionsOf, ticked, toggleAllKeys, type FlyItem, type FlySection } from "../../lib/raidplan/flyout";
 import { useT } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 

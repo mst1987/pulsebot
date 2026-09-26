@@ -12,12 +12,14 @@ import { Link } from "react-router-dom";
 import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } from "../../api";
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
 import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/icons";
-import { ReasonBadge } from "../../components/LootBadges";
+import { ReasonBadge } from "../../components/loot/LootBadges";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { ROLE_LABEL, dropHref, gearCounts, wornWowheadUrl } from "./council";
-import { ContentBadge, GearBadges, ItemLink, NeedBar, RaiderIdent, WornIcon } from "./parts";
+import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
+import { GearBadges, WornIcon } from "./GearBadges";
+import { NeedBar } from "./NeedBar";
 
 type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };

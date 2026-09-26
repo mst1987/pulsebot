@@ -5,9 +5,9 @@
 const { read } = require("../clientSource");
 
 const field = read("components/ui/Field.tsx");
-const settingsUi = read("components/settingsUi.tsx");
+const settingsUi = read("components/settings/settingsUi.tsx");
 const indexCss = read("index.css");
-const settingsCss = read("styles/einstellungen.css");
+const settingsCss = read("styles/settings.css");
 
 describe("ui/Field", () => {
     it("draws label, control, hint and error in that order", () => {
@@ -37,8 +37,8 @@ describe("ui/Field", () => {
     });
 
     it.each([
-        ["pages/SettingsPage.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
-        ["components/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
+        ["pages/settings/RaidsheetsSection.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
+        ["pages/settings/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
     ])("%s uses it", (file, needle) => {
         expect(read(file)).toContain(needle);
     });

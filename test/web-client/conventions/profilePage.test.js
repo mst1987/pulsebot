@@ -1,16 +1,14 @@
 // Conventions of "Mein Profil" (#255) that a render cannot show: the route and
 // menu entry, the shared page head and its own stylesheet, and the CSS rules
 // (icon sizes, weekday colours in light and dark, the locked switch). What the
-// page does is rendered in src/web-client/src/pages/ProfilePage.test.tsx,
+// page does is rendered in src/web-client/src/pages/profile/ProfilePage.test.tsx,
 // components/profile/AddCharacterDialog.test.tsx, api/profile.test.ts and
-// pages/RosterPage.claims.test.tsx.
-const fs = require("fs");
-const path = require("path");
+// pages/roster/RosterPage.claims.test.tsx.
 
-const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
+const { read } = require("../clientSource");
 
-const page = read("pages", "ProfilePage.tsx");
+// the page and its parts (pages/profile/, #438)
+const page = read("pages", "profile");
 const dialog = read("components", "profile", "AddCharacterDialog.tsx");
 const app = read("App.tsx");
 const css = read("styles", "profil.css");
@@ -24,7 +22,7 @@ describe("ProfilePage conventions", () => {
 
     it("uses the shared page head and its own stylesheet, whose selectors stay in the pf- namespace", () => {
         expect(page).toMatch(/<PageHead[\s\S]*tone="profile"/);
-        expect(page).toContain("import \"../styles/profil.css\";");
+        expect(page).toContain("import \"../../styles/profil.css\";");
         for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || []) {
             expect(sel).toMatch(/^\.(pf-|wi$|kicker$|part-head$|ph-act$|field$|is-|switch)/);
         }

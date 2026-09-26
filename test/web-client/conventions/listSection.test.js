@@ -22,7 +22,7 @@ const sectionSrc = readClient("components", "ListSection.tsx");
 
 /** Every page/component file of the client, as [name, source]. */
 function clientSources() {
-    return ["pages", "components"].flatMap((dir) => shared.clientSources(dir, /\.tsx$/, { recursive: false }));
+    return shared.pageSources();
 }
 
 describe("collection editor", () => {
@@ -51,7 +51,7 @@ describe("collection editor", () => {
 describe("list sections", () => {
     // The sections that manage a collection, with the url param each one uses.
     const SECTIONS = [
-        ["pages/SettingsPage.tsx", ["sheet"]],
+        ["pages/settings/RaidsheetsSection.tsx", ["sheet"]],
     ];
 
     // The modal variant: the same url-held editor, opened as a dialog over the
@@ -67,8 +67,7 @@ describe("list sections", () => {
     });
 
     it.each(SECTIONS)("%s opens its editor through the shared hook", (file, params) => {
-        const [dir, name] = file.split("/");
-        const src = readClient(dir, name);
+        const src = readClient(file);
         expect(src).toContain("<ListSection");
         for (const param of params) expect(src).toContain(`useCollectionEditor("${param}")`);
     });
@@ -92,7 +91,7 @@ describe("list sections", () => {
     describe("Recruitment: the editor as a modal over the list", () => {
         // Recruitment keeps the list visible and opens its editors as dialogs
         // (design #215) — still one at a time and still in the url.
-        const src = readClient("pages", "RecruitmentPage.tsx");
+        const src = readClient("pages", "recruitment");
 
         it("opens both editors through the shared hook, each with its own param", () => {
             expect(src).toContain("useCollectionEditor(\"edit\")");

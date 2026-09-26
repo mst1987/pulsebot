@@ -1,5 +1,5 @@
 // The roster helpers of lib/rosterView.ts, run for real (design issue #218).
-// The pages themselves: pages/RosterPage.test.tsx, pages/HistoryCharPage.test.tsx;
+// The pages themselves: pages/roster/RosterPage.test.tsx, pages/history/HistoryCharPage.test.tsx;
 // the conventions: test/web-client/conventions/rosterCharakter.test.js.
 import { describe, expect, it } from "vitest";
 import type { GearIssue, GearItem } from "../api";

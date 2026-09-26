@@ -46,7 +46,7 @@ describe("the pages load through useApi", () => {
         // DropCheckPage and LootCouncilPage load through useJobs().run() (a job toast the
         // page survives); everything else asks useApi. A new page goes on that list only
         // with a reason.
-        const allowed = ["pages/lootcouncil/DropCheckPage.tsx", "pages/LootCouncilPage.tsx"];
+        const allowed = ["pages/lootcouncil/DropCheckPage.tsx", "pages/lootcouncil/LootCouncilPage.tsx"];
         const own = files.filter((f) => /useState<ApiError \| null>/.test(f.src)).map((f) => f.rel);
         expect(own.sort()).toEqual(allowed.sort());
     });
@@ -69,11 +69,11 @@ describe("the pages load through useApi", () => {
     });
 
     it("uses useApi on the pages the issue named", () => {
-        for (const rel of ["pages/RosterPage.tsx", "pages/HistoryPage.tsx", "pages/RaidsPage.tsx", "pages/SettingsPage.tsx", "pages/RaidDetailPage.tsx", "pages/DashboardPage.tsx"]) {
+        for (const rel of ["pages/roster/RosterPage.tsx", "pages/history/HistoryPage.tsx", "pages/RaidsPage.tsx", "pages/settings/SettingsPage.tsx", "pages/RaidDetailPage.tsx", "pages/DashboardPage.tsx"]) {
             const src = files.find((f) => f.rel === rel).src;
             expect({ rel, uses: /useApi\(/.test(src) }).toEqual({ rel, uses: true });
         }
         // HistoryPage's four loads are four hooks, one per answer
-        expect(read("pages/HistoryPage.tsx").match(/useApi\(/g).length).toBe(4);
+        expect(read("pages/history/HistoryPage.tsx").match(/useApi\(/g).length).toBe(4);
     });
 });

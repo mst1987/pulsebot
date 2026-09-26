@@ -13,16 +13,16 @@ import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import {
     ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, ROLE_ICON, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
-} from "../../../lib/assign";
-import { cardSummary } from "../../../lib/assignLine";
-import { targetKey } from "../../../lib/assignModal";
-import { mobTargetsFor, sameTargetAs } from "../../../lib/autoPlace";
+} from "../../../lib/raidplan/assign";
+import { cardSummary } from "../../../lib/raidplan/assignLine";
+import { targetKey } from "../../../lib/raidplan/assignModal";
+import { mobTargetsFor, sameTargetAs } from "../../../lib/raidplan/autoPlace";
 import { wowIconUrl } from "../../../lib/wowIcon";
-import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/inherit";
+import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/raidplan/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
-import { effectiveClasses } from "../../../lib/rosterAssign";
-import { carryClasses, expandClassRefs } from "../../../lib/classRefs";
-import { groupColor } from "../../../lib/groupStyle";
+import { effectiveClasses } from "../../../lib/raidplan/rosterAssign";
+import { carryClasses, expandClassRefs } from "../../../lib/raidplan/classRefs";
+import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { useT } from "../../../i18n";
 
 /** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */

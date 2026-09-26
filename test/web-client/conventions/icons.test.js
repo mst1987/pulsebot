@@ -29,10 +29,10 @@ describe("components/icons.tsx", () => {
     });
 
     it("the settings module and the loot filters take theirs from it", () => {
-        expect(read("components/RolePermissions.tsx")).toMatch(/import \{[^}]*\bEyeIcon\b[^}]*\} from "\.\/icons";/);
-        expect(read("components/BotCommandAccess.tsx")).toMatch(/import \{[^}]*\bLockIcon\b[^}]*\} from "\.\/icons";/);
-        expect(read("components/SettingsRoleSync.tsx")).toMatch(/import \{[^}]*\bPlusIcon\b[^}]*\} from "\.\/icons";/);
-        expect(read("components/LootFilters.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "\.\/icons";/);
-        expect(read("components/LootInboxTab.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "\.\/icons";/);
+        expect(read("pages/settings/RolePermissions.tsx")).toMatch(/import \{[^}]*\bEyeIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
+        expect(read("pages/settings/BotCommandAccess.tsx")).toMatch(/import \{[^}]*\bLockIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
+        expect(read("pages/settings/SettingsRoleSync.tsx")).toMatch(/import \{[^}]*\bPlusIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
+        expect(read("components/loot/LootFilters.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
+        expect(read("pages/history/LootInboxTab.tsx")).toMatch(/import \{[^}]*\bInfoIcon\b[^}]*\} from "(\.\/|(\.\.\/)+(components\/)?)icons";/);
     });
 });

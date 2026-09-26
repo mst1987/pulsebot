@@ -1,13 +1,14 @@
-// The setup editor in two languages (#i18n): SetupEditor.tsx and
+// The setup editor in two languages (#i18n): pages/raid-detail/setup/ and
 // lib/setupEditor.ts take every text from the "setup" namespace, never at load
 // time (#435: the source half of the former test/web-client/i18n-setup.test.js;
 // the texts are tested in src/web-client/src/i18n/setup.test.ts).
-const { read } = require("../clientSource");
+const { read, clientSources } = require("../clientSource");
 
-const FILES = ["pages/raid-detail/SetupEditor.tsx", "lib/setupEditor.ts"];
+// the editor and its parts (#438), and the moves behind it
+const FILES = [...clientSources("pages/raid-detail/setup").map(([name]) => name), "lib/setupEditor.ts"];
 
 describe("setup namespace", () => {
-    const editor = read("pages/raid-detail/SetupEditor.tsx");
+    const editor = read("pages/raid-detail/setup");
     const lib = read("lib/setupEditor.ts");
 
     it("moved the German literals out of the sources", () => {
@@ -21,8 +22,8 @@ describe("setup namespace", () => {
     });
 
     it("imports the translation functions", () => {
-        expect(editor).toMatch(/import \{[^}]*\buseT\b[^}]*\} from "\.\.\/\.\.\/i18n";/);
-        expect(editor).toMatch(/import \{[^}]*\blocale\b[^}]*\} from "\.\.\/\.\.\/i18n";/);
+        expect(editor).toMatch(/import \{[^}]*\buseT\b[^}]*\} from "\.\.\/\.\.\/\.\.\/i18n";/);
+        expect(editor).toMatch(/import \{[^}]*\blocale\b[^}]*\} from "\.\.\/\.\.\/\.\.\/i18n";/);
         expect(lib).toContain("import { t } from \"../i18n\";");
     });
 

@@ -1,5 +1,5 @@
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): the view in
-// components/BotCommandAccess.tsx, checked on its source. The rules in
+// pages/settings/BotCommandAccess.tsx, checked on its source. The rules in
 // lib/botCommandAccess.ts run in Vitest (src/web-client/src/lib/botCommandAccess.test.ts).
 const fs = require("fs");
 const path = require("path");
@@ -7,8 +7,8 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-const view = read("components", "BotCommandAccess.tsx");
-const page = read("pages", "SettingsPage.tsx");
+const view = read("pages", "settings", "BotCommandAccess.tsx");
+const page = read("pages", "settings", "SettingsPage.tsx");
 const api = read("api", "botCommands.ts");
 
 describe("Bot-Befehle view", () => {

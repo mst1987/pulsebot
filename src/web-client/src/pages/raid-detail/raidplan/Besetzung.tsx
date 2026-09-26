@@ -4,9 +4,9 @@ import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from 
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { ROLE_ICON, classIconOf } from "../../../lib/assign";
-import { classStatus, refillByClass } from "../../../lib/rosterAssign";
-import { groupColor, groupMark } from "../../../lib/groupStyle";
+import { ROLE_ICON, classIconOf } from "../../../lib/raidplan/assign";
+import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
+import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import GroupStyle from "./GroupStyle";
 import { assignSlot, besetzungSlots, countOf, effectiveCounts, placeSlot, resetCounts, roleOn, setCount, setFlexRole, unplaceSlot } from "../../../lib/raidplan";

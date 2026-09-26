@@ -1,4 +1,4 @@
-// The stylesheet draws the effects round an icon from the variables of lib/labelScale.ts; the logic of lib/labelScale.ts is
+// The stylesheet draws the effects round an icon from the variables of lib/raidplan/labelScale.ts; the logic of lib/raidplan/labelScale.ts is
 // tested in src/web-client/src/lib/labelScale.test.ts.
 
 describe("effects round an icon scale with the icon (effectMetrics)", () => {

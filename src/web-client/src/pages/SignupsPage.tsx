@@ -7,14 +7,14 @@ import {
 import { useApi } from "../hooks/useApi";
 import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
 import RaidIcon from "../components/RaidIcon";
-import SignupDialog from "../components/SignupDialog";
-import BulkSignupDialog from "../components/BulkSignupDialog";
+import SignupDialog from "../components/signup/SignupDialog";
+import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
-import "../styles/anmeldung.css";
+import "../styles/signups.css";
 
 // "Anmeldungen" (#256): the member's coming raids, one calm row each — the raid
 // icon, the title large, date and deadline small, how full it is as a bar, and

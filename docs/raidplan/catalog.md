@@ -41,7 +41,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   creature** for a compact one (infernal, elemental, fiend); it is scaled to 64 px and stored as
   `src/web-client/public/mobs/<npcId>.png` (about 8 KB each, 350 KB in all). The icon key is `mob:<npcId>`
   (validated everywhere `boss:<id>` is: catalog, assignment snapshots, board icons and mobs; client
-  `portraitUrl` in `lib/raidplan.ts`). The JSON records per portrait the NPC id, the page's name, the display
+  `portraitUrl` in `lib/raidplan/facing.ts`). The JSON records per portrait the NPC id, the page's name, the display
   id, the crop and the request check (200, image/png). Only the mobs without a portrait stay
   "Platzhalter-Icon": **Doomfire Spirit, Towering Infernal, Giant Infernal** (their Wowhead pages name no
   display, so there is no render). Not used: the Encounter Journal images
@@ -160,7 +160,7 @@ what for the whole fight (cards per type, no order); **Taktik** = the sequence: 
 as numbered steps with a sentence ("Magier-Tank tankt Zerevor · Pull"). Rule of thumb: a line with a moment or
 a verb is a step.
 
-- **Data** (`src/services/raidplan/raidplanSteps.js`, client `lib/steps.ts`): every section board (boss, trash, Allgemein;
+- **Data** (`src/services/raidplan/raidplanSteps.js`, client `lib/raidplan/steps.ts`): every section board (boss, trash, Allgemein;
   also in templates) has `steps: [{ id, action, participants, sentence, targets, timing }]`, at most 30.
   `action` is one of 13 fixed actions (tank, swap, kite, adds, interrupt, dispel, cc, soak, focus, buff, heal,
   wait, note; each with an inline line icon, the colour = its group: tanks blue, control violet, position
@@ -169,7 +169,7 @@ a verb is a step.
   `class:Any:<n>:<role>`) plus `group:<n>`; `sentence` free text (160 characters); `targets` a mob (id +
   snapshot of name / icon), a zone of the map by name (`{ kind: "zone", ref: "Arena" }`), a raid mark or a
   group; `timing` `{ kind: "" | pull | phase | hp | interval | now | text, from, to, text }` (phase 1-9,
-  health 1-100 with an optional lower end, interval 1-600 s, a free word; `lib/steps.timingLabel`: "Pull",
+  health 1-100 with an optional lower end, interval 1-600 s, a free word; `lib/raidplan/steps.timingLabel`: "Pull",
   "Phase 2", "bei 30 %", "50 → 30 %", "Pull → 30 %", "alle 30 s", "sofort"). `cleanSteps` (part of
   `cleanBoard`, every save) turns an unknown action into "note", drops unknown references (a player outside
   the lineup, any player in a template or a library tactic), cuts texts, clamps numbers and drops a step
@@ -215,6 +215,6 @@ a verb is a step.
   English "tanks" -> "tank"; his chip carries "DU", the one mark), then "Alle Schritte" in their order (his
   own dimmed there so the numbers do not jump); on a phone the rows wrap.
 - Tests: `test/services/raidplan/raidplanSteps.test.js` (validation, template without players, clamping, board, resolution
-  incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/steps.test.ts` (editing and
+  incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/raidplan/steps.test.ts` (editing and
   sorting, timing words, sentence parts, du form, @ mentions, resolution, library, starters, structure,
   texts).

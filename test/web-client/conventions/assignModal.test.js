@@ -1,5 +1,5 @@
 // The structure of the row dialog (AssignModal.tsx) and the row container (AssignLine.tsx) and their texts; the logic of
-// lib/assignModal.ts and lib/assignLine.ts is tested in src/web-client/src/lib/assignModal.test.ts.
+// lib/raidplan/assignModal.ts and lib/raidplan/assignLine.ts is tested in src/web-client/src/lib/assignModal.test.ts.
 const fs = require("fs");
 const path = require("path");
 

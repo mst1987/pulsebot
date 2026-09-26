@@ -1,6 +1,6 @@
 // The character picks of the signup dialog (lib/signupPicks.ts, #293/#320), run for real.
 // The page, dialogs and roster are rendered in pages/SignupsPage.test.tsx,
-// components/SignupDialog.test.tsx and pages/raid-detail/RosterTab.signups.test.tsx.
+// components/signup/SignupDialog.test.tsx and pages/raid-detail/RosterTab.signups.test.tsx.
 import { describe, expect, it } from "vitest";
 import * as picksLib from "./signupPicks";
 import { requireBackend } from "../test/backend";

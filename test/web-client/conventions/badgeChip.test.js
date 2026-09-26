@@ -33,7 +33,7 @@ describe("ui/Chip", () => {
         expect(css).toContain(".chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }");
         expect(css).toContain(".badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }");
         expect(css).toContain(".badge.chip .badge-x svg { width: 12px; height: 12px; }");
-        expect(read("styles/einstellungen.css")).not.toContain(".badge.chip");
+        expect(read("styles/settings.css")).not.toContain(".badge.chip");
     });
 
     it("is exported with the other building blocks", () => {
@@ -45,21 +45,21 @@ describe("ui/Chip", () => {
 
 describe("the places that use them", () => {
     it("the loot filters' active filters are removable badges", () => {
-        expect(read("components/LootFilters.tsx")).toContain("<Badge key={f.key} tone={f.tone} onRemove={f.onRemove}");
+        expect(read("components/loot/LootFilters.tsx")).toContain("<Badge key={f.key} tone={f.tone} onRemove={f.onRemove}");
         expect(read("styles/historie-loot.css")).not.toContain(".hl-x");
     });
 
     it("the roster's small badges use size=\"sm\"", () => {
-        const roster = read("pages/RosterPage.tsx");
+        const roster = read("pages/roster");
         expect(roster).not.toContain("ros-mini");
         expect((roster.match(/size="sm" tip=/g) || []).length).toBe(2);
     });
 
     it("the settings' channel list and raider roles are chips", () => {
-        const settings = read("pages/SettingsPage.tsx");
+        const settings = read("pages/settings");
         expect(settings).toContain("<Chip");
         expect(settings).not.toContain("chip-x");
-        const matrix = read("components/CategoryMatrix.tsx");
+        const matrix = read("pages/settings/CategoryMatrix.tsx");
         expect(matrix).toMatch(/<Chip key=\{r\.id\} tone=\{on \? "accent" : undefined\} pressed=\{on\}/);
         expect(matrix).not.toContain("className={`badge chip");
     });

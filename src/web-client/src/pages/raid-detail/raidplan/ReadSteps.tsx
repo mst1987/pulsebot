@@ -1,7 +1,7 @@
 import type { RaidplanStep } from "../../../api";
 import { ActionIcon } from "../../../components/raidplan/ActionIcon";
-import type { AssignCtx } from "../../../lib/assign";
-import { duForm, isMyStep } from "../../../lib/steps";
+import type { AssignCtx } from "../../../lib/raidplan/assign";
+import { duForm, isMyStep } from "../../../lib/raidplan/steps";
 import { StepPeople, StepSentence, TimingChip } from "./StepParts";
 import { useLang, useT } from "../../../i18n";
 

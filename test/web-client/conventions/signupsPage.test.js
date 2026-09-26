@@ -4,7 +4,7 @@
 // render in jsdom can show. What the page, the signup dialog, the bulk dialog
 // and the roster show and send is tested in Vitest:
 // src/web-client/src/pages/SignupsPage.test.tsx,
-// src/web-client/src/components/SignupDialog.test.tsx,
+// src/web-client/src/components/signup/SignupDialog.test.tsx,
 // src/web-client/src/pages/raid-detail/RosterTab.signups.test.tsx and
 // src/web-client/src/api/signups.test.ts.
 const fs = require("fs");
@@ -14,7 +14,7 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 
 const page = read("pages", "SignupsPage.tsx");
-const css = read("styles", "anmeldung.css");
+const css = read("styles", "signups.css");
 
 describe("SignupsPage", () => {
     it("is routed under /signups for the signup area and listed in the menu next to the profile", () => {
@@ -28,7 +28,7 @@ describe("SignupsPage", () => {
     it("uses the shared blocks and keeps its styles in its own file, every selector its own", () => {
         expect(page).toContain("<PageHead");
         expect(page).toContain("<RaidLoader");
-        expect(page).toContain("import \"../styles/anmeldung.css\";");
+        expect(page).toContain("import \"../styles/signups.css\";");
         for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || []) {
             expect(sel).toMatch(/^\.(an-|wi$|field$|seg-opt$|is-on$|is-mine$)/);
         }

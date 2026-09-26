@@ -4,14 +4,14 @@ import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from 
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { type FlyItem } from "../../../lib/flyout";
-import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/assign";
-import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/classRefs";
-import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/assignModal";
-import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/rosterAssign";
-import { mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/autoPlace";
+import { type FlyItem } from "../../../lib/raidplan/flyout";
+import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
+import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/raidplan/classRefs";
+import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
+import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
+import { mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/raidplan/autoPlace";
 import { MobIcon } from "./AssignPanel";
-import { groupColor } from "../../../lib/groupStyle";
+import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { AssignChip } from "./AssignPanel";
 import { useT } from "../../../i18n";
 
@@ -34,7 +34,7 @@ const CAT_ICON: Record<string, ReactNode> = {
  * three slots (who, at whom, task / spell; the active one is framed and a click in the grid fills it), the categories at the left with
  * their counters, ONE grid of the active category at the right, the sheet preview below and "Zeile entfernen / Abbrechen / Fertig" in the
  * foot. Nothing scrolls: the grids are multi-column and dense. It works on a copy of the board and hands the row back with "Fertig"
- * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/assignModal.ts.
+ * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/raidplan/assignModal.ts.
  */
 export default function AssignModal({ board, rowId, title, targetOptions, spellOptions, onTarget, onText, onSpell, onSuggest, onDone, onClose, onRemove, isEvent, roster, catalog, players, initialSlot = "who", initialCat = "" }: {
     /** the slot and category the dialog opens on (the note icon of a row: task / free text) */

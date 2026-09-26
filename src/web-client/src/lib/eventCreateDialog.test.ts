@@ -1,7 +1,7 @@
 // "Event anlegen" im Web (#261): the planning rules of the dialog
 // (lib/eventPlan.ts on top of lib/raidTemplates.ts), run for real against the
 // server's rules. The dialog itself is rendered in
-// components/RaidCreateDialog.test.tsx and RaidCreateDialog.plan.test.tsx.
+// components/raid-create/RaidCreateDialog.test.tsx and RaidCreateDialog.plan.test.tsx.
 import { describe, expect, it } from "vitest";
 import * as eventPlan from "./eventPlan";
 import * as raidTemplates from "./raidTemplates";

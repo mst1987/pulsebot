@@ -6,7 +6,8 @@
 const { read, stripComments } = require("../clientSource");
 
 const FILES = {
-    dialog: "components/RaidCreateDialog.tsx",
+    // the dialog, its steps and its state (components/raid-create/, #438)
+    dialog: "components/raid-create",
     fields: "components/RaidPlanFields.tsx",
     comp: "components/CompositionEditor.tsx",
     plan: "lib/eventPlan.ts",
@@ -30,7 +31,8 @@ describe("i18n: raidCreate / raidPlan", () => {
     });
 
     it("imports useT in the components and t in the libs", () => {
-        for (const f of ["dialog", "fields", "comp"]) expect(src[f]).toContain("import { useT } from \"../i18n\";");
+        expect(src.dialog).toContain("import { useT } from \"../../i18n\";");
+        for (const f of ["fields", "comp"]) expect(src[f]).toContain("import { useT } from \"../i18n\";");
         for (const f of ["plan", "templates"]) expect(src[f]).toContain("import { t } from \"../i18n\";");
         expect(src.plan).not.toContain("STEP_LABELS");
     });

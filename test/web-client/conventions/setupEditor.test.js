@@ -2,20 +2,17 @@
 // class namespace, no drag-and-drop library, and the CSS decisions that were
 // checked in a real browser (one fixed top row, the stacked panel, row heights,
 // the lock overlay). What the editor does is rendered in Vitest:
-// src/web-client/src/pages/raid-detail/SetupEditor.test.tsx and
+// src/web-client/src/pages/raid-detail/setup/SetupEditor.test.tsx and
 // SetupEditor.panel.test.tsx; the moves behind it in lib/setupEditor.test.ts.
-const fs = require("fs");
-const path = require("path");
-
-const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
+const { read } = require("../clientSource");
 
 describe("setup editor conventions", () => {
-    const editor = read("pages", "raid-detail", "SetupEditor.tsx");
+    // the editor with its parts (pages/raid-detail/setup/, #438)
+    const editor = read("pages", "raid-detail", "setup");
     const css = read("styles", "setup-editor.css");
 
     it("uses its own stylesheet and namespace, no gold", () => {
-        expect(editor).toContain("import \"../../styles/setup-editor.css\";");
+        expect(editor).toContain("import \"../../../styles/setup-editor.css\";");
         const classes = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || [];
         for (const c of classes) expect(c).toMatch(/^\.(se-|wi$|btn$|is-on$)/);
         expect(css).not.toMatch(/gold|#d4af37|#ffd700/i);

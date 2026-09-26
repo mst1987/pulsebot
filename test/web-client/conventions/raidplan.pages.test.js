@@ -1,14 +1,14 @@
 // The raid plan pages checked on their source: the editor, the texts, the new
 // pages, the template overview, the read-only sheet and the section bar.
 // The pages' structure is checked on the source here; the logic parts (raid mark
-// icons, placeholders, section labels) run in Vitest (src/web-client/src/lib/raidplan.pages.test.ts).
+// icons, placeholders, section labels) run in Vitest (src/web-client/src/lib/raidplan/raidplan.pages.test.ts).
 const fs = require("fs");
 const path = require("path");
-const { read, stripComments, dictionary } = require("../clientSource");
+const { readWorkspace, read, stripComments, dictionary } = require("../clientSource");
 
 describe("the pages", () => {
     const tab = read("pages/raid-detail/RaidplanTab.tsx");
-    const work = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
+    const work = readWorkspace();
     const tpl = read("pages/RaidplanTemplatesPage.tsx");
     const board2 = read("components/raidplan/PlanBoard.tsx");
     const detail = read("pages/RaidDetailPage.tsx");
@@ -194,7 +194,7 @@ describe("the texts", () => {
         const de = dictionary("de");
         const en = dictionary("en");
         const files = [
-            "pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/Inspector.tsx", "pages/raid-detail/raidplan/LayerList.tsx",
+            "pages/RaidplanTemplatesPage.tsx", "pages/raid-detail/raidplan/BoardWorkspace.tsx", "pages/raid-detail/raidplan/workspace", "pages/raid-detail/raidplan/Inspector.tsx", "pages/raid-detail/raidplan/LayerList.tsx",
             "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/raidplan/MapPanel.tsx", "pages/raid-detail/raidplan/BossNav.tsx", "pages/raid-detail/raidplan/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
             "pages/raid-detail/raidplan/TargetsPanel.tsx", "pages/raid-detail/raidplan/ProfileModals.tsx", "pages/raid-detail/raidplan/ShareModal.tsx", "pages/PlanPublicPage.tsx",
             "components/raidplan/PlanBoard.tsx",
@@ -227,7 +227,7 @@ describe("the texts", () => {
 });
 
 describe("the new pages", () => {
-    const work = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
+    const work = readWorkspace();
     const board2 = read("components/raidplan/PlanBoard.tsx");
     const palette = read("pages/raid-detail/raidplan/Palette.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");

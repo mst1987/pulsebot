@@ -2,7 +2,7 @@
 // (#435: the structural half of the former test/web-client/menuAccess.test.js).
 // What the sidebar draws and which account may open what is tested by
 // rendering: src/web-client/src/App.test.tsx, components/Shell.test.tsx and
-// pages/HistoryPage.access.test.tsx.
+// pages/history/HistoryPage.access.test.tsx.
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");

@@ -9,9 +9,9 @@
 //     (there used to be five copies of both),
 //   * every remembered sort has its own storage key, so two tables can't
 //     overwrite each other's column.
-const fs = require("fs");
-const path = require("path");
-const { CLIENT, namespaces } = require("../clientSource");
+const shared = require("../clientSource");
+
+const { namespaces } = shared;
 
 // A translated header (`<th>{t("ns.key")}</th>`) is checked by its German text,
 // looked up in the German dictionary files.
@@ -24,19 +24,9 @@ const headerText = (label) => {
     return typeof text === "string" ? text : label;
 };
 
-function readClient(...parts) {
-    return fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
-}
-
 // Every page/component file of the client, as [name, source] — tests are not the app.
 function clientSources() {
-    const out = [];
-    for (const dir of ["pages", "components"]) {
-        for (const file of fs.readdirSync(path.join(CLIENT, dir))) {
-            if (file.endsWith(".tsx") && !file.endsWith(".test.tsx")) out.push([`${dir}/${file}`, readClient(dir, file)]);
-        }
-    }
-    return out;
+    return shared.pageSources();
 }
 
 // Column headers that stay unsorted on purpose, with the reason. Everything

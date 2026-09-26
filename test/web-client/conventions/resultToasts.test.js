@@ -15,7 +15,7 @@ const readClient = shared.read;
 
 /** Every page/component file of the client, as [name, source]. */
 function clientSources() {
-    return ["pages", "components"].flatMap((dir) => shared.clientSources(dir, /.tsx$/, { recursive: false }));
+    return shared.pageSources();
 }
 
 describe("action results are toasts", () => {
@@ -65,7 +65,7 @@ describe("action results are toasts", () => {
     it("routes the character class lookup's result to a toast", () => {
         // The action from the bug report: its button lives under the character
         // table, far below where the old flash line was drawn.
-        const src = readClient("pages", "HistoryPage.tsx");
+        const src = readClient("pages", "history", "CharactersTab.tsx");
         const resolve = src.match(/const resolve = async \(\) => \{[\s\S]*?\n {4}\};/)[0];
         expect(resolve).toContain("resolveCharacters()");
         // Success goes through onChanged (toast + reload), failure straight to a

@@ -1,6 +1,6 @@
 // The Log-Auswertung page (design issue #217): what cannot be rendered. The
 // list, the filters, the row actions and the dialogs are render tests next to
-// the page (src/web-client/src/pages/ClaPage.*.test.tsx).
+// the page (src/web-client/src/pages/cla/ClaPage.*.test.tsx).
 const fs = require("fs");
 const path = require("path");
 
@@ -18,7 +18,7 @@ describe("Log-Auswertung: conventions", () => {
     });
 
     it("keeps its styles in its own file", () => {
-        expect(read("pages", "ClaPage.tsx")).toContain("import \"../styles/log-auswertung.css\";");
+        expect(read("pages", "cla", "ClaPage.tsx")).toContain("import \"../../styles/log-auswertung.css\";");
         const css = read("styles", "log-auswertung.css");
         expect(css).toContain(".la-row.running { box-shadow: inset 3px 0 0 var(--accent); }");
         expect(css).toContain(".la-boss.miss { border-style: dashed;");

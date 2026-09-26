@@ -2,19 +2,19 @@
 // per-category setting has one home (the category matrix), and explanations sit
 // in tooltips instead of hint paragraphs. What the sections, the section column
 // and the save bar do is tested in src/web-client/src/lib/settingsSections.test.ts,
-// components/SectionNav.test.tsx and pages/SettingsPage.sections.test.tsx; the
-// areas of Historie & Loot in pages/HistoryPage.areas.test.tsx.
+// components/SectionNav.test.tsx and pages/settings/SettingsPage.sections.test.tsx; the
+// areas of Historie & Loot in pages/history/HistoryPage.areas.test.tsx.
 const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const readClient = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-const settingsSrc = readClient("pages", "SettingsPage.tsx");
+const settingsSrc = readClient("pages", "settings", "SettingsPage.tsx");
 
 describe("Einstellungen conventions", () => {
     it("configures each per-category setting in exactly one place", () => {
-        const matrix = readClient("components", "CategoryMatrix.tsx");
+        const matrix = readClient("pages", "settings", "CategoryMatrix.tsx");
         for (const prop of ["categoryRoles", "categoryLootTool", "categorySheets"]) {
             expect(matrix).toContain(prop);
             const renderedElsewhere = settingsSrc.includes(`value={draft.${prop}}`);
@@ -28,8 +28,8 @@ describe("Einstellungen conventions", () => {
     it("turns the hint paragraphs into tooltips", () => {
         const files = {
             "SettingsPage.tsx": settingsSrc,
-            "RolePermissions.tsx": readClient("components", "RolePermissions.tsx"),
-            "CategoryMatrix.tsx": readClient("components", "CategoryMatrix.tsx"),
+            "RolePermissions.tsx": readClient("pages", "settings", "RolePermissions.tsx"),
+            "CategoryMatrix.tsx": readClient("pages", "settings", "CategoryMatrix.tsx"),
         };
         for (const [name, src] of Object.entries(files)) {
             expect({ name, hint: src.includes("className=\"hint\""), note: src.includes("<p className=\"note\">") })

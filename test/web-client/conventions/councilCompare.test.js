@@ -1,5 +1,5 @@
 // Guards for the loot council's comparison matrix — the "Loot-Vergleich" tab
-// (src/web-client/src/pages/LootCouncilPage.tsx + index.css).
+// (src/web-client/src/pages/lootcouncil/LootCouncilPage.tsx + index.css).
 //
 // Columns are raiders, rows are items: what the toggled raiders got in the
 // filtered content, side by side, so a council choosing between three warlocks
@@ -18,15 +18,16 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
-const page = read("pages", "LootCouncilPage.tsx");
+// the page with its tabs (the comparison is CompareTab.tsx, the view view.ts; #438)
+const { files, fn: fnIn } = require("./councilHelpers");
+
+const page = files.page;
 const css = read("index.css");
 const api = read("api", "lootcouncil.ts");
 
 /** The body of one top-level function in the page source. */
 function fn(name) {
-    const m = page.match(new RegExp(`\\nfunction ${name}\\b[\\s\\S]*?\\n}\\n`));
-    if (!m) throw new Error(`function ${name} not found`);
-    return m[0];
+    return fnIn(page, name);
 }
 
 /** One CSS rule's declarations. */

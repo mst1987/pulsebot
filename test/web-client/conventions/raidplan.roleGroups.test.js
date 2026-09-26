@@ -1,6 +1,7 @@
+const { readWorkspace } = require("../clientSource");
 // Group rings and role groups (feature/raidplan-14..16) checked on the source:
 // the stylesheet and the board. The ring and role group logic runs in Vitest
-// (src/web-client/src/lib/raidplan.roleGroups.test.ts).
+// (src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts).
 describe("names on a group ring (feature/raidplan-14)", () => {
     it("the stylesheet: the name hangs under its icon at a share of it, the ring caps its width, the group badge sits at the top", () => {
         const css = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
@@ -44,7 +45,7 @@ describe("role groups turned, their names inside (feature/raidplan-16)", () => {
         const board = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/PlanBoard.tsx"), "utf8");
         expect(board).toContain("{size.w > 0 && zones.filter((z) => !z.hidden && z.type === \"role\").map((z) => roleBody(z))}");
         expect(board).toContain("{rest.length > 0 && <span className=\"rp-rg-more\"");
-        const ws = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.tsx"), "utf8");
+        const ws = readWorkspace();
         expect(ws).toContain("if (cr && (cur || handle === \"rot\")) {");
         expect(ws).toContain("resizeTurned(d.rect0, d.handle as ZoneGrip, dx * bp.w, dy * bp.h, turned, bp.w, bp.h)");
         const css = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");

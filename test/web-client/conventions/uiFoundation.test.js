@@ -143,7 +143,7 @@ describe("tooltips instead of native title", () => {
         // Sanity: a broken tag scanner would make the test above vacuous.
         // The loot council page is split over pages/lootcouncil/ (#223) — scanned together.
         const council = clientSources()
-            .filter(([name]) => name === "pages/LootCouncilPage.tsx" || name.startsWith("pages/lootcouncil/"))
+            .filter(([name]) => name.startsWith("pages/lootcouncil/"))
             .map(([, src]) => src).join("\n");
         const tags = intrinsicTags(council);
         expect(tags.length).toBeGreaterThan(300);
@@ -167,7 +167,7 @@ describe("tooltips and modal dialogs", () => {
             .filter(([name, src]) => name !== "components/Shell.tsx" && name !== "components/ui/Tip.tsx" && /<TipLayer\s*\/>/.test(src))
             .map(([name]) => name);
         expect(layers).toEqual([]);
-        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx", "pages/RecruitmentPage.tsx"]) {
+        for (const name of ["pages/history/ItemAwardsDialog.tsx", "pages/history/LootInboxTab.tsx", "pages/history/ManualLootForm.tsx", "pages/recruitment/Editors.tsx", "pages/recruitment/PostDialog.tsx", "pages/recruitment/ApplicationsTab.tsx"]) {
             expect({ name, footFocus: /initialFocus="\.dlg-foot/.test(sources[name]) }).toEqual({ name, footFocus: false });
         }
     });

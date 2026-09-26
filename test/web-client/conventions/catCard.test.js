@@ -1,5 +1,5 @@
-// Guards for Einstellungen → Kategorien (src/web-client/src/components/CategoryMatrix.tsx
-// and the .cat-* rules in src/web-client/src/styles/einstellungen.css).
+// Guards for Einstellungen → Kategorien (src/web-client/src/pages/settings/CategoryMatrix.tsx
+// and the .cat-* rules in src/web-client/src/styles/settings.css).
 //
 // The page used to show one card per Discord category — typically 13 of 17
 // of them inactive — and kept the raider → character assignment in a separate
@@ -12,9 +12,9 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const css = fs.readFileSync(path.join(CLIENT, "styles", "einstellungen.css"), "utf8");
-const matrix = fs.readFileSync(path.join(CLIENT, "components", "CategoryMatrix.tsx"), "utf8");
-const page = fs.readFileSync(path.join(CLIENT, "pages", "SettingsPage.tsx"), "utf8");
+const css = fs.readFileSync(path.join(CLIENT, "styles", "settings.css"), "utf8");
+const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryMatrix.tsx"), "utf8");
+const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
 
 function rule(selector) {
     const re = new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`);
@@ -65,7 +65,7 @@ describe("Kategorien list", () => {
         expect(matrix).toContain("{ value: \"\", label: \"keins\" }");
         expect(matrix).toContain("icon=\"ability_rogue_disguise\"");
         expect(matrix).toContain("categoryId={assigning.id}");
-        const modal = fs.readFileSync(path.join(CLIENT, "components", "RaiderCharactersModal.tsx"), "utf8");
+        const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "RaiderCharactersModal.tsx"), "utf8");
         // the category is a prop now, never a second picker
         expect(modal).not.toContain("<select");
         expect(page).not.toContain("RaiderCharactersTab");

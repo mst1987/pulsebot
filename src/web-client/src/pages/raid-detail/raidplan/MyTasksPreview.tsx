@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
-import { cleanNames } from "../../../lib/mention";
-import { splitMine } from "../../../lib/mineView";
+import { cleanNames } from "../../../lib/raidplan/mention";
+import { splitMine } from "../../../lib/raidplan/mineView";
 import { MineBlocks } from "./ReadTables";
 import { useT } from "../../../i18n";
 

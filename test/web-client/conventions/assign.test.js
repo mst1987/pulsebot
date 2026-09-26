@@ -1,13 +1,14 @@
-// The wiring of the assignments in the pages and their catalog texts; the logic of lib/assign.ts is tested in
+// The wiring of the assignments in the pages and their catalog texts; the logic of lib/raidplan/assign.ts is tested in
 // src/web-client/src/lib/assign.test.ts.
 const fs = require("fs");
 const path = require("path");
+const { readWorkspace } = require("../clientSource");
 
 describe("wiring and texts", () => {
     const root = path.join(__dirname, "../../../src/web-client/src");
     const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
     it("the workspace shows the panel right at the board, the read view the table", () => {
-        expect(read("pages/raid-detail/raidplan/BoardWorkspace.tsx")).toContain("<AssignPanel");
+        expect(readWorkspace()).toContain("<AssignPanel");
         expect(read("pages/PlanPublicPage.tsx")).toContain("<ReadTables");
         expect(read("pages/PlanPublicPage.tsx")).not.toContain("ByPlayerLog");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-links");

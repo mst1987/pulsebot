@@ -12,7 +12,7 @@ import {
     getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
     type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/Jobs";
-import ItemSearchPicker from "../../components/ItemSearchPicker";
+import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import PageLoader from "../../components/PageLoader";
 import { Badge, Button, PartHead } from "../../components/ui";
 import { ChevronLeftIcon } from "../../components/icons";
@@ -23,7 +23,10 @@ import { itemQualityProps } from "../../lib/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
     type CandidateSortKey, type FilterView } from "./council";
-import { BisSpecs, CandidateTable, ContentBadge, FoldRow, ListBadge, LootCount, NeedBar, RaiderIdent, SlotOptions } from "./parts";
+import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
+import { CandidateTable, ListBadge } from "./CandidateTable";
+import { NeedBar } from "./NeedBar";
+import { SlotOptions } from "./GearBadges";
 import "../../styles/loot-council.css";
 
 export default function DropCheckPage() {

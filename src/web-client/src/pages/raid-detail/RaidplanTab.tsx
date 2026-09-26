@@ -6,18 +6,18 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
-import { useOnFocus } from "../../lib/useOnFocus";
+import { useOnFocus } from "../../hooks/useOnFocus";
 import { useT } from "../../i18n";
 import {
     boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, openSlots, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
 import type { RaidCtx } from "./meta";
-import { missingNames, openAssignments, type OpenRow } from "../../lib/assignLine";
+import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assignLine";
 import BoardWorkspace from "./raidplan/BoardWorkspace";
 import BossNav from "./raidplan/BossNav";
 import { LibraryModal, ProfilesModal } from "./raidplan/ProfileModals";
 import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raidplan/SaveState";
-import { applyTactic, stepsOf } from "../../lib/steps";
+import { applyTactic, stepsOf } from "../../lib/raidplan/steps";
 import ShareModal from "./raidplan/ShareModal";
 import type { MapRow } from "./raidplan/MapPanel";
 import { useDraftHistory } from "./raidplan/useDraftHistory";

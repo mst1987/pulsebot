@@ -1206,7 +1206,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-bes-cls.is-filled { border-color: #22c55e; }
 .rp-bes-missing { align-self: center; padding: 2px 8px; border-radius: 8px; border: 1px solid var(--high, #e0524f); font-size: 12px; font-weight: 700; }
 
-/* one coordinate space: the canvas is laid out at the reference width (lib/boardScale.ts) and scaled as a whole to the board's width */
+/* one coordinate space: the canvas is laid out at the reference width (lib/raidplan/boardScale.ts) and scaled as a whole to the board's width */
 .rp-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .rp-canvas .rp-handle, .rp-canvas .rp-multi-edge { transform-origin: 50% 50%; }
 .rp-canvas .rp-handle { transform: scale(max(1, calc(1 / var(--rp-k, 1)))); }
@@ -1406,7 +1406,7 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-sheetlist { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
 .rp-sheetlist label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 
-/* everything drawn AROUND an icon is a share of the icon's own size (--rp-ring/--rp-glow/... come from lib/labelScale.ts effectMetrics, in reference units): the me-glow, the selection glow, shadows and outlines of a small or a big icon look the same at every zoom */
+/* everything drawn AROUND an icon is a share of the icon's own size (--rp-ring/--rp-glow/... come from lib/raidplan/labelScale.ts effectMetrics, in reference units): the me-glow, the selection glow, shadows and outlines of a small or a big icon look the same at every zoom */
 .rp-canvas .rp-token.is-me .rp-ico { box-shadow: 0 0 0 var(--rp-ring, 3px) var(--accent), 0 0 var(--rp-glow, 18px) var(--rp-gsp, 4px) var(--accent); }
 @keyframes rp-pulse-s { 0%, 100% { box-shadow: 0 0 0 var(--rp-ring, 3px) var(--accent), 0 0 calc(var(--rp-glow, 18px) * .65) calc(var(--rp-gsp, 4px) * .75) var(--accent); } 50% { box-shadow: 0 0 0 calc(var(--rp-ring, 3px) * 1.6) var(--accent), 0 0 calc(var(--rp-glow, 18px) * 1.3) calc(var(--rp-gsp, 4px) * 2) var(--accent); } }
 .rp-canvas .rp-token.is-me .rp-ico { animation-name: rp-pulse-s; }
@@ -1607,7 +1607,7 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-mapoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13.5px; }
 .rp-mapoff > span { flex: 1 1 260px; }
 
-/* what the tank rows put on the map (lib/autoPlace.ts): a placeholder of the template dashed, a class nobody in the raid has dimmed with a warning */
+/* what the tank rows put on the map (lib/raidplan/autoPlace.ts): a placeholder of the template dashed, a class nobody in the raid has dimmed with a warning */
 .rp-autotank .rp-token-btn { position: relative; }
 .rp-autotank.is-rule .rp-ico, .rp-autotank.is-slot .rp-ico { border-style: dashed; opacity: .85; }
 .rp-autotank.is-missing { opacity: .6; }
@@ -1626,7 +1626,7 @@ dialog.dlg.rp-lib { width: min(860px, calc(100vw - 32px)) !important; }
 .rp-layer.is-auto .rp-layer-kind { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
 /* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with ONE outline, the role icon, an optional label and count; never players */
 /* a role group ("Melees" ...): ONE clean outline and a light fill in its colour, its icon once in the middle, unscaled - every measure a share of
-   the zone (lib/raidplan.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
+   the zone (lib/raidplan/roleGroups.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
 .rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
 .rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
 /* the content of a role group stands UPRIGHT over its (possibly turned) outline: a box of the turned zone's upright size (.rp-rg-up), in it the

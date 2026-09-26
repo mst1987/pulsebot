@@ -1,4 +1,4 @@
-// The row dialog (AssignModal.tsx) wires the class counts and the general tanks; the logic of lib/classRefs.ts is tested in
+// The row dialog (AssignModal.tsx) wires the class counts and the general tanks; the logic of lib/raidplan/classRefs.ts is tested in
 // src/web-client/src/lib/classCount.test.ts.
 const fs = require("fs");
 const path = require("path");

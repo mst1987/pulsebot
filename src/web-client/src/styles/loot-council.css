@@ -1,4 +1,4 @@
-/* ── Loot-Council (pages/LootCouncilPage.tsx, pages/lootcouncil/*) ──────────
+/* ── Loot-Council (pages/lootcouncil/*) ──────────
    Design issue #223: a filter bar instead of three boxes, one compact line
    per raider, the details in a dialog, the drop check as its own page. Built
    on the shared blocks (badge, bar, segment, part head, dialog) — what is here

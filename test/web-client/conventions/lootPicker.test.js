@@ -1,5 +1,5 @@
 // Guards for the "Item nachtragen" pickers
-// (src/web-client/src/components/ManualLootForm.tsx).
+// (src/web-client/src/pages/history/ManualLootForm.tsx).
 //
 // The item picker lists one raid's closed drop table; the raider picker lists an
 // open-ended set of names. Only the second may be cut short — capping the first
@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const src = fs.readFileSync(path.join(CLIENT, "components", "ManualLootForm.tsx"), "utf8");
+const src = fs.readFileSync(path.join(CLIENT, "pages", "history", "ManualLootForm.tsx"), "utf8");
 const css = fs.readFileSync(path.join(CLIENT, "index.css"), "utf8");
 
 /** The body of one `function <name>(` … up to the next top-level `function`. */

@@ -4,7 +4,7 @@ import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../lib/ra
 import Segment from "./ui/Segment";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
-import { WarnIcon } from "./settingsUi";
+import { WarnIcon } from "./settings/settingsUi";
 import { roleLabel } from "../lib/wowNames";
 import { useT } from "../i18n";
 import "../styles/raid-templates.css";

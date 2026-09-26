@@ -12,10 +12,30 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const LOCALES = path.join(CLIENT, "i18n", "locales");
 
-/** A client file (path parts relative to src/web-client/src), with LF line endings. */
+/**
+ * A client file (path parts relative to src/web-client/src), with LF line endings.
+ * A folder reads as all of its app sources (tests left out) joined in path
+ * order, so a page split into a folder of parts (pages/cla/, #438) is still
+ * checked as one module.
+ */
 function read(...parts) {
     // strings only, so `files.map(read)` works (map also passes index and array)
-    return fs.readFileSync(path.join(CLIENT, ...parts.filter((p) => typeof p === "string")), "utf8").replace(/\r\n/g, "\n");
+    const full = path.join(CLIENT, ...parts.filter((p) => typeof p === "string"));
+    if (fs.statSync(full).isDirectory()) {
+        return sourceFiles(path.relative(CLIENT, full))
+            .map((f) => fs.readFileSync(f, "utf8"))
+            .join("\n")
+            .replace(/\r\n/g, "\n");
+    }
+    return fs.readFileSync(full, "utf8").replace(/\r\n/g, "\n");
+}
+
+/**
+ * The raid plan's working area as one source: BoardWorkspace.tsx and the hooks
+ * and parts it was split into (pages/raid-detail/raidplan/workspace/, #438).
+ */
+function readWorkspace() {
+    return [read("pages/raid-detail/raidplan/BoardWorkspace.tsx"), read("pages/raid-detail/raidplan/workspace")].join("\n");
 }
 
 /** Whether a path belongs to the tests rather than the app. */
@@ -47,6 +67,33 @@ function clientSources(dir = "", ext = /\.tsx?$/, options = {}) {
         path.relative(CLIENT, full).split(path.sep).join("/"),
         fs.readFileSync(full, "utf8").replace(/\r\n/g, "\n"),
     ]);
+}
+
+// The folders #438 made out of files that used to lie flat in pages/ and
+// components/: a scan over "every page and component" reads them too. The loot
+// council's folder is older than that and only its former LootCouncilPage.tsx
+// counts (the drop check and the dialog were never part of these scans).
+const SPLIT_FOLDERS = [
+    "pages/recruitment", "pages/cla", "pages/history", "pages/profile", "pages/settings", "pages/roster",
+    "components/loot", "components/settings", "components/signup", "components/roster", "components/raid-create",
+    ["pages/lootcouncil", ["LootCouncilPage.tsx", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"]],
+];
+
+/**
+ * [relative name, source] for every page and component file: the top level of
+ * pages/ and components/ plus the folders a page or a domain was split into
+ * (SPLIT_FOLDERS). The other sub folders (ui/, raid-detail/, ...) have scans
+ * of their own.
+ */
+function pageSources(ext = /\.tsx$/) {
+    return [
+        ...["pages", "components"].flatMap((dir) => clientSources(dir, ext, { recursive: false })),
+        ...SPLIT_FOLDERS.flatMap((entry) => {
+            if (typeof entry === "string") return clientSources(entry, ext);
+            const [dir, names] = entry;
+            return clientSources(dir, ext, { recursive: false }).filter(([name]) => names.includes(name.slice(dir.length + 1)));
+        }),
+    ];
 }
 
 /**
@@ -89,4 +136,4 @@ function dictionary(lang) {
     return out;
 }
 
-module.exports = { CLIENT, LOCALES, read, isTestFile, sourceFiles, clientSources, stripComments, namespaces, dictionary };
+module.exports = { CLIENT, LOCALES, SPLIT_FOLDERS, read, readWorkspace, isTestFile, sourceFiles, clientSources, pageSources, stripComments, namespaces, dictionary };

@@ -1,4 +1,4 @@
-/* Recruitment page (design issue #215). Imported by pages/RecruitmentPage.tsx.
+/* Recruitment page (design issue #215). Imported by pages/recruitment/RecruitmentPage.tsx.
    Everything is scoped under .rc-page — the page's modals are <dialog>s rendered
    inside it, so they are covered too. Tokens only; the Discord preview carries
    Discord's own palette, dark and light. */

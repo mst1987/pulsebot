@@ -1,6 +1,6 @@
-// The room map's client-side shrinking (lib/mapImage.ts): when to shrink, to what size,
+// The room map's client-side shrinking (lib/raidplan/mapImage.ts): when to shrink, to what size,
 // which encoder settings are tried in which order, and the text shown.
-// The logic runs in src/web-client/src/lib/mapImage.test.ts (Vitest).
+// The logic runs in src/web-client/src/lib/raidplan/mapImage.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
 

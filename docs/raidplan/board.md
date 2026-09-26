@@ -25,7 +25,7 @@ There are **no maps in the repo** and nothing is fetched from anywhere; the orga
   upload is never hidden by the cache.
 - Without a map the board shows a neutral grid with the boss icon.
 - **Big pictures are shrunk in the browser before the upload** (`MapPanel` -> `mapUpload.ts`, numbers in
-  `lib/mapImage.ts`): a file over 2.8 MB or longer than 2560 px is drawn on a canvas at most 2560 px on the
+  `lib/raidplan/mapImage.ts`): a file over 2.8 MB or longer than 2560 px is drawn on a canvas at most 2560 px on the
   long edge and written as WebP (transparency stays; JPEG with the board's dark background when the browser
   cannot write WebP) with a falling quality (0.92 to 0.6), then a smaller picture (85 / 70 / 55 / 40 %) as the
   last resort, until it is under 2.8 MB. A small file is sent untouched. The toast shows before and after
@@ -68,14 +68,14 @@ proxy's HTML.
 - The right-click on a boss chip opens a small menu: "Aus dem Sheet ausklammern / Ins Sheet aufnehmen" and
   (boss / trash) "Karte ausblenden / anzeigen" (`BossNav` `onMap`). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
-- Tests: `src/web-client/src/lib/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
+- Tests: `src/web-client/src/lib/raidplan/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
   `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
   `test/services/raidplan/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)
 
 A tank row puts its mobs and its tanks on the map by itself: nobody has to drag a boss icon, a Flame or a tank
-onto the board. Decision: the objects are **derived** from the rows every time (`lib/autoPlace.ts`
+onto the board. Decision: the objects are **derived** from the rows every time (`lib/raidplan/autoPlace.ts`
 `deriveAuto`, pure, the same code in the editor, the template editor and the sheet), never stored; only what
 the orga changes about them is stored on the board. That keeps them in step with the rows (a row deleted = its
 objects gone, a tank swapped = the token shows the new player) and makes a template resolve by itself: the
@@ -131,7 +131,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 - **Facing**: `autoFacing` - the wedge of a mob (auto or hand-placed) points at the first tank of its instance
   that stands on the map (auto token, slot, free token or the drawn place in a group ring); the n-th Flame at
   the n-th tank. A missing class ("Paladin fehlt") turns nothing: the icon keeps its own facing. An icon the
-  rows do not know keeps the older rule (`lib/assign.ts facingOf`). In the template the wedge already follows
+  rows do not know keeps the older rule (`lib/raidplan/assign.ts facingOf`). In the template the wedge already follows
   the placeholder, so it is identical in the event.
 - **Template → event**: "Vorlage anwenden" copies `autoPlace` and `autoPos`; `raidplanBoard.reidBoard` moves
   the keys of the rows to their new ids (a Standard row carries its template id as `_key` through
@@ -141,7 +141,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 - **Sheet / public API**: `publicView` sends `autoPlace` and `autoPos` (nothing of it without the map, like
   every map object); `PlanPublicPage` derives the same objects from the resolved rows. Heal lines reach an
   auto tank (`autoPlaces` into `board.places`).
-- Tests: `src/web-client/src/lib/autoPlace.test.ts` (derivation, instances, layout without overlap, overrides, one
+- Tests: `src/web-client/src/lib/raidplan/autoPlace.test.ts` (derivation, instances, layout without overlap, overrides, one
   place per player, template placeholder vs. event player vs. missing, facing, the menu helpers, wiring),
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation, mob numbers, reidBoard / apply / duplicate keep positions
   and `showMap`), `test/web/apiRoutes/raidplan.test.js` (public API with and without the map).
@@ -164,7 +164,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 - **Multi selection**: the editor hands the places of the auto objects to the selection code as the transient
   `board.autoAt` (never saved): Ctrl+A and the rubber band take them, moving / scaling / aligning / opacity /
   lock of a selection include them, "delete" leaves them (they go with their row).
-- Tests (look): `src/web-client/src/lib/autoStyle.test.ts` (style through the lib functions, ranges, lock, order,
+- Tests (look): `src/web-client/src/lib/raidplan/autoStyle.test.ts` (style through the lib functions, ranges, lock, order,
   reset, the plan uses it, spacing grows without overlap, multi selection),
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
   apply and duplicate), `test/web/apiRoutes/raidplan.test.js` (public API).
@@ -180,7 +180,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   %). Edited with the inspector's "Pfeilgröße" (slider + number, 25-300 %), "Pfeil ausblenden", colour and
   opacity (`ArrowFields`, also in the auto objects' panel), the right-click "Pfeil größer / kleiner" (x 1.25 /
   0.8), Alt + "+" / "-" (x 1.15), and on several at once (`multiSelect.scaleArrowSelection`, menu "Pfeile
-  größer / kleiner"). Lib: `arrowOf`, `patchArrow`, `scaleArrow` in `lib/raidplan.ts`. Apply / duplicate copy
+  größer / kleiner"). Lib: `arrowOf`, `patchArrow`, `scaleArrow` in `lib/raidplan/autoStyle.ts`. Apply / duplicate copy
   it (icons and `autoStyle` travel as they are).
 - **Role group placeholder** ("Melees", "Ranged", also Heiler / Tanks / DPS): a zone of type `role` with
   `role`, `count` (0..40, a badge; 0 = none), `showNames` (default off) and the shapes ellipse ("Fläche"),
@@ -198,7 +198,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   Never split into players, no count, no fallback, never "open"; `expandClassRefs` / `resolveSteps` leave them
   as they are. In the row dialog the category "Rollen" (who and at whom), in the step dialog under "Gruppen"
   and in the targets. Shown as a role chip with its icon (editor rows, sheet tables, preview, steps).
-- Tests: `src/web-client/src/lib/arrowRoleGroup.test.ts` (arrow functions and clamps, auto mobs, several at once, the
+- Tests: `src/web-client/src/lib/raidplan/arrowRoleGroup.test.ts` (arrow functions and clamps, auto mobs, several at once, the
   CSS rule in reference units, inserting / moving / sizing a role group, role references in the dialog and in
   steps), `test/services/raidplan/raidplanRoleArrow.test.js` (validation of the arrow fields and of role groups, role
   references in rows and steps, copies keep them).
@@ -210,13 +210,13 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   1024 / 390 px found no horizontal page scroll in the sheet; in the editor up to 1000 px the map shrank to
   ~50 px: the later layout-v2 rule `.rp-stage2 { grid-template-columns: minmax(0, 1fr) 300px }` overrode the
   older phone media query. A media query right after it puts the dock under the map again (regression test in
-  `src/web-client/src/lib/roleMine.test.ts`). The user's report ("das AH darf auch nicht breiter sein als der Rest
+  `src/web-client/src/lib/raidplan/roleMine.test.ts`). The user's report ("das AH darf auch nicht breiter sein als der Rest
   des spies") was read as "the picture must not be wider than the rest of the sheet"; that reading is not
   certain.
 - **Role groups under "Meine Aufgaben" / "Wirkt auf dich"**: a row whose assignee is `role:<role>` is a task
   of every raider of that role, a target `{ kind: "role" }` acts on every raider of that role - his spec role
   from the setup (`resolveRole`), a flex role on this boss (`board.roles`) wins; "dps" = neither tank nor
-  healer. No names are split out (the chips stay the role group). Client `lib/assign.ts` `inRoleGroup` /
+  healer. No names are split out (the chips stay the role group). Client `lib/raidplan/assign.ts` `inRoleGroup` /
   `meInRole` (used by `isMine` and `mineView.rowMode`), server twin `raidplanAssign.inRoleGroup` (the same
   table in the tests). The public view names the raiders of a referenced role in its roster (so the page knows
   the visitor's role) and sends the boss's flex roles (`roles`, lineup players only).
@@ -226,7 +226,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 
 ## Names on the map (feature/raidplan-14)
 
-"Die Namen sind verschoben beim Zoom": the name under a token is a share of its icon (`lib/labelScale.ts`
+"Die Namen sind verschoben beim Zoom": the name under a token is a share of its icon (`lib/raidplan/labelScale.ts`
 NAME_FACTOR 0.3, ICON_NAME_FACTOR 0.24) and hangs under it, centred (`.rp-canvas .rp-token .rp-token-name`:
 top 0.58 icons). Until round 14 `labelMetrics` **enlarged** a name whose font would be under 7 px on screen -
 so on a small board (the sheet on a phone, zoomed out) the names grew to up to 0.5 icons, wider than the room
@@ -240,7 +240,7 @@ Besides:
 - **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so
   they never meet (before it sat at the lower right, on the name's first line).
 
-Tests: `src/web-client/src/lib/labelScale.test.ts`, "names on a group ring" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`.
+Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts`, "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`.
 
 **A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from
 the default:
@@ -254,14 +254,14 @@ the default:
   memberPx)` = the bigger of the two - the ring grows with the tokens it carries (also for the places the
   facing finds). Raiders moved by hand keep their stored offsets.
 
-Tests: "a group's own token size" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`.
+Tests: "a group's own token size" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`.
 
 ### Role groups and group chips scale with themselves (feature/raidplan-15, part 2)
 
 - **Role groups** ("Melees", "Ranged", "Healer", "Tanks": zones of type `role`) draw ONE solid outline and a
   light fill in their colour; the icon is there once, a circle in the middle, never distorted (a narrow strip
   gets a smaller circle, not an ellipse). The double border of the zone and the double ring round the icon are
-  gone. Every measure is a share of the zone (`lib/raidplan.ts roleZoneMetrics(w, h, cluster, count)` in
+  gone. Every measure is a share of the zone (`lib/raidplan/roleGroups.ts roleZoneMetrics(w, h, cluster, count)` in
   reference px): the icon 0.45 of the smaller side (at most 96), the outline 1 .. 4 px, the label and the
   count badge, and the names listed under it. The names go by the zone's area (a narrow strip still carries
   them), at most a token name's size (11.4); too small on screen they are hidden, never enlarged (like a
@@ -277,7 +277,7 @@ Tests: "a group's own token size" in `src/web-client/src/lib/raidplan.roleGroups
   0 = automatic; kept by `raidplanBoard.cleanBoard` for groups only). Before, the chip was laid out in a
   zero-wide anchor, so every name broke at its spaces ("Darkdisi /" + "Lakunoc").
 
-Tests: "role groups and group chips scale with themselves" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`, "a group
+Tests: "role groups and group chips scale with themselves" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "a group
 chip's width" in `test/services/raidplan/raidplanBoard.test.js`.
 
 ## Role groups: turned, names inside, symbol size, label outside (feature/raidplan-16)
@@ -288,7 +288,7 @@ chip's width" in `test/services/raidplan/raidplanBoard.test.js`.
   upright over it in its own layer (`.rp-rg-up`, rendered after all zones, no pointer events): the symbol, the
   names, the count and the label are never upside down. The grip used to MOVE the zone instead of turning it:
   the drag took the middle only from objects with a size of their own (`sizeOf`), and a zone has none.
-- **Grips of a turned zone** work along its own axes, the opposite side stays where it is (`lib/raidplan.ts
+- **Grips of a turned zone** work along its own axes, the opposite side stays where it is (`lib/raidplan/roleGroups.ts
   resizeTurned`); a selected zone lies above tokens and icons (z-index 6 in the editor) so its grips can be
   reached. The rubber band and the selection frame use the upright box of the turned zone (`turnedBox`, the
   smaller box for an ellipse).
@@ -314,15 +314,15 @@ chip's width" in `test/services/raidplan/raidplanBoard.test.js`.
   lines on a dark plate inside (less contrast against the fill, harder to tell from each other); V3 the old
   column outside below the zone, only more compact (still covers tokens below and grows with every name).
 
-Tests: "role groups turned, their names inside" in `src/web-client/src/lib/raidplan.roleGroups.test.ts`, "role groups in a
-multi-selection" in `src/web-client/src/lib/multiOptions.test.ts`, "a role group's symbol size and label place" in
+Tests: "role groups turned, their names inside" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "role groups in a
+multi-selection" in `src/web-client/src/lib/raidplan/multiOptions.test.ts`, "a role group's symbol size and label place" in
 `test/services/raidplan/raidplanBoard.test.js`.
 
 ## Section bar and boss icons (feature/raidplan-16, part 3)
 
 - **Every section carries its name** in the section bar - the editor's (`BossNav`, also the template editor)
   and the sheet's (`PlanPublicPage`) alike: icon + name as one pill, no number (the order is the raid's), the
-  chosen one filled. The label comes from `lib/raidplan.ts sectionLabel`: a boss by its name, "Allgemein",
+  chosen one filled. The label comes from `lib/raidplan/profiles.ts sectionLabel`: a boss by its name, "Allgemein",
   "Standard", and a trash section by its instance when the plan covers several (`severalInstances`: "Trash ·
   Der Schwarze Tempel"). The bar wraps to more lines instead of scrolling or cutting a name; on a phone (<=
   560 px) the pills are a little smaller.

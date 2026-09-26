@@ -32,7 +32,7 @@ describe("ui/DataTable", () => {
 });
 
 describe("the Recruitment templates use it", () => {
-    const page = read("pages/RecruitmentPage.tsx");
+    const page = read("pages/recruitment/TemplatesTab.tsx");
     const tab = page.slice(page.indexOf("function TemplatesTab"), page.indexOf("function TemplatesTab") + 5000);
 
     it("draws the table through DataTable, same classes as before", () => {

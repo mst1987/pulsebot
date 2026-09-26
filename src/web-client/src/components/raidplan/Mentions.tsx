@@ -1,4 +1,4 @@
-import { splitMentions } from "../../lib/mention";
+import { splitMentions } from "../../lib/raidplan/mention";
 import { useT } from "../../i18n";
 
 /** A text with the names of the visitor's own characters marked (the one highlight of "that is you", see .rp-me-hit). */

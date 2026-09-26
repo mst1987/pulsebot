@@ -23,14 +23,14 @@ import { InstancePicker, NumberInput, SizePicker } from "../components/RaidPlanF
 import PlanBoard from "../components/raidplan/PlanBoard";
 import { formatDate } from "../lib/format";
 import type { BesetzungCounts } from "../api";
-import { ROLE_ICON, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/assign";
-import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/inherit";
+import { ROLE_ICON, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../lib/raidplan/assign";
+import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../lib/raidplan/inherit";
 import { besetzungFor } from "../lib/raidplan";
 import { useT } from "../i18n";
 import BoardWorkspace from "./raid-detail/raidplan/BoardWorkspace";
 import { LibraryModal, ProfilesModal } from "./raid-detail/raidplan/ProfileModals";
 import { SaveButton, UnsavedBar, useUnsavedGuard, type SaveStateKind } from "./raid-detail/raidplan/SaveState";
-import { applyTactic, stepsOf } from "../lib/steps";
+import { applyTactic, stepsOf } from "../lib/raidplan/steps";
 import BossNav from "./raid-detail/raidplan/BossNav";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";

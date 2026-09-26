@@ -15,7 +15,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 import WowIcon from "../components/ui/WowIcon";
 import { MobIcon } from "./raid-detail/raidplan/AssignPanel";
 import Flyout from "../components/raidplan/Flyout";
-import { ASSIGN_META } from "../lib/assign";
+import { ASSIGN_META } from "../lib/raidplan/assign";
 import { useT } from "../i18n";
 import "../styles/raidplan.css";
 

@@ -2,21 +2,21 @@
 // its stylesheet, the CSS that keeps the tables' rows one line tall, the rule
 // that explanations sit in tooltips, and the apply button's default label being
 // the same in the preview and in the message the bot posts. What the page does
-// is tested in src/web-client/src/pages/RecruitmentPage.test.tsx (and the
+// is tested in src/web-client/src/pages/recruitment/RecruitmentPage.test.tsx (and the
 // editor pieces next to DiscordPreview.tsx / EmojiPicker.tsx).
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..", "..", "..");
-const CLIENT = path.join(ROOT, "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
+const { read } = require("../clientSource");
 
-const page = read("pages", "RecruitmentPage.tsx");
+// the page and its parts (pages/recruitment/, #438)
+const page = read("pages", "recruitment");
 const css = read("styles", "recruitment.css");
 
 describe("Recruitment page conventions", () => {
     it("keeps explanations in tooltips, not in paragraphs under the heads and fields", () => {
-        for (const [name, src] of [["RecruitmentPage.tsx", page], ["SpecPicker.tsx", read("components", "SpecPicker.tsx")]]) {
+        for (const [name, src] of [["RecruitmentPage.tsx", page], ["SpecPicker.tsx", read("pages", "recruitment", "SpecPicker.tsx")]]) {
             expect({ name, note: /className="note"/.test(src), hint: /className="hint"/.test(src) }).toEqual({ name, note: false, hint: false });
         }
     });
@@ -33,7 +33,7 @@ describe("Recruitment page conventions", () => {
     });
 
     it("styles itself in its own stylesheet, light and dark", () => {
-        expect(page).toContain("import \"../styles/recruitment.css\";");
+        expect(page).toContain("import \"../../styles/recruitment.css\";");
         expect(css).toContain(".rc-editor");
         // light and dark for the Discord preview
         expect(css).toContain(":root[data-theme=\"light\"] .rc-page");
@@ -41,7 +41,7 @@ describe("Recruitment page conventions", () => {
     });
 
     it("gives the preview's button the same default label as the message the bot posts", () => {
-        const preview = read("components", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
+        const preview = read("pages", "recruitment", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
         const bot = fs.readFileSync(path.join(ROOT, "src", "services", "discord", "discord.js"), "utf8").match(/template\.buttonLabel \|\| "([^"]+)"/);
         expect(preview).not.toBeNull();
         expect(bot).not.toBeNull();

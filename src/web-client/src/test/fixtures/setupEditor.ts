@@ -1,5 +1,5 @@
 // Small, readable data for the setup editor's render tests
-// (pages/raid-detail/SetupEditor*.test.tsx): raiders, a stored setup and the
+// (pages/raid-detail/setup/SetupEditor*.test.tsx): raiders, a stored setup and the
 // page payload of GET /api/raids/setup. Every builder takes overrides.
 import type { SetupEditorData, SetupPerson, StoredSetup } from "../../api";
 import type { RaidCtx } from "../../pages/raid-detail/meta";

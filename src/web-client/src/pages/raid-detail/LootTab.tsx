@@ -16,7 +16,7 @@ import Segment from "../../components/ui/Segment";
 import { useConfirm } from "../../components/ui/Modal";
 import { SearchIcon, TrashIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
-import { reasonToneClass } from "../../components/LootBadges";
+import { reasonToneClass } from "../../components/loot/LootBadges";
 import { LOOT_TOOL_LABELS, type RaidCtx } from "./meta";
 import SpecTile from "./SpecTile";
 import { locale, t, useT } from "../../i18n";
