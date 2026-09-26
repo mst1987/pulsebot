@@ -215,6 +215,18 @@ describe("CI workflow (#414)", () => {
         expect(budget).toBeLessThanOrEqual(18);
     });
 
+    it("can be paused with DEPLOY_PAUSED and still deploys on a manual run", () => {
+        // Many merges in a row: pause the per-merge deploy and bring the
+        // server up to date once at the end (docs/deployment.md).
+        expect(ci).toMatch(/^on:\n(?:.*\n)*?\s+workflow_dispatch:\n/m);
+        const condition = job("deploy").match(/\n {4}if: >-\n((?: {6}.*\n)+)/);
+        expect(condition).not.toBeNull();
+        const text = condition[1].replace(/\s+/g, " ");
+        expect(text).toContain("github.ref == 'refs/heads/main'");
+        expect(text).toContain("github.event_name == 'workflow_dispatch'");
+        expect(text).toContain("github.event_name == 'push' && vars.DEPLOY_PAUSED != '1'");
+    });
+
     it("deploys only after lint, tests and the web client passed", () => {
         const needs = job("deploy").match(/needs: \[([^\]]*)\]/);
         expect(needs).not.toBeNull();
