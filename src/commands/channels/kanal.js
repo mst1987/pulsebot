@@ -3,7 +3,7 @@
 // do the work (discordChannels.js, channelArchiveStore.js, utils/channelNames.js),
 // so the rules are the page's: Discord's naming rules, archiving takes the right
 // to write away and is logged. Deleting stays in the web menu, from the archive.
-const { ChannelType } = require("discord.js");
+const { ChannelType, SlashCommandBuilder } = require("discord.js");
 const discord = require("../../web/discord");
 const discordChannels = require("../../web/discordChannels");
 const archiveStore = require("../../web/channelArchiveStore");
@@ -13,6 +13,9 @@ const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/botLooku
 
 const LINK = () => [{ label: "Im Web öffnen", url: webUrl("/channels") }];
 const DATE_PLACEHOLDER = /\{(tag|dd|mm|yy|yyyy)\}/i;
+// The channels /kanal umbenennen and archivieren offer: text, voice, announcement, stage, forum.
+const RENAMABLE = [ChannelType.GuildText, ChannelType.GuildVoice, ChannelType.GuildAnnouncement,
+    ChannelType.GuildStageVoice, ChannelType.GuildForum];
 
 const guildOf = (interaction) => String((interaction.guild && interaction.guild.id) || interaction.guildId || "");
 
@@ -151,6 +154,19 @@ module.exports = {
     description: "Kanal umbenennen, archivieren oder anlegen (Löschen nur im Menü).",
     group: "channels",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("kanal")
+        .setDescription("Kanal umbenennen, archivieren oder anlegen")
+        .addSubcommand((s) => s.setName("umbenennen").setDescription("Kanal umbenennen")
+            .addChannelOption((o) => o.setName("kanal").setDescription("Kanal").setRequired(true).addChannelTypes(...RENAMABLE))
+            .addStringOption((o) => o.setName("name").setDescription("Neuer Name").setRequired(true).setMaxLength(100)))
+        .addSubcommand((s) => s.setName("archivieren").setDescription("Kanal ins Archiv verschieben und Schreibrechte entziehen")
+            .addChannelOption((o) => o.setName("kanal").setDescription("Kanal").setRequired(true).addChannelTypes(...RENAMABLE)))
+        .addSubcommand((s) => s.setName("anlegen").setDescription("Kanal in einer Kategorie anlegen (Name oder Schema)")
+            .addChannelOption((o) => o.setName("kategorie").setDescription("Kategorie").setRequired(true).addChannelTypes(ChannelType.GuildCategory))
+            .addStringOption((o) => o.setName("name").setDescription("Name oder Schema wie {tag}-{dd}-{mm}-{raid}; leer = Schema der Kategorie").setRequired(false).setMaxLength(100))
+            .addStringOption((o) => o.setName("datum").setDescription("Datum für das Schema, z. B. 24.09.").setRequired(false))
+            .addStringOption((o) => o.setName("raid").setDescription("Raid-Kürzel für {raid}, z. B. ssc-tk").setRequired(false))),
     parseDate,
     async execute(interaction) {
         const handler = HANDLERS[interaction.options.getSubcommand()];

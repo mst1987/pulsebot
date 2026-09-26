@@ -1,6 +1,6 @@
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { rulesFor, instanceById, compositionFor, DEFAULT_VERSION } = require("../config/gameVersions");
 
 // Events the EventHelper keeps itself (`source: "eventhelper"`), next to the
@@ -12,8 +12,12 @@ const { rulesFor, instanceById, compositionFor, DEFAULT_VERSION } = require("../
 // which hands out both sources in one shape (see docs/events.md, "Eigene Events").
 //
 // Stored under data/settings/events.json as { events: [...] }.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const EVENTS_FILE = path.join(SETTINGS_DIR, "events.json");
+const EVENTS_FILE = settingsPath("events.json");
+const store = createJsonStore({
+    file: EVENTS_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+});
 
 // Own ids carry a prefix, so an id alone says which source it belongs to —
 // Raid-Helper's are bare numbers.
@@ -34,22 +38,12 @@ const { normalizeColor, normalizeImage, normalizeLook } = require("./embedLook")
 const { emojiStyleOf } = require("./appEmojis");
 const { str } = require("../utils/text");
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
-
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(EVENTS_FILE, "utf8"));
-        return Array.isArray(data.events) ? data.events : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(events) {
-    ensureDir();
-    fs.writeFileSync(EVENTS_FILE, JSON.stringify({ events }, null, 2));
+    store.write({ events });
 }
 
 function newId() {
@@ -606,6 +600,6 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
     setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
+    normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES, useFile: store.useFile,
     eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
 };

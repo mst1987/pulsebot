@@ -4,20 +4,8 @@
 // admin-only at runtime (fail-closed) — this scan makes sure nobody relies on it
 // by accident, and that no file still carries its own ad-hoc admin check.
 const fs = require("fs");
-const path = require("path");
 const { GROUP_IDS, normalizeRule } = require("../../src/config/botCommands");
-
-const DIR = path.join(__dirname, "..", "..", "src", "commands");
-
-function commandFiles() {
-    const out = [];
-    for (const folder of fs.readdirSync(DIR)) {
-        for (const file of fs.readdirSync(path.join(DIR, folder)).filter((f) => f.endsWith(".js"))) {
-            out.push([`${folder}/${file}`, path.join(DIR, folder, file)]);
-        }
-    }
-    return out;
-}
+const { commandFiles, commandDefinitions } = require("../../src/commands/loader");
 
 const files = commandFiles();
 const modules = files.map(([rel, file]) => [rel, require(file)]);
@@ -51,7 +39,7 @@ describe("bot command access declarations", () => {
 
     it("keeps today's behaviour for the admin commands and the member lookups", () => {
         const access = (name) => normalizeRule(byName.get(name).defaultAccess).mode;
-        for (const name of ["createapplication", "recruitment", "createoverview", "saveraid", "fillsetup"]) {
+        for (const name of ["createapplication", "recruitment", "createoverview", "fillsetup"]) {
             expect({ name, mode: access(name) }).toEqual({ name, mode: "admins" });
         }
         for (const name of ["show-mysetups", "show-signups", "show-allsetups", "signup", "update-events",
@@ -75,7 +63,7 @@ describe("bot command access declarations", () => {
         expect(byName.get("event").group).toBe("raids");
         expect(byName.get("event-new").accessOf).toBe("event");
         expect(byName.get("event-form").accessOf).toBe("event");
-        const { commands } = require("../../scripts/register-commands");
+        const commands = commandDefinitions();
         const def = commands.find((c) => c.name === "event");
         expect(def.options.map((o) => [o.name, o.type])).toEqual([["anlegen", 1], ["verwalten", 1]]);
     });
@@ -85,23 +73,24 @@ describe("bot command access declarations", () => {
         for (const name of ["event-manage", "event-manage-form", "Event verwalten", "invite-call"]) {
             expect({ name, accessOf: byName.get(name).accessOf }).toEqual({ name, accessOf: "event" });
         }
-        const { commands } = require("../../scripts/register-commands");
+        const commands = commandDefinitions();
         const menu = commands.find((c) => c.name === "Event verwalten");
         // a message command (type 3) carries no description
-        expect(menu).toEqual({ name: "Event verwalten", type: 3, description: "" });
+        expect(menu).toEqual({ name: "Event verwalten", type: 3 });
+        expect(menu.description).toBeUndefined();
         const sub = commands.find((c) => c.name === "event").options.find((o) => o.name === "verwalten");
         expect(sub.options).toEqual([expect.objectContaining({ name: "event", type: 3, required: false, autocomplete: true })]);
     });
 
     it("registers every lookup command, with descriptions Discord accepts", () => {
-        const { commands } = require("../../scripts/register-commands");
+        const commands = commandDefinitions();
         const registered = new Set(commands.map((c) => c.name));
         for (const name of ["loot", "raids", "raid", "anwesenheit", "anwesenheit-raider", "report", "council", "kanal"]) {
             expect({ name, registered: registered.has(name) }).toEqual({ name, registered: true });
         }
         const check = (options = []) => {
             for (const opt of options) {
-                expect({ name: opt.name, ok: opt.description.length <= 100 }).toEqual({ name: opt.name, ok: true });
+                expect({ name: opt.name, ok: String(opt.description || "").length <= 100 }).toEqual({ name: opt.name, ok: true });
                 check(opt.options);
             }
         };
@@ -109,7 +98,7 @@ describe("bot command access declarations", () => {
     });
 
     it("gives every command with autocomplete options an autocomplete handler", () => {
-        const { commands } = require("../../scripts/register-commands");
+        const commands = commandDefinitions();
         const hasAutocomplete = (options = []) => options.some((o) => o.autocomplete || hasAutocomplete(o.options));
         for (const def of commands.filter((c) => hasAutocomplete(c.options))) {
             expect({ name: def.name, handler: typeof (byName.get(def.name) || {}).autocomplete }).toEqual({ name: def.name, handler: "function" });

@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 
 // Class + spec per character, kept next to the other editable settings. This is a
@@ -10,28 +10,23 @@ const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 // Keyed case-insensitively by the character name without its realm (see
 // characterKeyOf in utils/lootImport), so "Keslight", "keslight" and "Keslight-Thunderstrike" are
 // one character.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const CHARACTERS_FILE = path.join(SETTINGS_DIR, "characters.json");
+const CHARACTERS_FILE = settingsPath("characters.json");
 
 // Where a class/spec came from — shown in the UI so a wrong entry can be traced.
 const SOURCES = ["export", "report", "wcl", "manual"];
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
+const store = createJsonStore({
+    file: CHARACTERS_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.characters) ? data.characters : []),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(CHARACTERS_FILE, "utf8"));
-        return Array.isArray(data.characters) ? data.characters : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(characters) {
-    ensureDir();
-    fs.writeFileSync(CHARACTERS_FILE, JSON.stringify({ characters }, null, 2));
+    store.write({ characters });
 }
 
 /** All known characters, alphabetically. */
@@ -110,5 +105,5 @@ function deleteCharacter(character) {
 
 module.exports = {
     listCharacters, getCharacter, characterMap, saveCharacter, deleteCharacter,
-    CHARACTERS_FILE, SOURCES,
+    CHARACTERS_FILE, SOURCES, useFile: store.useFile,
 };

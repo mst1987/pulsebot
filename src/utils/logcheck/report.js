@@ -98,22 +98,8 @@ async function buildReport(link, opts = {}) {
 }
 
 async function buildReportForId(reportId, sections, mergeIntoId, force) {
-    const wantCla = sections.includes(SECTION_CLA);
-    const wantRpb = sections.includes(SECTION_RPB);
-    let wcl;
-    try {
-        wcl = new WarcraftLogs();
-    } catch {
-        throw new ReportError("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
-    }
-
-    let fights;
-    try {
-        fights = await wcl.getFights(reportId);
-    } catch (e) {
-        const status = e.response ? ` (HTTP ${e.response.status})` : "";
-        throw new ReportError(`Report konnte nicht geladen werden${status}. Stimmt der Link und ist der Report öffentlich?`);
-    }
+    const wcl = connectWcl();
+    const fights = await loadFromWcl(() => wcl.getFights(reportId));
 
     // Before anything expensive: has the raid actually ended? The fight list is
     // the one request this needs, and it is the one already made — so a refusal
@@ -121,100 +107,18 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     const progress = analyzeRaidProgress(fights);
     if (!force && !progress.complete) throw new IncompleteRaidError(progress);
 
-    let table;
-    try {
-        table = await wcl.getCasts(reportId, 0, fights.end || 999999999999);
-    } catch (e) {
-        const status = e.response ? ` (HTTP ${e.response.status})` : "";
-        throw new ReportError(`Report konnte nicht geladen werden${status}. Stimmt der Link und ist der Report öffentlich?`);
-    }
-
+    const table = await loadFromWcl(() => wcl.getCasts(reportId, 0, fights.end || 999999999999));
     const players = buildGearIssues(table, { gemsToConsider: 3 });
     const playerEntries = selectPlayers(table);
-
-    // these hit the API; failures should not abort the whole report
     const idToPlayer = {};
     for (const p of playerEntries) idToPlayer[p.id] = { name: p.name, type: p.type };
 
-    let consumables = null;
-    let drums = null;
-    let potions = null;
-    let shadowResi = null;
-    let sunder = null;
-    let bossUptimes = null;
-    let timeline = null;
-    let fightSeries = null;
-    let raidDebuffs = null;
-    let cooldowns = null;
-    let totems = null;
-    let mechanics = null;
-    let activity = null;
-    let healers = null;
-    let raidBuffs = null;
-    if (wantCla) {
-        try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
-        try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
-        try { potions = await analyzePotions(wcl, reportId, fights); } catch (e) { console.error("potions failed:", e.message); }
-        try { shadowResi = analyzeShadowResi(table, fights); } catch (e) { console.error("shadowResi failed:", e.message); }
-        try { sunder = await analyzeSunder(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("sunder failed:", e.message); }
-        try { bossUptimes = await analyzeBossUptimes(wcl, reportId, fights); } catch (e) { console.error("bossUptimes failed:", e.message); }
-        // The time axis every fight chart draws on: fight bounds and deaths now,
-        // debuff/totem/cooldown bands from the analyzers that build on it.
-        try { timeline = await analyzeFightTimeline(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("timeline failed:", e.message); }
-        // Raid DPS/HPS and boss health per fight, on the timeline, plus each
-        // raider's own curve from the same answer; the dip summary is its own
-        // field. Needs the WCL v2 client from the settings; without one the
-        // series stays null.
-        try {
-            const v2 = getConfig().warcraftlogsV2 || {};
-            await analyzeFightSeries(new WarcraftLogsV2(v2), reportId, fights, timeline, idToPlayer);
-            fightSeries = summarizeFightSeries(timeline);
-        } catch (e) { console.error("fightSeries failed:", e.message); }
-        // Debuffs on the boss per fight, written into the timeline; the summary is its own field.
-        try { raidDebuffs = await analyzeRaidDebuffs(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("raidDebuffs failed:", e.message); }
-        // Cooldown presses per player per fight, on the timeline; the summary is its own field.
-        try { cooldowns = await analyzeCooldownTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("cooldowns failed:", e.message); }
-        // Each shaman's totems per fight (drops, party-buff bands, twisting), written into the timeline.
-        try { totems = await analyzeTotems(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("totems failed:", e.message); }
-        // Avoidable hits and judged deaths per fight, on the timeline; the summary is its own field.
-        try { mechanics = await analyzeMechanics(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("mechanics failed:", e.message); }
-        // Activity bands and holes per player per fight (after mechanics, which label the holes).
-        try { activity = await analyzeActivityTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("activity failed:", e.message); }
-        // Healers per fight (overheal, mana, dispels, the tank's shields), on the timeline; the summary is its own field.
-        try { healers = await analyzeHealers(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("healers failed:", e.message); }
-        // Raid buffs on every player per fight (missing, run out, wrong role), on the timeline; the summary is its own field.
-        try { raidBuffs = await analyzeRaidBuffs(wcl, reportId, fights, playerEntries, idToPlayer, timeline); } catch (e) { console.error("raidBuffs failed:", e.message); }
-    }
+    // these hit the API; failures should not abort the whole report
+    const ctx = { wcl, reportId, fights, table, playerEntries, idToPlayer };
+    const cla = sections.includes(SECTION_CLA) ? await runClaAnalyzers(ctx) : emptyCla();
+    const rpb = sections.includes(SECTION_RPB) ? await runRpb(ctx) : null;
 
-    // RPB (Role Performance Breakdown) — the performance half of the analysis.
-    // Considerably more API calls than the CLA sections, so it runs last and its
-    // failure leaves the rest of the report intact.
-    let rpb = null;
-    if (wantRpb) {
-        try { rpb = await analyzeRpb(wcl, reportId, fights, playerEntries); } catch (e) { console.error("rpb failed:", e.message); }
-    }
-
-    // aggregate the icons captured from the API (for headers / detail page)
-    const icons = {
-        ...(consumables && consumables.icons),
-        destruction: potions && potions.icons && potions.icons.destruction,
-        haste: potions && potions.icons && potions.icons.haste,
-        mana: potions && potions.icons && potions.icons.mana,
-        drums: drums && drums.icon,
-    };
-
-    // per-raider detail data (armory + their issues + potions)
-    const issuesByName = {};
-    for (const p of players) issuesByName[p.name] = p.issues;
-    const potionMap = potionsByName(potions);
-    const roster = playerEntries.map((p) => ({
-        name: p.name,
-        type: p.type,
-        armory: buildArmory(p, { gemsToConsider: 3 }),
-        issues: issuesByName[p.name] || [],
-        potions: potionMap[p.name] || { destruction: 0, haste: 0, mana: 0 },
-    }));
-
+    const roster = buildRoster(playerEntries, players, cla.potions);
     // A piece worn for one boss only (Mark of the Champion and its like) is not
     // what the raider plays with, and the loot council must not compare against
     // it. So for those slots — and only those — the fights are walked to find
@@ -226,7 +130,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         console.error("situational gear failed:", e.message);
     }
 
-    let report = {
+    const report = {
         title: fights.title || reportId,
         zone: fights.zoneName || (fights.zone ? String(fights.zone) : ""),
         date: fights.start ? new Date(fights.start).toLocaleString("de-DE") : "",
@@ -238,31 +142,142 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         // instead of the reader having to remember that it was forced.
         raidProgress: progress,
         players,
-        consumables,
-        shadowResi,
-        drums,
-        potions,
-        sunder,
-        bossUptimes,
-        timeline,
-        fightSeries,
-        raidDebuffs,
-        cooldowns,
-        totems,
-        mechanics,
-        activity,
-        healers,
-        raidBuffs,
+        ...cla,
         rpb,
         roster,
-        icons,
+        icons: collectIcons(cla),
     };
+    return finishReport(report, sections, mergeIntoId);
+}
 
+// ---- buildReportForId's phases (#431) ---------------------------------------
+
+function connectWcl() {
+    try {
+        return new WarcraftLogs();
+    } catch {
+        throw new ReportError("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
+    }
+}
+
+/** One WCL request the report cannot do without; a failure becomes a ReportError. */
+async function loadFromWcl(request) {
+    try {
+        return await request();
+    } catch (e) {
+        const status = e.response ? ` (HTTP ${e.response.status})` : "";
+        throw new ReportError(`Report konnte nicht geladen werden${status}. Stimmt der Link und ist der Report öffentlich?`);
+    }
+}
+
+/**
+ * The CLA analyzers in the order they run — later ones build on the fight
+ * timeline and write their bands into it. `run(ctx, out)` sees the results so
+ * far in `out`; a failing analyzer leaves its field null and is logged as
+ * "<key> failed".
+ */
+const CLA_ANALYZERS = [
+    { key: "consumables", run: (c) => analyzeConsumables(c.wcl, c.reportId, c.fights, c.playerEntries) },
+    { key: "drums", run: (c) => analyzeDrums(c.wcl, c.reportId, c.fights) },
+    { key: "potions", run: (c) => analyzePotions(c.wcl, c.reportId, c.fights) },
+    { key: "shadowResi", run: (c) => analyzeShadowResi(c.table, c.fights) },
+    { key: "sunder", run: (c) => analyzeSunder(c.wcl, c.reportId, c.fights, c.idToPlayer) },
+    { key: "bossUptimes", run: (c) => analyzeBossUptimes(c.wcl, c.reportId, c.fights) },
+    // The time axis every fight chart draws on: fight bounds and deaths now,
+    // debuff/totem/cooldown bands from the analyzers that build on it.
+    { key: "timeline", run: (c) => analyzeFightTimeline(c.wcl, c.reportId, c.fights, c.idToPlayer) },
+    // Raid DPS/HPS and boss health per fight, on the timeline, plus each
+    // raider's own curve from the same answer; the dip summary is its own
+    // field. Needs the WCL v2 client from the settings; without one the
+    // series stays null.
+    {
+        key: "fightSeries",
+        run: async (c, out) => {
+            const v2 = getConfig().warcraftlogsV2 || {};
+            await analyzeFightSeries(new WarcraftLogsV2(v2), c.reportId, c.fights, out.timeline, c.idToPlayer);
+            return summarizeFightSeries(out.timeline);
+        },
+    },
+    // Debuffs on the boss per fight, written into the timeline; the summary is its own field.
+    { key: "raidDebuffs", run: (c, out) => analyzeRaidDebuffs(c.wcl, c.reportId, c.fights, c.playerEntries, out.timeline) },
+    // Cooldown presses per player per fight, on the timeline; the summary is its own field.
+    { key: "cooldowns", run: (c, out) => analyzeCooldownTimeline(c.wcl, c.reportId, c.fights, c.idToPlayer, out.timeline) },
+    // Each shaman's totems per fight (drops, party-buff bands, twisting), written into the timeline.
+    { key: "totems", run: (c, out) => analyzeTotems(c.wcl, c.reportId, c.fights, c.playerEntries, out.timeline) },
+    // Avoidable hits and judged deaths per fight, on the timeline; the summary is its own field.
+    { key: "mechanics", run: (c, out) => analyzeMechanics(c.wcl, c.reportId, c.fights, c.idToPlayer, out.timeline) },
+    // Activity bands and holes per player per fight (after mechanics, which label the holes).
+    { key: "activity", run: (c, out) => analyzeActivityTimeline(c.wcl, c.reportId, c.fights, c.idToPlayer, out.timeline) },
+    // Healers per fight (overheal, mana, dispels, the tank's shields), on the timeline; the summary is its own field.
+    { key: "healers", run: (c, out) => analyzeHealers(c.wcl, c.reportId, c.fights, c.idToPlayer, out.timeline) },
+    // Raid buffs on every player per fight (missing, run out, wrong role), on the timeline; the summary is its own field.
+    { key: "raidBuffs", run: (c, out) => analyzeRaidBuffs(c.wcl, c.reportId, c.fights, c.playerEntries, c.idToPlayer, out.timeline) },
+];
+
+/** Every CLA field null, in the report's order (CLA_FIELDS). */
+function emptyCla() {
+    return Object.fromEntries(CLA_FIELDS.map((key) => [key, null]));
+}
+
+async function runClaAnalyzers(ctx) {
+    const out = emptyCla();
+    for (const analyzer of CLA_ANALYZERS) {
+        try {
+            out[analyzer.key] = await analyzer.run(ctx, out);
+        } catch (e) {
+            console.error(`${analyzer.key} failed:`, e.message);
+        }
+    }
+    return out;
+}
+
+/**
+ * RPB (Role Performance Breakdown) — the performance half of the analysis.
+ * Considerably more API calls than the CLA sections, so it runs last and its
+ * failure leaves the rest of the report intact.
+ */
+async function runRpb(ctx) {
+    try {
+        return await analyzeRpb(ctx.wcl, ctx.reportId, ctx.fights, ctx.playerEntries);
+    } catch (e) {
+        console.error("rpb failed:", e.message);
+        return null;
+    }
+}
+
+/** The icons captured from the API (for headers / detail page). */
+function collectIcons({ consumables, potions, drums }) {
+    const potionIcon = (key) => potions && potions.icons && potions.icons[key];
+    return {
+        ...(consumables && consumables.icons),
+        destruction: potionIcon("destruction"),
+        haste: potionIcon("haste"),
+        mana: potionIcon("mana"),
+        drums: drums && drums.icon,
+    };
+}
+
+/** Per-raider detail data: armory, their gear issues, their potions. */
+function buildRoster(playerEntries, players, potions) {
+    const issuesByName = {};
+    for (const p of players) issuesByName[p.name] = p.issues;
+    const potionMap = potionsByName(potions);
+    return playerEntries.map((p) => ({
+        name: p.name,
+        type: p.type,
+        armory: buildArmory(p, { gemsToConsider: 3 }),
+        issues: issuesByName[p.name] || [],
+        potions: potionMap[p.name] || { destruction: 0, haste: 0, mana: 0 },
+    }));
+}
+
+/** Merge into an existing page if asked, rebuild the recommendations, save. */
+function finishReport(fresh, sections, mergeIntoId) {
     // When the other half of this log was already evaluated, fold this result into
     // that page instead of creating a second one — the Discord link stays valid and
     // simply gains the new tabs.
     const existing = mergeIntoId ? getReport(mergeIntoId) : null;
-    if (existing) report = mergeReports(existing, report, sections);
+    const report = existing ? mergeReports(existing, fresh, sections) : fresh;
 
     // The recommendations read the whole page, so they are rebuilt after every
     // half; what the raid lead already approved or rewrote is kept beside them

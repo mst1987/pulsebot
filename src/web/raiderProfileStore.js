@@ -14,24 +14,15 @@
 //
 // Stored under data/settings/raider-profiles.json like the other stores.
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
 const { instanceById } = require("../config/gameVersions");
 const { validateCharacterName, NAME_MAX } = require("../utils/characterNames");
 const { isSnowflake } = require("../utils/ids");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const PROFILES_FILE = path.join(SETTINGS_DIR, "raider-profiles.json");
-// Tests point the store at a file of their own (useFile), so suites running in
-// parallel never share one.
-let profilesFile = PROFILES_FILE;
-
-/** Tests only: read and write another file. */
-function useFile(file) {
-    profilesFile = file || PROFILES_FILE;
-}
+const PROFILES_FILE = settingsPath("raider-profiles.json");
 
 // Gear per spec: nothing yet, good enough to be carried, raid ready.
 const GEAR_LEVELS = ["none", "usable", "ready"];
@@ -66,18 +57,21 @@ function specInfo(key) {
     return SPEC_BY_KEY.get(String(key || "")) || null;
 }
 
+const profilesStore = createJsonStore({
+    file: PROFILES_FILE,
+    defaults: () => ({}),
+    normalize: (data) => (data && data.profiles && typeof data.profiles === "object" && !Array.isArray(data.profiles) ? data.profiles : {}),
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = profilesStore.useFile;
+
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(profilesFile, "utf8"));
-        return data && data.profiles && typeof data.profiles === "object" && !Array.isArray(data.profiles) ? data.profiles : {};
-    } catch {
-        return {};
-    }
+    return profilesStore.read();
 }
 
 function writeAll(profiles) {
-    fs.mkdirSync(path.dirname(profilesFile), { recursive: true });
-    fs.writeFileSync(profilesFile, JSON.stringify({ profiles }, null, 2));
+    profilesStore.write({ profiles });
 }
 
 function cleanText(value, max) {
@@ -389,11 +383,7 @@ function raiderRef(profile) {
 
 /** Drop everything — tests only. */
 function reset() {
-    try {
-        fs.unlinkSync(profilesFile);
-    } catch {
-        // never existed
-    }
+    profilesStore.remove();
 }
 
 module.exports = {

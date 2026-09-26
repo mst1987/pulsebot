@@ -1,8 +1,8 @@
 // Automatic reminders (#264): exactly once per event and kind, never after the
 // raid started, the sign-up deadline when the event has one.
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 jest.mock("../../src/web/discord", () => ({ listMembersWithRoles: jest.fn() }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
@@ -24,17 +24,14 @@ const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
 const sec = (ms) => Math.floor(ms / 1000);
 
-let dir;
 beforeEach(() => {
     jest.resetAllMocks();
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "eh-reminders-"));
-    reminderStore._setFileForTests(path.join(dir, "reminders-sent.json"));
+    reminderStore.useFile(tempStoreFile("reminders-sent.json"));
     reminders._resetForTests();
     require("../../src/web/guildRoles").eventGuildIds.mockReturnValue(["100000"]);
     discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1" }, { id: "2" }, { id: "3" }], error: null });
     deliverUserPing.mockResolvedValue({});
 });
-afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 describe("toMs", () => {
     it("reads seconds, milliseconds, numeric strings and ISO dates; blank is 0", () => {
