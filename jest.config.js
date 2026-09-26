@@ -29,11 +29,9 @@ module.exports = {
             testMatch: ["<rootDir>/test/claude-hooks/**/*.test.js"],
         },
     ],
-    // `--detectOpenHandles` (#432) finds exactly one kind of leak left: the
-    // un-unref()'d setInterval at module level in src/utils/applicationState.js
-    // (loaded by the apply commands and bot.js). Every other interval/timeout is
-    // unref()'d. Once #430 reworks that module, this can go.
-    forceExit: true,
+    // No `forceExit` (#432): every interval/timeout in src/ is unref()'d, so a
+    // worker that does not exit points at a real leak - find it with
+    // `npx jest --detectOpenHandles` instead of hiding it.
     // Coverage options are root-level: they apply across all projects.
     collectCoverageFrom: [
         "src/**/*.js",

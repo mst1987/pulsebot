@@ -21,18 +21,6 @@ Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen K
 - `/show-mysetups` — die eigenen freigegebenen Setups über mehrere Raids hinweg.
 - `/show-allsetups` — alle aktuell freigegebenen Setups.
 
-## Auktion / Bidding (Legendaries)
-
-- `/bid`, `/bid-5k`, `/bid-10k`, `/bidCustom` — auf ein laufendes Legendary bieten (braucht die Legendary-Rolle).
-- `/auctionStatus` — aktuellen Höchstbieter und Stand einer Auktion ansehen.
-- `/createauction`, `/updateauction`, `/endauction`, `/deleteauction` — nur für die Orga, zum Starten/Ändern/Beenden/Löschen einer Auktion.
-
-## GDKP-Gold
-
-- `/currentspent` — eigene Ausgaben der laufenden Session.
-- `/lastspent` — Ausgaben der letzten Session.
-- `/totalspent` — Gesamtausgaben über alle Sessions.
-
 ## Übersicht & Nachschlagen
 
 Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf die passende Seite im Web:
