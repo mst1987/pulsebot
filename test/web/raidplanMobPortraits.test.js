@@ -7,6 +7,7 @@ const { MOB_NPCS } = require("../../src/web/raidplanMobNpcs");
 const generated = require("../../src/config/generated/mobIcons.json");
 const catalog = require("../../src/web/raidplanCatalogStore");
 const board = require("../../src/web/raidplanBoard");
+const { icon } = require("../factories/raidplan");
 
 const DIR = path.join(__dirname, "..", "..", "src", "web-client", "public", "mobs");
 // Their Wowhead pages name no display, so there is no model render: they keep the placeholder icon.
@@ -58,7 +59,7 @@ describe("mob portraits", () => {
     it("the icon key of a portrait passes the validators of the board (map icons, the mobs of a section)", () => {
         expect("mob:22949").toMatch(catalog.ICON);
         const r = board.cleanBoard({
-            icons: [{ iconKey: "mob:22949", x: 0.5, y: 0.5 }, { iconKey: "mob:abc", x: 0.5, y: 0.5 }],
+            icons: [icon({ iconKey: "mob:22949" }), icon({ iconKey: "mob:abc" })],
             mobs: [{ id: "d:gathios", name: "Gathios", icon: "mob:22949" }],
         }, { allowedUserIds: [] }).board;
         expect(r.icons.map((i) => i.iconKey)).toEqual(["mob:22949"]);

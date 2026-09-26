@@ -14,11 +14,9 @@ const { autoMatches } = require("../../src/web/logEventMatch");
 const discord = require("../../src/web/discord");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../src/web/matchableEvents");
+const { event: baseEvent } = require("../factories/events");
 
-const event = (over = {}) => ({
-    id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
-    ...over,
-});
+const event = (over = {}) => baseEvent({ channelId: "chan1", ...over });
 
 describe("web/matchableEvents", () => {
     beforeEach(() => {

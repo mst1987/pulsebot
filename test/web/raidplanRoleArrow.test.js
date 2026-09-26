@@ -3,9 +3,9 @@
 const board = require("../../src/web/raidplanBoard");
 const assign = require("../../src/web/raidplanAssign");
 const steps = require("../../src/web/raidplanSteps");
+const { icon } = require("../factories/raidplan");
 
 const clean = (b) => board.cleanBoard(b, { allowedUserIds: [] });
-const icon = (extra = {}) => ({ iconKey: "boss:609", x: 0.5, y: 0.5, ...extra });
 
 describe("the facing wedge of an icon", () => {
     it("an older icon has none of the fields (100 %, shown, amber); set values are clamped and only kept when they differ", () => {

@@ -1,6 +1,7 @@
 const {
     analyzeCooldownTimeline, cooldownRowsForFight, summarize, possibleUses, TRACKED,
 } = require("../../../src/utils/logcheck/cooldownTimeline");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 /** First tracked id whose entry has this key (the rpbData name or the potion key). */
 function idFor(key) {
@@ -9,7 +10,7 @@ function idFor(key) {
 }
 
 const START = 300000;
-const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", start_time: START, end_time: START + 240000 }; // 4 minutes
+const fight = gruulFight({ start_time: START, end_time: START + 240000 }); // 4 minutes
 const players = { 7: { name: "Aldra", type: "Mage" }, 8: { name: "Dorn", type: "Shaman" }, 9: { name: "Cyra", type: "Rogue" } };
 const cast = (source, key, at, icon) => ({ type: "cast", timestamp: START + at, sourceID: source, ability: { guid: idFor(key), name: key, abilityIcon: icon } });
 

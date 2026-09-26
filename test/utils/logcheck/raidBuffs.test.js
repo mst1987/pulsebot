@@ -2,6 +2,7 @@ const {
     analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, inferBands, FULL_PCT, PULL_WINDOW_MS, STRIP_WINDOW_MS,
 } = require("../../../src/utils/logcheck/raidBuffs");
 const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/raidBuffs");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 const KINGS = 25898;       // Greater Blessing of Kings
 const MIGHT = 27141;       // Greater Blessing of Might rank 3
@@ -17,7 +18,7 @@ const SHADOW_PROT = 39374; // Prayer of Shadow Protection rank 2
 const LIGHT = 27145;       // Greater Blessing of Light rank 2
 const SANCTUARY = 27169;   // Greater Blessing of Sanctuary rank 2
 
-const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", kill: true, start_time: 300000, end_time: 420000 };
+const fight = gruulFight();
 const fights = { end: 500000, fights: [{ id: 1, boss: 0, name: "Trash", start_time: 0, end_time: 1000 }, fight] };
 
 const band = (from, to) => ({ startTime: from, endTime: to });

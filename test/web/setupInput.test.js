@@ -12,10 +12,11 @@ const settingsStore = require("../../src/web/settingsStore");
 const attendance = require("../../src/web/rosterAttendance");
 const { listStoredEvents } = require("../../src/web/eventSources");
 const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup } = require("../../src/web/setupInput");
+const { ownEvent } = require("../factories/events");
 
-const event = (over = {}) => ({
+const event = (over = {}) => ownEvent({
     id: "eh-new", guildId: "g1", categoryId: "cat", title: "SSC", startTime: 1000,
-    versionId: "tbc", size: 10, composition: { tank: 1, healer: 2, melee: 0, ranged: 0 },
+    composition: { tank: 1, healer: 2, melee: 0, ranged: 0 },
     fairness: true, wishes: true, setup: null, ...over,
 });
 

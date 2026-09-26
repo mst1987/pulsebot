@@ -1,4 +1,5 @@
 const { analyzeRpb, rpbSummaryLines } = require("../../../../src/utils/logcheck/rpb");
+const { makeWcl: wclDouble } = require("../../../factories/wcl");
 
 const fights = {
     end: 10000,
@@ -14,9 +15,9 @@ const players = [
     { id: 2, name: "Holy", type: "Priest" },
 ];
 
-/** A WCL double that answers every table the RPB touches with empty-but-valid data. */
+/** The shared WCL double (every table empty-but-valid), with the roster's roles in the summary. */
 function makeWcl(overrides = {}) {
-    return {
+    return wclDouble({
         getSummary: jest.fn(async () => ({
             composition: [
                 { id: 1, specs: [{ role: "dps", spec: "Fire" }] },
@@ -24,14 +25,8 @@ function makeWcl(overrides = {}) {
             ],
             playerDetails: { dps: [], healers: [], tanks: [] },
         })),
-        getCasts: jest.fn(async () => ({ entries: [] })),
-        getBuffs: jest.fn(async () => ({ auras: [] })),
-        getDamageTaken: jest.fn(async () => ({ entries: [] })),
-        getDamageDone: jest.fn(async () => ({ entries: [] })),
-        getDeaths: jest.fn(async () => ({ entries: [] })),
-        getInterrupts: jest.fn(async () => ({ entries: [] })),
         ...overrides,
-    };
+    });
 }
 
 describe("rpb analyzeRpb", () => {

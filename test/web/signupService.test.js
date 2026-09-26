@@ -43,16 +43,15 @@ const profiles = require("../../src/web/raiderProfileStore");
 const discord = require("../../src/web/discord");
 const service = require("../../src/web/signupService");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { ownEvent, sec, DAY } = require("../factories/events");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
 const NOW = 1_900_000_000_000;
-const sec = (ms) => Math.floor(ms / 1000);
 
-const event = (over = {}) => ({
-    id: "eh-kara", source: "eventhelper", title: "Karazhan", versionId: "tbc",
-    startTime: sec(NOW) + 3 * 86400, signupDeadline: sec(NOW) + 2 * 86400,
-    size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, wishes: true, ...over,
+// The factory's own event, but three days after the fixed NOW rather than the real clock.
+const event = (over = {}) => ownEvent({
+    startTime: sec(NOW) + 3 * DAY, signupDeadline: sec(NOW) + 2 * DAY, wishes: true, ...over,
 });
 
 beforeAll(() => profiles.useFile(tempStoreFile("eh-signup-service.json")));

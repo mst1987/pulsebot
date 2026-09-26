@@ -5,10 +5,11 @@ jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
 
 const discord = require("../../src/web/discord");
 const notes = require("../../src/web/signupNotes");
+const { signup: baseSignup } = require("../factories/events");
 
 const EVENT = { id: "eh-1", title: "SSC + TK", categoryId: "cat-1", startTime: 1760000000, guildId: "10000", channelId: "20000", message: { messageId: "30000" } };
 const CHANNEL = { discordServers: { signupNoteChannelId: "777777" } };
-const signup = (over = {}) => ({ userId: "123456", character: "zibbo", status: "absence", comment: "Arbeit", ...over });
+const signup = (over = {}) => baseSignup({ userId: "123456", character: "zibbo", status: "absence", comment: "Arbeit", ...over });
 const notePayload = (text) => expect.objectContaining({ embeds: [expect.objectContaining({ description: expect.stringContaining(text) })] });
 
 beforeEach(() => discord.postNotice.mockClear());

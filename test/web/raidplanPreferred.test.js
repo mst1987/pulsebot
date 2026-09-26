@@ -2,11 +2,12 @@
 const assign = require("../../src/web/raidplanAssign");
 const catalogStore = require("../../src/web/raidplanCatalogStore");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { person: basePerson } = require("../factories/raidplan");
 
 beforeAll(() => catalogStore.useFile(tempStoreFile("preferred-catalog.json")));
 
 const slot = (kind, n, userId = "") => ({ kind, n, userId });
-const person = (userId, classId, role, group = 1) => ({ userId, classId, role, group });
+const person = (userId, classId, role, group = 1) => basePerson({ userId, classId, role, group });
 
 describe("preferred classes of a row", () => {
     it("are cleaned: only known classes, once each, in order; allowOthers is a strict boolean; old rows get the defaults", () => {

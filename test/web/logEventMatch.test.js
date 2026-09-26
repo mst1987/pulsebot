@@ -2,13 +2,14 @@ const {
     candidatesFor, bestMatch, autoMatches, annotateMatches, isLinked, eventStartMs,
     HOUR_MS,
 } = require("../../src/web/logEventMatch");
+const { event: baseEvent } = require("../factories/events");
 
 // Raid-Helper hands out start times in SECONDS; the logs carry ms timestamps.
 const START = Date.UTC(2026, 6, 24, 18, 0, 0); // Fri 24.07.2026 18:00 UTC
 const secs = (ms) => Math.floor(ms / 1000);
 
-const event = (over = {}) => ({
-    id: "e1", title: "SSC/TK", startTime: secs(START), categoryId: "cat1", ...over,
+const event = (over = {}) => baseEvent({
+    title: "SSC/TK", startTime: secs(START), categoryId: "cat1", ...over,
 });
 const log = (over = {}) => ({
     id: "l1", reportId: "RPT1", postedAt: START + 30 * 60 * 1000, ...over,

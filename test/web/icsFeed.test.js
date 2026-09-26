@@ -7,12 +7,13 @@ const {
     buildIcs, buildUserCalendar, foldLine, escapeText, icsTime,
     icsUrlFor, publicEventUrl, userIcsUrl, icsFileName,
 } = require("../../src/web/icsFeed");
+const { event: baseEvent } = require("../factories/events");
 
 // 2026-09-24 19:30 UTC
 const START = Math.floor(Date.UTC(2026, 8, 24, 19, 30) / 1000);
 const CHANGED = 1790000000000;
 
-const event = (over = {}) => ({
+const event = (over = {}) => baseEvent({
     id: "eh-1",
     guildId: "111111111111111111",
     channelId: "222222222222222222",

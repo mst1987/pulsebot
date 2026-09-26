@@ -1,10 +1,9 @@
 const { analyzeDrums } = require("../../../src/utils/logcheck/drums");
+const { makeWcl: wclDouble } = require("../../factories/wcl");
 
 const fights = { end: 500 };
 
-function makeWcl(table) {
-    return { getCasts: jest.fn(async () => table) };
-}
+const makeWcl = (table) => wclDouble({ getCasts: jest.fn(async () => table) });
 
 describe("logcheck/drums analyzeDrums", () => {
     test("counts drums per type and sorts by total desc", async () => {
@@ -50,7 +49,7 @@ describe("logcheck/drums analyzeDrums", () => {
     });
 
     test("API error returns null", async () => {
-        const wcl = { getCasts: jest.fn(async () => { throw new Error("nope"); }) };
+        const wcl = wclDouble({ getCasts: jest.fn(async () => { throw new Error("nope"); }) });
         expect(await analyzeDrums(wcl, "rep", fights)).toBeNull();
     });
 });

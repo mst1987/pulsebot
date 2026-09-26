@@ -1,9 +1,10 @@
 const {
     analyzeActivityTimeline, activityForFight, activityBands, findGaps, summarize, GCD_MS, MIN_GAP_MS,
 } = require("../../../src/utils/logcheck/activityTimeline");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 const START = 300000;
-const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", start_time: START, end_time: START + 120000 };
+const fight = gruulFight({ start_time: START, end_time: START + 120000 });
 const players = { 7: { name: "Aldra", type: "Mage" }, 9: { name: "Cyra", type: "Rogue" } };
 const cast = (source, at, guid = 100) => ({ type: "cast", timestamp: START + at, sourceID: source, ability: { guid } });
 const begin = (source, at, guid = 100) => ({ type: "begincast", timestamp: START + at, sourceID: source, ability: { guid } });

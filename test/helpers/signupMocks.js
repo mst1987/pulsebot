@@ -75,17 +75,8 @@ function signupStore() {
     };
 }
 
-const sec = (ms) => Math.floor(ms / 1000);
-
-/** An own event three days ahead, deadline in two. */
-function ownEvent(over = {}) {
-    const now = Date.now();
-    return {
-        id: "eh-kara", source: "eventhelper", title: "Karazhan", versionId: "tbc",
-        startTime: sec(now) + 3 * 86400, signupDeadline: sec(now) + 2 * 86400,
-        size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, ...over,
-    };
-}
+/** An own event three days ahead, deadline in two (the shared factory, #433). */
+const { ownEvent } = require("../factories/events");
 
 function reset() {
     events.clear();
