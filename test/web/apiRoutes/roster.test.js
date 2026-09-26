@@ -184,7 +184,14 @@ const characterInfo = require("../../../src/web/characterInfo");
 const characterStore = require("../../../src/web/characterStore");
 const raiderCharactersStore = require("../../../src/web/raiderCharactersStore");
 const charGearIssues = require("../../../src/web/charGearIssues");
-const { get } = routerClient(require("../../../src/web/apiRoutes/roster"));
+const rosterHidden = require("../../../src/web/rosterHiddenStore");
+const { emptyAccess } = require("../../../src/config/permissions");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const { get, post } = routerClient(require("../../../src/web/apiRoutes/roster"));
+
+const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+// Hiding writes for real, into a scratch file of this suite.
+rosterHidden.useFile(tempStoreFile("roster-hidden.json"));
 
 describe("web/apiRoutes/roster", () => {
     describe("GET /api/roster", () => {
@@ -242,6 +249,80 @@ describe("web/apiRoutes/roster", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             await get("/api/roster");
             expect(lootStore.repairItemNames).toHaveBeenCalled();
+        });
+    });
+
+    describe("hidden characters", () => {
+        beforeEach(() => {
+            rosterHidden.reset();
+            auth.getUser.mockReturnValue(ADMIN);
+            auth.checkCsrf.mockReturnValue(true);
+            characterInfo.annotatedCharacters.mockReturnValue([
+                { key: "anna", character: "Anna", realm: "Thunderstrike", count: 1, categoryIds: ["cat1"], items: [] },
+                { key: "bob", character: "Bob", realm: "Thunderstrike", count: 2, categoryIds: ["cat1"], items: [] },
+            ]);
+        });
+        afterEach(() => characterInfo.annotatedCharacters.mockReturnValue([]));
+
+        it("lists a hidden character apart and leaves it out of the stats", async () => {
+            rosterHidden.hide("Bob", { reason: "left the guild", by: "Admin" });
+            const data = json(await get("/api/roster")).data;
+            expect(data.chars.map((c) => c.character)).toEqual(["Anna"]);
+            expect(data.hiddenChars).toHaveLength(1);
+            expect(data.hiddenChars[0]).toMatchObject({ character: "Bob", hidden: { character: "Bob", reason: "left the guild", by: "Admin" } });
+        });
+
+        it("hides a character with the reason and the name of whoever did it", async () => {
+            const res = await post("/api/roster/hide", { character: " Bob ", hide: true, reason: " twink " });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(json(res).data).toMatchObject({ character: "Bob", hidden: true, entry: { character: "Bob", reason: "twink", by: "Admin" } });
+            expect(rosterHidden.isHidden("bob")).toBe(true);
+        });
+
+        it("puts a character back and says whether anything changed", async () => {
+            rosterHidden.hide("Bob");
+            const first = json(await post("/api/roster/hide", { character: "Bob", hide: false })).data;
+            expect(first).toEqual({ character: "Bob", hidden: false, changed: true });
+            const again = json(await post("/api/roster/hide", { character: "Bob", hide: false })).data;
+            expect(again.changed).toBe(false);
+            expect(rosterHidden.isHidden("Bob")).toBe(false);
+        });
+
+        it("answers 400 without a character", async () => {
+            const res = await post("/api/roster/hide", { character: "  " });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(rosterHidden.listHidden()).toEqual({});
+        });
+
+        it("needs roster write access to hide someone", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), roster: { read: true, write: false } } });
+            const res = await post("/api/roster/hide", { character: "Anna" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(rosterHidden.isHidden("Anna")).toBe(false);
+        });
+    });
+
+    describe("GET /api/roster/char", () => {
+        beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("describes each worn item once: drop source and BiS specs", async () => {
+            // 28453 drops from Attumen in Karazhan (config/tbcContent.js)
+            const res = await get("/api/roster/char", { name: "Nobody", items: "28453, 28453,abc,-4,0" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = json(res).data;
+            expect(data).toMatchObject({ character: "Nobody", role: "", categories: [], attendance: {} });
+            expect(Object.keys(data.items)).toEqual(["28453"]);
+            expect(data.items[28453]).toMatchObject({ itemId: 28453, contentId: "kara", boss: "Attumen the Huntsman" });
+            expect(data.items[28453].content).not.toBe("");
+            expect(Array.isArray(data.items[28453].bisSpecs)).toBe(true);
+        });
+
+        it("reads an unknown item as empty facts and caps the list", async () => {
+            const ids = Array.from({ length: 40 }, (_, i) => 900000 + i).join(",");
+            const data = json(await get("/api/roster/char", { name: "", items: ids })).data;
+            expect(data.character).toBe("");
+            expect(Object.keys(data.items)).toHaveLength(30);
+            expect(data.items[900000]).toEqual({ itemId: 900000, contentId: "", content: "", boss: "", tier: "", bisSpecs: expect.any(Array) });
         });
     });
 });
