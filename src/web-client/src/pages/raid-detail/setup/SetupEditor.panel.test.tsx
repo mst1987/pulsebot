@@ -6,16 +6,16 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as client from "../../api/client";
-import type { SetupAttendance, SetupEditorData, SetupPerson, SetupPlacementInput, SetupSearch } from "../../api";
-import { t } from "../../i18n";
-import { roleLabel, specLabel } from "../../lib/wowNames";
-import { inLang } from "../../test/i18n";
-import { renderPage } from "../../test/render";
-import { EVENT_ID, MAGE, PRIEST, ROGUE, TANK, editorData, person, setupCtx } from "../../test/fixtures/setupEditor";
+import * as client from "../../../api/client";
+import type { SetupAttendance, SetupEditorData, SetupPerson, SetupPlacementInput, SetupSearch } from "../../../api";
+import { t } from "../../../i18n";
+import { roleLabel, specLabel } from "../../../lib/wowNames";
+import { inLang } from "../../../test/i18n";
+import { renderPage } from "../../../test/render";
+import { EVENT_ID, MAGE, PRIEST, ROGUE, TANK, editorData, person, setupCtx } from "../../../test/fixtures/setupEditor";
 import SetupEditor from "./SetupEditor";
 
-vi.mock("../../api/client", async (orig) => ({ ...(await orig<typeof import("../../api/client")>()), get: vi.fn(), send: vi.fn() }));
+vi.mock("../../../api/client", async (orig) => ({ ...(await orig<typeof import("../../../api/client")>()), get: vi.fn(), send: vi.fn() }));
 
 /** A feral druid: plays melee, could also tank or heal. */
 const DRUID = person("u-druid", "Fell", {

@@ -1,6 +1,6 @@
 // Setup-Editor (#263): the moves behind the editor (lib/setupEditor.ts), run
 // for real with the real `t` (German unless a test switches to English). The
-// editor is rendered in pages/raid-detail/SetupEditor.test.tsx and SetupEditor.panel.test.tsx.
+// editor is rendered in pages/raid-detail/setup/SetupEditor.test.tsx and SetupEditor.panel.test.tsx.
 import { describe, expect, it } from "vitest";
 import * as lib from "./setupEditor";
 import { t } from "../i18n";

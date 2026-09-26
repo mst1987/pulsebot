@@ -39,7 +39,7 @@ import StepBar from "./raid-detail/StepBar";
 import RosterTab from "./raid-detail/RosterTab";
 import LootTab from "./raid-detail/LootTab";
 import LogsTab from "./raid-detail/LogsTab";
-import SetupEditor from "./raid-detail/SetupEditor";
+import SetupEditor from "./raid-detail/setup/SetupEditor";
 import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
 import SheetModal from "./raid-detail/modals/SheetModal";
