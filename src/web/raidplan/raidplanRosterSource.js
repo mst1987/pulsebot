@@ -11,14 +11,14 @@
 // the plan remembered at its last save ("gespeicherter Stand"). Only a fresh answer is `authoritative`: only then may a save drop a
 // raider Raid-Helper no longer lists - every fallback keeps every player the plan names (raidplanBoard ANY_PLAYER), so an outage never
 // costs the plan its players.
-const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
-const { getEvent, isOwnEventId } = require("../stores/eventStore");
-const { getRaidEvent } = require("../stores/raidEventStore");
-const raiderProfiles = require("../stores/raiderProfileStore");
-const store = require("../stores/raidplanStore");
+const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
+const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const { getRaidEvent } = require("../../stores/raidEventStore");
+const raiderProfiles = require("../../stores/raiderProfileStore");
+const store = require("../../stores/raidplanStore");
 const { raidhelperLineup } = require("./raidhelperRoster");
 const raidplan = require("./raidplan");
-const { ANY_PLAYER } = require("./raidplanBoard");
+const { ANY_PLAYER } = require("../../services/raidplan/raidplanBoard");
 
 const CACHE_MS = 60_000;
 const cache = new Map(); // eventId -> { at, raw: { setupSlots, signUps } }

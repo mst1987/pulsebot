@@ -1,10 +1,10 @@
 // The count of a class in a row ("Jäger × 2"), the running number over the rows of a task, the general tank and the twin check of
-// the resolution (client lib/classRefs.ts against the server's src/web/raidplanAssign.js). Pure logic run for real; the dialog's
+// the resolution (client lib/classRefs.ts against the server's src/services/raidplan/raidplanAssign.js). Pure logic run for real; the dialog's
 // structure is read from its source.
 const fs = require("fs");
 const path = require("path");
 const { loadTs, makeT } = require("./i18nHelper");
-const server = require("../../src/web/raidplanAssign");
+const server = require("../../src/services/raidplan/raidplanAssign");
 
 const cr = loadTs("lib/classRefs.ts");
 const P = (userId, classId, role) => ({ userId, character: userId, classId, role, group: 1 });

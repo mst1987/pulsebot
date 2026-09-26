@@ -53,10 +53,10 @@ function arg(name) {
 
 /** The demo template and the event's raid plan (production stores, no HTTP). */
 function seedPlan(eventId, event) {
-    const raidplan = require("../src/web/raidplan");
+    const raidplan = require("../src/web/raidplan/raidplan");
     const planStore = require("../src/stores/raidplanStore");
     const templates = require("../src/stores/raidplanTemplateStore");
-    const assign = require("../src/web/raidplanAssign");
+    const assign = require("../src/services/raidplan/raidplanAssign");
 
     const catalog = require("../src/stores/raidplanCatalogStore");
     const btBosses = planStore.bossesForInstances(["bt"]);

@@ -48,8 +48,8 @@
 const assign = require("./raidplanAssign");
 const steps = require("./raidplanSteps");
 const besetzung = require("./raidplanBesetzung");
-const { str } = require("../utils/text");
-const { newId } = require("../utils/ids");
+const { str } = require("../../utils/text");
+const { newId } = require("../../utils/ids");
 
 // cleanBoard's llowedUserIds value that keeps every well-formed player id
 const ANY_PLAYER = "*";

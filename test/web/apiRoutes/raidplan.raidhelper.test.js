@@ -39,7 +39,7 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 const store = require("../../../src/stores/raidplanStore");
 const profiles = require("../../../src/stores/raidplanProfileStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
-const rosterSource = require("../../../src/web/raidplanRosterSource");
+const rosterSource = require("../../../src/web/raidplan/raidplanRosterSource");
 const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };

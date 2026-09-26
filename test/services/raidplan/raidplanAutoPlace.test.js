@@ -1,11 +1,11 @@
 // Auto placement from the tank rows on the server (docs/raidplan.md): the switch and the moved positions are validated, a mob target
 // can name one of several mobs of its kind, and the moved positions follow their rows when a template is applied or duplicated.
-const { tempStoreFile } = require("../helpers/tempStore");
-const templates = require("../../src/stores/raidplanTemplateStore");
-const plans = require("../../src/stores/raidplanStore");
-const inherit = require("../../src/web/raidplanInherit");
-const board = require("../../src/web/raidplanBoard");
-const assign = require("../../src/web/raidplanAssign");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const templates = require("../../../src/stores/raidplanTemplateStore");
+const plans = require("../../../src/stores/raidplanStore");
+const inherit = require("../../../src/services/raidplan/raidplanInherit");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const assign = require("../../../src/services/raidplan/raidplanAssign");
 
 const BOSS = "bt/supremus";
 const OTHER = "bt/shade-of-akama";

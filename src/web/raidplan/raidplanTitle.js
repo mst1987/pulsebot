@@ -3,8 +3,8 @@
 // the title keywords the softres.it integration already uses (config/softresInstances.js), SAFE ones only: short tokens that are also
 // ordinary words or other abbreviations ("gl", "mag", "aman", "plateau", "serpent", "tempest", "mh") are left out. Several instances may
 // match ("Kara + Gruul"); nothing sure = nothing. The raid plan's activation dialog shows it pre-filled and lets the orga correct it.
-const { INSTANCES } = require("../config/softresInstances");
-const { rulesFor } = require("../config/gameVersions");
+const { INSTANCES } = require("../../config/softresInstances");
+const { rulesFor } = require("../../config/gameVersions");
 
 // softres.it instance code -> the rule set's instance id (TBC)
 const TBC_ID = { kara: "kara", gruul: "gruul", magtheridon: "mag", za: "za", ssc: "ssc", tempestkeep: "tk", blacktemple: "bt", hyjal: "hyjal", sunwellplateau: "swp" };

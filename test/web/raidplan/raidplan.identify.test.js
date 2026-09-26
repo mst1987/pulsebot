@@ -1,6 +1,6 @@
 // Which players of the approved setup are the visitor's: their own account and the characters of their
 // raider profile (case and realm ignored), also under another account.
-const raidplan = require("../../src/web/raidplan");
+const raidplan = require("../../../src/web/raidplan/raidplan");
 
 describe("identify", () => {
     const roster = [

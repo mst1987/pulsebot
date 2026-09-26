@@ -14,10 +14,10 @@
 //
 // Only references are stored; names come from the setup when the plan is shown. A step resolves its class references
 // ON ITS OWN (the same "Magier 1" in two steps is the same raider — a tactic is one sequence, not a round robin).
-// Pure and tested (test/web/raidplanSteps.test.js).
+// Pure and tested (test/services/raidplan/raidplanSteps.test.js).
 const assign = require("./raidplanAssign");
-const { str } = require("../utils/text");
-const { newId } = require("../utils/ids");
+const { str } = require("../../utils/text");
+const { newId } = require("../../utils/ids");
 
 const ACTIONS = ["tank", "swap", "kite", "adds", "interrupt", "dispel", "cc", "soak", "focus", "buff", "heal", "wait", "note"];
 const TIMING_KINDS = ["", "pull", "phase", "hp", "interval", "now", "text"];

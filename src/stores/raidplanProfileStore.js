@@ -16,7 +16,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { isMapKey } = require("./raidplanStore");
-const stepsOf = require("../web/raidplanSteps");
+const stepsOf = require("../services/raidplan/raidplanSteps");
 const { str } = require("../utils/text");
 const { newId } = require("../utils/ids");
 

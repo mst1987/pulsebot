@@ -11,7 +11,7 @@
 // `ranged` slots exist (their sum is at most the DPS, the rest stays "DPS n"). An older
 // counts object without `dps` is read that way: its melee + ranged are the DPS, so every slot
 // that existed still exists.
-const { instanceById, compositionFor } = require("../config/gameVersions");
+const { instanceById, compositionFor } = require("../../config/gameVersions");
 
 const ROLES = ["tank", "healer", "dps", "melee", "ranged"];
 const MAX_SIZE = 40;

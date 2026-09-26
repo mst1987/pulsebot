@@ -1,6 +1,6 @@
-// What a Raid-Helper event's title says about its raid (src/web/raidplanTitle.js): the safe title keywords only, the size from the title
+// What a Raid-Helper event's title says about its raid (src/web/raidplan/raidplanTitle.js): the safe title keywords only, the size from the title
 // or the instance's default.
-const { instancesFromTitle } = require("../../src/web/raidplanTitle");
+const { instancesFromTitle } = require("../../../src/web/raidplan/raidplanTitle");
 
 describe("instancesFromTitle", () => {
     it.each([

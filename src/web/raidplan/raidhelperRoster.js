@@ -10,9 +10,9 @@
 // characterFor() looks for the raider's character in his profile (docs/roster-profile.md) and falls back to the Raid-Helper name, marked.
 // A spec the rule set does not know (a death knight, a typo) keeps its place with an empty spec and is listed in `unknown` - the raid
 // plan then sees no role for it and never guesses a class.
-const { specKeyFromRaidHelper } = require("../services/events/eventSources");
-const { signupStatus } = require("../utils/attendance");
-const { str } = require("../utils/text");
+const { specKeyFromRaidHelper } = require("../../services/events/eventSources");
+const { signupStatus } = require("../../utils/attendance");
+const { str } = require("../../utils/text");
 
 const nameKey = (name) => str(name).split("-")[0].toLowerCase();
 

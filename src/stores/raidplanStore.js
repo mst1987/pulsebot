@@ -32,8 +32,8 @@ const { wowIconUrl } = require("../config/menu");
 const DEFAULT_FILE = settingsPath("raidplans.json");
 const DEFAULT_MAP_DIR = dataPath("raidplan-maps");
 
-const board = require("../web/raidplanBoard");
-const inherit = require("../web/raidplanInherit");
+const board = require("../services/raidplan/raidplanBoard");
+const inherit = require("../services/raidplan/raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
 const catalogStore = require("./raidplanCatalogStore");

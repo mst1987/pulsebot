@@ -1,10 +1,10 @@
-// The Standard of a template (src/web/raidplanInherit.js): inherited by every boss, deviated from, applied to an event.
-const { tempStoreFile } = require("../helpers/tempStore");
-const templates = require("../../src/stores/raidplanTemplateStore");
-const plans = require("../../src/stores/raidplanStore");
-const inherit = require("../../src/web/raidplanInherit");
-const raidplan = require("../../src/web/raidplan");
-const board = require("../../src/web/raidplanBoard");
+// The Standard of a template (src/services/raidplan/raidplanInherit.js): inherited by every boss, deviated from, applied to an event.
+const { tempStoreFile } = require("../../helpers/tempStore");
+const templates = require("../../../src/stores/raidplanTemplateStore");
+const plans = require("../../../src/stores/raidplanStore");
+const inherit = require("../../../src/services/raidplan/raidplanInherit");
+const raidplan = require("../../../src/web/raidplan/raidplan");
+const board = require("../../../src/services/raidplan/raidplanBoard");
 
 const BOSS = "bt/supremus";
 const OTHER = "bt/shade-of-akama";

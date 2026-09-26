@@ -1,6 +1,6 @@
 // A role group ("Melees -> Boss", "Ranged soaken hier") is a task of / acts on every raider of that role: his spec role from the setup, a
 // flex role on this boss wins, no names are split out (lib/assign.ts inRoleGroup / meInRole, lib/mineView.ts); the server twin decides the
-// same (src/web/raidplanAssign.js inRoleGroup). Plus the turned role group and the editor's layout on a phone.
+// same (src/services/raidplan/raidplanAssign.js inRoleGroup). Plus the turned role group and the editor's layout on a phone.
 const fs = require("fs");
 const path = require("path");
 const { loadTs, makeT } = require("./i18nHelper");
@@ -9,7 +9,7 @@ const mention = loadTs("lib/mention.ts");
 const cr = loadTs("lib/classRefs.ts");
 const assign = loadTs("lib/assign.ts", { t: makeT("de"), ...mention, ...cr });
 const mv = loadTs("lib/mineView.ts", { ...assign, ...mention });
-const server = require("../../src/web/raidplanAssign");
+const server = require("../../src/services/raidplan/raidplanAssign");
 const dir = path.join(__dirname, "../../src/web-client/src");
 const read = (f) => fs.readFileSync(path.join(dir, f), "utf8");
 

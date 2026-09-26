@@ -15,10 +15,10 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { instanceById } = require("../config/gameVersions");
-const board = require("../web/raidplanBoard");
+const board = require("../services/raidplan/raidplanBoard");
 const planStore = require("./raidplanStore");
-const besetzung = require("../web/raidplanBesetzung");
-const inherit = require("../web/raidplanInherit");
+const besetzung = require("../services/raidplan/raidplanBesetzung");
+const inherit = require("../services/raidplan/raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake, newId } = require("../utils/ids");
 

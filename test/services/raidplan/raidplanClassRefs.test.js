@@ -1,5 +1,5 @@
-// A class as who does a task / at whom (class:<Class>:<n>[:<role>]): what the server keeps of it (src/web/raidplanAssign.js).
-const assign = require("../../src/web/raidplanAssign");
+// A class as who does a task / at whom (class:<Class>:<n>[:<role>]): what the server keeps of it (src/services/raidplan/raidplanAssign.js).
+const assign = require("../../../src/services/raidplan/raidplanAssign");
 
 const row = (over) => ({ id: "r1", type: "md", title: "", assignees: [], targets: [], note: "", ...over });
 const clean = (r, allowed = new Set()) => assign.cleanAssignments([row(r)], allowed);

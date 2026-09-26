@@ -398,7 +398,7 @@ describe("GET /api/raidplan/public", () => {
 });
 
 describe("what a raider counts as", () => {
-    const { resolveRole } = require("../../../src/web/raidplan");
+    const { resolveRole } = require("../../../src/web/raidplan/raidplan");
     const spec = (role) => ({ role });
 
     it("takes the placed role when it is one of the four, else the spec's, else dps", () => {

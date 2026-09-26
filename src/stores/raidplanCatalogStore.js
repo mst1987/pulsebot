@@ -13,9 +13,9 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
-const defaults = require("../web/raidplanCatalogDefaults");
+const defaults = require("../services/raidplan/raidplanCatalogDefaults");
 const { instanceById } = require("../config/gameVersions");
-const { ASSIGN_TYPES, CLASS_IDS } = require("../web/raidplanConstants");
+const { ASSIGN_TYPES, CLASS_IDS } = require("../services/raidplan/raidplanConstants");
 const { str } = require("../utils/text");
 
 const DEFAULT_FILE = settingsPath("raidplan-catalog.json");

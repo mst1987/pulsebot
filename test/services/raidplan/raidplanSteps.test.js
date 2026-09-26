@@ -1,8 +1,8 @@
-// The tactic of a raid plan section (src/web/raidplanSteps.js): validation, migration of the old tactic rows and notes, resolution.
-const { tempStoreFile } = require("../helpers/tempStore");
-const steps = require("../../src/web/raidplanSteps");
-const board = require("../../src/web/raidplanBoard");
-const profiles = require("../../src/stores/raidplanProfileStore");
+// The tactic of a raid plan section (src/services/raidplan/raidplanSteps.js): validation, migration of the old tactic rows and notes, resolution.
+const { tempStoreFile } = require("../../helpers/tempStore");
+const steps = require("../../../src/services/raidplan/raidplanSteps");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const profiles = require("../../../src/stores/raidplanProfileStore");
 
 const step = (over) => ({ id: "s1", action: "tank", participants: [], sentence: "tankt den Boss", targets: [], timing: { kind: "" }, ...over });
 

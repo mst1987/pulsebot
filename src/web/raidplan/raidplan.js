@@ -8,18 +8,18 @@
 //   - the public page sees only the *approved* setup (setupEditor.js: a raider
 //     never sees a draft). A token whose player is not in the approved setup is
 //     left out of the public page instead of being named from a draft.
-const store = require("../stores/raidplanStore");
-const inherit = require("./raidplanInherit");
-const profileStore = require("../stores/raidplanProfileStore");
-const templateStore = require("../stores/raidplanTemplateStore");
-const { approvedSetupOf } = require("../services/setup/setupCore");
-const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
-const { wowIconUrl } = require("../config/menu");
-const assign = require("./raidplanAssign");
-const stepsOf = require("./raidplanSteps");
-const besetzungOf = require("./raidplanBesetzung");
-const catalogStore = require("../stores/raidplanCatalogStore");
-const raiderProfiles = require("../stores/raiderProfileStore");
+const store = require("../../stores/raidplanStore");
+const inherit = require("../../services/raidplan/raidplanInherit");
+const profileStore = require("../../stores/raidplanProfileStore");
+const templateStore = require("../../stores/raidplanTemplateStore");
+const { approvedSetupOf } = require("../../services/setup/setupCore");
+const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { wowIconUrl } = require("../../config/menu");
+const assign = require("../../services/raidplan/raidplanAssign");
+const stepsOf = require("../../services/raidplan/raidplanSteps");
+const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
+const catalogStore = require("../../stores/raidplanCatalogStore");
+const raiderProfiles = require("../../stores/raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
 const ROLES = ["tank", "healer", "melee", "ranged"];

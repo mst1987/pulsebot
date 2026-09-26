@@ -1,8 +1,8 @@
-// The defaults of the catalog are TBC-correct (src/web/raidplanCatalogDefaults.js): nothing that only exists in a later game version, and the game version filter.
-const defaults = require("../../src/web/raidplanCatalogDefaults");
-const store = require("../../src/stores/raidplanCatalogStore");
-const assign = require("../../src/web/raidplanAssign");
-const { tempStoreFile } = require("../helpers/tempStore");
+// The defaults of the catalog are TBC-correct (src/services/raidplan/raidplanCatalogDefaults.js): nothing that only exists in a later game version, and the game version filter.
+const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
+const store = require("../../../src/stores/raidplanCatalogStore");
+const assign = require("../../../src/services/raidplan/raidplanAssign");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 // classes and spells per the TBC (2.4.3) class lists; Death Knights only came with Wrath of the Lich King
 const TBC_CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];

@@ -1,9 +1,9 @@
 // Server side of the facing wedge per icon (arrowScale, arrowHidden, arrowColor, arrowOpacity) and of the role group placeholder (a zone of
 // type "role") and role references ("role:melee") in rows and steps: validated and clamped, an older board keeps its look, nothing resolves.
-const board = require("../../src/web/raidplanBoard");
-const assign = require("../../src/web/raidplanAssign");
-const steps = require("../../src/web/raidplanSteps");
-const { icon } = require("../factories/raidplan");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const assign = require("../../../src/services/raidplan/raidplanAssign");
+const steps = require("../../../src/services/raidplan/raidplanSteps");
+const { icon } = require("../../factories/raidplan");
 
 const clean = (b) => board.cleanBoard(b, { allowedUserIds: [] });
 

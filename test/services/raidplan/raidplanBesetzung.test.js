@@ -1,12 +1,12 @@
 // The Besetzung: the role slots a raid type has, derived from instances and size (tanks and healers are
 // known, the DPS is what is left, melee / ranged are optional); the raid type of a template; slots that
 // are not on the map yet; flex roles; the old task rows read as assignments.
-const bes = require("../../src/web/raidplanBesetzung");
-const board = require("../../src/web/raidplanBoard");
-const assign = require("../../src/web/raidplanAssign");
-const raidplan = require("../../src/web/raidplan");
-const templateStore = require("../../src/stores/raidplanTemplateStore");
-const { tempStoreFile } = require("../helpers/tempStore");
+const bes = require("../../../src/services/raidplan/raidplanBesetzung");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const assign = require("../../../src/services/raidplan/raidplanAssign");
+const raidplan = require("../../../src/web/raidplan/raidplan");
+const templateStore = require("../../../src/stores/raidplanTemplateStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 describe("defaultBesetzung", () => {
     it("Black Temple with 25: 3 tanks, 7 healers, the 15 that are left are DPS (no melee / ranged split), five groups", () => {

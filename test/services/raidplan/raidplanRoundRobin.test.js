@@ -1,7 +1,7 @@
-// Round robin of class references (src/web/raidplanAssign.js): "Hunter 1, Hunter 2 ..." over the rows of one kind of task, a count per
+// Round robin of class references (src/services/raidplan/raidplanAssign.js): "Hunter 1, Hunter 2 ..." over the rows of one kind of task, a count per
 // class in a row, the general tank ("any tank", "Tank (Warrior)") by the SPEC role, no fallback, "allow several", the renumbering of
 // old data, and the suggestions going through the same resolution.
-const assign = require("../../src/web/raidplanAssign");
+const assign = require("../../../src/services/raidplan/raidplanAssign");
 
 const P = (userId, classId, role) => ({ userId, classId, role });
 const row = (id, type, assignees, targets = [], extra = {}) => ({ id, type, title: "", assignees, targets, note: "", ...extra });

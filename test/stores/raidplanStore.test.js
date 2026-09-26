@@ -246,7 +246,7 @@ describe("Raid-Helper events: the switch and the remembered line-up", () => {
     });
 
     it("a save with ANY_PLAYER keeps every well-formed player id; with a known roster it remembers the line-up and the gone players it still names", () => {
-        const { ANY_PLAYER } = require("../../src/web/raidplanBoard");
+        const { ANY_PLAYER } = require("../../src/services/raidplan/raidplanBoard");
         const r = store.savePlan(EV, { version: 0, bosses: { [BOSS]: { tokens: [{ userId: "u1", x: 0, y: 0 }, { userId: "u-gone", x: 0, y: 0 }, { userId: "bad id!", x: 0, y: 0 }] } } }, { ...CTX, allowedUserIds: ANY_PLAYER });
         expect(r.plan.bosses[BOSS].tokens.map((t) => t.userId)).toEqual(["u1", "u-gone"]);
         expect(r.dropped).toBe(1);

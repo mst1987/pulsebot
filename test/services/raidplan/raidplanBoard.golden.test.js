@@ -3,11 +3,11 @@
 // every section must stay exactly what it was before the split. New ids are
 // counted (gen1, gen2, ...) so a replaced duplicate id is deterministic, too.
 let mockIdCount = 0;
-jest.mock("../../src/utils/ids", () => ({ ...jest.requireActual("../../src/utils/ids"), newId: () => `gen${++mockIdCount}` }));
+jest.mock("../../../src/utils/ids", () => ({ ...jest.requireActual("../../../src/utils/ids"), newId: () => `gen${++mockIdCount}` }));
 
-const board = require("../../src/web/raidplanBoard");
-const { input, options, many } = require("../fixtures/raidplanBoard/cleanBoardInput");
-const golden = require("../fixtures/raidplanBoard/cleanBoardGolden.json");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const { input, options, many } = require("../../fixtures/raidplanBoard/cleanBoardInput");
+const golden = require("../../fixtures/raidplanBoard/cleanBoardGolden.json");
 
 describe("raidplanBoard.cleanBoard golden master", () => {
     beforeEach(() => { mockIdCount = 0; });

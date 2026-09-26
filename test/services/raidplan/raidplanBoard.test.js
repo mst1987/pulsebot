@@ -1,6 +1,6 @@
-// The shared board (src/web/raidplanBoard.js): slots, marks, zones, cleaning, the
+// The shared board (src/services/raidplan/raidplanBoard.js): slots, marks, zones, cleaning, the
 // slot auto-fill and copying a board with fresh ids.
-const board = require("../../src/web/raidplanBoard");
+const board = require("../../../src/services/raidplan/raidplanBoard");
 
 const clean = (raw, opts = {}) => board.cleanBoard(raw, { allowedUserIds: ["u1", "u2", "u3"], ...opts });
 const p = (userId, role, group = 1) => ({ userId, role, group });
@@ -329,7 +329,7 @@ describe("icon facing", () => {
 });
 
 describe("group styles", () => {
-    const { _internal: { cleanGroupStyles } } = require("../../src/web/raidplanBoard");
+    const { _internal: { cleanGroupStyles } } = require("../../../src/services/raidplan/raidplanBoard");
     it("keeps valid colours (lower case) and marks once, drops the rest", () => {
         const r = cleanGroupStyles({ 1: "#ABCDEF", 2: "red", 21: "#000000", x: "#000000" }, { 1: "skull", 2: "skull", 3: "star", 4: "banana" });
         expect(r).toEqual({ groupColors: { 1: "#abcdef" }, groupMarks: { 1: "skull", 3: "star" } });
@@ -338,7 +338,7 @@ describe("group styles", () => {
 });
 
 describe("group styles for groups 10 to 20", () => {
-    const { _internal: { cleanGroupStyles } } = require("../../src/web/raidplanBoard");
+    const { _internal: { cleanGroupStyles } } = require("../../../src/services/raidplan/raidplanBoard");
     it("keep the two-digit group numbers up to 20", () => {
         expect(cleanGroupStyles({ 10: "#112233", 19: "#445566", 20: "#778899" }, { 12: "moon" })).toEqual({ groupColors: { 10: "#112233", 19: "#445566", 20: "#778899" }, groupMarks: { 12: "moon" } });
     });
@@ -356,12 +356,12 @@ describe("ring switch and group scales", () => {
         const r = cleanBoard({ slots: [{ kind: "group", n: 1, x: 0.5, y: 0.5, groupScale: 9, ringSpread: 0.01, tokenScale: "x" }, { kind: "tank", n: 1, x: 0.2, y: 0.2, groupScale: 3 }] }).board;
         expect(r.slots[0]).toMatchObject({ groupScale: 4, ringSpread: 0.25, tokenScale: 1 });
         expect(r.slots[1]).toMatchObject({ groupScale: 1, ringSpread: 1, tokenScale: 1 });
-        expect(require("../../src/web/raidplanBoard")._internal.cleanFactor(1.234)).toBe(1.23);
+        expect(require("../../../src/services/raidplan/raidplanBoard")._internal.cleanFactor(1.234)).toBe(1.23);
     });
 });
 
 describe("saved default view", () => {
-    const { _internal: { cleanView } } = require("../../src/web/raidplanBoard");
+    const { _internal: { cleanView } } = require("../../../src/services/raidplan/raidplanBoard");
     it("keeps a zoom above 100 % (at most 400 %) with its centre inside the board, else nothing", () => {
         expect(cleanView({ zoom: 2.5, cx: 0.3, cy: 0.6 })).toEqual({ zoom: 2.5, cx: 0.3, cy: 0.6 });
         expect(cleanView({ zoom: 9, cx: 3, cy: -1 })).toEqual({ zoom: 4, cx: 1, cy: 0 });

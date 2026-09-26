@@ -1,5 +1,5 @@
 // A template slot that asks for a class (preferredClasses) and the ring of a split group: validation, and the auto-fill by class.
-const board = require("../../src/web/raidplanBoard");
+const board = require("../../../src/services/raidplan/raidplanBoard");
 
 const P = (userId, role, classId, group = 1) => ({ userId, role, classId, group });
 const S = (kind, n, extra = {}) => ({ kind, n, userId: "", ...extra });

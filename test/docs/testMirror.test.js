@@ -24,7 +24,7 @@ const ALLOWED = {
     "src/config/profanity.js": "reine Wortlisten, geprüft über utils/signup/characterNames.js (characterNames.test.js)",
     "src/config/recommendationRules.js": "reine Regeltabelle, geprüft über utils/logcheck/recommendations.js",
     "src/config/softresInstances.js": "reine Instanz-Tabelle, geprüft über utils/loot/softres.js (softres.test.js)",
-    "src/web/raidplanConstants.js": "zwei Konstanten-Listen, geprüft über raidplanAssign/raidplanCatalogStore/raidplanTitle",
+    "src/services/raidplan/raidplanConstants.js": "zwei Konstanten-Listen, geprüft über raidplanAssign/raidplanCatalogStore/raidplanTitle",
     // loaded through a computed path
     "src/web/static/report.js": "Browser-Skript; test/web/static/report.test.js lädt es über path.join",
 };
@@ -111,8 +111,8 @@ describe("every backend module is loaded by a test", () => {
 
     it("does not count a mocked path as loaded", () => {
         const file = path.join(TEST, "docs", "example.test.js");
-        expect(loadedFrom("jest.mock(\"../../src/web/raidplanConstants\", () => ({}));", file)).toEqual([]);
-        expect(loadedFrom("jest.requireActual(\"../../src/web/raidplanConstants\");", file)).toEqual(["src/web/raidplanConstants.js"]);
-        expect(loadedFrom("require(\"../../src/web/raidplanConstants.js\");", file)).toEqual(["src/web/raidplanConstants.js"]);
+        expect(loadedFrom("jest.mock(\"../../src/services/raidplan/raidplanConstants\", () => ({}));", file)).toEqual([]);
+        expect(loadedFrom("jest.requireActual(\"../../src/services/raidplan/raidplanConstants\");", file)).toEqual(["src/services/raidplan/raidplanConstants.js"]);
+        expect(loadedFrom("require(\"../../src/services/raidplan/raidplanConstants.js\");", file)).toEqual(["src/services/raidplan/raidplanConstants.js"]);
     });
 });

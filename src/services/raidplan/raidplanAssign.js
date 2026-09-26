@@ -28,9 +28,9 @@
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
 const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
-const catalog = require("../stores/raidplanCatalogStore");
-const { str } = require("../utils/text");
-const { newId } = require("../utils/ids");
+const catalog = require("../../stores/raidplanCatalogStore");
+const { str } = require("../../utils/text");
+const { newId } = require("../../utils/ids");
 
 // a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
 const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];

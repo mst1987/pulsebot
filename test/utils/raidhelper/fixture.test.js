@@ -7,7 +7,7 @@ const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const fixture = require("../../../src/utils/raidhelper/fixture");
 const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client");
-const { raidhelperLineup } = require("../../../src/web/raidhelperRoster");
+const { raidhelperLineup } = require("../../../src/web/raidplan/raidhelperRoster");
 
 describe("fixtureMode", () => {
     it("is off without the variable and ALWAYS off in production", () => {

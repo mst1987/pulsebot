@@ -8,10 +8,10 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Piece | File |
 |---|---|
 | Plan store, validation, room maps | `src/stores/raidplanStore.js` |
-| The board of one boss (validation, slot auto-fill), shared by plans and templates | `src/web/raidplanBoard.js` |
+| The board of one boss (validation, slot auto-fill), shared by plans and templates | `src/services/raidplan/raidplanBoard.js` |
 | Tactic profiles (collection store) | `src/stores/raidplanProfileStore.js` |
 | Raid plan templates (collection store) | `src/stores/raidplanTemplateStore.js` |
-| What the editor and the public page are shown | `src/web/raidplan.js` |
+| What the editor and the public page are shown | `src/web/raidplan/raidplan.js` |
 | API | `src/web/apiRoutes/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
 | Editor (tab of the raid detail) | `src/web-client/src/pages/raid-detail/RaidplanTab.tsx` and `raidplan/` |
@@ -141,7 +141,7 @@ nothing false is filled. (4) The suggestions (`POST /api/raidplan/suggest` takes
 the active Besetzung: in an event only tank and healer slots somebody stands in count, and flex roles are
 applied to the roster.
 
-A template is a **raid type** (`src/web/raidplanBesetzung.js`): its instances, its size (10, 25 ... or free, 0 =
+A template is a **raid type** (`src/services/raidplan/raidplanBesetzung.js`): its instances, its size (10, 25 ... or free, 0 =
 the instances' default) and the Besetzung derived from them with the rules the events use (`compositionFor`:
 Black Temple 25 = 3 tanks, 7 healers; the damage dealers split evenly, the odd one to melee: 8 melee, 7
 ranged; groups = size / 5). The create dialog pre-fills the four counts and lets you change them (`size`,
@@ -166,7 +166,7 @@ own size and composition).
 
 ## Assignments ("Einteilungen")
 
-One model — **and one list per board** — for everything the orga hands out (`src/web/raidplanAssign.js`,
+One model — **and one list per board** — for everything the orga hands out (`src/services/raidplan/raidplanAssign.js`,
 client rules in `lib/assign.ts`): `{ id, type, title, assignees, targets, note, suggested }`. `title` is the
 task in free words ("Fear unterbrechen"), the type gives it its icon. The old task rows are part of this list:
 **a row = who** (assignees, from the Besetzung; in an event also players; several at once) **does what** (type +
@@ -254,7 +254,7 @@ turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs
 
 ## Tests
 
-`test/web/raidplanBoard.test.js` (slots, marks, zones, auto-fill), `raidplanTemplateStore.test.js` (templates,
+`test/services/raidplan/raidplanBoard.test.js` (slots, marks, zones, auto-fill), `raidplanTemplateStore.test.js` (templates,
 apply, map order), `apiRoutes/raidplan.templates.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
 `apiRoutes/raidplan.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
 routing in `test/web/http/server.test.js`, `readRawBody` in `apiBody.test.js`, and
@@ -277,17 +277,17 @@ abgeschaltet – Aufstellung nur aus gespeichertem Stand", and the plan keeps wo
 **What the event does not say.** A Raid-Helper event has no instance, size or game version, so the plan record
 carries them in `link`: `{ source: "raidhelper", enabled, instanceIds, versionId, size, composition, title,
 guildId, startTime, changedAt, changedBy }` (`raidplanStore.setLink` / `normalizeLink`). The activation dialog
-pre-fills them from the event title — `src/web/raidplanTitle.js` `instancesFromTitle(title, versionId)`: the
+pre-fills them from the event title — `src/web/raidplan/raidplanTitle.js` `instancesFromTitle(title, versionId)`: the
 softres.it title keywords (`config/softresInstances.js`) **minus the unsafe ones** ("gl", "mag", "aman",
 "plateau", "serpent", "tempest", "mh"), matched as whole words; the size from "10er" / "25 man" / "(25)", else
 the largest default of the instances; TBC only so far (another version is chosen by hand). The orga corrects
 the chips and the size before activating. `raidplanRosterSource.planEventFor()` builds from `link` the event
 object `raidplan.js` reads (id, title, startTime, instanceIds, versionId, size, composition, guildId).
 
-**Where the players come from — read only.** `src/web/raidplanRosterSource.js` asks Raid-Helper (`getEvent`
+**Where the players come from — read only.** `src/web/raidplan/raidplanRosterSource.js` asks Raid-Helper (`getEvent`
 for the signups, `getSetup` for the Aufstellung with its `groupNumber`s) at most **once a minute per event**
 (`CACHE_MS`; the client gives up after 20 s; "Neu laden" in the plan's head sends `?fresh=1`). **Nothing ever
-writes to Raid-Helper.** `src/web/raidhelperRoster.js` `raidhelperLineup()` turns the answer into the setup
+writes to Raid-Helper.** `src/web/raidplan/raidhelperRoster.js` `raidhelperLineup()` turns the answer into the setup
 shape `raidplan.rosterFrom()` already reads:
 - from the Aufstellung when there is one — the group is `groupNumber`, else 5 per group by position
   (`hasGroups: false`: the dialog and the head warn "Gruppen sind 5er-Blöcke in Reihenfolge –
@@ -355,7 +355,7 @@ production the variable does nothing (`fixtureMode()` checks `NODE_ENV` itself; 
 `test/utils/raidhelper/fixture.test.js`). Example: `EVENTHELPER_RH_FIXTURE=1` in the worktree's `.env.dev`,
 restart.
 
-Tests: `test/web/raidhelperRoster.test.js`, `test/web/raidplanTitle.test.js`,
+Tests: `test/web/raidplan/raidhelperRoster.test.js`, `test/web/raidplan/raidplanTitle.test.js`,
 `test/web/apiRoutes/raidplan.raidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
 Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `test/web-client/raidplanRaidhelper.test.js`, plus the
 store / board additions.

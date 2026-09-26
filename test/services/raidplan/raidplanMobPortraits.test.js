@@ -1,15 +1,15 @@
 // The real portraits of the default mobs (scripts/fetch-mob-icons.js): the NPC table, the generated mapping, the files.
 const fs = require("fs");
 const path = require("path");
-const png = require("../../scripts/lib/png");
-const defaults = require("../../src/web/raidplanCatalogDefaults");
-const { MOB_NPCS } = require("../../scripts/data/raidplanMobNpcs");
-const generated = require("../../src/config/generated/mobIcons.json");
-const catalog = require("../../src/stores/raidplanCatalogStore");
-const board = require("../../src/web/raidplanBoard");
-const { icon } = require("../factories/raidplan");
+const png = require("../../../scripts/lib/png");
+const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
+const { MOB_NPCS } = require("../../../scripts/data/raidplanMobNpcs");
+const generated = require("../../../src/config/generated/mobIcons.json");
+const catalog = require("../../../src/stores/raidplanCatalogStore");
+const board = require("../../../src/services/raidplan/raidplanBoard");
+const { icon } = require("../../factories/raidplan");
 
-const DIR = path.join(__dirname, "..", "..", "src", "web-client", "public", "mobs");
+const DIR = path.join(__dirname, "..", "..", "..", "src", "web-client", "public", "mobs");
 // Their Wowhead pages name no display, so there is no model render: they keep the placeholder icon.
 const PLACEHOLDERS = ["doomfire-spirit", "towering-infernal", "hyjal-giant-infernal"];
 

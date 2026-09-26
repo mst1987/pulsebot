@@ -10,8 +10,8 @@
 const DEFAULTS_KEY = "defaults";
 const THIS_BOSS = "b:this";
 
-const { str } = require("../utils/text");
-const { newId } = require("../utils/ids");
+const { str } = require("../../utils/text");
+const { newId } = require("../../utils/ids");
 
 /** The icon key of a boss image url (/bosses/601.jpg -> boss:601, an icon CDN url -> its name), "" for none. */
 function bossIconKey(url) {
