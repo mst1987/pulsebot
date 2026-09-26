@@ -3,17 +3,31 @@
 const http = require("http");
 const https = require("https");
 const axios = require("axios");
-const { NetworkBlockedError, isLoopback, targetOf, MESSAGE } = require("./noNetwork");
+const { NetworkBlockedError, isLoopback, targetOf, takeBlocked, MESSAGE } = require("./noNetwork");
+const { checkNoNetwork } = require("./noNetworkCheck");
 
+// Every test here blocks on purpose, so each one takes its attempts with
+// takeBlocked() - otherwise the afterEach check would (rightly) fail it.
 describe("test/setup/noNetwork", () => {
     it("rejects an unmocked axios.get with a clear message", async () => {
         await expect(axios.get("https://raid-helper.xyz/api/v2/events")).rejects.toThrow(MESSAGE);
         await expect(axios.get("https://raid-helper.xyz/x")).rejects.toBeInstanceOf(NetworkBlockedError);
+        expect(takeBlocked()).toEqual(["axios get raid-helper.xyz", "axios get raid-helper.xyz"]);
     });
 
     it("also guards axios instances made with axios.create()", async () => {
         const client = axios.create({ baseURL: "https://pulse-gdkp.de:3001/api" });
         await expect(client.get("/legendary")).rejects.toThrow(/pulse-gdkp\.de/);
+        expect(takeBlocked()).toEqual(["axios get pulse-gdkp.de"]);
+    });
+
+    it("fails the test even when the code swallowed the error", async () => {
+        // best-effort code like deployStatus catches the rejection ...
+        const swallowed = await axios.get("https://api.github.com/repos/x/commits").catch(() => "unknown");
+        expect(swallowed).toBe("unknown");
+        // ... the afterEach check (test/setup/noNetworkCheck.js) still sees it
+        expect(checkNoNetwork).toThrow(/api\.github\.com/);
+        expect(checkNoNetwork).not.toThrow(); // collected once, then empty
     });
 
     it("throws for http(s).request and http(s).get to another host", () => {
@@ -21,10 +35,12 @@ describe("test/setup/noNetwork", () => {
         expect(() => https.get({ hostname: "discord.com", path: "/" })).toThrow(NetworkBlockedError);
         expect(() => http.request({ host: "example.com", port: 80 })).toThrow(/example\.com/);
         expect(() => http.get(new URL("http://example.com/x"))).toThrow(MESSAGE);
+        expect(takeBlocked()).toHaveLength(4);
     });
 
     it("rejects an unmocked fetch", async () => {
         await expect(globalThis.fetch("https://www.warcraftlogs.com/api")).rejects.toThrow(MESSAGE);
+        expect(takeBlocked()).toEqual(["fetch www.warcraftlogs.com"]);
     });
 
     it("lets loopback requests through (suites that start their own server)", async () => {

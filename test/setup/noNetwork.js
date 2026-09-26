@@ -17,12 +17,24 @@ const MESSAGE = "Netzwerk in Tests verboten - jest.mock verwenden";
 const ORIGINAL = Symbol.for("eventhelper.noNetwork.original");
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 
+// Every blocked attempt, until test/setup/noNetworkCheck.js collects it after
+// the test. Throwing alone is not enough: best-effort code (deployStatus,
+// "nicht prüfbar") catches the error and the test passes regardless - which is
+// exactly how apiRouter.test.js asked GitHub for real until #432.
+const blocked = [];
+
 class NetworkBlockedError extends Error {
     constructor(target) {
         super(`${MESSAGE} (${target})`);
         this.name = "NetworkBlockedError";
         this.code = "ENETWORKBLOCKED";
+        blocked.push(target);
     }
+}
+
+/** The blocked attempts since the last call, oldest first; empties the list. */
+function takeBlocked() {
+    return blocked.splice(0);
 }
 
 function isLoopback(host) {
@@ -124,4 +136,4 @@ installHttpGuards();
 installFetchGuard();
 installAxiosGuard();
 
-module.exports = { NetworkBlockedError, isLoopback, targetOf, MESSAGE };
+module.exports = { NetworkBlockedError, isLoopback, targetOf, takeBlocked, MESSAGE };

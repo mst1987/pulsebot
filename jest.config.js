@@ -9,8 +9,9 @@ const shared = {
     clearMocks: true,
     // no test may reach the network (axios, http(s), fetch) - jest.mock instead
     setupFiles: ["<rootDir>/test/setup/noNetwork.js"],
+    // a blocked request fails its test even when the code swallowed the error;
     // console output only shows up for a failing test (replaces `silent`)
-    setupFilesAfterEnv: ["<rootDir>/test/setup/consoleBuffer.js"],
+    setupFilesAfterEnv: ["<rootDir>/test/setup/noNetworkCheck.js", "<rootDir>/test/setup/consoleBuffer.js"],
 };
 
 module.exports = {
@@ -60,7 +61,7 @@ module.exports = {
         },
         "./src/web/**/*Store.js": {
             lines: 85.4,
-            functions: 79,
+            functions: 87.8,
             branches: 64.4,
             statements: 76,
         },
