@@ -5,6 +5,8 @@
 //
 // scripts/fetch-mob-icons.js turns this table into src/config/mobIcons.json: for every mob the first candidate
 // whose URL really answers 200 with an image is taken, nothing is written blind. Edit THIS table, not the JSON.
+// Input of scripts/fetch-mob-icons.js only, so it lives beside the script in scripts/data/ (#424): the backend never
+// reads it (it reads the generated src/config/mobIcons.json), and it is no configuration anybody sets.
 
 // The kind of creature -> icons that look right for it (the first one that exists wins).
 const KIND_ICONS = {

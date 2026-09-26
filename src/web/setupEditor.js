@@ -4,8 +4,8 @@
 // ⚠️ The setup is always only a proposal until a human with `raids` write
 // approves it. Raiders never see a draft: every reader outside the editor
 // (signup page, event message, bot lookups, sheet fill) goes through
-// approvedSetupOf() / approvedPlacementFor() / raidHelperSlots(), which only
-// ever read the frozen `approved` snapshot.
+// setupCore.approvedSetupOf() / approvedPlacementFor() / raidHelperSlots(),
+// which only ever read the frozen `approved` snapshot.
 //
 // Stored on the event (eventStore.setEventSetup) as one object:
 //   status              "draft" | "approved"
@@ -30,6 +30,8 @@ const { validatePlacement, placeSlots } = require("../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../utils/setup/score");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { str } = require("../utils/text");
+const { approvedSetupOf, pingTextOf } = require("./setupCore");
+const { suggestSearch } = require("./raidSearch");
 
 
 function fail(code, error) {
@@ -271,12 +273,6 @@ function storeExplanation(eventId, { text, model, version, now = Date.now() }) {
 
 // ---- what everyone else may see -------------------------------------------
 
-/** The last approved lineup of an event, or null. Never a draft. */
-function approvedSetupOf(event) {
-    const setup = event && event.setup;
-    return setup && setup.approved && Array.isArray(setup.approved.groups) ? setup.approved : null;
-}
-
 /**
  * Where the approved setup puts one raider: `{ group, character, spec, role }`,
  * `{ bench: true, character, spec, role }`, or null (no approved setup, or not in it).
@@ -509,8 +505,6 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     if (!canWrite) return head;
     const setup = event.setup;
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
-    // Lazy: setupPing.js reads approvedSetupOf from this module.
-    const { pingTextOf } = require("./setupPing");
     return {
         ...head,
         setup: setup ? withBuffInfoAll(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), table) : null,
@@ -524,7 +518,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         // raiders marked as an extra tank / healer, by user id
         extraRoles: event.extraRoles || {},
         // what the raid still needs and the message that looks for it (raidSearch.js)
-        search: setup ? require("./raidSearch").suggestSearch(event) : null,
+        search: setup ? suggestSearch(event) : null,
         defaults: { weights: DEFAULT_WEIGHTS, maxWeight: MAX_WEIGHT },
         hasApiKey,
         explainJob: job,
@@ -532,7 +526,10 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
 }
 
 module.exports = {
-    proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation,
-    approvedSetupOf, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
-    lineupSignature, mergeOptions, withSetupDefaults, cleanWeights, snapshotOf, avoidPairCount, addUnplacedSignups,
+    proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
+    avoidPairCount,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        withSetupDefaults, addUnplacedSignups,
+    },
 };

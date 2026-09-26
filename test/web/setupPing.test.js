@@ -1,7 +1,7 @@
 // "Alle pingen" (setupPing.js + the Discord button/modal in setupPingBot.js):
 // every group of the approved setup is pinged in the event channel with the
 // orga's own text (else a default), the bench never. Stores and Discord are
-// mocks; the approved setup is read by the real setupEditor.
+// mocks; the approved setup is read by the real setupCore.
 const mockEvents = new Map();
 jest.mock("../../src/web/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
@@ -19,7 +19,8 @@ jest.mock("../../src/web/eventDraft", () => ({ guildFor: (interaction) => ({ gui
 
 const eventStore = require("../../src/web/eventStore");
 const discord = require("../../src/web/discord");
-const { setupPingPlan, callSetupPing, saveSetupPingText, pingTextOf, PING_TEXT } = require("../../src/web/setupPing");
+const { setupPingPlan, callSetupPing, saveSetupPingText } = require("../../src/web/setupPing");
+const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../src/web/setupCore");
 const bot = require("../../src/web/setupPingBot");
 const command = require("../../src/commands/event/setupPingButton");
 
@@ -177,6 +178,6 @@ describe("the Discord button + modal (setupPingBot)", () => {
 
     it("ignores ids that are no own event", () => {
         expect(bot.parsePingId("setup-ping:../../x")).toEqual({ eventId: "" });
-        expect(bot.pingButtonRow("eh-abc123").components[0].custom_id).toBe("setup-ping:eh-abc123");
+        expect(pingButtonRow("eh-abc123").components[0].custom_id).toBe("setup-ping:eh-abc123");
     });
 });

@@ -170,13 +170,13 @@ describe("publishing", () => {
 
 describe("room maps", () => {
     it("recognises an image by its bytes, not by what the upload claims", () => {
-        expect(store.sniffImage(PNG)).toMatchObject({ mime: "image/png", ext: "png" });
-        expect(store.sniffImage(JPG)).toMatchObject({ mime: "image/jpeg", ext: "jpg" });
-        expect(store.sniffImage(WEBP)).toMatchObject({ mime: "image/webp", ext: "webp" });
-        expect(store.sniffImage(Buffer.from("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"))).toBeNull();
-        expect(store.sniffImage(Buffer.from("GIF89a" + "x".repeat(20)))).toBeNull();
-        expect(store.sniffImage(Buffer.alloc(3))).toBeNull();
-        expect(store.sniffImage("not a buffer")).toBeNull();
+        expect(store._internal.sniffImage(PNG)).toMatchObject({ mime: "image/png", ext: "png" });
+        expect(store._internal.sniffImage(JPG)).toMatchObject({ mime: "image/jpeg", ext: "jpg" });
+        expect(store._internal.sniffImage(WEBP)).toMatchObject({ mime: "image/webp", ext: "webp" });
+        expect(store._internal.sniffImage(Buffer.from("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"))).toBeNull();
+        expect(store._internal.sniffImage(Buffer.from("GIF89a" + "x".repeat(20)))).toBeNull();
+        expect(store._internal.sniffImage(Buffer.alloc(3))).toBeNull();
+        expect(store._internal.sniffImage("not a buffer")).toBeNull();
     });
 
     it("stores, reads, replaces and deletes a map per boss and per instance", () => {
@@ -225,9 +225,9 @@ describe("Raid-Helper events: the switch and the remembered line-up", () => {
     const EV = "1400000000000000009";
 
     it("normalizeLink keeps only a Raid-Helper switch with known instances, sane size and composition", () => {
-        expect(store.normalizeLink(null)).toBeNull();
-        expect(store.normalizeLink({ source: "own" })).toBeNull();
-        expect(store.normalizeLink({ source: "raidhelper", enabled: true, instanceIds: ["bt", "nope", "bt"], size: 99, composition: { tank: 3, healer: "x", foo: 1 }, versionId: "!!", guildId: "abc" }))
+        expect(store._internal.normalizeLink(null)).toBeNull();
+        expect(store._internal.normalizeLink({ source: "own" })).toBeNull();
+        expect(store._internal.normalizeLink({ source: "raidhelper", enabled: true, instanceIds: ["bt", "nope", "bt"], size: 99, composition: { tank: 3, healer: "x", foo: 1 }, versionId: "!!", guildId: "abc" }))
             .toMatchObject({ enabled: true, instanceIds: ["bt"], size: 0, composition: { tank: 3 }, versionId: "tbc", guildId: "" });
     });
 
@@ -251,7 +251,7 @@ describe("Raid-Helper events: the switch and the remembered line-up", () => {
         expect(r.plan.bosses[BOSS].tokens.map((t) => t.userId)).toEqual(["u1", "u-gone"]);
         expect(r.dropped).toBe(1);
         const before = { "u-gone": { character: "Weg", spec: "Mage-Fire", rhName: "", group: 2 } };
-        expect(store.knownAfter(r.plan.bosses, [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }, { userId: "u2", character: "Gone", gone: true }], before))
+        expect(store._internal.knownAfter(r.plan.bosses, [{ userId: "u1", character: "Tanky", spec: "Warrior-Protection", group: 1 }, { userId: "u2", character: "Gone", gone: true }], before))
             .toEqual({ u1: { character: "Tanky", spec: "Warrior-Protection", rhName: "", group: 1 }, "u-gone": before["u-gone"] });
     });
 

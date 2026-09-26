@@ -12,29 +12,16 @@
 // someone not in the lineup is told so, privately.
 const { MessageFlags } = require("discord.js");
 const eventStore = require("./eventStore");
-const { approvedSetupOf } = require("./setupEditor");
+const { approvedSetupOf, CONFIRM_PREFIX } = require("./setupCore");
+const { postOrEditSetupMessage } = require("./setupMessage");
 
-const CONFIRM_PREFIX = "setup-confirm";
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 const STATUS_OF_FIELD = { y: "confirmed", n: "declined" };
-
-const confirmId = (field, eventId) => `${CONFIRM_PREFIX}:${field}:${eventId}`;
 
 /** `{ field, eventId }`; eventId "" when it is no own id. */
 function parseConfirmId(customId) {
     const [, field = "", eventId = ""] = String(customId || "").split(":");
     return { field, eventId: EVENT_ID.test(eventId) ? eventId : "" };
-}
-
-/** The button row under the setup message — every raider reads it, so it is English. */
-function confirmButtonRow(eventId) {
-    return {
-        type: 1,
-        components: [
-            { type: 2, style: 3, custom_id: confirmId("y", eventId), label: "Confirm" },
-            { type: 2, style: 4, custom_id: confirmId("n", eventId), label: "Cancel" },
-        ],
-    };
 }
 
 /**
@@ -54,24 +41,11 @@ async function setConfirmation(eventId, userId, field) {
     // there would silently do nothing visible.
     const placed = (approved.groups || []).some((g) => (g.slots || []).some((s) => String(s.userId) === String(userId)));
     if (!placed) return { code: "not_placed", error: "Du stehst in diesem Setup nicht in einer Gruppe." };
-    // Lazy: setupMessage requires this file back for the button row.
-    const { postOrEditSetupMessage } = require("./setupMessage");
     const prior = (event.setupPost && event.setupPost.confirmations) || {};
     const kept = Object.fromEntries(Object.entries(prior).filter(([, v]) => Number(v && v.version) === Number(approved.version)));
     eventStore.setEventSetupPost(event.id, { confirmations: { ...kept, [String(userId)]: { status, version: approved.version } } });
     const refreshed = await postOrEditSetupMessage(eventId, { userId });
     return { status, refreshed };
-}
-
-/** The confirmations of the currently approved version, plain `{ userId: status }`. */
-function confirmationsFor(event, approved) {
-    if (!approved) return {};
-    const stored = (event && event.setupPost && event.setupPost.confirmations) || {};
-    const out = {};
-    for (const [userId, entry] of Object.entries(stored)) {
-        if (entry && Number(entry.version) === Number(approved.version)) out[userId] = entry.status;
-    }
-    return out;
 }
 
 /** Handle a click of either button. */
@@ -87,6 +61,4 @@ async function handleConfirmComponent(interaction) {
     return interaction.reply({ content: text, flags: MessageFlags.Ephemeral });
 }
 
-module.exports = {
-    CONFIRM_PREFIX, confirmId, parseConfirmId, confirmButtonRow, setConfirmation, confirmationsFor, handleConfirmComponent,
-};
+module.exports = { CONFIRM_PREFIX, parseConfirmId, setConfirmation, handleConfirmComponent };

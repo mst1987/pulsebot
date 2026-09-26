@@ -7,6 +7,8 @@
 //
 // Not in the table (they keep their placeholder icon, the catalog marks them): the Wowhead pages of Towering Infernal
 // (17818), Giant Infernal (17908) and Doomfire (18095, "Doomfire Spirit") name no display, so there is no model render.
+// Input of scripts/fetch-mob-icons.js only, so it lives beside the script in scripts/data/ (#424): the backend never
+// reads it (it reads the generated src/config/mobIcons.json), and it is no configuration anybody sets.
 
 const MOB_NPCS = {
     gathios: 22949,

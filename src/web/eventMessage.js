@@ -80,14 +80,18 @@ const { migrateSignup } = require("./signupCharacters");
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../utils/text");
+const { approvedSetupOf } = require("./setupCore");
+const { getConfig, resolveEventSheetLink } = require("./configStore");
+const { getEventSheet } = require("./eventSheetStore");
+const { getEventSoftres } = require("./eventSoftresStore");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
 // The select of #287 — messages posted before the buttons carry it and keep working.
 const JOIN_SELECT_PREFIX = "event-join";
-// The signup buttons: `event-btn:<eventId>:<action>` ("join"/"class" only on messages posted before #303).
+// The signup buttons: `event-btn:<eventId>:<action>`, action join | class | absence | late | tentative | bench
+// ("join"/"class" only on messages posted before #303).
 const BUTTON_PREFIX = "event-btn";
-const BUTTON_ACTIONS = ["join", "class", "absence", "late", "tentative", "bench"];
 // The public signup select (#303): `event-pick:<eventId>`, value "mine" or a class id.
 const PICK_PREFIX = "event-pick";
 const PICK_MINE = "mine";
@@ -245,8 +249,6 @@ function blockValue(lines, maxLines, max = LIMITS.fieldValue) {
  * channel. "" without an approval.
  */
 function approvedSetupText(event) {
-    // Lazily: setupEditor pulls in the proposal's inputs, which this module does not need otherwise.
-    const { approvedSetupOf } = require("./setupEditor");
     const approved = approvedSetupOf(event);
     if (!approved) return "";
     const names = (list) => list.map((s) => escapeMd(s.character) || "?").join(", ");
@@ -577,9 +579,6 @@ function payloadHash(payload) {
 async function payloadFor(event) {
     await loadAppEmojis(discord.getClient());
     // The category's look (Einstellungen › Kategorien): raid picture and title size.
-    const { getConfig, resolveEventSheetLink } = require("./configStore");
-    const { getEventSheet } = require("./eventSheetStore");
-    const { getEventSoftres } = require("./eventSoftresStore");
     const look = messageLookOf(getConfig(), event.categoryId);
     const sheetLink = resolveEventSheetLink(getEventSheet(event.id), event.categoryId);
     const softres = getEventSoftres(event.id);
@@ -735,9 +734,11 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, BUTTON_ACTIONS, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, LIMITS,
-    signupButtonId, joinSelectId, buttonId, pickSelectId, buttonRows, messageComponents, rosterEntries, classesOf,
-    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash, titleTiles,
-    buildEventMessage, approvedSetupText, sweepEventMessages, redrawEventMessage,
-    postEventMessage, refreshEventMessage, startEventMessageSync,
+    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, messageComponents, rosterEntries,
+    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        LIMITS, signupButtonId, joinSelectId, buttonId, pickSelectId, signupNumbers, embedLength, blockValue, payloadHash,
+        buildEventMessage, sweepEventMessages, redrawEventMessage,
+    },
 };

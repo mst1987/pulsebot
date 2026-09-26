@@ -42,6 +42,8 @@ const {
     roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
 const { str, clip } = require("../utils/text");
+const { approvedSetupOf, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
+const { callSetupPing } = require("./setupPing");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
 const CANCELLED_COLOR = 0xe0524f;
@@ -59,12 +61,6 @@ const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s]
 const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$1").replace(/@/g, "@\u200b");
 const specLabel = (key) => { const s = SPEC_BY_KEY.get(key) || {}; return s.labelEn || s.label || ""; };
 const nameOf = (p) => escapeMd(p.character) || `<@${p.userId}>`;
-
-function approvedOf(event) {
-    // Lazily: setupEditor pulls in the proposal's inputs.
-    const { approvedSetupOf } = require("./setupEditor");
-    return approvedSetupOf(event);
-}
 
 /** Characters Discord counts against the 6000 of an embed. */
 function embedLength(embed) {
@@ -200,14 +196,11 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {} } 
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
     // Confirm, Cancel, Call invites, Ping everyone — one row (Discord's limit
-    // is 5 buttons), in that order. Loaded here, like setupEditor above, to
-    // keep the requires acyclic. Access is per button: Confirm/Cancel are
-    // every raider's own (accessOf "event-signup" in the command file), Call
-    // invites and Ping everyone the orga's alone (accessOf "event") — merging
-    // the row changes nothing about that.
-    const { inviteButtonRow } = require("./inviteCallBot");
-    const { confirmButtonRow } = require("./setupConfirmBot");
-    const { pingButtonRow } = require("./setupPingBot");
+    // is 5 buttons), in that order; the rows come from setupCore.js, so this
+    // module never requires a *Bot.js back. Access is per button:
+    // Confirm/Cancel are every raider's own (accessOf "event-signup" in the
+    // command file), Call invites and Ping everyone the orga's alone (accessOf
+    // "event") — merging the row changes nothing about that.
     const buttons = {
         type: 1,
         components: [...confirmButtonRow(event.id).components, ...inviteButtonRow(event.id).components, ...pingButtonRow(event.id).components],
@@ -290,7 +283,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_MS, now = () => Date.now() } = {}) {
     const event = eventStore.getEvent(eventId);
     if (!event) return { skipped: "not_found" };
-    const approved = approvedOf(event);
+    const approved = approvedSetupOf(event);
     if (!approved) return { skipped: "no_approved_setup" };
     if (event.status === "cancelled") return { skipped: "cancelled" };
     if (!dmsEnabled(event, config)) return { skipped: "off" };
@@ -342,8 +335,6 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 
 async function payloadFor(event, approved) {
     await loadAppEmojis(discord.getClient());
-    // Lazy: setupConfirmBot requires this module back for postOrEditSetupMessage.
-    const { confirmationsFor } = require("./setupConfirmBot");
     return buildSetupMessage(event, approved, { emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved) });
 }
 
@@ -356,7 +347,7 @@ async function payloadFor(event, approved) {
 async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now() } = {}) {
     const event = eventStore.getEvent(eventId);
     if (!event) return { code: "not_found", error: "Event nicht gefunden." };
-    const approved = approvedOf(event);
+    const approved = approvedSetupOf(event);
     if (!approved) return { code: "no_approved_setup", error: "Es gibt noch kein freigegebenes Setup." };
     const post = event.setupPost || {};
     const cancelled = event.status === "cancelled";
@@ -406,7 +397,6 @@ async function publishSetup(eventId, { userId = "", now = Date.now(), config = g
     // again. Best-effort, like the DMs below — a failed ping never fails the
     // approval, it is simply not logged.
     if (event && post.action === "posted") {
-        const { callSetupPing } = require("./setupPing");
         await callSetupPing({ guildId: event.guildId, eventId, userId }).catch(() => {});
     }
     let dms = null;
@@ -431,7 +421,7 @@ async function refreshSetupMessage(eventId) {
  */
 function publishView(event, { config = getConfig(), channelName = "" } = {}) {
     const post = (event && event.setupPost) || {};
-    const approved = approvedOf(event);
+    const approved = approvedSetupOf(event);
     const setup = event && event.setup;
     // Before an approval the draft is what will be sent; afterwards the approved lineup.
     const lineup = setup && setup.status !== "approved" ? setup : approved;
