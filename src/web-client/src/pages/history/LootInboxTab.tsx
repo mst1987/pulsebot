@@ -30,6 +30,7 @@ import WowIcon from "../../components/ui/WowIcon";
 import { InfoIcon, TrashIcon } from "../../components/icons";
 import { ItemIcon, contentIcon } from "../../components/loot/LootBadges";
 import { shortDay } from "./ItemAwardsDialog";
+import { useT } from "../../i18n";
 
 
 /** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
@@ -75,6 +76,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
     categories: Category[];
     onDone: (msg: string) => void;
 }) {
+    const t = useT();
     const ask = useConfirm();
     const toast = useToast();
     const match = session.match;
@@ -94,17 +96,15 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
     const showManual = eventId === "__manual__" || eventId === "__auto__";
     const isCandidate = candidates.some((c) => c.eventId === eventId);
     const contentId = dominantContent(session.items);
-    const title = session.contentLabel || session.instance || "Unbekannter Raid";
+    const title = session.contentLabel || session.instance || t("history.shared.unknownRaid");
 
     const accept = async () => {
         setBusy("accept");
         try {
             const r = await acceptLootInbox({ id: session.id, event: eventId, manualLabel, categoryId });
-            onDone(
-                `${r.added} Item(s) zu „${r.eventLabel}" übernommen`
-                + `${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`
-                + " Weitere Uploads dieses Raids landen automatisch dort.",
-            );
+            onDone(r.skipped
+                ? t("history.inboxCard.acceptedSkipped", { count: r.added, event: r.eventLabel, skipped: r.skipped })
+                : t("history.inboxCard.accepted", { count: r.added, event: r.eventLabel }));
         } catch (err) {
             toast((err as ApiError).message, "err");
             setBusy("");
@@ -112,11 +112,11 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
     };
 
     const dismiss = async () => {
-        if (!(await ask({ title: "Session verwerfen?", text: `${title}, ${sessionSpan(session)}, ${session.itemCount} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.`, action: "Verwerfen" }))) return;
+        if (!(await ask({ title: t("history.inboxCard.dismissTitle"), text: t("history.inboxCard.dismissText", { title, span: sessionSpan(session), count: session.itemCount }), action: t("common.discard") }))) return;
         setBusy("dismiss");
         try {
             await dismissLootInbox(session.id);
-            onDone("Session verworfen.");
+            onDone(t("history.inboxCard.dismissed"));
         } catch (err) {
             toast((err as ApiError).message, "err");
             setBusy("");
@@ -124,22 +124,23 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
     };
 
     const status = !match
-        ? <Badge tone="mid" tip="Events nicht geladen" tipSub="Beim Upload war Raid-Helper nicht erreichbar. Der Loot ist gesichert — das Event wird hier von Hand gewählt.">Events nicht geladen</Badge>
+        ? <Badge tone="mid" tip={t("history.inboxCard.notLoaded")} tipSub={t("history.inboxCard.notLoadedSub")}>{t("history.inboxCard.notLoaded")}</Badge>
         : match.ambiguous
-            ? <Badge tone="bad" tip="Mehrere Raids" tipSub="An diesem Tag gab es mehrere Events — bitte das passende selbst wählen.">{candidates.length} Raids an diesem Tag</Badge>
+            ? <Badge tone="bad" tip={t("history.inboxCard.multiTip")} tipSub={t("history.inboxCard.multiSub")}>{t("history.inboxCard.multi", { count: candidates.length })}</Badge>
             : match.suggested
-                ? <Badge tone="ok">Vorschlag eindeutig</Badge>
-                : <Badge tone="mid">Kein Event an diesem Tag</Badge>;
+                ? <Badge tone="ok">{t("history.inboxCard.unique")}</Badge>
+                : <Badge tone="mid">{t("history.shared.noEvent")}</Badge>;
 
+    const reporter = session.reporter || t("history.inboxCard.unknownReporter");
     const uploadInfo = [
-        `Von ${session.reporter || "unbekannt"}${session.realm ? ` (${session.realm})` : ""}`,
-        session.tokenName ? `Token „${session.tokenName}"` : "",
-        session.addonVersion ? `Addon ${session.addonVersion}` : "",
-        session.updatedAt ? `zuletzt ${shortDay(session.updatedAt)} ${hhmm(session.updatedAt)}` : "",
+        session.realm ? t("history.inboxCard.fromRealm", { name: reporter, realm: session.realm }) : t("history.inboxCard.from", { name: reporter }),
+        session.tokenName ? t("history.inboxCard.token", { name: session.tokenName }) : "",
+        session.addonVersion ? t("history.inboxCard.addon", { version: session.addonVersion }) : "",
+        session.updatedAt ? t("history.shared.last", { date: `${shortDay(session.updatedAt)} ${hhmm(session.updatedAt)}` }) : "",
     ].filter(Boolean).join(" · ");
 
     const shown = session.items.slice(0, ICONS_SHOWN);
-    const disabledReason = !eventId ? "Erst ein Event wählen" : "";
+    const disabledReason = !eventId ? t("history.inboxCard.chooseFirst") : "";
 
     return (
         <div className="dash-card hl-card hl-session">
@@ -149,24 +150,24 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                     <b>{title}</b>
                     <div>
                         {session.startedAt > 0 && <Badge>{sessionSpan(session)}</Badge>}
-                        <Badge count>{session.itemCount} Items</Badge>
+                        <Badge count>{t("history.shared.items", { count: session.itemCount })}</Badge>
                         {/* Visible that the raid name was derived, not reported by
                             the addon — otherwise it reads like a fact nobody
                             questions any more. */}
                         {session.contentSource === "items" && (
-                            <Badge tone="accent" tip="Aus den Items erkannt" tipSub={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs — das Addon hat keinen Raid gemeldet.`}>aus Items erkannt</Badge>
+                            <Badge tone="accent" tip={t("history.inboxCard.detectedTip")} tipSub={t("history.inboxCard.detectedSub", { matched: session.contentMatched, count: session.itemCount })}>{t("history.inboxCard.detected")}</Badge>
                         )}
                     </div>
                 </div>
                 {status}
-                <IconButton icon={<InfoIcon />} size="sm" tip="Upload" tipSub={uploadInfo} />
+                <IconButton icon={<InfoIcon />} size="sm" tip={t("history.inboxCard.upload")} tipSub={uploadInfo} />
             </div>
 
             <div className="hl-session-body">
                 <div>
-                    <span className="hl-lbl">{match?.ambiguous ? "Event wählen" : "Event"}</span>
+                    <span className="hl-lbl">{match?.ambiguous ? t("history.inboxCard.chooseEvent") : t("history.inboxCard.event")}</span>
                     {candidates.length > 0 && (
-                        <div className={candidates.length > 1 ? "hl-radio-grid" : "hl-radio-list"} role="radiogroup" aria-label="Event">
+                        <div className={candidates.length > 1 ? "hl-radio-grid" : "hl-radio-list"} role="radiogroup" aria-label={t("history.inboxCard.event")}>
                             {candidates.map((c) => (
                                 <EventRadio key={c.eventId} ev={c} checked={eventId === c.eventId} onPick={() => setEventId(c.eventId)} />
                             ))}
@@ -174,36 +175,36 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                     )}
                     <div style={{ marginTop: candidates.length ? 8 : 0 }}>
                         {candidates.length > 0 && (
-                            <Expand open={otherOpen} onToggle={() => setOtherOpen((v) => !v)} label="Anderes Event oder ohne Event" />
+                            <Expand open={otherOpen} onToggle={() => setOtherOpen((v) => !v)} label={t("history.inboxCard.other")} />
                         )}
                         {otherOpen && (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: candidates.length ? 8 : 0 }}>
-                                <select aria-label="Anderes Event" value={isCandidate ? "" : eventId} onChange={(e) => setEventId(e.target.value)}>
-                                    <option value="">— Event wählen —</option>
+                                <select aria-label={t("history.inboxCard.otherAria")} value={isCandidate ? "" : eventId} onChange={(e) => setEventId(e.target.value)}>
+                                    <option value="">{t("history.inboxCard.chooseOption")}</option>
                                     {events
                                         .filter((ev) => !candidates.some((c) => c.eventId === ev.id))
                                         .map((ev) => (
                                             <option key={ev.id} value={ev.id}>
-                                                {ev.title || "(ohne Titel)"}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
+                                                {ev.title || t("history.shared.untitled")}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
                                             </option>
                                         ))}
-                                    <option value="__auto__">Erneut automatisch nach Datum zuordnen</option>
-                                    <option value="__manual__">Ohne Raid-Helper-Event, eigener Titel</option>
+                                    <option value="__auto__">{t("history.inboxCard.auto")}</option>
+                                    <option value="__manual__">{t("history.inboxCard.manual")}</option>
                                 </select>
                                 {showManual && (
                                     <div className="hl-manual">
                                         <input
-                                            type="text" value={manualLabel} aria-label="Titel"
+                                            type="text" value={manualLabel} aria-label={t("history.shared.titleAria")}
                                             // The recognised raid as placeholder: it is
                                             // almost always the title one would type.
-                                            placeholder={session.contentLabel ? `${session.contentLabel} — ${shortDay(session.startedAt)}` : "Titel, z.B. SSC/TK — 12.07."}
+                                            placeholder={session.contentLabel ? `${session.contentLabel} — ${shortDay(session.startedAt)}` : t("history.inboxCard.titlePlaceholder")}
                                             onChange={(e) => setManualLabel(e.target.value)}
                                         />
                                         <select
-                                            aria-label="Kategorie" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-                                            data-tip="Kategorie" data-tip-sub="Nur wirksam ohne zugeordnetes Event — sonst gilt die Kategorie des Events."
+                                            aria-label={t("history.shared.category")} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+                                            data-tip={t("history.shared.category")} data-tip-sub={t("history.inboxCard.categorySub")}
                                         >
-                                            <option value="">Keine Kategorie</option>
+                                            <option value="">{t("history.shared.noCategory")}</option>
                                             {categories.filter((c) => c.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
@@ -213,10 +214,10 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                     </div>
                 </div>
                 <div>
-                    <span className="hl-lbl">Loot</span>
+                    <span className="hl-lbl">{t("history.inboxCard.loot")}</span>
                     <div className="hl-icons">
                         {shown.map((it, i) => (
-                            <span key={`${it.itemId}-${i}`} data-tip={it.itemName || `Item ${it.itemId}`} data-tip-sub={it.character}>
+                            <span key={`${it.itemId}-${i}`} data-tip={it.itemName || t("history.shared.itemFallback", { id: it.itemId })} data-tip-sub={it.character}>
                                 <ItemIcon url={it.itemIconUrl} quality={it.itemQuality} size="md" />
                             </span>
                         ))}
@@ -226,12 +227,12 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
             </div>
 
             <div className="hl-session-foot">
-                <Button icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>Übernehmen</Button>
-                <Button variant="ghost" onClick={() => setLootOpen(true)}>Loot ansehen</Button>
+                <Button icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>{t("common.apply")}</Button>
+                <Button variant="ghost" onClick={() => setLootOpen(true)}>{t("history.shared.viewLoot")}</Button>
                 {disabledReason && <span className="muted">{disabledReason}</span>}
                 <IconButton
                     className="danger-end" icon={<TrashIcon />} tone="danger"
-                    tip="Session verwerfen" tipSub="Wird nicht erneut angeboten — mit Rückfrage."
+                    tip={t("history.inboxCard.dismissTip")} tipSub={t("history.inboxCard.dismissSub")}
                     disabled={!!busy} onClick={dismiss}
                 />
             </div>
@@ -243,8 +244,8 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                 icon={contentIcon(contentId)}
                 tone="history"
                 kicker={sessionSpan(session)}
-                title={`${title} · ${session.itemCount} Items`}
-                footer={<Button onClick={() => setLootOpen(false)}>Schließen</Button>}
+                title={t("history.inboxCard.modalTitle", { title, count: session.itemCount })}
+                footer={<Button onClick={() => setLootOpen(false)}>{t("common.close")}</Button>}
             >
                 <LootTable items={session.items} />
             </Modal>
@@ -254,25 +255,26 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
 
 /** Accepted sessions that keep appending by themselves — folded by default. */
 export function LinkedSessions({ linked }: { linked: InboxLinkedSession[] }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     if (!linked.length) return null;
     return (
         <div className="hl-linked">
             <div className="hl-linked-head">
-                <span className="kicker">Verknüpft · laufen automatisch weiter</span>
+                <span className="kicker">{t("history.inboxCard.linked")}</span>
                 <Badge count>{linked.length}</Badge>
                 <Expand open={open} onToggle={() => setOpen((v) => !v)} />
             </div>
             {open && linked.map((l) => (
                 <div className="hl-linked-row" key={l.sessionId}>
-                    <b>{l.contentLabel || "Raid"}</b>
+                    <b>{l.contentLabel || t("history.inboxCard.raidFallback")}</b>
                     {l.startedAt > 0 && <span className="muted mono">{shortDay(l.startedAt)}</span>}
                     <span className="muted">→ {l.eventId
                         ? <Link className="mlink" to={`/history/event?event=${encodeURIComponent(l.eventId)}`}>{l.eventLabel || l.eventId}</Link>
                         : (l.eventLabel || "—")}</span>
                     {l.appended > 0
-                        ? <Badge tone="ok" count tip="Nachgeliefert" tipSub="Items, die spätere Uploads ohne Klick an das Event angehängt haben.">+{l.appended} nachgeliefert</Badge>
-                        : <Badge count>{l.itemCount} Items</Badge>}
+                        ? <Badge tone="ok" count tip={t("history.inboxCard.appendedTip")} tipSub={t("history.inboxCard.appendedSub")}>{t("history.inboxCard.appended", { count: l.appended })}</Badge>
+                        : <Badge count>{t("history.shared.items", { count: l.itemCount })}</Badge>}
                 </div>
             ))}
         </div>

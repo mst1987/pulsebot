@@ -7,10 +7,11 @@
 // stand-ins that name themselves.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { HistoryData } from "../../api";
 import { adminUser, renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import HistoryPage from "./HistoryPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -144,5 +145,22 @@ describe("old links", () => {
         renderPage(<HistoryPage />, { route: "/history?tab=inbox", path: "/history", user: lootOnly });
         expect(await screen.findByRole("heading", { name: "Historie & Loot" })).toBeInTheDocument();
         expect(await screen.findByRole("tab", { name: "Items" })).toHaveAttribute("aria-selected", "true");
+    });
+});
+
+describe("in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the areas, the views and the head buttons in English", async () => {
+        await switchLang("en");
+        renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history" });
+
+        const areas = within(await screen.findByRole("radiogroup", { name: "Area" })).getAllByRole("radio");
+        expect(areas.map((a) => a.textContent)).toEqual(["Loot", "Raids & logs", "Characters"]);
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Raids", "Warcraft Logs"]);
+        expect(screen.getByRole("heading", { name: "History & loot" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Import loot/ })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Addon inbox/ })).toBeInTheDocument();
+        expect(screen.getByText("Past raids")).toBeInTheDocument();
     });
 });

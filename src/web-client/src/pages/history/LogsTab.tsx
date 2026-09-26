@@ -8,21 +8,23 @@ import { useConfirm } from "../../components/ui/Modal";
 import { IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 
 type LogSortKey = "log" | "date" | "zone" | "event" | "status";
 
 const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", zone: "asc", event: "asc", status: "asc" };
 
 export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg: string) => void }) {
+    const t = useT();
     const ask = useConfirm();
     const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
     const toast = useToast();
 
     const remove = async (l: LootLog) => {
-        if (!(await ask({ title: "Log entfernen?", text: `„${l.title || l.reportId || "Log"}" wird aus der Liste entfernt.`, action: "Entfernen" }))) return;
+        if (!(await ask({ title: t("history.logs.removeTitle"), text: t("history.logs.removeText", { name: l.title || l.reportId || t("history.logs.logFallback") }), action: t("common.remove") }))) return;
         try {
             await deleteHistoryLog(l.id);
-            onChanged("Gelöscht.");
+            onChanged(t("history.logs.deleted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -30,13 +32,13 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
 
     const head = (
         <PartHead
-            icon="inv_misc_pocketwatch_01" tone="history" title="Warcraft Logs" crumb="Raids & Logs › Warcraft Logs"
-            tip="Warcraft Logs" tipSub="Die in den Log-Channels geposteten Logs. Log-Channels werden in den Einstellungen konfiguriert."
-            action={<Badge count>{logs.length} Logs</Badge>}
+            icon="inv_misc_pocketwatch_01" tone="history" title={t("history.page.view.logs")} crumb={t("history.logs.crumb")}
+            tip={t("history.page.view.logs")} tipSub={t("history.logs.tipSub")}
+            action={<Badge count>{t("history.logs.count", { count: logs.length })}</Badge>}
         />
     );
 
-    if (!logs.length) return <div className="dash-card hl-card">{head}<div className="empty">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</div></div>;
+    if (!logs.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.logs.empty")}</div></div>;
 
     const sorted = apply(logs, (l, key) => {
         switch (key) {
@@ -57,11 +59,11 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
             <table className="idx" style={{ margin: 0 }}>
                 <thead>
                     <tr>
-                        <SortTh sortKey="log" label="Log" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="zone" label="Zone" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="status" label="Status" sort={sort} dir={dir} onSort={onSort} tip="Status" tipSub="Ausgewertet heißt: eine Log-Auswertung liegt vor und kann geöffnet werden." />
+                        <SortTh sortKey="log" label={t("history.logs.colLog")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="date" label={t("history.shared.colDate")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="zone" label={t("history.logs.colZone")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="event" label={t("history.shared.colEvent")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="status" label={t("history.logs.colStatus")} sort={sort} dir={dir} onSort={onSort} tip={t("history.logs.colStatus")} tipSub={t("history.logs.statusSub")} />
                         <th />
                     </tr>
                 </thead>
@@ -72,23 +74,23 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
                         return (
                             <tr key={l.id}>
                                 <td>{wclUrl
-                                    ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{l.title || l.reportId || "(Log)"} ↗</a>
-                                    : (l.title || "(Log)")}</td>
+                                    ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{l.title || l.reportId || t("history.logs.untitled")} ↗</a>
+                                    : (l.title || t("history.logs.untitled"))}</td>
                                 <td className="small">{formatDate(l.postedAt || 0)}</td>
                                 <td className="small">{l.zone || ""}</td>
                                 <td className="small">{l.eventId
                                     ? <Badge icon="inv_misc_note_02" tip={l.eventLabel || l.eventId} tipSub={l.eventStartTime ? formatEventTime(l.eventStartTime) : undefined}>{l.eventLabel || l.eventId}</Badge>
                                     : <span className="sub">—</span>}</td>
-                                <td>{l.status === "done" ? <Badge tone="ok">ausgewertet</Badge> : <Badge tone="mid">offen</Badge>}</td>
+                                <td>{l.status === "done" ? <Badge tone="ok">{t("history.logs.done")}</Badge> : <Badge tone="mid">{t("history.logs.open")}</Badge>}</td>
                                 <td className="cell-actions">
                                     <div className="row-actions" style={{ justifyContent: "flex-end" }}>
                                         {reportUrl && (
                                             <IconButton
-                                                icon={<ExternalIcon />} size="sm" tip="Auswertung öffnen"
+                                                icon={<ExternalIcon />} size="sm" tip={t("history.shared.openEvaluation")}
                                                 onClick={() => { window.location.href = reportUrl; }}
                                             />
                                         )}
-                                        <IconButton icon={<TrashIcon />} tone="danger" size="sm" tip="Log entfernen" tipSub="Nur aus dieser Liste — mit Rückfrage." onClick={() => remove(l)} />
+                                        <IconButton icon={<TrashIcon />} tone="danger" size="sm" tip={t("history.logs.removeTip")} tipSub={t("history.logs.removeSub")} onClick={() => remove(l)} />
                                     </div>
                                 </td>
                             </tr>

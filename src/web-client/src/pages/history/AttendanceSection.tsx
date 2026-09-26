@@ -2,10 +2,12 @@ import type { RosterCharData } from "../../api";
 import { AttendanceBar } from "../../components/roster/RosterCommon";
 import { nightLabel } from "../../lib/rosterView";
 import { Badge, PartHead } from "../../components/ui";
+import { useT } from "../../i18n";
 
 export function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
-    if (!roster) return <p className="sub">Anwesenheit konnte nicht geladen werden.</p>;
-    if (!roster.categories.length) return <p className="sub">Der Charakter gehört zu keiner Raid-Kategorie.</p>;
+    const t = useT();
+    if (!roster) return <p className="sub">{t("history.attendance.loadFailed")}</p>;
+    if (!roster.categories.length) return <p className="sub">{t("history.attendance.noCategory")}</p>;
     return (
         <>
             {roster.categories.map((c) => {
@@ -17,7 +19,7 @@ export function AttendanceSection({ roster }: { roster: RosterCharData | null })
                             icon={c.icon || "ability_warrior_rallyingcry"}
                             tone="roster"
                             title={c.name}
-                            crumb={[...c.contents, raids.length ? `letzte ${raids.length} Raids` : "keine Raids gezählt"].join(" · ")}
+                            crumb={[...c.contents, raids.length ? t("history.attendance.lastRaids", { count: raids.length }) : t("history.attendance.noneCounted")].join(" · ")}
                             action={<AttendanceBar attendance={a} categoryName={c.name} />}
                         />
                         {raids.length
@@ -26,16 +28,16 @@ export function AttendanceSection({ roster }: { roster: RosterCharData | null })
                                     {raids.map((r) => (
                                         <div key={r.eventId} className="ros-night">
                                             <span className="ros-night-date">{nightLabel(r.startTime * 1000)}</span>
-                                            <span className="ros-night-title">{r.title || "Raid"}</span>
+                                            <span className="ros-night-title">{r.title || t("history.attendance.raidFallback")}</span>
                                             <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
-                                                {r.attended ? "da" : "gefehlt"}
+                                                {r.attended ? t("history.attendance.present") : t("history.attendance.absent")}
                                             </Badge>
                                             <span className="sub">{r.reason}</span>
                                         </div>
                                     ))}
                                 </div>
                             )
-                            : <p className="sub ros-empty">Kein zugeordnetes Log und keine Raider-Zuordnung mit Anmeldungen in dieser Kategorie.</p>}
+                            : <p className="sub ros-empty">{t("history.attendance.empty")}</p>}
                     </div>
                 );
             })}

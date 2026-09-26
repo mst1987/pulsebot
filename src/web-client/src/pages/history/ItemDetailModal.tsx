@@ -5,8 +5,10 @@ import { SLOT_LABELS, findingLabel, findingsForSlot, nightLabel } from "../../li
 import { Badge, Button, IconTile, Modal, buttonClass } from "../../components/ui";
 import { gearWowheadUrl, isEnchantable, SOCKET_DE, socketIconUrl } from "./charGear";
 import { EvaluationLink } from "./GearSection";
+import { useT } from "../../i18n";
 
 export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: HistoryCharData; roster: RosterCharData | null; onClose: () => void }) {
+    const t = useT();
     const g = (data.gear || []).find((x) => x.slot === slot);
     if (!g) return null;
     const issues = findingsForSlot(data.gearIssues?.issues || [], slot, g);
@@ -16,6 +18,10 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
     const enchantable = isEnchantable(g, slot);
     const kicker = [SLOT_LABELS[slot] || slot, g.level ? `iLvl ${g.level}` : "", facts?.tier || ""].filter(Boolean).join(" · ");
     const report = data.gearIssues;
+    const reportName = report?.reportTitle || report?.zone || "";
+    const fromReport = report?.generatedAt
+        ? t("history.itemDetail.fromReportDated", { report: reportName, date: fmtMs(report.generatedAt, false) })
+        : t("history.itemDetail.fromReport", { report: reportName });
     return (
         <Modal
             open
@@ -26,8 +32,8 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
             width={600}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Schließen</Button>
-                    {!!g.itemId && <a className={buttonClass("ghost")} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer">Auf Wowhead</a>}
+                    <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
+                    {!!g.itemId && <a className={buttonClass("ghost")} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer">{t("history.shared.wowhead")}</a>}
                     <EvaluationLink gear={report} variant="primary" size="md" />
                 </>
             )}
@@ -37,36 +43,36 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
                     <div key={n} className={`ros-find${i.severity === "high" ? " is-high" : ""}`}>
                         <IconTile icon={i.iconUrl ? <img src={i.iconUrl} alt="" /> : "inv_misc_gem_variety_02"} tone={i.severity === "high" ? "bad" : "mid"} />
                         <div>
-                            <div className="ros-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? "schwer" : "leicht"}</Badge></div>
+                            <div className="ros-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? t("history.shared.severityHigh") : t("history.shared.severityLow")}</Badge></div>
                             <div className="sub">
-                                Aus der Auswertung {report?.reportTitle || report?.zone || ""}{report?.generatedAt ? ` vom ${fmtMs(report.generatedAt, false)}` : ""}.
+                                {fromReport}
                             </div>
                         </div>
                     </div>
                 ))}
                 <div className="ros-kv">
-                    <div className="k">Verzauberung</div>
+                    <div className="k">{t("history.itemDetail.enchant")}</div>
                     <div>
                         {g.enchants.length
-                            ? <><span>{g.enchants.join(", ")}</span><Badge tone="ok" className="ros-kv-end">vorhanden</Badge></>
+                            ? <><span>{g.enchants.join(", ")}</span><Badge tone="ok" className="ros-kv-end">{t("history.itemDetail.present")}</Badge></>
                             : enchantable
-                                ? <><span className="sub">keine</span><Badge tone="bad" className="ros-kv-end">fehlt</Badge></>
-                                : <span className="sub">nicht verzauberbar</span>}
+                                ? <><span className="sub">{t("history.itemDetail.none")}</span><Badge tone="bad" className="ros-kv-end">{t("history.itemDetail.missing")}</Badge></>
+                                : <span className="sub">{t("history.itemDetail.notEnchantable")}</span>}
                     </div>
                     {g.sockets.length
                         ? g.sockets.map((sk, i) => {
                             const filled = !!(sk.gemName || sk.gemText);
                             return [
-                                <div key={`k${i}`} className="k">{i === 0 ? "Sockel" : ""}</div>,
+                                <div key={`k${i}`} className="k">{i === 0 ? t("history.itemDetail.socket") : ""}</div>,
                                 <div key={`v${i}`}>
                                     <img className="ros-kv-ico" src={filled && sk.gemIconUrl ? sk.gemIconUrl : socketIconUrl(sk.type)} alt="" />
-                                    <span className={filled ? "" : "sub"}>{filled ? (sk.gemName || sk.gemText) : "leer"}</span>
+                                    <span className={filled ? "" : "sub"}>{filled ? (sk.gemName || sk.gemText) : t("history.shared.empty")}</span>
                                     <Badge tone={filled ? undefined : "mid"} className="ros-kv-end">{SOCKET_DE[sk.type] || sk.type || "?"}</Badge>
                                 </div>,
                             ];
                         })
-                        : <><div className="k">Sockel</div><div><span className="sub">keine</span></div></>}
-                    <div className="k">Erhalten</div>
+                        : <><div className="k">{t("history.itemDetail.socket")}</div><div><span className="sub">{t("history.itemDetail.none")}</span></div></>}
+                    <div className="k">{t("history.itemDetail.received")}</div>
                     <div>
                         {received
                             ? (
@@ -75,9 +81,15 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
                                     {!!(received.reasonLabel || received.response) && <Badge tone="accent" className="ros-kv-end">{received.reasonLabel || received.response}</Badge>}
                                 </>
                             )
-                            : <span className="sub">nicht im Loot-Import{facts?.content ? ` · Drop: ${[facts.content, facts.boss].filter(Boolean).join(" · ")}` : ""}</span>}
+                            : (
+                                <span className="sub">
+                                    {facts?.content
+                                        ? t("history.itemDetail.notImportedDrop", { drop: [facts.content, facts.boss].filter(Boolean).join(" · ") })
+                                        : t("history.itemDetail.notImported")}
+                                </span>
+                            )}
                     </div>
-                    <div className="k">BiS für</div>
+                    <div className="k">{t("history.itemDetail.bisFor")}</div>
                     <div>
                         {facts?.bisSpecs.length
                             ? (
@@ -89,7 +101,7 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
                             )
                             : (
                                 <span className="sub">
-                                    {!roster ? "nicht geladen" : facts?.contentId ? "auf keiner Caster-BiS-Liste" : "unbekannt – Item nicht in der Raid-Loot-Tabelle"}
+                                    {!roster ? t("history.itemDetail.notLoaded") : facts?.contentId ? t("history.itemDetail.noBisList") : t("history.itemDetail.unknownItem")}
                                 </span>
                             )}
                     </div>

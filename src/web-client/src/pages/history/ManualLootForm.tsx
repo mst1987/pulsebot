@@ -20,6 +20,7 @@ import { useToast } from "../../components/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
+import { useT } from "../../i18n";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
@@ -49,6 +50,7 @@ function ItemPicker({ items, value, onPick }: {
     value: RaidDropItem | null;
     onPick: (item: RaidDropItem | null) => void;
 }) {
+    const t = useT();
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -71,8 +73,8 @@ function ItemPicker({ items, value, onPick }: {
             <div className="row-actions" style={{ gap: 8 }}>
                 {value.iconUrl && <img className="loot-ico" src={value.iconUrl} alt="" loading="lazy" />}
                 <span {...itemQualityProps(value.quality)}>{value.name}</span>
-                <span className="sub" style={{ margin: 0 }}>{value.boss || "ohne Boss"}</span>
-                <button className="btn btn-sm btn-ghost" type="button" onClick={() => onPick(null)}>Anderes Item</button>
+                <span className="sub" style={{ margin: 0 }}>{value.boss || t("history.manual.noBoss")}</span>
+                <button className="btn btn-sm btn-ghost" type="button" onClick={() => onPick(null)}>{t("history.manual.otherItem")}</button>
             </div>
         );
     }
@@ -81,7 +83,7 @@ function ItemPicker({ items, value, onPick }: {
         <div className="hr-picker" ref={rootRef}>
             <input
                 type="text" value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-                placeholder="Item aus diesem Raid suchen …" autoComplete="off"
+                placeholder={t("history.manual.itemSearch")} autoComplete="off"
                 onFocus={() => setOpen(true)}
             />
             <div className={`hr-panel${open && matches.length ? " open" : ""}`}>
@@ -105,6 +107,7 @@ function RaiderPicker({ characters, roster, value, onChange }: {
     value: string;
     onChange: (name: string) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -137,7 +140,7 @@ function RaiderPicker({ characters, roster, value, onChange }: {
         <div className="hr-picker" ref={rootRef}>
             <input
                 type="text" value={value} onChange={(e) => { onChange(e.target.value); setOpen(true); }}
-                placeholder="Charakternamen suchen oder eingeben …" autoComplete="off"
+                placeholder={t("history.manual.charSearch")} autoComplete="off"
                 onFocus={() => setOpen(true)}
                 {...(picked ? classColorProps(picked.classColor) : {})}
             />
@@ -172,6 +175,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
     roster?: string[];
     onAdded: (msg: string) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     // The submit button sits in the dialog's foot, outside the <form>.
     const formId = `manual-loot-${useId().replace(/:/g, "")}`;
@@ -226,7 +230,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
                 offspec: reason?.id === "offspec",
                 awardedAt: awardedAt ? new Date(awardedAt).getTime() : 0,
             });
-            onAdded(`„${r.item.itemName || item.name}" für ${character.trim()} nachgetragen.`);
+            onAdded(t("history.manual.added", { item: r.item.itemName || item.name, character: character.trim() }));
             // Only item and raider are cleared: nachtragen happens in batches
             // ("die drei Sachen vom Dienstag"), and raid, boss and time are the
             // same for all of them.
@@ -244,29 +248,29 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
     // form is about out of sight. The explanations sit in the labels' tooltips.
     return (
         <>
-            <Button variant="ghost" icon="inv_misc_note_05" onClick={() => setOpen(true)}>Item nachtragen</Button>
+            <Button variant="ghost" icon="inv_misc_note_05" onClick={() => setOpen(true)}>{t("history.manual.open")}</Button>
             <Modal
                 open={open}
                 onClose={() => setOpen(false)}
                 width={640}
                 icon="inv_misc_note_05"
                 tone="history"
-                kicker={eventTitle || "Event"}
-                title="Item nachtragen"
-                hint="Raid, Boss und Zeit bleiben für das nächste Item stehen."
+                kicker={eventTitle || t("history.manual.kickerFallback")}
+                title={t("history.manual.open")}
+                hint={t("history.manual.hint")}
                 footer={(
                     <>
-                        <Button variant="ghost" onClick={() => setOpen(false)}>Schließen</Button>
-                        <Button type="submit" form={formId} disabled={busy || !item || !character.trim()} running={busy}>Item hinzufügen</Button>
+                        <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.close")}</Button>
+                        <Button type="submit" form={formId} disabled={busy || !item || !character.trim()} running={busy}>{t("history.manual.add")}</Button>
                     </>
                 )}
             >
-                {loadError && <p className="note">Auswahl konnte nicht geladen werden: {loadError}</p>}
-                {!picker && !loadError && <p className="sub">Lade Auswahl…</p>}
+                {loadError && <p className="note">{t("history.manual.loadError", { error: loadError })}</p>}
+                {!picker && !loadError && <p className="sub">{t("history.manual.loading")}</p>}
                 {picker && (
                     <form id={formId} className="card-form" onSubmit={submit}>
                         <div className="field">
-                            <label className="tipped" data-tip="Raid" data-tip-sub="Zur Auswahl stehen nur Items, die in diesem Raid droppen können.">Raid</label>
+                            <label className="tipped" data-tip={t("history.manual.raid")} data-tip-sub={t("history.manual.raidSub")}>{t("history.manual.raid")}</label>
                             <select value={contentId} onChange={(e) => { setContentId(e.target.value); setBoss(""); setItem(null); }}>
                                 {picker.contents.map((c) => (
                                     <option key={c.id} value={c.id}>{c.label}</option>
@@ -274,24 +278,24 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
                             </select>
                         </div>
                         <div className="field">
-                            <label className="tipped" data-tip="Boss" data-tip-sub={`${items.length} Item(s) zur Auswahl${boss === TRASH ? " (Trash-Drops)" : ""}.`}>Boss</label>
+                            <label className="tipped" data-tip={t("history.manual.boss")} data-tip-sub={boss === TRASH ? t("history.manual.bossSubTrash", { count: items.length }) : t("history.manual.bossSub", { count: items.length })}>{t("history.manual.boss")}</label>
                             <select value={boss} onChange={(e) => { setBoss(e.target.value); setItem(null); }}>
-                                <option value="">Alle Bosse</option>
+                                <option value="">{t("history.manual.allBosses")}</option>
                                 {bosses.map((b) => (
-                                    <option key={b || "none"} value={b}>{b || "ohne Boss (Marken-Items)"}</option>
+                                    <option key={b || "none"} value={b}>{b || t("history.manual.noBossOption")}</option>
                                 ))}
                             </select>
                         </div>
                         <div className="field">
-                            <label>Item</label>
+                            <label>{t("history.shared.colItem")}</label>
                             <ItemPicker items={items} value={item} onPick={setItem} />
                         </div>
                         <div className="field">
-                            <label>Raider</label>
+                            <label>{t("history.shared.colRaider")}</label>
                             <RaiderPicker characters={picker.characters} roster={roster} value={character} onChange={setCharacter} />
                         </div>
                         <div className="field">
-                            <label>Grund</label>
+                            <label>{t("history.shared.reason")}</label>
                             <select value={response} onChange={(e) => setResponse(e.target.value)}>
                                 {picker.reasons.map((r) => (
                                     <option key={r.id} value={r.label}>{r.label}</option>
@@ -299,7 +303,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
                             </select>
                         </div>
                         <div className="field">
-                            <label className="tipped" data-tip="Zeitpunkt" data-tip-sub="Vorbelegt mit dem Raidtermin — bestimmt, unter welchem Abend das Item in der Historie steht.">Zeitpunkt</label>
+                            <label className="tipped" data-tip={t("history.manual.time")} data-tip-sub={t("history.manual.timeSub")}>{t("history.manual.time")}</label>
                             <input type="datetime-local" value={awardedAt} onChange={(e) => setAwardedAt(e.target.value)} />
                         </div>
                     </form>
