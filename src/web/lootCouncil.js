@@ -405,24 +405,18 @@ function needScore({ daysSinceLoot, lootCount, avgLootCount, bisOwned, bisTotal 
     };
 }
 
+// ---- the council roster -------------------------------------------------------
+//
+// councilRoster() loads (judgedRoles, lootByCharacter, the gear), builds one
+// row per raider (rosterRow and its views) and scores the field (scoreRows).
+
 /**
- * The council roster: every caster/healer with loot history or known gear.
- *
- * @param {object} opts
- *   role        "caster" | "healer" | "" (both)
- *   tierIds     tier ids to count loot from ([] = all)
- *   contentIds  extra content ids to count loot from
- *   categoryId  restrict to one raid category (the Monday raid, say)
- *   bisTier     which tier's BiS list to measure against
- *               (default: the tier the guild's newest loot comes from)
+ * Which role each raider is judged as, so a night spent healing does not
+ * become their DPS gear (see charGear.js). Resolved from the same sources the
+ * roster rows use, one pass ahead of them. Returns the map and the raid lead's
+ * planned roles it was overridden with.
  */
-function councilRoster(opts = {}) {
-    const { role = "", categoryId = "" } = opts;
-    const contentFilter = resolveContentFilter(opts);
-    const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
-    // Which role each raider is judged as, so a night spent healing does not
-    // become their DPS gear (see charGear.js). Resolved from the same sources
-    // the roster rows use, one pass ahead of them.
+function judgedRoles() {
     const roleByKey = new Map();
     for (const [key, entry] of Object.entries(characterMap())) {
         const spec = specFor(entry.className, entry.spec);
@@ -438,20 +432,18 @@ function councilRoster(opts = {}) {
     // Gear stehen — die Rolle entscheidet, welches Set überhaupt gesucht wird.
     const planned = plannedRoles();
     for (const [key, wanted] of planned) roleByKey.set(key, wanted);
-    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
-    // Class colour and spec icon are resolved server-side, like everywhere else
-    // in the app — the client never keeps a second copy of the WoW palette.
-    const charStore = characterMap();
-    const now = Date.now();
+    return { roleByKey, planned };
+}
 
-    const allLoot = listAll();
-    const bisTier = opts.bisTier || currentTier(allLoot);
-
-    // Loot per character, split into "counts for the filter" and "all of it".
-    //
-    // The category narrows which items *count* — a raider assigned to Monday
-    // who only ever won something on Thursday belongs in the Monday list with
-    // zero items, not out of it. Who is on the list at all is decided below.
+/**
+ * Loot per character, split into "counts for the filter" and "all of it".
+ *
+ * The category narrows which items *count* — a raider assigned to Monday
+ * who only ever won something on Thursday belongs in the Monday list with
+ * zero items, not out of it. Who is on the list at all is decided in
+ * councilRoster.
+ */
+function lootByCharacter(allLoot, categoryId, contentFilter) {
     const loot = new Map();
     for (const it of allLoot) {
         const key = it.characterKey;
@@ -473,6 +465,255 @@ function councilRoster(opts = {}) {
         bucket.all.push(it);
         if (!contentFilter || contentFilter.has(it.contentId)) bucket.filtered.push(it);
     }
+    return loot;
+}
+
+/**
+ * The BiS list with what the raider wears of it. Copies, not ids: a BiS list
+ * can name the same item twice (the shadow priest's T6 list wants Ring of
+ * Recurrence in *both* finger slots), and owning one of them does not close the
+ * second gap. So the worn items are counted and spent one per BiS entry.
+ */
+function bisItemsFor(bis, gear, bisTier) {
+    const wornCount = new Map();
+    for (const it of (gear && gear.items) || []) {
+        const id = Number(it.itemId);
+        wornCount.set(id, (wornCount.get(id) || 0) + 1);
+    }
+    return bis.items.map((entry) => {
+        const id = Number(entry.id);
+        const left = wornCount.get(id) || 0;
+        if (left > 0) wornCount.set(id, left - 1);
+        return { ...itemView(id, bisTier), owned: left > 0 };
+    });
+}
+
+/** One awarded item as the roster row lists it. */
+function awardedItemView(it) {
+    return {
+        itemId: it.itemId,
+        // The import fills the name in (enrichItemNames), but a row from
+        // before that existed — or one Wowhead was unreachable for —
+        // carries none. The item table answers for anything a caster can
+        // wear, which is every row this page shows.
+        itemName: it.itemName || (wowsims.item(it.itemId) || {}).name || `Item ${it.itemId}`,
+        itemIconUrl: it.itemIconUrl,
+        itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
+        // Where the piece goes, so the comparison matrix can order its
+        // rows like a character sheet. The first slot of a doubled one
+        // (ring, trinket); -1 when the item table does not know it.
+        slot: firstSlotFor(it.itemId),
+        slotName: slotNameFor(it.itemId),
+        contentId: it.contentId,
+        tier: (contentMeta(it.contentId) || {}).tier || "",
+        boss: it.boss || "",
+        reason: it.reason || "",
+        reasonLabel: it.reasonLabel || "",
+        reasonTone: it.reasonTone || "",
+        awardedAt: it.awardedAt || 0,
+        eventLabel: it.eventLabel || "",
+    };
+}
+
+/** The raider's last seen gear as the roster row carries it (null without any). */
+function rosterGearView(gear, specEntry, bisIds, bisTier) {
+    if (!gear) return null;
+    return {
+        seenAt: gear.seenAt,
+        reportId: gear.reportId,
+        reportTitle: gear.reportTitle,
+        itemCount: gear.items.length,
+        spellHit: gearSpellHit(gear),
+        hitCap: hitCapFor(specEntry),
+        // Whether this really is the raider's damage kit. A shaman who
+        // healed last night would otherwise be judged on healing gear:
+        // no DPS worth the name, and every drop "replacing" a healing
+        // piece it has nothing to do with.
+        setRole: (gear.profile || {}).role || "",
+        setConfident: !!(gear.profile || {}).confident,
+        // True when *every* recent log showed the wrong role — the page
+        // says so instead of quietly comparing against healing gear.
+        roleMismatch: !!gear.roleMismatch,
+        // How many newer raids were passed over to find a fitting set,
+        // so "Gear-Stand" can explain why it is not the last raid.
+        skippedReports: gear.skippedReports || 0,
+        // Slots still held by a boss-specific piece (no older raid
+        // showed anything else there) and slots filled from an older
+        // raid instead of one. Both are counted for the page's stamp —
+        // silently comparing against gear nobody wears on a normal
+        // night is precisely what this is here to prevent.
+        // Woher das Set stammt — die Auswertung oder die Armory. Ohne
+        // das liest sich ein Gear-Stand von „gerade eben" wie ein Log
+        // von gerade eben, und das wäre eine Lüge über die Herkunft.
+        source: gear.source || "log",
+        armoryAt: gear.armoryAt || 0,
+        // Ein von Hand geladenes Log (source "wcl"): wann es geholt
+        // wurde, und — wenn es nicht genommen wurde — warum nicht.
+        wclAt: gear.wclAt || 0,
+        logRejected: gear.logRejected || "",
+        unverifiedEnchants: gear.unverifiedEnchants || 0,
+        // Warum die Armory-Antwort nicht genommen wurde, obwohl es
+        // eine gibt: "pvp" (Arenaset) oder "role" (Heilset für einen
+        // Caster). Dann gilt weiter das Set aus dem letzten Raid.
+        armoryRejected: gear.armoryRejected || "",
+        // Jede der letzten Auswertungen zeigt PvP-Gear — dann wird es
+        // gezeigt, aber gesagt.
+        pvpGear: !!gear.pvpGear,
+        situational: gear.items.filter((it) => it.situational).length,
+        substituted: gear.items.filter((it) => it.replacedSituational).length,
+        // Boss-specific pieces that were taken out of the set because
+        // nothing could say what the raider wears there otherwise. The
+        // slot is empty on purpose, and the page says which and why —
+        // showing the piece would claim gear they do not have for the
+        // boss anybody is planning for.
+        dropped: (gear.dropped || []).map((it) => ({
+            slot: it.slot,
+            slotName: it.slotName,
+            itemId: it.itemId,
+            itemName: it.itemName,
+            iconUrl: it.iconUrl,
+            note: it.note,
+        })),
+        // The worn pieces themselves, in character-sheet order, so the
+        // page can show the raider's gear as a row of icons. Whether a
+        // piece is on their BiS list is decided here rather than in the
+        // client, which has no BiS list per raider to check against.
+        items: gear.items.map((it) => wornItemView(it, bisIds, bisTier)),
+    };
+}
+
+/** The BiS block of a roster row. */
+function bisView(bis, bisItems) {
+    return {
+        tier: bis.tier,
+        exact: bis.exact,
+        borrowedFrom: bis.borrowedFrom,
+        // Woher die Liste stammt. Eine geschriebene Wowhead-Liste nennt
+        // keine Sockel und keine Verzauberungen, und das ist etwas
+        // anderes als ein simuliertes Set — die Zeile sagt es dazu.
+        source: bis.source || "",
+        sourceLabel: bis.sourceLabel || "",
+        total: bisItems.length,
+        owned: bisItems.filter((i) => i.owned).length,
+        items: bisItems,
+    };
+}
+
+/**
+ * One raider's roster row, or null when they are not on the council (no
+ * caster/healer spec, or not the role asked for). `ctx` is what councilRoster
+ * loaded once: `{ info, charStore, gearMap, loot, planned, role, bisTier, now }`.
+ */
+function rosterRow(key, ctx) {
+    // Three sources for class and spec, and all three are needed:
+    // characterInfo only annotates raiders who appear in the loot history,
+    // so a raider who has never won anything — exactly the case this page
+    // exists for — would have no spec and be dropped as "not a caster".
+    // The character store knows them from the log evaluations, and the
+    // report's own roster still knows at least the class.
+    const known = ctx.info.get(key) || ctx.charStore[key] || {};
+    const gear = ctx.gearMap.get(key) || null;
+    const className = known.className || (gear && gear.className) || "";
+    const fromData = specFor(className, known.spec);
+    if (!fromData) return null;
+    // Die Festlegung des Raidleads gewinnt, wenn die Klasse sie hergibt —
+    // ein Paladin lässt sich nicht als Caster einplanen, dann bleibt es bei
+    // dem, was die Daten sagen.
+    const wanted = ctx.planned.get(key) || "";
+    const specEntry = (wanted && wanted !== fromData.role && specForRole(className, wanted)) || fromData;
+    if (ctx.role && specEntry.role !== ctx.role) return null;
+
+    const bucket = ctx.loot.get(key) || { all: [], filtered: [], other: 0, character: "" };
+    const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+    const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
+    const bis = bisForSpec(specEntry, ctx.bisTier);
+    const bisItems = bisItemsFor(bis, gear, ctx.bisTier);
+    const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
+
+    const look = classLook(ctx.charStore, key);
+    const character = bucket.character || (gear && gear.character) || key;
+    return {
+        key,
+        character,
+        className,
+        classColor: look.classColor,
+        specIconUrl: look.specIconUrl,
+        // The gear on this page is *last seen in a log*, never live. One
+        // click to the armory is what makes that checkable instead of
+        // something a council has to take on trust.
+        armoryUrl: armoryUrlFor(character),
+        spec: known.spec || "",
+        specKey: specEntry.key,
+        specLabel: specEntry.label,
+        specAssumed: !!specEntry.assumedFromClass,
+        // Als was jemand eingeplant ist, und ob das eine Festlegung war
+        // oder aus den Daten folgt. `roleOptions` sagt der Seite, ob es
+        // überhaupt etwas zu wählen gibt — bei einem Magier nicht.
+        roleOverride: specEntry.role === wanted ? wanted : "",
+        roleFromData: fromData.role,
+        roleOptions: rolesForClass(className),
+        role: specEntry.role,
+        lootCount: filtered.length,
+        lootTotal: bucket.all.length,
+        // Off-spec rolls, shards and bank items: they exist, but they did
+        // nothing for this raider's set, so they do not count towards what
+        // they have already been given (see countsAsLoot).
+        otherCount: bucket.other || 0,
+        lastAwardAt,
+        daysSinceLoot: lastAwardAt ? Math.floor((ctx.now - lastAwardAt) / DAY) : null,
+        items: filtered.map(awardedItemView),
+        gear: rosterGearView(gear, specEntry, bisIds, ctx.bisTier),
+        bis: bisView(bis, bisItems),
+        simSupported: isSimSupported(specEntry),
+    };
+}
+
+/**
+ * The need score of every row. The share component needs the field it is
+ * measured against, so it is added once the whole roster is known. Returns the
+ * field's average loot count.
+ */
+function scoreRows(rows) {
+    const avg = rows.length ? rows.reduce((n, r) => n + r.lootCount, 0) / rows.length : 0;
+    for (const row of rows) {
+        const { score, parts } = needScore({
+            daysSinceLoot: row.daysSinceLoot,
+            lootCount: row.lootCount,
+            avgLootCount: avg,
+            bisOwned: row.bis.owned,
+            bisTotal: row.bis.total,
+        });
+        row.needScore = score;
+        row.needParts = parts;
+    }
+    return avg;
+}
+
+/**
+ * The council roster: every caster/healer with loot history or known gear.
+ *
+ * @param {object} opts
+ *   role        "caster" | "healer" | "" (both)
+ *   tierIds     tier ids to count loot from ([] = all)
+ *   contentIds  extra content ids to count loot from
+ *   categoryId  restrict to one raid category (the Monday raid, say)
+ *   bisTier     which tier's BiS list to measure against
+ *               (default: the tier the guild's newest loot comes from)
+ */
+function councilRoster(opts = {}) {
+    const { role = "", categoryId = "" } = opts;
+    const contentFilter = resolveContentFilter(opts);
+    const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
+    const { roleByKey, planned } = judgedRoles();
+    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
+    // Class colour and spec icon are resolved server-side, like everywhere else
+    // in the app — the client never keeps a second copy of the WoW palette.
+    const charStore = characterMap();
+    const now = Date.now();
+
+    const allLoot = listAll();
+    const bisTier = opts.bisTier || currentTier(allLoot);
+    const loot = lootByCharacter(allLoot, categoryId, contentFilter);
 
     // Everyone who could be on the council: known from loot, from a CLA report,
     // or from both. A raider who has never won an item still belongs on the
@@ -488,197 +729,17 @@ function councilRoster(opts = {}) {
     // deleted, so the loot history stays whole and the decision is reversible.
     const excluded = excludedKeys();
 
+    const ctx = { info, charStore, gearMap, loot, planned, role, bisTier, now };
     const rows = [];
     const skipped = { category: 0, excluded: 0 };
     for (const key of keys) {
         if (members && !members.keys.has(key)) { skipped.category += 1; continue; }
         if (excluded.has(key)) { skipped.excluded += 1; continue; }
-        // Three sources for class and spec, and all three are needed:
-        // characterInfo only annotates raiders who appear in the loot history,
-        // so a raider who has never won anything — exactly the case this page
-        // exists for — would have no spec and be dropped as "not a caster".
-        // The character store knows them from the log evaluations, and the
-        // report's own roster still knows at least the class.
-        const known = info.get(key) || charStore[key] || {};
-        const gear = gearMap.get(key) || null;
-        const className = known.className || (gear && gear.className) || "";
-        const fromData = specFor(className, known.spec);
-        if (!fromData) continue;
-        // Die Festlegung des Raidleads gewinnt, wenn die Klasse sie hergibt —
-        // ein Paladin lässt sich nicht als Caster einplanen, dann bleibt es bei
-        // dem, was die Daten sagen.
-        const wanted = planned.get(key) || "";
-        const specEntry = (wanted && wanted !== fromData.role && specForRole(className, wanted)) || fromData;
-        if (role && specEntry.role !== role) continue;
-
-        const bucket = loot.get(key) || { all: [], filtered: [], other: 0, character: "" };
-        const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
-        const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
-        const bis = bisForSpec(specEntry, bisTier);
-        // Copies, not ids: a BiS list can name the same item twice (the shadow
-        // priest's T6 list wants Ring of Recurrence in *both* finger slots), and
-        // owning one of them does not close the second gap. So the worn items
-        // are counted and spent one per BiS entry.
-        const wornCount = new Map();
-        for (const it of (gear && gear.items) || []) {
-            const id = Number(it.itemId);
-            wornCount.set(id, (wornCount.get(id) || 0) + 1);
-        }
-        const bisItems = bis.items.map((entry) => {
-            const id = Number(entry.id);
-            const left = wornCount.get(id) || 0;
-            if (left > 0) wornCount.set(id, left - 1);
-            return { ...itemView(id, bisTier), owned: left > 0 };
-        });
-        const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
-
-        const look = classLook(charStore, key);
-        const character = bucket.character || (gear && gear.character) || key;
-        rows.push({
-            key,
-            character,
-            className,
-            classColor: look.classColor,
-            specIconUrl: look.specIconUrl,
-            // The gear on this page is *last seen in a log*, never live. One
-            // click to the armory is what makes that checkable instead of
-            // something a council has to take on trust.
-            armoryUrl: armoryUrlFor(character),
-            spec: known.spec || "",
-            specKey: specEntry.key,
-            specLabel: specEntry.label,
-            specAssumed: !!specEntry.assumedFromClass,
-            // Als was jemand eingeplant ist, und ob das eine Festlegung war
-            // oder aus den Daten folgt. `roleOptions` sagt der Seite, ob es
-            // überhaupt etwas zu wählen gibt — bei einem Magier nicht.
-            roleOverride: specEntry.role === wanted ? wanted : "",
-            roleFromData: fromData.role,
-            roleOptions: rolesForClass(className),
-            role: specEntry.role,
-            lootCount: filtered.length,
-            lootTotal: bucket.all.length,
-            // Off-spec rolls, shards and bank items: they exist, but they did
-            // nothing for this raider's set, so they do not count towards what
-            // they have already been given (see countsAsLoot).
-            otherCount: bucket.other || 0,
-            lastAwardAt,
-            daysSinceLoot: lastAwardAt ? Math.floor((now - lastAwardAt) / DAY) : null,
-            items: filtered.map((it) => ({
-                itemId: it.itemId,
-                // The import fills the name in (enrichItemNames), but a row from
-                // before that existed — or one Wowhead was unreachable for —
-                // carries none. The item table answers for anything a caster can
-                // wear, which is every row this page shows.
-                itemName: it.itemName || (wowsims.item(it.itemId) || {}).name || `Item ${it.itemId}`,
-                itemIconUrl: it.itemIconUrl,
-                itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
-                // Where the piece goes, so the comparison matrix can order its
-                // rows like a character sheet. The first slot of a doubled one
-                // (ring, trinket); -1 when the item table does not know it.
-                slot: firstSlotFor(it.itemId),
-                slotName: slotNameFor(it.itemId),
-                contentId: it.contentId,
-                tier: (contentMeta(it.contentId) || {}).tier || "",
-                boss: it.boss || "",
-                reason: it.reason || "",
-                reasonLabel: it.reasonLabel || "",
-                reasonTone: it.reasonTone || "",
-                awardedAt: it.awardedAt || 0,
-                eventLabel: it.eventLabel || "",
-            })),
-            gear: gear ? {
-                seenAt: gear.seenAt,
-                reportId: gear.reportId,
-                reportTitle: gear.reportTitle,
-                itemCount: gear.items.length,
-                spellHit: gearSpellHit(gear),
-                hitCap: hitCapFor(specEntry),
-                // Whether this really is the raider's damage kit. A shaman who
-                // healed last night would otherwise be judged on healing gear:
-                // no DPS worth the name, and every drop "replacing" a healing
-                // piece it has nothing to do with.
-                setRole: (gear.profile || {}).role || "",
-                setConfident: !!(gear.profile || {}).confident,
-                // True when *every* recent log showed the wrong role — the page
-                // says so instead of quietly comparing against healing gear.
-                roleMismatch: !!gear.roleMismatch,
-                // How many newer raids were passed over to find a fitting set,
-                // so "Gear-Stand" can explain why it is not the last raid.
-                skippedReports: gear.skippedReports || 0,
-                // Slots still held by a boss-specific piece (no older raid
-                // showed anything else there) and slots filled from an older
-                // raid instead of one. Both are counted for the page's stamp —
-                // silently comparing against gear nobody wears on a normal
-                // night is precisely what this is here to prevent.
-                // Woher das Set stammt — die Auswertung oder die Armory. Ohne
-                // das liest sich ein Gear-Stand von „gerade eben" wie ein Log
-                // von gerade eben, und das wäre eine Lüge über die Herkunft.
-                source: gear.source || "log",
-                armoryAt: gear.armoryAt || 0,
-                // Ein von Hand geladenes Log (source "wcl"): wann es geholt
-                // wurde, und — wenn es nicht genommen wurde — warum nicht.
-                wclAt: gear.wclAt || 0,
-                logRejected: gear.logRejected || "",
-                unverifiedEnchants: gear.unverifiedEnchants || 0,
-                // Warum die Armory-Antwort nicht genommen wurde, obwohl es
-                // eine gibt: "pvp" (Arenaset) oder "role" (Heilset für einen
-                // Caster). Dann gilt weiter das Set aus dem letzten Raid.
-                armoryRejected: gear.armoryRejected || "",
-                // Jede der letzten Auswertungen zeigt PvP-Gear — dann wird es
-                // gezeigt, aber gesagt.
-                pvpGear: !!gear.pvpGear,
-                situational: gear.items.filter((it) => it.situational).length,
-                substituted: gear.items.filter((it) => it.replacedSituational).length,
-                // Boss-specific pieces that were taken out of the set because
-                // nothing could say what the raider wears there otherwise. The
-                // slot is empty on purpose, and the page says which and why —
-                // showing the piece would claim gear they do not have for the
-                // boss anybody is planning for.
-                dropped: (gear.dropped || []).map((it) => ({
-                    slot: it.slot,
-                    slotName: it.slotName,
-                    itemId: it.itemId,
-                    itemName: it.itemName,
-                    iconUrl: it.iconUrl,
-                    note: it.note,
-                })),
-                // The worn pieces themselves, in character-sheet order, so the
-                // page can show the raider's gear as a row of icons. Whether a
-                // piece is on their BiS list is decided here rather than in the
-                // client, which has no BiS list per raider to check against.
-                items: gear.items.map((it) => wornItemView(it, bisIds, bisTier)),
-            } : null,
-            bis: {
-                tier: bis.tier,
-                exact: bis.exact,
-                borrowedFrom: bis.borrowedFrom,
-                // Woher die Liste stammt. Eine geschriebene Wowhead-Liste nennt
-                // keine Sockel und keine Verzauberungen, und das ist etwas
-                // anderes als ein simuliertes Set — die Zeile sagt es dazu.
-                source: bis.source || "",
-                sourceLabel: bis.sourceLabel || "",
-                total: bisItems.length,
-                owned: bisItems.filter((i) => i.owned).length,
-                items: bisItems,
-            },
-            simSupported: isSimSupported(specEntry),
-        });
+        const row = rosterRow(key, ctx);
+        if (row) rows.push(row);
     }
 
-    // The share component needs the field it is measured against, so the score
-    // is added once the whole roster is known.
-    const avg = rows.length ? rows.reduce((n, r) => n + r.lootCount, 0) / rows.length : 0;
-    for (const row of rows) {
-        const { score, parts } = needScore({
-            daysSinceLoot: row.daysSinceLoot,
-            lootCount: row.lootCount,
-            avgLootCount: avg,
-            bisOwned: row.bis.owned,
-            bisTotal: row.bis.total,
-        });
-        row.needScore = score;
-        row.needParts = parts;
-    }
+    const avg = scoreRows(rows);
     rows.sort((a, b) => b.needScore - a.needScore || a.character.localeCompare(b.character));
     // bisTier goes back out so the page can show which list it is measuring
     // against — especially when nobody picked one and it was derived. The
