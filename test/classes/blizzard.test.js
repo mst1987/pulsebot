@@ -1,11 +1,38 @@
-jest.mock("axios");
+// Blizzard talks through classes/httpClient.js, utils/wowhead.js through
+// axios.get directly. Both end up in the same two fakes, `axios.get` and
+// `axios.post`, so a test programs one place and reads what either sent.
+jest.mock("axios", () => {
+    const mocked = require("../helpers/axiosMock").mockAxios();
+    mocked.get = jest.fn();
+    mocked.post = jest.fn();
+    return mocked;
+});
 
 const axios = require("axios");
+const { transport, reply } = require("../helpers/axiosMock");
 const Blizzard = require("../../src/classes/blizzard.js");
+
+// a client request → the fake `axios.get(url, config)` / `axios.post(url, data, config)`;
+// its answer (or `{ response: { status } }` rejection) → a real axios answer
+async function viaFakes(config) {
+    try {
+        const res = config.method === "get"
+            ? await axios.get(config.url, config)
+            : await axios.post(config.url, config.data, config);
+        return reply(200, res ? res.data : undefined)(config);
+    } catch (e) {
+        return reply((e && e.response && e.response.status) || 500, "")(config);
+    }
+}
 
 describe("classes/Blizzard", () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.spyOn(console, "warn").mockImplementation(() => {});
+        axios.get.mockReset();
+        axios.post.mockReset();
+        transport.mockReset();
+        transport.mockImplementation(viaFakes);
     });
 
     describe("configuration", () => {
@@ -308,6 +335,54 @@ describe("classes/Blizzard", () => {
         it("returns null without credentials", async () => {
             expect(await new Blizzard().getCharacterSummary("Foo")).toBeNull();
             expect(axios.get).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("transport (classes/httpClient)", () => {
+        const configured = () => new Blizzard({ clientId: "id", clientSecret: "secret" });
+
+        it("caps the token request at 10 s and the profile request at 12 s", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { name: "Foo" } });
+            await configured().getCharacterSummary("Foo");
+            expect(axios.post.mock.calls[0][2].timeout).toBe(10000);
+            expect(axios.get.mock.calls[0][1].timeout).toBe(12000);
+        });
+
+        it("keeps lastError's shape: status plus the error code as message", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockRejectedValue({ response: { status: 404 } });
+            const c = configured();
+            await c.getEquipment("Ghost");
+            expect(c.lastError).toEqual({ status: 404, message: "ERR_BAD_REQUEST", namespace: "profile-classicann-eu" });
+        });
+
+        it("retries a 5xx once, and a 404 never", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get
+                .mockRejectedValueOnce({ response: { status: 503 } })
+                .mockResolvedValueOnce({ data: { name: "Foo" } });
+            expect(await configured().getCharacterSummary("Foo")).toMatchObject({ name: "Foo" });
+            expect(axios.get).toHaveBeenCalledTimes(2);
+
+            axios.get.mockReset();
+            axios.get.mockRejectedValue({ response: { status: 404 } });
+            expect(await configured().getCharacterSummary("Foo")).toBeNull();
+            expect(axios.get).toHaveBeenCalledTimes(1);
+        });
+
+        it("records a timeout without a status", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            transport.mockImplementation((config) => {
+                if (config.method === "post") return viaFakes(config);
+                const { timeout } = require("../helpers/axiosMock");
+                return timeout()(config);
+            });
+            const c = configured();
+            expect(await c.getEquipment("Slow")).toBeNull();
+            expect(c.lastError).toEqual({ status: null, message: "ECONNABORTED", namespace: "profile-classicann-eu" });
+            // the one retry was used
+            expect(transport).toHaveBeenCalledTimes(3);
         });
     });
 });
