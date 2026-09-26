@@ -3,24 +3,24 @@
 // the public read view. The stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
-jest.mock("../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
-jest.mock("../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../src/web/eventStore"),
+jest.mock("../../../src/web/eventStore", () => ({
+    ...jest.requireActual("../../../src/web/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
 
-const { readJsonBody, readRawBody } = require("../../src/web/apiBody");
-const { requireCsrf } = require("../../src/web/apiMiddleware");
-const { tempStoreFile } = require("../helpers/tempStore");
-const { ownEvent } = require("../factories/events");
-const store = require("../../src/web/raidplanStore");
-const profiles = require("../../src/web/raidplanProfileStore");
-const route = require("../../src/web/apiRoutes/raidplan");
-const { checkAccess, areasFor, UNGATED } = require("../../src/web/apiAccess");
+const { readJsonBody, readRawBody } = require("../../../src/web/apiBody");
+const { requireCsrf } = require("../../../src/web/apiMiddleware");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const { ownEvent } = require("../../factories/events");
+const store = require("../../../src/web/raidplanStore");
+const profiles = require("../../../src/web/raidplanProfileStore");
+const route = require("../../../src/web/apiRoutes/raidplan");
+const { checkAccess, areasFor, UNGATED } = require("../../../src/web/apiAccess");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
@@ -38,7 +38,7 @@ function eventWith(setup) {
     return ownEvent({ id: "eh_1", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"], setup });
 }
 
-const { mockRes, status, json } = require("../helpers/http");
+const { mockRes, status, json } = require("../../helpers/http");
 const body = (r) => { const p = json(r); return p.data || p.error; };
 
 async function call(handler, user, payload, query = "") {
@@ -398,7 +398,7 @@ describe("GET /api/raidplan/public", () => {
 });
 
 describe("what a raider counts as", () => {
-    const { resolveRole } = require("../../src/web/raidplan");
+    const { resolveRole } = require("../../../src/web/raidplan");
     const spec = (role) => ({ role });
 
     it("takes the placed role when it is one of the four, else the spec's, else dps", () => {
@@ -411,7 +411,7 @@ describe("what a raider counts as", () => {
     });
 
     it("classifies every TBC spec of the rule set as tank, healer, melee or ranged", () => {
-        const { rulesFor } = require("../../src/config/gameVersions");
+        const { rulesFor } = require("../../../src/config/gameVersions");
         const roles = {};
         for (const c of rulesFor("tbc").classes) for (const sp of c.specs) roles[sp.key] = resolveRole("", sp);
         for (const key of ["Rogue-Combat", "Warrior-Arms", "Warrior-Fury", "Paladin-Retribution", "Shaman-Enhancement", "Druid-Feral"]) expect(roles[key]).toBe("melee");

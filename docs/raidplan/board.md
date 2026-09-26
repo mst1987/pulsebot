@@ -69,7 +69,7 @@ proxy's HTML.
   (boss / trash) "Karte ausblenden / anzeigen" (`BossNav` `onMap`). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/web/raidplanAutoPlace.test.js`.
 - Tests: `test/web-client/raidplanSection.test.js`, `test/web/raidplanBoard.test.js` (flag),
-  `test/web/raidplanRoute.test.js` ("a section without its map", order), `test/web/raidplanStore.test.js`,
+  `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/web/raidplanStore.test.js`,
   `test/web/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)
@@ -144,7 +144,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 - Tests: `test/web-client/autoPlace.test.js` (derivation, instances, layout without overlap, overrides, one
   place per player, template placeholder vs. event player vs. missing, facing, the menu helpers, wiring),
   `test/web/raidplanAutoPlace.test.js` (validation, mob numbers, reidBoard / apply / duplicate keep positions
-  and `showMap`), `test/web/raidplanRoute.test.js` (public API with and without the map).
+  and `showMap`), `test/web/apiRoutes/raidplan.test.js` (public API with and without the map).
 - **Look of the auto objects** (`board.autoStyle { [key]: { size, opacity, ring, showName, label, showLabel,
   rotation, autoFace, hidden, lock, z } }`, only what differs from the default, validated by
   `raidplanBoard.cleanAutoStyle`: size in the range of a token (tank) / an icon (mob), opacity 0.1..1, label
@@ -167,7 +167,7 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
 - Tests (look): `test/web-client/autoStyle.test.js` (style through the lib functions, ranges, lock, order,
   reset, the plan uses it, spacing grows without overlap, multi selection),
   `test/web/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
-  apply and duplicate), `test/web/raidplanRoute.test.js` (public API).
+  apply and duplicate), `test/web/apiRoutes/raidplan.test.js` (public API).
 
 ## Facing arrow per icon and role group placeholders (feature/raidplan-10)
 

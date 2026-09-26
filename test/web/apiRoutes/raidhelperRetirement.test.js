@@ -1,24 +1,24 @@
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
-jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
-jest.mock("../../src/web/raidhelperRetirement", () => ({
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
+jest.mock("../../../src/web/raidhelperRetirement", () => ({
     loadChecklist: jest.fn(async () => ({ ready: true, items: [] })),
     setRaidhelperDisabled: jest.fn(async () => ({ checklist: { disabled: true } })),
 }));
-jest.mock("../../src/web/raidhelperHistoryImport", () => ({
+jest.mock("../../../src/web/raidhelperHistoryImport", () => ({
     runImport: jest.fn(async (opts) => ({ dryRun: opts.dryRun, summary: { events: 0 } })),
 }));
 
-const { requireFullAdmin, requireCsrf } = require("../../src/web/apiMiddleware");
-const { readJsonBody } = require("../../src/web/apiBody");
-const retirement = require("../../src/web/raidhelperRetirement");
-const historyImport = require("../../src/web/raidhelperHistoryImport");
-const { getRetirement, postRetirement, postHistoryImport } = require("../../src/web/apiRoutes/raidhelperRetirement");
-const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+const { requireFullAdmin, requireCsrf } = require("../../../src/web/apiMiddleware");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const retirement = require("../../../src/web/raidhelperRetirement");
+const historyImport = require("../../../src/web/raidhelperHistoryImport");
+const { getRetirement, postRetirement, postHistoryImport } = require("../../../src/web/apiRoutes/raidhelperRetirement");
+const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
 
-const { mockRes, status, body } = require("../helpers/http");
+const { mockRes, status, body } = require("../../helpers/http");
 
 describe("apiRoutes/raidhelperRetirement (#291)", () => {
     beforeEach(() => jest.clearAllMocks());

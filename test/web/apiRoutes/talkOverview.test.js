@@ -1,18 +1,18 @@
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: { id: "1" } }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
-jest.mock("../../src/web/talkOverview", () => ({
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1" } }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/talkOverview", () => ({
     overviewStatus: jest.fn(() => [{ guildId: "111", label: "PvE", configured: true, messageId: "m1" }]),
     currentPayload: jest.fn(async () => ({ payload: { embeds: [{ title: "Kommende Raids" }] }, error: null })),
     syncOverview: jest.fn(async () => ({ guildId: "111", label: "PvE", status: "posted", messageId: "m2" })),
 }));
 
-const { requireFullAdmin, requireCsrf } = require("../../src/web/apiMiddleware");
-const { readJsonBody } = require("../../src/web/apiBody");
-const talkOverview = require("../../src/web/talkOverview");
-const { getTalkOverview, postTalkOverview } = require("../../src/web/apiRoutes/talkOverview");
-const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+const { requireFullAdmin, requireCsrf } = require("../../../src/web/apiMiddleware");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const talkOverview = require("../../../src/web/talkOverview");
+const { getTalkOverview, postTalkOverview } = require("../../../src/web/apiRoutes/talkOverview");
+const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
 
-const { mockRes, status, body } = require("../helpers/http");
+const { mockRes, status, body } = require("../../helpers/http");
 
 describe("apiRoutes/talkOverview", () => {
     beforeEach(() => jest.clearAllMocks());

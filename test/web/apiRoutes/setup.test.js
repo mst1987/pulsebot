@@ -2,12 +2,12 @@
 // approved lineup and never the draft, writing takes `raids` write, and the
 // explanation runs as a background job that needs the Anthropic key.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
 const mockEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../../src/web/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -22,30 +22,30 @@ jest.mock("../../src/web/eventStore", () => ({
     }),
 }));
 let mockSignups = [];
-jest.mock("../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../src/web/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../src/web/eventSources", () => ({
+jest.mock("../../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/web/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../../src/web/eventSources", () => ({
     listStoredEvents: () => [],
-    specNameFor: jest.requireActual("../../src/web/eventSources").specNameFor,
+    specNameFor: jest.requireActual("../../../src/web/eventSources").specNameFor,
 }));
-jest.mock("../../src/web/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
-jest.mock("../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../src/web/setupMessage", () => ({
+jest.mock("../../../src/web/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
+jest.mock("../../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/web/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
 const mockExplain = jest.fn();
-jest.mock("../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
+jest.mock("../../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
 
-const { readJsonBody } = require("../../src/web/apiBody");
-const { refreshEventMessage } = require("../../src/web/eventMessage");
-const setupMessage = require("../../src/web/setupMessage");
-const route = require("../../src/web/apiRoutes/setup");
-const { checkAccess } = require("../../src/web/apiAccess");
-const { su } = require("../utils/setup/fixtures");
-const { mockRes, status, body } = require("../helpers/http");
-const { ownEvent } = require("../factories/events");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const { refreshEventMessage } = require("../../../src/web/eventMessage");
+const setupMessage = require("../../../src/web/setupMessage");
+const route = require("../../../src/web/apiRoutes/setup");
+const { checkAccess } = require("../../../src/web/apiAccess");
+const { su } = require("../../utils/setup/fixtures");
+const { mockRes, status, body } = require("../../helpers/http");
+const { ownEvent } = require("../../factories/events");
 
 const ID = "eh-kara";
 const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };

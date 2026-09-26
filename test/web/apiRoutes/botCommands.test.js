@@ -1,20 +1,20 @@
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
     getGuild: jest.fn(() => null),
     listRoles: jest.fn(() => []),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 
-const { requireFullAdmin } = require("../../src/web/apiMiddleware");
-const settingsStore = require("../../src/web/settingsStore");
-const discord = require("../../src/web/discord");
-const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../src/web/apiRoutes/botCommands");
-const { makeCollection } = require("../helpers/mockInteraction");
+const { requireFullAdmin } = require("../../../src/web/apiMiddleware");
+const settingsStore = require("../../../src/web/settingsStore");
+const discord = require("../../../src/web/discord");
+const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../../src/web/apiRoutes/botCommands");
+const { makeCollection } = require("../../helpers/mockInteraction");
 
 const ORGA = "123456789012345678";
-const { mockRes, body } = require("../helpers/http");
+const { mockRes, body } = require("../../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();

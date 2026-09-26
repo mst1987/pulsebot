@@ -2,18 +2,18 @@
 // every path is area `raids`, reading needs read, saving/deleting/running write,
 // and each handler hands the request to the service as it should.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
-jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../src/web/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
 }));
-jest.mock("../../src/web/eventSeriesStore", () => ({
+jest.mock("../../../src/web/eventSeriesStore", () => ({
     deleteSeries: jest.fn(() => true),
     getRuns: jest.fn(() => ({})),
     clearRun: jest.fn(),
 }));
-jest.mock("../../src/web/eventSeries", () => ({
+jest.mock("../../../src/web/eventSeries", () => ({
     MIN_DAYS_BEFORE: 1,
     MAX_DAYS_BEFORE: 28,
     STALE_CREATING_MS: 15 * 60 * 1000,
@@ -23,18 +23,18 @@ jest.mock("../../src/web/eventSeries", () => ({
     runSeries: jest.fn(async () => ({ created: 1, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
 }));
 
-const { readJsonBody } = require("../../src/web/apiBody");
-const store = require("../../src/web/eventSeriesStore");
-const service = require("../../src/web/eventSeries");
-const route = require("../../src/web/apiRoutes/eventSeries");
-const { checkAccess } = require("../../src/web/apiAccess");
-const apiRouter = require("../../src/web/apiRouter");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const store = require("../../../src/web/eventSeriesStore");
+const service = require("../../../src/web/eventSeries");
+const route = require("../../../src/web/apiRoutes/eventSeries");
+const { checkAccess } = require("../../../src/web/apiAccess");
+const apiRouter = require("../../../src/web/apiRouter");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const PATHS = ["/api/raids/series", "/api/raids/series/preview", "/api/raids/series/run"];
 
-const { mockRes, status, body } = require("../helpers/http");
+const { mockRes, status, body } = require("../../helpers/http");
 
 async function call(handler, user, payload, query) {
     mockUser = user;

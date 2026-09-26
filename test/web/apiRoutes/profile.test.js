@@ -3,37 +3,37 @@
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
 
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
 
 const mockReports = [];
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../../src/web/reportStore", () => ({
     listReports: () => mockReports.map((r) => ({ id: r.id, generatedAt: r.generatedAt })),
     getReportRoster: (id) => mockReports.find((r) => r.id === id) || null,
 }));
 const mockCharacters = [];
-jest.mock("../../src/web/characterStore", () => ({ listCharacters: () => mockCharacters }));
+jest.mock("../../../src/web/characterStore", () => ({ listCharacters: () => mockCharacters }));
 const mockAssignments = {};
-jest.mock("../../src/web/raiderCharactersStore", () => ({ listAllAssignments: () => mockAssignments }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" } }) }));
+jest.mock("../../../src/web/raiderCharactersStore", () => ({ listAllAssignments: () => mockAssignments }));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" } }) }));
 
 const mockSummary = jest.fn();
 let mockConfigured = true;
-jest.mock("../../src/classes/blizzard", () => jest.fn().mockImplementation(() => ({
+jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation(() => ({
     isConfigured: () => mockConfigured,
     getCharacterSummary: (...a) => mockSummary(...a),
 })));
 
-const { readJsonBody } = require("../../src/web/apiBody");
-const store = require("../../src/web/raiderProfileStore");
-const route = require("../../src/web/apiRoutes/profile");
-const { tempStoreFile } = require("../helpers/tempStore");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const store = require("../../../src/web/raiderProfileStore");
+const route = require("../../../src/web/apiRoutes/profile");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false };
 const ORGA = { id: "200000000000000009", name: "Orga", isAdmin: true };
 
-const { mockRes, status, json } = require("../helpers/http");
+const { mockRes, status, json } = require("../../helpers/http");
 
 async function call(handler, user, { json: payload = {}, query = "" } = {}) {
     mockUser = user;
@@ -66,7 +66,7 @@ describe("GET/PUT /api/profile", () => {
     });
 
     it("liefert nur die eigene aus Raid-Helper importierte Spec-Historie (#291)", async () => {
-        const history = require("../../src/web/specHistoryStore");
+        const history = require("../../../src/web/specHistoryStore");
         history.useFile(tempStoreFile("spec-history.json"));
         try {
             history.applyImport([
@@ -272,9 +272,9 @@ describe("GET /api/profile/log-characters", () => {
 // darum, dass er genau einmal herausgeht, nur dem eigenen Konto gehört und
 // sofort widerrufbar ist.
 describe("Kalender-Abo (/api/profile/calendar)", () => {
-    const calStore = require("../../src/web/calendarTokenStore");
-    const calFeed = require("../../src/web/calendarFeed");
-    const { requireCsrf } = require("../../src/web/apiMiddleware");
+    const calStore = require("../../../src/web/calendarTokenStore");
+    const calFeed = require("../../../src/web/calendarFeed");
+    const { requireCsrf } = require("../../../src/web/apiMiddleware");
 
     beforeEach(() => {
         calStore.useFile(tempStoreFile("eh-calendar-tokens-route.json"));

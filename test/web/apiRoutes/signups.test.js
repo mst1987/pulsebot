@@ -3,28 +3,28 @@
 // Kategorien nach Raider-Rollen, und die Orga-Liste mit Kommentar und „kann auch“.
 
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
-jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockGroups = [];
-jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
+jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../../src/web/discord", () => ({
     memberRoleIds: jest.fn(async () => mockRoleIds),
     resolveUserNames: jest.fn(async () => ({ "200000000000000001": "anna_discord" })),
 }));
-jest.mock("../../src/web/eventSoftresStore", () => ({ getEventSoftres: () => null }));
+jest.mock("../../../src/web/eventSoftresStore", () => ({ getEventSoftres: () => null }));
 
 const mockEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../../src/web/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
 const mockSignups = new Map();
-jest.mock("../../src/web/signupStore", () => {
-    const actual = jest.requireActual("../../src/web/signupStore");
+jest.mock("../../../src/web/signupStore", () => {
+    const actual = jest.requireActual("../../../src/web/signupStore");
     const list = (eventId) => [...mockSignups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
     return {
         normalizeSignup: actual.normalizeSignup,
@@ -40,13 +40,13 @@ jest.mock("../../src/web/signupStore", () => {
     };
 });
 
-const { readJsonBody } = require("../../src/web/apiBody");
-const profiles = require("../../src/web/raiderProfileStore");
-const route = require("../../src/web/apiRoutes/signups");
-const { categoryVisible } = require("../../src/web/signupView");
-const { tempStoreFile } = require("../helpers/tempStore");
-const { mockRes, status, json } = require("../helpers/http");
-const { ownEvent: ownEventFixture } = require("../factories/events");
+const { readJsonBody } = require("../../../src/web/apiBody");
+const profiles = require("../../../src/web/raiderProfileStore");
+const route = require("../../../src/web/apiRoutes/signups");
+const { categoryVisible } = require("../../../src/web/signupView");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const { mockRes, status, json } = require("../../helpers/http");
+const { ownEvent: ownEventFixture } = require("../../factories/events");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false, access: { signup: { read: true, write: true } } };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false, access: { signup: { read: true, write: true } } };
@@ -249,7 +249,7 @@ describe("POST /api/signups/bulk (#293)", () => {
     });
 
     it("ist im Zugriffsplan für den Bereich Anmeldung eingetragen", () => {
-        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/signups/bulk"]).toBe("signup");
     });
 });

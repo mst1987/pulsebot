@@ -255,8 +255,8 @@ turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs
 ## Tests
 
 `test/web/raidplanBoard.test.js` (slots, marks, zones, auto-fill), `raidplanTemplateStore.test.js` (templates,
-apply, map order), `raidplanTemplateRoute.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
-`raidplanRoute.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
+apply, map order), `apiRoutes/raidplan.templates.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
+`apiRoutes/raidplan.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
 routing in `test/web/server.test.js`, `readRawBody` in `apiBody.test.js`, and
 `test/web-client/raidplan.<thema>.test.js` (board logic run for real in `boards`, `editing`, `slots`, `tokens`,
 `roleGroups`; structure of the pages and texts in both languages in `pages`).
