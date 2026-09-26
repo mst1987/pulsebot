@@ -1,7 +1,7 @@
 // "Meine Aufgaben" and "Auf mich wirkend": the assignments of a section split by their relation to the visitor. Derived from the rows
 // (nothing to maintain). Two kinds never mix: a row where the visitor is the one who does it is a task of his (even when it also
 // targets him, marked "auch auf dich"); a row of somebody else that targets him, his group, his slot or names him in words acts ON him.
-// Pure and tested (test/web-client/mineView.test.js); written with function declarations and one-line signatures only.
+// Pure and tested (src/web-client/src/lib/mineView.test.ts); written with function declarations and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget } from "../api";
 import { isMe, meInRole, resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx, Resolved } from "./assign";

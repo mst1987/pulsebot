@@ -1,5 +1,5 @@
 // The rules behind Einstellungen → Berechtigungen → Bot-Befehle, kept apart from
-// the component so test/web-client/botCommandAccess.test.js can run them in
+// the component so src/web-client/src/lib/botCommandAccess.test.ts can run them in
 // plain Node.
 //
 // Written like lib/settingsLogic.ts: every function is `export function

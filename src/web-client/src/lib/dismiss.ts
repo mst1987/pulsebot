@@ -1,6 +1,6 @@
 // The pure half of hooks/useDismiss.ts: what counts as "inside" an open
-// popover, menu or picker. Kept free of React and of DOM classes so Jest can
-// run it through loadTs (test/web-client/useDismiss.test.js).
+// popover, menu or picker. Kept free of React and of DOM classes; tested in
+// src/web-client/src/lib/useDismiss.test.ts.
 
 /** A part of the page that counts as inside: a ref, a node, or nothing (yet). */
 export type DismissTarget = { current: Node | null } | Node | null | undefined;

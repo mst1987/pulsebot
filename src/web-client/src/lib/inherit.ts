@@ -1,6 +1,5 @@
 // The "Standard" of a raid plan template on the client (the server's twin is src/web/raidplanInherit.js): rows entered once for
-// every boss, inherited by each section, deviated from or switched off per boss. Pure. Written with function declarations and
-// one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
+// every boss, inherited by each section, deviated from or switched off per boss. Pure. Tests: src/web-client/src/lib/inherit.test.ts.
 import type { RaidplanAssignment, RaidplanBoard, RaidplanMobRef } from "../api";
 import { newRowId } from "./raidplan";
 

@@ -4,7 +4,7 @@
 // what goes to the server — plus the channel name by the category's schema.
 //
 // Written strippable like lib/raidTemplates.ts (one-line signatures, no type
-// syntax in bodies), so test/web-client/eventCreateDialog.test.js runs it in
+// syntax in bodies), so src/web-client/src/lib/eventCreateDialog.test.ts runs it in
 // plain Node against the server's rules (eventStore.normalizePlan,
 // utils/channelNames.renderChannelName).
 import type { EmbedImage, EmojiStyle, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";

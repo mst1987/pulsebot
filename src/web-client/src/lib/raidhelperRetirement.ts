@@ -2,7 +2,7 @@ import type { HistoryImportResult, RetirementChecklist, RetirementItem, Retireme
 
 // The rules behind the "Umstieg von Raid-Helper" card (#291): how a checklist
 // item reads, when the switch may be pressed, and what the import dialog says.
-// Kept free of React and strippable, so test/web-client/raidhelperRetirement.test.js
+// Kept free of React and strippable, so src/web-client/src/lib/raidhelperRetirement.test.ts
 // runs it for real.
 
 export type BadgeLook = { tone: "ok" | "mid" | "bad" | "accent" | ""; label: string };

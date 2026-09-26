@@ -2,7 +2,7 @@
 // the assignment bar offers (who / at whom / task), what a category lists (role slots and players in ONE list, grouped tank / healer /
 // DPS, with a search and filter tabs), which of its entries are chosen, the counters of the category navigation, the roles a class can
 // play, and the lines of the "So sieht es im Sheet aus" preview. The dialog (pages/raid-detail/raidplan/AssignModal.tsx) only draws
-// what this answers. Tested for real in test/web-client/assignModal.test.js; written with function declarations and one-line
+// what this answers. Tested for real in src/web-client/src/lib/assignModal.test.ts; written with function declarations and one-line
 // signatures only (strippable by the test helper).
 import { SLOT_ORDER, classRefLabelFor, resolveAssignee, resolveTarget, slotChoices, type AssignCtx, type Resolved } from "./assign";
 import { isClassRef } from "./classRefs";

@@ -176,6 +176,7 @@ The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a
 - A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
 - A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.
+- The React client has its own suite: **Vitest** (jsdom + Testing Library), `cd src/web-client && npm test`, tests as `*.test.ts(x)` next to the module; behaviour is tested by rendering, only structural conventions stay as source scans in `test/web-client/conventions/` (Jest). Details in docs/testing.md, "Web-Client".
 
 - Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).

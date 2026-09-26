@@ -10,7 +10,7 @@
 // character's — signupStatusOf() is that rule — so a person still takes at most
 // one seat.
 //
-// Written to be strippable like setupEditor.ts (test/web-client/signupsPage.test.js
+// Written to be strippable like setupEditor.ts (src/web-client/src/pages/SignupsPage.test.tsx
 // runs it for real): `import type`, `export type` and one-line signatures only.
 import type { OwnSignup, SignupProfile, SignupProfileCharacter, SignupStatus } from "../api";
 

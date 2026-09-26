@@ -2,7 +2,7 @@
 // steps (add, change, duplicate, remove, move), resolving a step's participants (each step on its own, the central class resolution),
 // the timing as a word ("Pull", "Phase 2", "50 → 30 %", "alle 30 s"), the sentence a step reads as, the "du" form for the viewer's own
 // steps, the @ mentions of the sentence field and the three starter tactics. Server twin: src/web/raidplanSteps.js. Tested in
-// test/web-client/steps.test.js; function declarations and one-line signatures only.
+// src/web-client/src/lib/steps.test.ts; function declarations and one-line signatures only.
 import { expandClassRefs } from "./classRefs";
 import { t } from "../i18n";
 import type { RaidplanAssignType, RaidplanBoard, RaidplanPlayer, RaidplanProfile, RaidplanStep, RaidplanTiming } from "../api";

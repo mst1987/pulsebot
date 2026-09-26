@@ -12,7 +12,7 @@
 //
 // The texts live in ./locales/<lang>/<namespace>.json; a new namespace file is
 // picked up by the glob below without touching this file. German is the
-// fallback for any key English lacks, and test/web-client/i18n.test.js fails
+// fallback for any key English lacks, and src/web-client/src/i18n/core.test.ts fails
 // as soon as the two languages hold different keys.
 import { useSyncExternalStore } from "react";
 import { DEFAULT_LANG, LOCALES, flatten, normalizeLang, translate, type FlatDict, type Lang, type Params } from "./core";

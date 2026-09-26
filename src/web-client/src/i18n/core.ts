@@ -1,5 +1,5 @@
 // The pure half of the web client's translations: no React, no Vite, no DOM.
-// test/web-client/i18n.test.js runs this file as it is (the types stripped), so
+// src/web-client/src/i18n/core.test.ts runs this file as it is (the types stripped), so
 // keep its TypeScript to `export type` lines and one-line signatures.
 //
 // A dictionary is a namespace file under ./locales/<lang>/<ns>.json. Nested

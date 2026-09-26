@@ -1,7 +1,7 @@
 // Where a popover goes (#439): the pure half of components/ui/Popover.tsx.
 // Every function takes the anchor's rectangle, the box's measured size and the
-// viewport, and returns fixed coordinates — so Jest can check them through
-// loadTs (test/web-client/popover.test.js) without a browser.
+// viewport, and returns fixed coordinates — so they are tested
+// without a browser (src/web-client/src/lib/popover.test.ts).
 
 /** The part of a DOMRect the placements read. */
 export type Rect = { left: number; top: number; right: number; bottom: number; width: number; height: number };
