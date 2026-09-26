@@ -40,7 +40,7 @@ export function scaledSize(width: number, height: number, maxEdge: number): { wi
 
 /** Every (longest edge, quality) the encoder is tried with, in order: the biggest picture with the best quality first, smaller only when needed. */
 export function attempts(): { edge: number; quality: number }[] {
-    const out = [];
+    const out: { edge: number; quality: number }[] = [];
     for (const edge of MAP_EDGES) for (const quality of MAP_QUALITIES) out.push({ edge, quality });
     return out;
 }

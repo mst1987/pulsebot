@@ -8,10 +8,10 @@ export const DEFAULT_PREFS = { highlight: true, selection: true, links: true, na
 
 /** The remembered preferences of a viewer from the stored text: every key that is not a real boolean falls back to on. */
 export function parsePrefs(raw: string | null): ViewPrefs {
-    let o = {};
+    let o: Record<string, unknown> | null = {};
     try { o = raw ? JSON.parse(raw) : {}; } catch { o = {}; }
     const out = { ...DEFAULT_PREFS };
-    for (const k of Object.keys(DEFAULT_PREFS)) if (o && typeof o[k] === "boolean") out[k] = o[k];
+    for (const k of Object.keys(DEFAULT_PREFS) as (keyof ViewPrefs)[]) if (o && typeof o[k] === "boolean") out[k] = o[k];
     return out;
 }
 

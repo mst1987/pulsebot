@@ -75,7 +75,7 @@ export function isDiscordId(value: string): boolean {
 
 /** Every owner × area whose level differs, as "@Raidlead · Historie → Schreiben". */
 export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: NameOf, areaName: NameOf): string[] {
-    const out = [];
+    const out: string[] = [];
     const owners = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])];
     for (const owner of owners) {
         const a = (before || {})[owner] || {};
@@ -133,7 +133,7 @@ export type DraftShape = {
 export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf };
 
 // The draft field and the key of its label (translated when the line is built).
-const SIMPLE_FIELDS: [string, string][] = [
+const SIMPLE_FIELDS: ["officerRoleId" | "applicationChannelId" | "raidChannelId", string][] = [
     ["officerRoleId", "settings.page.officerRole"],
     ["applicationChannelId", "settings.page.appChannel"],
     ["raidChannelId", "settings.page.raidChannel"],
@@ -215,7 +215,7 @@ function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
  * stays away.
  */
 export function draftChanges(saved: DraftShape, draft: DraftShape, names: ChangeNames): string[] {
-    const out = [];
+    const out: string[] = [];
     const admins = [...new Set([...(saved.adminRoleIds || []), ...(draft.adminRoleIds || [])])];
     for (const id of admins) {
         const was = (saved.adminRoleIds || []).includes(id);
@@ -347,7 +347,7 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
  * one, "" = clear it, anything else = replace it.
  */
 export function connectionPatch(id: ConnectionId, fields: Record<string, string>, secret: string | undefined): Record<string, unknown> {
-    const v = (key) => String(fields[key] || "").trim();
+    const v = (key: string) => String(fields[key] || "").trim();
     // The server itself is picked under Discord-Server (discordServersPatch below).
     if (id === "discord") return { raidhelperServerId: v("raidhelperServerId") };
     if (id === "battlenet") {
@@ -438,7 +438,7 @@ export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCa
  * channel may sit on any server and is kept as it is.
  */
 export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
-    const v = (value) => String(value || "").trim();
+    const v = (value: unknown) => String(value || "").trim();
     const eventGuilds = fields.eventGuilds
         .map((entry) => {
             const overviewGuildId = v(entry.overviewGuildId);
@@ -497,7 +497,7 @@ export type CategoryRow = { id: string; name: string; unknown: boolean };
  */
 export function categoryRows(categories: { id: string; name: string }[], configured: string[]): CategoryRow[] {
     const known = new Set(categories.map((c) => c.id));
-    const extra = [];
+    const extra: CategoryRow[] = [];
     for (const id of configured) {
         if (known.has(id)) continue;
         known.add(id);
@@ -512,8 +512,8 @@ export function categoryRows(categories: { id: string; name: string }[], configu
  * "Alle Discord-Kategorien".
  */
 export function splitCategoryRows(rows: CategoryRow[], activeIds: string[], showAll: boolean): { shown: CategoryRow[]; folded: CategoryRow[] } {
-    const shown = [];
-    const folded = [];
+    const shown: CategoryRow[] = [];
+    const folded: CategoryRow[] = [];
     for (const row of rows) {
         if (showAll || row.unknown || activeIds.includes(row.id)) shown.push(row);
         else folded.push(row);
@@ -560,8 +560,8 @@ export function targetHint(target: PingTarget, eventChannel: string, info: PingT
 
 /** The PATCH body of the role mapping: complete pairs only, one per pair, the list replaces the stored one. */
 export function roleSyncPatch(rules: RoleSyncRule[]): { roleSync: RoleSyncRule[] } {
-    const seen = new Set();
-    const out = [];
+    const seen: Set<string> = new Set();
+    const out: RoleSyncRule[] = [];
     for (const r of rules) {
         const eventRoleId = String(r.eventRoleId || "").trim();
         const talkRoleId = String(r.talkRoleId || "").trim();
@@ -598,7 +598,7 @@ export function reminderOff(rule: ReminderRule | null | undefined): boolean {
 /** "24 h vor Schluss · 1 h vor Raid", or "aus". */
 export function reminderSummary(rule: ReminderRule | null | undefined): string {
     if (!rule || reminderOff(rule)) return t("settings.reminderSummary.off");
-    const parts = [];
+    const parts: string[] = [];
     if (rule.missingHours > 0) parts.push(t("settings.reminderSummary.missing", { hours: rule.missingHours }));
     if (rule.signedHours > 0) parts.push(t("settings.reminderSummary.signed", { hours: rule.signedHours }));
     return parts.join(" · ");

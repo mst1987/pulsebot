@@ -19,7 +19,7 @@ export function sameTank(tank: Resolved, target: Resolved): boolean {
 
 /** The healers that heal a tank: the assignees of every heal row that targets him (each once, in the order of the rows). */
 export function healersOf(tank: Resolved, assignments: RaidplanAssignment[], ctx: AssignCtx): Resolved[] {
-    const out = [];
+    const out: Resolved[] = [];
     for (const h of assignments) {
         if (String(h.type) !== "heal") continue;
         if (!h.targets.some((tg) => sameTank(tank, resolveTarget(tg, ctx)))) continue;
@@ -30,7 +30,7 @@ export function healersOf(tank: Resolved, assignments: RaidplanAssignment[], ctx
 
 /** "Tank | Ziel | Heiler": a row per tank and target of the tank rows (the trash tank rows too); a tank row without a target has an empty target. */
 export function tankTable(assignments: RaidplanAssignment[], ctx: AssignCtx, isOwn: (a: RaidplanAssignment) => boolean): TankRow[] {
-    const rows = [];
+    const rows: TankRow[] = [];
     for (const a of assignments) {
         const type = String(a.type);
         if (type !== "tank" && type !== "trashtank") continue;
@@ -57,9 +57,9 @@ export function groupHealByGroup(assignments: RaidplanAssignment[], ctx: AssignC
     for (const p of players) top = Math.max(top, p.group);
     const heal = assignments.filter((a) => String(a.type) === "heal" && a.assignees.length > 0);
     for (const a of heal) for (const tg of a.targets) if (tg.kind === "group") top = Math.max(top, Number(tg.ref) || 0);
-    const rows = [];
+    const rows: GroupRow[] = [];
     for (let n = 1; n <= top; n++) {
-        const healers = [];
+        const healers: Resolved[] = [];
         for (const a of heal) {
             if (!a.targets.some((tg) => tg.kind === "group" && Number(tg.ref) === n)) continue;
             for (const ref of a.assignees) if (!healers.some((x) => x.ref === ref)) healers.push(resolveAssignee(ref, ctx));
@@ -71,7 +71,7 @@ export function groupHealByGroup(assignments: RaidplanAssignment[], ctx: AssignC
 
 /** The same table seen from the healers: each healer once with the groups he heals (in group order), healers in the order they first appear. */
 export function healerGroups(rows: GroupRow[]): { healer: Resolved; groups: number[] }[] {
-    const out = [];
+    const out: { healer: Resolved; groups: number[] }[] = [];
     for (const r of rows) {
         for (const h of r.healers) {
             const hit = out.find((x) => x.healer.ref === h.ref);
@@ -90,9 +90,9 @@ export const SIMPLE_ORDER = ["kick", "md", "ss", "fearward", "special", "dispel"
  * every other row is one line: the task (spell / free text), who, at what.
  */
 export function simpleTables(assignments: RaidplanAssignment[], ctx: AssignCtx): SimpleTable[] {
-    const out = [];
+    const out: SimpleTable[] = [];
     for (const type of SIMPLE_ORDER) {
-        const rows = [];
+        const rows: SimpleRow[] = [];
         for (const a of assignments) {
             if (String(a.type) !== type) continue;
             const targets = a.targets.map((tg) => resolveTarget(tg, ctx));

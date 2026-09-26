@@ -1,6 +1,6 @@
 // The "Standard" of a raid plan template on the client (the server's twin is src/web/raidplanInherit.js): rows entered once for
 // every boss, inherited by each section, deviated from or switched off per boss. Pure. Tests: src/web-client/src/lib/inherit.test.ts.
-import type { RaidplanAssignment, RaidplanBoard, RaidplanMobRef } from "../../api";
+import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanBoard, RaidplanMobRef } from "../../api";
 import { newRowId } from "./model.ts";
 
 /** The key of the board that holds the Standard, and the relative target "the boss of the section this row lands in". */
@@ -12,7 +12,7 @@ export type InheritSection = { bossMob: RaidplanMobRef | null; mobs: RaidplanMob
 
 /** A default row as it lands in a section: the relative boss target becomes the section's boss, mob targets the section lacks are dropped. */
 export function resolveInherited(row: RaidplanAssignment, section: InheritSection): RaidplanAssignment {
-    const targets = [];
+    const targets: RaidplanAssignTarget[] = [];
     for (const tg of row.targets) {
         if (tg.kind !== "mob") { targets.push(tg); continue; }
         if (tg.ref === THIS_BOSS) {

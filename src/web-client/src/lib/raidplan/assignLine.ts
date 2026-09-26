@@ -33,8 +33,8 @@ function named(r: Resolved, type: string): Resolved {
  */
 export function assigneeItems(row: RaidplanAssignment, filled: RaidplanAssignment, ctx: AssignCtx, me: string[], rotation: boolean, isEvent: boolean): LineItem[] {
     const groups = classGroups(row.assignees.filter((r) => isClassRef(r))).filter((g) => g.refs.length > 1);
-    const done = {};
-    const out = [];
+    const done: Record<string, boolean> = {};
+    const out: LineItem[] = [];
     row.assignees.forEach((ref, i) => {
         const q = isClassRef(ref) ? parseClassRef(ref) : null;
         const g = q ? groups.find((x) => x.classId === q.classId && x.role === q.role) : undefined;
@@ -77,7 +77,7 @@ export function cardSummary(rows: RaidplanAssignment[], filled: RaidplanAssignme
 
 /** The small line under a row, only when there is something: the spell's name, the task text (when it is not just the type) and the note. */
 export function subLine(row: RaidplanAssignment): string[] {
-    const out = [];
+    const out: string[] = [];
     if (row.spell && row.spell.name) out.push(row.spell.name);
     if (row.title) out.push(row.title);
     if (row.note) out.push(row.note);
@@ -113,7 +113,7 @@ function missingName(x: LineItem, r: Resolved, type: string): string {
  */
 export function openAssignments(sections: { key: string; name: string; board: RaidplanBoard }[], roster: RaidplanPlayer[]): OpenRow[] {
     const players = new Map(roster.map((p) => [p.userId, p]));
-    const out = [];
+    const out: OpenRow[] = [];
     for (const sec of sections) {
         const list = (sec.board && sec.board.assignments) || [];
         if (list.length === 0) continue;
@@ -122,7 +122,7 @@ export function openAssignments(sections: { key: string; name: string; board: Ra
         const ctx = { slots, players };
         list.forEach((a, i) => {
             const items = [...assigneeItems(a, filledAll[i], ctx, [], false, true), ...targetItems(a, filledAll[i], ctx, [], true)];
-            const missing = [];
+            const missing: string[] = [];
             for (const x of items) {
                 if (!x.open) continue;
                 const rs = x.kind === "ref" ? x.items.filter((r) => isMissing(r, true)) : x.r ? [x.r] : [];
@@ -136,7 +136,7 @@ export function openAssignments(sections: { key: string; name: string; board: Ra
 
 /** The names of what is missing over a list of open rows, each once ("Magier, Jäger"), for the summary toast. */
 export function missingNames(list: OpenRow[]): string[] {
-    const out = [];
+    const out: string[] = [];
     for (const o of list) for (const n of o.missing) if (out.indexOf(n) < 0) out.push(n);
     return out;
 }

@@ -80,7 +80,7 @@ export function commandsOfGroup(commands: BotCommand[], groupId: string): BotCom
 export function groupSummary(commands: BotCommand[], map: AccessMap, roleName: RoleNameOf): string {
     const count = commands.length;
     const parts = [t("settings.botCommands.commands", { count })];
-    const roles = [];
+    const roles: string[] = [];
     let everyone = 0;
     let admins = 0;
     for (const command of commands) {

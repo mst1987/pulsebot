@@ -50,7 +50,7 @@ export function arrowOf(board: RaidplanBoard, kind: ObjectKind, id: string): Arr
 /** Changes an icon's wedge: size (clamped 25 % .. 300 %), hidden, colour, opacity. A locked icon keeps it; anything but an icon is left alone. */
 export function patchArrow(board: RaidplanBoard, kind: ObjectKind, id: string, patch: { scale?: number; hidden?: boolean; color?: string; opacity?: number }): RaidplanBoard {
     if (!arrowOf(board, kind, id) || isLocked(board, kind, id)) return board;
-    const out = {};
+    const out: Partial<RaidplanAutoStyle> = {};
     if (patch.scale !== undefined) out["arrowScale"] = Number.isFinite(patch.scale) ? Math.max(ARROW_MIN, Math.min(ARROW_MAX, Math.round(patch.scale * 100) / 100)) : 1;
     if (patch.hidden !== undefined) out["arrowHidden"] = patch.hidden;
     if (patch.color !== undefined) out["arrowColor"] = patch.color;

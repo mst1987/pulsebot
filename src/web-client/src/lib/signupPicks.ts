@@ -33,7 +33,7 @@ export function firstSpec(character: SignupProfileCharacter | undefined): string
  * wants: several raids share one status, so no character may bring its own.
  */
 export function initialPicks(profile: SignupProfile, mine: OwnSignup | null, status?: SignupStatus): CharacterPick[] {
-    const out = [];
+    const out: CharacterPick[] = [];
     const stored = mine && mine.characters && mine.characters.length ? mine.characters : (mine && mine.spec ? [{ character: mine.character, spec: mine.spec, status: mine.status }] : []);
     for (const c of stored) {
         const ch = profile.characters.find((x) => x.name.toLowerCase() === String(c.character || "").toLowerCase());
@@ -113,7 +113,7 @@ export function signupStatusOf(picks: CharacterPick[], status: SignupStatus): Si
 
 /** The picks as the API takes them: character names, specs and each character's status. */
 export function picksToInput(profile: SignupProfile, picks: CharacterPick[]): { character: string; spec: string; status?: SignupStatus }[] {
-    const out = [];
+    const out: { character: string; spec: string; status?: SignupStatus }[] = [];
     for (const p of picks) {
         const ch = profile.characters.find((c) => c.key === p.characterKey);
         if (!ch || !ch.specs.some((s) => s.key === p.spec)) continue;
