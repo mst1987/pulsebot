@@ -1,0 +1,335 @@
+// Setup-Editor (#263): the moves behind the editor (lib/setupEditor.ts), run
+// for real with the real `t` (German unless a test switches to English). The
+// editor is rendered in pages/raid-detail/SetupEditor.test.tsx and SetupEditor.panel.test.tsx.
+import { describe, expect, it } from "vitest";
+import * as lib from "./setupEditor";
+import { t } from "../i18n";
+import { inLang } from "../test/i18n";
+
+const person = (userId, spec, role, extra = {}) => ({ userId, character: userId, spec, role, name: "", classId: "", classColor: "", classLabel: "", specLabel: "", specIcon: "", ...extra });
+
+function setup() {
+    return {
+        version: 3,
+        groups: [
+            { index: 1, slots: [person("t", "Warrior-Protection", "tank", { locked: true }), person("h", "Priest-Holy", "healer"), person("m1", "Mage-Fire", "ranged"), person("m2", "Mage-Frost", "ranged"), person("r", "Rogue-Combat", "melee")] },
+            { index: 2, slots: [person("w", "Warlock-Destruction", "ranged")] },
+        ],
+        bench: [person("b", "Hunter-BeastMastery", "ranged")],
+    };
+}
+
+describe("setup editor moves (client)", () => {
+    const s = setup();
+    const input = lib.toInput(s);
+    const people = lib.peopleOf(s);
+
+    it("turns the stored setup into the save request", () => {
+        expect(input.version).toBe(3);
+        expect(input.groups[0].slots[0]).toEqual({ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 });
+        expect(input.bench).toEqual([{ userId: "b", locked: false }]);
+    });
+
+    it("moves a raider into a group with room, and onto the bench", () => {
+        const toGroup = lib.moveRaider(input, "m1", { group: 2 }, people, 25);
+        expect(toGroup.input.groups.map((g) => g.slots.map((x) => x.userId))).toEqual([["t", "h", "m2", "r"], ["w", "m1"]]);
+        const toBench = lib.moveRaider(input, "h", { bench: true }, people, 25);
+        expect(toBench.input.bench.map((b) => b.userId)).toEqual(["b", "h"]);
+        // the original request is untouched
+        expect(input.groups[0].slots).toHaveLength(5);
+    });
+
+    it("brings a bench raider in with their spec, into a new group", () => {
+        const out = lib.moveRaider(input, "b", { group: 3 }, people, 25);
+        expect(out.input.groups.find((g) => g.index === 3).slots).toEqual([{ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false, pos: 1 }]);
+        expect(out.input.bench).toEqual([]);
+    });
+
+    it("refuses a full group and a full raid, but swaps onto a raider", () => {
+        expect(lib.moveRaider(input, "w", { group: 1 }, people, 25).error).toMatch(/Gruppe 1 ist voll/);
+        expect(lib.moveRaider(input, "b", { group: 2 }, people, 6).error).toMatch(/Raid ist voll/);
+        // a swap keeps both positions: the bench raider takes the healer's place 2
+        const swap = lib.moveRaider(input, "b", { userId: "h" }, people, 6);
+        expect(swap.input.groups[0].slots.map((x) => x.userId)).toEqual(["t", "b", "m1", "m2", "r"]);
+        expect(swap.input.groups[0].slots[1]).toEqual({ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false, pos: 2 });
+        expect(swap.input.bench).toEqual([{ userId: "h", locked: false }]);
+        const across = lib.moveRaider(input, "w", { userId: "t" }, people, 25);
+        expect(across.input.groups[0].slots.map((x) => x.userId)).toEqual(["w", "h", "m1", "m2", "r"]);
+        expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true, pos: 1 }]);
+    });
+
+    describe("places inside a group (a group of two can stand on places 1 and 5)", () => {
+        const places = (slots) => slots.map((x) => `${x.userId}@${x.pos}`);
+
+        it("gives every slot a place of its own and keeps them sorted, gaps and all", () => {
+            const placed = lib.withPlaces([{ userId: "a", pos: 5 }, { userId: "b" }, { userId: "c", pos: 5 }, { userId: "d", pos: 9 }]);
+            // "a" keeps 5; "c" wants the taken 5, "d" an impossible 9, "b" none: the rest take the lowest free ones in order
+            expect(places(placed)).toEqual(["b@1", "c@2", "d@3", "a@5"]);
+            expect(lib.placeGrid([{ userId: "a", pos: 5 }, { userId: "b", pos: 1 }]).map((p) => p && p.userId)).toEqual(["b", null, null, null, "a"]);
+        });
+
+        it("drops a raider onto a free place of a group that is not full — from the bench, from another group, from inside", () => {
+            const fromBench = lib.moveRaider(input, "b", { group: 2, pos: 5 }, people, 25).input;
+            expect(places(fromBench.groups[1].slots)).toEqual(["w@1", "b@5"]);
+            expect(fromBench.bench).toEqual([]);
+            const fromGroup = lib.moveRaider(input, "r", { group: 2, pos: 4 }, people, 25).input;
+            expect(places(fromGroup.groups[1].slots)).toEqual(["w@1", "r@4"]);
+            // inside the own group: the sham stands alone on place 1 and moves to place 5
+            const alone = lib.moveRaider(input, "w", { group: 2, pos: 5 }, people, 25).input;
+            expect(places(alone.groups[1].slots)).toEqual(["w@5"]);
+        });
+
+        it("takes the lowest free place when the wanted one is taken, and does nothing for the place already held", () => {
+            const taken = lib.moveRaider(input, "b", { group: 2, pos: 1 }, people, 25).input;
+            expect(places(taken.groups[1].slots)).toEqual(["w@1", "b@2"]);
+            expect(lib.moveRaider(input, "w", { group: 2, pos: 1 }, people, 25)).toEqual({ input: null });
+        });
+
+        it("swaps the places too, and the places survive into the save request and the redraw", () => {
+            const gapped = lib.moveRaider(input, "b", { group: 2, pos: 5 }, people, 25).input;
+            const swapped = lib.moveRaider(gapped, "w", { userId: "b" }, people, 25).input;
+            expect(places(swapped.groups[1].slots)).toEqual(["b@1", "w@5"]);
+            expect(places(lib.applyLocal(s, gapped).groups[1].slots)).toEqual(["w@1", "b@5"]);
+            expect(lib.toInput(lib.applyLocal(s, gapped)).groups[1].slots.map((x) => x.pos)).toEqual([1, 5]);
+        });
+    });
+
+    it("reorders a group: swap inside it, or drop on its free places to go last", () => {
+        const inside = lib.moveRaider(input, "m1", { userId: "t" }, people, 25);
+        expect(inside.input.groups[0].slots.map((x) => x.userId)).toEqual(["m1", "h", "t", "m2", "r"]);
+        const twoGroup = lib.moveRaider(input, "m1", { group: 2 }, people, 25).input;
+        const last = lib.moveRaider(twoGroup, "w", { group: 2 }, people, 25);
+        expect(last.input.groups[1].slots.map((x) => x.userId)).toEqual(["m1", "w"]);
+    });
+
+    it("does nothing where nothing would change", () => {
+        expect(lib.moveRaider(input, "r", { group: 1 }, people, 25)).toEqual({ input: null });
+        expect(lib.moveRaider(input, "m1", { userId: "m1" }, people, 25)).toEqual({ input: null });
+        expect(lib.moveRaider(input, "b", { bench: true }, people, 25)).toEqual({ input: null });
+    });
+
+    it("toggles a lock and redraws the lineup locally", () => {
+        const locked = lib.toggleLock(input, "w");
+        expect(locked.groups[1].slots[0].locked).toBe(true);
+        const moved = lib.moveRaider(locked, "w", { bench: true }, people, 25).input;
+        const drawn = lib.applyLocal(s, moved);
+        expect(drawn.bench.find((b) => b.userId === "w")).toMatchObject({ locked: true, spec: "Warlock-Destruction" });
+        expect(drawn.groups[1].slots).toEqual([]);
+    });
+
+    it("resizes the raid live: drops whole groups beyond the new count, then trims the rest onto the bench", () => {
+        const big = () => ({
+            version: 1,
+            groups: [1, 2, 3, 4, 5].map((idx) => ({
+                index: idx,
+                slots: [1, 2, 3, 4, 5].map((n) => ({ userId: `g${idx}s${n}`, character: `g${idx}s${n}`, spec: "Warrior-Protection", role: "tank", locked: false })),
+            })),
+            bench: [{ userId: "b1", locked: false }],
+        });
+
+        // 25 -> 10: two whole groups fit exactly, three drop entirely — no partial trim needed
+        const toTen = lib.resizeLineup(big(), 10);
+        expect(toTen.groups.map((g) => g.index)).toEqual([1, 2]);
+        expect(toTen.groups.every((g) => g.slots.length === 5)).toBe(true);
+        expect(toTen.bench).toHaveLength(1 + 15);
+
+        // 25 -> 12: groups 4/5 drop whole, then group 3 (the highest kept) is trimmed from its last slot down
+        const toTwelve = lib.resizeLineup(big(), 12);
+        expect(toTwelve.groups.map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 5], [3, 2]]);
+        expect(toTwelve.groups.reduce((n, g) => n + g.slots.length, 0)).toBe(12);
+        expect(toTwelve.bench.map((b) => b.userId)).toEqual([
+            "b1", "g4s1", "g4s2", "g4s3", "g4s4", "g4s5", "g5s1", "g5s2", "g5s3", "g5s4", "g5s5", "g3s5", "g3s4", "g3s3",
+        ]);
+
+        // growing touches nothing that already fits (the slots only gain their places)
+        // the place is left out on purpose: growing only adds places, the rest must stay the same
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const bare = (groups) => groups.map((g) => ({ ...g, slots: g.slots.map(({ pos: _pos, ...rest }) => rest) }));
+        const grown = lib.resizeLineup(big(), 30);
+        expect(bare(grown.groups)).toEqual(big().groups);
+        expect(grown.bench).toEqual(big().bench);
+
+        // locked is not special-cased here (a raw capacity trim, not a proposal re-run): a locked raider can still be bumped
+        const withLock = big();
+        withLock.groups[4].slots[0].locked = true;
+        const shrunk = lib.resizeLineup(withLock, 5);
+        expect(bare(shrunk.groups)).toEqual([{ index: 1, slots: withLock.groups[0].slots }]);
+        expect(shrunk.bench.find((b) => b.userId === "g5s1")).toEqual({ userId: "g5s1", locked: true });
+
+        // the original input is never mutated
+        const original = big();
+        lib.resizeLineup(original, 5);
+        expect(original.groups).toHaveLength(5);
+    });
+
+    it("splits the bench into group-sized cards, with a fresh empty one once the last is full", () => {
+        const make = (n) => Array.from({ length: n }, (_, i) => person(`b${i}`, "Priest-Holy", "healer"));
+        expect(lib.benchChunks(make(0)).map((c) => c.length)).toEqual([0]);
+        expect(lib.benchChunks(make(3)).map((c) => c.length)).toEqual([3]);
+        expect(lib.benchChunks(make(5)).map((c) => c.length)).toEqual([5, 0]);
+        expect(lib.benchChunks(make(7)).map((c) => c.length)).toEqual([5, 2]);
+        expect(lib.benchChunks(make(10)).map((c) => c.length)).toEqual([5, 5, 0]);
+    });
+
+    it("lists every group of the raid, empty ones included", () => {
+        expect(lib.withAllGroups(s.groups, 5).map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 1], [3, 0], [4, 0], [5, 0]]);
+    });
+
+    it("says a role target the way the summary shows it", () => {
+        expect(lib.roleTarget({ min: 3, max: 3 })).toBe("3");
+        expect(lib.roleTarget({ min: 2, max: null })).toBe("≥ 2");
+        expect(lib.roleTarget({ min: 0, max: null })).toBe("");
+        expect(lib.roleTarget({ min: 2, max: 4 })).toBe("2–4");
+        expect(lib.dpsCheck({ melee: { count: 6, min: 0, ok: true }, ranged: { count: 10, min: 2, ok: false } })).toEqual({ count: 16, min: 2, max: null, ok: false });
+    });
+});
+
+describe("what posting the setup will do / did (#290)", () => {
+    const time = (ms) => `T${ms}`;
+    const publish = (over = {}) => ({
+        channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 25, pendingDms: 25,
+        posted: null, outdated: false, error: "", errorAt: 0, dms: null, ...over,
+    });
+
+    it("says nothing for a reader", () => {
+        expect(lib.publishHint(undefined, false, time)).toBeNull();
+    });
+
+    it("says before approving where it posts and whether DMs go out", () => {
+        expect(lib.publishHint(publish(), false, time)).toMatchObject({ text: "Beim Freigeben: postet Setup in #kanal · DMs an 25 Raider (aus)".replace("#kanal", "#kara-do"), canPost: false });
+        const on = lib.publishHint(publish({ dmsEnabled: true, pendingDms: 3, posted: { messageUrl: "u", version: 1, postedAt: 5, editedAt: 0 } }), false, time);
+        expect(on.text).toBe("Beim Freigeben: aktualisiert das Setup in #kara-do · DMs an 3 Raider");
+        expect(on.sub).toContain("nie gepostet");
+    });
+
+    it("says after approving what happened, failures in the tooltip", () => {
+        const done = lib.publishHint(publish({
+            dmsEnabled: true,
+            posted: { messageUrl: "u", version: 2, postedAt: 100, editedAt: 0 },
+            dms: { status: "done", version: 2, at: 120, total: 25, sent: 22, failed: [{ userId: "1", character: "Kael", error: "Cannot send" }, { userId: "2", character: "", error: "x" }, { userId: "3", character: "Zibbo", error: "y" }], unchanged: 0 },
+        }), true, time);
+        expect(done).toMatchObject({ tone: "mid", text: "gepostet T100 in #kara-do · 22 DMs · 3 fehlgeschlagen", canPost: true, running: false });
+        expect(done.sub).toContain("Kael – Cannot send");
+        expect(done.sub).toContain("2 – x");
+
+        const running = lib.publishHint(publish({ dmsEnabled: true, posted: { messageUrl: "u", version: 2, postedAt: 100, editedAt: 0 }, dms: { status: "running", version: 2, at: 0, total: 25, sent: 4, failed: [], unchanged: 0 } }), true, time);
+        expect(running).toMatchObject({ running: true, text: "gepostet T100 in #kara-do · DMs 4/25 …" });
+
+        const off = lib.publishHint(publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 200 }, outdated: true }), true, time);
+        expect(off).toMatchObject({ tone: "mid", text: "aktualisiert T200 in #kara-do · DMs aus" });
+        expect(off.sub).toContain("Stand 1");
+    });
+
+    it("names an error, a missing post and a cancelled event", () => {
+        expect(lib.publishHint(publish({ error: "Bot nicht verbunden.", errorAt: 50 }), true, time)).toMatchObject({ tone: "bad", text: "Setup nicht gepostet: Bot nicht verbunden.", canPost: true });
+        expect(lib.publishHint(publish(), true, time)).toMatchObject({ tone: "mid", text: "Noch nicht in #kara-do gepostet" });
+        expect(lib.publishHint(publish({ cancelled: true }), true, time)).toMatchObject({ canPost: false, text: "Abgesagt – kein Setup im Kanal" });
+    });
+
+    it("speaks English when the page does", async () => {
+        await inLang("en", () => {
+            expect(lib.publishHint(publish(), false, time).text).toBe("On approval: posts the setup in #kara-do · DMs to 25 raiders (off)");
+            const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
+            expect(lib.publishHint(done, true, time).text).toBe("posted T100 in #kara-do · 1 DM");
+            expect(lib.moveRaider(lib.toInput(setup()), "w", { group: 1 }, lib.peopleOf(setup()), 25).error).toBe("Group 1 is full — drag onto a raider to swap.");
+        });
+    });
+});
+
+describe("ping text (Ping-Nachricht) inline field", () => {
+    it("decides what to send on commit: the trimmed draft, or nothing when unchanged", () => {
+        expect(lib.pingTextToSave("  Los geht's, Raid!  ", "Hallo Welt")).toBe("Los geht's, Raid!");
+        expect(lib.pingTextToSave("Hallo Welt", "Hallo Welt")).toBeNull();
+        expect(lib.pingTextToSave("  Hallo Welt  ", "Hallo Welt")).toBeNull();
+        // an emptied field is a real change (clears back to the server default)
+        expect(lib.pingTextToSave("", "Hallo Welt")).toBe("");
+        expect(lib.pingTextToSave("", "")).toBeNull();
+    });
+
+    it("labels it in German and English, making clear that this is what gets posted", async () => {
+        expect(t("setup.pingText.label")).toMatch(/Ping-Nachricht.*Ping everyone/);
+        await inLang("en", () => expect(t("setup.pingText.label")).toMatch(/Ping message.*Ping everyone/));
+    });
+});
+
+describe("the raider tooltip and the drag glow", () => {
+    const groups = () => [
+        { index: 1, slots: [person("a", "Warrior-Arms", "melee"), person("b", "Warrior-Fury", "melee")] },
+        { index: 2, slots: ["c", "d", "e", "f", "g"].map((id) => person(id, "Mage-Fire", "ranged")) },
+        { index: 3, slots: [] },
+    ];
+
+    it("glows the free group where the dragged raider helps most, never a full or their own group", () => {
+        const sham = person("sham", "Shaman-Enhancement", "melee", { fit: { 1: 2, 2: 9, 3: 1 } });
+        // group 2 would help most but is full
+        expect(lib.suggestGroup(sham, groups())).toBe(1);
+        const inOne = person("a", "Warrior-Arms", "melee", { fit: { 1: 5, 3: 2 } });
+        expect(lib.suggestGroup(inOne, groups())).toBe(3);
+    });
+
+    it("suggests nothing when the raider's buffs help nowhere", () => {
+        expect(lib.suggestGroup(person("x", "Mage-Fire", "ranged"), groups())).toBeNull();
+        expect(lib.suggestGroup(person("x", "Mage-Fire", "ranged", { fit: {} }), groups())).toBeNull();
+    });
+
+    it("drops the proposal's attendance reason — the tooltip has its own attendance row for everyone", () => {
+        expect(lib.tipReasons(["Von der Orga fixiert", "Anwesenheit 82 %", "Kommt später"])).toEqual(["Von der Orga fixiert", "Kommt später"]);
+        expect(lib.tipReasons(undefined)).toEqual([]);
+    });
+
+    describe("im Setup als — a raider who plays several specs (the third tank, an extra healer)", () => {
+        const prot = { key: "Paladin-Protection", role: "tank" };
+        const input = lib.toInput(setup());
+
+        it("changes the slot's spec and role, keeps its place and locks it, without touching the request it came from", () => {
+            const out = lib.respecRaider(input, "h", prot).input;
+            const slot = out.groups[0].slots.find((x) => x.userId === "h");
+            expect(slot).toMatchObject({ spec: "Paladin-Protection", role: "tank", locked: true, pos: 2 });
+            expect(input.groups[0].slots.find((x) => x.userId === "h")).toMatchObject({ spec: "Priest-Holy", role: "healer", locked: false });
+        });
+
+        it("does nothing for the spec already played and locked, and refuses somebody on the bench", () => {
+            const again = lib.respecRaider(lib.respecRaider(input, "h", prot).input, "h", prot);
+            expect(again).toEqual({ input: null });
+            expect(lib.respecRaider(input, "b", prot).error).toMatch(/Bank/);
+        });
+    });
+
+    describe("Suche — the classes and specs the raid still needs", () => {
+        const buff = (key, specs, required = false) => ({ key, label: key, icon: "i", required, specs });
+
+        it("makes one row per set of specs that brings a buff — six blessings of the same paladin specs are one row", () => {
+            const paladin = ["Paladin-Holy", "Paladin-Protection", "Paladin-Retribution"];
+            const groups = lib.groupSearchBuffs([buff("kings", paladin), buff("might", paladin), buff("windfury", ["Shaman-Enhancement"], true), buff("wisdom", paladin)]);
+            expect(groups.map((g) => [g.required, g.buffs.map((b) => b.key)])).toEqual([[false, ["kings", "might", "wisdom"]], [true, ["windfury"]]]);
+            // the same specs but one buff required and one not are two rows: what is required must stay visible as such
+            expect(lib.groupSearchBuffs([buff("a", ["X-Y"], true), buff("b", ["X-Y"], false)])).toHaveLength(2);
+            expect(lib.groupSearchBuffs([])).toEqual([]);
+        });
+
+        it("edits the needs without touching the suggestion: count 1-40, a role at 0 drops out, specs in and out, a role added once, buffs dropped", () => {
+            const search = { roles: [{ role: "tank", missing: 1, specs: ["A-Tank"] }], buffs: [buff("kings", ["P-Holy"]), buff("wf", ["S-Enh"], true)] };
+            const needs = lib.searchNeedsFrom(search);
+            expect(needs).toEqual({ roles: search.roles, buffs: search.buffs });
+            expect(needs.roles[0]).not.toBe(search.roles[0]);
+            expect(lib.stepRole(needs, "tank", 2).roles[0].missing).toBe(3);
+            expect(lib.stepRole(needs, "tank", 100).roles[0].missing).toBe(40);
+            expect(lib.stepRole(needs, "tank", -1).roles).toEqual([]);
+            expect(lib.toggleSpec(needs, "tank", "B-Tank").roles[0].specs).toEqual(["A-Tank", "B-Tank"]);
+            expect(lib.toggleSpec(needs, "tank", "A-Tank").roles[0].specs).toEqual([]);
+            const added = lib.addRole(needs, "healer", ["H-1", "H-2"]);
+            expect(added.roles[1]).toEqual({ role: "healer", missing: 1, specs: ["H-1", "H-2"] });
+            expect(lib.addRole(added, "healer", ["H-1"])).toBe(added);
+            expect(lib.removeBuffs(needs, ["kings"]).buffs.map((b) => b.key)).toEqual(["wf"]);
+            expect(search.roles[0].missing).toBe(1);
+        });
+    });
+
+    it("has the tooltip's texts in German and English", async () => {
+        const keys = ["attendance", "attendanceNone", "attendanceCount", "linkManual", "linkAuto", "autoBadge", "brings", "bringsGroup", "bringsRaid", "why"];
+        for (const key of keys) expect(t(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
+        await inLang("en", () => {
+            for (const key of keys) expect(t(`setup.person.tip.${key}`)).not.toBe(`setup.person.tip.${key}`);
+        });
+    });
+});

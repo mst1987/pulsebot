@@ -40,7 +40,8 @@ export const NAV_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "Ar
 export const NAV_FOCUS_WINDOW = 500;
 
 /** Whether a focus at `now` came from the navigation key pressed at `navAt` (0 = none since). */
-function focusFromNavigation(navAt: number, now: number): boolean {
+// eslint-disable-next-line react-refresh/only-export-components -- exported for its test (uiFoundation.test.ts)
+export function focusFromNavigation(navAt: number, now: number): boolean {
     return navAt > 0 && now - navAt <= NAV_FOCUS_WINDOW;
 }
 
