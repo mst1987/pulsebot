@@ -1,7 +1,7 @@
 const {
     classOf, specOf, specFromIcon, specFromSpecs, specFromTalents,
     rosterFromFights, rosterFromTable, mergeRosters,
-} = require("../../src/utils/wclRoster");
+} = require("../../../src/utils/logcheck/wclRoster");
 
 describe("utils/wclRoster", () => {
     describe("classOf", () => {

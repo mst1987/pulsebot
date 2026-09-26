@@ -10,7 +10,7 @@
 // Everything here is pure parsing over those payloads: whatever the report does
 // not know simply stays empty (a class without a spec is still worth showing).
 
-const { VALID_CLASSES } = require("./logcheck/common");
+const { VALID_CLASSES } = require("./common");
 
 const CLASS_SET = new Set(VALID_CLASSES);
 
