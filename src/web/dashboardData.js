@@ -23,7 +23,7 @@ const { buildRoster } = require("./roster");
 const { rosterStats } = require("./rosterStats");
 const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
 const { applyReview } = require("../utils/logcheck/recommendations");
-const softres = require("../utils/softres");
+const softres = require("../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../utils/attendance");

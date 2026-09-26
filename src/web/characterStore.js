@@ -1,6 +1,6 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 
 // Class + spec per character, kept next to the other editable settings. This is a
 // CACHE: the facts come from the loot export or from a Warcraft-Logs report, and

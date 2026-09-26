@@ -18,7 +18,7 @@
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { characterKeyOf } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/loot/lootImport");
 
 const EXCLUDED_FILE = settingsPath("council-excluded.json");
 

@@ -12,7 +12,7 @@
 // one response, and searching it then costs no round trip).
 const { CONTENTS, RAID_LOOT, contentsForText, tier, bossOrder } = require("../config/tbcContent");
 const { RAID_ITEMS } = require("../config/tbcLootNames");
-const { iconUrl, itemLink } = require("../utils/wowhead");
+const { iconUrl, itemLink } = require("../utils/loot/wowhead");
 
 // Bosses sort in the order the raid actually meets them (BOSS_ORDER in
 // config/tbcContent.js), with the non-encounter buckets last: the timed chest,

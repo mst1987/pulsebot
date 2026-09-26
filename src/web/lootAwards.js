@@ -10,7 +10,7 @@ const { characterMap } = require("./characterStore");
 const { getConfig } = require("./settingsStore");
 const { classLook } = require("./lootClassLook");
 const { CONTENTS } = require("../config/tbcContent");
-const { reasonCatalog } = require("../utils/lootReasons");
+const { reasonCatalog } = require("../utils/loot/lootReasons");
 
 // How many awards one page of the Historie tab holds.
 const PAGE_SIZE = 25;

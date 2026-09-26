@@ -162,9 +162,9 @@ jest.mock("../../../src/classes/blizzard", () =>
         _resolve: mockResolve,
         get lastError() { return mockLastError; },
     })));
-jest.mock("../../../src/utils/lootImport", () => {
+jest.mock("../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
-    const actual = jest.requireActual("../../../src/utils/lootImport");
+    const actual = jest.requireActual("../../../src/utils/loot/lootImport");
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
@@ -243,16 +243,16 @@ jest.mock("../../../src/web/eventLootSystemStore", () => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
     })),
 }));
-jest.mock("../../../src/utils/softres", () => ({
+jest.mock("../../../src/utils/loot/softres", () => ({
     parseInstancesFromTitle: jest.fn(() => []),
     targetSizeForInstances: jest.fn(() => 0),
     catalogue: jest.fn(() => []),
     editionOf: jest.fn(() => ""),
-    codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../../src/utils/softres").codesForRulesetInstances(ids, "tbc")),
+    codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../../src/utils/loot/softres").codesForRulesetInstances(ids, "tbc")),
     createRaid: jest.fn(),
 }));
-jest.mock("../../../src/utils/wowhead", () => {
-    const actual = jest.requireActual("../../../src/utils/wowhead");
+jest.mock("../../../src/utils/loot/wowhead", () => {
+    const actual = jest.requireActual("../../../src/utils/loot/wowhead");
     return {
         searchItems: jest.fn(() => Promise.resolve([])),
         // Pure URL builders, no network: the loot catalogue's icon and Wowhead
@@ -278,7 +278,7 @@ const lootAwards = require("../../../src/web/lootAwards");
 const characterInfo = require("../../../src/web/characterInfo");
 const characterStore = require("../../../src/web/characterStore");
 const charGearIssues = require("../../../src/web/charGearIssues");
-const lootImport = require("../../../src/utils/lootImport");
+const lootImport = require("../../../src/utils/loot/lootImport");
 const lootEventMatch = require("../../../src/web/lootEventMatch");
 const reportList = require("../../../src/web/reportList");
 const { emptyAccess } = require("../../../src/config/permissions");

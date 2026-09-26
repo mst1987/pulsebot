@@ -13,9 +13,9 @@
 // See config/softresInstances.js for the instance codes and their numeric ids.
 
 const axios = require("axios");
-const httpsAgent = require("./httpAgent");
-const { INSTANCES } = require("../config/softresInstances");
-const logger = require("../logger.js").child("softres");
+const httpsAgent = require("../httpAgent");
+const { INSTANCES } = require("../../config/softresInstances");
+const logger = require("../../logger.js").child("softres");
 
 const SOFTRES_BASE = "https://softres.it";
 const VALID_FACTIONS = ["Alliance", "Horde"];

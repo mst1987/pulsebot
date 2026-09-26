@@ -80,9 +80,9 @@ jest.mock("../../../src/web/logStore", () => ({
         return log.status === "done" ? ["cla"] : [];
     }),
 }));
-jest.mock("../../../src/utils/lootImport", () => {
+jest.mock("../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
-    const actual = jest.requireActual("../../../src/utils/lootImport");
+    const actual = jest.requireActual("../../../src/utils/loot/lootImport");
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
@@ -141,8 +141,8 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/utils/wowhead", () => {
-    const actual = jest.requireActual("../../../src/utils/wowhead");
+jest.mock("../../../src/utils/loot/wowhead", () => {
+    const actual = jest.requireActual("../../../src/utils/loot/wowhead");
     return {
         searchItems: jest.fn(() => Promise.resolve([])),
         // Pure URL builders, no network: the loot catalogue's icon and Wowhead
@@ -174,7 +174,7 @@ const auth = require("../../../src/web/auth");
 const settingsStore = require("../../../src/web/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
-const wowhead = require("../../../src/utils/wowhead");
+const wowhead = require("../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../src/config/permissions");
 const { post, patch, get, handle } = routerClient(require("../../../src/web/apiRoutes/settings"));
 const { requireAdmin, requireFullAdmin } = require("../../../src/web/apiMiddleware");

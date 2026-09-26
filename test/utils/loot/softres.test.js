@@ -1,6 +1,6 @@
 jest.mock("axios");
 const axios = require("axios");
-const softres = require("../../src/utils/softres");
+const softres = require("../../../src/utils/loot/softres");
 
 afterEach(() => jest.clearAllMocks());
 

@@ -1,4 +1,4 @@
-const { REASONS, reasonIdFor, reasonMeta, describeReason, reasonCatalog } = require("../../src/utils/lootReasons");
+const { REASONS, reasonIdFor, reasonMeta, describeReason, reasonCatalog } = require("../../../src/utils/loot/lootReasons");
 
 describe("lootReasons", () => {
     describe("reasonIdFor", () => {

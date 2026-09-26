@@ -16,7 +16,7 @@
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
 const { instanceById } = require("../config/gameVersions");
 const { validateCharacterName, NAME_MAX } = require("../utils/signup/characterNames");

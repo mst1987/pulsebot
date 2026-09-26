@@ -1,9 +1,9 @@
 jest.mock("../../src/web/lootStore", () => ({ listAll: jest.fn(() => []) }));
-jest.mock("../../src/utils/wowhead");
+jest.mock("../../src/utils/loot/wowhead");
 
 const { listAll } = require("../../src/web/lootStore");
 const { previewImport, detectFormat } = require("../../src/web/lootImportPreview");
-const { EH_FORMAT } = require("../../src/utils/lootImport");
+const { EH_FORMAT } = require("../../src/utils/loot/lootImport");
 
 // 30105 = Serpent Spine Longbow (SSC), so the raid is resolved for real.
 const row = (over = {}) => ({

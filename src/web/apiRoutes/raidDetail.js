@@ -17,10 +17,10 @@ const { sourceOfEventId } = require("../eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
-const softres = require("../../utils/softres");
+const softres = require("../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../eventLootSystemStore");
 const { normalizeLootSystem } = require("../lootSystem");
-const wowhead = require("../../utils/wowhead");
+const wowhead = require("../../utils/loot/wowhead");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");

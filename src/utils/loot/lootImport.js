@@ -24,7 +24,7 @@
 // via a Wowhead lookup; call it once at import time, not on every read, since
 // the same item ids repeat across a raid's loot.
 
-const { wowheadItemId } = require("../config/wowheadItemAliases");
+const { wowheadItemId } = require("../../config/wowheadItemAliases");
 
 // Wowhead links for TBC (Burning Crusade). Item names resolve in the tooltip even
 // when an export (Gargul) only gives us the id. An Anniversary re-issue links

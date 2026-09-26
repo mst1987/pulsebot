@@ -94,9 +94,9 @@ jest.mock("../../../src/web/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/utils/lootImport", () => {
+jest.mock("../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
-    const actual = jest.requireActual("../../../src/utils/lootImport");
+    const actual = jest.requireActual("../../../src/utils/loot/lootImport");
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
@@ -170,8 +170,8 @@ jest.mock("../../../src/web/eventSoftresStore", () => ({
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/utils/wowhead", () => {
-    const actual = jest.requireActual("../../../src/utils/wowhead");
+jest.mock("../../../src/utils/loot/wowhead", () => {
+    const actual = jest.requireActual("../../../src/utils/loot/wowhead");
     return {
         searchItems: jest.fn(() => Promise.resolve([])),
         // Pure URL builders, no network: the loot catalogue's icon and Wowhead

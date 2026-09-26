@@ -3,9 +3,9 @@
 // (it is cross-origin from the browser) and normalise the shape for the UI.
 
 const axios = require("axios");
-const httpsAgent = require("./httpAgent");
+const httpsAgent = require("../httpAgent");
 // Anniversary re-issues Wowhead does not know link and resolve as the original.
-const { wowheadItemId } = require("../config/wowheadItemAliases");
+const { wowheadItemId } = require("../../config/wowheadItemAliases");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 

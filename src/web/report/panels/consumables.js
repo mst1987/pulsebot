@@ -1,6 +1,6 @@
 // Detail tables of the Vorbereitung group: gear problems, consumables, drums and
 // shadow resistance.
-const { itemLink: wowheadItemLink } = require("../../../utils/wowhead");
+const { itemLink: wowheadItemLink } = require("../../../utils/loot/wowhead");
 const { esc } = require("../layout");
 const { classCell, playerCard, pctCell, badge, barPct, yesNo, colHead } = require("../widgets");
 

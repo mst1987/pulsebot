@@ -1,6 +1,6 @@
 jest.mock("axios");
 const axios = require("axios");
-const wowhead = require("../../src/utils/wowhead");
+const wowhead = require("../../../src/utils/loot/wowhead");
 
 afterEach(() => jest.clearAllMocks());
 

@@ -1,10 +1,10 @@
-jest.mock("../../src/utils/wowhead");
-const wowhead = require("../../src/utils/wowhead");
+jest.mock("../../../src/utils/loot/wowhead");
+const wowhead = require("../../../src/utils/loot/wowhead");
 const {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
     buildManualItem, detectImportDate, enrichItemNames,
     splitPlayer, characterKey, characterKeyOf, itemLink, LootParseError, EH_FORMAT, EH_VERSION,
-} = require("../../src/utils/lootImport");
+} = require("../../../src/utils/loot/lootImport");
 
 // Real rows taken (trimmed) from the actual exports on the server.
 const RCLC_JSON = JSON.stringify([

@@ -15,7 +15,7 @@ const { listKnownCategories } = require("../categoryNames");
 const { normalizeLootSystem } = require("../lootSystem");
 const { lastReminderRun } = require("../reminders");
 const { pingTargetInfo } = require("../pingDelivery");
-const wowhead = require("../../utils/wowhead");
+const wowhead = require("../../utils/loot/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
