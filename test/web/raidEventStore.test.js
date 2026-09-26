@@ -1,23 +1,5 @@
 // Mock fs with an in-memory store so tests never touch the repo's disk.
-jest.mock("fs", () => {
-    const store = new Map();
-    const enoent = (p) => {
-        const e = new Error(`ENOENT: no such file '${p}'`);
-        e.code = "ENOENT";
-        return e;
-    };
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => {
-            store.set(p, String(data));
-        }),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw enoent(p);
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { listRaidEvents, getRaidEvent, saveRaidEvents } = require("../../src/web/raidEventStore.js");

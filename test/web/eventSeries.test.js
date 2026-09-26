@@ -1,9 +1,7 @@
 // Recurring events per category (#289): Berlin dates across the daylight-saving
 // switch, the "X days before" window, never twice, skipped and cancelled dates,
 // Raid-Helper categories left alone, failures kept and reported.
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
+const { tempStoreFile } = require("../helpers/tempStore");
 const { DateTime } = require("luxon");
 
 jest.mock("../../src/web/discord", () => ({
@@ -47,11 +45,9 @@ const WED = 3;
 const SAT = 6;
 const base = { categoryId: "cat1", enabled: true, weekdays: [WED], time: "19:30", raidTemplateId: "tpl-ssc", daysBefore: 6, title: "", skipDates: [] };
 
-let dir;
 beforeEach(() => {
     jest.clearAllMocks();
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "eh-series-"));
-    store._setFileForTests(path.join(dir, "event-series.json"));
+    store.useFile(tempStoreFile("event-series.json"));
     series._resetForTests();
     discord.getClient.mockReturnValue({ isReady: () => true });
     signupSourceFor.mockReturnValue("eventhelper");
@@ -66,7 +62,6 @@ beforeEach(() => {
 });
 afterEach(() => {
     console.error.mockRestore();
-    fs.rmSync(dir, { recursive: true, force: true });
 });
 
 describe("occurrences", () => {

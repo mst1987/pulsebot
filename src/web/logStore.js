@@ -1,29 +1,24 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 
 // Detected/evaluated Warcraft-Logs from the log channels are tracked here so a
 // report is only ever evaluated once. Stored as a single JSON file next to the
 // other editable settings under data/settings/logs.json.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const LOGS_FILE = path.join(SETTINGS_DIR, "logs.json");
+const LOGS_FILE = settingsPath("logs.json");
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
+const store = createJsonStore({
+    file: LOGS_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.logs) ? data.logs : []),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(LOGS_FILE, "utf8"));
-        return Array.isArray(data.logs) ? data.logs : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(logs) {
-    ensureDir();
-    fs.writeFileSync(LOGS_FILE, JSON.stringify({ logs }, null, 2));
+    store.write({ logs });
 }
 
 /** All tracked logs, newest detection first. */
@@ -291,5 +286,5 @@ function deleteLog(id) {
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setLogRaids, deleteLog, LOGS_FILE,
-    linkEvent, unlinkEvent, listLogsForEvent,
+    linkEvent, unlinkEvent, listLogsForEvent, useFile: store.useFile,
 };

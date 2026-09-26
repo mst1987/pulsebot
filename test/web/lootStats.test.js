@@ -1,22 +1,6 @@
 // In-memory fs so the store never touches the repo disk (same shim as
 // lootStore.test.js — lootStats reads through the real store).
-jest.mock("fs", () => {
-    const store = new Map();
-    const enoent = (p) => {
-        const e = new Error(`ENOENT: no such file '${p}'`);
-        e.code = "ENOENT";
-        return e;
-    };
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => { store.set(p, String(data)); }),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw enoent(p);
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 // Class/spec resolution has three sources of its own (see characterInfo.js) —
 // none of them belong in an aggregation test, so the annotated list is stubbed.

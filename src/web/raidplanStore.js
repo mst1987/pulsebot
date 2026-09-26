@@ -22,14 +22,15 @@
 //   anywhere: the orga uploads them.
 const fs = require("fs");
 const path = require("path");
+const { dataPath, settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 const { instanceById } = require("../config/gameVersions");
 const { ZONES } = require("../config/bosses");
 const { wowIconUrl } = require("../config/menu");
 
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
-const DEFAULT_FILE = path.join(DATA_DIR, "settings", "raidplans.json");
-const DEFAULT_MAP_DIR = path.join(DATA_DIR, "raidplan-maps");
+const DEFAULT_FILE = settingsPath("raidplans.json");
+const DEFAULT_MAP_DIR = dataPath("raidplan-maps");
 
 const board = require("./raidplanBoard");
 const inherit = require("./raidplanInherit");
@@ -39,12 +40,17 @@ const catalogStore = require("./raidplanCatalogStore");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
-let planFile = DEFAULT_FILE;
 let mapDir = DEFAULT_MAP_DIR;
+
+const store = createJsonStore({
+    file: DEFAULT_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.plans) ? data.plans : []),
+});
 
 /** Tests point the store (and the map folder) somewhere of their own. */
 function useFile(file, dir) {
-    planFile = file || DEFAULT_FILE;
+    store.useFile(file);
     mapDir = dir || (file ? path.join(path.dirname(file), "raidplan-maps") : DEFAULT_MAP_DIR);
 }
 
@@ -148,17 +154,11 @@ const eventMapKey = (eventId, bossKey) => `e/${eventId}/${bossKey}`;
 // ---- persistence ---------------------------------------------------------------
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(planFile, "utf8"));
-        return Array.isArray(data.plans) ? data.plans : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(plans) {
-    fs.mkdirSync(path.dirname(planFile), { recursive: true });
-    fs.writeFileSync(planFile, JSON.stringify({ plans }, null, 2));
+    store.write({ plans });
 }
 
 function newToken() {

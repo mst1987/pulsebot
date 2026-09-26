@@ -18,12 +18,11 @@
 // **exactly one Discord account** and is minted and revoked by that account
 // itself in its own profile. `revokeToken` therefore takes the owner and
 // refuses a foreign id rather than trusting the caller to have checked.
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const DEFAULT_FILE = path.join(SETTINGS_DIR, "calendar-tokens.json");
+const DEFAULT_FILE = settingsPath("calendar-tokens.json");
 
 // Recognisable prefix, so a token found in a log or a pasted URL is obviously
 // an EventHelper calendar link and can be revoked without guesswork.
@@ -34,25 +33,21 @@ const TOKEN_BYTES = 24;
 const MAX_PER_USER = 5;
 const MAX_NAME = 40;
 
-let tokensFile = DEFAULT_FILE;
+const store = createJsonStore({
+    file: DEFAULT_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.tokens) ? data.tokens : []),
+});
 
-/** Tests point the store at a file of their own. */
-function useFile(file) {
-    tokensFile = file || DEFAULT_FILE;
-}
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(tokensFile, "utf8"));
-        return Array.isArray(data.tokens) ? data.tokens : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(tokens) {
-    fs.mkdirSync(path.dirname(tokensFile), { recursive: true });
-    fs.writeFileSync(tokensFile, JSON.stringify({ tokens }, null, 2));
+    store.write({ tokens });
 }
 
 function hashToken(raw) {

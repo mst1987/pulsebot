@@ -2,6 +2,7 @@
 // The drop check itself (candidates, simulation) is far too big for a Discord
 // reply; the bot answers with what the item is and how often it went out, and
 // the link.
+const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/tbcLootNames");
 const { itemCatalog } = require("../../web/lootStats");
 const { itemLink } = require("../../utils/wowhead");
@@ -36,6 +37,10 @@ module.exports = {
     description: "Öffnet den Loot-Council-Drop-Check für ein Item.",
     group: "loot",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("council")
+        .setDescription("Loot-Council: Drop-Check für ein Item öffnen")
+        .addStringOption((o) => o.setName("item").setDescription("Item").setRequired(true).setAutocomplete(true)),
     findCouncilItem,
     async execute(interaction) {
         const value = interaction.options.getString("item");

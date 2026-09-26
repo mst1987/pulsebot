@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 const { characterKey, enrichItemNames, needsLookup } = require("../utils/lootImport");
 const { wowheadLink } = require("../config/wowheadItemAliases");
 const { describeReason } = require("../utils/lootReasons");
@@ -11,25 +11,20 @@ const { newId } = require("../utils/ids");
 // event it was awarded in, so the event-history and per-character pages can query
 // it. Imports dedupe on (eventId, source, rawId) so re-importing the same log is
 // idempotent.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const LOOT_FILE = path.join(SETTINGS_DIR, "loot.json");
+const LOOT_FILE = settingsPath("loot.json");
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
+const store = createJsonStore({
+    file: LOOT_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.items) ? data.items : []),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(LOOT_FILE, "utf8"));
-        return Array.isArray(data.items) ? data.items : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(items) {
-    ensureDir();
-    fs.writeFileSync(LOOT_FILE, JSON.stringify({ items }, null, 2));
+    store.write({ items });
 }
 
 function dedupKey(item) {
@@ -282,5 +277,5 @@ module.exports = {
     // Exported for the addon inbox, which shows loot that is not stored yet:
     // running it through the same decoration makes the preview look exactly like
     // the history it is about to become (reason badge, raid, tier).
-    charLootPreview, decorate, LOOT_FILE,
+    charLootPreview, decorate, LOOT_FILE, useFile: store.useFile,
 };

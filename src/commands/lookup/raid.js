@@ -1,5 +1,6 @@
 // /raid <Event> — one raid at a glance: when, where, how many signed up, and
 // where the asking user stands; the full detail page is one click away (#265).
+const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../web/eventLookup");
 const { eventGuildId } = require("../../web/guildRoles");
@@ -34,6 +35,10 @@ module.exports = {
     description: "Ein Raid im Überblick: Termin, Anmeldestand, dein Status.",
     group: "raids",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("raid")
+        .setDescription("Ein Raid im Überblick: Termin, Anmeldestand, dein Status")
+        .addStringOption((o) => o.setName("event").setDescription("Raid").setRequired(true).setAutocomplete(true)),
     shortDate,
     async execute(interaction) {
         await deferLookup(interaction);

@@ -1,5 +1,5 @@
 ﻿const messages = require("../../config/messages");
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const { getCategorySetups } = require("../../utils/raidhelper");
 const { setupResponse } = require("../../utils/responses");
@@ -9,6 +9,9 @@ module.exports = {
   description: "Zeigt die Events, in deren Setup du stehst",
   group: "signup",
   defaultAccess: "everyone",
+  data: new SlashCommandBuilder()
+    .setName("show-mysetups")
+    .setDescription("Show the events where I am in the setup"),
   async execute(interaction, client) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });

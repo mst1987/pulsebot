@@ -222,7 +222,9 @@ describe("explanation", () => {
         mockExplain.mockResolvedValue({ text: "Gruppe 1 trägt die Nahkämpfer.", model: "claude-x" });
         const r = await call(route.postExplain, ORGA, { event: ID });
         expect(status(r)).toBe(202);
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        // the job is a promise chain without any timer: draining the microtask
+        // queue (setImmediate runs after it) finishes it - no real sleep
+        await new Promise((resolve) => setImmediate(resolve));
         const [setup, ctx, opts] = mockExplain.mock.calls[0];
         expect(setup.groups.length).toBeGreaterThan(0);
         expect(ctx.signups.find((s) => s.userId === "late").comment).toBe("kommt 20:30");
