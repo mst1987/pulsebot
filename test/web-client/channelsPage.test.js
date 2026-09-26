@@ -18,7 +18,7 @@ const quick = read("components", "channels", "QuickCreateDialog.tsx");
 const archive = read("components", "channels", "ArchiveTab.tsx");
 const purposes = read("components", "channels", "PurposeList.tsx");
 const lib = read("lib", "channels.ts");
-const api = read("api.ts");
+const api = read("api", "channels.ts");
 const css = read("styles", "kanaele.css");
 const dashboard = read("pages", "DashboardPage.tsx");
 const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "channelPurposes.js"), "utf8");
@@ -177,7 +177,7 @@ describe("ChannelsPage", () => {
         expect(page).toContain("{data.archive.count} warten auf Löschung");
         expect(page).toMatch(/tone=\{data\.archive\.overdue \? "mid" : undefined\}/);
         expect(archive).toContain("Gelöscht wird nie automatisch");
-        expect(api).toContain("\"inbox\" | \"channels\"");
+        expect(read("api", "dashboard.ts")).toContain("\"inbox\" | \"channels\"");
         // the dashboard task renders like any other task
         expect(dashboard).toContain("tasks.map((t) =>");
     });

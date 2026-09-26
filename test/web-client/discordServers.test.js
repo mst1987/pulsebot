@@ -15,7 +15,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 const section = read("components", "SettingsDiscordServers.tsx");
 const switcher = read("components", "GuildSwitcher.tsx");
-const api = read("api.ts");
+const api = read("api", "discordServers.ts");
 
 describe("Discord-Server section", () => {
     it("loads from the endpoint the router serves and the access table lists", () => {

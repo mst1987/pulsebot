@@ -147,6 +147,6 @@ describe("the page", () => {
         expect(read("App.tsx")).toContain("<Route path=\"raids/series\"");
         expect(read("components", "Shell.tsx")).toContain("if (pathname === \"/raids/series\") return tr(\"shell.crumb.series\");");
         expect(read("pages", "RaidsPage.tsx")).toContain("to=\"/raids/series\"");
-        expect(read("api.ts")).toContain("\"/api/raids/series\"");
+        expect(read("api", "eventSeries.ts")).toContain("\"/api/raids/series\"");
     });
 });

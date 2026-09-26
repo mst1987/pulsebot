@@ -153,7 +153,7 @@ describe("Log-Auswertung: modals", () => {
         const grid = read("components", "IncompleteRaid.tsx");
         expect(grid).toContain("className={`la-boss ${b.killed ? \"ok\" : \"miss\"}`}");
         // the raids reach the client with the refusal
-        const api = read("api.ts");
+        const api = read("api", "client.ts");
         expect(api).toContain("throw { code, message: state.error || failMessage, raids: state.raids } as IncompleteRaidError;");
     });
 

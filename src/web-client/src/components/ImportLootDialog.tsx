@@ -48,7 +48,7 @@ export function ImportLootDialog({ open, onClose, data, csrfToken, onImported }:
     onImported: (msg: string) => void;
 }) {
     // categoryId is only used when the import lands without a Raid-Helper event:
-    // a real event brings its own Discord category along (see api.ts's
+    // a real event brings its own Discord category along (see api/loot.ts's
     // ImportLootInput).
     const [draft, patch] = useDraftState<ImportDraft>("history-import", IMPORT_DRAFT_DEFAULT);
     const { eventId, manualLabel, categoryId, tool, text } = draft;

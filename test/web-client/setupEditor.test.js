@@ -428,7 +428,7 @@ describe("„nicht zusammen“ in the editor", () => {
 
 describe("ping text (Ping-Nachricht) inline field", () => {
     const editor = read("pages", "raid-detail", "SetupEditor.tsx");
-    const api = read("api.ts");
+    const api = read("api", "setup.ts");
     const de = makeT("de");
     const en = makeT("en");
 

@@ -30,7 +30,7 @@ describe("signup status display", () => {
             expect(meta).toMatch(new RegExp(`\\b${status}:\\s*\\{ get label\\(\\) \\{ return t\\("raidDetail\\.signupStatus\\.${status}"\\); \\}`));
         }
         // ... and the client's own union type lists exactly those.
-        const union = read("api.ts").match(/export type SignupStatus =([^;]+);/);
+        const union = read("api", "raidDetail.ts").match(/export type SignupStatus =([^;]+);/);
         expect(union).toBeTruthy();
         const declared = [...union[1].matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
         expect(declared.sort()).toEqual([...SIGNUP_STATUSES].sort());

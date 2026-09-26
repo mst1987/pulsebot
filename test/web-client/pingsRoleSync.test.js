@@ -9,7 +9,9 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-const api = read("api.ts");
+const api = read("api", "raidDetail.ts");
+const settingsApi = read("api", "settings.ts");
+const dashboardApi = read("api", "dashboard.ts");
 const targetField = read("pages", "raid-detail", "modals", "TargetField.tsx");
 const pingModal = read("pages", "raid-detail", "modals", "PingModal.tsx");
 const notifyModal = read("pages", "raid-detail", "modals", "NotifyModal.tsx");
@@ -40,8 +42,8 @@ describe("Wohin in the raid-detail modals", () => {
 
 describe("Rollen-Abgleich part", () => {
     it("loads from the endpoint the router serves, full-admin gated in the access table", () => {
-        expect(api).toContain('get<RoleSyncData>("/api/settings/role-sync")');
-        expect(api).toContain('get<RemindersData>("/api/settings/reminders")');
+        expect(settingsApi).toContain('get<RoleSyncData>("/api/settings/role-sync")');
+        expect(settingsApi).toContain('get<RemindersData>("/api/settings/reminders")');
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/role-sync"]).toBe("settings");
         expect(AREA_BY_PATH["/api/settings/reminders"]).toBe("settings");
@@ -85,6 +87,6 @@ describe("Erinnerungen part", () => {
 
 describe("dashboard task", () => {
     it("knows the role-sync task id", () => {
-        expect(api).toContain('"sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync"');
+        expect(dashboardApi).toContain('"sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync"');
     });
 });

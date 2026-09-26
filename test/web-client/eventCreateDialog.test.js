@@ -353,7 +353,7 @@ describe("Event anlegen: dialog", () => {
         expect(dialog).toContain("saveRaidTemplate(csrfToken, templateFromPlan(plan, base, tplName))");
         expect(dialog).toContain(">{t(\"raidCreate.raid.saveAsTemplate\")}</Button>");
         expect(dialog).toContain("updateRaid(csrfToken, { id: editEventId,");
-        expect(read("api.ts")).toContain("send(\"PATCH\", \"/api/raids\", csrfToken, input)");
+        expect(read("api", "raids.ts")).toContain("send(\"PATCH\", \"/api/raids\", csrfToken, input)");
         // the raid detail edits from its one "Verwalten" menu (#288), only for an own event and raids write
         expect(detail).toContain("data.event.source === \"eventhelper\" && canAccess(user, \"raids\", \"write\")");
         expect(detail).toContain("editEventId={data.event.id}");

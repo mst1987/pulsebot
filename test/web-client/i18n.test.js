@@ -129,7 +129,7 @@ describe("the language switch", () => {
 
     it("saves it for the account too, and a failed save changes nothing", () => {
         expect(toggle).toMatch(/setLang\(next\);\s*\n\s*if \(csrfToken\) saveLang\(csrfToken, next\)\.catch\(\(\) => \{\}\);/);
-        expect(read("api.ts")).toMatch(/send\("POST", "\/api\/session\/lang", csrfToken, \{ lang \}\)/);
+        expect(read("api/session.ts")).toMatch(/send\("POST", "\/api\/session\/lang", csrfToken, \{ lang \}\)/);
     });
 
     it("lets the account's saved language win when the session loads", () => {

@@ -16,7 +16,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 const page = read("pages", "ProfilePage.tsx");
 const dialog = read("components", "profile", "AddCharacterDialog.tsx");
 const app = read("App.tsx");
-const api = read("api.ts");
+const api = read("api", "profile.ts");
 const roster = read("pages", "RosterPage.tsx");
 const css = read("styles", "profil.css");
 
