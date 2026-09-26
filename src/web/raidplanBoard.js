@@ -181,135 +181,160 @@ function cleanId(raw, seen) {
     return id;
 }
 
-/**
- * Cleans one board. `allowedUserIds` are the players that may stand on it (empty
- * for a template); anyone else is dropped and counted. `ANY_PLAYER` ("*") keeps every
- * well-formed id: a Raid-Helper event whose line-up could not be loaded must not lose
- * its players on a save (docs/raidplan.md, "Raid-Helper-Events"). Returns `{ board, dropped }`
- * or `{ code: "invalid", error }` for something over a limit.
- */
-function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = true } = {}) {
-    const input = raw && typeof raw === "object" ? raw : {};
-    const allowed = allowedUserIds === ANY_PLAYER ? { has: (u) => /^[\w-]{1,40}$/.test(str(u)) } : new Set([...allowedUserIds].map(str));
-    const profiles = new Set([...profileIds].map(str));
-    let dropped = 0;
+/** The refusal of a board with too many objects of one kind. */
+const tooMany = (max, what) => ({ code: "invalid", error: `Höchstens ${max} ${what} je Boss.` });
+const isRefusal = (x) => !!(x && x.code);
+const objectOf = (x) => (x && typeof x === "object" ? x : {});
+const listOf = (x) => (Array.isArray(x) ? x : []);
+/** A scale 0.4 .. 2 in steps of 0.01, 1 when it is not given or no number (objectScale, autoScale). */
+const cleanScale = (v) => (Number.isFinite(Number(v)) && v !== "" && v !== null ? Math.max(0.4, Math.min(2, Math.round(Number(v) * 100) / 100)) : 1);
 
+// Every clean* below takes the raw list and `ctx` — `{ allowed, dropped }`:
+// who may stand on the board, and the running count of what was dropped
+// (a stranger, a duplicate, an unknown kind). Each returns the cleaned list,
+// or a refusal `{ code: "invalid", error }` for a list over its limit.
+
+/** The players placed on the map by hand: once each, only players of the lineup. */
+function cleanTokens(raw, ctx) {
     const tokens = [];
-    const seenTokens = new Set();
-    for (const t of allowTokens && Array.isArray(input.tokens) ? input.tokens : []) {
+    const seen = new Set();
+    for (const t of raw) {
         const userId = str(t && t.userId);
-        if (!userId || seenTokens.has(userId) || !allowed.has(userId)) { dropped += 1; continue; }
-        if (tokens.length >= LIMITS.tokensPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.tokensPerBoss} Spieler je Boss.` };
-        seenTokens.add(userId);
+        if (!userId || seen.has(userId) || !ctx.allowed.has(userId)) { ctx.dropped += 1; continue; }
+        if (tokens.length >= LIMITS.tokensPerBoss) return tooMany(LIMITS.tokensPerBoss, "Spieler");
+        seen.add(userId);
         tokens.push({ userId, x: round4(clamp01(Number(t.x))), y: round4(clamp01(Number(t.y))), size: cleanSize(t.size, "token"), ...common(t) });
     }
+    return tokens;
+}
 
-    const rawSlots = Array.isArray(input.slots) ? input.slots : [];
-    if (rawSlots.length > LIMITS.slotsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.slotsPerBoss} Slots je Boss.` };
-    const slotIds = new Set();
-    const usedInSlots = new Set();
-    const slots = [];
-    for (const s of rawSlots) {
-        const o = s && typeof s === "object" ? s : {};
-        if (!SLOT_KINDS.includes(o.kind)) { dropped += 1; continue; }
-        const label = str(o.label).slice(0, LIMITS.label);
-        if (o.kind === "label" && !label) { dropped += 1; continue; }
-        let userId = str(o.userId);
-        // a player takes one place on a board; a stranger or a second place is an open slot instead
-        if (o.kind === "group") userId = "";
-        const offsets = {};
-        if (o.kind === "group" && o.offsets && typeof o.offsets === "object") {
-            for (const [uid, off] of Object.entries(o.offsets).slice(0, LIMITS.offsetsPerGroup)) {
-                if (!allowed.has(uid) || !off || typeof off !== "object") { dropped += 1; continue; }
-                offsets[uid] = { dx: round4(Math.max(-1, Math.min(1, Number(off.dx) || 0))), dy: round4(Math.max(-1, Math.min(1, Number(off.dy) || 0))), size: cleanSize(off.size, "token") };
-            }
-        }
-        if (userId && (!allowed.has(userId) || usedInSlots.has(userId))) { userId = ""; dropped += 1; }
-        if (userId) usedInSlots.add(userId);
-        const n = Math.max(1, Math.min(99, Math.floor(Number(o.n)) || 1));
-        slots.push({
-            id: cleanId(o.id, slotIds), kind: o.kind, n, label,
-            x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, size: cleanSize(o.size, "token"), ...common(o),
-            // a role slot of the Besetzung that was not put on the map yet has no place there (placed = false)
-            placed: o.placed !== false,
-            hideMembers: o.kind === "group" && o.hideMembers === true, split: o.kind === "group" && o.split === true, offsets,
-            // a group as a whole (ring radius, spacing of the tokens, member tokens, tag, badges, names), its ring spacing and its member tokens on their own: 25 % .. 400 %
-            groupScale: o.kind === "group" ? cleanFactor(o.groupScale) : 1, ringSpread: o.kind === "group" ? cleanFactor(o.ringSpread) : 1, tokenScale: o.kind === "group" ? cleanFactor(o.tokenScale) : 1,
-            // the ring round a split group: shown (default), its colour ("" = the accent) and its opacity
-            showRing: o.kind !== "group" || o.showRing !== false,
-            ringColor: o.kind === "group" ? cleanColor(o.ringColor, "") : "",
-            ringOpacity: o.kind === "group" ? cleanOpacity(o.ringOpacity, 0.55) : 0.55,
-            // the width of a group's chip with its name list (reference px, 60 .. 400); 0 = as wide as its longest name needs (up to 220)
-            chipWidth: o.kind === "group" && Number.isFinite(Number(o.chipWidth)) && Number(o.chipWidth) > 0 ? Math.max(60, Math.min(400, Math.round(Number(o.chipWidth)))) : 0,
-            // a role slot can ask for a class (priority = order): a template fills it from the setup's players of that class only;
-            // byClass = it was filled that way (shown as a small class badge in the event)
-            preferredClasses: assign.SLOT_ROLES.includes(o.kind) ? assign.cleanClasses(o.preferredClasses) : [],
-            byClass: assign.SLOT_ROLES.includes(o.kind) && o.byClass === true,
-        });
+/** A group's hand-moved member tokens: players of the lineup only, at most LIMITS.offsetsPerGroup. */
+function cleanOffsets(raw, ctx) {
+    const offsets = {};
+    for (const [uid, off] of Object.entries(raw).slice(0, LIMITS.offsetsPerGroup)) {
+        if (!ctx.allowed.has(uid) || !off || typeof off !== "object") { ctx.dropped += 1; continue; }
+        offsets[uid] = { dx: round4(Math.max(-1, Math.min(1, Number(off.dx) || 0))), dy: round4(Math.max(-1, Math.min(1, Number(off.dy) || 0))), size: cleanSize(off.size, "token") };
     }
+    return offsets;
+}
 
-    const rawMarks = Array.isArray(input.marks) ? input.marks : [];
-    if (rawMarks.length > LIMITS.marksPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.marksPerBoss} Marker je Boss.` };
-    const markIds = new Set();
+/** One slot; `used` = the players already standing in a slot of this board. Null = dropped. */
+function cleanSlot(raw, ids, used, ctx) {
+    const o = objectOf(raw);
+    if (!SLOT_KINDS.includes(o.kind)) { ctx.dropped += 1; return null; }
+    const label = str(o.label).slice(0, LIMITS.label);
+    if (o.kind === "label" && !label) { ctx.dropped += 1; return null; }
+    const isGroup = o.kind === "group";
+    // a player takes one place on a board; a stranger or a second place is an open slot instead
+    let userId = isGroup ? "" : str(o.userId);
+    const offsets = isGroup && o.offsets && typeof o.offsets === "object" ? cleanOffsets(o.offsets, ctx) : {};
+    if (userId && (!ctx.allowed.has(userId) || used.has(userId))) { userId = ""; ctx.dropped += 1; }
+    if (userId) used.add(userId);
+    const n = Math.max(1, Math.min(99, Math.floor(Number(o.n)) || 1));
+    const isRole = assign.SLOT_ROLES.includes(o.kind);
+    return {
+        id: cleanId(o.id, ids), kind: o.kind, n, label,
+        x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), userId, size: cleanSize(o.size, "token"), ...common(o),
+        // a role slot of the Besetzung that was not put on the map yet has no place there (placed = false)
+        placed: o.placed !== false,
+        hideMembers: isGroup && o.hideMembers === true, split: isGroup && o.split === true, offsets,
+        // a group as a whole (ring radius, spacing of the tokens, member tokens, tag, badges, names), its ring spacing and its member tokens on their own: 25 % .. 400 %
+        groupScale: isGroup ? cleanFactor(o.groupScale) : 1, ringSpread: isGroup ? cleanFactor(o.ringSpread) : 1, tokenScale: isGroup ? cleanFactor(o.tokenScale) : 1,
+        // the ring round a split group: shown (default), its colour ("" = the accent) and its opacity
+        showRing: !isGroup || o.showRing !== false,
+        ringColor: isGroup ? cleanColor(o.ringColor, "") : "",
+        ringOpacity: isGroup ? cleanOpacity(o.ringOpacity, 0.55) : 0.55,
+        // the width of a group's chip with its name list (reference px, 60 .. 400); 0 = as wide as its longest name needs (up to 220)
+        chipWidth: isGroup && Number.isFinite(Number(o.chipWidth)) && Number(o.chipWidth) > 0 ? Math.max(60, Math.min(400, Math.round(Number(o.chipWidth)))) : 0,
+        // a role slot can ask for a class (priority = order): a template fills it from the setup's players of that class only;
+        // byClass = it was filled that way (shown as a small class badge in the event)
+        preferredClasses: isRole ? assign.cleanClasses(o.preferredClasses) : [],
+        byClass: isRole && o.byClass === true,
+    };
+}
+
+/** The slots of the Besetzung and the groups, labels on the map. */
+function cleanSlots(raw, ctx) {
+    if (raw.length > LIMITS.slotsPerBoss) return tooMany(LIMITS.slotsPerBoss, "Slots");
+    const ids = new Set();
+    const used = new Set();
+    return raw.map((s) => cleanSlot(s, ids, used, ctx)).filter(Boolean);
+}
+
+/** The raid marks on the map. */
+function cleanMarks(raw, ctx) {
+    if (raw.length > LIMITS.marksPerBoss) return tooMany(LIMITS.marksPerBoss, "Marker");
+    const ids = new Set();
     const marks = [];
-    for (const m of rawMarks) {
-        const o = m && typeof m === "object" ? m : {};
-        if (!MARKS.includes(o.mark)) { dropped += 1; continue; }
-        marks.push({ id: cleanId(o.id, markIds), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "mark"), ...common(o) });
+    for (const m of raw) {
+        const o = objectOf(m);
+        if (!MARKS.includes(o.mark)) { ctx.dropped += 1; continue; }
+        marks.push({ id: cleanId(o.id, ids), mark: o.mark, x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "mark"), ...common(o) });
     }
+    return marks;
+}
 
-    const rawIcons = Array.isArray(input.icons) ? input.icons : [];
-    if (rawIcons.length > LIMITS.iconsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.iconsPerBoss} Icons je Boss.` };
-    const iconIds = new Set();
+/** The icons on the map: a boss, a mob's portrait, a WoW icon, the enemy or the boss position. */
+function cleanIcons(raw, ctx) {
+    if (raw.length > LIMITS.iconsPerBoss) return tooMany(LIMITS.iconsPerBoss, "Icons");
+    const ids = new Set();
     const icons = [];
-    for (const ic of rawIcons) {
-        const o = ic && typeof ic === "object" ? ic : {};
-        if (!ICON_KEY.test(str(o.iconKey))) { dropped += 1; continue; }
+    for (const ic of raw) {
+        const o = objectOf(ic);
+        if (!ICON_KEY.test(str(o.iconKey))) { ctx.dropped += 1; continue; }
         icons.push({
-            id: cleanId(o.id, iconIds), iconKey: str(o.iconKey), label: str(o.label).slice(0, LIMITS.label),
+            id: cleanId(o.id, ids), iconKey: str(o.iconKey), label: str(o.label).slice(0, LIMITS.label),
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))), size: cleanSize(o.size, "icon"),
             rotation: normAngle(o.rotation), showLabel: o.showLabel === true,
             // the mob this icon stands for (b:<boss key>, d:<catalog id>, c:<custom id>) and whether it turns to the tank of that mob by itself
             mobId: MOB_ID.test(str(o.mobId)) ? str(o.mobId) : "", autoFace: o.autoFace !== false, ...common(o), ...cleanArrow(o),
         });
     }
+    return icons;
+}
 
-    const rawZones = Array.isArray(input.zones) ? input.zones : [];
-    if (rawZones.length > LIMITS.zonesPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.zonesPerBoss} Zonen je Boss.` };
-    const zoneIds = new Set();
-    const zones = rawZones.map((z) => {
-        const o = z && typeof z === "object" ? z : {};
-        const type = ZONE_TYPES.includes(o.type) ? o.type : "neutral";
-        const role = ZONE_ROLES.includes(o.role) ? o.role : "melee";
-        const w = Math.max(MIN_ZONE, Math.min(1, Number(o.w) || MIN_ZONE));
-        const h = Math.max(MIN_ZONE, Math.min(1, Number(o.h) || MIN_ZONE));
-        return {
-            id: cleanId(o.id, zoneIds),
-            // a role group may also be a cluster of role icons instead of an area
-            shape: ZONE_SHAPES.includes(o.shape) || (type === "role" && o.shape === "cluster") ? o.shape : type === "role" ? "ellipse" : "rect",
-            type,
-            label: str(o.label).slice(0, LIMITS.label),
-            color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
-            // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
-            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation),
-                // its symbol's own scale on top of the automatic size (0.25 .. 3, 1 = automatic) and where its label stands: inside, or outside
-                // above / below / left / right of the zone (upright also when the zone is turned) - docs/raidplan.md, "Role groups"
-                iconScale: Number.isFinite(Number(o.iconScale)) && Number(o.iconScale) > 0 ? Math.max(0.25, Math.min(3, Math.round(Number(o.iconScale) * 100) / 100)) : 1,
-                labelPos: ROLE_LABEL_POS.includes(o.labelPos) ? o.labelPos : "in" } : {}),
-            ...common(o, 0.3),
-            w: round4(w), h: round4(h),
-            x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),
-            y: round4(Math.min(clamp01(Number(o.y)), 1 - h)),
-        };
-    });
+/** One zone: an area (danger, healthy, ...) or a role group; it always stays inside the board. */
+function cleanZone(z, ids) {
+    const o = objectOf(z);
+    const type = ZONE_TYPES.includes(o.type) ? o.type : "neutral";
+    const role = ZONE_ROLES.includes(o.role) ? o.role : "melee";
+    const w = Math.max(MIN_ZONE, Math.min(1, Number(o.w) || MIN_ZONE));
+    const h = Math.max(MIN_ZONE, Math.min(1, Number(o.h) || MIN_ZONE));
+    return {
+        id: cleanId(o.id, ids),
+        // a role group may also be a cluster of role icons instead of an area
+        shape: ZONE_SHAPES.includes(o.shape) || (type === "role" && o.shape === "cluster") ? o.shape : type === "role" ? "ellipse" : "rect",
+        type,
+        label: str(o.label).slice(0, LIMITS.label),
+        color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
+        // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
+        ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation),
+            // its symbol's own scale on top of the automatic size (0.25 .. 3, 1 = automatic) and where its label stands: inside, or outside
+            // above / below / left / right of the zone (upright also when the zone is turned) - docs/raidplan.md, "Role groups"
+            iconScale: Number.isFinite(Number(o.iconScale)) && Number(o.iconScale) > 0 ? Math.max(0.25, Math.min(3, Math.round(Number(o.iconScale) * 100) / 100)) : 1,
+            labelPos: ROLE_LABEL_POS.includes(o.labelPos) ? o.labelPos : "in" } : {}),
+        ...common(o, 0.3),
+        w: round4(w), h: round4(h),
+        x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),
+        y: round4(Math.min(clamp01(Number(o.y)), 1 - h)),
+    };
+}
 
-    const rawLines = Array.isArray(input.lines) ? input.lines : [];
-    if (rawLines.length > LIMITS.linesPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.linesPerBoss} Linien je Boss.` };
-    const lineIds = new Set();
-    const lines = rawLines.map((l) => {
-        const o = l && typeof l === "object" ? l : {};
+/** The zones on the map. */
+function cleanZones(raw) {
+    if (raw.length > LIMITS.zonesPerBoss) return tooMany(LIMITS.zonesPerBoss, "Zonen");
+    const ids = new Set();
+    return raw.map((z) => cleanZone(z, ids));
+}
+
+/** The lines and arrows on the map. */
+function cleanLines(raw) {
+    if (raw.length > LIMITS.linesPerBoss) return tooMany(LIMITS.linesPerBoss, "Linien");
+    const ids = new Set();
+    return raw.map((l) => {
+        const o = objectOf(l);
         return {
-            id: cleanId(o.id, lineIds),
+            id: cleanId(o.id, ids),
             kind: LINE_KINDS.includes(o.kind) ? o.kind : "line",
             x1: round4(clamp01(Number(o.x1))), y1: round4(clamp01(Number(o.y1))),
             x2: round4(clamp01(Number(o.x2))), y2: round4(clamp01(Number(o.y2))),
@@ -318,95 +343,165 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             ...common(o),
         };
     });
+}
 
-    const rawTexts = Array.isArray(input.texts) ? input.texts : [];
-    if (rawTexts.length > LIMITS.textsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.textsPerBoss} Texte je Boss.` };
-    const textIds = new Set();
+/** The free texts on the map; an empty one is dropped. */
+function cleanTexts(raw, ctx) {
+    if (raw.length > LIMITS.textsPerBoss) return tooMany(LIMITS.textsPerBoss, "Texte");
+    const ids = new Set();
     const texts = [];
-    for (const tx of rawTexts) {
-        const o = tx && typeof tx === "object" ? tx : {};
+    for (const tx of raw) {
+        const o = objectOf(tx);
         const text = str(o.text).slice(0, LIMITS.text);
-        if (!text) { dropped += 1; continue; }
+        if (!text) { ctx.dropped += 1; continue; }
         texts.push({
-            id: cleanId(o.id, textIds), text,
+            id: cleanId(o.id, ids), text,
             x: round4(clamp01(Number(o.x))), y: round4(clamp01(Number(o.y))),
             color: cleanColor(o.color, DEFAULT_TEXT_COLOR),
             size: Math.max(5, Math.min(72, Math.round(Number(o.size)) || 16)),
             ...common(o),
         });
     }
+    return texts;
+}
 
-    const rawTargets = Array.isArray(input.targets) ? input.targets : [];
-    if (rawTargets.length > LIMITS.targetsPerBoss) return { code: "invalid", error: `Höchstens ${LIMITS.targetsPerBoss} Aufgabenzeilen je Boss.` };
-    const targetIds = new Set();
-    const targets = rawTargets.map((tg) => {
-        const t = tg && typeof tg === "object" ? tg : {};
+/** The task rows under the map ("Adds: Anna, Bert"): players of the lineup, once each, at most LIMITS.usersPerTarget. */
+function cleanTargets(raw, ctx) {
+    if (raw.length > LIMITS.targetsPerBoss) return tooMany(LIMITS.targetsPerBoss, "Aufgabenzeilen");
+    const ids = new Set();
+    return raw.map((tg) => {
+        const t = objectOf(tg);
         const users = [];
-        for (const u of Array.isArray(t.userIds) ? t.userIds : []) {
+        for (const u of listOf(t.userIds)) {
             const userId = str(u);
-            if (!allowed.has(userId) || users.includes(userId)) { dropped += 1; continue; }
+            if (!ctx.allowed.has(userId) || users.includes(userId)) { ctx.dropped += 1; continue; }
             if (users.length >= LIMITS.usersPerTarget) break;
             users.push(userId);
         }
-        return { id: cleanId(t.id, targetIds), title: str(t.title).slice(0, LIMITS.title), userIds: users };
+        return { id: cleanId(t.id, ids), title: str(t.title).slice(0, LIMITS.title), userIds: users };
     });
+}
 
-    const cleanedAssign = assign.cleanAssignments(input.assignments, allowed);
-    if (cleanedAssign.error) return cleanedAssign;
-    dropped += cleanedAssign.dropped;
+/** The assignments (raidplanAssign.js); a mob target whose placed icon is gone falls back to the kind of mob. */
+function cleanBoardAssignments(raw, icons, ctx) {
+    const cleaned = assign.cleanAssignments(raw, ctx.allowed);
+    if (cleaned.error) return cleaned;
+    ctx.dropped += cleaned.dropped;
     // a target of one placed mob icon (`oid`) whose icon is gone (or stands for another mob) falls back to the kind of mob: nothing is lost
-    for (const a of cleanedAssign.assignments) {
+    for (const a of cleaned.assignments) {
         a.targets = a.targets.map((tg) => (tg.kind === "mob" && tg.oid && !icons.some((ic) => ic.id === tg.oid && ic.mobId === tg.ref) ? withoutOid(tg) : tg));
     }
+    return cleaned.assignments;
+}
 
-    // the tactic: ordered steps (who does what, when and how); a player outside the lineup is dropped like everywhere
-    const cleanedSteps = steps.cleanSteps(input.steps, allowed);
-    if (cleanedSteps.error) return cleanedSteps;
-    dropped += cleanedSteps.dropped;
-
-    const notes = String(input.notes === undefined || input.notes === null ? "" : input.notes).slice(0, LIMITS.notes);
-    // The tactic profile the rows were taken from; one that was deleted since is forgotten.
-    const profileId = profiles.has(str(input.profileId)) ? str(input.profileId) : "";
-    const mapOpacity = cleanOpacity(input.mapOpacity, 1);
-    const objectScale = Number.isFinite(Number(input.objectScale)) && input.objectScale !== "" && input.objectScale !== null ? Math.max(0.4, Math.min(2, Math.round(Number(input.objectScale) * 100) / 100)) : 1;
-    // who plays another role on this boss than in the setup ("Heiler 5 spielt hier DPS"): only players of the lineup
+/** Who plays another role on this boss than in the setup ("Heiler 5 spielt hier DPS"): only players of the lineup. */
+function cleanRoles(raw, ctx) {
     const roles = {};
-    for (const [uid, role] of Object.entries(input.roles && typeof input.roles === "object" && !Array.isArray(input.roles) ? input.roles : {})) {
-        if (!allowed.has(str(uid)) || !FLEX_ROLES.includes(role) || Object.keys(roles).length >= LIMITS.tokensPerBoss) { dropped += 1; continue; }
+    for (const [uid, role] of Object.entries(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {})) {
+        if (!ctx.allowed.has(str(uid)) || !FLEX_ROLES.includes(role) || Object.keys(roles).length >= LIMITS.tokensPerBoss) { ctx.dropped += 1; continue; }
         roles[str(uid)] = role;
     }
-    // the mobs added to this section (a boss's adds, trash mobs): they are always there as tank targets; the entry is
-    // a snapshot of the catalog's (name and icon) so it still shows when the catalog entry is gone
+    return roles;
+}
+
+/**
+ * The mobs added to this section (a boss's adds, trash mobs): they are always there as tank targets; the entry is
+ * a snapshot of the catalog's (name and icon) so it still shows when the catalog entry is gone.
+ */
+function cleanMobs(raw, ctx) {
     const mobs = [];
-    for (const m of Array.isArray(input.mobs) ? input.mobs : []) {
-        const o = m && typeof m === "object" ? m : {};
+    for (const m of raw) {
+        const o = objectOf(m);
         const id = str(o.id);
-        if (!/^[dcb]:[\w\-/']{1,70}$/.test(id) || !str(o.name) || mobs.some((x) => x.id === id)) { dropped += 1; continue; }
+        if (!/^[dcb]:[\w\-/']{1,70}$/.test(id) || !str(o.name) || mobs.some((x) => x.id === id)) { ctx.dropped += 1; continue; }
         if (mobs.length >= LIMITS.mobsPerBoss) break;
         mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
     }
-    // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
-    const hiddenCards = [...new Set((Array.isArray(input.hiddenCards) ? input.hiddenCards : []).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x));
-    const counts = besetzung.cleanCounts(input.counts);
-    // all group rings of the board at once (default: shown)
-    const showRings = input.showRings !== false;
+    return mobs;
+}
+
+/** The board-wide settings: notes, the tactic profile, what is shown, the auto placement, the Besetzung. */
+function cleanSettings(input, profiles) {
     const { groupColors, groupMarks } = cleanGroupStyles(input.groupColors, input.groupMarks);
-    const view = cleanView(input.view);
-    // false = this section (boss, trash, Allgemein) is left out of the shared sheet; it stays fully editable
-    const inSheet = input.inSheet !== false;
-    // false = the section is shown without its map (the objects are kept); missing = shown (old boards keep their map)
-    const showMap = input.showMap !== false;
-    // the tank rows put their mobs and tanks on the map by themselves (off = only what was placed by hand)
-    const autoPlace = input.autoPlace !== false;
-    const autoPos = cleanAutoPos(input.autoPos);
-    const autoStyle = cleanAutoStyle(input.autoStyle);
-    const autoScale = Number.isFinite(Number(input.autoScale)) && input.autoScale !== "" && input.autoScale !== null ? Math.max(0.4, Math.min(2, Math.round(Number(input.autoScale) * 100) / 100)) : 1;
-    const showNames = input.showNames !== false;
-    const showBadges = input.showBadges !== false;
-    const showRoleRings = input.showRoleRings !== false;
-    // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
-    const inheritOff = [...new Set((Array.isArray(input.inheritOff) ? input.inheritOff : []).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60);
-    return { board: { tokens, slots, marks, icons, zones, lines, texts, targets, assignments: cleanedAssign.assignments, steps: cleanedSteps.steps, showMap, autoPlace, autoPos, autoStyle, autoScale, hiddenCards, inheritOff, showRings, inSheet, groupColors, groupMarks, showNames, showBadges, showRoleRings, view, mobs, counts, roles, notes, profileId, mapOpacity, objectScale }, dropped };
+    return {
+        // false = the section is shown without its map (the objects are kept); missing = shown (old boards keep their map)
+        showMap: input.showMap !== false,
+        // the tank rows put their mobs and tanks on the map by themselves (off = only what was placed by hand)
+        autoPlace: input.autoPlace !== false,
+        autoPos: cleanAutoPos(input.autoPos),
+        autoStyle: cleanAutoStyle(input.autoStyle),
+        autoScale: cleanScale(input.autoScale),
+        // default assignment cards the orga hid (they come back through "Karte hinzufügen"); only known types, once each
+        hiddenCards: [...new Set(listOf(input.hiddenCards).map(str))].filter((x) => assign.ASSIGN_TYPES.includes(x)),
+        // the default rows of the template this boss does not inherit (it deviated from them or switched them off)
+        inheritOff: [...new Set(listOf(input.inheritOff).map(str))].filter((x) => /^[\w-]{1,24}$/.test(x)).slice(0, LIMITS.perBoard || 60),
+        // all group rings of the board at once (default: shown)
+        showRings: input.showRings !== false,
+        // false = this section (boss, trash, Allgemein) is left out of the shared sheet; it stays fully editable
+        inSheet: input.inSheet !== false,
+        groupColors, groupMarks,
+        showNames: input.showNames !== false,
+        showBadges: input.showBadges !== false,
+        showRoleRings: input.showRoleRings !== false,
+        view: cleanView(input.view),
+        counts: besetzung.cleanCounts(input.counts),
+        notes: String(input.notes === undefined || input.notes === null ? "" : input.notes).slice(0, LIMITS.notes),
+        // The tactic profile the rows were taken from; one that was deleted since is forgotten.
+        profileId: profiles.has(str(input.profileId)) ? str(input.profileId) : "",
+        mapOpacity: cleanOpacity(input.mapOpacity, 1),
+        objectScale: cleanScale(input.objectScale),
+    };
+}
+
+/**
+ * Cleans one board. `allowedUserIds` are the players that may stand on it (empty
+ * for a template); anyone else is dropped and counted. `ANY_PLAYER` ("*") keeps every
+ * well-formed id: a Raid-Helper event whose line-up could not be loaded must not lose
+ * its players on a save (docs/raidplan.md, "Raid-Helper-Events"). Returns `{ board, dropped }`
+ * or `{ code: "invalid", error }` for something over a limit — the first section over
+ * its limit, in the order below.
+ */
+function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = true } = {}) {
+    const input = objectOf(raw);
+    const allowed = allowedUserIds === ANY_PLAYER ? { has: (u) => /^[\w-]{1,40}$/.test(str(u)) } : new Set([...allowedUserIds].map(str));
+    const ctx = { allowed, dropped: 0 };
+
+    const tokens = cleanTokens(allowTokens ? listOf(input.tokens) : [], ctx);
+    if (isRefusal(tokens)) return tokens;
+    const slots = cleanSlots(listOf(input.slots), ctx);
+    if (isRefusal(slots)) return slots;
+    const marks = cleanMarks(listOf(input.marks), ctx);
+    if (isRefusal(marks)) return marks;
+    const icons = cleanIcons(listOf(input.icons), ctx);
+    if (isRefusal(icons)) return icons;
+    const zones = cleanZones(listOf(input.zones));
+    if (isRefusal(zones)) return zones;
+    const lines = cleanLines(listOf(input.lines));
+    if (isRefusal(lines)) return lines;
+    const texts = cleanTexts(listOf(input.texts), ctx);
+    if (isRefusal(texts)) return texts;
+    const targets = cleanTargets(listOf(input.targets), ctx);
+    if (isRefusal(targets)) return targets;
+    const assignments = cleanBoardAssignments(input.assignments, icons, ctx);
+    if (isRefusal(assignments)) return assignments;
+    // the tactic: ordered steps (who does what, when and how); a player outside the lineup is dropped like everywhere
+    const cleanedSteps = steps.cleanSteps(input.steps, allowed);
+    if (cleanedSteps.error) return cleanedSteps;
+    ctx.dropped += cleanedSteps.dropped;
+
+    const roles = cleanRoles(input.roles, ctx);
+    const mobs = cleanMobs(listOf(input.mobs), ctx);
+    const s = cleanSettings(input, new Set([...profileIds].map(str)));
+    return {
+        board: {
+            tokens, slots, marks, icons, zones, lines, texts, targets, assignments, steps: cleanedSteps.steps,
+            showMap: s.showMap, autoPlace: s.autoPlace, autoPos: s.autoPos, autoStyle: s.autoStyle, autoScale: s.autoScale,
+            hiddenCards: s.hiddenCards, inheritOff: s.inheritOff, showRings: s.showRings, inSheet: s.inSheet,
+            groupColors: s.groupColors, groupMarks: s.groupMarks, showNames: s.showNames, showBadges: s.showBadges, showRoleRings: s.showRoleRings,
+            view: s.view, mobs, counts: s.counts, roles, notes: s.notes, profileId: s.profileId, mapOpacity: s.mapOpacity, objectScale: s.objectScale,
+        },
+        dropped: ctx.dropped,
+    };
 }
 
 /** A mob target without its placed-icon reference (the kind of mob again; its number, if any, stays). */
