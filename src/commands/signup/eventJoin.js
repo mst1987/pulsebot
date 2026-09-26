@@ -5,12 +5,12 @@ const profiles = require("../../web/raiderProfileStore");
 const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../web/signupService");
 const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../web/eventMessage");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
-const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signupDialog");
-const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/joinPicker");
-const { toEnglish } = require("../../utils/botEnglish");
+const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signup/signupDialog");
+const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/signup/joinPicker");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 
 // The public "Anmelden …" select under an event message (#287) and the
-// components of the character select it opens (utils/joinPicker.js):
+// components of the character select it opens (utils/signup/joinPicker.js):
 //
 //   event-join:<eventId>                        public select, value = status
 //   event-join:<eventId>:<code>:c:<state>       character · spec select (redraws only)

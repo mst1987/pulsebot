@@ -32,15 +32,15 @@
 // and every save goes through signupService.submitSignup (deadline, closed,
 // cancelled, raider role, profile rules). A customId is a hint, never a permission.
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
-const { getSignup, lastSignupOf } = require("../web/signupStore");
-const { migrateSignup, MAX_CHARACTERS } = require("../web/signupCharacters");
-const profiles = require("../web/raiderProfileStore");
-const { allowedStatuses, signupWindow } = require("../web/signupService");
-const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../web/appEmojis");
-const { BUTTON_PREFIX } = require("../web/eventMessage");
+const { getSignup, lastSignupOf } = require("../../web/signupStore");
+const { migrateSignup, MAX_CHARACTERS } = require("../../web/signupCharacters");
+const profiles = require("../../web/raiderProfileStore");
+const { allowedStatuses, signupWindow } = require("../../web/signupService");
+const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../web/appEmojis");
+const { BUTTON_PREFIX } = require("../../web/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
-const { MIN_NOTE } = require("../web/signupNotes");
+const { MIN_NOTE } = require("../../web/signupNotes");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;

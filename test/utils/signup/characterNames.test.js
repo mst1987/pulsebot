@@ -1,6 +1,6 @@
 const {
     NAME_PART_MAX, NAME_MAX, allowsLastName, normalizeForCheck, isProfane, validateCharacterName,
-} = require("../../src/utils/characterNames");
+} = require("../../../src/utils/signup/characterNames");
 
 describe("allowsLastName", () => {
     it("is on for WoW Forever only", () => {

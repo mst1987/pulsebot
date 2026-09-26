@@ -1,13 +1,13 @@
 const fs = require("fs");
 const path = require("path");
-const { toEnglish, RULES } = require("../../src/utils/botEnglish");
+const { toEnglish, RULES } = require("../../../src/utils/signup/botEnglish");
 
 // German markers that must not survive a translation.
 const GERMAN = /[äöüÄÖÜß]|\b(der|die|das|du|dich|deinem|nicht|nur|noch|bitte|kein|keine|ist|wurde|voll)\b/i;
 
 /** The fixed (non-template) sentences a module hands to `fail(...)` / `error:` / `notice:`. */
 function literalSentences(file, pattern) {
-    const src = fs.readFileSync(path.join(__dirname, "../../src/web", file), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "../../../src/web", file), "utf8");
     return [...src.matchAll(pattern)].map((m) => m[1]);
 }
 
@@ -41,7 +41,7 @@ describe("utils/botEnglish", () => {
     });
 
     it("translates every refusal of the character-name rule", () => {
-        const { validateCharacterName } = require("../../src/utils/characterNames");
+        const { validateCharacterName } = require("../../../src/utils/signup/characterNames");
         const cases = [
             ["", {}], ["A B C", { lastName: true }], ["Aldric Sturmwind", { lastName: false }],
             ["Ab1", {}], ["Aldric St1", { lastName: true }], ["A1 Sturmwind", { lastName: true }],

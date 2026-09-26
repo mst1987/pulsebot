@@ -2,12 +2,12 @@ const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../web/eventStore");
 const { SIGNUP_BUTTON_PREFIX } = require("../../web/eventMessage");
 const { checkRaiderRole } = require("../../web/signupService");
-const { buildSignupDialog } = require("../../utils/signupDialog");
-const { toEnglish } = require("../../utils/botEnglish");
+const { buildSignupDialog } = require("../../utils/signup/signupDialog");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 
 // The "Anmelden" button under an EventHelper event message
 // (customId `event-signup:<eventId>`, web/eventMessage.js). Opens the signup
-// dialog (utils/signupDialog.js) as a message only the member sees — unless the
+// dialog (utils/signup/signupDialog.js) as a message only the member sees — unless the
 // event's category wants a raider role the member does not have (the service's
 // rule; saving refuses it again).
 module.exports = {

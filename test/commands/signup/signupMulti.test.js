@@ -14,7 +14,7 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 
 const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/web/raiderProfileStore");
-const multi = require("../../../src/utils/multiSignup");
+const multi = require("../../../src/utils/signup/multiSignup");
 const all = require("../../../src/commands/signup/talkSignupAll");
 const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const step = require("../../../src/commands/signup/signupMulti");

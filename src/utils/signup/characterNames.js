@@ -8,8 +8,8 @@
 // Pure. Names read from logs or the armory are the game's own and never come
 // through here — only what somebody typed.
 
-const { rulesFor } = require("../config/gameVersions");
-const { CONTAINS, PREFIX, EXACT } = require("../config/profanity");
+const { rulesFor } = require("../../config/gameVersions");
+const { CONTAINS, PREFIX, EXACT } = require("../../config/profanity");
 
 const NAME_PART_MIN = 2;
 const NAME_PART_MAX = 12;

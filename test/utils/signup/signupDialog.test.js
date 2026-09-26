@@ -1,14 +1,14 @@
 // Der Anmelde-Dialog in Discord (#258): Aufbau der Nachricht, Zustand in den
 // customIds, Längenbegrenzung.
 
-jest.mock("../../src/web/eventStore", () => require("../helpers/signupMocks").eventStore());
-jest.mock("../../src/web/signupStore", () => require("../helpers/signupMocks").signupStore());
-jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
+jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
-const mocks = require("../helpers/signupMocks");
-const profiles = require("../../src/web/raiderProfileStore");
-const dialog = require("../../src/utils/signupDialog");
-const { tempStoreFile } = require("../helpers/tempStore");
+const mocks = require("../../helpers/signupMocks");
+const profiles = require("../../../src/web/raiderProfileStore");
+const dialog = require("../../../src/utils/signup/signupDialog");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";

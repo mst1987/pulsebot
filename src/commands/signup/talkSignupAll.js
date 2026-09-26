@@ -2,8 +2,8 @@ const { MessageFlags } = require("discord.js");
 const profiles = require("../../web/raiderProfileStore");
 const { ALL_BUTTON_ID } = require("../../web/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
-const { characterOptions } = require("../../utils/joinPicker");
-const { createSession, getSession, signableRaids, buildCharacterModal } = require("../../utils/multiSignup");
+const { characterOptions } = require("../../utils/signup/joinPicker");
+const { createSession, getSession, signableRaids, buildCharacterModal } = require("../../utils/signup/multiSignup");
 const { noCharacterReply, noRaidsReply } = require("./talkSignupMulti");
 
 // "Für alle Raids anmelden" under the raid overview on the talk server (#293):

@@ -128,7 +128,7 @@ describe("SignupsPage", () => {
 
     it("keeps the open dialog in the url so the Discord dialog's web button can link to it", () => {
         expect(page).toContain("params.get(\"event\")");
-        const button = fs.readFileSync(path.join(__dirname, "..", "..", "src", "utils", "signupDialog.js"), "utf8");
+        const button = fs.readFileSync(path.join(__dirname, "..", "..", "src", "utils", "signup", "signupDialog.js"), "utf8");
         expect(button).toContain("/signups?event=");
     });
 });

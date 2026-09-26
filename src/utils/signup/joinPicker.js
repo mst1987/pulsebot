@@ -12,13 +12,13 @@
 // `<characterKey>:<specKey>:<roleMask>` — the same state signupDialog.js
 // carries, so its handlers take over seamlessly. A customId is a hint, never a
 // permission: every save goes through signupService.submitSignup.
-const { embedAccentColor } = require("../config/variables");
-const { publicBaseUrl } = require("./publicUrl");
-const { getSignup, lastSignupOf } = require("../web/signupStore");
-const profiles = require("../web/raiderProfileStore");
-const { defaultCanAlso, signupWindow } = require("../web/signupService");
-const { buildClasses } = require("../config/gameVersions/classes");
-const { emojiOption, specEmojiName } = require("../web/appEmojis");
+const { embedAccentColor } = require("../../config/variables");
+const { publicBaseUrl } = require("../publicUrl");
+const { getSignup, lastSignupOf } = require("../../web/signupStore");
+const profiles = require("../../web/raiderProfileStore");
+const { defaultCanAlso, signupWindow } = require("../../web/signupService");
+const { buildClasses } = require("../../config/gameVersions/classes");
+const { emojiOption, specEmojiName } = require("../../web/appEmojis");
 const { toEnglish } = require("./botEnglish");
 const {
     MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_STATE,

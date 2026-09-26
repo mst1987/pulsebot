@@ -21,7 +21,7 @@ const TEST = path.join(ROOT, "test");
 
 const ALLOWED = {
     // pure data tables, covered by the tests of the module that reads them
-    "src/config/profanity.js": "reine Wortlisten, geprüft über utils/characterNames.js (characterNames.test.js)",
+    "src/config/profanity.js": "reine Wortlisten, geprüft über utils/signup/characterNames.js (characterNames.test.js)",
     "src/config/recommendationRules.js": "reine Regeltabelle, geprüft über utils/logcheck/recommendations.js",
     "src/config/softresInstances.js": "reine Instanz-Tabelle, geprüft über utils/softres.js (softres.test.js)",
     "src/web/raidplanConstants.js": "zwei Konstanten-Listen, geprüft über raidplanAssign/raidplanCatalogStore/raidplanTitle",

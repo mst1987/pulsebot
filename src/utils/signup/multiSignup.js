@@ -26,17 +26,17 @@
 //   signup-multi:<token>:m:<page>   the modal (submit)
 //   signup-multi:e:<eventId>:<code> "Mehrere Charaktere …" of one event
 const crypto = require("crypto");
-const { shortServerTime, shortServerDate, discordTimestamp } = require("./discordTime");
-const { embedAccentColor } = require("../config/variables");
-const { publicBaseUrl } = require("./publicUrl");
-const eventStore = require("../web/eventStore");
-const { getSignup, lastSignupOf } = require("../web/signupStore");
-const { migrateSignup, MAX_CHARACTERS } = require("../web/signupCharacters");
-const profiles = require("../web/raiderProfileStore");
-const guildRoles = require("../web/guildRoles");
-const { getConfig } = require("../web/settingsStore");
-const { signupWindow } = require("../web/signupService");
-const { emojiOption, specEmojiName, statusEmojiName } = require("../web/appEmojis");
+const { shortServerTime, shortServerDate, discordTimestamp } = require("../discordTime");
+const { embedAccentColor } = require("../../config/variables");
+const { publicBaseUrl } = require("../publicUrl");
+const eventStore = require("../../web/eventStore");
+const { getSignup, lastSignupOf } = require("../../web/signupStore");
+const { migrateSignup, MAX_CHARACTERS } = require("../../web/signupCharacters");
+const profiles = require("../../web/raiderProfileStore");
+const guildRoles = require("../../web/guildRoles");
+const { getConfig } = require("../../web/settingsStore");
+const { signupWindow } = require("../../web/signupService");
+const { emojiOption, specEmojiName, statusEmojiName } = require("../../web/appEmojis");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
 const { toEnglish } = require("./botEnglish");
