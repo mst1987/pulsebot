@@ -12,7 +12,7 @@
 // The slim slice: this reads the roster (or, on an old report, the players)
 // and nothing else — see reportStore.js.
 const { listReports, getReportRoster } = require("./reportStore");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
+const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 
 // How many of the newest evaluations are read. Same bound (and reason) as
@@ -25,10 +25,6 @@ const MAX_REPORTS = 40;
 const MAX_ISSUES = 25;
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
-
-function charKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
 
 // Same mapping as src/web/render.js's iconUrl(): WCL ships a bare asset name
 // ("inv_helmet_21.jpg"), the CDN wants it lowercased without the extension.
@@ -90,7 +86,7 @@ function condenseReport(meta) {
         ? report.roster
         : ((report && report.players) || []);
     for (const row of rows) {
-        const key = charKey(row.name);
+        const key = characterKeyOf(row.name);
         if (!key) continue;
         const issues = Array.isArray(row.issues) ? row.issues.filter(Boolean) : [];
         entries.push({
@@ -144,7 +140,7 @@ function latestIssuesByCharacter(opts = {}) {
 
 /** The same entry for a single character (by name), or null. */
 function issuesForCharacter(character, opts = {}) {
-    const key = charKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     return latestIssuesByCharacter(opts)[key] || null;
 }

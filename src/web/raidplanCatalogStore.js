@@ -16,6 +16,7 @@ const crypto = require("crypto");
 const defaults = require("./raidplanCatalogDefaults");
 const { instanceById } = require("../config/gameVersions");
 const { ASSIGN_TYPES } = require("./raidplanAssign");
+const { str } = require("../utils/text");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-catalog.json");
 const LIMITS = { mobs: 400, spells: 300, name: 60, note: 200 };
@@ -31,7 +32,6 @@ function useFile(f) {
     file = f || DEFAULT_FILE;
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 function readAll() {
     try {

@@ -15,8 +15,9 @@
 // Only references are stored; names come from the setup when the plan is shown. A step resolves its class references
 // ON ITS OWN (the same "Magier 1" in two steps is the same raider — a tactic is one sequence, not a round robin).
 // Pure and tested (test/web/raidplanSteps.test.js).
-const crypto = require("crypto");
 const assign = require("./raidplanAssign");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
 
 const ACTIONS = ["tank", "swap", "kite", "adds", "interrupt", "dispel", "cc", "soak", "focus", "buff", "heal", "wait", "note"];
 const TIMING_KINDS = ["", "pull", "phase", "hp", "interval", "now", "text"];
@@ -31,8 +32,6 @@ const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 /** How a kind of step is resolved like an assignment: tanking steps imply the tank role, healing the healers, the rest none. */
 const TASK_OF = { tank: "tank", swap: "tank", kite: "special", adds: "tank", heal: "heal" };
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
-const newId = () => crypto.randomBytes(5).toString("hex");
 const num = (v, lo, hi) => { const n = Math.round(Number(v)); return Number.isFinite(n) && v !== "" && v !== null ? Math.max(lo, Math.min(hi, n)) : null; };
 
 /** A timing as stored: a known kind with the numbers it needs (clamped), or none. */
@@ -65,7 +64,7 @@ function cleanSteps(raw, allowed = new Set()) {
     for (const s of list) {
         const o = s && typeof s === "object" ? s : {};
         let id = str(o.id).replace(/[^\w-]/g, "").slice(0, 24);
-        if (!id || ids.has(id)) id = newId();
+        if (!id || ids.has(id)) id = newId(5);
         ids.add(id);
         const participants = [];
         for (const ref of Array.isArray(o.participants) ? o.participants : []) {
@@ -101,7 +100,7 @@ function cleanSteps(raw, allowed = new Set()) {
 
 /** The same steps under new ids (a template or a library tactic copied into a plan); the references stay. */
 function reidSteps(list) {
-    return (Array.isArray(list) ? list : []).map((s) => ({ ...s, id: newId() }));
+    return (Array.isArray(list) ? list : []).map((s) => ({ ...s, id: newId(5) }));
 }
 
 /**

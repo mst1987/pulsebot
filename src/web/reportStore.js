@@ -1,18 +1,13 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { raidSummary } = require("../utils/logcheck/raidProgress");
+const { newId } = require("../utils/ids");
 
 // Reports are stored as JSON files under data/reports/<id>.json
 const REPORTS_DIR = path.join(__dirname, "..", "..", "data", "reports");
 
 function ensureDir() {
     fs.mkdirSync(REPORTS_DIR, { recursive: true });
-}
-
-function newId() {
-    // short, unlisted, hard-to-guess id
-    return crypto.randomBytes(6).toString("hex");
 }
 
 function filePath(id) {

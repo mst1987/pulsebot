@@ -13,6 +13,7 @@ const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
 const { getConfig } = require("../../src/web/settingsStore.js");
 const logStore = require("../../src/web/logStore.js");
 const discord = require("../../src/web/discord.js");
+require("../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");
 const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../src/web/logChannel.js");
 

@@ -18,15 +18,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
-
-// Wie der Rest der App: kleingeschrieben und ohne Realm-Zusatz, damit
-// "Devihra-Thunderstrike" und "devihra" derselbe Raider sind. Ohne das
-// Abschneiden ginge eine Entscheidung verloren, sobald der Name einmal mit
-// Realm ankommt — und so kommt er aus manchen Loot-Exporten.
-function characterKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
+const { characterKeyOf } = require("../utils/lootImport");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const EXCLUDED_FILE = path.join(SETTINGS_DIR, "council-excluded.json");
@@ -56,7 +48,7 @@ function listExcluded() {
 
 /** Whether this character is currently excluded. */
 function isExcluded(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     return !!(key && readAll()[key]);
 }
 
@@ -70,7 +62,7 @@ function excludedKeys() {
  * name. Re-excluding someone refreshes the note rather than erroring.
  */
 function exclude(character, { reason = "", by = "" } = {}) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     const all = readAll();
     all[key] = {
@@ -85,7 +77,7 @@ function exclude(character, { reason = "", by = "" } = {}) {
 
 /** Plan with them again. Returns true when something was actually removed. */
 function include(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return false;
     const all = readAll();
     if (!all[key]) return false;
@@ -129,7 +121,7 @@ function listRoles() {
 
 /** The role a character is planned as, or "" when nobody decided. */
 function plannedRole(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     const entry = key ? readRoles()[key] : null;
     return entry ? entry.role : "";
 }
@@ -148,7 +140,7 @@ function plannedRoles() {
  * back, and the page falls to what the data says again.
  */
 function setRole(character, role, { by = "" } = {}) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     const all = readRoles();
     const wanted = String(role || "").trim();

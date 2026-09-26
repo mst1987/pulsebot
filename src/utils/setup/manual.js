@@ -15,8 +15,8 @@
 
 const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
 const { GROUP_SIZE, signupCharacters } = require("./model");
+const { str } = require("../text");
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 /**
  * Every slot of a group with a place of its own, 1…5 (`pos`): a slot that names

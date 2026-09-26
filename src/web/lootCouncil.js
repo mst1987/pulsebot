@@ -22,7 +22,7 @@ const { countsAsLoot } = require("../utils/lootReasons");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("./councilStore");
 const { armoryUrlFor } = require("./charLinks");
-const { characterKey, splitPlayer } = require("../utils/lootImport");
+const { characterKey, characterKeyOf } = require("../utils/lootImport");
 const { listStoredEvents } = require("./eventSources");
 const { listLogs } = require("./logStore");
 const { listReports, getReport } = require("./reportStore");
@@ -135,7 +135,7 @@ function categoryFromReports(categoryId) {
         if (!reportIds.has(String(meta.id))) continue;
         const report = getReport(meta.id);
         for (const entry of (report && report.roster) || []) {
-            const key = characterKey(splitPlayer(entry.name).character);
+            const key = characterKeyOf(entry.name);
             if (key) keys.add(key);
         }
     }

@@ -31,6 +31,7 @@ describe("config/variables", () => {
         "adminRoleIds",
         "guildId",
         "devAutoLogin",
+        "TIMEZONE",
     ];
 
     // Load with a clean env so the documented defaults are exercised.
@@ -108,6 +109,11 @@ describe("config/variables", () => {
     it("defaults the web port to 3005 and derives the public base url from it", () => {
         expect(variables.webPort).toBe(3005);
         expect(variables.publicBaseUrl).toBe("http://localhost:3005");
+    });
+
+    it("re-exports the one server time zone", () => {
+        expect(variables.TIMEZONE).toBe("Europe/Berlin");
+        expect(variables.TIMEZONE).toBe(require("../../src/config/timezone").TIMEZONE);
     });
 
     it("keeps the {char} placeholder in the url templates", () => {

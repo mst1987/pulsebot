@@ -14,12 +14,13 @@
 // go away with it.
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { instanceById } = require("../config/gameVersions");
 const board = require("./raidplanBoard");
 const planStore = require("./raidplanStore");
 const besetzung = require("./raidplanBesetzung");
 const inherit = require("./raidplanInherit");
+const { str } = require("../utils/text");
+const { isSnowflake, newId } = require("../utils/ids");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-templates.json");
 const LIMITS = { templates: 100, name: 40, category: 30, description: 200 };
@@ -31,7 +32,6 @@ function useFile(file) {
     templateFile = file || DEFAULT_FILE;
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 function readAll() {
     try {
@@ -54,7 +54,7 @@ function normalize(raw) {
         name: str(r.name).slice(0, LIMITS.name),
         category: str(r.category).slice(0, LIMITS.category),
         description: str(r.description).slice(0, LIMITS.description),
-        guildId: /^\d{5,25}$/.test(str(r.guildId)) ? str(r.guildId) : "",
+        guildId: isSnowflake(str(r.guildId)) ? str(r.guildId) : "",
         instanceIds: [...new Set((Array.isArray(r.instanceIds) ? r.instanceIds : []).map(str).filter((i) => instanceById(i)))],
         // the raid type: its size (0 = the instances' default) and the Besetzung's role counts (null = derived from the type)
         size: Math.max(0, Math.min(besetzung.MAX_SIZE, Math.floor(Number(r.size) || 0))),
@@ -101,7 +101,7 @@ function validate(input, { partial = false } = {}) {
     }
     if (body.guildId !== undefined) {
         const g = str(body.guildId);
-        if (g && !/^\d{5,25}$/.test(g)) return { code: "invalid", error: "Ungültiger Server." };
+        if (g && !isSnowflake(g)) return { code: "invalid", error: "Ungültiger Server." };
         value.guildId = g;
     }
     if (body.size !== undefined) {
@@ -130,7 +130,7 @@ function createTemplate(input, { now = Date.now() } = {}) {
     if (!checked.value.instanceIds) return { code: "invalid", error: "Wähle mindestens eine Instanz." };
     const all = readAll();
     if (all.length >= LIMITS.templates) return { code: "invalid", error: `Höchstens ${LIMITS.templates} Vorlagen.` };
-    const template = normalize({ ...checked.value, id: crypto.randomBytes(6).toString("hex"), bosses: {}, version: 1, updatedAt: now });
+    const template = normalize({ ...checked.value, id: newId(), bosses: {}, version: 1, updatedAt: now });
     all.push(template);
     writeAll(all);
     return { template };
@@ -187,7 +187,7 @@ function duplicateTemplate(id, { now = Date.now() } = {}) {
     const bosses = {};
     for (const [key, b] of Object.entries(source.bosses)) bosses[key] = board.reidBoard(b);
     const copy = normalize({
-        ...source, id: crypto.randomBytes(6).toString("hex"), name: source.name.slice(0, LIMITS.name - suffix.length) + suffix,
+        ...source, id: newId(), name: source.name.slice(0, LIMITS.name - suffix.length) + suffix,
         bosses, version: 1, updatedAt: now,
     });
     all.push(copy);

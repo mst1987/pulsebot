@@ -33,6 +33,8 @@ const DEFAULT_MAP_DIR = path.join(DATA_DIR, "raidplan-maps");
 
 const board = require("./raidplanBoard");
 const inherit = require("./raidplanInherit");
+const { str } = require("../utils/text");
+const { isSnowflake } = require("../utils/ids");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -45,7 +47,6 @@ function useFile(file, dir) {
     mapDir = dir || (file ? path.join(path.dirname(file), "raidplan-maps") : DEFAULT_MAP_DIR);
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 // ---- bosses of an event ------------------------------------------------------
 
@@ -184,7 +185,7 @@ function normalizeLink(raw) {
         size: size >= 1 && size <= 40 ? size : 0,
         composition: composition && Object.keys(composition).length ? composition : null,
         title: str(r.title).slice(0, 120),
-        guildId: /^\d{5,25}$/.test(str(r.guildId)) ? str(r.guildId) : "",
+        guildId: isSnowflake(str(r.guildId)) ? str(r.guildId) : "",
         startTime: Math.max(0, Math.floor(Number(r.startTime) || 0)),
         changedAt: Number(r.changedAt) || 0,
         changedBy: str(r.changedBy),

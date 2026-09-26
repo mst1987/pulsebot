@@ -1,5 +1,5 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { publicBaseUrl } = require("../../config/variables");
+const { publicBaseUrl } = require("../../utils/publicUrl");
 const { getStoredEvent } = require("../../web/eventSources");
 const { getEvent, isOwnEventId } = require("../../web/eventStore");
 const { SELECT_ID } = require("../../web/talkOverview");
@@ -40,7 +40,7 @@ module.exports = {
         const channelUrl = event && event.channelId && guildId
             ? `https://discord.com/channels/${guildId}/${event.channelId}`
             : "";
-        const base = String(publicBaseUrl || "").replace(/\/+$/, "");
+        const base = publicBaseUrl();
         const url = channelUrl || `${base}/raids/detail?event=${encodeURIComponent(eventId)}`;
         return interaction.reply({
             content: channelUrl

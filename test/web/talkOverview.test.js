@@ -1,4 +1,4 @@
-jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
+jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];

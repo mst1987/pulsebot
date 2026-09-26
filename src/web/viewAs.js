@@ -20,6 +20,7 @@
 //
 // Pure: config in, rights out.
 const { fullAccess, emptyAccess, mergeAccess, baseAccessMap, accessForRoles } = require("../config/permissions");
+const { isSnowflake } = require("../utils/ids");
 
 const MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const MAX_ROLES = 25;
@@ -27,7 +28,7 @@ const MAX_ROLES = 25;
 /** The role ids of a request body: strings, unique, at most MAX_ROLES. */
 function normalizeRoleIds(raw) {
     const list = Array.isArray(raw) ? raw : [];
-    return [...new Set(list.map((id) => String(id || "").trim()).filter((id) => /^\d{5,25}$/.test(id)))].slice(0, MAX_ROLES);
+    return [...new Set(list.map((id) => String(id || "").trim()).filter((id) => isSnowflake(id)))].slice(0, MAX_ROLES);
 }
 
 /**

@@ -22,6 +22,7 @@ const axios = require("axios");
 const { getConfig } = require("../../src/web/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 const auth = require("../../src/web/auth.js");
+const discord = require("../../src/web/discord");
 
 // Flush the background admin re-check kicked off by sessionFor().
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -207,7 +208,7 @@ describe("web/auth", () => {
 
         afterEach(() => {
             nowSpy.mockRestore();
-            auth.setClient(null);
+            discord.setClient(null);
             getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
         });
 
@@ -220,7 +221,7 @@ describe("web/auth", () => {
         it("grants admin at login when the member has a configured role", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
 
             const { req } = await loginAs("555");
             expect(auth.getUser(req).isAdmin).toBe(true);
@@ -234,7 +235,7 @@ describe("web/auth", () => {
             // Admin adds a role id in the settings afterwards:
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
 
             // Within the cache window nothing is re-checked.
             expect(auth.getUser(req).isAdmin).toBe(false);
@@ -253,7 +254,7 @@ describe("web/auth", () => {
         it("re-checks only once per cache window", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
 
             const { req } = await loginAs("557");
             expect(fetch).toHaveBeenCalledTimes(1); // login-time check
@@ -270,7 +271,7 @@ describe("web/auth", () => {
         it("keeps the last known status when the re-check lookup fails", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("558");
             expect(auth.getUser(req).isAdmin).toBe(true);
 
@@ -284,7 +285,7 @@ describe("web/auth", () => {
         it("demotes a session whose user left the guild (Unknown Member)", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("559");
             expect(auth.getUser(req).isAdmin).toBe(true);
 
@@ -300,7 +301,7 @@ describe("web/auth", () => {
         it("demotes an admin whose role was removed from the config", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
             const { req } = await loginAs("560");
             expect(auth.getUser(req).isAdmin).toBe(true);
 
@@ -326,7 +327,7 @@ describe("web/auth", () => {
 
         afterEach(() => {
             nowSpy.mockRestore();
-            auth.setClient(null);
+            discord.setClient(null);
             getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
         });
 
@@ -344,7 +345,7 @@ describe("web/auth", () => {
                     "role-b": { raids: { read: true, write: true } },
                 },
             }));
-            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a", "role-b"))).client);
+            discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a", "role-b"))).client);
 
             const { req } = await loginAs("601");
             const user = auth.getUser(req);
@@ -360,7 +361,7 @@ describe("web/auth", () => {
                 adminRoleIds: ["role-admin"],
                 rolePermissions: { "role-a": { raids: { read: true, write: false } } },
             }));
-            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-admin", "role-a"))).client);
+            discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-admin", "role-a"))).client);
 
             const { req } = await loginAs("602");
             const user = auth.getUser(req);
@@ -374,7 +375,7 @@ describe("web/auth", () => {
                 adminRoleIds: [],
                 rolePermissions: { "role-a": { raids: { read: true, write: false } } },
             }));
-            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-other"))).client);
+            discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-other"))).client);
 
             const { req } = await loginAs("603");
             const user = auth.getUser(req);
@@ -386,7 +387,7 @@ describe("web/auth", () => {
         it("skips the Discord lookup entirely when nothing is configured", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
             const fetch = jest.fn();
-            auth.setClient(fakeClient(fetch).client);
+            discord.setClient(fakeClient(fetch).client);
 
             const { req } = await loginAs("604");
 
@@ -404,7 +405,7 @@ describe("web/auth", () => {
                     baseAccess: { loot: { read: true, write: false } },
                     rolePermissions: { "role-a": { raids: { read: true, write: true } } },
                 }));
-                auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+                discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
 
                 const { req } = await loginAs("606");
                 const user = auth.getUser(req);
@@ -420,7 +421,7 @@ describe("web/auth", () => {
                     adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true, write: false } },
                 }));
                 const fetch = jest.fn();
-                auth.setClient(fakeClient(fetch).client);
+                discord.setClient(fakeClient(fetch).client);
 
                 const { req } = await loginAs("607");
 
@@ -434,7 +435,7 @@ describe("web/auth", () => {
                     baseAccess: { loot: { read: true, write: false } },
                 }));
                 const notAMember = Object.assign(new Error("Unknown Member"), { code: 10007 });
-                auth.setClient(fakeClient(jest.fn().mockRejectedValue(notAMember)).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(notAMember)).client);
 
                 const { req } = await loginAs("608");
                 const user = auth.getUser(req);
@@ -448,7 +449,7 @@ describe("web/auth", () => {
                     adminRoleIds: ["role-admin"],
                     baseAccess: { loot: { read: true, write: false } },
                 }));
-                auth.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
 
                 const { req } = await loginAs("609");
                 const user = auth.getUser(req);
@@ -495,7 +496,7 @@ describe("web/auth", () => {
             it("needs no Discord lookup when nothing role-based is configured", async () => {
                 getConfig.mockImplementation(() => councilFor("614"));
                 const fetch = jest.fn();
-                auth.setClient(fakeClient(fetch).client);
+                discord.setClient(fakeClient(fetch).client);
 
                 const { req } = await loginAs("614");
 
@@ -505,7 +506,7 @@ describe("web/auth", () => {
 
             it("survives a failing role lookup, like the base access does", async () => {
                 getConfig.mockImplementation(() => ({ ...councilFor("615"), adminRoleIds: ["role-admin"] }));
-                auth.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
 
                 const { req } = await loginAs("615");
 
@@ -518,7 +519,7 @@ describe("web/auth", () => {
                     userPermissions: { "616": { lootcouncil: { read: true, write: false } } },
                     rolePermissions: { "role-a": { raids: { read: true, write: true } } },
                 }));
-                auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+                discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
 
                 const { req } = await loginAs("616");
                 const user = auth.getUser(req);
@@ -537,7 +538,7 @@ describe("web/auth", () => {
                 adminRoleIds: [],
                 rolePermissions: { "role-a": { history: { read: true, write: true } } },
             }));
-            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+            discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
 
             now += 300000 + 1000;
             auth.getUser(req); // triggers the background re-check
@@ -561,7 +562,7 @@ describe("web/auth", () => {
 
         afterEach(() => {
             nowSpy.mockRestore();
-            auth.setClient(null);
+            discord.setClient(null);
             getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
             guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
         });
@@ -574,7 +575,7 @@ describe("web/auth", () => {
 
         it("grants access via a role on a secondary event server when not even a member of the first", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
-            auth.setClient(fakeMultiGuildClient({
+            discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
                 "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-1")),
             }));
@@ -590,7 +591,7 @@ describe("web/auth", () => {
                     "role-b": { cla: { read: true, write: true } },
                 },
             }));
-            auth.setClient(fakeMultiGuildClient({
+            discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockResolvedValue(memberWithRoles("role-a")),
                 "guild-2": jest.fn().mockResolvedValue(memberWithRoles("role-b")),
             }));
@@ -603,7 +604,7 @@ describe("web/auth", () => {
 
         it("keeps only the base access without a throw when a member of no configured event server", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
-            auth.setClient(fakeMultiGuildClient({
+            discord.setClient(fakeMultiGuildClient({
                 "guild-1": jest.fn().mockRejectedValue(NOT_A_MEMBER),
                 "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER),
             }));
@@ -613,7 +614,7 @@ describe("web/auth", () => {
 
         it("falls back to base access, not a crash, when no configured event server can be reached at all", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: ["role-1"] }));
-            auth.setClient(fakeMultiGuildClient({ "guild-1": "offline", "guild-2": "offline" }));
+            discord.setClient(fakeMultiGuildClient({ "guild-1": "offline", "guild-2": "offline" }));
             const { req } = await loginAs("704");
             // resolveAccess() swallows the "no guild reachable" throw at login time,
             // same as an outage on the single-server setup — never a crash.

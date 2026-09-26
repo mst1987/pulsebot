@@ -20,7 +20,8 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
+const { embedAccentColor } = require("../config/variables");
+const { publicBaseUrl } = require("./publicUrl");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { ROLES } = require("../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
@@ -48,7 +49,6 @@ const GEAR_LABELS = { none: "no gear", usable: "gear usable", ready: "gear raid 
 // The English label of a class or spec, the German one as a fallback.
 const en = (x) => (x && (x.labelEn || x.label)) || "";
 
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
 /** "t", "hm" … for a role list; unknown roles are left out. */
 function encodeRoles(roles) {
@@ -191,7 +191,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     else if (event.signupsClosed) lines.push("Signups are closed – you can only sign off now.");
     else if (win.deadlinePassed) lines.push("The signup deadline has passed – only Absence or “Late” now.");
     if (!chars.length) {
-        lines.push(`No character in your profile yet – pick class and spec here or [create a profile](${baseUrl()}/profile).`);
+        lines.push(`No character in your profile yet – pick class and spec here or [create a profile](${publicBaseUrl()}/profile).`);
     }
     const partners = wishPartnersSignedUp(profile, signups.filter((s) => String(s.userId) !== uid));
     if (partners.length) lines.push(`Also signed up: ${partners.map((p) => p.name).filter(Boolean).join(", ")}`);
@@ -261,10 +261,10 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
         new ButtonBuilder()
             .setStyle(ButtonStyle.Link)
             .setLabel("Open on the web")
-            .setURL(`${baseUrl()}/signups?event=${encodeURIComponent(event.id)}`),
+            .setURL(`${publicBaseUrl()}/signups?event=${encodeURIComponent(event.id)}`),
     ];
     if (!chars.length) {
-        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Create profile").setURL(`${baseUrl()}/profile`));
+        extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Create profile").setURL(`${publicBaseUrl()}/profile`));
     }
     rows.push(new ActionRowBuilder().addComponents(extra));
 

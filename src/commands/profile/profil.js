@@ -9,14 +9,14 @@
 // characters are switched on the web page.
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
 const profiles = require("../../web/raiderProfileStore");
-const { publicBaseUrl } = require("../../config/variables");
+const { publicBaseUrl } = require("../../utils/publicUrl");
 
 const GEAR_LABELS = { none: "no gear", usable: "usable", ready: "raid ready" };
 const DAY_LABELS = { mo: "Mon", di: "Tue", mi: "Wed", do: "Thu", fr: "Fri", sa: "Sat", so: "Sun" };
 const TOGGLES = { tank: "canOfftank", heal: "canHeal" };
 
 function profileUrl() {
-    return `${String(publicBaseUrl || "").replace(/\/+$/, "")}/profile`;
+    return `${publicBaseUrl()}/profile`;
 }
 
 /** The embed text of a profile. Pure. */

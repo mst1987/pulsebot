@@ -32,6 +32,64 @@ afterEach(() => {
     jest.clearAllMocks();
 });
 
+describe("web/discord client access", () => {
+    describe("isOnline", () => {
+        it("is false without a client", () => {
+            expect(discord.isOnline()).toBe(false);
+        });
+
+        it("asks the client whether it is logged in, when it can say so", () => {
+            let ready = false;
+            discord.setClient({ isReady: () => ready });
+            expect(discord.isOnline()).toBe(false);
+            ready = true;
+            expect(discord.isOnline()).toBe(true);
+        });
+
+        it("counts a client without isReady() as there", () => {
+            discord.setClient({ channels: {} });
+            expect(discord.isOnline()).toBe(true);
+        });
+    });
+
+    describe("fetchTextChannel", () => {
+        const textChannel = { id: "c1", isTextBased: () => true };
+
+        it("throws 'Bot nicht verbunden.' without a client", async () => {
+            await expect(discord.fetchTextChannel("c1")).rejects.toMatchObject({ message: "Bot nicht verbunden.", code: "bot_offline" });
+        });
+
+        it("returns the text channel the client fetches, the id as a string", async () => {
+            const fetch = jest.fn(async () => textChannel);
+            discord.setClient({ channels: { fetch } });
+            await expect(discord.fetchTextChannel(12345)).resolves.toBe(textChannel);
+            expect(fetch).toHaveBeenCalledWith("12345");
+        });
+
+        it("refuses a missing channel and one that holds no messages, with the caller's text", async () => {
+            const fetch = jest.fn()
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce({ id: "v1", isTextBased: () => false })
+                .mockResolvedValueOnce({ id: "cat" });
+            discord.setClient({ channels: { fetch } });
+            await expect(discord.fetchTextChannel("x")).rejects.toMatchObject({ message: "Kanal nicht gefunden oder kein Textkanal.", code: "channel_not_found" });
+            await expect(discord.fetchTextChannel("v1", "Übersichts-Kanal fehlt.")).rejects.toThrow("Übersichts-Kanal fehlt.");
+            await expect(discord.fetchTextChannel("cat")).rejects.toMatchObject({ code: "channel_not_found" });
+        });
+
+        it("passes Discord's own errors through", async () => {
+            const unknown = Object.assign(new Error("Unknown Channel"), { code: 10003 });
+            discord.setClient({ channels: { fetch: jest.fn().mockRejectedValue(unknown) } });
+            await expect(discord.fetchTextChannel("gone")).rejects.toBe(unknown);
+        });
+
+        it("textChannelOf works on any client handed in", async () => {
+            await expect(discord.textChannelOf(null, "c1")).rejects.toThrow("Bot nicht verbunden.");
+            await expect(discord.textChannelOf({ channels: { fetch: async () => textChannel } }, "c1")).resolves.toBe(textChannel);
+        });
+    });
+});
+
 describe("web/discord channel management", () => {
     describe("listCategories", () => {
         it("returns only category channels, ordered by position", () => {

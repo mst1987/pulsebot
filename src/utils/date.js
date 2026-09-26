@@ -1,4 +1,5 @@
 ﻿const { DateTime } = require("luxon");
+const { TIMEZONE } = require("../config/timezone");
 
 module.exports = {
     getWednesdayWeeksAgo: function(weeks) {
@@ -21,13 +22,13 @@ module.exports = {
         return new Date(year, month, day);
     }, 
     toTimestamp: function(dateString) {
-        const timestampCET = DateTime.fromFormat(dateString, "dd.MM.yy-HH:mm", { zone: "Europe/Paris" }).toMillis();
+        const timestampCET = DateTime.fromFormat(dateString, "dd.MM.yy-HH:mm", { zone: TIMEZONE }).toMillis();
     
         return timestampCET;
     },
     formatTimestampToDateString: function(timestamp) {
         // Convert the timestamp to a Luxon DateTime object in CET
-        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: "Europe/Paris" });
+        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: TIMEZONE });
 
         // Format the DateTime object as the desired string format
         const formattedString = dateTimeCET.toFormat("dd.MM.yyyy") + " - " + dateTimeCET.toFormat("HH:mm");
@@ -58,10 +59,10 @@ module.exports = {
         const de = str.match(/^(\d{1,2})\.(\d{1,2})\.(?:(\d{2}|\d{4}))?$/);
         if (!iso && !de) return "";
         const [day, month] = iso ? [Number(iso[3]), Number(iso[2])] : [Number(de[1]), Number(de[2])];
-        const today = DateTime.fromMillis(Number(now), { zone: "Europe/Berlin" }).startOf("day");
+        const today = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
         let year = iso ? Number(iso[1]) : (de[3] ? Number(de[3]) : today.year);
         if (year < 100) year += 2000;
-        let dt = DateTime.fromObject({ year, month, day }, { zone: "Europe/Berlin" });
+        let dt = DateTime.fromObject({ year, month, day }, { zone: TIMEZONE });
         if (!dt.isValid) return "";
         if (!iso && !de[3] && today.diff(dt, "days").days > 60) {
             dt = dt.plus({ years: 1 });
