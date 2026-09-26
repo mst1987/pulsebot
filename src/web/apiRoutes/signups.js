@@ -8,9 +8,9 @@
 // The PUT works on `user.id` from the session and nothing else: a `userId` in
 // the body is ignored, so nobody changes someone else's signup through it. The
 // rules themselves are signupService.js', shared with the Discord signup (#258).
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups } = require("../raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../discord");

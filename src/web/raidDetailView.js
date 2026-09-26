@@ -9,7 +9,7 @@
 // Some fields (notifyTemplates, roles, matchedSheetId, tankCandidates,
 // softresCatalogue/Edition/Suggested) are only consumed by the page's action
 // modals, but are included here since this read already computes all of it.
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,

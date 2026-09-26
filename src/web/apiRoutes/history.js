@@ -1,6 +1,6 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");

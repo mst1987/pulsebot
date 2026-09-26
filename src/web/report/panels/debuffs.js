@@ -1,7 +1,7 @@
 // Debuffs on the boss: the raid summary with its debuff × boss matrix, Sunder
 // Armor and the boss uptimes.
 const { bossIconUrl } = require("../../../config/bosses");
-const { fmtTime } = require("../../charts");
+const { fmtTime } = require("../charts");
 const { esc } = require("../layout");
 const { classCell, badge, barPct, yesNo, hicon, toneCell, naCell } = require("../widgets");
 const { fightOutcome, groupByBoss } = require("../fightTopics");

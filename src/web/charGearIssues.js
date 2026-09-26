@@ -26,7 +26,7 @@ const MAX_ISSUES = 25;
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
-// Same mapping as src/web/render.js's iconUrl(): WCL ships a bare asset name
+// Same mapping as src/web/report/render.js's iconUrl(): WCL ships a bare asset name
 // ("inv_helmet_21.jpg"), the CDN wants it lowercased without the extension.
 function issueIconUrl(icon) {
     if (!icon) return "";

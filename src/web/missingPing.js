@@ -9,7 +9,7 @@ const { getConfig } = require("../stores/settingsStore");
 const { computeAttendance, hasStarted } = require("../utils/attendance");
 const discord = require("./discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS } = require("./pingDelivery");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 
 /**
  * @param {{ guildId: string, eventId: string, target?: string, text?: string }} p

@@ -14,9 +14,9 @@
 // The area gate (apiAccess.js) decides read vs. write by method; the GET of the
 // editor additionally asks whether the caller may write, because a draft is
 // never handed to someone who could not approve it.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendFailure, sendResult } = require("../apiResult");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendFailure, sendResult } = require("../http/apiResult");
 const { userCan } = require("../../config/permissions");
 const { getConfig } = require("../../stores/settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../stores/eventStore");

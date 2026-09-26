@@ -4,11 +4,11 @@
 // routes in server.js (see the "CLA / logcheck" block there) — same guards,
 // same German strings, same data shapes, minus the HTML rendering.
 const crypto = require("crypto");
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { AppError } = require("../apiResult");
-const { q } = require("../apiParams");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { AppError } = require("../http/apiResult");
+const { q } = require("../http/apiParams");
+const { activeGuildFor } = require("../http/activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
 const { contentsForText } = require("../../config/tbcContent");

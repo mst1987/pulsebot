@@ -3,9 +3,9 @@
 // Kategorien nach Raider-Rollen, und die Orga-Liste mit Kommentar und „kann auch“.
 
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockGroups = [];
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockConfig = {};
@@ -40,7 +40,7 @@ jest.mock("../../../src/stores/signupStore", () => {
     };
 });
 
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const route = require("../../../src/web/apiRoutes/signups");
 const { categoryVisible } = require("../../../src/web/signupView");
@@ -249,7 +249,7 @@ describe("POST /api/signups/bulk (#293)", () => {
     });
 
     it("ist im Zugriffsplan für den Bereich Anmeldung eingetragen", () => {
-        const { AREA_BY_PATH } = require("../../../src/web/apiAccess");
+        const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
         expect(AREA_BY_PATH["/api/signups/bulk"]).toBe("signup");
     });
 });

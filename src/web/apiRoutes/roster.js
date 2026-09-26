@@ -1,6 +1,6 @@
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const { buildRoster, rosterCharacter } = require("../roster");
 const { rosterStats } = require("../rosterStats");
 const rosterHidden = require("../../stores/rosterHiddenStore");

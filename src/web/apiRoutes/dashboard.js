@@ -1,7 +1,7 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
 const { listRecruitmentPosts, getConfig } = require("../../stores/settingsStore");
-const { activeGuildFor } = require("../activeGuild");
+const { activeGuildFor } = require("../http/activeGuild");
 const discord = require("../discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
@@ -11,7 +11,7 @@ const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
 const { loadDrift } = require("../roleSync");
 const { seriesFailures } = require("../eventSeries");
-const { deployStatus } = require("../deployStatus");
+const { deployStatus } = require("../http/deployStatus");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {

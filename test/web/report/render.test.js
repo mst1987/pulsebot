@@ -1,0 +1,642 @@
+const {
+    renderReportPage,
+    renderPlayerPage,
+    renderNotFound,
+    renderError,
+} = require("../../../src/web/report/render.js");
+const rpbData = require("../../../src/config/rpbData.js");
+
+function sampleReport() {
+    return {
+        id: "abc123def456",
+        title: "Test Raid",
+        zone: "Karazhan",
+        date: "2026-07-24",
+        reportUrl: "https://www.warcraftlogs.com/reports/xyz",
+        players: [
+            {
+                name: "Alice",
+                type: "Mage",
+                issues: [
+                    {
+                        itemName: "Broken Ring",
+                        itemId: 1234,
+                        icon: "inv_ring.jpg",
+                        severity: "high",
+                        label: "kaputt",
+                    },
+                ],
+            },
+            { name: "Bob", type: "Warrior", issues: [] },
+        ],
+        roster: [
+            {
+                name: "Alice",
+                type: "Mage",
+                issues: [
+                    {
+                        itemName: "Broken Ring",
+                        itemId: 1234,
+                        icon: "inv_ring.jpg",
+                        severity: "high",
+                        label: "kaputt",
+                    },
+                ],
+                potions: { destruction: 1, haste: 2, mana: 0 },
+                armory: [
+                    {
+                        slot: 0,
+                        itemId: 9001,
+                        itemName: "Fancy Helm",
+                        icon: "inv_helm.jpg",
+                        quality: 4,
+                        itemLevel: 120,
+                        enchant: { status: "ok" },
+                        gems: [{ id: 7, icon: "gem.jpg", bad: false }],
+                        emptySockets: 1,
+                    },
+                    {
+                        slot: 5,
+                        itemId: 9002,
+                        itemName: "Plain Chest",
+                        icon: "inv_chest.jpg",
+                        quality: 2,
+                        itemLevel: 100,
+                        enchant: { status: "missing" },
+                        gems: [],
+                        emptySockets: 0,
+                    },
+                    {
+                        slot: 9,
+                        itemId: 9003,
+                        itemName: "Bad Boots",
+                        icon: "inv_boots.jpg",
+                        quality: 3,
+                        itemLevel: 110,
+                        enchant: { status: "bad", reason: "falsche Verzauberung" },
+                        gems: [{ id: 8, icon: "gem2.jpg", bad: true }],
+                        emptySockets: 0,
+                    },
+                ],
+            },
+            { name: "Bob", type: "Warrior", issues: [], potions: {}, armory: [] },
+        ],
+        icons: {
+            destruction: "spell_destruction",
+            haste: "spell_haste",
+            mana: "spell_mana",
+            flask: "flask_icon",
+            battle: "battle_icon",
+            food: "food_icon",
+        },
+        consumables: {
+            players: [
+                {
+                    name: "Alice",
+                    type: "Mage",
+                    flask: 100,
+                    elixir: 0,
+                    buffed: 50,
+                    food: 100,
+                    weaponOiled: true,
+                },
+            ],
+            icons: { flask: "flask_icon", battle: "battle_icon", food: "food_icon" },
+        },
+        potions: {
+            players: [
+                {
+                    name: "Alice",
+                    type: "Mage",
+                    destruction: 1,
+                    haste: 2,
+                    mana: 7,
+                    total: 10,
+                    byType: { destruction: 1, haste: 2, superMana: 5, darkRune: 2 },
+                },
+            ],
+            types: [
+                { key: "destruction", group: "destruction", label: "Zerstörungstrank", icon: "inv_potion_107", itemId: 22839, spellId: null },
+                { key: "superMana", group: "mana", label: "Super-Manatrank", icon: "inv_potion_137", itemId: 22832, spellId: null },
+                { key: "darkRune", group: "mana", label: "Dunkle Rune", icon: "inv_misc_rune_04", itemId: 20520, spellId: null },
+            ],
+            icons: {
+                destruction: "spell_destruction",
+                haste: "spell_haste",
+                mana: "spell_mana",
+            },
+        },
+        drums: {
+            players: [
+                {
+                    name: "Bob",
+                    type: "Warrior",
+                    total: 5,
+                    byType: { Battle: 3, Restoration: 2 },
+                },
+            ],
+            icon: "drum_icon",
+        },
+        sunder: [{ name: "Bob", type: "Warrior", total: 20, below5: 2 }],
+        bossUptimes: {
+            metrics: [{ key: "sunder", label: "Sunder" }],
+            rows: [
+                { boss: "Attumen", kill: true, sunder: 98 },
+                { boss: "Nightbane", kill: false, sunder: 40 },
+            ],
+        },
+        shadowResi: {
+            note: "SR note text",
+            players: [
+                {
+                    name: "Alice",
+                    type: "Mage",
+                    sr: 60,
+                    items: [{ itemId: 55, itemName: "Shadow Cloak", sr: 20 }],
+                },
+            ],
+        },
+    };
+}
+
+/** A report carrying a populated RPB section on top of the CLA sections. */
+function reportWithRpb() {
+    return {
+        ...sampleReport(),
+        rpb: {
+            roles: { Alice: "Caster", Bob: "Tank" },
+            byRole: { Tank: [{ name: "Bob", type: "Warrior", trinkets: [] }], Healer: [], Caster: [], Physical: [] },
+            raidSeconds: 300,
+            bossSeconds: 200,
+            damage: {
+                heading: "Vermeidbarer erhaltener Schaden",
+                abilities: [{
+                    label: "Feuerregen", name: "Rain of Fire", sources: ["Boss"], total: 5000,
+                    icon: "spell_shadow_rainoffire.jpg", spellId: 42223,
+                }],
+                players: [
+                    { name: "Alice", type: "Mage", perAbility: { 0: 1200 }, avoidableTotal: 1200, reflected: 30, hostile: 0, deaths: 1 },
+                    { name: "Bob", type: "Warrior", perAbility: { 0: 800 }, avoidableTotal: 800, reflected: 0, hostile: 12, deaths: 0 },
+                ],
+            },
+            activity: {
+                raidSeconds: 300,
+                headings: {},
+                players: [
+                    {
+                        name: "Alice", type: "Mage", gearSpellHaste: 60, hasteSecondsSubtracted: 18,
+                        hasteBuffsUsed: {}, secondsActive: 240, secondsActiveST: 200, secondsActiveAoe: 40,
+                        relativeST: 66, relativeAoe: 13, relativeTotal: 80,
+                        singleTargetCasts: [
+                            {
+                                label: "Feuerball", name: "Fireball", amount: 42,
+                                icon: "spell_fire_flamebolt.jpg", spellId: 38692,
+                                lowerRankCasts: 30, lowerRankPercent: 71, mostlyLowerRank: true,
+                            },
+                            { label: "Frostblitz", name: "Frostbolt", amount: 10, icon: "spell_frost_frostbolt02.jpg", spellId: 27072 },
+                        ],
+                        aoeCasts: [
+                            { label: "Blizzard", name: "Blizzard", amount: 5, icon: "spell_frost_icestorm.jpg", spellId: 27085 },
+                        ],
+                    },
+                ],
+            },
+            interrupts: {
+                heading: "Unterbrochene Zauber",
+                players: [{
+                    name: "Bob", type: "Warrior", count: 4,
+                    spells: [{ name: "Heilung", count: 4, icon: "spell_holy_heal.jpg", spellId: 25314 }],
+                    kicks: [{ name: "Schildhieb", count: 4 }],
+                }],
+            },
+            validation: {
+                zones: ["SSC"],
+                bossesKilled: 3,
+                bossesTotal: 4,
+                requirements: [
+                    { zone: "SSC", label: "Tiefensumpfkoloss", name: "Underbog Colossus", minimum: 6, killed: 6, ok: true },
+                    { zone: "SSC", label: "Tiefenhexe", name: "Coilfang Fathom-Witch", minimum: 6, killed: 2, ok: false },
+                ],
+                valid: false,
+            },
+            usage: [
+                {
+                    name: "Alice", type: "Mage",
+                    classCooldowns: [{
+                        label: "Eisige Adern", name: "Icy Veins", total: 3, trash: 1, bosses: 2,
+                        cooldown: 180, possibleUses: 4, icon: "spell_frost_coldhearted.jpg", spellId: 12472,
+                    }],
+                    trinketsAndRacials: [{
+                        label: "Schädel", name: "Skull", total: 2, trash: 0, bosses: 2,
+                        icon: "inv_misc_bone_elfskull_01.jpg", spellId: 40396,
+                    }],
+                    consumables: [], engineering: [], absorbs: [],
+                },
+            ],
+            headings: {},
+        },
+    };
+}
+
+describe("web/report/render", () => {
+    describe("renderReportPage", () => {
+        it("produces a full HTML document with the report title", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
+            expect(html).toContain("<title>Log-Check: Test Raid</title>");
+            expect(html).toContain("<h1 class=\"page-title\">Test Raid</h1>");
+        });
+
+        it("renders the sub line with zone, date and the WCL link", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("Zone: Karazhan");
+            expect(html).toContain("2026-07-24");
+            expect(html).toContain("https://www.warcraftlogs.com/reports/xyz");
+            expect(html).toContain("Warcraft Logs<svg");
+        });
+
+        it("shows KPI cards for bosses and consumables, the raider count in the view switch, the gear issues in the raid view", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("class=\"kpis\"");
+            expect(html).toContain("Bosse</div>");
+            expect(html).toContain("1 Kill, 1 Wipe"); // 2 boss rows, one of them a wipe
+            expect(html).toContain("Flask / Elixiere");
+            expect(html).toMatch(/Raider<span class="n(?: mid| bad)?">2<\/span>/); // 2 raiders
+            expect(html).toMatch(/id="rs-gear"[\s\S]*?<div class="mc-val bad">1<small>bei 1 Raider<\/small><\/div>/);
+        });
+
+        it("offers the three views, Raid first when there is no timeline", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("class=\"seg-btn active\" data-show=\"view-raid\"");
+            expect(html).toContain("data-show=\"view-bosse\"");
+            expect(html).toContain("data-show=\"view-raider\"");
+            expect(html).toContain("<div id=\"view-raid\" class=\"view\">");
+            expect(html).toContain("<div id=\"view-bosse\" class=\"view\" hidden>");
+            expect(html).toContain("<div id=\"view-raider\" class=\"view\" hidden>");
+            expect(html).toContain("<script src=\"/r-assets/report.js?v=");
+        });
+
+        it("shows a metric card with its detail dialog for every populated raid-wide part", () => {
+            const cards = renderReportPage(sampleReport());
+            for (const id of ["gear", "consumables", "potions", "drums", "sunder", "bosses", "shadowresi"]) {
+                expect(cards).toContain(`<div class="mcard" id="rs-${id}" role="button" tabindex="0" data-dialog="dlg-rs-${id}">`);
+                expect(cards).toContain(`<dialog class="dlg detail" id="dlg-rs-${id}">`);
+            }
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("id=\"rs-gear\"");
+            expect(html).toContain("id=\"rs-consumables\"");
+            expect(html).toContain("id=\"rs-potions\"");
+            expect(html).toContain("id=\"rs-drums\"");
+            expect(html).toContain("id=\"rs-sunder\"");
+            expect(html).toContain("id=\"rs-bosses\"");
+            expect(html).toContain("id=\"rs-shadowresi\"");
+        });
+
+        it("says so in the raider card when the CLA half has not run yet", () => {
+            const report = reportWithRpb();
+            delete report.potions;      // RPB evaluated, CLA not — zeros would mislead
+            const html = renderReportPage(report);
+            expect(html).toContain("nicht ausgewertet");
+        });
+
+        it("shows the potion counts in the raider card once the CLA half is there", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).not.toContain("nicht ausgewertet");
+            expect(html).toContain("class=\"potions\"");
+        });
+
+        it("breaks the mana total down into one column per source", () => {
+            const html = renderReportPage(sampleReport());
+            // the aggregate stays, the sources are spelled out behind it
+            expect(html).toContain("inv_potion_137.jpg");   // Super Mana Potion
+            expect(html).toContain("inv_misc_rune_04.jpg"); // Dark Rune
+            expect(html).toContain("Super-Manatrank");
+            expect(html).toContain("Dunkle Rune");
+            expect(html).toContain("data-tip=\"Super-Manatrank\" data-tip-sub=\"Teil der Spalte „Mana“.\"");
+        });
+
+        it("only shows mana columns, not the destruction/haste types, in the breakdown", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("data-tip=\"Dunkle Rune\"");
+            expect(html).not.toContain("data-tip=\"Zerstörungstrank\"");
+        });
+
+        it("renders every raider as a closed card with the class icon, the role and the gear chip", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Alice\" data-name=\"Alice\" data-role=\"dps\"");
+            expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Bob\" data-name=\"Bob\" data-role=\"dps\"");
+            expect(html).not.toContain("data-role=\"dps\" data-open=\"0\" data-report=\"abc123def456\" style=\"--cc:#69CCF0\" open");
+            expect(html).toContain("classicon_mage.jpg");
+            expect(html).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
+            // nothing stands out about Bob: one badge in the ok tone
+            const bob = html.slice(html.indexOf("id=\"raider-Bob\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Bob\"")));
+            expect(bob).toContain("<div class=\"vcard-chips\"><span class=\"badge ok\">");
+        });
+
+        it("hides every RPB section when the report has no RPB section", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).not.toContain("id=\"rs-rpbdamage\"");
+            expect(html).not.toContain("id=\"rs-rpbactivity\"");
+            expect(html).not.toContain("id=\"rs-rpbvalidate\"");
+        });
+
+        it("shows the RPB sections when the section is populated", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("id=\"rs-rpbdamage\"");
+            // RPB activity and cooldowns go into the cards of their CLA counterparts, labelled RPB
+            expect(html).toContain("id=\"rs-activity\"");
+            expect(html).toContain("id=\"rs-cooldowns\"");
+            expect(html).toContain("<span class=\"badge accent\">RPB</span>");
+            expect(html).toContain("id=\"rs-rpbinterrupts\"");
+            expect(html).toContain("id=\"rs-rpbvalidate\"");
+            // and the RPB's roles sort the raiders into the role filter
+            expect(html).toContain("data-name=\"Bob\" data-role=\"tank\"");
+        });
+
+        it("filters the damage table by role and name from one tool row instead of role tabs", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-frole=\"all\">Alle<span class=\"n\">2</span></button>");
+            expect(html).toMatch(/data-frole="Tank"><img class="hicon"[^>]*inv_shield_06\.jpg" alt="">Tanks<span class="n">1<\/span>/);
+            expect(html).toContain("data-frole=\"Caster\">");
+            expect(html).toContain("<tr data-role=\"Tank\" data-name=\"Bob\">");
+            expect(html).toContain("data-fsearch");
+            expect(html).not.toContain("data-tab=");
+            expect(html).toContain("Feuerregen");
+            // thousands separator for the German locale
+            expect(html).toContain("1.200");
+        });
+
+        it("offers both table orientations, players first", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("class=\"seg-btn active\" data-orient=\"p\" data-tip=\"Spieler als Zeilen\"");
+            expect(html).toContain("data-orient=\"a\" data-tip=\"Fähigkeiten als Zeilen\"");
+            expect(html).not.toContain("tblswitch");
+            // the transposed view puts every raider in a column head
+            expect(html).toContain("class=\"rcol\"");
+        });
+
+        it("shows the avoidable ability's own WoW icon in the table head", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("spell_shadow_rainoffire.jpg");
+        });
+
+        it("names the sources of an avoidable ability in its tooltip", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tip=\"Feuerregen\" data-tip-sub=\"Quelle: Boss. Der Balken ist der Anteil am höchsten Wert dieser Spalte im ganzen Raid");
+        });
+
+        it("uses its own tooltips instead of the native title box", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tip=");
+            // and suppresses Wowhead's competing tooltip on the icon links
+            expect(html).toContain("data-disable-wowhead-tooltip=\"true\"");
+        });
+
+        it("colours damage values by their share of the raid's worst in that column", () => {
+            const html = renderReportPage(reportWithRpb());
+            // Alice took 1200 of the column's 1200 max -> top bucket; Bob 800 -> 66%
+            expect(html).toContain("<span class=\"bar\"><i class=\"high\" style=\"width:100%\"></i><b class=\"high\">1.200</b></span>");
+            expect(html).toContain("<span class=\"bar\"><i class=\"medium\" style=\"width:67%\"></i><b class=\"medium\">800</b></span>");
+            expect(html).not.toContain("class=\"dv ");
+        });
+
+        it("gives the numeric tables a fixed geometry so every role tab lines up", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("class=\"idx rpb fixed\"");
+        });
+
+        it("warns that melee activity is inaccurate", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Für Nahkämpfer ungenau");
+        });
+
+        it("renders the interrupted spells as icons, plus what they were kicked with", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("spell_holy_heal.jpg");
+            expect(html).toContain("Heilung ×4");
+            expect(html).toContain("https://www.wowhead.com/tbc/spell=25314");
+            expect(html).toContain("Schildhieb ×4");
+        });
+
+        it("flags a log that misses its trash requirements", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Bosse gelegt");
+            expect(html).toContain("zu wenig");
+            expect(html).toContain("nicht");
+        });
+
+        it("shows cooldown usage as an icon with its count and the possible uses", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("spell_frost_coldhearted.jpg");
+            expect(html).toContain("data-tip=\"Eisige Adern ×3\" data-tip-sub=\"3 von ~4 möglichen\"");
+            expect(html).toContain("https://www.wowhead.com/tbc/spell=12472");
+        });
+
+        it("marks a cooldown used less than half as often as possible", () => {
+            const report = reportWithRpb();
+            report.rpb.usage[0].classCooldowns[0].total = 1;   // 1 of 4 possible
+            const html = renderReportPage(report);
+            expect(html).toContain("class=\"itile warn\"");
+        });
+
+        it("renders trinkets as icons instead of a text list", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("inv_misc_bone_elfskull_01.jpg");
+            expect(html).toContain("Schädel ×2");
+        });
+
+        it("shows a spell tab listing each raider's tracked casts", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("id=\"rs-rpbspells\"");
+            expect(html).toContain("spell_fire_flamebolt.jpg");
+            expect(html).toContain("spell_frost_icestorm.jpg");
+            expect(html).toContain("Frostblitz ×10");
+        });
+
+        it("flags a spell that was mostly cast at a lower rank", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tip=\"Feuerball ×42\" data-tip-sub=\"71% niedriger Rang (30×)\"");
+            expect(html).toContain("class=\"itile warn\"");
+        });
+
+        it("recovers icons for older reports from the config, by the entry's name", () => {
+            const report = reportWithRpb();
+            // a report saved before icons were recorded: no icon on the row, but the
+            // config knows this ability by name (Icy Veins)
+            delete report.rpb.usage[0].classCooldowns[0].icon;
+            const html = renderReportPage(report);
+            expect(html).toContain(`icons/large/${rpbData.CLASS_COOLDOWNS.Mage.find((c) => c.name === "Icy Veins").icon}.jpg`);
+            expect(html).not.toContain("inv_misc_questionmark");
+        });
+
+        it("falls back to a labelled pill when nothing resolves an icon at all", () => {
+            const report = reportWithRpb();
+            delete report.rpb.usage[0].trinketsAndRacials[0].icon;
+            report.rpb.usage[0].trinketsAndRacials[0].name = "Nicht in der Config";
+            const html = renderReportPage(report);
+            expect(html).toContain("class=\"ipill\"");
+            expect(html).toContain("<span>Schädel</span>");
+            expect(html).not.toContain("inv_misc_questionmark");
+        });
+
+        it("counts the downrank warnings in the spell section's badge", () => {
+            const html = renderReportPage(reportWithRpb());
+            // exactly one flagged spell in the fixture
+            expect(html).toMatch(/id="rs-rpbspells"[\s\S]*?<div class="mc-val mid">1<small>Rang-Warnung<\/small><\/div>/);
+        });
+
+        it("hides the spell section when no tracked casts were recorded", () => {
+            const report = reportWithRpb();
+            report.rpb.activity.players[0].singleTargetCasts = [];
+            report.rpb.activity.players[0].aoeCasts = [];
+            const html = renderReportPage(report);
+            expect(html).not.toContain("id=\"rs-rpbspells\"");
+            expect(html).toContain("id=\"rs-activity\"");   // activity itself stays
+        });
+
+        it("labels the views and sections with WoW icons rather than emoji", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-show=\"view-raider\"><img class=\"hicon\"");
+            expect(html).toContain("inv_misc_grouplooking.jpg");
+            expect(html).not.toContain("👥");
+            expect(html).not.toContain("🛡️");
+            expect(html).not.toContain("💥");
+        });
+
+        it("includes player names and issue details", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("Alice");
+            expect(html).toContain("Bob");
+            expect(html).toContain("Broken Ring");
+            expect(html).toContain("kaputt");
+            expect(html).toContain("tag tag-high");
+        });
+
+        it("links issues with an itemId to wowhead", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("https://www.wowhead.com/tbc/item=1234");
+        });
+
+        it("renders the Wipe marker for non-kill boss rows", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("(Wipe)");
+        });
+
+        it("escapes HTML in the title", () => {
+            const r = sampleReport();
+            r.title = "<b>pwn</b>";
+            const html = renderReportPage(r);
+            expect(html).toContain("&lt;b&gt;pwn&lt;/b&gt;");
+            expect(html).not.toContain("<b>pwn</b>");
+        });
+
+        it("falls back to a generic title and hides empty sections", () => {
+            const html = renderReportPage({ id: "x1", players: [] });
+            expect(html).toContain("<title>Log-Check</title>");
+            expect(html).toContain("<h1 class=\"page-title\">Log-Check</h1>");
+            // gear section is always shown; empty-gear message appears
+            expect(html).toContain("Keine Gear-Probleme gefunden");
+            // optional sections absent
+            expect(html).not.toContain("id=\"rs-potions\"");
+            expect(html).not.toContain("id=\"rs-sunder\"");
+        });
+
+        it("wraps the report in the admin menu chrome for a logged-in admin", () => {
+            const html = renderReportPage(sampleReport(), { name: "Admin", isAdmin: true });
+            expect(html).toContain("class=\"app\"");
+            expect(html).toContain("id=\"sideNav\"");
+            // full admin navigation, with the CLA section highlighted
+            expect(html).toContain("href=\"/cla\"");
+            expect(html).toContain("href=\"/raids\"");
+            expect(html).toContain("href=\"/settings\"");
+            expect(html).toContain("nav-item area-cla active");
+            // breadcrumbs down to the report + the user footer
+            expect(html).toContain("Log-Auswertung");
+            expect(html).toContain("<b>Test Raid</b>");
+            expect(html).toContain("<div class=\"u-name\">Admin</div>");
+            expect(html).toContain("href=\"/auth/logout\"");
+            // no public login bar in the admin view
+            expect(html).not.toContain("Mit Discord einloggen");
+        });
+
+        it("shows a Discord login button for an anonymous visitor, no admin chrome", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("Mit Discord einloggen");
+            expect(html).toContain("class=\"pubbar\"");
+            expect(html).not.toContain("id=\"sideNav\"");
+        });
+
+        it("shows no admin chrome for a logged-in non-admin", () => {
+            const html = renderReportPage(sampleReport(), { name: "Bob", isAdmin: false });
+            expect(html).toContain("Eingeloggt als");
+            expect(html).not.toContain("id=\"sideNav\"");
+            expect(html).not.toContain("Admin-Menü");
+        });
+    });
+
+    describe("renderPlayerPage", () => {
+        it("renders the detail page for a valid index", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            expect(html).toContain("<title>Alice — Test Raid</title>");
+            expect(html).toContain("Alice");
+            expect(html).toContain("Fancy Helm");
+            expect(html).toMatch(/<h1 class="page-title ptitle-cn">Alice<\/h1>\s*<div class="vcard-meta"><span class="badge">Mage<\/span>/);
+        });
+
+        it("computes the average item level badge", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            // (120 + 100 + 110) / 3 = 110
+            expect(html).toContain("<b>110</b><span>Ø iLvl</span>");
+            expect(html).toContain("Ø Itemlevel 110 · 3 Slots");
+        });
+
+        it("shows enchant states for slots", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            expect(html).toContain("verzaubert");
+            expect(html).toContain("keine Verzauberung");
+            expect(html).toContain("suboptimale Verzauberung");
+            expect(html).toContain("falsche Verzauberung");
+        });
+
+        it("renders empty gem sockets", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            expect(html).toContain("gem-empty");
+        });
+
+        it("returns the 404 page for an out-of-range index", () => {
+            const html = renderPlayerPage(sampleReport(), 99);
+            expect(html).toContain("404");
+            expect(html).toContain("<title>Nicht gefunden</title>");
+        });
+
+        it("wraps the detail page in the admin menu chrome for a logged-in admin", () => {
+            const html = renderPlayerPage(sampleReport(), 0, { name: "Admin", isAdmin: true });
+            expect(html).toContain("id=\"sideNav\"");
+            expect(html).toContain("nav-item area-cla active");
+            // breadcrumb links back to the report, player name as the leaf
+            expect(html).toContain("href=\"/r/abc123def456\"");
+            expect(html).toContain("<b>Alice</b>");
+        });
+
+        it("shows no admin chrome for an anonymous visitor", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            expect(html).toContain("Mit Discord einloggen");
+            expect(html).not.toContain("id=\"sideNav\"");
+        });
+    });
+
+    describe("renderNotFound / renderError", () => {
+        it("renderNotFound returns a 404 page", () => {
+            const html = renderNotFound();
+            expect(html).toContain("404");
+            expect(html).toContain("<title>Nicht gefunden</title>");
+        });
+
+        it("renderError shows the title and message escaped", () => {
+            const html = renderError("Kaputt", "Details <b>hier</b>");
+            expect(html).toContain("<title>Kaputt</title>");
+            expect(html).toContain(">Kaputt</h1>");
+            expect(html).toContain("Details &lt;b&gt;hier&lt;/b&gt;");
+        });
+    });
+});

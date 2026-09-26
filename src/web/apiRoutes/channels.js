@@ -1,7 +1,7 @@
 const { DateTime } = require("luxon");
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const discord = require("../discord");
 const discordChannels = require("../discordChannels");
 const archiveStore = require("../../stores/channelArchiveStore");

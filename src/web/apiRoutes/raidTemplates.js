@@ -1,11 +1,11 @@
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
 const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../../stores/settingsStore");
 const { decorateTemplate } = require("../raidTemplates");
 const discord = require("../discord");
-const { activeGuildFor } = require("../activeGuild");
+const { activeGuildFor } = require("../http/activeGuild");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 
 /** Every template as the list shows it, with its badges and the categories using it as default. */

@@ -19,7 +19,7 @@ sagt selbst, auf welchem Stand er läuft.
     "subject": "Merge pull request #313 …", "startedAt": "2026-09-12T18:10:02.311Z" }
   ```
 
-  Die Werte liest `src/web/version.js` einmal beim Start (`git log -1`, sonst
+  Die Werte liest `src/web/http/version.js` einmal beim Start (`git log -1`, sonst
   `GIT_COMMIT` aus der Umgebung). Ist nichts davon da, bleiben die Felder leer —
   der Bot läuft trotzdem.
 

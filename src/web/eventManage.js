@@ -44,7 +44,7 @@ const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
 
 const { TIMEZONE } = require("../config/timezone");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_REASON = 3;
 const MAX_REASON = 300;

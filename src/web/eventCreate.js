@@ -31,7 +31,7 @@ const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const { toRaidHelperDate } = require("../utils/time");
 
 const { TIMEZONE } = require("../config/timezone");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 const SOURCES = ["raidhelper", "eventhelper"];
 
 /** Unix seconds of a "dd-MM-yyyy" date and "HH:mm" time in Berlin time, or 0. */

@@ -1,6 +1,6 @@
 const { mockRes, json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -44,7 +44,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 // The account's menu language: none saved unless a test says otherwise.
 jest.mock("../../../src/stores/userPrefsStore", () => ({
     getLang: jest.fn(() => ""),
@@ -65,7 +65,7 @@ jest.mock("../../../src/web/dashboardData", () => ({
 // The dashboard asks GitHub how far the server is behind main. Unmocked, this
 // suite really called api.github.com (found by the network guard, #432) - and
 // its task list then depended on whether the checkout was current.
-jest.mock("../../../src/web/deployStatus", () => ({
+jest.mock("../../../src/web/http/deployStatus", () => ({
     deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
 }));
 jest.mock("../../../src/stores/raidEventStore", () => ({
@@ -265,9 +265,9 @@ jest.mock("../../../src/web/setupEditor", () => ({
     ...jest.requireActual("../../../src/web/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
-const auth = require("../../../src/web/auth");
+const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/web/discord");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../../src/config/permissions");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/session"));

@@ -1,7 +1,7 @@
-const { ok, error } = require("../apiResponse");
-const { requireFullAdmin } = require("../apiMiddleware");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { requireFullAdmin } = require("../http/apiMiddleware");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
 } = require("../../stores/settingsStore");

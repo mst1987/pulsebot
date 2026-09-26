@@ -2,9 +2,9 @@
 // every path is area `raids`, reading needs read, saving/deleting/running write,
 // and each handler hands the request to the service as it should.
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
 }));
@@ -23,12 +23,12 @@ jest.mock("../../../src/web/eventSeries", () => ({
     runSeries: jest.fn(async () => ({ created: 1, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
 }));
 
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const store = require("../../../src/stores/eventSeriesStore");
 const service = require("../../../src/web/eventSeries");
 const route = require("../../../src/web/apiRoutes/eventSeries");
-const { checkAccess } = require("../../../src/web/apiAccess");
-const apiRouter = require("../../../src/web/apiRouter");
+const { checkAccess } = require("../../../src/web/http/apiAccess");
+const apiRouter = require("../../../src/web/http/apiRouter");
 
 const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };

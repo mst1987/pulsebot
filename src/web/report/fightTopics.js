@@ -1,6 +1,6 @@
 // The building blocks of a fight's topics: outcome, deaths, mechanics, the
 // debuff line, the compact topic tables and the grouping of fights by boss.
-const { fmtTime, bandStats } = require("../charts");
+const { fmtTime, bandStats } = require("./charts");
 const { esc } = require("./layout");
 const { expBtn, tile, badge, hicon, classColorOf, classIconName } = require("./widgets");
 

@@ -1,5 +1,5 @@
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 
 /**

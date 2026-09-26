@@ -1,7 +1,7 @@
 // The admin menu, once for both front ends.
 //
 // The React shell (src/web-client/src/components/Shell.tsx) and the server-
-// rendered chrome of the report pages (src/web/adminChrome.js) used to keep a
+// rendered chrome of the report pages (src/web/report/adminChrome.js) used to keep a
 // copy of the list each, and the SSR copy had quietly lost "Roster" and
 // "Loot-Council". The entries live in menu.json so the client can import them
 // as plain data (Vite does not load CommonJS from outside node_modules); this

@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../discord");
 const { eventGuildId, ruleFor } = require("../botAccess");

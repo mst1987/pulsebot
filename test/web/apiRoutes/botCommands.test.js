@@ -1,4 +1,4 @@
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
@@ -7,7 +7,7 @@ jest.mock("../../../src/web/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 
-const { requireFullAdmin } = require("../../../src/web/apiMiddleware");
+const { requireFullAdmin } = require("../../../src/web/http/apiMiddleware");
 const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/web/discord");
 const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../../src/web/apiRoutes/botCommands");

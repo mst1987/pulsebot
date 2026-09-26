@@ -3,9 +3,9 @@
 // and zones. Stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
 jest.mock("../../../src/stores/eventStore", () => ({
     ...jest.requireActual("../../../src/stores/eventStore"),
@@ -13,14 +13,14 @@ jest.mock("../../../src/stores/eventStore", () => ({
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
 }));
 
-const { readJsonBody, readRawBody } = require("../../../src/web/apiBody");
+const { readJsonBody, readRawBody } = require("../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../factories/events");
 const plans = require("../../../src/stores/raidplanStore");
 const profiles = require("../../../src/stores/raidplanProfileStore");
 const templates = require("../../../src/stores/raidplanTemplateStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
-const { checkAccess, areasFor } = require("../../../src/web/apiAccess");
+const { checkAccess, areasFor } = require("../../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };

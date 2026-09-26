@@ -1,7 +1,7 @@
-const { ok } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { sendResult } = require("../apiResult");
-const { activeGuildFor } = require("../activeGuild");
+const { ok } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { sendResult } = require("../http/apiResult");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
 const { getConfig, listRaidTemplates } = require("../../stores/settingsStore");

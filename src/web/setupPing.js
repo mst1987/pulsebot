@@ -9,7 +9,7 @@
 const eventStore = require("../stores/eventStore");
 const discord = require("./discord");
 const { approvedSetupOf, PING_TEXT_MAX, pingTextOf } = require("./setupCore");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 
 /** `event.setupPingText`, "" (clear) accepted, trimmed to the same length the store enforces. */
 function saveSetupPingText(eventId, text) {

@@ -5,11 +5,11 @@
 // Raidsheet füllen, Sheet/Softres posten, Softres-Liste erstellen/verlinken.
 // Both are faithful JSON ports of the SSR routes in server.js, minus the HTML
 // rendering/redirects.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { AppError, sendResult } = require("../apiResult");
-const { q } = require("../apiParams");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { AppError, sendResult } = require("../http/apiResult");
+const { q } = require("../http/apiParams");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");

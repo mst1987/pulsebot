@@ -2,8 +2,8 @@
 // GET /api/raids/detail from one builder per part; apiRoutes/raidDetail.js only
 // sends it. The byte-for-byte comparison against the old handler was done on
 // the dev data before the move (see the PR); these tests pin each part.
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
-jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../src/web/http/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
+jest.mock("../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
 jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),

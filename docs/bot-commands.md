@@ -101,7 +101,7 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 | `classes/blizzard.js` | Never throws (except `getToken`): `null` + `lastError { status, message, namespace }`, so the UI falls back to the armory link. |
 | `classes/anthropic.js` | Only creates the SDK client (`createAnthropicClient({ apiKey })`); the SDK has its own transport and retries. |
 
-In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/loot/softres.js`, `utils/loot/wowhead.js`, `web/deployStatus.js`) use the shared agent as well.
+In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/loot/softres.js`, `utils/loot/wowhead.js`, `web/http/deployStatus.js`) use the shared agent as well.
 
 ## Common Patterns
 

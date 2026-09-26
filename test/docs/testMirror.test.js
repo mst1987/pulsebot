@@ -87,7 +87,7 @@ describe("every backend module is loaded by a test", () => {
 
     it("finds the modules and the loads at all", () => {
         expect(modules.length).toBeGreaterThan(300);
-        expect(loaded.has("src/web/apiRouter.js")).toBe(true);
+        expect(loaded.has("src/web/http/apiRouter.js")).toBe(true);
     });
 
     it("loads every module outside the allowlist", () => {

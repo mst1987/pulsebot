@@ -1,17 +1,17 @@
 // The raid plan catalog: defaults (code) and overrides (data) kept apart, CRUD, reset, the API and its gate,
 // mob and spell references in assignments, snapshots for deleted entries, the classes the suggestions use.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
+jest.mock("../../src/web/http/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/http/apiBody", () => require("../helpers/http").apiBodyMock());
 
-const { readJsonBody } = require("../../src/web/apiBody");
+const { readJsonBody } = require("../../src/web/http/apiBody");
 const { tempStoreFile } = require("../helpers/tempStore");
 const catalog = require("../../src/stores/raidplanCatalogStore");
 const defaults = require("../../src/web/raidplanCatalogDefaults");
 const assign = require("../../src/web/raidplanAssign");
 const plans = require("../../src/stores/raidplanStore");
 const route = require("../../src/web/apiRoutes/raidplan");
-const { checkAccess } = require("../../src/web/apiAccess");
+const { checkAccess } = require("../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", isAdmin: false, access: { raids: { read: true, write: true } } };
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };

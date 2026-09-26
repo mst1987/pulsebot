@@ -5,13 +5,13 @@ const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env")
 require("dotenv").config({ path: envFile });
 require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
-const { startWebServer } = require("./web/server.js");
+const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 const { ensureAppEmojis } = require("./web/appEmojiSync.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
-const { startJobs } = require("./web/jobs.js");
+const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
 
 const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");

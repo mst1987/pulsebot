@@ -1,6 +1,6 @@
 // The raid-wide CLA summaries in the Raid view's dialogs (cooldowns, activity,
 // totems, mechanics) and the explanation of every area card (AREA_HOW).
-const { fmtTime } = require("../../charts");
+const { fmtTime } = require("../charts");
 const { plural } = require("../../../utils/text");
 const { esc } = require("../layout");
 const { classCell, badge, barCell, barPct, hicon, fmtK, naCell } = require("../widgets");

@@ -5,7 +5,7 @@
 
 const { mockRes, json, body, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -49,7 +49,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
@@ -158,32 +158,32 @@ jest.mock("../../../src/stores/ingestTokenStore", () => ({
 }));
 // The handlers are also called directly below (without the router): the
 // middleware and the body reader run for real unless a test steers them.
-jest.mock("../../../src/web/apiMiddleware", () => {
-    const actual = jest.requireActual("../../../src/web/apiMiddleware");
+jest.mock("../../../src/web/http/apiMiddleware", () => {
+    const actual = jest.requireActual("../../../src/web/http/apiMiddleware");
     return {
         requireAdmin: jest.fn(actual.requireAdmin),
         requireFullAdmin: jest.fn(actual.requireFullAdmin),
         requireCsrf: jest.fn(actual.requireCsrf),
     };
 });
-jest.mock("../../../src/web/apiBody", () => {
-    const actual = jest.requireActual("../../../src/web/apiBody");
+jest.mock("../../../src/web/http/apiBody", () => {
+    const actual = jest.requireActual("../../../src/web/http/apiBody");
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
-const auth = require("../../../src/web/auth");
+const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/web/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../src/config/permissions");
 const { post, patch, get, handle } = routerClient(require("../../../src/web/apiRoutes/settings"));
-const { requireAdmin, requireFullAdmin } = require("../../../src/web/apiMiddleware");
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { requireAdmin, requireFullAdmin } = require("../../../src/web/http/apiMiddleware");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const {
     getSettings, updateSettings, getDiscordServers, getRoleSync, getReminders, FULL_ADMIN_KEYS,
 } = require("../../../src/web/apiRoutes/settings");
-const realMiddleware = jest.requireActual("../../../src/web/apiMiddleware");
-const realBody = jest.requireActual("../../../src/web/apiBody");
+const realMiddleware = jest.requireActual("../../../src/web/http/apiMiddleware");
+const realBody = jest.requireActual("../../../src/web/http/apiBody");
 
 describe("web/apiRoutes/settings", () => {
     describe("through the router", () => {

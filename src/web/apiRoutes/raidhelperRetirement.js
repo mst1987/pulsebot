@@ -1,9 +1,9 @@
 // Einstellungen → Verbindungen → Raid-Helper (#291): the switch-over checklist,
 // the spec-history import and the switch that stops asking Raid-Helper. Full
 // admins only — switching a foreign system off is a decision about the whole bot.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const retirement = require("../raidhelperRetirement");
 const historyImport = require("../raidhelperHistoryImport");
 const guildRoles = require("../guildRoles");

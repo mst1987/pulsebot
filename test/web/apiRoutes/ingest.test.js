@@ -4,7 +4,7 @@
 const { mockRes, status, json, jsonRequest } = require("../../helpers/http");
 
 // No session user anywhere in this file: the uploader is a machine.
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
@@ -47,7 +47,7 @@ jest.mock("../../../src/web/raidEventGroups", () => ({
     eventLookbackSince: jest.fn(() => 0),
     EVENT_LOOKBACK_DAYS: 30,
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
@@ -58,7 +58,7 @@ const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStor
 const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
 const { addImport } = require("../../../src/stores/lootStore");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
-const { handle } = require("../../../src/web/apiRouter");
+const { handle } = require("../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
 
 const TOKEN = { id: "t1", name: "Raidlead-PC" };

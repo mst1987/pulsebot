@@ -16,9 +16,9 @@
 // and a council looking at last month's loot should never be blocked on a
 // simulator.
 
-const { ok, error: apiError } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error: apiError } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
 const { bisLists } = require("../bisLists");

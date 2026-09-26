@@ -3,8 +3,8 @@
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
 
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 
 const mockReports = [];
 jest.mock("../../../src/stores/reportStore", () => ({
@@ -24,7 +24,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation(()
     getCharacterSummary: (...a) => mockSummary(...a),
 })));
 
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const store = require("../../../src/stores/raiderProfileStore");
 const route = require("../../../src/web/apiRoutes/profile");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -273,8 +273,8 @@ describe("GET /api/profile/log-characters", () => {
 // sofort widerrufbar ist.
 describe("Kalender-Abo (/api/profile/calendar)", () => {
     const calStore = require("../../../src/stores/calendarTokenStore");
-    const calFeed = require("../../../src/web/calendarFeed");
-    const { requireCsrf } = require("../../../src/web/apiMiddleware");
+    const calFeed = require("../../../src/web/pages/calendarFeed");
+    const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 
     beforeEach(() => {
         calStore.useFile(tempStoreFile("eh-calendar-tokens-route.json"));

@@ -12,7 +12,7 @@ const eventStore = require("../stores/eventStore");
 const signupStore = require("../stores/signupStore");
 const discord = require("./discord");
 const { approvedSetupOf } = require("./setupCore");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 
 /** Groups 1 to this one are called to the invite. */
 const INVITE_GROUPS = 5;

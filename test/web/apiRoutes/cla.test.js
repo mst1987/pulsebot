@@ -1,6 +1,6 @@
 const { json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -44,7 +44,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
         : null)),
 }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
@@ -188,10 +188,10 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
         itemLink: actual.itemLink,
     };
 });
-const auth = require("../../../src/web/auth");
+const auth = require("../../../src/web/http/auth");
 const reportStore = require("../../../src/stores/reportStore");
 const settingsStore = require("../../../src/stores/settingsStore");
-const { activeGuildFor } = require("../../../src/web/activeGuild");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/web/discord");
 const logStore = require("../../../src/stores/logStore");
 const reportList = require("../../../src/web/reportList");

@@ -1,6 +1,6 @@
 const { mockRes, json, routerClient } = require("../../helpers/http");
 
-jest.mock("../../../src/web/auth", () => ({
+jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
@@ -61,7 +61,7 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-const auth = require("../../../src/web/auth");
+const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/notifyTemplates"));
 

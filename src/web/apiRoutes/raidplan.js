@@ -26,12 +26,12 @@
 //
 // The area gate (apiAccess.js) decides read vs. write by method. The public route
 // is listed in UNGATED there; it hands out only what /p/<token> shows.
-const { ok, error } = require("../apiResponse");
-const { withUser } = require("../apiHandler");
-const { readRawBody } = require("../apiBody");
-const { sendFailure } = require("../apiResult");
+const { ok, error } = require("../http/apiResponse");
+const { withUser } = require("../http/apiHandler");
+const { readRawBody } = require("../http/apiBody");
+const { sendFailure } = require("../http/apiResult");
 const { userCan } = require("../../config/permissions");
-const auth = require("../auth");
+const auth = require("../http/auth");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const store = require("../../stores/raidplanStore");
 const profileStore = require("../../stores/raidplanProfileStore");
@@ -41,7 +41,7 @@ const assign = require("../raidplanAssign");
 const catalog = require("../../stores/raidplanCatalogStore");
 const rosterSource = require("../raidplanRosterSource");
 const { instancesFromTitle } = require("../raidplanTitle");
-const { activeGuildFor } = require("../activeGuild");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");

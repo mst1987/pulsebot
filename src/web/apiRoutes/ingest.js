@@ -9,9 +9,9 @@
 // inbox for a human to confirm — except when that same session was already
 // accepted before, in which case its new items append straight to the event it
 // was accepted into (see lootInboxStore.js's header for why that matters).
-const { ok, error } = require("../apiResponse");
-const { readJsonBody } = require("../apiBody");
-const { activeGuildFor } = require("../activeGuild");
+const { ok, error } = require("../http/apiResponse");
+const { readJsonBody } = require("../http/apiBody");
+const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../characterInfo");

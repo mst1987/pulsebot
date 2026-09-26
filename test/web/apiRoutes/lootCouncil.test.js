@@ -2,9 +2,9 @@
 // a factory mock, the permission check (config/permissions userCan) stays real,
 // so a read-only council member and a caller without the area are the real
 // rule, not a stub.
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock({ body: () => mockBody }));
-jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock({ body: () => mockBody }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/web/lootCouncil", () => ({
     councilRoster: jest.fn(() => ({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {} })),
     bisGaps: jest.fn(() => [{ slot: "head" }]),

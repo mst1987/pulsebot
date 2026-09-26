@@ -2,8 +2,8 @@
 // approved lineup and never the draft, writing takes `raids` write, and the
 // explanation runs as a background job that needs the Anthropic key.
 let mockUser = null;
-jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
-jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
 const mockEvents = new Map();
@@ -38,11 +38,11 @@ jest.mock("../../../src/web/setupMessage", () => ({
 const mockExplain = jest.fn();
 jest.mock("../../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
 
-const { readJsonBody } = require("../../../src/web/apiBody");
+const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { refreshEventMessage } = require("../../../src/web/eventMessage");
 const setupMessage = require("../../../src/web/setupMessage");
 const route = require("../../../src/web/apiRoutes/setup");
-const { checkAccess } = require("../../../src/web/apiAccess");
+const { checkAccess } = require("../../../src/web/http/apiAccess");
 const { su } = require("../../utils/setup/fixtures");
 const { mockRes, status, body } = require("../../helpers/http");
 const { ownEvent } = require("../../factories/events");

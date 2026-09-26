@@ -17,7 +17,7 @@ const eventStore = require("../stores/eventStore");
 const discord = require("./discord");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
-const { fail } = require("./apiResult");
+const { fail } = require("./http/apiResult");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 const ROLE_NAME = { tank: ["Tank", "Tanks"], healer: ["Healer", "Healers"], melee: ["Melee DPS", "Melee DPS"], ranged: ["Ranged DPS", "Ranged DPS"] };
