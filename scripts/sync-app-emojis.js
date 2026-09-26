@@ -19,7 +19,7 @@ function parseArgs(argv) {
 async function main(argv) {
     const flags = parseArgs(argv);
     const envFile = flags.dev ? ".env.dev" : ".env";
-    require("dotenv").config({ path: envFile });
+    require("dotenv").config({ path: envFile, quiet: true });
     const token = process.env.DISCORDJS_BOT_TOKEN;
     const clientId = process.env.CLIENT_ID;
     if (!token || !clientId) {

@@ -197,7 +197,7 @@ function main() {
     // --me <userId> overrides, else the first admin id of .env.dev (what the dev login uses)
     const path = require("path");
     const envFile = path.join(__dirname, "..", ".env.dev");
-    if (fs.existsSync(envFile)) require("dotenv").config({ path: envFile });
+    if (fs.existsSync(envFile)) require("dotenv").config({ path: envFile, quiet: true });
     const { logcheckAdminIds } = require("../src/config/variables");
     const meId = arg("me") || logcheckAdminIds[0] || "dev";
     const eventStore = require("../src/stores/eventStore");

@@ -30,6 +30,8 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("./helpers/tempStore");
 const bot = require("../src/bot");
+// Captured before beforeEach clears the mocks: bot.js loads the env on require.
+const dotenvCall = require("dotenv").config.mock.calls[0];
 
 const OLD_TOKEN = process.env.DISCORDJS_BOT_TOKEN;
 
@@ -51,6 +53,11 @@ afterEach(() => {
 });
 
 describe("bot start()", () => {
+    it("loads the env file quietly (dotenv 17+ would print a line otherwise)", () => {
+        expect(dotenvCall[0]).toEqual(expect.objectContaining({ quiet: true }));
+        expect(dotenvCall[0].path).toMatch(/.env(.dev)?$/);
+    });
+
     it("does not auto-boot on require (start is explicit)", () => {
         // require ran above without a token check firing; nothing was booted yet
         // beyond module load — startWebServer is only called via start().
