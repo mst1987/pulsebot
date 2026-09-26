@@ -1,9 +1,4 @@
-﻿// API Configuration
-const API_BASE_URL =
-    process.env.API_BASE_URL || "https://pulse-gdkp.de:3001/api";
-
-// Discord IDs
-const legendaryID = "1144865420386517053";
+﻿// Discord IDs
 const adminUserId = process.env.ADMIN_USER_ID || "233598324022837249";
 // Bootstrap defaults only — the admin menu can override both in the settings
 // store (kept out of .env on purpose, like the other editable config).
@@ -26,8 +21,7 @@ const highestBidsMessageId = "1147062559036416191";
 // admin web UI's --accent token (violet/cyan redesign, 2026-07).
 const embedAccentColor = 0x8a7cff;
 
-// Auction Settings
-const maxBidAmount = 5000000;
+// How long an ephemeral bot reply stays before it is deleted (utils/helper.js).
 const defaultTimeout = 60000;
 
 // Application System
@@ -92,9 +86,7 @@ const adminRoleIds = (process.env.ADMIN_ROLE_IDS || "")
     .filter(Boolean);
 
 module.exports = {
-    API_BASE_URL,
     TIMEZONE,
-    legendaryID,
     adminUserId,
     guildId,
     raidhelperServerId,
@@ -106,7 +98,6 @@ module.exports = {
     googleSpreadsheetId,
     googleSheetName,
     googleSheetGid,
-    maxBidAmount,
     defaultTimeout,
     applicationChannelId,
     officerRoleId,

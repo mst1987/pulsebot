@@ -1,7 +1,5 @@
 describe("config/variables", () => {
     const REQUIRED_KEYS = [
-        "API_BASE_URL",
-        "legendaryID",
         "adminUserId",
         "raidhelperServerId",
         "raidhelperBotId",
@@ -12,7 +10,6 @@ describe("config/variables", () => {
         "googleSpreadsheetId",
         "googleSheetName",
         "googleSheetGid",
-        "maxBidAmount",
         "defaultTimeout",
         "applicationChannelId",
         "officerRoleId",
@@ -40,7 +37,6 @@ describe("config/variables", () => {
     beforeAll(() => {
         savedEnv = { ...process.env };
         for (const key of [
-            "API_BASE_URL",
             "ADMIN_USER_ID",
             "APPLICATION_CHANNEL_ID",
             "OFFICER_ROLE_ID",
@@ -73,8 +69,7 @@ describe("config/variables", () => {
         expect(Object.keys(variables).sort()).toEqual([...REQUIRED_KEYS].sort());
     });
 
-    it("uses the documented default auction settings", () => {
-        expect(variables.maxBidAmount).toBe(5000000);
+    it("uses the documented default reply timeout", () => {
         expect(variables.defaultTimeout).toBe(60000);
     });
 
@@ -84,10 +79,8 @@ describe("config/variables", () => {
         expect(variables.guildId).toBe("1354128137792917555");
     });
 
-    it("defaults adminUserId and API_BASE_URL sanely", () => {
+    it("defaults adminUserId sanely", () => {
         expect(variables.adminUserId).toBe("233598324022837249");
-        expect(typeof variables.API_BASE_URL).toBe("string");
-        expect(variables.API_BASE_URL).toBe("https://pulse-gdkp.de:3001/api");
     });
 
     it("exposes categoryIds as a non-empty array of id strings", () => {
@@ -100,7 +93,6 @@ describe("config/variables", () => {
     });
 
     it("provides Discord id strings for the well-known ids", () => {
-        expect(variables.legendaryID).toMatch(/^\d+$/);
         expect(variables.raidhelperBotId).toMatch(/^\d+$/);
         expect(variables.highestBidsChannelId).toMatch(/^\d+$/);
         expect(variables.highestBidsMessageId).toMatch(/^\d+$/);

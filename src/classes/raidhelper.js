@@ -1,4 +1,5 @@
 ﻿const https = require("https");
+const logger = require("../logger.js").child("raidhelper");
 
 // raid-helper.xyz sometimes accepts the connection and then never answers.
 // Without a timeout the surrounding promise never settles, so whatever admin
@@ -104,7 +105,8 @@ class Raidhelper {
     let events;
     try {
       events = await this.getAllEvents();
-    } catch {
+    } catch (error) {
+      logger.debug("getTemplates: getAllEvents failed, degrading to []:", error.message);
       return [];
     }
     const byId = new Map();

@@ -10,10 +10,6 @@ const {
     embedAccentColor,
 } = require("../config/variables");
 
-function isNumber(value) {
-    return typeof value === "number" && !isNaN(value);
-}
-
 function getCharacterIcon(interaction, spec) {
     return `${interaction.guild.emojis.cache.find(
         (emoji) => emoji.name === extendedClassList[spec]?.icon
@@ -24,13 +20,6 @@ function findServerEmoji(interaction, emojiName) {
     return `${interaction.guild.emojis.cache.find(
         (emoji) => emoji.name === emojiName
     )}`;
-}
-
-async function getUserNickname(interaction) {
-    const displayName = await interaction.guild.members.fetch(
-        interaction.user.id
-    );
-    return displayName;
 }
 
 async function botReply(
@@ -209,11 +198,6 @@ function createRaidData(event) {
     };
 }
 
-function formatNumberWithDots(number) {
-    const formattedNumber = number.toLocaleString("en-US");
-    return formattedNumber.replace(/,/g, ".");
-}
-
 async function showAllEvents(interaction, categoryId) {
     const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
@@ -264,17 +248,14 @@ async function getCategoryEvents(interaction, categoryId) {
 }
 
 module.exports = {
-    isNumber,
     getCategoryEvents,
     delay,
     showAllEvents,
-    formatNumberWithDots,
     getChannelsFromCategories,
     formatSignUps,
     formatSpecs,
     botFollowup,
     botReply,
-    getUserNickname,
     findServerEmoji,
     getCharacterIcon,
     getRaidInfosFromChannel,

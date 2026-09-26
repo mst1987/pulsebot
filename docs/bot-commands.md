@@ -18,7 +18,7 @@ module.exports = {
 
 A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access.
 
-**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, auctions, GDKP, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in `scripts/register-commands.js`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
+**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in `scripts/register-commands.js`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
 
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
@@ -33,7 +33,6 @@ The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, mod
 - **A refusal** is one ephemeral line: „Dafür brauchst du @Orga oder @Raidleiter.“ resp. „Dieser Befehl ist Admins vorbehalten.“ (an autocomplete gets an empty choice list).
 - **Configured** in Einstellungen → Berechtigungen, segment *Bot-Befehle* (`?perm=bot`, `components/BotCommandAccess.tsx`, rules in `lib/botCommandAccess.ts`): one folded line per group, a modal per command (Jeder · Nur Rollen · Nur Admins, the default with „Zurücksetzen“, „für alle Befehle der Gruppe übernehmen“). A rule equal to the default is not stored, so a later change of `defaultAccess` still reaches it. Data from `GET /api/bot-commands` (full admins; groups, commands with default/stored/effective rule and what inherits it, the event guild's roles with member counts); saved via `PATCH /api/settings { botCommandAccess }` — full-admin-only (`ACCESS_KEYS`), normalised by `normalizeBotCommandAccess()` in `src/config/botCommands.js` (invalid role ids dropped, a role rule without roles becomes admins).
 - `test/commands/access.test.js` scans every command file: `defaultAccess` + a known `group`, or an `accessOf` pointing at a real command — never both, never neither.
-- The legendary-role check in `utils/auction.js` stays: it is a rule of the auction, not a permission.
 
 When adding a new command:
 1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
@@ -67,9 +66,6 @@ Standard way to send a Discord reply. Sends an embed with `title` and `descripti
 ### `botEditReply(interaction, title, message, ...)`
 Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
 
-### `bidForLegendary(client, interaction, gold)`
-Core bidding logic in `utils/auction.js`. Validates the user has the legendary role, checks auction exists, validates the bid amount, calls the API, updates the highest bids overview message, and handles extended auction time.
-
 ### `getRaidInfosFromChannel(interaction)`
 Returns `{ raidData, setupData }` for the event in the current channel.
 
@@ -77,11 +73,7 @@ Returns `{ raidData, setupData }` for the event in the current channel.
 
 **`classes/raidhelper.js` (Raidhelper):** Uses raw `https` module. API key and server ID come from `process.env.RAIDHELPER_API_KEY` and `process.env.RAIDHELPER_SERVER_ID` via the constructor. Key methods: `getAllEvents()`, `getUserSignUps(userid)`, `getEvent(eventid)`, `getSetup(raidid)`, `signUpToRaid(raidid, signUps, userid)`, `saveRaid(data)`.
 
-**`classes/gdkp.js` (GDKP):** Axios client. `getTotalItems(userid)` returns all items bought by a player.
-
-**`classes/legendary.js` (Legendary):** Axios client. Methods for CRUD on auctions and bid placement. All point to `${API_BASE_URL}/legendary`.
-
-Both Axios clients use the shared `utils/httpAgent.js` which enables SSL cert verification only in `NODE_ENV=production`.
+The Axios clients (`classes/warcraftlogs*.js`, `utils/softres.js`, `utils/wowhead.js`, `web/deployStatus.js`) use the shared `utils/httpAgent.js` which enables SSL cert verification only in `NODE_ENV=production`.
 
 ## Common Patterns
 

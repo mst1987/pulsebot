@@ -1,7 +1,4 @@
 const {
-    getItemsFormatted,
-    getItemsToShow,
-    getAuctionMessage,
     mySetupResponse,
     setupResponse,
 } = require("../../src/utils/responses.js");
@@ -93,88 +90,6 @@ describe("utils/responses", () => {
             expect(lines[0]).toContain("<#earlier>");
             expect(lines[1]).toContain("<#later>");
             expect(result).toContain("<:holypala:1>");
-        });
-    });
-
-    describe("getAuctionMessage", () => {
-        it("formats the auction announcement with name, raid, endtime and prices", () => {
-            const interaction = mockInteraction();
-            const legendary = {
-                name: "Thunderfury",
-                raid: "MC",
-                endtime: 1700000000,
-                mingold: 100000,
-                increment: 10000,
-            };
-
-            const result = getAuctionMessage(interaction, legendary);
-            const expectedDate = formatTimestampToDateString(1700000000);
-            expect(result).toBe(
-                `**Thunderfury**\n\nRaid: **MC**\nAuktion endet am **${expectedDate}**\n\nStartpreis ist **100000g** und Mindesterhöhung liegt bei **10000g**\n\nBenutze den **/bid** Befehl um mitzubieten!\n\nExample:\`\`\`/bid gold:350000\`\`\``
-            );
-        });
-    });
-
-    describe("getItemsFormatted", () => {
-        it("renders each item as icon, player, linked item and gold", () => {
-            const interaction = mockInteraction({
-                emojis: [["holypala", emoji("holypala")]],
-            });
-            const items = [
-                {
-                    class: "Holy1",
-                    player: "Alice",
-                    item: "Sword",
-                    wowhead: "http://wh/1",
-                    gold: 500,
-                },
-            ];
-
-            const result = getItemsFormatted(interaction, items);
-            expect(result).toBe("<:holypala:1> Alice - [Sword](http://wh/1) - 500g");
-        });
-    });
-
-    describe("getItemsToShow", () => {
-        it("filters by date range, sorts by player and sums gold", () => {
-            const interaction = mockInteraction({
-                emojis: [["holypala", emoji("holypala")]],
-            });
-            const items = [
-                {
-                    class: "Holy1",
-                    player: "Bob",
-                    item: "Shield",
-                    wowhead: "http://wh/2",
-                    gold: 300,
-                    date: "15-11-2023",
-                },
-                {
-                    class: "Holy1",
-                    player: "Alice",
-                    item: "Sword",
-                    wowhead: "http://wh/1",
-                    gold: 500,
-                    date: "10-11-2023",
-                },
-                {
-                    class: "Holy1",
-                    player: "Zed",
-                    item: "Bow",
-                    wowhead: "http://wh/3",
-                    gold: 999,
-                    date: "15-12-2023",
-                },
-            ];
-            const dateFrom = new Date(2023, 10, 1);
-            const dateEnd = new Date(2023, 10, 30);
-
-            const result = getItemsToShow(interaction, items, dateFrom, dateEnd);
-            // Zed (December) is outside the window and excluded from sum + list.
-            expect(result).not.toContain("Zed");
-            expect(result).toContain("Gesamtausgaben: **800g**");
-            // Sorted by player: Alice before Bob.
-            expect(result.indexOf("Alice")).toBeLessThan(result.indexOf("Bob"));
         });
     });
 });

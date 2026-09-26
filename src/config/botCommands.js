@@ -21,7 +21,6 @@ const BOT_COMMAND_GROUPS = [
     { id: "channels", label: "Kanäle", icon: "inv_letter_15" },
     { id: "logs", label: "Logs & Auswertung", icon: "inv_misc_pocketwatch_01" },
     { id: "loot", label: "Loot", icon: "inv_misc_bag_10" },
-    { id: "auctions", label: "Auktionen & GDKP", icon: "inv_misc_coin_02" },
     { id: "recruitment", label: "Recruitment", icon: "inv_misc_grouplooking" },
 ];
 
