@@ -9,7 +9,7 @@ Diese Seite ist für alle, die den Bot **im Discord als Raider** benutzen — ni
 - Bei "Vielleicht" oder "Absagen" öffnet sich (je nach Kategorie Pflicht oder optional) ein kurzes Textfeld für eine Nachricht an die Raidleitung.
 - Auf der automatischen Übersichtsnachricht im Talk-Server gibt es zusätzlich **"Für alle Raids anmelden"** bzw. **"Mehrere Raids wählen …"**, um mehrere Termine auf einmal zu erledigen.
 - Wer noch keinen Charakter im Bot hat: Der Dialog fragt beim ersten Mal nach Klasse/Spec/Name und legt den Charakter automatisch an.
-- `/profile` (bzw. `/profil`) zeigt eine kurze Zusammenfassung des eigenen Profils, mit Buttons um "kann Offtank/Heilen" je Hauptcharakter zu setzen, plus Link zur eigenen Profilseite im Web.
+- `/profil` zeigt eine kurze Zusammenfassung des eigenen Profils, mit Buttons um "kann Offtank/Heilen" je Hauptcharakter zu setzen, plus Link zur eigenen Profilseite im Web.
 
 Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen Kategorie — eine bereits bestehende Anmeldung lässt sich aber immer noch ändern.
 
@@ -36,7 +36,7 @@ Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf 
 
 - `/event anlegen` — neues Event per geführtem Dialog (Kategorie, Vorlage, Kanal, Termin).
 - `/event verwalten [Event]` bzw. Rechtsklick **"Event verwalten"** auf die Event-Nachricht — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen/zurücknehmen, löschen.
-- `/saveraid` — Setup/Raidplan ins Sheet übernehmen.
+- `/fillsetup [Setup-ID]` — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).
 - `/createoverview`, `/update-events` — ältere Befehle, inzwischen durch die automatische Talk-Server-Übersicht ersetzt.
 
 ## Was der Bot sonst noch automatisch macht

@@ -9,6 +9,7 @@ const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 const { ensureAppEmojis } = require("./web/appEmojiSync.js");
+const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const applicationState = require("./utils/applicationState.js");
 const logger = require("./logger.js").child("bot");
 
@@ -35,17 +36,11 @@ const client = new Client({
 
 client.commands = new Collection();
 
+// Slash commands, context menus and components (buttons, selects, modals) in one
+// map by name. A name used twice throws (commands/loader.js), so a customId
+// prefix can never shadow a command; `kindOf` tells the two apart for the router.
 function loadCommands(dir) {
-    const commandFolders = fs.readdirSync(dir);
-    for (const folder of commandFolders) {
-        const commandFiles = fs
-            .readdirSync(path.join(dir, folder))
-            .filter((file) => file.endsWith(".js"));
-        for (const file of commandFiles) {
-            const command = require(path.join(dir, folder, file));
-            client.commands.set(command.name, command);
-        }
-    }
+    client.commands = loadCommandModules(dir);
 }
 
 client.on(Events.ClientReady, () => {
@@ -97,6 +92,17 @@ const COMPONENT_GUARDS = [
 const is = (interaction, guard) => typeof interaction[guard] === "function" && interaction[guard]();
 
 /**
+ * The module that handles the interaction. A slash command, context menu or
+ * autocomplete (it carries a commandName) only ever reaches a command; a button,
+ * select or modal reaches a component or a command (the overview buttons).
+ */
+function findHandler(interaction) {
+    const handler = client.commands.get(lookupKey(interaction));
+    if (handler && interaction.commandName && kindOf(handler) !== "command") return undefined;
+    return handler;
+}
+
+/**
  * Autocomplete: the command's own `autocomplete(interaction)` answers the
  * suggestions. Discord allows no other reply to it, so a command without one
  * (or one that throws) gets an empty list instead of "Command not found".
@@ -105,7 +111,7 @@ const is = (interaction, guard) => typeof interaction[guard] === "function" && i
  * gate answers an empty list).
  */
 async function handleAutocomplete(interaction) {
-    const command = client.commands.get(lookupKey(interaction));
+    const command = findHandler(interaction);
     try {
         if (command && typeof command.autocomplete === "function") {
             if (!(await guardInteraction(interaction, command, client.commands))) return;
@@ -128,7 +134,7 @@ async function handleInteraction(interaction) {
     if (is(interaction, "isAutocomplete")) return handleAutocomplete(interaction);
     if (!is(interaction, "isCommand") && !COMPONENT_GUARDS.some((guard) => is(interaction, guard))) return;
 
-    const command = client.commands.get(lookupKey(interaction));
+    const command = findHandler(interaction);
 
     if (!command) {
         if (!interaction.replied && !interaction.deferred) {

@@ -93,6 +93,6 @@ describe("the fixture client", () => {
 
     it("refuses every write", async () => {
         const c = client("on");
-        for (const w of ["createEvent", "signUp", "signUpToRaid", "saveRaid"]) await expect(c[w]({})).rejects.toThrow(/nichts geschrieben/);
+        for (const w of ["createEvent", "signUp", "signUpToRaid"]) await expect(c[w]({})).rejects.toThrow(/nichts geschrieben/);
     });
 });
