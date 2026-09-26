@@ -47,8 +47,8 @@ describe("commands/setup/showAllSetups", () => {
         await showAllSetups.execute(interaction, {});
 
         expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe(messages.mysetups.errorTitle);
-        expect(helper.botEditReply.mock.calls[0][2]).toBe(messages.gdkpraids.errorMessage);
+        expect(helper.botEditReply.mock.calls[0][1]).toBe(messages.allsetups.errorTitle);
+        expect(helper.botEditReply.mock.calls[0][2]).toBe(messages.allsetups.errorMessage);
     });
 
     it("renders all setups when some exist", async () => {

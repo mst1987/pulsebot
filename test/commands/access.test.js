@@ -51,12 +51,11 @@ describe("bot command access declarations", () => {
 
     it("keeps today's behaviour for the admin commands and the member lookups", () => {
         const access = (name) => normalizeRule(byName.get(name).defaultAccess).mode;
-        for (const name of ["createapplication", "recruitment", "auctionstatus", "createauction", "deleteauction",
-            "endauction", "updateauction", "createoverview", "saveraid", "fillsetup"]) {
+        for (const name of ["createapplication", "recruitment", "createoverview", "saveraid", "fillsetup"]) {
             expect({ name, mode: access(name) }).toEqual({ name, mode: "admins" });
         }
-        for (const name of ["show-mysetups", "show-signups", "show-allsetups", "signup", "update-events", "bid",
-            "currentspent", "lastspent", "totalspent", "apply", "logcheck"]) {
+        for (const name of ["show-mysetups", "show-signups", "show-allsetups", "signup", "update-events",
+            "apply", "logcheck"]) {
             expect({ name, mode: access(name) }).toEqual({ name, mode: "everyone" });
         }
     });
@@ -118,9 +117,6 @@ describe("bot command access declarations", () => {
     });
 
     it("hangs the buttons, selects and modals under their command", () => {
-        expect(byName.get("bid-5k").accessOf).toBe("bid");
-        expect(byName.get("bid-10k").accessOf).toBe("bid");
-        expect(byName.get("bid-custom").accessOf).toBe("bid");
         expect(byName.get("apply-class").accessOf).toBe("apply");
         expect(byName.get("apply-spec").accessOf).toBe("apply");
         expect(byName.get("apply-modal").accessOf).toBe("apply");
