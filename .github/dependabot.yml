@@ -1,28 +1,44 @@
-# Weekly dependency updates (#414). Minor and patch bumps arrive as one grouped
-# PR per ecosystem; a major version gets a PR of its own, because it may need
-# code changes.
+# Monthly dependency updates (#414). The first weekly run opened twelve PRs at
+# once (#448-#459), so everything now arrives bundled: per ecosystem one PR for
+# minor + patch bumps and one for majors, at most three open PRs each.
+# TypeScript and Vite majors in the client are skipped on purpose - they need
+# a deliberate migration, done by hand.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+      majors:
+        update-types: ["major"]
 
   - package-ecosystem: "npm"
     directory: "/src/web-client"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+      majors:
+        update-types: ["major"]
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+      majors:
+        update-types: ["major"]

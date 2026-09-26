@@ -91,6 +91,14 @@ gh run watch    # oder unter Actions -> CI zusehen
 
 Danach die Variable löschen, sonst bleibt der nächste Merge ohne Deploy.
 
+## Wartung: Dependabot
+
+Dependabot (`.github/dependabot.yml`) kommt monatlich und gebündelt: je
+Ökosystem (Bot, Web-Client, GitHub Actions) ein PR für Minor/Patch und einer für
+Majors, höchstens drei offene PRs je Ökosystem. Majors von `typescript` und
+`vite` im Client schlägt Dependabot gar nicht vor — die brauchen eine bewusste
+Migration und werden von Hand gemacht.
+
 ## Von Hand deployen
 
 Auf dem Server, als der Benutzer, dem der Checkout gehört:
