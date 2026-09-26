@@ -149,7 +149,7 @@ describe("setup editor moves (client)", () => {
         ]);
 
         // growing touches nothing that already fits (the slots only gain their places)
-        const bare = (groups) => groups.map((g) => ({ ...g, slots: g.slots.map(({ pos, ...rest }) => rest) }));
+        const bare = (groups) => groups.map((g) => ({ ...g, slots: g.slots.map(({ pos: _pos, ...rest }) => rest) }));
         const grown = lib.resizeLineup(big(), 30);
         expect(bare(grown.groups)).toEqual(big().groups);
         expect(grown.bench).toEqual(big().bench);
@@ -502,7 +502,6 @@ describe("the raider tooltip and the drag glow", () => {
         // it shows the raider touched last (pointer or focus), and the read-only lineup has no panel at all
         expect(src).toContain("onMouseEnter={inspect}");
         expect(src).toContain("onFocus={inspect}");
-        const css = read("styles", "setup-editor.css");
         // the glow rides on the group card
         expect(src).toContain("se-suggest");
     });

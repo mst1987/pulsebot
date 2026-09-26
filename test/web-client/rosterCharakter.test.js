@@ -163,7 +163,7 @@ describe("rosterView helpers (mirrored logic)", () => {
         // eslint-disable-next-line no-new-func
         const nightLabel = new Function(`${src}\nreturn nightLabel;`)();
         const seconds = Math.floor(Date.UTC(2026, 5, 15, 20, 0, 0) / 1000);
-        expect(nightLabel(seconds)).toMatch(/^..\ 2[01]\.01\.$/);
+        expect(nightLabel(seconds)).toMatch(/^.. 2[01]\.01\.$/);
         expect(nightLabel(seconds * 1000)).toBe("Mo 15.06.");
     });
 });

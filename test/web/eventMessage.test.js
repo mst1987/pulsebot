@@ -94,7 +94,7 @@ describe("web/eventMessage", () => {
         expect(embed.title).toBeUndefined();
         expect(embed.color).toBe(7);
         expect(emojiless(embed.description).split("\n")).toEqual([
-            `${"KARA".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")}   ${"DONNERSTAG".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")}`,
+            `${"KARA".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")} \u2003 ${"DONNERSTAG".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")}`,
             "",
             "Treffpunkt Eingang",
         ]);
@@ -463,7 +463,7 @@ describe("web/eventMessage", () => {
         }
         expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
         const warriors = embed.fields.find((f) => f.name.includes("__Warrior__ (40)"));
-        expect(warriors.value).toMatch(/\+\d+ more\n​$/);
+        expect(warriors.value).toMatch(/\+\d+ more\n\u200B$/);
     });
 
     it("fits 40 signups over every class and all links (setup included) into 25 fields — the spacers go first", () => {

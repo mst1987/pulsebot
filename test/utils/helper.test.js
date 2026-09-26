@@ -5,7 +5,6 @@ const {
     botEditReply,
 } = require("../../src/utils/helper.js");
 const { MessageFlags } = require("discord.js");
-const { adminUserId } = require("../../src/config/variables.js");
 const { mockInteraction, makeCollection } = require("../helpers/mockInteraction.js");
 
 describe("utils/helper", () => {

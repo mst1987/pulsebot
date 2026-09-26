@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import globals from "globals";
+import jest from "eslint-plugin-jest";
 
 // Rules shared by every CommonJS block (src/, scripts/, hooks, test/).
 const sharedRules = {
@@ -75,5 +76,15 @@ export default [
             globals: { ...globals.node, ...globals.jest },
         },
         rules: sharedRules,
+    },
+    {
+        files: ["test/**/*.js"],
+        plugins: { jest },
+        rules: {
+            "jest/no-focused-tests": "error",
+            "jest/no-disabled-tests": "error",
+            "jest/valid-expect": "error",
+            "jest/no-identical-title": "error",
+        },
     },
 ];

@@ -145,7 +145,7 @@ describe("Dockerfile", () => {
 
     it("copies what the bot reads at runtime", () => {
         for (const dir of ["src", "assets", "scripts"]) {
-            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \./${dir}/$`, "m"));
+            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \\./${dir}/$`, "m"));
         }
         // The client imports the shared menu list from outside its folder.
         expect(docker).toMatch(/COPY src\/config\/menu\.json/);
