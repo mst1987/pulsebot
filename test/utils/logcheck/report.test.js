@@ -4,9 +4,11 @@
 const mockGetFights = jest.fn();
 const mockGetCasts = jest.fn();
 const mockParseReportId = jest.fn((link) => String(link || "").trim() || null);
+let mockWclCtorError = null;
 
 jest.mock("../../../src/classes/warcraftlogs.js", () => {
     function WarcraftLogsMock() {
+        if (mockWclCtorError) throw mockWclCtorError;
         this.getFights = mockGetFights;
         this.getCasts = mockGetCasts;
     }
@@ -574,5 +576,121 @@ describe("logcheck/report — the unfinished-raid guard", () => {
     it("lets a finished raid straight through", async () => {
         await expect(buildReport("RPT1")).resolves.toMatchObject({ id: expect.any(String) });
         expect(mockGetCasts).toHaveBeenCalled();
+    });
+});
+
+describe("logcheck/report — the whole build (characterisation, #431)", () => {
+    // Pinned before buildReportForId was split into phases: which analyzers
+    // run in which order with what, and what the saved page looks like.
+    const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
+    const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
+    const potionsMod = require("../../../src/utils/logcheck/potions.js");
+    const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
+    const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
+    const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
+    const { analyzeBossUptimes } = require("../../../src/utils/logcheck/bossUptimes.js");
+    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
+    const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+    const { analyzeRaidDebuffs } = require("../../../src/utils/logcheck/raidDebuffs.js");
+    const { analyzeCooldownTimeline } = require("../../../src/utils/logcheck/cooldownTimeline.js");
+    const { analyzeTotems } = require("../../../src/utils/logcheck/totems.js");
+    const { analyzeMechanics } = require("../../../src/utils/logcheck/mechanics.js");
+    const { analyzeActivityTimeline } = require("../../../src/utils/logcheck/activityTimeline.js");
+    const { analyzeHealers } = require("../../../src/utils/logcheck/healers.js");
+    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/raidBuffs.js");
+    const { buildRecommendations } = require("../../../src/utils/logcheck/recommendations.js");
+
+    function twoRaiders() {
+        selectPlayers.mockReturnValue([{ id: 1, name: "Aldra", type: "Mage" }, { id: 2, name: "Dorn", type: "Shaman" }]);
+        buildGearIssues.mockReturnValue([{ name: "Aldra", issues: [{ slot: "head" }] }]);
+        potionsMod.potionsByName.mockReturnValue({ Aldra: { destruction: 2, haste: 0, mana: 1 } });
+        analyzeConsumables.mockResolvedValueOnce({ icons: { flask: "f.jpg" }, players: [] });
+        potionsMod.analyzePotions.mockResolvedValueOnce({ icons: { destruction: "d.jpg", haste: "h.jpg", mana: "m.jpg" } });
+        analyzeDrums.mockResolvedValueOnce({ icon: "dr.jpg" });
+        analyzeShadowResi.mockReturnValueOnce({ sr: 1 });
+        analyzeSunder.mockResolvedValueOnce({ su: 1 });
+        analyzeBossUptimes.mockResolvedValueOnce({ bu: 1 });
+    }
+
+    afterEach(() => {
+        selectPlayers.mockReturnValue([]);
+        buildGearIssues.mockReturnValue([]);
+        potionsMod.potionsByName.mockReturnValue({});
+        mockWclCtorError = null;
+        jest.restoreAllMocks();
+    });
+
+    it("runs every analyzer in order, with the roster map and the shared timeline", async () => {
+        twoRaiders();
+        jest.spyOn(Date, "now").mockReturnValue(1234);
+        const { id, url, report } = await buildReport("RPT1");
+        expect(mockGetCasts).toHaveBeenCalledWith("RPT1", 0, 100);
+        const order = {
+            analyzeConsumables, analyzeDrums, analyzePotions: potionsMod.analyzePotions, analyzeShadowResi, analyzeSunder, analyzeBossUptimes,
+            analyzeFightTimeline, analyzeFightSeries, analyzeRaidDebuffs, analyzeCooldownTimeline, analyzeTotems, analyzeMechanics,
+            analyzeActivityTimeline, analyzeHealers, analyzeRaidBuffs, analyzeRpb, buildRecommendations,
+        };
+        const called = Object.entries(order).sort(([, a], [, b]) => a.mock.invocationCallOrder[0] - b.mock.invocationCallOrder[0]).map(([name]) => name);
+        expect(called).toEqual(Object.keys(order));
+        const idToPlayer = { 1: { name: "Aldra", type: "Mage" }, 2: { name: "Dorn", type: "Shaman" } };
+        expect(analyzeSunder.mock.calls[0][3]).toEqual(idToPlayer);
+        expect(analyzeRaidBuffs.mock.calls[0][4]).toEqual(idToPlayer);
+        expect(analyzeHealers.mock.calls[0][4]).toBe(report.timeline);
+        expect(analyzeRpb.mock.calls[0][3]).toEqual(selectPlayers.mock.results[0].value);
+
+        expect(id).toBe("id1");
+        expect(url).toBe("http://localhost:3005/r/id1");
+        expect(Object.keys(report)).toEqual([
+            "title", "zone", "date", "reportId", "reportUrl", "generatedAt", "sections", "raidProgress", "players",
+            "consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "fightSeries", "raidDebuffs",
+            "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "rpb", "roster", "icons", "recommendations",
+        ]);
+        expect(report).toEqual(expect.objectContaining({
+            title: "SSC + TK", zone: "Serpentshrine Cavern", date: "", reportId: "RPT1",
+            reportUrl: "https://classic.warcraftlogs.com/reports/RPT1", generatedAt: 1234, sections: ["cla", "rpb"],
+            players: [{ name: "Aldra", issues: [{ slot: "head" }] }],
+            consumables: { icons: { flask: "f.jpg" }, players: [] }, shadowResi: { sr: 1 }, drums: { icon: "dr.jpg" },
+            potions: { icons: { destruction: "d.jpg", haste: "h.jpg", mana: "m.jpg" } }, sunder: { su: 1 }, bossUptimes: { bu: 1 },
+            rpb: { roles: {}, byRole: {} },
+        }));
+        expect(report.roster).toEqual([
+            { name: "Aldra", type: "Mage", armory: {}, issues: [{ slot: "head" }], potions: { destruction: 2, haste: 0, mana: 1 } },
+            { name: "Dorn", type: "Shaman", armory: {}, issues: [], potions: { destruction: 0, haste: 0, mana: 0 } },
+        ]);
+        expect(report.icons).toEqual({ flask: "f.jpg", destruction: "d.jpg", haste: "h.jpg", mana: "m.jpg", drums: "dr.jpg" });
+        expect(mockSaveReport).toHaveBeenCalledWith(report, undefined);
+    });
+
+    it("leaves a failed analyzer's field empty and keeps the rest", async () => {
+        analyzeConsumables.mockRejectedValueOnce(new Error("down"));
+        analyzeRpb.mockRejectedValueOnce(new Error("down"));
+        jest.spyOn(console, "error").mockImplementation(() => {});
+        const { report } = await buildReport("RPT1");
+        expect(report.consumables).toBeNull();
+        expect(report.rpb).toBeNull();
+        expect(report.totems).toEqual({ players: [{ name: "Dorn", wfFights: 2, wfUptimeAvg: 88, twistingFights: 1 }] });
+        expect(report.icons).toEqual({ destruction: null, haste: null, mana: null, drums: null });
+        expect(console.error).toHaveBeenCalledWith("consumables failed:", "down");
+        expect(console.error).toHaveBeenCalledWith("rpb failed:", "down");
+    });
+
+    it("keeps the raid lead's review when the page is rebuilt into an existing one", async () => {
+        const review = { raid: { "raid.lust": { approved: true } } };
+        mockGetReport.mockReturnValue({ id: "old1", sections: ["rpb"], rpb: { roles: {} }, recommendationReview: review });
+        const { report } = await buildReport("RPT1", { sections: ["cla"], mergeIntoId: "old1" });
+        expect(report.recommendationReview).toBe(review);
+        expect(report.sections).toEqual(["rpb", "cla"]);
+    });
+
+    it("says so when the WCL key is missing", async () => {
+        mockWclCtorError = new Error("no key");
+        await expect(buildReport("RPT1")).rejects.toThrow("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
+    });
+
+    it("names the HTTP status when the fights or the casts cannot be loaded", async () => {
+        mockGetFights.mockRejectedValueOnce(new Error("offline"));
+        await expect(buildReport("RPT1")).rejects.toThrow("Report konnte nicht geladen werden. Stimmt der Link und ist der Report öffentlich?");
+        mockGetCasts.mockRejectedValueOnce(Object.assign(new Error("nope"), { response: { status: 403 } }));
+        await expect(buildReport("RPT1")).rejects.toThrow("Report konnte nicht geladen werden (HTTP 403). Stimmt der Link und ist der Report öffentlich?");
     });
 });

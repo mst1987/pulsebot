@@ -191,6 +191,6 @@ The project uses [Jest](https://jestjs.io/). Tests live next to the source tree 
 - Do not branch off `dev` — always branch off `main` and open PRs against `main` (see Development Workflow).
 - Do not hardcode Discord IDs or API keys in command or utility files — use `config/variables.js` which reads from environment variables.
 - Do not use `interaction.reply()` after already calling `interaction.deferReply()` — use `botEditReply` or `botFollowup` instead.
-- Do not create slash commands without also adding them to `scripts/register-commands.js` and re-running `npm run register`.
+- Do not create slash commands without a `data` definition in the command module (`scripts/register-commands.js` collects it) and re-running `npm run register`.
 - Do not move `.env` without also updating the `dotenv.config()` call in `bot.js` (`path: "../.env"`).
 - Do not write new domain knowledge into this file — it is read in full in every session. It belongs in the matching `docs/*.md` (new file → add it to the index above).

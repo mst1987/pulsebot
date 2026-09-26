@@ -21,6 +21,9 @@ jest.mock("discord.js", () => {
     return { ...actual, Client };
 });
 
+const fs = require("fs");
+const path = require("path");
+const { tempStoreFile } = require("./helpers/tempStore");
 const bot = require("../src/bot");
 
 const OLD_TOKEN = process.env.DISCORDJS_BOT_TOKEN;
@@ -70,6 +73,20 @@ describe("bot start()", () => {
         expect(console.error).toHaveBeenCalled();
     });
 
+    it("loads every command module and refuses a name used twice (#413)", () => {
+        bot.start();
+        expect(bot.client.commands.get("event")).toBeDefined();
+        expect(bot.client.commands.get("event-manage")).toBeDefined();
+        const loaded = bot.client.commands;
+        const dir = path.dirname(tempStoreFile("commands"));
+        for (const folder of ["one", "two"]) {
+            fs.mkdirSync(path.join(dir, folder));
+            fs.writeFileSync(path.join(dir, folder, "x.js"), "module.exports = { name: \"twice\", execute() {} };");
+        }
+        expect(() => bot.loadCommands(dir)).toThrow(/Duplicate command name "twice"/);
+        expect(bot.client.commands).toBe(loaded);
+    });
+
     it("logs the Node version it actually runs on", () => {
         // PM2 spawns the app with its daemon's Node, so the startup log is the
         // only trustworthy record of the runtime version after an upgrade.
@@ -106,7 +123,7 @@ describe("interactionCreate access gate", () => {
     });
 
     it("runs the command when the gate allows it", async () => {
-        const command = { name: "probe", execute: jest.fn() };
+        const command = { name: "probe", data: { name: "probe" }, execute: jest.fn() };
         bot.client.commands.set("probe", command);
         mockGuard.mockResolvedValueOnce(true);
         const interaction = slash("probe");
@@ -115,8 +132,17 @@ describe("interactionCreate access gate", () => {
         expect(command.execute).toHaveBeenCalledWith(interaction, bot.client);
     });
 
+    it("never hands a slash command to a component of the same key", async () => {
+        const component = { name: "probe", accessOf: "logcheck", execute: jest.fn() };
+        bot.client.commands.set("probe", component);
+        const interaction = slash("probe");
+        await bot.client._h.interactionCreate(interaction);
+        expect(component.execute).not.toHaveBeenCalled();
+        expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({ content: "Command not found" }));
+    });
+
     it("never runs the command when the gate refuses it", async () => {
-        const command = { name: "probe", execute: jest.fn() };
+        const command = { name: "probe", data: { name: "probe" }, execute: jest.fn() };
         bot.client.commands.set("probe", command);
         mockGuard.mockResolvedValueOnce(false);
         await bot.client._h.interactionCreate(slash("probe"));
@@ -156,7 +182,7 @@ describe("bot interaction router", () => {
     });
 
     it("gates autocomplete like the command: a refused user gets no suggestions", async () => {
-        const cmd = { name: "council", execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
+        const cmd = { name: "council", data: { name: "council" }, execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
         bot.client.commands.set("council", cmd);
         mockGuard.mockResolvedValueOnce(false);
         const i = fakeInteraction("isAutocomplete", { commandName: "council" });
@@ -166,7 +192,7 @@ describe("bot interaction router", () => {
     });
 
     it("hands autocomplete to the command's autocomplete()", async () => {
-        const cmd = { name: "raid", execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
+        const cmd = { name: "raid", data: { name: "raid" }, execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
         bot.client.commands.set("raid", cmd);
         const i = fakeInteraction("isAutocomplete", { commandName: "raid" });
         await bot.handleInteraction(i);
@@ -176,13 +202,13 @@ describe("bot interaction router", () => {
     });
 
     it("answers autocomplete with an empty list when the command has none or throws", async () => {
-        bot.client.commands.set("plain", { name: "plain", execute: jest.fn() });
+        bot.client.commands.set("plain", { name: "plain", data: { name: "plain" }, execute: jest.fn() });
         const i = fakeInteraction("isAutocomplete", { commandName: "plain" });
         await bot.handleInteraction(i);
         expect(i.respond).toHaveBeenCalledWith([]);
         expect(i.reply).not.toHaveBeenCalled();
 
-        bot.client.commands.set("boom", { name: "boom", execute: jest.fn(), autocomplete: jest.fn(async () => { throw new Error("x"); }) });
+        bot.client.commands.set("boom", { name: "boom", data: { name: "boom" }, execute: jest.fn(), autocomplete: jest.fn(async () => { throw new Error("x"); }) });
         const j = fakeInteraction("isAutocomplete", { commandName: "boom" });
         await bot.handleInteraction(j);
         expect(j.respond).toHaveBeenCalledWith([]);
