@@ -94,6 +94,71 @@ const CLASSES = [
     },
 ];
 
+// Classes Raid-Helper still offers that no rule set here plays (the Death
+// Knight came with Wrath). Only config/classlist.js reads them — to resolve a
+// Raid-Helper spec name that may still arrive — so they stay out of CLASSES and
+// never reach a class picker. `DK` is the id Raid-Helper and the setup sheets use.
+const RAID_HELPER_ONLY_CLASSES = [
+    {
+        id: "DK", label: "Todesritter", labelEn: "Death Knight", color: "#C41F3B",
+        specs: [
+            { id: "Blood", label: "Blut", labelEn: "Blood", role: "tank", buffRole: "tank" },
+            { id: "Frost", label: "Frost", labelEn: "Frost", role: "melee", buffRole: "melee" },
+            { id: "Unholy", label: "Unheilig", labelEn: "Unholy", role: "melee", buffRole: "melee" },
+        ],
+    },
+];
+
+// How Raid-Helper presents each spec, for config/classlist.js: its own spec
+// name (`spec` — what its API sends and expects back), the Discord emoji the
+// guild uploaded for it (`icon`) and the label the bot has always shown
+// (`name`). A key without a spec ("Paladin") is the class-only entry
+// Raid-Helper offers. Raid-Helper's spellings are kept as they are ("Sublety",
+// "Beastmaster Hunter", "Protection Pala") — they are names on its side and on
+// the guild's emojis, not ours to correct.
+const RAID_HELPER_NAMES = {
+    "Warrior": { spec: "Warrior", icon: "warrior", name: "Warrior" },
+    "Warrior-Arms": { spec: "Arms", icon: "arms", name: "Arms Warrior" },
+    "Warrior-Fury": { spec: "Fury", icon: "fury", name: "Fury Warrior" },
+    "Warrior-Protection": { spec: "Protection", icon: "protection", name: "Protection Warrior" },
+    "Paladin": { spec: "paladin", icon: "paladin", name: "Paladin" },
+    "Paladin-Holy": { spec: "Holy1", icon: "holypala", name: "Holy Paladin" },
+    "Paladin-Protection": { spec: "Protection1", icon: "protpala", name: "Protection Pala" },
+    "Paladin-Retribution": { spec: "Retribution", icon: "retribution", name: "Retribution Pala" },
+    "Hunter-BeastMastery": { spec: "Beastmastery", icon: "beastmaster", name: "Beastmaster Hunter" },
+    "Hunter-Marksmanship": { spec: "Marksmanship", icon: "marksman", name: "Marksman Hunter" },
+    "Hunter-Survival": { spec: "Survival", icon: "survival", name: "Survival Hunter" },
+    "Rogue": { spec: "rogue", icon: "rogue", name: "Rogue" },
+    "Rogue-Assassination": { spec: "Assassination", icon: "assassination", name: "Assassination Rogue" },
+    "Rogue-Combat": { spec: "Combat", icon: "combat", name: "Combat Rogue" },
+    "Rogue-Subtlety": { spec: "Sublety", icon: "sublety", name: "Sublety Rogue" },
+    "Priest": { spec: "Priest", icon: "priest", name: "Priest" },
+    "Priest-Discipline": { spec: "Discipline", icon: "discipline", name: "Discipline Priest" },
+    "Priest-Holy": { spec: "HolyPriest", icon: "holypriest", name: "Holy Priest" },
+    "Priest-Shadow": { spec: "Shadow", icon: "shadow", name: "Shadow Priest" },
+    "Shaman": { spec: "Shaman", icon: "shaman", name: "Shaman" },
+    "Shaman-Elemental": { spec: "Elemental", icon: "elemental", name: "Elemental Shaman" },
+    "Shaman-Enhancement": { spec: "Enhancement", icon: "enhancement", name: "Enhancement Shaman" },
+    "Shaman-Restoration": { spec: "Restoration1", icon: "restosham", name: "Restoration Shaman" },
+    "Mage": { spec: "mage", icon: "mage", name: "Mage" },
+    "Mage-Arcane": { spec: "Arcane", icon: "arcane", name: "Arcane Mage" },
+    "Mage-Fire": { spec: "Fire", icon: "firemage", name: "Fire Mage" },
+    "Mage-Frost": { spec: "Frost", icon: "frostmage", name: "Frost Mage" },
+    "Warlock": { spec: "warlock", icon: "warlock", name: "Warlock" },
+    "Warlock-Affliction": { spec: "Affliction", icon: "affliction", name: "Affliction Warlock" },
+    "Warlock-Demonology": { spec: "Demonology", icon: "demonology", name: "Demonology Warlock" },
+    "Warlock-Destruction": { spec: "Destruction", icon: "destruction", name: "Destruction Warlock" },
+    "Druid": { spec: "druid", icon: "druid", name: "Druid" },
+    "Druid-Balance": { spec: "Balance", icon: "balance", name: "Balance Druid" },
+    "Druid-Feral": { spec: "Feral", icon: "feral", name: "Feral Druid" },
+    "Druid-Guardian": { spec: "Guardian", icon: "guardian", name: "Feral Tank" },
+    "Druid-Restoration": { spec: "Restoration", icon: "restoration", name: "Restoration Druid" },
+    "DK": { spec: "Deathknight", icon: "deathknight", name: "Deathknight" },
+    "DK-Blood": { spec: "Blood_Tank", icon: "blooddk", name: "Blood Tank" },
+    "DK-Frost": { spec: "Frost_DPS", icon: "frostdk", name: "Frost Deathknight" },
+    "DK-Unholy": { spec: "Unholy_DPS", icon: "unholy", name: "Unholy Deathknight" },
+};
+
 const ROLES = ["tank", "healer", "melee", "ranged"];
 const ROLE_LABELS = { tank: "Tank", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf" };
 // The same in English, for everything a raider reads in Discord (the bot's
@@ -129,4 +194,4 @@ function labelEnOf(idOrKey) {
     return spec ? spec.labelEn : "";
 }
 
-module.exports = { CLASSES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses, labelEnOf };
+module.exports = { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES, ROLE_LABELS, ROLE_LABELS_EN, buildClasses, labelEnOf };

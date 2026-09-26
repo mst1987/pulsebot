@@ -4,7 +4,7 @@
 //
 //   - WoWSims-TBC (config/wowsims) for everyone it simulates. Those lists are
 //     sim results and carry the whole loadout: item, enchant and gems.
-//   - Wowhead's written BiS guides (config/wowhead) for the five healing specs,
+//   - Wowhead's written BiS guides (config/generated/wowhead) for the five healing specs,
 //     which WoWSims ships as empty placeholders. Those carry items only.
 //
 // WoWSims wins wherever it has something, so a spec never silently swaps from a
@@ -13,7 +13,7 @@
 // what it is — a recommendation without gems or enchants.
 
 const wowsims = require("./wowsims");
-const wowhead = require("./wowhead/bisSets.json");
+const wowhead = require("./generated/wowhead/bisSets.json");
 
 const TIER_ORDER = ["t4", "t5", "t6", "t65"];
 

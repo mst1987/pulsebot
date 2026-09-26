@@ -50,7 +50,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   screenshots of other sites are not scraped. `--force` fetches the renders again, `--offline` only re-derives
   the mapping. `test/web/raidplanMobPortraits.test.js` fails when an NPC of the table has no verified
   portrait, no stored file or a wrong size; `test/scripts/png.test.js` covers the codec and the crop.
-- **Placeholder mob icons** (`scripts/fetch-mob-icons.js` -> generated `src/config/mobIcons.json`, the table
+- **Placeholder mob icons** (`scripts/fetch-mob-icons.js` -> generated `src/config/generated/mobIcons.json`, the table
   to edit is `src/web/raidplanMobIconRules.js`; never edit the JSON). **Source check:** the boss icons come
   from Warcraft Logs (`scripts/fetch-boss-icons.js`, `public/bosses/<encounter id>.jpg`, artwork of the game
   as WCL shows it); WCL lists encounters only, it has no icon for a boss's adds or for trash, so no real NPC
