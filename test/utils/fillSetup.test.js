@@ -32,6 +32,16 @@ describe("utils/fillSetup", () => {
             const players = enrichPlayers([{ name: "Ranged", spec: "Restoration1", groupNumber: 4 }]);
             expect(players[0].group).toBe(4);
         });
+
+        it("falls back to five slots per group by position", () => {
+            const slots = Array.from({ length: 6 }, (_, i) => ({ name: `P${i}`, spec: "Fury" }));
+            expect(enrichPlayers(slots).map((p) => p.group)).toEqual([1, 1, 1, 1, 1, 2]);
+        });
+
+        it("resolves Raid-Helper's own spec name as well as its aliases", () => {
+            const [player] = enrichPlayers([{ name: "Lock", spec: "Destruction", group: 1 }]);
+            expect(player.entry).toMatchObject({ clazz: "Warlock", icon: "destruction" });
+        });
     });
 
     describe("buildSetupWrite", () => {
@@ -119,6 +129,12 @@ describe("utils/fillSetup", () => {
             expect(client.batchWrite).toHaveBeenCalled();
             expect(client.applyConditionalFormatting).toHaveBeenCalled();
             expect(summary.playerCount).toBe(4);
+        });
+
+        it("gives up after the timeout when the Sheets API never answers", async () => {
+            const client = fakeClient();
+            client.batchWrite.mockReturnValue(new Promise(() => {}));
+            await expect(fillSetupSheet(client, SAMPLE, { tab: "Setup", timeoutMs: 5 })).rejects.toThrow(/Timeout/);
         });
 
         it("rejects when the Sheets client throws", async () => {

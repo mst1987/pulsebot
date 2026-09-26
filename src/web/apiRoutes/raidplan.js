@@ -298,7 +298,7 @@ async function deleteProfile(req, res) {
 
 /** The icons offered when a mob is made, by category (generated and checked by scripts/fetch-mob-icons.js). */
 function mobIconChoices() {
-    try { return require("../../config/mobIcons.json").choices || {}; } catch { return {}; }
+    try { return require("../../config/generated/mobIcons.json").choices || {}; } catch { return {}; }
 }
 
 /** What the catalog page needs: every visible entry, the hidden defaults, and the choices of the forms. */

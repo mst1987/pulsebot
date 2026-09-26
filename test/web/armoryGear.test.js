@@ -150,7 +150,7 @@ describe("web/armoryGear", () => {
 
         it("refuses a PvP piece — the arena set is no answer for a raid slot", async () => {
             // Merciless Gladiator's Dreadweave Hood: resilience, therefore PvP.
-            expect(require("../../src/config/wowsims/items.json").items["31974"].stats.resilience).toBeGreaterThan(0);
+            expect(require("../../src/config/generated/wowsims/items.json").items["31974"].stats.resilience).toBeGreaterThan(0);
             mockGetEquipment.mockResolvedValue([equipped("HEAD", 31974)]);
             await primeArmoryGear(["Devihra"]);
             expect(armoryItemInSlot("Devihra", 0)).toBeNull();

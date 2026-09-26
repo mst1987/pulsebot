@@ -2,22 +2,22 @@
 // can be handed (with their stats), what the BiS list for a spec looks like, and
 // the ground-truth rotation to sim them with.
 //
-// The three tables next to this file are GENERATED — `node scripts/fetch-wowsims-data.js`
+// The tables in config/generated/wowsims/ are GENERATED — `node scripts/fetch-wowsims-data.js`
 // pulls them from wowsims/tbc-new (MIT). Everything here is the read side: pure
 // lookups, no I/O beyond the one require of the JSON at startup.
 
 const fs = require("fs");
 const path = require("path");
 
-const itemData = require("./items.json");
-const bisData = require("./bisSets.json");
+const itemData = require("../generated/wowsims/items.json");
+const bisData = require("../generated/wowsims/bisSets.json");
 // TBC Anniversary's re-issued Brewfest loot carries new ids this generated
 // table does not know (it is pulled from the same wowsims/tbc-new version
 // that has not caught up either) — resolved to the original id it does know,
 // same as Wowhead lookups.
 const { wowheadItemId } = require("../wowheadItemAliases");
 
-const APL_DIR = path.join(__dirname, "apls");
+const APL_DIR = path.join(__dirname, "..", "generated", "wowsims", "apls");
 
 /** Item id (as a number) -> the generated entry, or null. */
 function item(itemId) {

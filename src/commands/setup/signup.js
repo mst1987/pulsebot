@@ -4,6 +4,7 @@ const messages = require("../../config/messages");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { botReply, formatSpecs, formatSignUps } = require("../../utils/helper");
 const { ownEventInChannel } = require("../../web/eventSources");
+const { RAIDHELPER_BOT_ID } = require("../../config/constants");
 
 // Legacy: signs up at the Raid-Helper event of this channel with Raid-Helper
 // spec names. An own EventHelper event (#291) is not signed up for here — the
@@ -37,7 +38,7 @@ module.exports = {
         let raid;
         const channelMessages = await interaction.channel.messages.fetch();
         const botMessages = channelMessages.filter(
-            (msg) => msg.author.id === "579155972115660803"
+            (msg) => msg.author.id === RAIDHELPER_BOT_ID
         );
 
         for (const [key] of botMessages) {
