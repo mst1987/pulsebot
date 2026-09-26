@@ -1,0 +1,48 @@
+{
+    "noName": "(no name)",
+    "addSize": "Add size",
+    "version": "Game version",
+    "toast": {
+        "saved": "Template saved.",
+        "created": "Template created.",
+        "deleted": "Template deleted.",
+        "imported": "{added} new, {updated} already there."
+    },
+    "delete": {
+        "title": "Delete template?",
+        "text": "“{name}” will be deleted. A linked template in Raid-Helper stays."
+    },
+    "editor": {
+        "newTitle": "New template",
+        "namePlaceholder": "e.g. SSC + TK 25-man",
+        "more": "More: appearance, melee/ranged, required buffs, signup deadline, duration, waiting list, Raid-Helper template",
+        "deadline": "Signup deadline (hours before start)",
+        "deadlinePlaceholder": "none",
+        "duration": "Duration (minutes)",
+        "raidHelperId": "Raid-Helper template (ID)",
+        "raidHelperIdPlaceholder": "e.g. 3",
+        "fairness": "Fairness",
+        "fairnessTip": "Whoever sat on the bench last time is preferred in the setup suggestion.",
+        "wishes": "Wishes",
+        "wishesTip": "“Likes to raid with” from the profiles feeds into the setup suggestion.",
+        "overflow": "Waiting list when full",
+        "overflowTip": "Once the raid is full, every new signup that takes a spot (“Signed up” and “Late”) goes to the bench. Off: the signup is refused.",
+        "lockAtLimit": "Close signups when full",
+        "lockAtLimitTip": "As soon as all spots are taken, signups close. Signing off does not reopen them."
+    },
+    "page": {
+        "loadError": "Failed to load: {message}",
+        "loading": "Loading raid templates",
+        "kicker": "Raid events",
+        "title": "Raid templates",
+        "import": "Load from Raid-Helper",
+        "importSub": "Takes over the Raid-Helper templates of the current events as templates without a size.",
+        "new": "Template",
+        "incomplete": "Info missing",
+        "size": "Size",
+        "tanks": "Tanks",
+        "healers": "Healers",
+        "emptyVersion": "No template for this game version.",
+        "empty": "No raid template yet."
+    }
+}

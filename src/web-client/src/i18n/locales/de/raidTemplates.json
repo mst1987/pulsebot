@@ -1,0 +1,48 @@
+{
+    "noName": "(ohne Name)",
+    "addSize": "Größe ergänzen",
+    "version": "Spielversion",
+    "toast": {
+        "saved": "Vorlage gespeichert.",
+        "created": "Vorlage angelegt.",
+        "deleted": "Vorlage gelöscht.",
+        "imported": "{added} neu, {updated} schon vorhanden."
+    },
+    "delete": {
+        "title": "Vorlage löschen?",
+        "text": "„{name}“ wird gelöscht. In Raid-Helper bleibt eine verknüpfte Vorlage bestehen."
+    },
+    "editor": {
+        "newTitle": "Neue Vorlage",
+        "namePlaceholder": "z. B. SSC + TK 25er",
+        "more": "Mehr: Aussehen, Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Dauer, Warteliste, Raid-Helper-Vorlage",
+        "deadline": "Anmeldeschluss (Stunden vor Start)",
+        "deadlinePlaceholder": "keiner",
+        "duration": "Dauer (Minuten)",
+        "raidHelperId": "Raid-Helper-Vorlage (ID)",
+        "raidHelperIdPlaceholder": "z. B. 3",
+        "fairness": "Fairness",
+        "fairnessTip": "Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt.",
+        "wishes": "Wünsche",
+        "wishesTip": "„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein.",
+        "overflow": "Warteliste bei vollem Raid",
+        "overflowTip": "Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank. Aus: die Anmeldung wird abgelehnt.",
+        "lockAtLimit": "Anmeldung schließen, wenn voll",
+        "lockAtLimitTip": "Sobald die Plätze belegt sind, schließt die Anmeldung. Abmelden öffnet sie nicht wieder."
+    },
+    "page": {
+        "loadError": "Fehler beim Laden: {message}",
+        "loading": "Raid-Vorlagen werden geladen",
+        "kicker": "Raid-Events",
+        "title": "Raid-Vorlagen",
+        "import": "Aus Raid-Helper laden",
+        "importSub": "Übernimmt die Raid-Helper-Vorlagen der aktuellen Events als Vorlagen ohne Größe.",
+        "new": "Vorlage",
+        "incomplete": "Infos fehlen",
+        "size": "Größe",
+        "tanks": "Tanks",
+        "healers": "Heiler",
+        "emptyVersion": "Keine Vorlage für diese Spielversion.",
+        "empty": "Noch keine Raid-Vorlage."
+    }
+}
