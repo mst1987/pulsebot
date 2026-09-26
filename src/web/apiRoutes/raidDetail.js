@@ -5,8 +5,9 @@
 // Softres-Liste erstellen/verlinken. Both are faithful JSON ports of the SSR
 // routes in server.js, minus the HTML rendering/redirects.
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
+const { AppError, sendResult } = require("../apiResult");
+const { q } = require("../apiParams");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const {
@@ -98,9 +99,7 @@ function setupPostState(eventId) {
  * softresCatalogue/Edition/Suggested) are only consumed by Part B's UI, but are
  * included here since this read already computes all of it in one pass.
  */
-async function getRaidDetail(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaidDetail = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const eventId = (url.searchParams.get("event") || "").trim();
     // Include past raids: the dashboard's "Latest Events" card links here.
@@ -307,7 +306,7 @@ async function getRaidDetail(req, res, url) {
     ];
     payload.playerSummaries = summarizePlayers(names, listAllLoot(), listStoredEvents(guildId), { categoryId: found.g.categoryId });
     ok(res, payload);
-}
+});
 
 /**
  * Resolve an event's channel + title server-side (never trust client-sent
@@ -327,13 +326,9 @@ async function resolveEventForPost(req, eventId) {
 }
 
 /** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
-async function postNotify(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const template = getNotify(String(body.templateId || "").trim());
-    const channelId = String(body.channelId || "").trim();
+const postNotify = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const template = getNotify(q.str(body, "templateId"));
+    const channelId = q.str(body, "channelId");
     const target = normalizePingTarget(body.target);
     if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
@@ -343,17 +338,16 @@ async function postNotify(req, res) {
         }
         // The DM fallback names the raid, so the event is resolved server-side;
         // a failed lookup only costs the DM its title.
-        const eventId = String(body.event || "").trim();
+        const eventId = q.str(body, "event");
         const { found } = eventId ? await resolveEventForPost(req, eventId) : { found: null };
         const result = await deliverAnnouncement({
             target, event: found, channelId, template, roleIds: body.roleIds || [], guildId: activeGuildFor(req),
         });
         ok(res, { message: `Anmelde-Aufruf gepostet (${TARGET_LABELS[target]})${dmSummary(result.dm)}.`, delivery: result });
     } catch (e) {
-        console.error("notify post failed:", e.message);
-        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+        throw new AppError("post_failed", 500, e.message || "Posten fehlgeschlagen.");
     }
-}
+});
 
 /**
  * POST /api/raids/ping-missing — ping the raiders who have a role assigned to
@@ -361,17 +355,13 @@ async function postNotify(req, res) {
  * Missing raiders are re-derived server-side; the client never gets to supply
  * the list of who to ping.
  */
-async function postPingMissing(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
+const postPingMissing = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, result.delivery ? { message: result.message, delivery: result.delivery } : { message: result.message });
-}
+});
 
 /**
  * POST /api/raids/invite-call — "Invite callen": ping groups 1–5 of the
@@ -379,25 +369,21 @@ async function postPingMissing(req, res) {
  * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
  * answers who and what without posting (the dialog's preview).
  */
-async function postInviteCall(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
+const postInviteCall = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const eventId = q.str(body, "event");
     const guildId = activeGuildFor(req);
     if (body.dryRun) {
         const event = getEvent(eventId);
         const plan = event && (!guildId || event.guildId === guildId)
             ? invitePlan(event, user.id)
             : { error: { status: 404, code: "not_found", message: "Event nicht gefunden." } };
-        if (plan.error) return error(res, plan.error.status, plan.error.code, plan.error.message);
+        if (plan.error) return sendResult(res, plan);
         return ok(res, { count: plan.userIds.length, text: plan.text, groups: plan.groups });
     }
     const result = await callInvite({ guildId, eventId, userId: user.id, byName: user.name || "" });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, { message: result.message, count: result.count, text: result.text });
-}
+});
 
 /**
  * POST /api/raids/fill — fill a raidsheet from the event's Raid-Helper setup.
@@ -406,13 +392,9 @@ async function postInviteCall(req, res) {
  * days after the raid. The source raidsheet is never written to or deleted.
  * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
  */
-async function postFill(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
-    const sheet = getRaidsheet(String(body.sheetId || "").trim());
+const postFill = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const eventId = q.str(body, "event");
+    const sheet = getRaidsheet(q.str(body, "sheetId"));
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
     // An own event fills the sheet from its approved setup (#263) — never from a draft.
     const own = sourceOfEventId(eventId) === "eventhelper";
@@ -429,7 +411,7 @@ async function postFill(req, res) {
         // sheet name / "now".
         const startMs = (Number(body.eventStartTime) || 0) * 1000;
         const raidDate = startMs ? formatTimestampToDateString(startMs).split(" - ")[0].trim() : "";
-        const copyName = `${String(body.eventTitle || "").trim() || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
+        const copyName = `${q.str(body, "eventTitle") || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
         // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
         const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
 
@@ -462,7 +444,7 @@ async function postFill(req, res) {
         }
         await drive.shareAnyoneWriter(copy.id);
         const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
-        const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: String(body.tank3 || "").trim() });
+        const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: q.str(body, "tank3") });
         markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
         const delDate = formatTimestampToDateString(deleteAfter).split(" - ")[0].trim();
         ok(res, {
@@ -470,18 +452,13 @@ async function postFill(req, res) {
             playerCount: summary.playerCount,
         });
     } catch (e) {
-        console.error("raidsheet fill failed:", e.message);
-        error(res, 500, "fill_failed", e.message || "Füllen fehlgeschlagen.");
+        throw new AppError("fill_failed", 500, e.message || "Füllen fehlgeschlagen.");
     }
-}
+});
 
 /** POST /api/raids/post-sheet — post the filled raidsheet link into the event channel, with an optional message. Body: { event, message }. */
-async function postPostSheet(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
+const postPostSheet = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const eventId = q.str(body, "event");
     const es = getEventSheet(eventId);
     // Resolve the event's channel + title server-side; never trust posted ids.
     // Past raids included — the detail page is reachable for them too.
@@ -519,18 +496,13 @@ async function postPostSheet(req, res) {
         });
         ok(res, { message: alreadyPosted ? "Raidsheet-Nachricht aktualisiert." : "Raidsheet in den Channel gepostet." });
     } catch (e) {
-        console.error("post-sheet failed:", e.message);
-        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+        throw new AppError("post_failed", 500, e.message || "Posten fehlgeschlagen.");
     }
-}
+});
 
 /** POST /api/raids/post-softres — post the softres list link into the event channel, with an optional message. Body: { event, message }. */
-async function postPostSoftres(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
+const postPostSoftres = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const eventId = q.str(body, "event");
     const sr = getEventSoftres(eventId);
     if (!sr || !sr.url) return error(res, 400, "no_softres", "Für dieses Event gibt es noch keine Softres-Liste.");
     // Resolve the event's channel + title server-side; never trust posted ids.
@@ -560,20 +532,17 @@ async function postPostSoftres(req, res) {
         markEventSoftresPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
         ok(res, { message: alreadyPosted ? "Softres-Nachricht aktualisiert." : "Softres-Link in den Channel gepostet." });
     } catch (e) {
-        console.error("post-softres failed:", e.message);
-        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+        throw new AppError("post_failed", 500, e.message || "Posten fehlgeschlagen.");
     }
-}
+});
 
 /** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
-async function getItemSearch(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const q = url.searchParams.get("q") || "";
+const getItemSearch = withUser({}, async ({ res, url }) => {
+    const term = url.searchParams.get("q") || "";
     const edition = url.searchParams.get("edition") || "tbc";
-    const items = await wowhead.searchItems(q, { edition });
+    const items = await wowhead.searchItems(term, { edition });
     ok(res, { items });
-}
+});
 
 /**
  * POST /api/raids/softres — create a softres.it soft-reserve list for this
@@ -583,12 +552,8 @@ async function getItemSearch(req, res, url) {
  * `protection` (softres.it's "User Protection": reserving needs a login and each
  * raider may only edit their own reserves) is on unless explicitly false.
  */
-async function postSoftresCreate(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
+const postSoftresCreate = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const eventId = q.str(body, "event");
     const codes = Array.isArray(body.instanceCodes) ? body.instanceCodes : [];
     if (!codes.length) return error(res, 400, "no_instances", "Mindestens eine Instanz wählen.");
     // All chosen instances must belong to one edition (a softres list is single-edition).
@@ -602,7 +567,7 @@ async function postSoftresCreate(req, res) {
             instances: codes,
             edition: editions[0],
             amount: body.amount,
-            faction: String(body.faction || "").trim(),
+            faction: q.str(body, "faction"),
             hardReserves,
             hideReserves: body.hideReserves === true,
             protection: body.protection !== false,
@@ -625,42 +590,33 @@ async function postSoftresCreate(req, res) {
             : "Softres-Liste erstellt.";
         ok(res, { message }, 201);
     } catch (e) {
-        console.error("softres create failed:", e.message);
-        error(res, 500, "softres_failed", e.message || "Softres-Erstellung fehlgeschlagen.");
+        throw new AppError("softres_failed", 500, e.message || "Softres-Erstellung fehlgeschlagen.");
     }
-}
+});
 
 /**
  * POST /api/raids/softres/link — point the event at a manually chosen
  * softres.it link (e.g. one already set up directly on softres.it) instead of
  * one created via the API above. Body: { event, softresUrl, softresEditUrl }.
  */
-async function postSoftresLink(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
-    const softresUrl = String(body.softresUrl || "").trim();
+const postSoftresLink = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const eventId = q.str(body, "event");
+    const softresUrl = q.str(body, "softresUrl");
     if (!/^https:\/\/(www\.)?softres\.it\/raid\/[a-zA-Z0-9]+/i.test(softresUrl)) {
         return error(res, 400, "invalid_url", "Das muss ein softres.it-Raid-Link sein (https://softres.it/raid/...).");
     }
-    setEventSoftresLink(eventId, { url: softresUrl, editUrl: String(body.softresEditUrl || "").trim() });
+    setEventSoftresLink(eventId, { url: softresUrl, editUrl: q.str(body, "softresEditUrl") });
     ok(res, { message: "Softres-Link aktualisiert." });
-}
+});
 
 /**
  * POST /api/raids/loot-system — this raid's loot system where it differs from
  * its category's, plus "Softres zusätzlich". Body: { event, system, softres }
  * (`system` "" = like the category). Answers the resolved loot system.
  */
-async function postLootSystem(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.event || "").trim();
-    const system = String(body.system || "").trim();
+const postLootSystem = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const eventId = q.str(body, "event");
+    const system = q.str(body, "system");
     if (system && !normalizeLootSystem(system)) return error(res, 400, "invalid_system", "Unbekanntes Lootsystem.");
     const { groups, error: groupsError } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
     const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
@@ -668,7 +624,22 @@ async function postLootSystem(req, res) {
     setEventLootSystem(eventId, { system, softres: body.softres === true, by: user.id, byName: user.name });
     const lootSystem = lootSystemOf(eventId, found.g.categoryId);
     ok(res, { lootSystem, message: `Lootsystem: ${lootSystem.label}${lootSystem.softresExtra ? " + Softres" : ""}.` });
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raids/detail", handler: getRaidDetail, area: "raids" },
+    { method: "POST", path: "/api/raids/notify", handler: postNotify, area: "raids" },
+    { method: "POST", path: "/api/raids/ping-missing", handler: postPingMissing, area: "raids" },
+    { method: "POST", path: "/api/raids/invite-call", handler: postInviteCall, area: "raids" },
+    { method: "POST", path: "/api/raids/fill", handler: postFill, area: "raids" },
+    { method: "POST", path: "/api/raids/post-sheet", handler: postPostSheet, area: "raids" },
+    { method: "POST", path: "/api/raids/post-softres", handler: postPostSoftres, area: "raids" },
+    { method: "GET", path: "/api/raids/softres/item-search", handler: getItemSearch, area: "raids" },
+    { method: "POST", path: "/api/raids/softres", handler: postSoftresCreate, area: "raids" },
+    { method: "POST", path: "/api/raids/softres/link", handler: postSoftresLink, area: "raids" },
+    { method: "POST", path: "/api/raids/loot-system", handler: postLootSystem, area: "raids" },
+];
 
 module.exports = {
     getRaidDetail,
@@ -682,4 +653,5 @@ module.exports = {
     postSoftresCreate,
     postSoftresLink,
     postLootSystem,
+    routes,
 };

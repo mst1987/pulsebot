@@ -6,7 +6,8 @@
 // where the local test instance is and what to click to check the change.
 //
 //   npm run agents                 text overview in the terminal
-//   npm run agents -- --html       also write data/agent-overview.html (self-contained)
+//   npm run agents -- --html       also write eventhelper-agent-overview.html (self-contained) to the
+//                                  temp directory - not into data/, which holds the bot's runtime data
 //   npm run agents -- --watch [s]  redraw the terminal every s seconds (default 10)
 //   npm run agents -- --serve [p]  local page on http://localhost:p/ (default 3099) that refreshes itself
 //   npm run agents -- --json       machine-readable output instead of text
@@ -545,6 +546,11 @@ async function watch(opts, { seconds = opts.watch, write = (s) => process.stdout
     }
 }
 
+/** Where `--html` writes the page: the temp directory, a scratch file outside every checkout (#418). */
+function htmlFile(tmpdir = os.tmpdir()) {
+    return path.join(tmpdir, "eventhelper-agent-overview.html");
+}
+
 async function main(argv = process.argv.slice(2), { log = console.log } = {}) {
     const opts = parseArgs(argv);
     if (opts.serve) { await serve(opts, { log }); return null; } // keeps running: the listening server holds the process
@@ -553,9 +559,7 @@ async function main(argv = process.argv.slice(2), { log = console.log } = {}) {
     if (opts.json) log(JSON.stringify(entries, null, 2));
     else formatText(entries).forEach((l) => log(l));
     if (opts.html) {
-        const primary = (parseWorktrees(git(["worktree", "list", "--porcelain"], __dirname))[0] || { path: process.cwd() }).path;
-        const file = path.join(primary, "data", "agent-overview.html");
-        fs.mkdirSync(path.dirname(file), { recursive: true });
+        const file = htmlFile();
         fs.writeFileSync(file, formatHtml(entries));
         log(`HTML: ${file}`);
     }
@@ -570,4 +574,5 @@ module.exports = {
     parseWorktrees, parseStatusLines, parseNameStatus, parsePort, testSectionFromBody, testHints, projectSlug,
     firstPrompt, findAgents, assignAgent, inspectWorktree, instanceState, formatText, formatHtml, renderCards, collect, parseArgs, main, taskOf, ago,
     parseNumstat, mergeFileStats, summaryFromBody, parseCommitLines, parseActivity, describeToolUse, readTail, cachedPulls, serve,
+    htmlFile,
 };

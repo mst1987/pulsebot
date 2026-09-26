@@ -1,6 +1,8 @@
-const fs = require("fs");
-const path = require("path");
-const { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH } = require("../../src/web/apiAccess");
+const { checkAccess, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH } = require("../../src/web/apiAccess");
+const { ROUTES } = require("../../src/web/routeTable");
+// The access table as it stood before the route table took over (#421):
+// every path with its area(s) and the three special sets, captured verbatim.
+const golden = require("./fixtures/apiAccess.golden.json");
 const { emptyAccess, AREA_IDS } = require("../../src/config/permissions");
 
 const admin = { id: "1", name: "Admin", isAdmin: true };
@@ -217,22 +219,69 @@ describe("web/apiAccess", () => {
             }
         });
 
-        it("maps nothing that the router doesn't serve", () => {
-            for (const pathname of Object.keys(AREA_BY_PATH)) expect(routerPaths()).toContain(pathname);
+        // Golden master (#421): the route table must hand every path exactly the
+        // area(s) the hand-kept table gave it — no path lost, none moved, none new
+        // without a deliberate change to this fixture.
+        it("gives every path the same area(s) as the table it replaced", () => {
+            expect(Object.keys(AREA_BY_PATH).sort()).toEqual(Object.keys(golden.areaByPath).sort());
+            for (const [pathname, areas] of Object.entries(golden.areaByPath)) {
+                expect({ pathname, areas: AREA_BY_PATH[pathname] }).toEqual({ pathname, areas });
+            }
         });
 
-        // The gate is fail-closed, so forgetting an entry silently locks the
-        // endpoint to full admins instead of erroring — this catches that.
-        it("covers every endpoint the router serves", () => {
-            const covered = new Set([...Object.keys(AREA_BY_PATH), ...UNGATED, ...ANY_AREA, ...TOKEN_AUTH]);
-            const uncovered = routerPaths().filter((p) => !covered.has(p));
-            expect(uncovered).toEqual([]);
+        it("keeps the ungated, any-area and token sets exactly as they were", () => {
+            expect([...UNGATED].sort()).toEqual([...golden.ungated].sort());
+            expect([...ANY_AREA].sort()).toEqual([...golden.anyArea].sort());
+            expect([...TOKEN_AUTH].sort()).toEqual([...golden.tokenAuth].sort());
+        });
+
+        it("answers every golden path for the same callers as before", () => {
+            // one caller per area, plus the admin and an account with nothing
+            const callers = [admin, limited({}), ...AREA_IDS.map((a) => limited({ [a]: { read: true, write: false } })), ...AREA_IDS.map((a) => limited({ [a]: { read: true, write: true } }))];
+            for (const [pathname, entry] of Object.entries(golden.areaByPath)) {
+                const areas = Array.isArray(entry) ? entry : [entry];
+                for (const user of callers) {
+                    for (const method of ["GET", "POST"]) {
+                        const level = method === "GET" ? "read" : "write";
+                        const expected = user.isAdmin || areas.some((a) => user.access[a] && user.access[a][level]);
+                        expect({ pathname, method, user: user.access, allowed: checkAccess(pathname, method, user) === null }).toEqual({ pathname, method, user: user.access, allowed: expected });
+                    }
+                }
+            }
+        });
+    });
+
+    // The gate is fail-closed, so an entry without an area silently locks the
+    // endpoint to full admins instead of erroring — this makes that state explicit.
+    describe("the route table", () => {
+        it("gives every registered route an area, an auth kind, or says adminOnly out loud", () => {
+            const unmarked = ROUTES.filter((r) => !r.area && !r.auth && r.adminOnly !== true).map((r) => `${r.method} ${r.path}`);
+            expect(unmarked).toEqual([]);
+        });
+
+        it("uses only the three auth kinds the gate knows", () => {
+            for (const r of ROUTES) if (r.auth) expect(["none", "menu", "token"]).toContain(r.auth);
+        });
+
+        it("marks no route as adminOnly today — the golden master lists them all", () => {
+            expect(ROUTES.filter((r) => r.adminOnly).map((r) => r.path)).toEqual([]);
+        });
+
+        it("treats an entry without area as admin-only, even for a role holding every area", () => {
+            const everything = limited(Object.fromEntries(AREA_IDS.map((a) => [a, { read: true, write: true }])));
+            expect(checkAccess("/api/not-registered", "GET", everything)).toMatchObject({ status: 403, code: "forbidden" });
+            expect(checkAccess("/api/not-registered", "GET", admin)).toBeNull();
+        });
+    });
+
+    describe("levelFor", () => {
+        it("follows the method unless the route pins a level", () => {
+            expect(levelFor("GET", null)).toBe("read");
+            expect(levelFor("POST", null)).toBe("write");
+            expect(levelFor("DELETE", { area: "raids" })).toBe("write");
+            expect(levelFor("GET", { area: "raids", level: "write" })).toBe("write");
+            expect(levelFor("POST", { area: "raids", level: "read" })).toBe("read");
+            expect(levelFor("GET", { area: "raids", level: "bogus" })).toBe("read");
         });
     });
 });
-
-/** Every `pathname === "/api/…"` the route table in apiRouter.js dispatches on. */
-function routerPaths() {
-    const source = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "apiRouter.js"), "utf8");
-    return [...new Set([...source.matchAll(/pathname === "(\/api\/[^"]*)"/g)].map((m) => m[1]))];
-}

@@ -1,8 +1,8 @@
 # EventHelper Discord Bot
 
-A Discord bot for managing community events. Built with Node.js and Discord.js v14. The bot handles:
-- Raid signups and setup tracking via the Raidhelper API
-- Overview dashboards with interactive buttons
+A Discord bot plus web admin for organising WoW raids, built with Node.js and Discord.js v14: own events and
+signups (Raid-Helper stays a supported second source), setup proposals, raid plans, loot council, log checks of
+Warcraft Logs reports, and the web admin (a React SPA) the orga works in.
 
 ## Commands
 
@@ -17,10 +17,11 @@ npm run lint:fix       # Auto-fix lint issues
 npm run register       # Register slash commands to guild (instant)
 npm run register:global  # Register globally (takes ~1 hour)
 npm run register:clear   # Remove all guild slash commands
-npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve = self-refreshing page, --watch, --html, --json, --all)
-node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them (the bot also does this on start)
-node scripts/render-ui-emojis.js           # redraw the flat UI icons (assets/emojis/eh_ui_*.png, checked in)
+npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve, --watch, --html, --json, --all)
+npm run check:main       # Is the main checkout clean? (silent + exit 0 when it is)
 ```
+
+Every other script (emojis, generated data, dev seed, …) with its npm alias: [scripts/README.md](scripts/README.md).
 
 ## Development Workflow
 
@@ -30,7 +31,7 @@ node scripts/render-ui-emojis.js           # redraw the flat UI icons (assets/em
 
 **Four hooks in `.claude/settings.json` enforce this and the lint rule mechanically** (checked in, so every agent in every worktree gets them). The first three are one rule at three distances — an edit, a shell command, and the moment somebody walks away:
 - `.claude/hooks/guardMainCheckout.js` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit) refuses any edit whose target lies in the *main* worktree of this repository, in whichever directory the session runs. Linked worktrees, other repositories, files outside git and git-ignored files (`.env.dev`, `data/`) pass. A deliberate one-off override is `EVENTHELPER_ALLOW_MAIN_EDITS=1`.
-- `.claude/hooks/guardMainShell.js` (PreToolUse on Bash/PowerShell, #315) does the same for a **shell write**: twice an empty file landed in the main checkout through a redirection the Edit guard never sees. It is a prefilter, not a shell parser — it reads `>` / `>>` targets, `Out-File`/`Set-Content`/`Add-Content`/`New-Item`/`Tee-Object`/`tee` and `[IO.File]::WriteAll*`, and refuses **only** when the resolved path lies in the main checkout and is not git-ignored. Everything it cannot read with certainty passes: quoted text, a heredoc's body, `[[ … ]]`/`(( … ))`, a target holding a variable or a glob, `/dev/null` and `2>&1`, and a *relative* target when the command moves itself (`cd`, `Set-Location`). A guard that cries wolf gets switched off, so silence beats a false alarm.
+- `.claude/hooks/guardMainShell.js` (PreToolUse on Bash/PowerShell, #315) does the same for a **shell write**: twice an empty file landed in the main checkout through a redirection the Edit guard never sees. It is a prefilter, not a shell parser: it refuses **only** a redirection or write cmdlet whose resolved target lies in the main checkout and is not git-ignored, and lets everything it cannot read with certainty pass (what it reads: the hook's head comment) — silence beats a false alarm.
 - `.claude/hooks/mainCheckoutClean.js` (Stop / SubagentStop, #315) runs `scripts/check-main-clean.js` when an agent is done and blocks the stop while the main checkout holds anything unexpected — one line per find. The same script is the by-hand check (`node scripts/check-main-clean.js`, exit 1 with the lines, silent when clean); it finds the main worktree through `git worktree list`, so it works from any worktree; git-ignored files (`.env*`, `data/`, `coverage/`) never count, and there is no list of excused names. It never loops (`stop_hook_active` ends it after one round).
 - `.claude/hooks/lintChanged.js` (PostToolUse on Edit/Write/MultiEdit) runs ESLint on the file just written (`src/`, `test/`, the hooks, and `src/web-client/` with its own config) and feeds the problems straight back, so style errors are fixed at the edit, not at the PR. No ESLint installed yet (fresh worktree) means it stays silent.
 All are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers `src/`, `scripts/` and the hooks (#320 — the one exception is the quote rule in `scripts/render-ui-emojis.js`, whose SVG constants are single-quoted on purpose; see the comment in `eslint.config.mjs`).
@@ -97,27 +98,22 @@ The web server boots **independently of the Discord gateway** (`src/bot.js` `sta
 
 ## Architecture
 
-```
-src/
-  bot.js                    # Entry point. Loads commands, handles interactionCreate
-  commands/
-    setup/                  # Event setup commands: signup, saveraid, showSignups,
-                            #   showAllSetups, show-mysetups, createoverview, update-events
-  classes/
-    raidhelper.js           # Raw HTTPS client for raid-helper.xyz API
-  config/
-    classlist.js            # WoW class/spec lookup map (spec name -> icon/class/spec)
-    messages.js             # Shared user-facing text strings
-    variables.js            # Constants: Discord IDs, API URLs
-  utils/
-    helper.js               # Core utilities: botReply, botEditReply, formatters
-    date.js                 # Date utilities using Luxon (CET timezone)
-    responses.js            # Message formatters: setupResponse, mySetupResponse
-    raidhelper.js           # Signup/setup query logic on top of classes/raidhelper.js
-    httpAgent.js            # Shared https.Agent for Axios clients (SSL handling)
-scripts/
-  register-commands.js      # Preferred command registration script (supports --global, --clear)
-```
+A rough map without file lists (`ls` is always current); each row names the doc that explains it.
+
+| Where | What lives there | Read |
+|---|---|---|
+| `src/bot.js` | Entry: env, web server first, then the bot login (best-effort) and interaction routing | docs/bot-commands.md |
+| `src/logger.js` | The one logger (`LOG_LEVEL`) | its head comment |
+| `src/commands/<area>/` | One module per command or component; `loader.js` collects them for bot and `npm run register` | docs/bot-commands.md |
+| `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
+| `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
+| `src/utils/` | Domain logic without HTTP; `logcheck/`, `setup/`, `wowsims/` | docs/logcheck.md, docs/setup.md |
+| `src/web/` | HTTP server, `apiRoutes/`, stores (`*Store.js`), report rendering, Discord side of web features | docs/web-admin.md |
+| `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
+| `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
+| `assets/` | Checked-in images (app emojis) | docs/signups.md |
+| `data/` | Runtime data, git-ignored, only on the server (`EVENTHELPER_DATA_DIR`) | docs/data-storage.md |
+| `test/` | Jest, mirrors `src/`; `helpers/`, `setup/` (network guard), `docs/` (doc guard) | "Testing" below |
 
 ## Weiterführende Dokumentation (`docs/`)
 
@@ -142,35 +138,34 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
 | [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
+| [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer-Modul, Inhalt, sensibel ja/nein, Sichern und Wiederherstellen |
 | [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
 | [docs/guide-web-admin.md](docs/guide-web-admin.md) | Endnutzer-Guide für die Orga: alle Bereiche des Web-Admin-Panels und was man dort tun kann |
 
 ## Environment Variables
 
-All required variables must be in `.env` at the project root. See `.env.example` for the full list.
+`src/bot.js` loads `.env.dev` from the project root when it exists, otherwise `.env` (both git-ignored). Scripts
+read the env file relative to the working directory, so run them from the project root. Only these are needed to
+run at all; everything else (Google, Warcraft Logs, Blizzard, OAuth, …) is optional and listed with its purpose
+in `.env.example`. Most server settings (servers, channels, roles, rights) live in the web settings, not here.
 
 ```
-DISCORDJS_BOT_TOKEN=    # Bot token from Discord Developer Portal
-CLIENT_ID=              # Discord Application ID
-GUILD_ID=               # Discord server (guild) ID
-NODE_ENV=               # Set to "production" to enable SSL cert verification
-RAIDHELPER_API_KEY=     # API key for raid-helper.xyz
-RAIDHELPER_SERVER_ID=   # Discord server ID on raid-helper.xyz
-ADMIN_USER_ID=          # Discord user ID with bot admin access
+DISCORDJS_BOT_TOKEN=    # Bot token (without it only the web server runs)
+CLIENT_ID=              # Discord application id
+ADMIN_USER_ID=          # Bootstrap admin who can always log in and configure the rest
+DISCORD_CLIENT_SECRET=  # "Login with Discord" on the web (not needed with DEV_AUTO_LOGIN=1 locally)
+NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 ```
-
-Note: `bot.js` loads dotenv with `{ path: "../.env" }` (relative to `src/`). Always run scripts from the project root via `npm run ...`.
 
 ## Code Conventions
 
-- **Module system:** CommonJS only (`require` / `module.exports`). No ES Modules.
+- **Module system:** CommonJS only (`require` / `module.exports`), never ES Modules.
 - **Indentation:** 4 spaces.
 - **Quotes:** Double quotes (enforced by ESLint).
 - **Semicolons:** Always (enforced by ESLint).
-- **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint. (The `linebreak-style: windows` rule was removed: git stores LF blobs, so a fixed `windows` rule broke the Linux CI.)
-- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: [docs/signups.md](docs/signups.md), [docs/bot-commands.md](docs/bot-commands.md).
-- **No TypeScript.** Plain JavaScript / CommonJS only.
-- **Tests:** Jest. Every module has a matching test; every new feature ships with tests (see Testing).
+- **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint (a fixed rule broke the Linux CI).
+- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/signups.md, docs/bot-commands.md.
+- **No TypeScript** in the bot (the web client in `src/web-client/` is TypeScript).
 
 ## Testing
 
@@ -179,18 +174,16 @@ The project uses [Jest](https://jestjs.io/). Tests live next to the source tree 
 - Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
 - Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
 - **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request; `test/setup/noNetwork.js` (`setupFiles`) enforces it: unmocked axios, `http(s).request/get` and `fetch` throw and fail the test, even when the code swallows the error (loopback stays open). `coverageThreshold` in `jest.config.js` sits about a point under the measured coverage, so `npm run test:coverage` fails when it sinks; console output is shown only for failing tests.
-- **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite (the helper registers that itself). Not `os.tmpdir()` plus `process.pid`: a pid is unique only while the process lives, `forceExit` in `jest.config.js` can skip an `afterAll`, and several runs share one machine (a worktree per feature). That pattern left 96 stale files in `%TEMP%` before #315. Every store on `src/web/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
+- **A store a suite points somewhere else (`useFile`) gets its file from `test/helpers/tempStore.js`'s `tempStoreFile(name)`** — a scratch directory of its own, removed at the end of the suite. Not `os.tmpdir()` plus `process.pid`: that left 96 stale files in `%TEMP%` before #315 (pids repeat, `forceExit` can skip an `afterAll`). Every store on `src/web/jsonStore.js` has `useFile(path|null)`; a suite that wants no disk at all mocks `fs` with `test/helpers/memoryFs.js` (see "Stores" in docs/web-admin.md).
 - Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/date.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
 - ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 
 ## What NOT To Do
 
-- Do not switch to ES Modules (`import`/`export`). The entire codebase is CommonJS.
-- Do not add TypeScript.
 - Do not add a feature or fix without tests, and do not merge with a failing `npm test`.
 - Do not branch off `dev` — always branch off `main` and open PRs against `main` (see Development Workflow).
-- Do not hardcode Discord IDs or API keys in command or utility files — use `config/variables.js` which reads from environment variables.
+- Do not hardcode Discord IDs or API keys in command or utility files — read them through `src/config/` (env) or the settings store.
 - Do not use `interaction.reply()` after already calling `interaction.deferReply()` — use `botEditReply` or `botFollowup` instead.
 - Do not create slash commands without a `data` definition in the command module (`scripts/register-commands.js` collects it) and re-running `npm run register`.
-- Do not move `.env` without also updating the `dotenv.config()` call in `bot.js` (`path: "../.env"`).
+- Do not move `.env` / `.env.dev` out of the project root without also updating the `dotenv.config()` call in `src/bot.js`.
 - Do not write new domain knowledge into this file — it is read in full in every session. It belongs in the matching `docs/*.md` (new file → add it to the index above).

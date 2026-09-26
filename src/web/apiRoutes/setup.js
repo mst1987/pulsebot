@@ -15,8 +15,8 @@
 // editor additionally asks whether the caller may write, because a draft is
 // never handed to someone who could not approve it.
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
+const { sendFailure, sendResult } = require("../apiResult");
 const { userCan } = require("../../config/permissions");
 const { getConfig } = require("../settingsStore");
 const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../eventStore");
@@ -33,13 +33,8 @@ const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
 const EXPLAIN_SECTION = "setup-explain";
-const HTTP = { not_found: 404, raidhelper: 409, conflict: 409, invalid: 400, no_setup: 400, no_approved_setup: 400, cancelled: 409, no_channel: 400, discord: 502 };
 
 const canWrite = (user) => userCan(user, "raids", "write");
-
-function sendFailure(res, result) {
-    return error(res, HTTP[result.code] || 400, result.code || "failed", result.error || "Fehlgeschlagen.");
-}
 
 async function namesFor(event) {
     const ids = listSignups(event.id).map((s) => s.userId);
@@ -111,20 +106,11 @@ function eventOf(res, id) {
 }
 
 /** GET /api/raids/setup?event=<id> */
-async function getSetup(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getSetup = withUser({}, async ({ user, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
     ok(res, await view(event, user));
-}
-
-/** Refused for a caller without `raids` write — the area gate does this already; kept for direct calls. */
-function requireWrite(res, user) {
-    if (canWrite(user)) return true;
-    error(res, 403, "forbidden", "Keine Schreibrechte für „Raids“.");
-    return false;
-}
+});
 
 async function answer(res, result, user, extra = {}) {
     if (result.error) return sendFailure(res, result);
@@ -132,33 +118,21 @@ async function answer(res, result, user, extra = {}) {
 }
 
 /** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes? }` */
-async function postPropose(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postPropose = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
     await answer(res, result, user, { message: "Neuer Vorschlag erstellt." });
-}
+});
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
-async function putSetup(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const putSetup = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.saveEventSetup(String(body.event).trim(), body, { userId: user.id });
     await answer(res, result, user);
-}
+});
 
 /** POST /api/raids/setup/approve — body `{ event, version }` */
-async function postApprove(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postApprove = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     if (!eventOf(res, body.event)) return;
     const result = setupEditor.approveEventSetup(String(body.event).trim(), { version: body.version, userId: user.id });
     if (result.error) return sendFailure(res, result);
@@ -175,40 +149,28 @@ async function postApprove(req, res) {
         if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
     }
     await answer(res, result, user, { message });
-}
+});
 
 /** POST /api/raids/setup/post — body `{ event }`: post/edit the approved setup, send outstanding DMs. */
-async function postPublish(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postPublish = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const { post } = await setupMessage.publishSetup(event.id, { userId: user.id });
     if (post.code) return sendFailure(res, post);
     const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
     await answer(res, { event }, user, { message: text });
-}
+});
 
 /** POST /api/raids/setup/ping-text — body `{ event, text }`: what "Ping everyone" (and the first post's own ping) sends. */
-async function postPingText(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postPingText = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     saveSetupPingText(event.id, body.text);
     await answer(res, { event }, user, { message: "Ping-Nachricht gespeichert." });
-}
+});
 
 /** POST /api/raids/setup/extra-role — body `{ event, userId, role: "tank"|"healer", on }`: mark a raider as an extra tank / healer, or not any more. */
-async function postExtraRole(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postExtraRole = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const userId = String(body.userId || "").trim();
@@ -218,40 +180,28 @@ async function postExtraRole(req, res) {
     if (!userId || !known) return error(res, 404, "unknown_raider", "Dieser Raider ist nicht angemeldet.");
     const updated = setEventExtraRole(event.id, userId, body.role, body.on === true);
     await answer(res, { event: updated }, user);
-}
+});
 
 /** POST /api/raids/setup/search/text — body `{ event, roles, buffs }`: the message for needs the orga edited (nothing is posted). */
-async function postSearchText(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postSearchText = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = textForNeeds(event, body);
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, result);
-}
+});
 
 /** POST /api/raids/setup/search — body `{ event, text? }`: post the "we are looking for …" message into the event channel. */
-async function postSearchMessage(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postSearchMessage = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const result = await postSearch({ guildId: event.guildId, eventId: event.id, userId: user.id, byName: user.username || user.name || "", text: body.text });
-    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    if (result.error) return sendResult(res, result);
     ok(res, result);
-}
+});
 
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
-async function postExplain(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const postExplain = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const settings = getConfig().anthropic || {};
@@ -267,12 +217,10 @@ async function postExplain(req, res) {
         return { ok: true, id: fresh.id };
     });
     ok(res, { eventId: event.id, status: started.status, alreadyRunning: started.alreadyRunning }, started.alreadyRunning ? 200 : 202);
-}
+});
 
 /** GET /api/raids/setup/explain?event=<id> — the job state plus the stored explanation. */
-async function getExplain(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return;
+const getExplain = withUser({ write: "raids" }, async ({ res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
     ok(res, {
@@ -281,6 +229,21 @@ async function getExplain(req, res, url) {
         explanation: (event.setup && event.setup.explanation) || null,
         version: (event.setup && event.setup.version) || 0,
     });
-}
+});
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExtraRole, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raids/setup", handler: getSetup, area: "raids" },
+    { method: "PUT", path: "/api/raids/setup", handler: putSetup, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/propose", handler: postPropose, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/approve", handler: postApprove, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/post", handler: postPublish, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/ping-text", handler: postPingText, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/extra-role", handler: postExtraRole, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/search/text", handler: postSearchText, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/search", handler: postSearchMessage, area: "raids" },
+    { method: "POST", path: "/api/raids/setup/explain", handler: postExplain, area: "raids" },
+    { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
+];
+
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postPingText, postExtraRole, postSearchMessage, postSearchText, postExplain, getExplain, EXPLAIN_SECTION, routes };

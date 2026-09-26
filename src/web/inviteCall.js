@@ -12,11 +12,10 @@ const eventStore = require("./eventStore");
 const signupStore = require("./signupStore");
 const discord = require("./discord");
 const { approvedSetupOf } = require("./setupEditor");
+const { fail } = require("./apiResult");
 
 /** Groups 1 to this one are called to the invite. */
 const INVITE_GROUPS = 5;
-
-const fail = (status, code, message) => ({ error: { status, code, message } });
 
 /**
  * The character the caller raids with: their place in the approved setup (any

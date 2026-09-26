@@ -3,8 +3,8 @@
 node_modules
 logs/
 data/
-reference/cla/appsscript/
-reference/rpb/appsscript/
+scripts/data-sources/cla/appsscript/
+scripts/data-sources/rpb/appsscript/
 service-account.json
 
 # The wowsims binary is fetched, not committed (scripts/fetch-wowsimcli.js).
