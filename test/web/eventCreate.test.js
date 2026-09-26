@@ -207,6 +207,62 @@ describe("web/eventCreate", () => {
         expect((await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", title: " " }) })).error.code).toBe("invalid_title");
     });
 
+    // Characterisation of the paths the split of createEvent (#424) moved around.
+    it("reports a clone Discord refused and creates nothing", async () => {
+        const { event: source } = eventStore.createEvent({ guildId: "g1", channelId: "c2", categoryId: "cat-eh", title: "Kara alt", startTime: 1900000000 });
+        discord.duplicateChannel.mockRejectedValueOnce(new Error("Unknown Channel"));
+        const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", sourceEventId: source.id }) });
+        expect(result).toEqual({ error: { status: 400, code: "create_failed", message: "Unknown Channel" } });
+        discord.duplicateChannel.mockRejectedValueOnce(new Error(""));
+        const noText = await createEvent({ guildId: "g1", user, body: body({ channelId: "", sourceEventId: source.id }) });
+        expect(noText.error.message).toBe("Channel konnte nicht dupliziert werden.");
+        expect(eventStore.listEvents().filter((e) => e.title === "Kara Donnerstag")).toEqual([]);
+    });
+
+    it("refuses a new channel with neither a name nor a category, and a source event that does not exist", async () => {
+        expect((await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "" } }) })).error)
+            .toEqual({ status: 400, code: "no_channel", message: "Der neue Kanal braucht einen Namen." });
+        const missing = await createEvent({ guildId: "g1", user, body: body({ channelId: "", sourceEventId: "eh-gibtsnicht" }) });
+        expect(missing.error.status).toBe(400);
+        expect(discord.duplicateChannel).not.toHaveBeenCalled();
+    });
+
+    it("hands the store's refusal back and posts nothing", async () => {
+        const spy = jest.spyOn(eventStore, "createEvent").mockReturnValueOnce({ error: "Speicher voll." });
+        const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+        expect(result).toEqual({ error: { status: 400, code: "create_failed", message: "Speicher voll." } });
+        expect(postEventMessage).not.toHaveBeenCalled();
+        expect(announceEvent).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+
+    it("answers an own event with every Discord side effect reported, in order: message, Discord event, overview, announcement", async () => {
+        discordEvent.createForEvent.mockRejectedValueOnce(new Error("Recht fehlt"));
+        announceEvent.mockResolvedValueOnce({ announced: false, error: "Kein Kanal." });
+        const result = await createEvent({ guildId: "g1", user: null, body: body({ channelId: "c2", leaderId: "", description: undefined, announce: false }) });
+        expect(result.status).toBe(201);
+        expect(result.body).toMatchObject({
+            source: "eventhelper", messageError: null, discordEventError: "Discord-Event: Recht fehlt", announced: false, announceError: "Kein Kanal.",
+        });
+        expect(result.body.event).toMatchObject({ channelId: "c2", channelName: "kara-fr", categoryId: "cat-eh", categoryName: "EventHelper-Raids", leaderId: "", description: "", createdBy: "" });
+        expect(announceEvent).toHaveBeenCalledWith(result.body.id, { want: false });
+        const order = [postEventMessage, discordEvent.createForEvent, scheduleOverviewSync, announceEvent].map((fn) => fn.mock.invocationCallOrder[0]);
+        expect([...order].sort((a, b) => a - b)).toEqual(order);
+    });
+
+    it("takes a Raid-Helper template linked by the raid template and answers with the channel it landed in", async () => {
+        getRaidTemplate.mockReturnValueOnce({ raidhelperTemplateId: "rh-tpl" });
+        mockCreateEvent.mockResolvedValueOnce({ id: "rh-3" });
+        const result = await createEvent({ guildId: "g1", user, body: body({ templateId: "", raidTemplateId: "tpl-1" }) });
+        expect(mockCreateEvent.mock.calls[0][0].templateId).toBe("rh-tpl");
+        expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: 35000 });
+        expect(result).toEqual({ status: 201, body: { id: "rh-3", channelId: "c1" } });
+        mockCreateEvent.mockRejectedValueOnce(new Error(""));
+        expect((await createEvent({ guildId: "g1", user, body: body() })).error.message).toBe("Event konnte nicht angelegt werden.");
+        mockCreateEvent.mockResolvedValueOnce({ status: "failed" });
+        expect((await createEvent({ guildId: "g1", user, body: body() })).error.message).toBe("Raid-Helper hat die Erstellung abgelehnt.");
+    });
+
     it("reports Raid-Helper's refusal", async () => {
         mockCreateEvent.mockResolvedValue({ status: "failed", reason: "invalid token" });
         const result = await createEvent({ guildId: "g1", user, body: body() });
