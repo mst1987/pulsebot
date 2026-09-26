@@ -23,6 +23,12 @@ const { getConfig } = require("../../src/web/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 const auth = require("../../src/web/auth.js");
 const discord = require("../../src/web/discord");
+const fs = require("fs");
+const { DATA_DIR, dataPath } = require("../../src/config/paths");
+
+// The sessions auth.js persists: test/setup/environment.js points DATA_DIR at a
+// scratch directory of this suite's own, never the checkout's data/ (#433).
+const storedSessions = () => JSON.parse(fs.readFileSync(dataPath("sessions.json"), "utf8"));
 
 // Flush the background admin re-check kicked off by sessionFor().
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -177,6 +183,9 @@ describe("web/auth", () => {
                 name: "Admin User",
                 isAdmin: true,
             });
+            // persisted for a restart - in the suite's scratch data directory
+            expect(DATA_DIR).toContain("eh-test-data-");
+            expect(storedSessions()[sid]).toMatchObject({ id: "233598324022837249", isAdmin: true });
         });
 
         it("falls back to username and marks non-admins", async () => {
@@ -631,10 +640,19 @@ describe("web/auth", () => {
 
             auth.destroy(sid);
             expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toBeNull();
+            expect(storedSessions()).not.toHaveProperty(sid);
         });
 
-        it("tolerates a falsy sid", () => {
-            expect(() => auth.destroy(undefined)).not.toThrow();
+        it("ignores a falsy sid without touching the stored sessions", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "t" } });
+            axios.get.mockResolvedValue({ data: { id: "2", username: "v" } });
+            const sid = await auth.completeLogin("d");
+            const before = storedSessions();
+
+            expect(auth.destroy(undefined)).toBeUndefined();
+            expect(auth.destroy("")).toBeUndefined();
+            expect(storedSessions()).toEqual(before);
+            expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toMatchObject({ id: "2" });
         });
     });
 });
