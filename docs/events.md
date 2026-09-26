@@ -1,5 +1,7 @@
 # Eigene Events (Anlegen, Verwalten, Serien)
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#raid-events](guide-web-admin.md#raid-events), [guide-web-admin.md#serien-wiederkehrende-events](guide-web-admin.md#serien-wiederkehrende-events), [guide-discord.md#event-verwaltung-nur-orga](guide-discord.md#event-verwaltung-nur-orga).
+
 ## Eigene Events (`eventStore.js`, `signupStore.js`, `eventSources.js`)
 
 Events live in **two sources**: at Raid-Helper, and in the EventHelper's own store (`source: "eventhelper"`, #254). **One event has exactly one source** — nothing is imported, nothing is mirrored, nothing expires. A Raid-Helper event stays fully in use wherever one exists, also in a category whose new events are created in the EventHelper.

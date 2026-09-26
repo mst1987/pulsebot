@@ -4,6 +4,8 @@ Diese Seite ist für alle, die den Bot **im Discord als Raider** benutzen — ni
 
 ## Anmeldung
 
+Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
+
 - Unter jeder Event-Nachricht im Kanal öffnet ein Button den **Anmelde-Dialog**: Charakter + Spec wählen, "kann auch"-Rollen angeben, Status setzen (Dabei / Vielleicht / Spät / Bank / Abmelden), optional ein Kommentar.
 - Direkt an der Event-Nachricht gibt es außerdem Status-Buttons **Spät · Vielleicht · Bank · Absagen** — ohne den vollen Dialog.
 - Bei "Vielleicht" oder "Absagen" öffnet sich (je nach Kategorie Pflicht oder optional) ein kurzes Textfeld für eine Nachricht an die Raidleitung.
@@ -15,6 +17,8 @@ Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen K
 
 ## Setup (Gruppeneinteilung)
 
+Technik: [setup.md](setup.md)
+
 - Ein Setup ist erst sichtbar, sobald die Orga es **freigegeben** hat — vorher sieht kein Raider etwas davon.
 - Nach der Freigabe erscheint es als eigene Nachricht im Event-Kanal (Gruppen, Bank) und optional als **DM** ("Du bist in Gruppe 2 als Heiler", "Diesmal Bank – nächstes Mal Vorrang").
 - Der Button **"Invite callen"** an der Setup-Nachricht ist nur für die Orga und pingt die eigene Gruppe zum Einladen.
@@ -22,6 +26,8 @@ Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen K
 - `/show-allsetups` — alle aktuell freigegebenen Setups.
 
 ## Übersicht & Nachschlagen
+
+Technik: [bot-commands.md](bot-commands.md)
 
 Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf die passende Seite im Web:
 
@@ -34,12 +40,16 @@ Diese Befehle antworten privat (nur für dich sichtbar) und verlinken meist auf 
 
 ## Event-Verwaltung (nur Orga)
 
+Technik: [events.md](events.md)
+
 - `/event anlegen` — neues Event per geführtem Dialog (Kategorie, Vorlage, Kanal, Termin).
 - `/event verwalten [Event]` bzw. Rechtsklick **"Event verwalten"** auf die Event-Nachricht — bearbeiten, verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, Setup öffnen, absagen/zurücknehmen, löschen.
 - `/fillsetup [Setup-ID]` — Setup ins Setup-Sheet übernehmen (das freigegebene Setup des Kanals oder ein Raid-Helper-Raidplan).
 - `/createoverview`, `/update-events` — ältere Befehle, inzwischen durch die automatische Talk-Server-Übersicht ersetzt.
 
 ## Was der Bot sonst noch automatisch macht
+
+Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](raidhelper-retirement.md)
 
 - **Talk-Server-Übersicht:** eine sich selbst aktualisierende Nachricht mit allen kommenden Raids (aus beiden Quellen) plus Anmelde-Buttons.
 - **Erinnerungs-Pings:** X Stunden vor Anmeldeschluss (an alle ohne Reaktion) und X Stunden vor Start (an Angemeldete) — Zeitpunkt ist je Kategorie eingestellt.

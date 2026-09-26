@@ -1,5 +1,7 @@
 # Umstieg von Raid-Helper (`src/web/raidhelperRetirement.js`, #291)
 
+Endnutzer-Sicht: siehe [guide-discord.md#umstieg-von-raid-helper](guide-discord.md#umstieg-von-raid-helper).
+
 The last package of #286: everything the EventHelper needs to replace Raid-Helper completely, and the switch that stops asking Raid-Helper. **Nothing is deleted and nothing flips silently.**
 
 **Raid-Helper stays a supported source for as long as a server wants it.** This page is the way out for a server that wants to leave, not a plan to leave: features that work with Raid-Helper events keep working (the raid plan of a Raid-Helper event, docs/raidplan.md "Raid-Helper-Events", is a permanent mode and does not depend on this switch — switched off, it plans from the line-up it saved last).

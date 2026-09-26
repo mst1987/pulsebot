@@ -1,5 +1,7 @@
 # Befehle des Bots
 
+Endnutzer-Sicht: siehe [guide-discord.md#anmeldung](guide-discord.md#anmeldung), [guide-discord.md#übersicht--nachschlagen](guide-discord.md#übersicht--nachschlagen).
+
 ## How the Command System Works
 
 `bot.js` `start()` calls `loadCommands()`, which reads every `.js` file from every subfolder of `src/commands/` through the shared loader `src/commands/loader.js` (`loadCommandModules()`). Files directly in `src/commands/` (the loader, `componentRoute.js`) and folders starting with `_` are not modules. **A name used twice throws** at start — before #413 the second file silently replaced the first. Each file must export:

@@ -1,5 +1,7 @@
 # Loot-Council (`lootcouncil` area)
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#loot-council](guide-web-admin.md#loot-council).
+
 The caster loot council: per raider, what they were given lately, how far their gear still is from BiS, and what a given drop would be worth to them — the page a council argues over when a boss dies. `src/web/lootCouncil.js` derives all of it **on read** from data the bot already keeps; nothing is stored.
 
 - **The raid-category filter narrows the *roster*, not just the loot.** Filtering only the items left every other raid's casters standing there with "0 Items" and a maximum drought — on top of the very ranking the page exists for. `categoryMembers()` decides who belongs, from three sources unioned because none is complete on its own:
