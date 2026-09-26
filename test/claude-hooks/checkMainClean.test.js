@@ -1,6 +1,6 @@
 // scripts/check-main-clean.js and the Stop hook built on it (#315): what
-// dirties the primary checkout, what is allowed to live there, and that the
-// exception list swallows nothing else.
+// dirties the primary checkout, and that only git's own ignore rules excuse a
+// file there (#416).
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
@@ -60,29 +60,39 @@ describe("scripts/check-main-clean", () => {
         expect(files(repo.linked)).toEqual([]);
     });
 
-    it("allows the known names that live there on purpose", () => {
-        for (const f of [".env", ".env.dev", ".env.dev.bak", "nodemon", "tbc-guild-simulator-backend@0.1.0"]) write(f);
+    it("leaves out whatever .gitignore covers", () => {
+        // makeRepo's .gitignore holds .env.dev and data/ - the repository's own
+        // rules decide, not a list of names in the script.
+        write(".env.dev");
         fs.mkdirSync(path.join(repo.main, "data", "settings"), { recursive: true });
         write("data/settings/events.json", "{}");
         expect(files()).toEqual([]);
     });
 
-    it("does not let the exception list swallow a real find", () => {
-        const real = [
-            "nodemon.json", // a config file, not the stray `nodemon`
-            "data.txt", // not the data/ directory
-            ".envelope", // starts with .env and is not an env file
-            "env.local",
+    it("reports the stray files it used to excuse by name", () => {
+        const stray = [
+            "nodemon", // a mistyped `npm run dev`
+            "tbc-guild-simulator-backend@0.1.0", // a mistyped `npm install`
+            ".env.dev.bak", // not covered by this repository's .gitignore
             "src/.env.js",
-            "tbc-guild-simulator-backend@0.2.0",
         ];
-        for (const f of real) write(f);
-        expect(check.findings({ cwd: repo.main }).entries.map((e) => e.file).sort()).toEqual(real.slice().sort());
-        // data/ is meant at the root only (git's own ignore rule hides src/data/ here).
-        for (const f of [...real, "src/data/x.js", "src/nodemon"]) expect(check.isAllowed(f)).toBe(false);
-        for (const f of [".env", ".env.dev", ".env.dev.bak", "data/settings/x.json", "data/", "nodemon", "tbc-guild-simulator-backend@0.1.0"]) {
-            expect(check.isAllowed(f)).toBe(true);
-        }
+        for (const f of stray) write(f);
+        expect(check.findings({ cwd: repo.main }).entries.map((e) => e.file).sort()).toEqual(stray.slice().sort());
+    });
+
+    it("follows the ignore rules of the repository it looks at", () => {
+        removeRepo(repo);
+        repo = makeRepo({ ignore: ".env.*\n!.env.example\n*.bak\ncoverage/\n" });
+        for (const f of [".env.dev", ".env.dev.bak", "coverage/lcov.info"]) write(f);
+        expect(files()).toEqual([]);
+        write(".env.example");
+        expect(files()).toEqual(["untracked .env.example"]);
+    });
+
+    it("still reports a tracked file under an ignore rule once it changes", () => {
+        fs.appendFileSync(path.join(repo.main, ".git", "info", "exclude"), "a.js\n");
+        write("a.js", "changed\n");
+        expect(files()).toEqual(["modified a.js"]);
     });
 
     it("keeps quiet when git is not there or answers nothing", () => {

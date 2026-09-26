@@ -12,3 +12,13 @@ bin/
 
 # Per-user Claude Code overrides (permissions etc.) stay local.
 .claude/settings.local.json
+
+# Every env variant is local only (.env.dev, .env.dev.bak, ...); the example is checked in.
+.env.*
+!.env.example
+
+# Coverage reports, backups, logs and Claude Code's scheduler lock.
+coverage/
+*.bak
+*.log
+.claude/scheduled_tasks.lock

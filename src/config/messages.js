@@ -24,6 +24,8 @@
     },
     common: {
         pulseBotSetupError: "Pulse Bot doesnt have a correct Setup yet.",
-        pulseBotReady: "Pulse Bot is ready!"
+        pulseBotReady: "Pulse Bot is ready!",
+        commandNotFound: "Command not found",
+        commandExecutionError: "There was an error executing this command!"
     }
 };

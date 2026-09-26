@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -27,6 +27,10 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      # Runtime dependencies only: a dev tool never reaches the server.
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -44,13 +48,53 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      # With coverage, so the thresholds in jest.config.js are enforced here.
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+  # The React client used to be built only on the production server
+  # (deploy.sh), so a type error surfaced after the merge. It is linted,
+  # type-checked and built here before anything is deployed (#414).
+  web-client:
+    name: Web client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web-client
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+          cache-dependency-path: src/web-client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # A ratchet: 30 warnings today (29 react-refresh/only-export-components,
+      # 1 react-hooks/exhaustive-deps). A new one fails the job; lower the
+      # number whenever one is fixed, down to 0.
+      - name: Run ESLint
+        run: npm run lint -- --max-warnings=30
+
+      - name: Type-check
+        run: npx tsc -b
+
+      - name: Build
+        run: npm run build
 
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, web-client]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     # Which directory the checkout lives in on the server. A repository variable
