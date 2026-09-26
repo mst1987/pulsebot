@@ -1,7 +1,7 @@
 // #291: the bot's channel/category lookups with own events and a Raid-Helper
 // that does not answer. The web stores and Raid-Helper are mocked.
 const mockRh = { getAllEvents: jest.fn() };
-jest.mock("../../src/utils/raidhelperClient", () => ({ createRaidhelperClient: () => mockRh }));
+jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: () => mockRh }));
 jest.mock("../../src/web/eventSources", () => ({
     ownUpcomingRaw: jest.fn(() => []),
 }));

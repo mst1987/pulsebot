@@ -3,8 +3,8 @@
 // stop, and a new start sets them up again. The stores read the suite's own
 // empty data directory (test/setup/environment.js) and the bot has no Discord
 // client, so the boot-time runs find nothing to do.
-jest.mock("../../src/utils/raidhelperClient", () => ({
-    ...jest.requireActual("../../src/utils/raidhelperClient"),
+jest.mock("../../src/utils/raidhelper/client", () => ({
+    ...jest.requireActual("../../src/utils/raidhelper/client"),
     createRaidhelperClient: () => ({ fetchEvents: async () => [], getAllEvents: async () => [], getSetup: async () => undefined }),
 }));
 

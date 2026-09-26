@@ -12,13 +12,13 @@
 // (switch to "down" and back without a restart - the in-memory fallbacks are what an outage really hits). Delete it to go back.
 // In production the variable does nothing: fixtureEnabled() checks NODE_ENV itself, so a stray variable on the server cannot switch
 // the real Raid-Helper off.
-const { logcheckAdminIds } = require("../config/variables");
-const { listEvents } = require("../web/eventStore");
-const discord = require("../web/discord");
+const { logcheckAdminIds } = require("../../config/variables");
+const { listEvents } = require("../../web/eventStore");
+const discord = require("../../web/discord");
 
 const FIXTURE_EVENT_ID = "1400000000000000001";
 const MODES = ["on", "nogroups", "signups", "gone", "down"];
-const MODE_FILE = require("../config/paths").dataPath("rh-fixture-mode.txt");
+const MODE_FILE = require("../../config/paths").dataPath("rh-fixture-mode.txt");
 
 /** The mode the file names, or "" (no file, or nothing it knows). */
 function fileMode(file = MODE_FILE) {

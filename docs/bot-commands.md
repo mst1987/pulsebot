@@ -80,7 +80,7 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 
 | Client | Contract |
 |---|---|
-| `classes/raidhelper.js` | The body decides, whatever the HTTP status. Event-list reads reject (the `status: "failed"` payload as-is, else an Error), `getTemplates` → `[]`, `getSetup` → `undefined`, `createEvent`/`getEvent` resolve the parsed body. POSTs and timeouts (20 s) are never retried. Always obtained through `utils/raidhelperClient.js` (switch-off, fixture). |
+| `classes/raidhelper.js` | The body decides, whatever the HTTP status. Event-list reads reject (the `status: "failed"` payload as-is, else an Error), `getTemplates` → `[]`, `getSetup` → `undefined`, `createEvent`/`getEvent` resolve the parsed body. POSTs and timeouts (20 s) are never retried. Always obtained through `utils/raidhelper/client.js` (switch-off, fixture). |
 | `classes/warcraftlogs.js` (v1) | Throws the `ApiError`. The workhorse of the log check; the head lists every importer and why it stays on v1. |
 | `classes/warcraftlogsV2.js` | Never throws: `null` + `lastError` (`not_configured`, `graphql`, `{ status, message }`). A 401 on a query refreshes the token once. |
 | `classes/blizzard.js` | Never throws (except `getToken`): `null` + `lastError { status, message, namespace }`, so the UI falls back to the armory link. |

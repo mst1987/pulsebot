@@ -1,13 +1,13 @@
-// The dev-only Raid-Helper stand-in (src/utils/raidhelperFixture.js): off in production whatever the variable says, never a network
+// The dev-only Raid-Helper stand-in (src/utils/raidhelper/fixture.js): off in production whatever the variable says, never a network
 // request, refuses every write.
-jest.mock("../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => ({ real: true })));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => ({ real: true })));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const fs = require("fs");
-const { tempStoreFile } = require("../helpers/tempStore");
-const fixture = require("../../src/utils/raidhelperFixture");
-const { createRaidhelperClient } = require("../../src/utils/raidhelperClient");
-const { raidhelperLineup } = require("../../src/web/raidhelperRoster");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const fixture = require("../../../src/utils/raidhelper/fixture");
+const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client");
+const { raidhelperLineup } = require("../../../src/web/raidhelperRoster");
 
 describe("fixtureMode", () => {
     it("is off without the variable and ALWAYS off in production", () => {

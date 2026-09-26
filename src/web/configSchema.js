@@ -101,7 +101,7 @@ const CONFIG_DEFAULTS = {
     signupSourceDefault: "eventhelper",
     // Switching Raid-Helper off (#291, Verbindungen → Raid-Helper): with
     // `disabled` no request goes to raid-helper.xyz any more (utils/
-    // raidhelperClient.js); the stored history stays readable.
+    // raidhelper/client.js); the stored history stays readable.
     raidhelperRetirement: { disabled: false, at: 0, byName: "" },
     // Whether the approved setup of an own event is also sent as a DM to every
     // raider in it (#290), keyed by category id: { [categoryId]: true }. Off by

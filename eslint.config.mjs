@@ -54,7 +54,7 @@ export default [
         // Parallel refactors own these two files (#424 part 2 for utils/raidhelper.js,
         // the helper split for utils/helper.js); their leftovers stay warnings
         // until that work lands, so this change does not collide with it.
-        files: ["src/utils/helper.js", "src/utils/raidhelper.js"],
+        files: ["src/utils/helper.js"],
         rules: {
             "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
             "prefer-const": "warn",

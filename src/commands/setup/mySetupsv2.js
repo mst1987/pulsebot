@@ -1,7 +1,7 @@
 const messages = require("../../config/messages");
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
-const { getCategorySetups } = require("../../utils/raidhelper");
+const { getCategorySetups } = require("../../utils/raidhelper/queries");
 const { setupResponse } = require("../../utils/responses");
 
 module.exports = {

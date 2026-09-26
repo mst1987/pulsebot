@@ -3,25 +3,25 @@
 const mockGetSetup = jest.fn();
 const mockGetCategoryEvents = jest.fn();
 
-jest.mock("../../src/classes/raidhelper", () =>
+jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getSetup: mockGetSetup }))
 );
 
-jest.mock("../../src/utils/helper", () => ({
+jest.mock("../../../src/utils/helper", () => ({
     getCategoryEvents: mockGetCategoryEvents,
     getCharacterIcon: (interaction, spec) => `[${spec}]`,
     delay: jest.fn(),
 }));
 
 const mockOwnEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
+jest.mock("../../../src/web/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
 
 const {
     getAllSignUps,
     getCategorySetups,
     getSetupsFromEvents,
-} = require("../../src/utils/raidhelper.js");
-const { mockInteraction } = require("../helpers/mockInteraction.js");
+} = require("../../../src/utils/raidhelper/queries.js");
+const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 describe("utils/raidhelper", () => {
     describe("getAllSignUps", () => {
@@ -101,7 +101,7 @@ describe("utils/raidhelper", () => {
 
     // #263: an own event's setup reaches the bot only once it is approved.
     describe("own EventHelper events", () => {
-        const editor = jest.requireActual("../../src/web/setupEditor");
+        const editor = jest.requireActual("../../../src/web/setupEditor");
         const draftOnly = {
             id: "eh-1", source: "eventhelper",
             setup: { status: "draft", groups: [{ index: 1, slots: [{ userId: "123", character: "Anna", spec: "Mage-Fire", role: "ranged" }] }], bench: [], approved: null },

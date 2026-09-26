@@ -3,7 +3,7 @@
 // dropdown / auto-match), and the fields stored when a log is linked to one.
 // Extracted out of server.js so both call sites re-resolve events the same
 // way (never trust a client-supplied event label — always look it up here).
-const { createRaidhelperClient } = require("../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("./discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
 const { listRaidEvents } = require("./raidEventStore");

@@ -69,7 +69,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/council-roles.json` | `councilStore.js` | Rolle je Raider, die der Council festlegt (Offspec-Abende) | nein |
 | `settings/user-prefs.json` | `userPrefsStore.js` | Einstellungen je Konto (Sprache des Menüs) | nein |
 | `sim/results.json` | `simStore.js` | Cache der Loot-Council-Simulationen (Schlüssel = Loadout + Binary) | nein |
-| `rh-fixture-mode.txt` | `src/utils/raidhelperFixture.js` | Nur Dev: Modus des Raid-Helper-Stand-ins einer Testinstanz | nein |
+| `rh-fixture-mode.txt` | `src/utils/raidhelper/fixture.js` | Nur Dev: Modus des Raid-Helper-Stand-ins einer Testinstanz | nein |
 
 Wer einen neuen Store anlegt, trägt seine Datei hier ein. Die Ausgabe von `npm run agents -- --html` landet nicht
 mehr in `data/`, sondern im Temp-Verzeichnis (`scripts/README.md`).

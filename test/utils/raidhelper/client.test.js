@@ -1,12 +1,12 @@
 const mockGetConfig = jest.fn();
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: mockGetConfig }));
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: mockGetConfig }));
 
 const MockRaidhelper = jest.fn().mockImplementation((opts) => ({ opts }));
-jest.mock("../../src/classes/raidhelper", () => MockRaidhelper);
+jest.mock("../../../src/classes/raidhelper", () => MockRaidhelper);
 
-const { createRaidhelperClient } = require("../../src/utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../../src/utils/raidhelper/client");
 
-describe("utils/raidhelperClient", () => {
+describe("utils/raidhelper/client", () => {
     afterEach(() => {
         jest.clearAllMocks();
     });

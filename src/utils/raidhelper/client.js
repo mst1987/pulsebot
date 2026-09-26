@@ -1,5 +1,5 @@
-const Raidhelper = require("../classes/raidhelper");
-const { getConfig } = require("../web/settingsStore");
+const Raidhelper = require("../../classes/raidhelper");
+const { getConfig } = require("../../web/settingsStore");
 
 // Single place that knows about the admin-editable serverId override, so every
 // call site gets it automatically without depending on web/settingsStore itself.
@@ -50,8 +50,8 @@ function disabledClient() {
 function createRaidhelperClient() {
     const config = getConfig();
     if (raidhelperDisabled(config)) return disabledClient();
-    // DEV ONLY (utils/raidhelperFixture.js): a made-up Raid-Helper event for local test instances; never in production
-    const fixture = require("./raidhelperFixture");
+    // DEV ONLY (utils/raidhelper/fixture.js): a made-up Raid-Helper event for local test instances; never in production
+    const fixture = require("./fixture");
     if (fixture.fixtureEnabled()) return fixture.fixtureClient();
     return new Raidhelper({ serverId: config.raidhelperServerId });
 }

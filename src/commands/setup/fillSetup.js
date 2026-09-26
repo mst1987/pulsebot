@@ -1,5 +1,5 @@
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-const { createRaidhelperClient } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
 const { botEditReply } = require("../../utils/helper");

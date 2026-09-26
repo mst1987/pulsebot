@@ -1,5 +1,5 @@
 ﻿const { MessageFlags } = require("discord.js");
-const { createRaidhelperClient } = require("./raidhelperClient");
+const { createRaidhelperClient } = require("./raidhelper/client");
 const { ownUpcomingRaw } = require("../web/eventSources");
 const { entryFor } = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");

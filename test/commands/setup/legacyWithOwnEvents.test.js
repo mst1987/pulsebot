@@ -9,7 +9,7 @@ jest.mock("../../../src/utils/helper.js");
 jest.mock("../../../src/utils/fillSetup.js", () => ({
     fillSetupSheet: jest.fn(async (client, slots) => ({ playerCount: slots.length, tanks: ["", "", ""], healers: 0, warlocks: 0, priests: 0, mages: 0, hunters: 0 })),
 }));
-jest.mock("../../../src/utils/raidhelper.js");
+jest.mock("../../../src/utils/raidhelper/queries.js");
 jest.mock("../../../src/utils/responses.js");
 jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/web/eventSources", () => ({
@@ -25,7 +25,7 @@ jest.mock("../../../src/web/setupEditor", () => ({ raidHelperSlots: jest.fn(() =
 const Raidhelper = require("../../../src/classes/raidhelper.js");
 const helper = require("../../../src/utils/helper.js");
 const { fillSetupSheet } = require("../../../src/utils/fillSetup.js");
-const utilsRaidhelper = require("../../../src/utils/raidhelper.js");
+const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const eventSources = require("../../../src/web/eventSources");
 const eventStore = require("../../../src/web/eventStore");
 const { raidHelperSlots } = require("../../../src/web/setupEditor");

@@ -2,10 +2,10 @@ const { MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/utils/helper.js");
-jest.mock("../../../src/utils/raidhelper.js");
+jest.mock("../../../src/utils/raidhelper/queries.js");
 
 const helper = require("../../../src/utils/helper.js");
-const utilsRaidhelper = require("../../../src/utils/raidhelper.js");
+const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const messages = require("../../../src/config/messages.js");
 const mySetups = require("../../../src/commands/setup/mySetupsv2.js");
 

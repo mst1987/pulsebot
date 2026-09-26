@@ -3,14 +3,14 @@ const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/utils/helper.js");
-jest.mock("../../../src/utils/raidhelper.js");
+jest.mock("../../../src/utils/raidhelper/queries.js");
 jest.mock("../../../src/utils/responses.js");
 jest.mock("../../../src/web/eventSources", () => ({ ownSignedUpEvents: jest.fn(() => []) }));
 const eventSources = require("../../../src/web/eventSources");
 
 const Raidhelper = require("../../../src/classes/raidhelper.js");
 const helper = require("../../../src/utils/helper.js");
-const utilsRaidhelper = require("../../../src/utils/raidhelper.js");
+const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const responses = require("../../../src/utils/responses.js");
 const messages = require("../../../src/config/messages.js");
 const showAllSetups = require("../../../src/commands/setup/showAllSetups.js");
