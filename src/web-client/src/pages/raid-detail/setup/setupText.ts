@@ -1,6 +1,7 @@
 import type { SetupAttendance, SetupPerson } from "../../../api";
 import { specLabel } from "../../../lib/wowNames";
-import { locale, t } from "../../../i18n";
+import { t } from "../../../i18n";
+import { formatWith } from "../../../lib/format";
 
 /** The signup states a slot shows a marker for, in the active language. */
 export function statusLabel(status: string | undefined): string {
@@ -34,7 +35,7 @@ export function weightLabels(): { key: string; label: string; tip: string }[] {
 export const MAX_RAID_SIZE = 40;
 
 export const dateTime = (ms: number) => (ms
-    ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    ? formatWith(ms, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
 
 
@@ -42,7 +43,7 @@ export const dateTime = (ms: number) => (ms
 export function benchText(a: SetupAttendance | undefined): string {
     if (!a || !a.benchNights) return "";
     if (!a.lastBench) return "–";
-    return new Date(a.lastBench * 1000).toLocaleDateString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric" });
+    return formatWith(a.lastBench * 1000, { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 /** Attendance bar tone: healthy from 80 %, worrying below 50 %. */
@@ -50,11 +51,10 @@ export const attendanceTone = (pct: number) => (pct >= 80 ? "ok" : pct >= 50 ? "
 
 export const clock = (ms: number) => {
     if (!ms) return "";
-    const d = new Date(ms);
-    const sameDay = d.toDateString() === new Date().toDateString();
-    return d.toLocaleString(locale(), sameDay
-        ? { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" }
-        : { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const sameDay = new Date(ms).toDateString() === new Date().toDateString();
+    return formatWith(ms, sameDay
+        ? { hour: "2-digit", minute: "2-digit" }
+        : { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
 
 // The compact view (one-line raiders, narrower cards) is an option, off by default;

@@ -18,6 +18,7 @@ import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "../../components/s
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
+import { tParts, t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
 // form per system. The card answers "is it set up?" at a glance; what the
@@ -43,67 +44,71 @@ function shortId(id: string): string {
 function since(ms: number): string {
     if (!ms) return "";
     const minutes = Math.max(0, Math.round((Date.now() - ms) / 60000));
-    if (minutes < 60) return `${minutes} Min.`;
+    if (minutes < 60) return translate("settings.connections.since.minutes", { count: minutes });
     const hours = Math.round(minutes / 60);
-    if (hours < 48) return `${hours} Std.`;
-    return `${Math.round(hours / 24)} T`;
+    if (hours < 48) return translate("settings.connections.since.hours", { count: hours });
+    return translate("settings.connections.since.days", { count: Math.round(hours / 24) });
 }
 
+// Built while rendering, so every text is in the active language.
 function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
+    const t = translate;
     const c = data.config;
-    const secret = (has: boolean | undefined) => (has ? "•••••••• gespeichert" : "kein Secret");
-    const lastUsed = (tokens || []).filter((t) => t.lastUsedAt).sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0];
-    const uploads = (tokens || []).reduce((sum, t) => sum + (t.uses || 0), 0);
+    const secret = (has: boolean | undefined) => (has ? t("settings.connections.secretStored") : t("settings.connections.noSecret"));
+    const lastUsed = (tokens || []).filter((tok) => tok.lastUsedAt).sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0];
+    const uploads = (tokens || []).reduce((sum, tok) => sum + (tok.uses || 0), 0);
     const wclOk = connectionState("wcl", connectionInputs(data, tokens)).tone === "ok";
     const all: Card[] = [
         {
             id: "discord", title: "Discord & Raid-Helper", icon: "inv_letter_15", adminOnly: true,
             tip: "Discord & Raid-Helper",
-            tipSub: "Ob der Bot verbunden ist und welcher Raid-Helper-Server die Events liefert. Welcher Discord-Server der Event- und welcher der Kommunikations-Discord ist, steht unter Verbindungen › Discord-Server. Der Raid-Helper-API-Key selbst bleibt in der .env.",
+            tipSub: t("settings.connections.discordSub"),
             rows: [
-                ["Event-Server", data.servers?.events?.[0]?.name || data.bot?.guildName || c.guildId || "Standard-Server des Bots"],
-                ["Raid-Helper", c.raidhelperServerId || "aus der .env"],
-                ["Bot", data.bot?.online ? `online${data.bot.readySince ? ` seit ${since(data.bot.readySince)}` : ""}` : "offline"],
+                [t("settings.connections.eventServer"), data.servers?.events?.[0]?.name || data.bot?.guildName || c.guildId || t("settings.connections.botDefaultServer")],
+                ["Raid-Helper", c.raidhelperServerId || t("settings.connections.fromEnv")],
+                ["Bot", data.bot?.online ? (data.bot.readySince ? t("settings.connections.onlineSince", { since: since(data.bot.readySince) }) : "online") : "offline"],
             ],
         },
         {
             id: "battlenet", title: "Battle.net / Armory", icon: "inv_chest_plate16", adminOnly: false,
             tip: "Battle.net / Armory",
-            tipSub: "Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear direkt an, und der Loot-Council kann die Armory als Gear-Quelle nutzen.",
+            tipSub: t("settings.connections.battlenetSub"),
             rows: [
                 ["Realm", `${c.blizzard.region || "eu"} · ${c.blizzard.realmSlug || "thunderstrike"}`],
-                ["Namespace", c.blizzard.namespace || "automatisch"],
+                ["Namespace", c.blizzard.namespace || t("settings.connections.auto")],
                 ["Secret", secret(c.blizzard.hasClientSecret)],
             ],
         },
         {
             id: "wcl", title: "Warcraft Logs", icon: "inv_misc_spyglass_02", adminOnly: true,
             tip: "Warcraft Logs API v2",
-            tipSub: "Zeichnet im Kampfverlauf je Bosskampf Raid-DPS, Raid-HPS und das Boss-Leben. Alles andere der Log-Auswertung läuft weiter über den v1-Key in der .env.\nDie Kurven erscheinen ab der nächsten Auswertung.",
+            tipSub: t("settings.connections.wclSub"),
             rows: [
-                ["Client-ID", shortId(c.warcraftlogsV2?.clientId || "")],
+                [t("settings.connections.clientId"), shortId(c.warcraftlogsV2?.clientId || "")],
                 ["Secret", secret(c.warcraftlogsV2?.hasClientSecret)],
-                ["Wirkung", wclOk ? "DPS-/HPS-Kurven aktiv" : "keine DPS-/HPS-Kurven"],
+                [t("settings.connections.effect"), wclOk ? t("settings.connections.curvesOn") : t("settings.connections.curvesOff")],
             ],
         },
         {
-            id: "anthropic", title: "KI-Formulierung", icon: "inv_misc_book_11", adminOnly: true,
-            tip: "KI-Formulierung (Anthropic)",
-            tipSub: "Claude formuliert die Empfehlungen aus der Log-Auswertung in Klartext für die Raider. Die Regeln entscheiden weiterhin, was aufgefallen ist; nichts geht ohne Freigabe raus.",
+            id: "anthropic", title: t("settings.connections.aiTitle"), icon: "inv_misc_book_11", adminOnly: true,
+            tip: t("settings.connections.aiTip"),
+            tipSub: t("settings.connections.aiSub"),
             rows: [
-                ["Modell", c.anthropic?.model || "claude-opus-5"],
-                ["Key", c.anthropic?.hasApiKey ? "•••••••• gespeichert" : "kein Key"],
-                ["Wirkung", c.anthropic?.hasApiKey ? "KI-Texte in Empfehlungen" : "nur Regeltexte"],
+                [t("settings.connections.model"), c.anthropic?.model || "claude-opus-5"],
+                ["Key", c.anthropic?.hasApiKey ? t("settings.connections.secretStored") : t("settings.connections.noKey")],
+                [t("settings.connections.effect"), c.anthropic?.hasApiKey ? t("settings.connections.aiOn") : t("settings.connections.aiOff")],
             ],
         },
         {
-            id: "lootsync", title: "Loot-Sync", icon: "inv_misc_punchcards_blue", adminOnly: true,
-            tip: "Loot-Sync (Addon)",
-            tipSub: "Das WoW-Addon schreibt den Loot von RCLootcouncil und Gargul in seine SavedVariables; das Sync-Tool auf dem Rechner des Raidleaders lädt ihn mit einem dieser Tokens hoch. Hochgeladene Raids landen in Historie & Loot → Addon-Inbox.",
+            id: "lootsync", title: t("settings.connections.lootSyncTitle"), icon: "inv_misc_punchcards_blue", adminOnly: true,
+            tip: t("settings.connections.lootSyncTip"),
+            tipSub: t("settings.connections.lootSyncSub"),
             rows: [
-                ["Letzter Upload", lastUsed ? `vor ${since(lastUsed.lastUsedAt)} · ${lastUsed.name}` : tokens ? "noch keiner" : "—"],
-                ["Uploads", tokens ? `${uploads} gesamt` : "—"],
-                ["Ziel", "Historie › Addon-Inbox"],
+                [t("settings.connections.lastUpload"), lastUsed
+                    ? t("settings.connections.lastUploadValue", { since: since(lastUsed.lastUsedAt), name: lastUsed.name })
+                    : tokens ? t("settings.connections.noUploadYet") : "—"],
+                ["Uploads", tokens ? t("settings.connections.uploadsTotal", { count: uploads }) : "—"],
+                [t("settings.connections.target"), t("settings.connections.targetValue")],
             ],
         },
     ];
@@ -119,6 +124,7 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
     icon: string;
     crumb: string;
 }) {
+    const t = useT();
     const [editing, setEditing] = useState<ConnectionId | null>(null);
     const inputs = connectionInputs(data, tokens);
     const list = cards(data, tokens);
@@ -126,7 +132,8 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
 
     return (
         <>
-            <PartHead icon={icon} tone="settings" title="Verbindungen" crumb={`Einstellungen › ${crumb} · ${ready} von ${list.length} eingerichtet`} />
+            <PartHead icon={icon} tone="settings" title={t("settings.sections.verbindungen.label")}
+                crumb={t("settings.crumb", { crumb: t("settings.connections.crumb", { crumb, ready, total: list.length }) })} />
             <div className="conn-grid">
                 {list.map((card) => {
                     const state = connectionState(card.id, inputs);
@@ -152,12 +159,12 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
                                 <span className="grow" />
                                 {card.id === "lootsync" ? (
                                     <Button variant={state.missing ? "primary" : "ghost"} size="sm" icon={card.icon} onClick={() => setEditing("lootsync")}>
-                                        Tokens verwalten
+                                        {t("settings.connections.manageTokens")}
                                     </Button>
                                 ) : state.missing ? (
-                                    <Button size="sm" icon={card.icon} onClick={() => setEditing(card.id)}>Einrichten</Button>
+                                    <Button size="sm" icon={card.icon} onClick={() => setEditing(card.id)}>{t("settings.connections.setUp")}</Button>
                                 ) : (
-                                    <Button variant="ghost" size="sm" icon={<PenIcon />} onClick={() => setEditing(card.id)}>Bearbeiten</Button>
+                                    <Button variant="ghost" size="sm" icon={<PenIcon />} onClick={() => setEditing(card.id)}>{t("common.edit")}</Button>
                                 )}
                             </div>
                         </section>
@@ -188,45 +195,60 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
 
 type FieldDef = { key: string; label: string; placeholder?: string; tip?: string; tipSub?: string; mono?: boolean };
 
-const FIELDS: Record<Exclude<ConnectionId, "lootsync">, { title: string; fields: FieldDef[]; secret?: FieldDef; link?: [string, string]; missingText: string }> = {
-    discord: {
-        title: "Discord & Raid-Helper",
-        missingText: "Der Bot ist gerade nicht verbunden — Server- und Rollenlisten fehlen, bis er wieder online ist.",
+type FieldsDef = { title: string; fields: FieldDef[]; secret?: FieldDef; link?: [string, string]; missingText: string };
+
+/** The modal's fields of one connection, in the active language. */
+function fieldsOf(id: Exclude<ConnectionId, "lootsync">): FieldsDef {
+    const t = translate;
+    const secretLabel = t("settings.connections.clientSecret");
+    const clientId = t("settings.connections.clientId");
+    if (id === "discord") {
+        const label = t("settings.connections.raidhelperId");
+        return {
+            title: "Discord & Raid-Helper",
+            missingText: t("settings.connections.discordMissing"),
+            fields: [
+                { key: "raidhelperServerId", label, mono: true, placeholder: t("settings.connections.raidhelperIdPlaceholder"), tip: label, tipSub: t("settings.connections.raidhelperIdSub") },
+            ],
+        };
+    }
+    if (id === "battlenet") {
+        const namespace = t("settings.connections.namespace");
+        return {
+            title: "Battle.net / Armory",
+            missingText: t("settings.connections.battlenetMissing"),
+            link: ["https://develop.battle.net/access/clients", t("settings.connections.battlenetLink")],
+            fields: [
+                { key: "clientId", label: clientId, mono: true, placeholder: t("settings.connections.battlenetClientPlaceholder") },
+                { key: "region", label: "Region", placeholder: "eu" },
+                { key: "realmSlug", label: t("settings.connections.realmSlug"), placeholder: "thunderstrike" },
+                { key: "namespace", label: namespace, placeholder: t("settings.connections.namespacePlaceholder"), tip: namespace, tipSub: t("settings.connections.namespaceSub") },
+            ],
+            secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.battlenetSecretSub") },
+        };
+    }
+    if (id === "wcl") {
+        return {
+            title: "Warcraft Logs (API v2)",
+            missingText: t("settings.connections.wclMissing"),
+            link: ["https://www.warcraftlogs.com/api/clients", t("settings.connections.wclLink")],
+            fields: [
+                { key: "clientId", label: clientId, mono: true, placeholder: t("settings.connections.wclClientPlaceholder") },
+            ],
+            secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.wclSecretSub") },
+        };
+    }
+    const model = t("settings.connections.model");
+    return {
+        title: t("settings.connections.aiTip"),
+        missingText: t("settings.connections.aiMissing"),
+        link: ["https://console.anthropic.com/settings/keys", t("settings.connections.aiLink")],
         fields: [
-            { key: "raidhelperServerId", label: "Raid-Helper Server-ID", mono: true, placeholder: "Server-ID von raid-helper.xyz", tip: "Raid-Helper Server-ID", tipSub: "Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env." },
+            { key: "model", label: model, mono: true, placeholder: "claude-opus-5", tip: model, tipSub: t("settings.connections.modelSub") },
         ],
-    },
-    battlenet: {
-        title: "Battle.net / Armory",
-        missingText: "Ohne Client-ID und Secret zeigt die Char-Historie kein Live-Gear.",
-        link: ["https://develop.battle.net/access/clients", "Client anlegen auf develop.battle.net"],
-        fields: [
-            { key: "clientId", label: "Client-ID", mono: true, placeholder: "Client-ID von develop.battle.net" },
-            { key: "region", label: "Region", placeholder: "eu" },
-            { key: "realmSlug", label: "Realm-Slug", placeholder: "thunderstrike" },
-            { key: "namespace", label: "Profile-Namespace", placeholder: "leer = automatisch", tip: "Profile-Namespace", tipSub: "Leer = automatisch (profile-classicann-<region>). Nur setzen, wenn Blizzard den Namespace ändert." },
-        ],
-        secret: { key: "clientSecret", label: "Client-Secret", tip: "Client-Secret", tipSub: "Wird nie wieder angezeigt. Ein neuer Wert ersetzt das gespeicherte Secret." },
-    },
-    wcl: {
-        title: "Warcraft Logs (API v2)",
-        missingText: "Ohne Client-ID und Secret fehlen im Kampfverlauf die DPS-, HPS- und Boss-Leben-Kurven.",
-        link: ["https://www.warcraftlogs.com/api/clients", "Client anlegen auf warcraftlogs.com"],
-        fields: [
-            { key: "clientId", label: "Client-ID", mono: true, placeholder: "Client-ID von warcraftlogs.com/api/clients" },
-        ],
-        secret: { key: "clientSecret", label: "Client-Secret", tip: "Client-Secret", tipSub: "Unter warcraftlogs.com/api/clients einen Client ohne Redirect-URL anlegen, „Public Client“ aus lassen." },
-    },
-    anthropic: {
-        title: "KI-Formulierung (Anthropic)",
-        missingText: "Ohne API-Key bleiben die Empfehlungen bei den Regeltexten.",
-        link: ["https://console.anthropic.com/settings/keys", "Key anlegen auf console.anthropic.com"],
-        fields: [
-            { key: "model", label: "Modell", mono: true, placeholder: "claude-opus-5", tip: "Modell", tipSub: "Leer = claude-opus-5. Die Formulierung startet auf der Report-Seite unter „Empfehlungen“." },
-        ],
-        secret: { key: "apiKey", label: "API-Key", tip: "Anthropic API-Key", tipSub: "Wird nie wieder angezeigt. Ein neuer Wert ersetzt den gespeicherten Key." },
-    },
-};
+        secret: { key: "apiKey", label: t("settings.connections.apiKey"), tip: t("settings.connections.apiKeyTip"), tipSub: t("settings.connections.apiKeySub") },
+    };
+}
 
 function initialFields(id: ConnectionId, config: AdminConfig): Record<string, string> {
     if (id === "discord") return { raidhelperServerId: config.raidhelperServerId || "" };
@@ -254,7 +276,8 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
     onClose: () => void;
     onSaved: (config: AdminConfig) => void;
 }) {
-    const def = FIELDS[id];
+    const t = useT();
+    const def = fieldsOf(id);
     const [fields, setFields] = useState(() => initialFields(id, data.config));
     // The secret is write-only: a typed value replaces it, "clear" removes it,
     // an untouched field keeps what is stored (undefined in the PATCH).
@@ -270,7 +293,7 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
         const secret = clearSecret ? "" : secretValue.trim() ? secretValue.trim() : undefined;
         try {
             const { config } = await updateSettings(connectionPatch(id, fields, def.secret ? secret : undefined) as Partial<AdminConfig>);
-            toast(`${card.title} gespeichert.`);
+            toast(t("settings.connections.saved", { title: card.title }));
             onSaved(config);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -300,15 +323,15 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
             onClose={onClose}
             icon={card.icon}
             tone={state.missing ? "mid" : "settings"}
-            kicker="Verbindung bearbeiten"
+            kicker={t("settings.editKicker")}
             title={def.title}
             width={580}
             initialFocus="input"
             hint={card.adminOnly ? <AdminOnlyBadge /> : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={busy}>Abbrechen</Button>
-                    <Button onClick={save} disabled={busy}>{busy ? "Speichert…" : "Speichern"}</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+                    <Button onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
@@ -331,16 +354,16 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
                                 value={secretValue}
                                 disabled={clearSecret}
                                 autoComplete="new-password"
-                                placeholder={clearSecret ? "wird beim Speichern gelöscht" : stored ? "•••••••• gespeichert — leer lassen behält es" : "noch kein Secret hinterlegt"}
+                                placeholder={clearSecret ? t("settings.connections.secretCleared") : stored ? t("settings.connections.secretKeep") : t("settings.connections.secretNone")}
                                 onChange={(e) => setSecretValue(e.target.value)}
                             />
                             {stored && (
                                 <Button variant="ghost" size="sm" icon={clearSecret ? undefined : <TrashIcon />} onClick={() => { setClearSecret(!clearSecret); setSecretValue(""); }}>
-                                    {clearSecret ? "Behalten" : "Löschen"}
+                                    {clearSecret ? t("settings.connections.keep") : t("common.delete")}
                                 </Button>
                             )}
                         </div>
-                        <div className="note">Wird nie wieder angezeigt, nur ersetzt oder gelöscht.</div>
+                        <div className="note">{t("settings.connections.secretNote")}</div>
                     </div>
                 )}
                 {def.fields.slice(1).map(input)}
@@ -368,6 +391,7 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
 }) {
     const ask = useConfirm();
     const toast = useToast();
+    const t = useT();
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
     // The plaintext of the token just created — only in this state, gone on reload.
@@ -391,12 +415,12 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
         }
     };
 
-    const revoke = async (t: IngestToken) => {
-        if (!(await ask({ title: `Token „${t.name}“ zurückziehen?`, text: "Das Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.", action: "Zurückziehen", tone: "danger" }))) return;
+    const revoke = async (tok: IngestToken) => {
+        if (!(await ask({ title: t("settings.tokens.revokeAsk", { name: tok.name }), text: t("settings.tokens.revokeText"), action: t("settings.tokens.revoke"), tone: "danger" }))) return;
         try {
-            await deleteIngestToken(t.id);
+            await deleteIngestToken(tok.id);
             onChanged();
-            toast(`Token „${t.name}“ zurückgezogen.`);
+            toast(t("settings.tokens.revoked", { name: tok.name }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -405,12 +429,12 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
     // Default "zuletzt benutzt": the question this table answers is usually
     // "welcher Rechner lädt eigentlich noch hoch?".
     const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>("settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed");
-    const sorted = apply(tokens || [], (t, key) => {
+    const sorted = apply(tokens || [], (tok, key) => {
         switch (key) {
-            case "name": return t.name.toLowerCase();
-            case "created": return t.createdAt || 0;
-            case "uses": return t.uses || 0;
-            default: return t.lastUsedAt || 0;
+            case "name": return tok.name.toLowerCase();
+            case "created": return tok.createdAt || 0;
+            case "uses": return tok.uses || 0;
+            default: return tok.lastUsedAt || 0;
         }
     });
 
@@ -420,23 +444,23 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
             onClose={close}
             icon="inv_misc_punchcards_blue"
             tone="settings"
-            kicker="Verbindung bearbeiten"
-            title="Loot-Sync-Tokens"
+            kicker={t("settings.editKicker")}
+            title={t("settings.tokens.title")}
             width={720}
             hint={<AdminOnlyBadge />}
-            footer={<Button variant="ghost" onClick={close}>Fertig</Button>}
+            footer={<Button variant="ghost" onClick={close}>{t("common.done")}</Button>}
         >
             <div className="conn-form">
                 {fresh && (
                     <div className="conn-status mid">
-                        <Badge tone="mid" icon={<WarnIcon />}>nur einmal sichtbar</Badge>
+                        <Badge tone="mid" icon={<WarnIcon />}>{t("settings.tokens.onceVisible")}</Badge>
                         <div className="fresh-token">
-                            <span>Token „{fresh.name}“ erstellt — jetzt kopieren, er liegt nur als Hash auf dem Server.</span>
+                            <span>{tParts("settings.tokens.created", { name: fresh.name })}</span>
                             <div className="secret-row">
                                 <input type="text" readOnly className="mono" value={fresh.token} onFocus={(e) => e.target.select()} />
                                 <IconButton
                                     icon={copied ? <CheckIcon /> : <CopyIcon />}
-                                    tip={copied ? "Kopiert" : "Token kopieren"}
+                                    tip={copied ? t("common.copied") : t("settings.tokens.copy")}
                                     onClick={() => { navigator.clipboard?.writeText(fresh.token); setCopied(true); }}
                                 />
                             </div>
@@ -444,37 +468,37 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
                     </div>
                 )}
                 <div className="dlg-field">
-                    <FieldLabel htmlFor="token-name" tip="Neues Token" tipSub="Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann.">Neues Token</FieldLabel>
+                    <FieldLabel htmlFor="token-name" tip={t("settings.tokens.new")} tipSub={t("settings.tokens.newSub")}>{t("settings.tokens.new")}</FieldLabel>
                     <div className="secret-row">
-                        <input id="token-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Raidlead-PC" />
-                        <Button icon="inv_misc_punchcards_blue" onClick={create} disabled={busy}>{busy ? "Erstellt…" : "Token erstellen"}</Button>
+                        <input id="token-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.tokens.namePlaceholder")} />
+                        <Button icon="inv_misc_punchcards_blue" onClick={create} disabled={busy}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
                     </div>
                 </div>
-                {!tokens ? <RaidLoader compact text="Tokens werden geladen" /> : !tokens.length ? (
-                    <div className="empty">Noch kein Token erstellt.</div>
+                {!tokens ? <RaidLoader compact text={t("settings.tokens.loading")} /> : !tokens.length ? (
+                    <div className="empty">{t("settings.tokens.empty")}</div>
                 ) : (
                     <div className="table-scroll">
                         <table className="idx">
                             <thead>
                                 <tr>
-                                    <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
-                                    <th data-tip="Token" data-tip-sub="Die letzten vier Zeichen, damit mehrere Tokens unterscheidbar bleiben.">Token</th>
-                                    <SortTh sortKey="created" label="Erstellt" sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="lastUsed" label="Zuletzt benutzt" sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="uses" label="Uploads" sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="name" label={t("common.name")} sort={sort} dir={dir} onSort={onSort} />
+                                    <th data-tip={t("settings.tokens.colToken")} data-tip-sub={t("settings.tokens.colTokenSub")}>{t("settings.tokens.colToken")}</th>
+                                    <SortTh sortKey="created" label={t("settings.tokens.colCreated")} sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="lastUsed" label={t("settings.tokens.colLastUsed")} sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="uses" label={t("settings.tokens.colUploads")} sort={sort} dir={dir} onSort={onSort} />
                                     <th />
                                 </tr>
                             </thead>
                             <tbody>
-                                {sorted.map((t) => (
-                                    <tr key={t.id}>
-                                        <td><strong>{t.name}</strong></td>
-                                        <td className="mono">ehl_…{t.hint}</td>
-                                        <td className="small" data-tip={t.createdBy ? `von ${t.createdBy}` : undefined}>{fmtMs(t.createdAt)}</td>
-                                        <td className="small">{t.lastUsedAt ? fmtMs(t.lastUsedAt) : "nie"}</td>
-                                        <td className="mono">{t.uses || 0}</td>
+                                {sorted.map((tok) => (
+                                    <tr key={tok.id}>
+                                        <td><strong>{tok.name}</strong></td>
+                                        <td className="mono">ehl_…{tok.hint}</td>
+                                        <td className="small" data-tip={tok.createdBy ? t("settings.tokens.createdBy", { name: tok.createdBy }) : undefined}>{fmtMs(tok.createdAt)}</td>
+                                        <td className="small">{tok.lastUsedAt ? fmtMs(tok.lastUsedAt) : t("settings.tokens.never")}</td>
+                                        <td className="mono">{tok.uses || 0}</td>
                                         <td className="cell-act">
-                                            <IconButton icon={<TrashIcon />} tip="Token zurückziehen" size="sm" tone="danger" onClick={() => revoke(t)} />
+                                            <IconButton icon={<TrashIcon />} tip={t("settings.tokens.revokeTip")} size="sm" tone="danger" onClick={() => revoke(tok)} />
                                         </td>
                                     </tr>
                                 ))}

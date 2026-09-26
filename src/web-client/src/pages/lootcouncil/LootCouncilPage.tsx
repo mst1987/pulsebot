@@ -31,11 +31,12 @@ import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { useJobs, useToast } from "../../components/Jobs";
 import type { ShellContext } from "../../components/Shell";
 import { fmtMs } from "../../lib/format";
+import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";
 import PageLoader from "../../components/PageLoader";
 import { Button, PageHead, useConfirm } from "../../components/ui";
-import { CANDIDATE_SORT, ROLE_LABEL, ROSTER_SORT, VIEW_KEY, dropHref, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
 import FilterBar from "./FilterBar";
 import RaiderDialog, { ExportDialog } from "./RaiderDialog";
 import "../../styles/loot-council.css";
@@ -56,6 +57,7 @@ export default function LootCouncilPage() {
     // Setting a raider aside is an action on the server, so it takes write.
     const canWrite = canAccess(user, "lootcouncil", "write");
     const navigate = useNavigate();
+    const t = useT();
     const ask = useConfirm();
     const [view, setView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
     // A stored "drop" tab is from before the drop check had its own page.
@@ -99,7 +101,7 @@ export default function LootCouncilPage() {
             bisTier: view.bisTier,
         });
         const request = loaded.current
-            ? jobs.run({ label: "Loot-Council wird geladen", quiet: true }, fetchData)
+            ? jobs.run({ label: t("lootcouncil.page.loading"), quiet: true }, fetchData)
             : fetchData().catch((err: ApiError) => { setError(err); return null; });
         return request
             .then((d) => {
@@ -107,7 +109,7 @@ export default function LootCouncilPage() {
                 return d;
             })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, jobs]);
+    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, jobs, t]);
 
     /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
     const reloadAll = useCallback(async () => load(), [load]);
@@ -169,7 +171,7 @@ export default function LootCouncilPage() {
         try {
             return await fn();
         } catch (err) {
-            toast((err as ApiError).message || "Die Aktion ist fehlgeschlagen.", "err");
+            toast((err as ApiError).message || t("lootcouncil.page.actionFailed"), "err");
             return undefined;
         } finally {
             setBusy((prev) => {
@@ -193,8 +195,8 @@ export default function LootCouncilPage() {
             await setCouncilRole(character, role);
             await reloadAll();
             toast(role
-                ? `${character} wird als ${ROLE_LABEL[role] || role} eingeplant.`
-                : `Festlegung für ${character} zurückgenommen — es gilt wieder, was die Daten sagen.`);
+                ? t("lootcouncil.page.roleSet", { character, role: roleLabel(role) })
+                : t("lootcouncil.page.roleCleared", { character }));
         },
     );
 
@@ -205,7 +207,7 @@ export default function LootCouncilPage() {
      */
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
         const result = await jobs.run(
-            { label: "Armory wird geladen", detail: characters.length === 1 ? characters[0] : `${characters.length} Raider`, quiet: true },
+            { label: t("lootcouncil.page.armoryLoading"), detail: characters.length === 1 ? characters[0] : t("lootcouncil.page.armoryRaiders", { count: characters.length }), quiet: true },
             () => refreshCouncilArmory(characters),
         );
         // A failure is already on the toast.
@@ -213,8 +215,8 @@ export default function LootCouncilPage() {
         const fresh = await reloadAll();
         if (!result.answered) {
             toast(characters.length === 1
-                ? `Die Armory kennt ${characters[0]} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`
-                : "Die Armory hat für niemanden geantwortet — es bleibt beim Stand der letzten Auswertung.", "err");
+                ? t("lootcouncil.page.armoryUnknownOne", { character: characters[0] })
+                : t("lootcouncil.page.armoryUnknownAll"), "err");
             return;
         }
         const asked = new Set(characters.map((c) => c.toLowerCase()));
@@ -222,9 +224,9 @@ export default function LootCouncilPage() {
         const taken = rows.filter((r) => r.gear && r.gear.source === "armory").length;
         const pvp = rows.filter((r) => r.gear && r.gear.armoryRejected === "pvp").map((r) => r.character);
         const wrongRole = rows.filter((r) => r.gear && r.gear.armoryRejected === "role").map((r) => r.character);
-        const parts = [`Armory geladen: ${taken} von ${characters.length} Raider(n) mit aktuellem Gear.`];
-        if (pvp.length) parts.push(`${pvp.join(", ")}: die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid.`);
-        if (wrongRole.length) parts.push(`${wrongRole.join(", ")}: die Armory zeigt ein Set der anderen Rolle — es bleibt beim Set aus dem letzten Raid.`);
+        const parts = [t("lootcouncil.page.armoryLoaded", { taken, count: characters.length })];
+        if (pvp.length) parts.push(t("lootcouncil.page.armoryPvp", { names: pvp.join(", ") }));
+        if (wrongRole.length) parts.push(t("lootcouncil.page.armoryRole", { names: wrongRole.join(", ") }));
         toast(parts.join(" "), taken ? "ok" : "err");
     });
 
@@ -235,7 +237,7 @@ export default function LootCouncilPage() {
      */
     const loadLogGear = async (character: string, pick: { reportId?: string; link?: string }) => !!(await runFor(`loggear:${character}`, async () => {
         const result = await jobs.run(
-            { label: "Log wird geladen", detail: character, quiet: true },
+            { label: t("lootcouncil.page.logLoading"), detail: character, quiet: true },
             () => loadCouncilLogGear({ character, ...pick }),
         );
         // A failure ("steht nicht in diesem Log") is already on the toast.
@@ -243,16 +245,16 @@ export default function LootCouncilPage() {
         const fresh = await reloadAll();
         const row = fresh ? fresh.roster.find((r) => r.character.toLowerCase() === character.toLowerCase()) : null;
         const when = result.reportStart ? ` (${fmtMs(result.reportStart, false)})` : "";
-        const from = `„${result.reportTitle || result.reportId}“${when}`;
+        const from = `${t("common.quoted", { text: result.reportTitle || result.reportId })}${when}`;
         if (row && row.gear && row.gear.logRejected === "pvp") {
-            toast(`${character} trägt in ${from} PvP-Gear — es bleibt beim Set aus der Auswertung.`, "err");
+            toast(t("lootcouncil.page.logPvp", { character, from }), "err");
             return false;
         }
         if (row && row.gear && row.gear.logRejected === "role") {
-            toast(`${character} trägt in ${from} ein Set der anderen Rolle — es bleibt beim Set aus der Auswertung.`, "err");
+            toast(t("lootcouncil.page.logRole", { character, from }), "err");
             return false;
         }
-        toast(`Gear von ${character} aus ${from} geladen: ${result.items} Teile.`);
+        toast(t("lootcouncil.page.logLoaded", { character, from, count: result.items }));
         return true;
     }));
 
@@ -260,7 +262,7 @@ export default function LootCouncilPage() {
     const useEvaluation = (character: string) => runFor(`loggear:${character}`, async () => {
         await loadCouncilLogGear({ character, clear: true });
         await reloadAll();
-        toast(`${character} wird wieder nach der letzten Auswertung bewertet.`);
+        toast(t("lootcouncil.page.evaluationBack", { character }));
     });
 
     // Wowheads Tooltip-Widget hat die Seite vor React gescannt — nach jedem
@@ -277,16 +279,16 @@ export default function LootCouncilPage() {
         async () => {
             await setCouncilExcluded(character, excluded);
             await reloadAll();
-            toast(excluded ? `${character} wird nicht mehr eingeplant.` : `${character} wird wieder eingeplant.`);
+            toast(excluded ? t("lootcouncil.page.excluded", { character }) : t("lootcouncil.page.included", { character }));
         },
     );
 
     /** "Nicht einplanen" from the details — destructive enough to ask first. */
     const excludeFromDialog = async (character: string) => {
         const ok = await ask({
-            title: `${character} nicht einplanen?`,
-            text: "Bleibt in der Historie und lässt sich jederzeit wieder einplanen — verschwindet nur aus dieser Liste, und die Bedarfswerte der anderen verschieben sich.",
-            action: "Nicht einplanen",
+            title: t("lootcouncil.page.excludeTitle", { character }),
+            text: t("lootcouncil.page.excludeText"),
+            action: t("lootcouncil.page.excludeAction"),
             tone: "danger",
             icon: "ability_rogue_feigndeath",
         });
@@ -295,16 +297,16 @@ export default function LootCouncilPage() {
         await setExcluded(character, true);
     };
 
-    if (loading && !data) return <PageLoader show text="Loot-Council wird geladen" />;
+    if (loading && !data) return <PageLoader show text={t("lootcouncil.page.loading")} />;
     if (error) return <div className="empty">{error.message}</div>;
     if (!data) return null;
 
     const o = data.options;
     const kicker = [
-        o.bisTiers.find((t) => t.id === data.filter.bisTier)?.label || "",
-        [...o.tiers.filter((t) => view.tiers.includes(t.id)), ...o.contents.filter((c) => view.contents.includes(c.id))]
-            .map((c) => c.label).join(" + ") || "Aller Loot",
-        o.categories.find((c) => c.id === view.category)?.name || "Alle Raids",
+        o.bisTiers.find((b) => b.id === data.filter.bisTier)?.label || "",
+        [...o.tiers.filter((x) => view.tiers.includes(x.id)), ...o.contents.filter((c) => view.contents.includes(c.id))]
+            .map((c) => c.label).join(" + ") || t("lootcouncil.page.allLoot"),
+        o.categories.find((c) => c.id === view.category)?.name || t("lootcouncil.page.allRaids"),
     ].filter(Boolean).join(" · ");
 
     return (
@@ -313,8 +315,8 @@ export default function LootCouncilPage() {
                 icon="inv_misc_coin_02"
                 tone="lootcouncil"
                 kicker={kicker}
-                title="Loot-Council"
-                action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>Drop prüfen</Button>}
+                title={t("lootcouncil.title")}
+                action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
             />
 
             <FilterBar

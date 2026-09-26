@@ -16,6 +16,8 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 const section = read("pages", "settings", "SettingsDiscordServers.tsx");
 const switcher = read("components", "GuildSwitcher.tsx");
 const api = read("api", "discordServers.ts");
+// The texts live in the dictionaries since #440; the source names their keys.
+const de = require("../clientSource").dictionary("de");
 
 describe("Discord-Server section", () => {
     it("loads from the endpoint the router serves and the access table lists", () => {
@@ -31,7 +33,8 @@ describe("Discord-Server section", () => {
 
     it("keeps the rights list in the tooltip, not on the card", () => {
         // One status badge under the server name carries the rights in its tooltip.
-        expect(section).toMatch(/sub: perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? "vorhanden" : "fehlt"\}`\)\.join\("\\n"\)/);
+        expect(section).toMatch(/sub: perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? t\("settings\.discordServers\.permOk"\) : t\("settings\.discordServers\.permMissing"\)\}`\)\.join\("\\n"\)/);
+        expect([de["settings.discordServers.permOk"], de["settings.discordServers.permMissing"]]).toEqual(["vorhanden", "fehlt"]);
         expect(section).toContain("tip={stateTip.tip} tipSub={stateTip.sub}");
         // …and says it once: no second "Bot-Rechte" row repeating the head badge.
         expect(section).not.toContain("<dt>Bot-Rechte</dt>");
@@ -61,7 +64,8 @@ describe("Discord-Server section", () => {
 
     it("offers to add another event server once at least one exists", () => {
         expect(section).toContain("{data.events.length > 0 && (");
-        expect(section).toContain("Event-Server hinzufügen");
+        expect(section).toContain("{t(\"settings.discordServers.addEvent\")}");
+        expect(de["settings.discordServers.addEvent"]).toBe("Event-Server hinzufügen");
     });
 
     it("shows the raid-overview row per event server only once its own target is set", () => {
@@ -87,7 +91,8 @@ describe("Discord-Server section", () => {
 describe("Discord-Server edit dialog: event-server rows (#361)", () => {
     it("renders one row per entry with a guild picker, a label and its own overview target", () => {
         expect(section).toContain("function EventGuildRow(");
-        expect(section).toContain("placeholder=\"PvE, PvP, Allianz …\"");
+        expect(section).toContain("placeholder={t(\"settings.discordServers.labelPlaceholder\")}");
+        expect(de["settings.discordServers.labelPlaceholder"]).toBe("PvE, PvP, Allianz …");
         expect(section).toContain("targetChannels = guilds.find((g) => g.id === entry.overviewGuildId)?.channels || []");
         expect(section).toContain("guildSelectOptions(guilds, entry.overviewGuildId, new Set())");
     });
@@ -138,7 +143,8 @@ describe("raid overview row (#257, #361)", () => {
     it("sits in an event-server card once its own overview target is chosen, its details in the tooltip", () => {
         expect(row).toContain("talkOverviewBadge(status, Date.now())");
         expect(row).toContain("tipSub={badge.tipSub}");
-        expect(row).toContain("Neu posten");
+        expect(row).toContain("t(\"settings.talkOverview.repost\")");
+        expect(de["settings.talkOverview.repost"]).toBe("Neu posten");
         expect(row).toContain("targetGuildName");
         expect(row).toContain("targetChannelName");
     });

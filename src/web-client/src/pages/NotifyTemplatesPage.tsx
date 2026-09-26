@@ -3,6 +3,7 @@ import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
     type ApiError, type NotifyTemplate } from "../api";
 import { useApi } from "../hooks/useApi";
+import { formatTime } from "../lib/format";
 import { useDraftState } from "../lib/persistedState";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
@@ -14,6 +15,7 @@ import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import "../styles/raid-events.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { tParts, t as tr, useT } from "../i18n";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open
 // editor stays in the url (?edit=<id|new>), like every collection editor
@@ -56,8 +58,8 @@ function discordInline(text: string, keyPrefix = "m"): ReactNode[] {
         else if (tok.startsWith("__")) out.push(<u key={key}>{discordInline(tok.slice(2, -2), key)}</u>);
         else if (tok.startsWith("~~")) out.push(<s key={key}>{discordInline(tok.slice(2, -2), key)}</s>);
         else if (tok.startsWith("`")) out.push(<code key={key}>{tok.slice(1, -1)}</code>);
-        else if (tok.startsWith("<@&")) out.push(<span key={key} className="dc-ping">@Rolle</span>);
-        else if (tok.startsWith("<#")) out.push(<span key={key} className="dc-ping">#kanal</span>);
+        else if (tok.startsWith("<@&")) out.push(<span key={key} className="dc-ping">{tr("notifyTemplates.preview.role")}</span>);
+        else if (tok.startsWith("<#")) out.push(<span key={key} className="dc-ping">{tr("notifyTemplates.preview.channel")}</span>);
         else out.push(<i key={key}>{discordInline(tok.slice(1, -1), key)}</i>);
         last = at + tok.length;
     }
@@ -66,18 +68,19 @@ function discordInline(text: string, keyPrefix = "m"): ReactNode[] {
 }
 
 function DiscordPreview({ title, body }: { title: string; body: string }) {
-    const now = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    const t = useT();
+    const now = formatTime(Date.now());
     const lines = body.split("\n");
     return (
-        <div className="dc-msg" aria-label="Vorschau der Discord-Nachricht">
+        <div className="dc-msg" aria-label={t("notifyTemplates.preview.aria")}>
             <div className="dc-author">
                 <span className="dc-avatar"><CrestIcon /></span>
                 <div>
-                    <b>EventHelper</b> <span className="dc-app">App</span>
-                    <div className="dc-time">heute um {now}</div>
+                    <b>EventHelper</b> <span className="dc-app">{t("notifyTemplates.preview.app")}</span>
+                    <div className="dc-time">{tParts("notifyTemplates.preview.today", { time: now })}</div>
                 </div>
             </div>
-            <div className="dc-pings"><span className="dc-ping">@Rolle</span></div>
+            <div className="dc-pings"><span className="dc-ping">{t("notifyTemplates.preview.role")}</span></div>
             {(title || body)
                 ? (
                     <div className="dc-embed">
@@ -89,7 +92,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
                         )}
                     </div>
                 )
-                : <div className="dc-empty">Noch kein Titel und kein Text.</div>}
+                : <div className="dc-empty">{t("notifyTemplates.preview.empty")}</div>}
         </div>
     );
 }
@@ -107,6 +110,7 @@ function NotifyTemplateForm({ editing, onSaved, onDirty }: {
     const [draft, patch, clearDraft] = useDraftState(`notify-template:${editing?.id ?? "new"}`, initial);
     const { name, title, body } = draft;
     const toast = useToast();
+    const t = useT();
     const dirty = name !== initial.name || title !== initial.title || body !== initial.body;
 
     useEffect(() => { onDirty(dirty, clearDraft); });
@@ -116,7 +120,7 @@ function NotifyTemplateForm({ editing, onSaved, onDirty }: {
         try {
             await saveNotifyTemplate({ id: editing?.id, name, title, body });
             clearDraft();
-            onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
+            onSaved(editing ? t("notifyTemplates.toast.saved") : t("notifyTemplates.toast.created"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -127,29 +131,29 @@ function NotifyTemplateForm({ editing, onSaved, onDirty }: {
             <div>
                 <div className="field">
                     <label htmlFor="nt-name" className="re-label">
-                        Name
-                        <span className="re-info" tabIndex={0} data-tip="Name" data-tip-sub="Nur zur Auswahl beim Posten – steht nicht in der Nachricht.">i</span>
+                        {t("common.name")}
+                        <span className="re-info" tabIndex={0} data-tip={t("common.name")} data-tip-sub={t("notifyTemplates.form.nameSub")}>i</span>
                     </label>
-                    <input id="nt-name" type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Kara-Reminder" required />
+                    <input id="nt-name" type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("notifyTemplates.form.namePlaceholder")} required />
                 </div>
                 <div className="field">
-                    <label htmlFor="nt-title" className="re-label">Titel der Nachricht</label>
-                    <input id="nt-title" type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Anmeldung offen!" />
+                    <label htmlFor="nt-title" className="re-label">{t("notifyTemplates.form.title")}</label>
+                    <input id="nt-title" type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder={t("notifyTemplates.form.titlePlaceholder")} />
                 </div>
                 <div className="field">
                     <label htmlFor="nt-body" className="re-label">
-                        Text
-                        <span className="re-info" tabIndex={0} data-tip="Text" data-tip-sub="Discord-Markdown erlaubt (**fett**, *kursiv*, __unterstrichen__). Die Rollen-Pings werden beim Posten je Event gewählt.">i</span>
+                        {t("notifyTemplates.form.text")}
+                        <span className="re-info" tabIndex={0} data-tip={t("notifyTemplates.form.text")} data-tip-sub={t("notifyTemplates.form.textSub")}>i</span>
                     </label>
-                    <textarea id="nt-body" value={body} onChange={(e) => patch({ body: e.target.value })} placeholder="Bitte tragt euch für den Raid ein …" />
+                    <textarea id="nt-body" value={body} onChange={(e) => patch({ body: e.target.value })} placeholder={t("notifyTemplates.form.textPlaceholder")} />
                 </div>
             </div>
             <div>
-                <div className="re-label">Vorschau in Discord</div>
+                <div className="re-label">{t("notifyTemplates.form.preview")}</div>
                 <DiscordPreview title={title} body={body} />
                 <div className="nt-ping-note">
-                    <Badge tone="accent" icon="ability_warrior_battleshout">Rollen-Ping</Badge>
-                    <span>wird beim Posten je Event gewählt</span>
+                    <Badge tone="accent" icon="ability_warrior_battleshout">{t("notifyTemplates.form.ping")}</Badge>
+                    <span>{t("notifyTemplates.form.pingNote")}</span>
                 </div>
             </div>
         </form>
@@ -159,6 +163,7 @@ function NotifyTemplateForm({ editing, onSaved, onDirty }: {
 // ---- page -----------------------------------------------------------------------
 
 export default function NotifyTemplatesPage() {
+    const t = useT();
     const ask = useConfirm();
     const editor = useCollectionEditor("edit");
 
@@ -177,20 +182,20 @@ export default function NotifyTemplatesPage() {
         loaded.reload();
     };
 
-    const remove = async (t: NotifyTemplate) => {
-        if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name}“ wird gelöscht.`, action: "Löschen" }))) return;
+    const remove = async (tpl: NotifyTemplate) => {
+        if (!(await ask({ title: t("notifyTemplates.delete.title"), text: t("notifyTemplates.delete.text", { name: tpl.name }), action: t("common.delete") }))) return;
         try {
-            await deleteNotifyTemplate(t.id);
-            afterChange("Gelöscht.");
+            await deleteNotifyTemplate(tpl.id);
+            afterChange(t("notifyTemplates.toast.deleted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
     };
 
-    if (loaded.error) return <div className="empty">Fehler beim Laden: {loaded.error.message}</div>;
-    if (!templates) return <RaidLoader text="Vorlagen werden geladen" />;
+    if (loaded.error) return <div className="empty">{tParts("notifyTemplates.page.loadError", { message: loaded.error.message })}</div>;
+    if (!templates) return <RaidLoader text={t("notifyTemplates.page.loading")} />;
 
-    const sorted = apply(templates, (t, key) => (key === "name" ? (t.name || "") : (t.title || "")).toLowerCase());
+    const sorted = apply(templates, (tpl, key) => (key === "name" ? (tpl.name || "") : (tpl.title || "")).toLowerCase());
     // An id that no longer exists opens the new-editor rather than nothing.
     const entry = editor.editId ? templates.find((t) => t.id === editor.editId) || null : null;
     // Esc, the backdrop and ✕ only close — a typed text stays as the draft the
@@ -215,40 +220,40 @@ export default function NotifyTemplatesPage() {
             <div className="page-head">
                 <IconTile icon="inv_misc_horn_01" size="lg" />
                 <div className="ph-text">
-                    <div className="kicker">Raid-Events › Vorlagen</div>
+                    <div className="kicker">{t("notifyTemplates.page.kicker")}</div>
                     <h1 className="re-h1">
-                        Aufruf-Vorlagen
-                        <span className="re-info" tabIndex={0} data-tip="Aufruf-Vorlagen" data-tip-sub="Nachrichten, die der Bot im Event mit Rollen-Ping postet (Event → Anmeldung → Aufruf posten).">i</span>
+                        {t("notifyTemplates.page.title")}
+                        <span className="re-info" tabIndex={0} data-tip={t("notifyTemplates.page.title")} data-tip-sub={t("notifyTemplates.page.infoSub")}>i</span>
                     </h1>
                 </div>
                 <div className="ph-act">
-                    <Button icon="ability_warrior_battleshout" onClick={editor.startNew}>Neue Vorlage</Button>
+                    <Button icon="ability_warrior_battleshout" onClick={editor.startNew}>{t("notifyTemplates.page.new")}</Button>
                 </div>
             </div>
 
             <div className="glist re-glist nt-list">
                 <div className="re-head nt-row" role="row">
                     <span />
-                    {sortHead("name", "Name")}
-                    {sortHead("title", "Text")}
+                    {sortHead("name", t("common.name"))}
+                    {sortHead("title", t("notifyTemplates.page.colText"))}
                     <span />
                 </div>
                 {sorted.length
-                    ? sorted.map((t) => (
-                        <div key={t.id} className="re-row nt-row" onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) editor.startEdit(t.id); }}>
+                    ? sorted.map((tpl) => (
+                        <div key={tpl.id} className="re-row nt-row" onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) editor.startEdit(tpl.id); }}>
                             <IconTile icon="ability_warrior_battleshout" />
                             <div className="re-ev">
-                                <span className="re-title">{t.name || "(ohne Name)"}</span>
-                                <span className="re-sub">{t.title || "ohne Titel"}</span>
+                                <span className="re-title">{tpl.name || t("notifyTemplates.page.noName")}</span>
+                                <span className="re-sub">{tpl.title || t("notifyTemplates.page.noTitle")}</span>
                             </div>
-                            <div className="nt-body">{(t.body || "").split("\n")[0]}</div>
+                            <div className="nt-body">{(tpl.body || "").split("\n")[0]}</div>
                             <div className="re-acts">
-                                <IconButton icon={<PenIcon />} size="sm" tip="Bearbeiten" onClick={() => editor.startEdit(t.id)} />
-                                <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip="Löschen" onClick={() => remove(t)} />
+                                <IconButton icon={<PenIcon />} size="sm" tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
+                                <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("common.delete")} onClick={() => remove(tpl)} />
                             </div>
                         </div>
                     ))
-                    : <div className="re-empty">Noch keine Aufruf-Vorlagen angelegt.</div>}
+                    : <div className="re-empty">{t("notifyTemplates.page.empty")}</div>}
             </div>
 
             <Modal
@@ -256,17 +261,17 @@ export default function NotifyTemplatesPage() {
                 onClose={close}
                 icon="inv_misc_horn_01"
 
-                kicker={entry ? "Aufruf-Vorlage bearbeiten" : "Neue Aufruf-Vorlage"}
-                title={entry ? entry.name || "(ohne Name)" : "Neue Vorlage"}
+                kicker={entry ? t("notifyTemplates.modal.kickerEdit") : t("notifyTemplates.modal.kickerNew")}
+                title={entry ? entry.name || t("notifyTemplates.page.noName") : t("notifyTemplates.page.new")}
                 width={940}
                 hint={entry
-                    ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={() => remove(entry)}>Löschen</Button>
+                    ? <Button variant="danger" size="sm" icon={<TrashIcon />} onClick={() => remove(entry)}>{t("common.delete")}</Button>
                     : undefined}
                 footer={(
                     <>
-                        {dirty && <Badge tone="mid" className="nt-draft" tip="Entwurf" tipSub="Ungespeicherte Änderungen – im Browser zwischengespeichert, bis du speicherst oder abbrichst.">Entwurf</Badge>}
-                        <Button variant="ghost" onClick={cancel}>Abbrechen</Button>
-                        <Button type="submit" form={FORM_ID}>Speichern</Button>
+                        {dirty && <Badge tone="mid" className="nt-draft" tip={t("notifyTemplates.modal.draft")} tipSub={t("notifyTemplates.modal.draftSub")}>{t("notifyTemplates.modal.draft")}</Badge>}
+                        <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
+                        <Button type="submit" form={FORM_ID}>{t("common.save")}</Button>
                     </>
                 )}
             >

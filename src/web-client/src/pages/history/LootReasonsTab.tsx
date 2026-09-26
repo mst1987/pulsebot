@@ -17,6 +17,7 @@ import Bar from "../../components/ui/Bar";
 import { ReasonBadge, ReasonBadgeButton, RaiderBadge, StackBar } from "../../components/loot/LootBadges";
 import { ActiveFilters, SearchBox, type ActiveFilter } from "../../components/loot/LootFilters";
 import { RaiderReasonDialog } from "./ItemAwardsDialog";
+import { tParts, useT } from "../../i18n";
 
 // The reason column sorts by the raider's strongest reason (the chips are laid
 // out in that order anyway), so "wer nimmt nur Mainspec" is one click.
@@ -44,6 +45,7 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
     categories: Category[];
     contents: LootContent[];
 }) {
+    const t = useT();
     const [view, setView] = usePersistedState<View>("history-reasons-view", VIEW_DEFAULT);
     // The raider and reason whose items the dialog shows.
     const [openBucket, setOpenBucket] = useState<{ key: string; reason: string } | null>(null);
@@ -97,12 +99,12 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
 
     const head = (
         <PartHead
-            icon="inv_misc_book_09" tone="history" title="Gründe" crumb="Loot › Gründe"
-            tip="Gründe" tipSub="Je Raider, wofür er Items bekommen hat. Die Gründe stammen aus dem RCLootcouncil-/Gargul-Export."
+            icon="inv_misc_book_09" tone="history" title={t("history.page.view.reasons")} crumb={t("history.reasons.crumb")}
+            tip={t("history.page.view.reasons")} tipSub={t("history.reasons.tipSub")}
             action={characters.length ? (
                 <>
-                    <Badge count>{characters.length} Raider</Badge>
-                    <Badge tone="accent" count>{totalItems} Items</Badge>
+                    <Badge count>{tParts("history.reasons.raiders", { count: characters.length })}</Badge>
+                    <Badge tone="accent" count>{tParts("history.shared.items", { count: totalItems })}</Badge>
                 </>
             ) : undefined}
         />
@@ -112,7 +114,7 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
         return (
             <div className="dash-card hl-card">
                 {head}
-                <div className="empty">Noch kein Loot importiert — die Gründe stammen aus dem RCLootcouncil-/Gargul-Export.</div>
+                <div className="empty">{t("history.reasons.empty")}</div>
             </div>
         );
     }
@@ -121,14 +123,14 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
         <div className="dash-card hl-card">
             {head}
             <div className="filter-bar hl-filters">
-                <SearchBox id="reasons-search" value={view.search} onChange={(search) => patch({ search })} placeholder="Charaktername …" />
-                <select id="reasons-reason" className="hl-sel" aria-label="Grund" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
-                    <option value="">Alle Gründe</option>
+                <SearchBox id="reasons-search" value={view.search} onChange={(search) => patch({ search })} placeholder={t("history.shared.charSearch")} />
+                <select id="reasons-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
+                    <option value="">{t("history.shared.allReasons")}</option>
                     {totals.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
                 {categoryOptions.length > 1 && (
-                    <select id="reasons-category" className="hl-sel" aria-label="Kategorie" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                        <option value="">Alle Kategorien</option>
+                    <select id="reasons-category" className="hl-sel" aria-label={t("history.shared.category")} value={view.category} onChange={(e) => patch({ category: e.target.value })}>
+                        <option value="">{t("history.shared.allCategories")}</option>
                         {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                 )}
@@ -139,20 +141,20 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
             <ActiveFilters filters={active} />
 
             {!sorted.length
-                ? <div className="empty">Keine Raider für diese Filter.</div>
+                ? <div className="empty">{t("history.reasons.noRaiders")}</div>
                 : (
                     <>
                         <div className="hl-grid reasons hl-th" role="row">
                             <span role="columnheader" aria-sort={ariaSort("character", sort, dir)}>
-                                <SortLabel sortKey="character" label="Raider" sort={sort} dir={dir} onSort={onSort} />
+                                <SortLabel sortKey="character" label={t("history.shared.colRaider")} sort={sort} dir={dir} onSort={onSort} />
                             </span>
                             <span role="columnheader" aria-sort={ariaSort("count", sort, dir)} className="hl-col-opt">
-                                <SortLabel sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} tip="Items" tipSub="Alle Items des Raiders; der Balken misst gegen den Raider mit den meisten." />
+                                <SortLabel sortKey="count" label={t("history.shared.colItems")} sort={sort} dir={dir} onSort={onSort} tip={t("history.shared.colItems")} tipSub={t("history.reasons.itemsSub")} />
                             </span>
                             <span role="columnheader" aria-sort={ariaSort("reasons", sort, dir)} className="hl-col-opt">
-                                <SortLabel sortKey="reasons" label="Anteile" sort={sort} dir={dir} onSort={onSort} tip="Anteile" tipSub="Die Items nach Grund, in den Farben der Gründe. Sortiert nach dem stärksten Grund des Raiders." />
+                                <SortLabel sortKey="reasons" label={t("history.reasons.colShares")} sort={sort} dir={dir} onSort={onSort} tip={t("history.reasons.colShares")} tipSub={t("history.reasons.sharesSub")} />
                             </span>
-                            <span role="columnheader" className="tipped" data-tip="Gründe" data-tip-sub="Klick auf einen Grund zeigt die Items dahinter.">Gründe</span>
+                            <span role="columnheader" className="tipped" data-tip={t("history.shared.colReasons")} data-tip-sub={t("history.reasons.reasonsSub")}>{t("history.shared.colReasons")}</span>
                         </div>
                         {sorted.map((c) => {
                             const parts = c.reasons.map((b) => ({ id: b.reason, label: b.label, reasonLabel: b.reasonLabel, tone: b.tone, count: b.count, order: b.order }));

@@ -21,6 +21,7 @@ import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/Pur
 import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
 import "../styles/channels.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { tParts, useT } from "../i18n";
 
 // Kanäle (design #216, reworked as the Discord overview in #259): one list —
 // the server's categories and channels like Discord's sidebar — with inline
@@ -78,6 +79,7 @@ export default function ChannelsPage() {
     const tab = params.get("tab") === "archive" ? "archive" : "channels";
     const { run } = useJobs();
     const ask = useConfirm();
+    const t = useT();
 
     // Forget selected channels that no longer exist.
     useEffect(() => {
@@ -116,9 +118,9 @@ export default function ChannelsPage() {
     /** A change over several channels as one job: channel by channel, progress in the toast. */
     const stepJob = async (label: string, verb: string, ids: string[], step: (id: string) => Promise<ChannelResult[]>) => {
         setDialog(null);
-        await run({ label, detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async (update) => {
+        await run({ label, detail: t("channels.count", { count: ids.length }), icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async (update) => {
             const results = await runInSteps(ids, step, {
-                onProgress: (n, total) => update({ progress: n / total, detail: `${n} von ${total}` }),
+                onProgress: (n, total) => update({ progress: n / total, detail: t("channels.jobs.progress", { done: n, total }) }),
             });
             const { message, failed } = resultMessage(results, verb);
             if (failed) throw new Error(message);
@@ -128,21 +130,23 @@ export default function ChannelsPage() {
         channels.reload();
     };
 
-    const applyChanges = (ids: string[], changes: ChannelChanges, label = "Kanäle ändern") => stepJob(
-        label, "geändert", ids, (id) => patchChannels([id], changes).then((r) => r.results),
+    const applyChanges = (ids: string[], changes: ChannelChanges, label = t("channels.jobs.change")) => stepJob(
+        label, t("channels.jobs.changed"), ids, (id) => patchChannels([id], changes).then((r) => r.results),
     );
 
     const applyRename = (rows: RenamePreviewRow[]) => {
         const target = new Map(rows.map((r) => [r.id, r.to]));
-        return stepJob("Umbenennen nach Schema", "umbenannt", rows.map((r) => r.id), (id) => patchChannels([id], { name: target.get(id) }).then((r) => r.results));
+        return stepJob(t("channels.jobs.renameSchema"), t("channels.jobs.renamed"), rows.map((r) => r.id), (id) => patchChannels([id], { name: target.get(id) }).then((r) => r.results));
     };
 
-    const archiveNow = (ids: string[]) => stepJob("Archivieren", "archiviert", ids, (id) => archiveChannels([id]).then((r) => r.results));
+    const archiveNow = (ids: string[]) => stepJob(t("channels.jobs.archive"), t("channels.jobs.archived"), ids, (id) => archiveChannels([id]).then((r) => r.results));
 
     const askArchive = (ids: string[], categoryName: string) => ask({
-        title: ids.length === 1 ? `#${byId.get(ids[0])?.name || "Kanal"} archivieren?` : `${ids.length} Kanäle archivieren?`,
-        text: `Sie wandern in „${categoryName}“, niemand kann dort mehr schreiben. Gelöscht wird nichts — das macht später ein Admin im Archiv.`,
-        action: "Archivieren",
+        title: ids.length === 1
+            ? t("channels.jobs.archiveTitleOne", { name: byId.get(ids[0])?.name || t("channels.page.channelFallback") })
+            : t("channels.jobs.archiveTitleMany", { count: ids.length }),
+        text: t("channels.jobs.archiveText", { category: categoryName }),
+        action: t("channels.jobs.archive"),
         tone: "primary",
         icon: "inv_letter_15",
     });
@@ -154,12 +158,12 @@ export default function ChannelsPage() {
             return;
         }
         const category = data.categories.find((c) => c.id === data.archive.categoryId);
-        if (await askArchive(ids, category?.name || "Archiv")) await archiveNow(ids);
+        if (await askArchive(ids, category?.name || t("channels.page.archiveFallback"))) await archiveNow(ids);
     };
 
     const remove = async (ids: string[], confirm: string, anywhere = false) => {
         setDialog(null);
-        await run({ label: anywhere ? "Kanäle löschen" : "Aus dem Archiv löschen", detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
+        await run({ label: anywhere ? t("channels.jobs.deleteAnywhere") : t("channels.jobs.deleteArchive"), detail: t("channels.count", { count: ids.length }), icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
             // One request: the server checks the confirmation for the whole set and
             // deletes one channel after another with a pause.
             const result = await deleteChannels(ids, confirm, anywhere);
@@ -172,37 +176,37 @@ export default function ChannelsPage() {
 
     const quickCreate = async (input: QuickCreateInput, count: number) => {
         setDialog(null);
-        const label = input.withEvent ? "Kanäle und Events anlegen" : "Kanäle anlegen";
+        const label = input.withEvent ? t("channels.jobs.createWithEvents") : t("channels.jobs.create");
         // The message carries one line per channel whose event failed (the toast keeps the line breaks).
-        await run({ label, detail: `${count} nach Schema`, icon: "inv_letter_15", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
+        await run({ label, detail: t("channels.jobs.bySchema", { count }), icon: "inv_letter_15", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
             const result = await quickCreateChannels(input);
-            if (result.failed) throw new Error(result.message || "Anlegen fehlgeschlagen.");
-            return result.message || "Kanäle angelegt.";
+            if (result.failed) throw new Error(result.message || t("channels.jobs.createFailed"));
+            return result.message || t("channels.jobs.created");
         });
         channels.reload();
     };
 
     const saveArchiveSettings = async (input: ArchiveSettingsInput, then?: string[]) => {
         setDialog(null);
-        const saved = await run({ label: "Archiv-Einstellungen", icon: "inv_letter_15", describe: () => ({ message: "Archiv gespeichert." }) }, () => saveChannelConfig(input));
+        const saved = await run({ label: t("channels.jobs.archiveSettings"), icon: "inv_letter_15", describe: () => ({ message: t("channels.jobs.archiveSaved") }) }, () => saveChannelConfig(input));
         if (!saved) return;
         const fresh = await getChannels().catch(() => null);
         if (fresh) setData(fresh);
         // Archiving was what brought the admin here: carry on with the archive in place.
         if (then?.length && fresh?.archive.categoryId) {
             const category = fresh.categories.find((c) => c.id === fresh.archive.categoryId);
-            if (await askArchive(then, category?.name || "Archiv")) await archiveNow(then);
+            if (await askArchive(then, category?.name || t("channels.page.archiveFallback"))) await archiveNow(then);
         }
     };
 
-    if (channels.error) return <div className="empty">Fehler beim Laden der Kanäle: {channels.error.message}</div>;
-    if (!data) return <RaidLoader text="Kanäle werden geladen" />;
+    if (channels.error) return <div className="empty">{tParts("channels.page.loadError", { error: channels.error.message })}</div>;
+    if (!data) return <RaidLoader text={t("channels.page.loading")} />;
 
     if (!data.activeGuildId) {
         return (
             <>
-                <PageHead icon="inv_letter_15" tone="channels" kicker="Discord-Server" title="Kanäle" />
-                <div className="empty">Wähle oben einen Server, um Kanäle zu verwalten.</div>
+                <PageHead icon="inv_letter_15" tone="channels" kicker={t("channels.page.kicker")} title={t("channels.page.title")} />
+                <div className="empty">{t("channels.page.pickServer")}</div>
             </>
         );
     }
@@ -216,38 +220,38 @@ export default function ChannelsPage() {
             <PageHead
                 icon="inv_letter_15"
                 tone="channels"
-                kicker={["Discord-Server", data.guildName].filter(Boolean).join(" · ")}
-                title="Kanäle"
+                kicker={[t("channels.page.kicker"), data.guildName].filter(Boolean).join(" · ")}
+                title={t("channels.page.title")}
                 meta={(
                     <>
-                        {!data.connected && <Badge tone="mid" tip="Bot nicht verbunden" tipSub="Kanäle und Rechte kommen live aus Discord — ohne Verbindung bleibt die Liste leer.">Bot nicht verbunden</Badge>}
-                        {data.connected && data.canManage === false && <Badge tone="bad" tip="Bot darf keine Kanäle verwalten" tipSub="Der Bot-Rolle fehlt „Kanäle verwalten“. Umbenennen, Archivieren und Anlegen schlagen fehl, bis das Recht in Discord gesetzt ist.">keine Kanal-Rechte</Badge>}
+                        {!data.connected && <Badge tone="mid" tip={t("channels.page.offline")} tipSub={t("channels.page.offlineSub")}>{t("channels.page.offline")}</Badge>}
+                        {data.connected && data.canManage === false && <Badge tone="bad" tip={t("channels.page.noManageTip")} tipSub={t("channels.page.noManageSub")}>{t("channels.page.noManage")}</Badge>}
                     </>
                 )}
                 action={canWrite ? (
                     <SplitButton
-                        label="Anlegen"
+                        label={t("common.create")}
                         icon="inv_letter_15"
                         onClick={() => setDialog({ kind: "quick" })}
-                        menuTip="Weitere Arten anzulegen"
-                        options={[{ id: "single", label: "Einzelnen Kanal erstellen", onSelect: () => setDialog({ kind: "create" }) }]}
+                        menuTip={t("channels.page.createMore")}
+                        options={[{ id: "single", label: t("channels.page.createSingle"), onSelect: () => setDialog({ kind: "create" }) }]}
                     />
                 ) : undefined}
             />
 
             <div className="kn-tabs">
                 <Segment
-                    ariaLabel="Ansicht"
+                    ariaLabel={t("channels.page.view")}
                     value={tab}
                     onChange={switchTab}
                     options={[
-                        { value: "channels", label: `Kanäle · ${inUse}` },
-                        { value: "archive", label: `Archiv · ${data.archive.count}` },
+                        { value: "channels", label: t("channels.page.tabChannels", { count: inUse }) },
+                        { value: "archive", label: t("channels.page.tabArchive", { count: data.archive.count }) },
                     ]}
                 />
                 {data.archive.overdue > 0 && (
-                    <Badge tone="mid" tip="Archivierte Kanäle warten auf Löschung" tipSub={`${data.archive.overdue} davon länger als ${data.archive.hintDays} Tage. Gelöscht wird nie automatisch.`}>
-                        {data.archive.count} warten auf Löschung
+                    <Badge tone="mid" tip={t("channels.page.waitingTip")} tipSub={t("channels.page.waitingSub", { overdue: data.archive.overdue, days: data.archive.hintDays })}>
+                        {tParts("channels.page.waiting", { count: data.archive.count })}
                     </Badge>
                 )}
             </div>
@@ -260,7 +264,7 @@ export default function ChannelsPage() {
                             selected={selected}
                             onSelect={select}
                             canWrite={canWrite}
-                            onRename={(channel, name) => applyChanges([channel.id], { name }, `#${channel.name} umbenennen`)}
+                            onRename={(channel, name) => applyChanges([channel.id], { name }, t("channels.jobs.renameOne", { name: channel.name }))}
                             onEdit={(channel) => setDialog({ kind: "edit", channel })}
                             onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
                             onDelete={(channel) => setDialog({ kind: "delete", ids: [channel.id], anywhere: true })}
@@ -280,24 +284,24 @@ export default function ChannelsPage() {
 
                 <aside className="kn-side">
                     <div className="kn-figures">
-                        <Figure label="Kanäle" value={inUse} tip="Kanäle in Benutzung" tipSub="Alle Kanäle des Servers außerhalb des Archivs." />
+                        <Figure label={t("channels.page.figChannels")} value={inUse} tip={t("channels.page.figChannelsTip")} tipSub={t("channels.page.figChannelsSub")} />
                         <Figure
-                            label="Vergangene Events"
+                            label={t("channels.page.figPast")}
                             value={past.length}
                             tone={past.length ? "mid" : undefined}
-                            tip="Kanäle vergangener Events"
-                            tipSub={canWrite && past.length ? "Klick wählt sie alle aus — dann unten „Archivieren“." : "Kanäle, deren Event vorbei ist und die noch nicht im Archiv liegen."}
+                            tip={t("channels.page.figPastTip")}
+                            tipSub={canWrite && past.length ? t("channels.page.figPastPick") : t("channels.page.figPastSub")}
                             onClick={canWrite && past.length ? () => {
                                 if (tab !== "channels") switchTab("channels");
                                 select(past.map((c) => c.id), true);
                             } : undefined}
                         />
                         <Figure
-                            label="Im Archiv, warten auf Löschung"
+                            label={t("channels.page.figArchive")}
                             value={data.archive.count}
                             tone={data.archive.overdue ? "mid" : undefined}
-                            tip="Archiv"
-                            tipSub={data.archive.categoryId ? `Nach ${data.archive.hintDays} Tagen gelb markiert. Gelöscht wird nie automatisch — nur ein Admin im Archiv.` : "Noch keine Archiv-Kategorie festgelegt."}
+                            tip={t("channels.page.figArchiveTip")}
+                            tipSub={data.archive.categoryId ? t("channels.page.figArchiveSub", { days: data.archive.hintDays }) : t("channels.page.figArchiveNone")}
                             onClick={() => switchTab("archive")}
                         />
                     </div>
@@ -306,8 +310,8 @@ export default function ChannelsPage() {
                         settings live in the archive tab, which the figure above opens. */}
                     <div className="kn-figures kn-purposes">
                         <div className="kn-purposes-head">
-                            <span className="kn-kicker" tabIndex={0} data-tip="Zwecke" data-tip-sub="Wofür der Bot welche Kanäle nutzt (Log-, Bewerbungs-Kanal …). Am Kanal selbst stehen sie im Tooltip.">Zwecke</span>
-                            <IconButton size="sm" icon={<TagIcon />} tip="Alle Zwecke" tipSub="Wofür der Bot welche Kanäle nutzt — alle auf einen Blick." onClick={() => setDialog({ kind: "purposes" })} />
+                            <span className="kn-kicker" tabIndex={0} data-tip={t("channels.page.purposes")} data-tip-sub={t("channels.page.purposesSub")}>{t("channels.page.purposes")}</span>
+                            <IconButton size="sm" icon={<TagIcon />} tip={t("channels.page.allPurposes")} tipSub={t("channels.page.allPurposesSub")} onClick={() => setDialog({ kind: "purposes" })} />
                         </div>
                         <span className="kn-chips">
                             <PurposeSummaryBadges data={data} />
@@ -331,7 +335,7 @@ export default function ChannelsPage() {
                 <BulkBar
                     count={selectedChannels.length}
                     guildName={data.guildName}
-                    archiveLabel="Löschen …"
+                    archiveLabel={t("channels.page.deleteMore")}
                     onArchive={() => setDialog({ kind: "delete", ids: selectedChannels.map((c) => c.id) })}
                     onClear={() => setSelected(new Set())}
                 />
@@ -364,7 +368,7 @@ export default function ChannelsPage() {
                     data={data}
                     canAssign={canEditPurposes}
                     onClose={() => setDialog(null)}
-                    onSave={(changes) => applyChanges([dialog.channel.id], changes, `#${dialog.channel.name} ändern`)}
+                    onSave={(changes) => applyChanges([dialog.channel.id], changes, t("channels.jobs.changeOne", { name: dialog.channel.name }))}
                     onArchive={() => {
                         const id = dialog.channel.id;
                         setDialog(null);
@@ -388,7 +392,7 @@ export default function ChannelsPage() {
             {dialog?.kind === "delete" && (
                 <DeleteChannelsDialog
                     names={deleteNames}
-                    kicker={dialog.anywhere ? "Kanäle" : "Archiv"}
+                    kicker={dialog.anywhere ? t("channels.page.title") : t("channels.page.archiveFallback")}
                     warnings={dialog.anywhere ? deleteWarnings(dialog.ids, data) : []}
                     onClose={() => setDialog(null)}
                     onConfirm={(confirm) => remove(dialog.ids, deleteNames.length === 1 ? confirm : BULK_DELETE_WORD, !!dialog.anywhere)}

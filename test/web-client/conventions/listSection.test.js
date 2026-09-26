@@ -104,14 +104,15 @@ describe("list sections", () => {
                 const body = src.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n}\\n`))[0];
                 expect({ name, modal: body.includes("<Modal") }).toEqual({ name, modal: true });
                 expect({ name, onClose: body.includes("open onClose={onClose}") }).toEqual({ name, onClose: true });
-                expect({ name, cancel: body.includes(">Abbrechen</Button>") }).toEqual({ name, cancel: true });
+                // the cancel button's text is common.cancel ("Abbrechen", #440)
+                expect({ name, cancel: body.includes(">{t(\"common.cancel\")}</Button>") }).toEqual({ name, cancel: true });
             }
             expect(src).toContain("onSaved={afterChange} onClose={templateEditor.close}");
             expect(src).toMatch(/onPosted=\{afterChange\} onClose=\{postEditor\.close\}/);
         });
 
         it("falls back to the new-editor for an id that is gone", () => {
-            expect(src).toContain("data.templates.find((t) => t.id === templateEditor.editId) || null");
+            expect(src).toContain("data.templates.find((tpl) => tpl.id === templateEditor.editId) || null");
             expect(src).toContain("{postEditor.open && !editingPost && (");
         });
     });
@@ -119,7 +120,9 @@ describe("list sections", () => {
     it("puts the way back in every editor", () => {
         // EditorPanel carries it for all of them, so a section can't ship an
         // editor with no way out but the browser's back button.
-        expect(sectionSrc).toContain("backLabel = \"Zurück zur Liste\"");
+        // (the default label comes from the dictionary, in the page's language)
+        expect(sectionSrc).toContain("{backLabel ?? t(\"list.back\")}");
+        expect(shared.dictionary("de")["list.back"]).toBe("Zurück zur Liste");
         expect(sectionSrc).toMatch(/<EditorPanel title=\{editorTitle\(entry\)\} onClose=\{editor\.close\}>/);
     });
 });

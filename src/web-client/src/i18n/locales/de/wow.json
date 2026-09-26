@@ -71,5 +71,40 @@
         "aq20": "Ruinen von Ahn'Qiraj",
         "aq40": "Tempel von Ahn'Qiraj",
         "naxx": "Naxxramas"
+    },
+    "specClass": {
+        "Priest-Shadow": "Schattenpriester",
+        "Mage-Arcane": "Arkan-Magier",
+        "Mage-Fire": "Feuer-Magier",
+        "Mage-Frost": "Frost-Magier",
+        "Warlock-Destruction": "Zerstörungs-Hexer",
+        "Warlock-Affliction": "Gebrechen-Hexer",
+        "Warlock-Demonology": "Dämonologie-Hexer",
+        "Druid-Balance": "Gleichgewichts-Druide",
+        "Shaman-Elemental": "Elementar-Schamane",
+        "Priest-Holy": "Heilig-Priester",
+        "Priest-Discipline": "Disziplin-Priester",
+        "Druid-Restoration": "Wiederherstellungs-Druide",
+        "Shaman-Restoration": "Wiederherstellungs-Schamane",
+        "Paladin-Holy": "Heilig-Paladin"
+    },
+    "slot": {
+        "0": "Kopf",
+        "1": "Hals",
+        "2": "Schultern",
+        "4": "Brust",
+        "5": "Gürtel",
+        "6": "Beine",
+        "7": "Füße",
+        "8": "Armschienen",
+        "9": "Hände",
+        "10": "Ring 1",
+        "11": "Ring 2",
+        "12": "Schmuck 1",
+        "13": "Schmuck 2",
+        "14": "Umhang",
+        "15": "Waffe",
+        "16": "Nebenhand",
+        "17": "Wand/Idol/Relikt"
     }
 }

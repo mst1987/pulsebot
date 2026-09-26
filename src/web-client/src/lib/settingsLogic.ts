@@ -6,14 +6,26 @@
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
 import type { AreaAccess, EventGuildEntry, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../api";
-import { t } from "../i18n";
+import { t, tOr } from "../i18n";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
 export type GrantMap = Record<string, Grants>;
 export type NameOf = (id: string) => string;
 
-export const LEVEL_LABEL: Record<Level, string> = { none: "aus", read: "Lesen", write: "Schreiben" };
+/** "aus" · "Lesen" · "Schreiben", in the active language. */
+export function levelLabel(level: Level): string {
+    return t(`settings.level.${level}`);
+}
+
+/** An area's name and description: the translation for its id, else what the server sent. */
+export function areaLabel(area: { id: string; label: string }): string {
+    return tOr(`settings.areas.${area.id}.label`, area.label);
+}
+
+export function areaDescription(area: { id: string; description: string }): string {
+    return tOr(`settings.areas.${area.id}.description`, area.description);
+}
 
 // ---- permission matrix: one tri-state cell per owner × area ----
 
@@ -62,7 +74,7 @@ export function isDiscordId(value: string): boolean {
 }
 
 /** Every owner × area whose level differs, as "@Raidlead · Historie → Schreiben". */
-export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: NameOf, areaLabel: NameOf): string[] {
+export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: NameOf, areaName: NameOf): string[] {
     const out = [];
     const owners = [...new Set([...Object.keys(before || {}), ...Object.keys(after || {})])];
     for (const owner of owners) {
@@ -72,12 +84,12 @@ export function permissionChanges(before: GrantMap, after: GrantMap, ownerName: 
         for (const area of areas) {
             const from = levelOf(a[area]);
             const to = levelOf(b[area]);
-            if (from !== to) out.push(`${ownerName(owner)} · ${areaLabel(area)} → ${LEVEL_LABEL[to]}`);
+            if (from !== to) out.push(t("settings.changes.perm", { owner: ownerName(owner), area: areaName(area), level: levelLabel(to) }));
         }
         const added = !(before || {})[owner] && (after || {})[owner];
         const removed = (before || {})[owner] && !(after || {})[owner];
-        if (added && !areas.length) out.push(`${ownerName(owner)} hinzugefügt`);
-        if (removed && !areas.length) out.push(`${ownerName(owner)} entfernt`);
+        if (added && !areas.length) out.push(t("settings.changes.added", { name: ownerName(owner) }));
+        if (removed && !areas.length) out.push(t("settings.changes.removed", { name: ownerName(owner) }));
     }
     return out;
 }
@@ -120,24 +132,43 @@ export type DraftShape = {
 
 export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf };
 
+// The draft field and the key of its label (translated when the line is built).
 const SIMPLE_FIELDS: [string, string][] = [
-    ["officerRoleId", "Offizier-Rolle"],
-    ["applicationChannelId", "Bewerbungs-Kanal"],
-    ["raidChannelId", "Standard-Kanal"],
+    ["officerRoleId", "settings.page.officerRole"],
+    ["applicationChannelId", "settings.page.appChannel"],
+    ["raidChannelId", "settings.page.raidChannel"],
 ];
 
-const LOOT_TOOL_LABEL: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", "": "keins" };
-const LOOT_SYSTEM_LABEL: Record<string, string> = { softres: "Softres", lootcouncil: "Loot-Council", gdkp: "GDKP", other: "Anderes", "": "automatisch" };
+/** The loot addon's name; "" = none. The addons themselves are proper names. */
+export function lootToolLabel(tool: string): string {
+    if (tool === "gargul") return "Gargul";
+    if (tool === "rclc") return "RCLootcouncil";
+    return tool ? tool : t("settings.lootTool.none");
+}
+
+/** The loot system's name; "" = automatic from the loot addon. */
+export function lootSystemLabel(system: string): string {
+    if (system === "softres") return "Softres";
+    if (system === "gdkp") return "GDKP";
+    if (system === "lootcouncil") return t("settings.lootSystem.lootcouncil");
+    if (system === "other") return t("settings.lootSystem.otherSystem");
+    return system ? system : t("settings.lootSystem.auto");
+}
 
 /** "Beim Anlegen ankündigen" (#306) as one value: "" = off, else the ping target. */
-export const ANNOUNCE_LABEL: Record<string, string> = { "": "aus", event: "Event-Kanal", talk: "Talk-Server", both: "beide Server" };
+export function announceLabel(mode: string): string {
+    if (mode === "event" || mode === "talk" || mode === "both") return t(`settings.announce.${mode}`);
+    return mode ? mode : t("settings.announce.off");
+}
 
 export function announceMode(entry: { enabled: boolean; target: string } | undefined): string {
     return entry && entry.enabled ? String(entry.target || "event") : "";
 }
 
 /** The message with "Vielleicht" / "Absagen" per category: required, optional (the default) or not asked. */
-export const SIGNUP_NOTE_LABEL: Record<string, string> = { required: "Pflicht", optional: "optional", none: "keine" };
+export function signupNoteLabel(mode: string): string {
+    return t(`settings.signupNote.${mode === "required" || mode === "none" ? mode : "optional"}`);
+}
 
 export function signupNoteMode(map: Record<string, string> | undefined, categoryId: string): string {
     const mode = (map || {})[categoryId];
@@ -152,20 +183,24 @@ export function signupNoteMode(map: Record<string, string> | undefined, category
  */
 export function noteChannelPick(channels: { id: string; name: string }[], defaultId: string, value: string): { defaultLabel: string; unreachable: boolean } {
     const standard = defaultId ? channels.find((c) => c.id === defaultId) : undefined;
-    let defaultLabel = "Standard";
-    if (!defaultId) defaultLabel = "Standard (nicht gesetzt)";
-    else if (standard) defaultLabel = `Standard (#${standard.name})`;
-    else if (channels.length) defaultLabel = "Standard (nicht erreichbar)";
+    let defaultLabel = t("settings.noteChannel.default");
+    if (!defaultId) defaultLabel = t("settings.noteChannel.notSet");
+    else if (standard) defaultLabel = t("settings.noteChannel.channel", { name: standard.name });
+    else if (channels.length) defaultLabel = t("settings.noteChannel.unreachable");
     return { defaultLabel, unreachable: !!value && channels.length > 0 && !channels.some((c) => c.id === value) };
 }
 
 /** The title sizes of the signup message (src/web/embedLook.js, TITLE_SIZES). */
-export const TITLE_SIZE_LABEL: Record<string, string> = { normal: "normal", large: "groß", huge: "sehr groß" };
+export const TITLE_SIZES: string[] = ["normal", "large", "huge"];
+
+export function titleSizeLabel(size: string): string {
+    return TITLE_SIZES.includes(size) ? t(`settings.titleSize.${size}`) : size;
+}
 
 /** One category's message look with the defaults filled in: raid picture on, title "large". */
 export function messageLook(map: Record<string, { raidArt?: boolean; titleSize?: string }> | undefined, id: string): { raidArt: boolean; titleSize: string } {
     const entry = (map || {})[id] || {};
-    return { raidArt: entry.raidArt !== false, titleSize: TITLE_SIZE_LABEL[entry.titleSize || ""] ? String(entry.titleSize) : "large" };
+    return { raidArt: entry.raidArt !== false, titleSize: TITLE_SIZES.includes(entry.titleSize || "") ? String(entry.titleSize) : "large" };
 }
 
 function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
@@ -185,10 +220,10 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     for (const id of admins) {
         const was = (saved.adminRoleIds || []).includes(id);
         const is = (draft.adminRoleIds || []).includes(id);
-        if (was !== is) out.push(`Admin-Rolle ${names.role(id)} ${is ? "hinzugefügt" : "entfernt"}`);
+        if (was !== is) out.push(t(is ? "settings.changes.adminAdded" : "settings.changes.adminRemoved", { name: names.role(id) }));
     }
     out.push(...permissionChanges(saved.rolePermissions, draft.rolePermissions, names.role, names.area));
-    out.push(...permissionChanges({ base: saved.baseAccess || {} }, { base: draft.baseAccess || {} }, () => "Basiszugang", names.area));
+    out.push(...permissionChanges({ base: saved.baseAccess || {} }, { base: draft.baseAccess || {} }, () => t("settings.permissions.base"), names.area));
     out.push(...permissionChanges(saved.userPermissions, draft.userPermissions, names.user, names.area));
 
     const categories = [...new Set([
@@ -210,44 +245,44 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const name = names.category(id);
         const was = (saved.categoryIds || []).includes(id);
         const is = (draft.categoryIds || []).includes(id);
-        if (was !== is) out.push(`${name} ${is ? "aktiviert" : "deaktiviert"}`);
-        if (!sameList((saved.categoryRoles || {})[id], (draft.categoryRoles || {})[id])) out.push(`${name} · Raider-Rollen`);
+        if (was !== is) out.push(t(is ? "settings.changes.activated" : "settings.changes.deactivated", { name }));
+        if (!sameList((saved.categoryRoles || {})[id], (draft.categoryRoles || {})[id])) out.push(t("settings.changes.raiderRoles", { name }));
         const toolWas = (saved.categoryLootTool || {})[id] || "";
         const toolIs = (draft.categoryLootTool || {})[id] || "";
-        if (toolWas !== toolIs) out.push(`${name} · Loot-Addon → ${LOOT_TOOL_LABEL[toolIs] || toolIs}`);
+        if (toolWas !== toolIs) out.push(t("settings.changes.lootTool", { name, value: lootToolLabel(toolIs) }));
         const systemWas = (saved.categoryLootSystem || {})[id] || "";
         const systemIs = (draft.categoryLootSystem || {})[id] || "";
-        if (systemWas !== systemIs) out.push(`${name} · Lootsystem → ${LOOT_SYSTEM_LABEL[systemIs] || systemIs}`);
+        if (systemWas !== systemIs) out.push(t("settings.changes.lootSystem", { name, value: lootSystemLabel(systemIs) }));
         const sourceWas = (saved.categorySignupSource || {})[id] || saved.signupSourceDefault || "raidhelper";
         const sourceIs = (draft.categorySignupSource || {})[id] || draft.signupSourceDefault || saved.signupSourceDefault || "raidhelper";
-        if (sourceWas !== sourceIs) out.push(`${name} · Neue Events → ${sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper"}`);
+        if (sourceWas !== sourceIs) out.push(t("settings.changes.newEvents", { name, value: sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper" }));
         const dmsWas = (saved.categorySetupDms || {})[id] === true;
         const dmsIs = (draft.categorySetupDms || {})[id] === true;
-        if (dmsWas !== dmsIs) out.push(`${name} · Setup-DMs ${dmsIs ? "an" : "aus"}`);
+        if (dmsWas !== dmsIs) out.push(t(dmsIs ? "settings.changes.setupDmsOn" : "settings.changes.setupDmsOff", { name }));
         // #305: the Discord event per raid and the voice channel the raids meet in.
         const deWas = (saved.categoryDiscordEvent || {})[id] === true;
         const deIs = (draft.categoryDiscordEvent || {})[id] === true;
-        if (deWas !== deIs) out.push(`${name} · Discord-Event ${deIs ? "an" : "aus"}`);
+        if (deWas !== deIs) out.push(t(deIs ? "settings.changes.discordEventOn" : "settings.changes.discordEventOff", { name }));
         const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
         const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
-        if (voiceWas !== voiceIs) out.push(`${name} · Sprachkanal ${voiceIs ? "gesetzt" : "entfernt"}`);
+        if (voiceWas !== voiceIs) out.push(t(voiceIs ? "settings.changes.voiceSet" : "settings.changes.voiceRemoved", { name }));
         const lookWas = messageLook(saved.categoryMessageLook, id);
         const lookIs = messageLook(draft.categoryMessageLook, id);
-        if (lookWas.raidArt !== lookIs.raidArt) out.push(`${name} · Raid-Bild ${lookIs.raidArt ? "an" : "aus"}`);
-        if (lookWas.titleSize !== lookIs.titleSize) out.push(`${name} · Titelgröße → ${TITLE_SIZE_LABEL[lookIs.titleSize] || lookIs.titleSize}`);
+        if (lookWas.raidArt !== lookIs.raidArt) out.push(t(lookIs.raidArt ? "settings.changes.raidArtOn" : "settings.changes.raidArtOff", { name }));
+        if (lookWas.titleSize !== lookIs.titleSize) out.push(t("settings.changes.titleSize", { name, value: titleSizeLabel(lookIs.titleSize) }));
         const annWas = announceMode((saved.categoryAnnounce || {})[id]);
         const annIs = announceMode((draft.categoryAnnounce || {})[id]);
-        if (annWas !== annIs) out.push(`${name} · Ankündigung → ${ANNOUNCE_LABEL[annIs] || annIs}`);
+        if (annWas !== annIs) out.push(t("settings.changes.announce", { name, value: announceLabel(annIs) }));
         const noteWas = signupNoteMode(saved.categorySignupNotes, id);
         const noteIs = signupNoteMode(draft.categorySignupNotes, id);
-        if (noteWas !== noteIs) out.push(`${name} · Nachricht bei Vielleicht/Absage → ${SIGNUP_NOTE_LABEL[noteIs]}`);
+        if (noteWas !== noteIs) out.push(t("settings.changes.signupNote", { name, value: signupNoteLabel(noteIs) }));
         const noteChWas = (saved.categorySignupNoteChannel || {})[id] || "";
         const noteChIs = (draft.categorySignupNoteChannel || {})[id] || "";
-        if (noteChWas !== noteChIs) out.push(`${name} · Kanal für Vielleicht/Absage ${noteChIs ? "gesetzt" : "→ Standard"}`);
+        if (noteChWas !== noteChIs) out.push(t(noteChIs ? "settings.changes.noteChannelSet" : "settings.changes.noteChannelDefault", { name }));
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {
-            out.push(`${name} · Raidsheet`);
+            out.push(t("settings.changes.raidsheet", { name }));
         }
     }
 
@@ -255,16 +290,16 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     const tplWas = saved.categoryRaidTemplate || {};
     const tplIs = draft.categoryRaidTemplate || {};
     for (const id of [...new Set([...Object.keys(tplWas), ...Object.keys(tplIs)])]) {
-        if ((tplWas[id] || "") !== (tplIs[id] || "")) out.push(`${names.category(id)} · Standard-Vorlage`);
+        if ((tplWas[id] || "") !== (tplIs[id] || "")) out.push(t("settings.changes.template", { name: names.category(id) }));
     }
 
-    for (const [key, label] of SIMPLE_FIELDS) {
-        if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(label);
+    for (const [key, labelKey] of SIMPLE_FIELDS) {
+        if (String(saved[key] || "").trim() !== String(draft[key] || "").trim()) out.push(t(labelKey));
     }
-    if (!sameList(saved.logChannelIds, draft.logChannelIds)) out.push("Log-Kanäle");
+    if (!sameList(saved.logChannelIds, draft.logChannelIds)) out.push(t("settings.page.logChannels"));
     const itemsWas = (saved.topItems || []).map((i) => String(i.id));
     const itemsIs = (draft.topItems || []).map((i) => String(i.id));
-    if (itemsWas.join(",") !== itemsIs.join(",")) out.push("Top-Items");
+    if (itemsWas.join(",") !== itemsIs.join(",")) out.push(t("settings.changes.topItems"));
     return out;
 }
 
@@ -285,24 +320,24 @@ export type ConnectionInputs = {
 /** The badge of one connection card, and whether it counts as "nicht eingerichtet". */
 export function connectionState(id: ConnectionId, input: ConnectionInputs): ConnectionState {
     if (id === "discord") {
-        return input.botOnline ? { tone: "ok", label: "Verbunden", missing: false } : { tone: "mid", label: "Bot offline", missing: false };
+        return input.botOnline ? { tone: "ok", label: t("settings.state.connected"), missing: false } : { tone: "mid", label: t("settings.state.botOffline"), missing: false };
     }
     if (id === "battlenet" || id === "wcl") {
         const block = id === "battlenet" ? input.blizzard : input.warcraftlogsV2;
         const hasId = !!(block && String(block.clientId || "").trim());
         const hasSecret = !!(block && block.hasClientSecret);
-        if (hasId && hasSecret) return { tone: "ok", label: "Verbunden", missing: false };
-        if (hasId || hasSecret) return { tone: "mid", label: hasId ? "Secret fehlt" : "Client-ID fehlt", missing: true };
-        return { tone: "mid", label: "Nicht eingerichtet", missing: true };
+        if (hasId && hasSecret) return { tone: "ok", label: t("settings.state.connected"), missing: false };
+        if (hasId || hasSecret) return { tone: "mid", label: t(hasId ? "settings.state.secretMissing" : "settings.state.clientIdMissing"), missing: true };
+        return { tone: "mid", label: t("settings.state.notSetUp"), missing: true };
     }
     if (id === "anthropic") {
         return input.anthropic && input.anthropic.hasApiKey
-            ? { tone: "ok", label: "Key hinterlegt", missing: false }
-            : { tone: "mid", label: "Key fehlt", missing: true };
+            ? { tone: "ok", label: t("settings.state.keyStored"), missing: false }
+            : { tone: "mid", label: t("settings.state.keyMissing"), missing: true };
     }
-    if (input.tokenCount === null || input.tokenCount === undefined) return { tone: "", label: "Tokens", missing: false };
-    if (input.tokenCount === 0) return { tone: "mid", label: "Kein Token", missing: true };
-    return { tone: "accent", label: `${input.tokenCount} ${input.tokenCount === 1 ? "Token" : "Tokens"}`, missing: false };
+    if (input.tokenCount === null || input.tokenCount === undefined) return { tone: "", label: t("settings.state.tokens"), missing: false };
+    if (input.tokenCount === 0) return { tone: "mid", label: t("settings.state.noToken"), missing: true };
+    return { tone: "accent", label: t("settings.state.tokenCount", { count: input.tokenCount }), missing: false };
 }
 
 /**
@@ -374,12 +409,12 @@ export type OverlapLike = { eventCount: number | null; talkCount: number | null;
  * are said as such, never counted as missing.
  */
 export function serverCardState(card: ServerCardLike | null, optional: boolean): ConnectionState {
-    if (!card) return optional ? { tone: "", label: "Kein zweiter Server", missing: false } : { tone: "mid", label: "Kein Server gewählt", missing: true };
-    if (!card.connected) return { tone: "mid", label: "Bot nicht auf dem Server", missing: true };
-    if (!card.permissions) return { tone: "", label: "Rechte unbekannt", missing: false };
+    if (!card) return optional ? { tone: "", label: t("settings.state.noSecondServer"), missing: false } : { tone: "mid", label: t("settings.state.noServer"), missing: true };
+    if (!card.connected) return { tone: "mid", label: t("settings.state.botNotThere"), missing: true };
+    if (!card.permissions) return { tone: "", label: t("settings.state.rightsUnknown"), missing: false };
     const n = card.missing.length;
-    if (n) return { tone: "mid", label: n === 1 ? "1 Recht fehlt" : `${n} Rechte fehlen`, missing: true };
-    return { tone: "ok", label: "Verbunden", missing: false };
+    if (n) return { tone: "mid", label: t("settings.state.rightsMissing", { count: n }), missing: true };
+    return { tone: "ok", label: t("settings.state.connected"), missing: false };
 }
 
 /**
@@ -433,13 +468,13 @@ export function discordServersPatch(fields: ServerFields): { discordServers: Ser
 export function overlapBadge(overlap: OverlapLike | null): { label: string; tone: "ok" | "mid" | ""; tip: string } | null {
     if (!overlap) return null;
     if (overlap.error || overlap.both === null || overlap.eventCount === null) {
-        return { label: "Überschneidung unbekannt", tone: "", tip: overlap.error || "Mitglieder konnten nicht geladen werden." };
+        return { label: t("settings.overlap.unknown"), tone: "", tip: overlap.error || t("settings.overlap.membersError") };
     }
     const share = overlap.eventCount ? overlap.both / overlap.eventCount : 1;
     return {
-        label: `${overlap.both} von ${overlap.eventCount}`,
+        label: t("settings.overlap.label", { both: overlap.both, total: overlap.eventCount }),
         tone: share >= 0.9 ? "ok" : "mid",
-        tip: `${overlap.both} von ${overlap.eventCount} Mitgliedern des Event-Discords sind auch auf dem Kommunikations-Discord. Wer fehlt, bekommt Pings später als DM.`,
+        tip: t("settings.overlap.tip", { both: overlap.both, total: overlap.eventCount }),
     };
 }
 
@@ -491,8 +526,13 @@ export function splitCategoryRows(rows: CategoryRow[], activeIds: string[], show
 export type RoleSyncDirection = "toTalk" | "toEvent" | "both";
 
 export const DIRECTION_LABEL: Record<RoleSyncDirection, string> = { toTalk: "→", toEvent: "←", both: "↔" };
-export const DIRECTION_TEXT: Record<RoleSyncDirection, string> = { toTalk: "Event → Talk", toEvent: "Talk → Event", both: "beide Richtungen" };
-export const TARGET_TEXT: Record<PingTarget, string> = { event: "Event-Kanal", talk: "Kommunikations-Discord", both: "Beides" };
+export function directionText(direction: RoleSyncDirection): string {
+    return t(`settings.direction.${direction}`);
+}
+
+export function targetText(target: PingTarget): string {
+    return t(`settings.target.${target}`);
+}
 
 /**
  * The options of the "Wohin" segment. Without a talk server and its ping
@@ -541,22 +581,27 @@ export function withRoleRule(rules: RoleSyncRule[], index: number, rule: RoleSyn
 
 /** The small badge of the role sync head: how many members kept a synced role the source lost. */
 export function driftBadge(total: number, error: string | null): { label: string; tone: "ok" | "mid" | ""; tip: string } {
-    if (error) return { label: "Abgleich unbekannt", tone: "", tip: error };
-    if (!total) return { label: "Keine Abweichung", tone: "ok", tip: "Alle abgeglichenen Rollen passen zu ihrer Ursprungsrolle." };
+    if (error) return { label: t("settings.drift.unknown"), tone: "", tip: error };
+    if (!total) return { label: t("settings.drift.none"), tone: "ok", tip: t("settings.drift.noneTip") };
     return {
-        label: total === 1 ? "1 Abweichung" : `${total} Abweichungen`,
+        label: t("settings.drift.count", { count: total }),
         tone: "mid",
-        tip: "Der Abgleich vergibt nur und entfernt nie. Wer die Ursprungsrolle verloren hat, behält die abgeglichene, bis jemand sie in Discord entfernt.",
+        tip: t("settings.drift.tip"),
     };
+}
+
+/** Whether a category sends no reminder at all. */
+export function reminderOff(rule: ReminderRule | null | undefined): boolean {
+    return !rule || !(rule.missingHours > 0 || rule.signedHours > 0);
 }
 
 /** "24 h vor Schluss · 1 h vor Raid", or "aus". */
 export function reminderSummary(rule: ReminderRule | null | undefined): string {
-    if (!rule) return "aus";
+    if (!rule || reminderOff(rule)) return t("settings.reminderSummary.off");
     const parts = [];
-    if (rule.missingHours > 0) parts.push(`${rule.missingHours} h vor Schluss`);
-    if (rule.signedHours > 0) parts.push(`${rule.signedHours} h vor Raid`);
-    return parts.length ? parts.join(" · ") : "aus";
+    if (rule.missingHours > 0) parts.push(t("settings.reminderSummary.missing", { hours: rule.missingHours }));
+    if (rule.signedHours > 0) parts.push(t("settings.reminderSummary.signed", { hours: rule.signedHours }));
+    return parts.join(" · ");
 }
 
 /** Hours from an input: whole numbers 1–168, anything else 0 (= off) — the server's rule. */
@@ -582,34 +627,36 @@ export function remindersPatch(current: Record<string, ReminderRule>, categoryId
 export function agoText(ms: number, now: number): string {
     if (!ms) return "";
     const minutes = Math.max(0, Math.round((now - ms) / 60000));
-    if (minutes < 1) return "gerade eben";
-    if (minutes < 60) return `vor ${minutes} Min.`;
+    if (minutes < 1) return t("settings.ago.now");
+    if (minutes < 60) return t("settings.ago.minutes", { count: minutes });
     const hours = Math.round(minutes / 60);
-    if (hours < 48) return `vor ${hours} Std.`;
-    return `vor ${Math.round(hours / 24)} T`;
+    if (hours < 48) return t("settings.ago.hours", { count: hours });
+    return t("settings.ago.days", { count: Math.round(hours / 24) });
 }
 
 /** The overview's one badge: state as label, the times and any error in the tooltip. */
 export function talkOverviewBadge(status: TalkOverviewStatus | null, now: number): { label: string; tone: "ok" | "mid" | ""; tip: string; tipSub: string } {
     if (!status || !status.configured) {
-        return { label: "nicht eingestellt", tone: "", tip: "Raid-Übersicht", tipSub: "Wähle einen Kommunikations-Discord und einen Kanal für die Übersicht." };
+        return { label: t("settings.overviewBadge.notSet"), tone: "", tip: t("settings.overviewBadge.title"), tipSub: t("settings.overviewBadge.notSetSub") };
     }
     const times = [
-        status.postedAt ? `Gepostet ${agoText(status.postedAt, now)}` : "",
-        status.editedAt ? `Zuletzt bearbeitet ${agoText(status.editedAt, now)}` : "",
-        status.checkedAt ? `Zuletzt geprüft ${agoText(status.checkedAt, now)}` : "",
+        status.postedAt ? t("settings.overviewBadge.posted", { ago: agoText(status.postedAt, now) }) : "",
+        status.editedAt ? t("settings.overviewBadge.edited", { ago: agoText(status.editedAt, now) }) : "",
+        status.checkedAt ? t("settings.overviewBadge.checked", { ago: agoText(status.checkedAt, now) }) : "",
     ].filter(Boolean);
     if (status.error) {
-        return { label: "Fehler", tone: "mid", tip: "Übersicht nicht aktualisiert", tipSub: [status.error, ...times].join("\n") };
+        return { label: t("common.error"), tone: "mid", tip: t("settings.overviewBadge.errorTip"), tipSub: [status.error, ...times].join("\n") };
     }
     if (!status.messageId) {
-        return { label: "noch nicht gepostet", tone: "", tip: "Raid-Übersicht", tipSub: "Sie wird beim nächsten Lauf (alle 5 Minuten) gepostet — oder jetzt mit „Neu posten“." };
+        return { label: t("settings.overviewBadge.notPosted"), tone: "", tip: t("settings.overviewBadge.title"), tipSub: t("settings.overviewBadge.notPostedSub") };
     }
-    const label = status.editedAt ? `bearbeitet ${agoText(status.editedAt, now)}` : `gepostet ${agoText(status.postedAt, now)}`;
+    const label = status.editedAt
+        ? t("settings.overviewBadge.editedLabel", { ago: agoText(status.editedAt, now) })
+        : t("settings.overviewBadge.postedLabel", { ago: agoText(status.postedAt, now) });
     return {
         label,
         tone: "ok",
-        tip: "Raid-Übersicht aktuell",
-        tipSub: [...times, "Aktualisiert sich bei An- und Abmeldungen, neuen Events und alle 5 Minuten."].join("\n"),
+        tip: t("settings.overviewBadge.current"),
+        tipSub: [...times, t("settings.overviewBadge.currentSub")].join("\n"),
     };
 }

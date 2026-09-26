@@ -10,6 +10,7 @@ import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 
 type CharSortKey = "character" | "classSpec" | "category" | "count" | "source";
 
@@ -41,15 +42,16 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
     dir: Dir;
     onSort: (key: CharSortKey) => void;
 }) {
+    const t = useT();
     return (
         <table className="idx" style={{ margin: 0 }}>
             <thead>
                 <tr>
-                    <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} tip="Items" tipSub="Hover über die Zahl zeigt die Items." />
-                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} tip="Quelle" tipSub="Woher Klasse und Spec stammen." />
+                    <SortTh sortKey="character" label={t("history.chars.colCharacter")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="classSpec" label={t("history.chars.colClass")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="category" label={t("history.shared.category")} sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="count" label={t("history.shared.colItems")} sort={sort} dir={dir} onSort={onSort} tip={t("history.shared.colItems")} tipSub={t("history.chars.itemsSub")} />
+                    <SortTh sortKey="source" label={t("history.shared.colSource")} sort={sort} dir={dir} onSort={onSort} tip={t("history.shared.colSource")} tipSub={t("history.chars.sourceSub")} />
                 </tr>
             </thead>
             <tbody>
@@ -87,6 +89,7 @@ export function CharactersTab({ chars, categories, onChanged }: {
     categories: Category[];
     onChanged: (msg: string) => void;
 }) {
+    const t = useT();
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     // Search, filters, grouping and sort live in localStorage, so they survive a
@@ -152,24 +155,24 @@ export function CharactersTab({ chars, categories, onChanged }: {
 
     const head = (
         <PartHead
-            icon="achievement_guildperk_everybodysfriend" tone="history" title="Charaktere" crumb="Charaktere"
-            tip="Charaktere" tipSub="Jeder Charakter mit Loot, gruppiert nach Raid-Kategorie. Der Name öffnet die Loot-Historie samt Armory."
+            icon="achievement_guildperk_everybodysfriend" tone="history" title={t("history.chars.title")} crumb={t("history.chars.title")}
+            tip={t("history.chars.title")} tipSub={t("history.chars.tipSub")}
             action={chars.length ? (
                 <Button
                     variant="run"
                     icon="inv_misc_spyglass_03"
                     running={busy}
-                    data-tip="Klassen & Specs ergänzen"
-                    data-tip-sub="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids."
+                    data-tip={t("history.chars.resolve")}
+                    data-tip-sub={t("history.chars.resolveSub")}
                     onClick={resolve}
                 >
-                    {`Klassen & Specs ergänzen${missing ? ` (${missing} offen)` : ""}`}
+                    {missing ? t("history.chars.resolveOpen", { count: missing }) : t("history.chars.resolve")}
                 </Button>
             ) : undefined}
         />
     );
 
-    if (!chars.length) return <div className="dash-card hl-card">{head}<div className="empty">Noch keine Charaktere mit Loot.</div></div>;
+    if (!chars.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.chars.empty")}</div></div>;
 
     const searchLower = search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
@@ -204,27 +207,27 @@ export function CharactersTab({ chars, categories, onChanged }: {
                 {/* the module's own search field (icon, tokens, focus ring) —
                     the bare input this used to be was the one control on the
                     page still wearing the browser's own look */}
-                <SearchBox id="chars-search" value={search} onChange={(s) => patch({ search: s })} placeholder="Charaktername …" />
-                <select id="chars-category" className="hl-sel" aria-label="Kategorie" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
-                    <option value="">Alle Kategorien</option>
+                <SearchBox id="chars-search" value={search} onChange={(s) => patch({ search: s })} placeholder={t("history.shared.charSearch")} />
+                <select id="chars-category" className="hl-sel" aria-label={t("history.shared.category")} value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
+                    <option value="">{t("history.shared.allCategories")}</option>
                     {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
-                <select id="chars-class" className="hl-sel" aria-label="Klasse & Spec" value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
-                    <option value="">Alle Klassen</option>
+                <select id="chars-class" className="hl-sel" aria-label={t("history.chars.colClass")} value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
+                    <option value="">{t("history.chars.allClasses")}</option>
                     {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 {hasFilters && (
                     <Button
                         variant="ghost"
-                        data-tip="Filter zurücksetzen"
-                        data-tip-sub="Suche und Filter werden lokal im Browser gespeichert."
+                        data-tip={t("history.chars.resetFilters")}
+                        data-tip-sub={t("history.chars.resetSub")}
                         onClick={() => patch({ search: "", category: "", classSpec: "" })}
                     >
-                        Filter zurücksetzen
+                        {t("history.chars.resetFilters")}
                     </Button>
                 )}
             </div>
-            {!sorted.length && <div className="empty">Keine Charaktere gefunden.</div>}
+            {!sorted.length && <div className="empty">{t("history.chars.noneFound")}</div>}
             {groups.map((g) => (
                 <div key={g.id}>
                     <div className="hl-linked-head">
@@ -236,7 +239,7 @@ export function CharactersTab({ chars, categories, onChanged }: {
             ))}
             {!!ungrouped.length && (
                 <div>
-                    <div className="hl-linked-head"><strong>Ohne Kategorie</strong><Badge count>{ungrouped.length}</Badge></div>
+                    <div className="hl-linked-head"><strong>{t("history.chars.noCategory")}</strong><Badge count>{ungrouped.length}</Badge></div>
                     <CharTable chars={ungrouped} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
                 </div>
             )}

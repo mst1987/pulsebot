@@ -7,6 +7,7 @@ import { useToast } from "../../components/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 import { ICONS, openExternal } from "./shared";
 import { DraftBadge, TipLabel } from "./RecruitmentBits";
 import { MessageFields } from "./MessageFields";
@@ -19,6 +20,7 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
     onSaved: (msg: string) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     // A recruitment text is written, not filled in — so it is kept as a draft,
     // per template (the "new" form and each edited template have their own).
     const initial = { name: template?.name ?? "", content: template?.content ?? "", buttonLabel: template?.buttonLabel ?? "" };
@@ -33,7 +35,7 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
         try {
             await saveRecruitmentTemplate({ id: template?.id, ...draft });
             clearDraft();
-            onSaved(template ? "Vorlage gespeichert." : "Vorlage angelegt.");
+            onSaved(template ? t("recruitment.editor.saved") : t("recruitment.editor.created"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -45,18 +47,18 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
     return (
         <Modal
             open onClose={onClose} width={1120} icon={ICONS.templates} tone="recruitment" initialFocus="#rc-name"
-            kicker={template ? "Vorlage bearbeiten" : "Neue Vorlage"}
-            title={draft.name.trim() || template?.name || "Neue Vorlage"}
+            kicker={template ? t("recruitment.editor.editTemplate") : t("recruitment.templates.new")}
+            title={draft.name.trim() || template?.name || t("recruitment.templates.new")}
             hint={(
                 <span className="rc-foot-badges">
-                    {postedIn > 0 && <Badge tone="accent" icon={ICONS.posts}>in {postedIn} {postedIn === 1 ? "Channel" : "Channels"} gepostet</Badge>}
+                    {postedIn > 0 && <Badge tone="accent" icon={ICONS.posts}>{t("recruitment.editor.postedIn", { count: postedIn })}</Badge>}
                     <DraftBadge dirty={dirty} />
                 </span>
             )}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={cancel}>Abbrechen</Button>
-                    <Button type="submit" form="rc-template-form" running={busy}>{template ? "Speichern" : "Vorlage anlegen"}</Button>
+                    <Button variant="ghost" onClick={cancel}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="rc-template-form" running={busy}>{template ? t("common.save") : t("recruitment.editor.createTemplate")}</Button>
                 </>
             )}
         >
@@ -66,8 +68,8 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
                     buttonLabel={draft.buttonLabel} setButtonLabel={(v) => patch({ buttonLabel: v })}
                 >
                     <div className="field">
-                        <TipLabel label="Name" htmlFor="rc-name" tip="Name" tipSub="Nur zur Auswahl in der Verwaltung — nicht Teil der geposteten Nachricht." />
-                        <input id="rc-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Heiler für Hyjal & BT" required />
+                        <TipLabel label={t("common.name")} htmlFor="rc-name" tip={t("common.name")} tipSub={t("recruitment.editor.nameTipSub")} />
+                        <input id="rc-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("recruitment.editor.namePlaceholder")} required />
                     </div>
                 </MessageFields>
             </form>
@@ -82,6 +84,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
     onSaved: (msg: string) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     // Draft per post, so edits to a live message survive a detour to another tab.
     const initial = { content: post.content, buttonLabel: post.buttonLabel };
     const [draft, patch, clearDraft] = useDraftState(`recruitment-post:${post.id}`, initial);
@@ -95,7 +98,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
         try {
             await updateRecruitmentPost({ id: post.id, ...draft });
             clearDraft();
-            onSaved("Nachricht in Discord aktualisiert.");
+            onSaved(t("recruitment.editor.postUpdated"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -106,7 +109,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
     return (
         <Modal
             open onClose={onClose} width={1120} icon={ICONS.posts} tone="recruitment" initialFocus="#rc-content"
-            kicker="Gepostete Nachricht bearbeiten"
+            kicker={t("recruitment.editor.editPost")}
             title={`#${post.channelName || post.channelId}`}
             hint={(
                 <span className="rc-foot-badges">
@@ -116,9 +119,9 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
             )}
             footer={(
                 <>
-                    <Button variant="ghost" icon={<ExternalIcon />} onClick={() => openExternal(messageLink(post.guildId, post.channelId, post.messageId))}>In Discord öffnen</Button>
-                    <Button variant="ghost" onClick={() => { clearDraft(); onClose(); }}>Abbrechen</Button>
-                    <Button type="submit" form="rc-post-form" running={busy}>Speichern &amp; in Discord aktualisieren</Button>
+                    <Button variant="ghost" icon={<ExternalIcon />} onClick={() => openExternal(messageLink(post.guildId, post.channelId, post.messageId))}>{t("recruitment.posts.openInDiscord")}</Button>
+                    <Button variant="ghost" onClick={() => { clearDraft(); onClose(); }}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="rc-post-form" running={busy}>{t("recruitment.editor.saveAndUpdate")}</Button>
                 </>
             )}
         >

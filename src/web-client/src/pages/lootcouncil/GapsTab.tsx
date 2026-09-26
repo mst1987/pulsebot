@@ -1,6 +1,7 @@
 import type { CouncilGap, LootCouncilData, SimResult } from "../../api";
 import type { TableSort } from "../../lib/tableSort";
 import { Button, PartHead } from "../../components/ui";
+import { tParts, useT } from "../../i18n";
 import type { CandidateSortKey, useCouncilSim } from "./council";
 import { GapCard } from "./GapCard";
 
@@ -22,14 +23,15 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
     setExpanded: (next: Set<number>) => void;
     candidateSort: TableSort<CandidateSortKey>;
 }) {
+    const t = useT();
     return (
         <>
             <PartHead
                 icon="inv_misc_gem_variety_02"
-                crumb="Loot-Council › Offene BiS-Items"
-                title="Was fehlt noch?"
-                tip="Offene BiS-Items"
-                tipSub="Items, die auf mindestens einer BiS-Liste stehen und noch niemand aus der gefilterten Gruppe trägt — sortiert danach, wie viele darauf warten. Der Vorschlag ist der größte Zugewinn, nicht der längste Wartende: wer dran ist, entscheidet ihr."
+                crumb={t("lootcouncil.gaps.crumb")}
+                title={t("lootcouncil.gaps.title")}
+                tip={t("lootcouncil.tabs.gaps")}
+                tipSub={t("lootcouncil.gaps.tipSub")}
                 action={data.sim.available ? (
                     <Button
                         variant="run"
@@ -37,11 +39,11 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
                         icon="inv_gizmo_02"
                         running={simRunning}
                         disabled={!simulatable.length || !gaps.length}
-                        data-tip="Alle BiS-Items durchrechnen"
-                        data-tip-sub="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
+                        data-tip={t("lootcouncil.gaps.runAllTip")}
+                        data-tip-sub={t("lootcouncil.gaps.runAllTipSub")}
                         onClick={() => runSim(gaps.map((g) => g.id), simulatable)}
                     >
-                        Alle BiS-Items durchrechnen ({gaps.length})
+                        {tParts("lootcouncil.gaps.runAll", { count: gaps.length })}
                     </Button>
                 ) : undefined}
             />
@@ -61,8 +63,7 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
                 />
             )) : (
                 <div className="lc-panel empty">
-                    Keine offenen BiS-Items im gewählten Filter — entweder trägt die Gruppe schon alles,
-                    oder für ihre Specs gibt es zu diesem Tier keine BiS-Liste.
+                    {t("lootcouncil.gaps.empty")}
                 </div>
             )}
         </>

@@ -19,11 +19,13 @@ import Pager from "../../components/Pager";
 import TopLootList from "../../components/loot/TopLootList";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { tParts, useT } from "../../i18n";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
 const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", topOnly: true };
 
 export function LatestLootTab({ categories }: { categories: Category[] }) {
+    const t = useT();
     const [view, setView] = usePersistedState<View>("history-awards-view", VIEW_DEFAULT);
     const [page, setPage] = useState(1);
     const [data, setData] = useState<LootAwardsData | null>(null);
@@ -71,12 +73,12 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
     return (
         <div className="dash-card hl-card">
             <PartHead
-                icon="inv_misc_coin_02" tone="history" title="Vergaben" crumb="Loot › Vergaben"
-                tip="Vergaben" tipSub="Jede Vergabe einzeln, neueste zuerst. „Nur Top-Items“ zeigt dieselbe Liste wie die Übersicht."
-                action={data ? <Badge count>{data.total} Vergaben</Badge> : undefined}
+                icon="inv_misc_coin_02" tone="history" title={t("history.page.view.awards")} crumb={t("history.latest.crumb")}
+                tip={t("history.page.view.awards")} tipSub={t("history.latest.tipSub")}
+                action={data ? <Badge count>{tParts("history.shared.awards", { count: data.total })}</Badge> : undefined}
             />
             <div className="filter-bar hl-filters">
-                <SearchBox id="awards-search" value={search} onChange={setSearch} placeholder="Item, Item-ID oder Charakter …" />
+                <SearchBox id="awards-search" value={search} onChange={setSearch} placeholder={t("history.latest.searchPlaceholder")} />
                 {data && (
                     <RaidChips
                         contents={data.contents}
@@ -85,21 +87,21 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                         unknownCount={data.unknownContentCount}
                     />
                 )}
-                <select id="awards-reason" className="hl-sel" aria-label="Grund" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
-                    <option value="">Alle Gründe</option>
+                <select id="awards-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
+                    <option value="">{t("history.shared.allReasons")}</option>
                     {(data?.reasons || []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
                 <SwitchRow
                     checked={view.topOnly}
                     onChange={(topOnly) => patch({ topOnly, content: "", reason: "" })}
-                    label="Nur Top-Items"
-                    tip="Nur die in den Einstellungen festgelegten Top-Items"
+                    label={t("history.latest.topOnly")}
+                    tip={t("history.latest.topOnlyTip")}
                 />
                 <FilterPopover active={view.category ? 1 : 0}>
                     <div>
-                        <label className="hl-lbl" htmlFor="awards-category">Raidtyp</label>
+                        <label className="hl-lbl" htmlFor="awards-category">{t("history.latest.raidType")}</label>
                         <select id="awards-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                            <option value="">Alle Kategorien</option>
+                            <option value="">{t("history.shared.allCategories")}</option>
                             {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
@@ -108,15 +110,15 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             <ActiveFilters filters={active} />
 
             {error
-                ? <div className="empty">Loot konnte nicht geladen werden: {error}</div>
+                ? <div className="empty">{tParts("history.latest.loadError", { error })}</div>
                 : !data
-                    ? <RaidLoader compact text="Vergaben werden geladen" />
+                    ? <RaidLoader compact text={t("history.latest.loading")} />
                     : !data.items.length
                         ? (
                             <div className="empty">
                                 {view.topOnly && !data.topItemCount
-                                    ? <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings?section=loot">Einstellungen → Loot</Link>.</>
-                                    : "Keine Vergaben für diese Filter."}
+                                    ? <>{t("history.latest.noTop")} <Link className="mlink" to="/settings?section=loot">{t("history.latest.noTopLink")}</Link>.</>
+                                    : t("history.latest.empty")}
                             </div>
                         )
                         : (
@@ -126,7 +128,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                         )}
             {data && data.totalPages > 1 && (
                 <div className="hl-foot">
-                    <span className="muted">{data.items.length} von {data.total} · neueste zuerst</span>
+                    <span className="muted">{tParts("history.latest.foot", { shown: data.items.length, total: data.total })}</span>
                     <Pager page={data} onPage={setPage} />
                 </div>
             )}

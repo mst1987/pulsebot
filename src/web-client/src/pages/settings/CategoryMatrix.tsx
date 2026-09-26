@@ -2,9 +2,11 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { getRaiderCharacters, type Category, type EventSource, type Role } from "../../api";
 import { usePersistedState } from "../../lib/persistedState";
 import {
-    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, noteChannelPick, SIGNUP_NOTE_LABEL, messageLook, TITLE_SIZE_LABEL,
+    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, noteChannelPick, signupNoteLabel, messageLook, titleSizeLabel,
+    lootSystemLabel, lootToolLabel, TITLE_SIZES,
     type CategoryRow, type RaiderCharSummary,
 } from "../../lib/settingsLogic";
+import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
@@ -35,39 +37,28 @@ export type CategoryRaidTemplates = {
     onChange: (categoryId: string, templateId: string) => void;
 };
 
-// How large the title tiles of the signup message are (src/web/embedLook.js).
-const TITLE_SIZES = ["normal", "large", "huge"].map((value) => ({ value, label: TITLE_SIZE_LABEL[value] }));
+// The segments' options are built while rendering, so their labels follow the
+// active language.
 
-const LOOT_TOOLS = [
-    { value: "gargul", label: "Gargul" },
-    { value: "rclc", label: "RCLootcouncil" },
-    { value: "", label: "keins" },
-];
+// How large the title tiles of the signup message are (src/web/embedLook.js).
+const titleSizes = () => TITLE_SIZES.map((value) => ({ value, label: titleSizeLabel(value) }));
+
+const lootTools = () => ["gargul", "rclc", ""].map((value) => ({ value, label: lootToolLabel(value) }));
 
 // Which loot system a category's raids run on (src/web/lootSystem.js). "" =
 // automatic: RCLootcouncil as the addon means Loot-Council, anything else Softres.
-const LOOT_SYSTEMS = [
-    { value: "", label: "automatisch" },
-    { value: "softres", label: "Softres" },
-    { value: "lootcouncil", label: "Loot-Council" },
-    { value: "gdkp", label: "GDKP" },
-    { value: "other", label: "Anderes" },
-];
+const lootSystems = () => ["", "softres", "lootcouncil", "gdkp", "other"].map((value) => ({ value, label: lootSystemLabel(value) }));
 
 // "Beim Anlegen ankündigen" (#306) as one control: off, or where the ping goes.
-const ANNOUNCE_MODES = [
-    { value: "", label: "aus" },
-    { value: "event", label: "Event-Kanal" },
-    { value: "talk", label: "Talk" },
-    { value: "both", label: "beide" },
+const announceModes = () => [
+    { value: "", label: translate("settings.categories.announceMode.off") },
+    { value: "event", label: translate("settings.categories.announceMode.event") },
+    { value: "talk", label: translate("settings.categories.announceMode.talk") },
+    { value: "both", label: translate("settings.categories.announceMode.both") },
 ];
 
 // The message with "Vielleicht" / "Absagen" (src/web/signupNotes.js).
-const NOTE_MODES = [
-    { value: "required", label: SIGNUP_NOTE_LABEL.required },
-    { value: "optional", label: SIGNUP_NOTE_LABEL.optional },
-    { value: "none", label: SIGNUP_NOTE_LABEL.none },
-];
+const noteModes = () => ["required", "optional", "none"].map((value) => ({ value, label: signupNoteLabel(value) }));
 
 // Where NEW events of the category are created. Raid-Helper events stay in use either way.
 const SIGNUP_SOURCES = [
@@ -132,6 +123,7 @@ export default function CategoryMatrix({
     icon: string;
     crumb: string;
 }) {
+    const t = useT();
     const [showAll, setShowAll] = usePersistedState("settings-categories-all", false);
     const [openId, setOpenId] = useState("");
     const [foldOpen, setFoldOpen] = useState(false);
@@ -187,29 +179,29 @@ export default function CategoryMatrix({
         <PartHead
             icon={icon}
             tone="settings"
-            title="Kategorien"
+            title={t("settings.sections.kategorien.label")}
             crumb={stillRaidhelper.length ? (
                 <>
-                    {`Einstellungen › ${crumb} `}
+                    {`${t("settings.crumb", { crumb })} `}
                     <Badge
                         tone="mid"
                         icon={<WarnIcon />}
-                        tip={`${stillRaidhelper.length} noch auf Raid-Helper`}
-                        tipSub={`Neue Events von ${stillRaidhelper.map((r) => r.name).join(", ")} werden noch bei Raid-Helper angelegt. Umstellen: Kategorie öffnen › Neue Events. Die Abschalt-Checkliste steht unter Verbindungen › Raid-Helper.`}
+                        tip={t("settings.categories.stillRhTip", { count: stillRaidhelper.length })}
+                        tipSub={t("settings.categories.stillRhSub", { names: stillRaidhelper.map((r) => r.name).join(", ") })}
                     >
-                        {stillRaidhelper.length} noch Raid-Helper
+                        {tParts("settings.categories.stillRh", { count: stillRaidhelper.length })}
                     </Badge>
                 </>
-            ) : `Einstellungen › ${crumb}`}
+            ) : t("settings.crumb", { crumb })}
             action={(
                 <Segment
                     size="sm"
-                    ariaLabel="Welche Kategorien"
+                    ariaLabel={t("settings.categories.whichAria")}
                     value={showAll ? "all" : "raid"}
                     onChange={(v) => setShowAll(v === "all")}
                     options={[
-                        { value: "raid", label: `Raid-Kategorien ${activeCount}` },
-                        { value: "all", label: `Alle Discord-Kategorien ${rows.length}` },
+                        { value: "raid", label: t("settings.categories.raidOnes", { count: activeCount }) },
+                        { value: "all", label: t("settings.categories.allOnes", { count: rows.length }) },
                     ]}
                 />
             )}
@@ -220,7 +212,7 @@ export default function CategoryMatrix({
         return (
             <>
                 {partHead}
-                <div className="empty">Keine Kategorien geladen (Server gewählt und Bot online?). Die Liste erscheint, sobald der Bot verbunden ist.</div>
+                <div className="empty">{t("settings.categories.empty")}</div>
             </>
         );
     }
@@ -237,45 +229,45 @@ export default function CategoryMatrix({
         return (
             <Fragment key={cat.id}>
                 <div className={`cat-row${active ? " is-on" : ""}${isOpen ? " is-open" : ""}`} data-category={cat.id}>
-                    <label className="switch" data-tip={active ? "Raid-Kategorie" : "keine Raid-Kategorie"} data-tip-sub="Kanäle dieser Kategorie enthalten Raid-Events.">
-                        <input type="checkbox" checked={active} onChange={() => onToggleCategory(cat.id)} aria-label={`${cat.name} als Raid-Kategorie`} />
+                    <label className="switch" data-tip={active ? t("settings.categories.isRaid") : t("settings.categories.notRaid")} data-tip-sub={t("settings.categories.switchSub")}>
+                        <input type="checkbox" checked={active} onChange={() => onToggleCategory(cat.id)} aria-label={t("settings.categories.switchAria", { name: cat.name })} />
                         <span className="switch-track"><span className="switch-thumb" /></span>
                     </label>
                     <div className="cat-name">
                         <span>{cat.name}</span>
                         {cat.unknown && (
-                            <Badge tone="bad" icon={<WarnIcon />} tip="Unbekannte Kategorie" tipSub="Diese ID ist konfiguriert, existiert in Discord aber nicht mehr. Abwählen und speichern entfernt sie.">
-                                unbekannt
+                            <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categories.unknownTip")} tipSub={t("settings.categories.unknownSub")}>
+                                {t("settings.categories.unknown")}
                             </Badge>
                         )}
                     </div>
                     {active ? (
                         <>
                             <div>{assigned.length
-                                ? <Badge tone="accent">{assigned.length} {assigned.length === 1 ? "Rolle" : "Rollen"}</Badge>
-                                : <Badge tone="bad" icon={<WarnIcon />}>keine</Badge>}
+                                ? <Badge tone="accent">{t("settings.categories.roleCount", { count: assigned.length })}</Badge>
+                                : <Badge tone="bad" icon={<WarnIcon />}>{t("settings.categories.noRoles")}</Badge>}
                             </div>
                             <div>{tool
                                 ? <Badge icon="inv_misc_bag_10">{tool === "gargul" ? "Gargul" : "RCLootcouncil"}</Badge>
-                                : <Badge tone="mid" icon={<WarnIcon />}>fehlt</Badge>}
+                                : <Badge tone="mid" icon={<WarnIcon />}>{t("settings.categories.missing")}</Badge>}
                             </div>
                             <div>{sheet.url
-                                ? <Badge tone="ok" icon="inv_scroll_03" tip={sheet.name || "Festes Raidsheet"} tipSub={sheet.url}>{sheet.name || "Sheet"}</Badge>
-                                : <Badge>kein Sheet</Badge>}
+                                ? <Badge tone="ok" icon="inv_scroll_03" tip={sheet.name || t("settings.categories.fixedSheet")} tipSub={sheet.url}>{sheet.name || t("settings.categories.sheet")}</Badge>
+                                : <Badge>{t("settings.categories.noSheet")}</Badge>}
                             </div>
                             <div>{summary && summary.members
-                                ? <Badge tone={openCount ? "mid" : "ok"} tip="Raider → Charakter" tipSub={`${summary.assigned} von ${summary.members} Raidern haben einen festen Charakter.`}>{summary.assigned} / {summary.members}</Badge>
+                                ? <Badge tone={openCount ? "mid" : "ok"} tip={t("settings.categories.chars")} tipSub={t("settings.categories.charsSub", { assigned: summary.assigned, members: summary.members })}>{summary.assigned} / {summary.members}</Badge>
                                 : <Badge>–</Badge>}
                             </div>
                             <Expand open={isOpen} onToggle={() => setOpenId(isOpen ? "" : cat.id)} showLabel={!isOpen} />
                         </>
-                    ) : <div className="cat-off note">keine Raid-Events</div>}
+                    ) : <div className="cat-off note">{t("settings.categories.noRaidEvents")}</div>}
                 </div>
                 {isOpen && (
                     <div className="cat-detail">
                         <div className="cat-detail-col">
                             <div>
-                                <FieldLabel tip="Raider-Rollen" tipSub="Wer eine dieser Rollen hat, gilt bei Raids dieser Kategorie als erwarteter Raider (Anwesenheit, fehlende Anmeldungen, Charakter-Zuordnung). Angeboten werden Rollen mit „Raid“ im Namen.">Raider-Rollen</FieldLabel>
+                                <FieldLabel tip={t("settings.categories.raiderRoles")} tipSub={t("settings.categories.raiderRolesSub")}>{t("settings.categories.raiderRoles")}</FieldLabel>
                                 <div className="chip-row">
                                     {roleOptions(cat.id).length ? roleOptions(cat.id).map((r) => {
                                         const on = assigned.includes(r.id);
@@ -284,70 +276,70 @@ export default function CategoryMatrix({
                                                 @{r.name}
                                             </Chip>
                                         );
-                                    }) : <span className="note">Keine Rolle gefunden, deren Name „Raid“ enthält.</span>}
+                                    }) : <span className="note">{t("settings.categories.noRaidRole")}</span>}
                                 </div>
                             </div>
                             <div>
-                                <FieldLabel tip="Raider → Charakter" tipSub="Welchen Charakter ein Raider in dieser Kategorie spielt. Überschreibt auf der Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.">Raider → Charakter</FieldLabel>
+                                <FieldLabel tip={t("settings.categories.chars")} tipSub={t("settings.categories.charsDetailSub")}>{t("settings.categories.chars")}</FieldLabel>
                                 <div className="rch-summary">
                                     {summary && summary.members ? (
                                         <>
-                                            <span><b>{summary.assigned}</b> <span className="note">von {summary.members} fest</span></span>
-                                            {openCount > 0 ? <Badge tone="mid">{openCount} offen</Badge> : <Badge tone="ok">alle fest</Badge>}
+                                            <span><b>{summary.assigned}</b> <span className="note">{tParts("settings.categories.charsOf", { members: summary.members })}</span></span>
+                                            {openCount > 0 ? <Badge tone="mid">{tParts("settings.raiderChars.open", { count: openCount })}</Badge> : <Badge tone="ok">{t("settings.raiderChars.allFixed")}</Badge>}
                                         </>
                                     ) : (
-                                        <span className="note">{(savedCategoryRoles[cat.id] || []).length ? "noch keine Raider gefunden" : "erst Raider-Rollen speichern"}</span>
+                                        <span className="note">{(savedCategoryRoles[cat.id] || []).length ? t("settings.categories.noRaiders") : t("settings.categories.saveRolesFirst")}</span>
                                     )}
                                     <span className="grow" />
                                     <Button variant="ghost" size="sm" icon="ability_rogue_disguise" onClick={() => setAssigning(cat)}
                                         disabled={!(savedCategoryRoles[cat.id] || []).length}>
-                                        Zuordnen
+                                        {t("settings.categories.assign")}
                                     </Button>
                                 </div>
                             </div>
                         </div>
                         <div className="cat-detail-col">
                             <div>
-                                <FieldLabel tip="Neue Events" tipSub="Wo neue Events dieser Kategorie angelegt werden. Raid-Helper-Events werden in jedem Fall weiter mitgenutzt – in Listen, Anwesenheit, Log- und Loot-Zuordnung.">Neue Events</FieldLabel>
-                                <Segment ariaLabel={`Neue Events ${cat.name}`} value={signupSource} onChange={(v) => onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
+                                <FieldLabel tip={t("settings.categories.newEvents")} tipSub={t("settings.categories.newEventsSub")}>{t("settings.categories.newEvents")}</FieldLabel>
+                                <Segment ariaLabel={t("settings.categories.newEventsAria", { name: cat.name })} value={signupSource} onChange={(v) => onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
                             </div>
                             {onSetupDms && (
                                 <div className="cat-switch-row">
-                                    <FieldLabel tip="Setup-DMs" tipSub="Nach der Freigabe bekommt jeder Raider eines EventHelper-Events eine DM: „Du bist in Gruppe 2 als Heiler“ bzw. „Diesmal Bank“. Nur wessen Platz sich geändert hat, bekommt bei erneuter Freigabe wieder eine. Das Setup im Kanal wird immer gepostet.">Setup-DMs</FieldLabel>
+                                    <FieldLabel tip={t("settings.categories.setupDms")} tipSub={t("settings.categories.setupDmsSub")}>{t("settings.categories.setupDms")}</FieldLabel>
                                     <label className="switch">
-                                        <input type="checkbox" checked={categorySetupDms[cat.id] === true} onChange={() => onSetupDms(cat.id, categorySetupDms[cat.id] !== true)} aria-label={`Setup-DMs ${cat.name}`} />
+                                        <input type="checkbox" checked={categorySetupDms[cat.id] === true} onChange={() => onSetupDms(cat.id, categorySetupDms[cat.id] !== true)} aria-label={t("settings.categories.setupDmsAria", { name: cat.name })} />
                                         <span className="switch-track"><span className="switch-thumb" /></span>
                                     </label>
                                 </div>
                             )}
                             {onAnnounce && (
                                 <div>
-                                    <FieldLabel tip="Beim Anlegen ankündigen" tipSub="Ein neues EventHelper-Event postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt dabei die Raider-Rollen dieser Kategorie — genau einmal je Event, auch bei Serien-Events. „Talk“/„beide“ brauchen einen Ping-Kanal auf dem Kommunikations-Discord.">Ankündigung</FieldLabel>
-                                    <Segment ariaLabel={`Ankündigung ${cat.name}`}
+                                    <FieldLabel tip={t("settings.categories.announceTip")} tipSub={t("settings.categories.announceSub")}>{t("settings.categories.announce")}</FieldLabel>
+                                    <Segment ariaLabel={t("settings.categories.announceAria", { name: cat.name })}
                                         value={categoryAnnounce[cat.id] && categoryAnnounce[cat.id].enabled ? (categoryAnnounce[cat.id].target || "event") : ""}
-                                        onChange={(v) => onAnnounce(cat.id, v)} options={ANNOUNCE_MODES} />
+                                        onChange={(v) => onAnnounce(cat.id, v)} options={announceModes()} />
                                 </div>
                             )}
                             {onSignupNotes && (
                                 <div>
-                                    <FieldLabel tip="Nachricht bei Vielleicht/Absage" tipSub="Wer in Discord „Vielleicht“ oder „Absagen“ drückt, bekommt ein Feld für eine kurze Nachricht an die Raidleitung. Der Bot postet sie in den Kanal, den du unter Verbindungen › Discord-Server wählst — oder darunter in einen eigenen dieser Kategorie. „keine“ fragt nicht und postet nichts.">Nachricht bei Vielleicht/Absage</FieldLabel>
-                                    <Segment ariaLabel={`Nachricht bei Vielleicht/Absage ${cat.name}`}
+                                    <FieldLabel tip={t("settings.categories.notes")} tipSub={t("settings.categories.notesSub")}>{t("settings.categories.notes")}</FieldLabel>
+                                    <Segment ariaLabel={t("settings.categories.notesAria", { name: cat.name })}
                                         value={signupNoteMode(categorySignupNotes, cat.id)}
-                                        onChange={(v) => onSignupNotes(cat.id, v)} options={NOTE_MODES} />
+                                        onChange={(v) => onSignupNotes(cat.id, v)} options={noteModes()} />
                                     {onSignupNoteChannel && noteChannels && noteChannels.channels.length > 0 && signupNoteMode(categorySignupNotes, cat.id) !== "none" && (() => {
                                         // #335: the category's own channel, else the default one.
                                         const own = categorySignupNoteChannel[cat.id] || "";
                                         const pick = noteChannelPick(noteChannels.channels, noteChannels.defaultId, own);
                                         return (
                                             <div className="cat-note-channel">
-                                                <select id={`catnote-${cat.id}`} value={own} aria-label={`Kanal für Vielleicht/Absage ${cat.name}`}
-                                                    data-tip="Kanal" data-tip-sub="Wohin die Nachrichten dieser Kategorie gehen. „Standard“ ist der Kanal unter Verbindungen › Discord-Server. Ein Kanal, den der Bot nicht mehr erreicht, fällt auf den Standard zurück."
+                                                <select id={`catnote-${cat.id}`} value={own} aria-label={t("settings.categories.noteChannelAria", { name: cat.name })}
+                                                    data-tip={t("settings.categories.noteChannelTip")} data-tip-sub={t("settings.categories.noteChannelSub")}
                                                     onChange={(e) => onSignupNoteChannel(cat.id, e.target.value)}>
                                                     <option value="">{pick.defaultLabel}</option>
-                                                    {pick.unreachable && <option value={own}>{own} (nicht erreichbar)</option>}
+                                                    {pick.unreachable && <option value={own}>{tParts("settings.categories.unreachableOption", { id: own })}</option>}
                                                     {noteChannels.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                                 </select>
-                                                {pick.unreachable && <Badge tone="bad" tip="Kanal nicht erreichbar" tipSub="Der Bot sieht diesen Kanal nicht (mehr) oder darf dort nicht schreiben. Nachrichten gehen solange in den Standard-Kanal.">nicht erreichbar</Badge>}
+                                                {pick.unreachable && <Badge tone="bad" tip={t("settings.categories.unreachableTip")} tipSub={t("settings.categories.unreachableSub")}>{t("settings.categories.unreachable")}</Badge>}
                                             </div>
                                         );
                                     })()}
@@ -355,9 +347,9 @@ export default function CategoryMatrix({
                             )}
                             {onDiscordEvent && (
                                 <div className="cat-switch-row">
-                                    <FieldLabel tip="Discord-Event" tipSub="Zu jedem EventHelper-Event dieser Kategorie legt der Bot ein Discord-Event an (Server-Seitenleiste, Handy-App). Es zieht bei Verschieben, Absagen und Löschen mit. Die Anmeldung läuft weiter nur über die Nachricht im Kanal — „Interessiert“ zählt nicht. Der Bot braucht dafür das Recht „Events verwalten“.">Discord-Event</FieldLabel>
+                                    <FieldLabel tip={t("settings.categories.discordEvent")} tipSub={t("settings.categories.discordEventSub")}>{t("settings.categories.discordEvent")}</FieldLabel>
                                     <label className="switch">
-                                        <input type="checkbox" checked={categoryDiscordEvent[cat.id] === true} onChange={() => onDiscordEvent(cat.id, categoryDiscordEvent[cat.id] !== true)} aria-label={`Discord-Event ${cat.name}`} />
+                                        <input type="checkbox" checked={categoryDiscordEvent[cat.id] === true} onChange={() => onDiscordEvent(cat.id, categoryDiscordEvent[cat.id] !== true)} aria-label={t("settings.categories.discordEventAria", { name: cat.name })} />
                                         <span className="switch-track"><span className="switch-thumb" /></span>
                                     </label>
                                 </div>
@@ -367,57 +359,57 @@ export default function CategoryMatrix({
                                 return (
                                     <>
                                         <div className="cat-switch-row">
-                                            <FieldLabel tip="Raid-Bild" tipSub="Unter der Anmelde-Nachricht steht ein Bild des Raids (Blizzards Zonenbild der größten Instanz des Abends). Ein Event mit eigenem Banner behält seins.">Raid-Bild</FieldLabel>
+                                            <FieldLabel tip={t("settings.categories.raidArt")} tipSub={t("settings.categories.raidArtSub")}>{t("settings.categories.raidArt")}</FieldLabel>
                                             <label className="switch">
-                                                <input type="checkbox" checked={look.raidArt} onChange={() => onMessageLook(cat.id, { ...look, raidArt: !look.raidArt })} aria-label={`Raid-Bild ${cat.name}`} />
+                                                <input type="checkbox" checked={look.raidArt} onChange={() => onMessageLook(cat.id, { ...look, raidArt: !look.raidArt })} aria-label={t("settings.categories.raidArtAria", { name: cat.name })} />
                                                 <span className="switch-track"><span className="switch-thumb" /></span>
                                             </label>
                                         </div>
                                         <div>
-                                            <FieldLabel tip="Titelgröße" tipSub="Wie groß die Buchstaben-Kacheln des Titels in der Anmelde-Nachricht sind. „sehr groß“ bricht einen langen Titel eher in zwei Zeilen um.">Titelgröße</FieldLabel>
-                                            <Segment ariaLabel={`Titelgröße ${cat.name}`} value={look.titleSize} onChange={(v) => onMessageLook(cat.id, { ...look, titleSize: v })} options={TITLE_SIZES} />
+                                            <FieldLabel tip={t("settings.categories.titleSize")} tipSub={t("settings.categories.titleSizeSub")}>{t("settings.categories.titleSize")}</FieldLabel>
+                                            <Segment ariaLabel={t("settings.categories.titleSizeAria", { name: cat.name })} value={look.titleSize} onChange={(v) => onMessageLook(cat.id, { ...look, titleSize: v })} options={titleSizes()} />
                                         </div>
                                     </>
                                 );
                             })()}
                             {onVoiceChannel && (
                                 <div>
-                                    <FieldLabel htmlFor={`catvoice-${cat.id}`} tip="Sprachkanal" tipSub="Wo sich die Raids dieser Kategorie treffen. Vorbelegung beim Anlegen eines Events — dort noch änderbar. Steht in der Anmelde-Nachricht und ist der Ort des Discord-Events.">Sprachkanal</FieldLabel>
+                                    <FieldLabel htmlFor={`catvoice-${cat.id}`} tip={t("settings.categories.voice")} tipSub={t("settings.categories.voiceSub")}>{t("settings.categories.voice")}</FieldLabel>
                                     {voiceChannels.length ? (
                                         <select id={`catvoice-${cat.id}`} value={categoryVoiceChannel[cat.id] || ""} onChange={(e) => onVoiceChannel(cat.id, e.target.value)}>
-                                            <option value="">— keiner —</option>
+                                            <option value="">{t("settings.categories.noVoiceOption")}</option>
                                             {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                         </select>
-                                    ) : <span className="note">Keine Sprachkanäle geladen (Bot offline).</span>}
+                                    ) : <span className="note">{t("settings.categories.noVoice")}</span>}
                                 </div>
                             )}
                             <div>
-                                <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
-                                <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />
+                                <FieldLabel tip={t("settings.categories.lootAddon")} tipSub={t("settings.categories.lootAddonSub")}>{t("settings.categories.lootAddon")}</FieldLabel>
+                                <Segment ariaLabel={t("settings.categories.lootAddonAria", { name: cat.name })} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={lootTools()} />
                             </div>
                             {onLootSystem && (
                                 <div>
-                                    <FieldLabel tip="Lootsystem" tipSub={`Bestimmt, was ein Raid dieser Kategorie anbietet: nur bei Softres gibt es den Softres-Schritt, „Softres fehlt“ und die Softres-Liste im Menü. „automatisch“ = ${tool === "rclc" ? "Loot-Council (Addon RCLootcouncil)" : "Softres"}. Einzelne Raids lassen sich auf ihrer Seite umstellen oder Softres zuschalten.`}>Lootsystem</FieldLabel>
-                                    <Segment ariaLabel={`Lootsystem ${cat.name}`} value={categoryLootSystem[cat.id] || ""} onChange={(v) => onLootSystem(cat.id, v)} options={LOOT_SYSTEMS} />
+                                    <FieldLabel tip={t("settings.categories.lootSystem")} tipSub={t("settings.categories.lootSystemSub", { auto: tool === "rclc" ? t("settings.categories.lootSystemAutoRclc") : "Softres" })}>{t("settings.categories.lootSystem")}</FieldLabel>
+                                    <Segment ariaLabel={t("settings.categories.lootSystemAria", { name: cat.name })} value={categoryLootSystem[cat.id] || ""} onChange={(v) => onLootSystem(cat.id, v)} options={lootSystems()} />
                                 </div>
                             )}
                             {raidTemplates && (
                                 <div>
-                                    <FieldLabel htmlFor={`cattpl-${cat.id}`} tip="Standard-Vorlage" tipSub="Die Raid-Vorlage, von der ein neues Event dieser Kategorie ausgeht. Solange sie Standard ist, lässt sie sich nicht löschen. Vorlagen pflegst du unter Raid-Events › Raid-Vorlagen.">Standard-Vorlage</FieldLabel>
+                                    <FieldLabel htmlFor={`cattpl-${cat.id}`} tip={t("settings.categories.template")} tipSub={t("settings.categories.templateSub")}>{t("settings.categories.template")}</FieldLabel>
                                     <select id={`cattpl-${cat.id}`} value={raidTemplates.value[cat.id] || ""} onChange={(e) => raidTemplates.onChange(cat.id, e.target.value)}>
-                                        <option value="">— keine —</option>
-                                        {raidTemplates.options.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                                        <option value="">{t("settings.categories.noTemplate")}</option>
+                                        {raidTemplates.options.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("settings.noName")}</option>)}
                                     </select>
                                 </div>
                             )}
                             <div>
-                                <FieldLabel htmlFor={`catsheet-name-${cat.id}`} tip="Festes Raidsheet" tipSub="Jeder Raid dieser Kategorie verlinkt dieses Sheet — außer für den Raid selbst wurde eins erstellt. Vorlagen nach Keywords: Module › Raidsheets.">Festes Raidsheet</FieldLabel>
+                                <FieldLabel htmlFor={`catsheet-name-${cat.id}`} tip={t("settings.categories.fixedSheet")} tipSub={t("settings.categories.fixedSheetSub")}>{t("settings.categories.fixedSheet")}</FieldLabel>
                                 <div className="sheet-field">
                                     <WowIcon name="inv_scroll_03" size={20} />
                                     <div className="sheet-inputs">
-                                        <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder="Anzeigename, z. B. „T6 Setup – Hyjal/BT“"
+                                        <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder={t("settings.categories.sheetNamePlaceholder")}
                                             onChange={(e) => onSheet(cat.id, { ...sheet, name: e.target.value })} />
-                                        <input type="url" className="mono" aria-label="Link des Sheets" value={sheet.url} placeholder="https://docs.google.com/spreadsheets/… (leer = keins)"
+                                        <input type="url" className="mono" aria-label={t("settings.categories.sheetLinkAria")} value={sheet.url} placeholder={t("settings.categories.sheetUrlPlaceholder")}
                                             onChange={(e) => onSheet(cat.id, { ...sheet, url: e.target.value })} />
                                     </div>
                                 </div>
@@ -435,14 +427,14 @@ export default function CategoryMatrix({
             <div className="cat-list table-scroll">
                 <div className="cat-inner">
                     <div className="cat-row cat-head" aria-hidden="true">
-                        <span>Aktiv</span><span>Kategorie</span><span>Raider-Rollen</span><span>Loot-Addon</span><span>Raidsheet</span><span>Chars</span><span />
+                        <span>{t("settings.categories.colActive")}</span><span>{t("settings.categories.colCategory")}</span><span>{t("settings.categories.raiderRoles")}</span><span>{t("settings.categories.lootAddon")}</span><span>{t("settings.categories.colRaidsheet")}</span><span>{t("settings.categories.colChars")}</span><span />
                     </div>
                     {shown.map(row)}
-                    {!shown.length && <div className="empty">Noch keine Raid-Kategorie — unten eine Discord-Kategorie einschalten.</div>}
+                    {!shown.length && <div className="empty">{t("settings.categories.noneShown")}</div>}
                     {folded.length > 0 && (
                         <>
                             <div className="cat-fold">
-                                <span className="note">{folded.length} weitere Discord-{folded.length === 1 ? "Kategorie" : "Kategorien"} ohne Raid-Events</span>
+                                <span className="note">{t("settings.categories.folded", { count: folded.length })}</span>
                                 <span className="cat-fold-names mono">{folded.slice(0, 4).map((c) => c.name).join(", ")}{folded.length > 4 ? " …" : ""}</span>
                                 <Expand open={foldOpen} onToggle={() => setFoldOpen(!foldOpen)} />
                             </div>

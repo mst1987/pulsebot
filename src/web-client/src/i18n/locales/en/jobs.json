@@ -1,6 +1,8 @@
 {
     "done": "{label} done.",
     "failed": "{label} failed.",
+    "lost": "The process was interrupted. Please start it again.",
+    "slow": "This is taking unusually long. It keeps running in the background — reload the page later.",
     "pageLoader": {
         "busy": "Processing"
     },

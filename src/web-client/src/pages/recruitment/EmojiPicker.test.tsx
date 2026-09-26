@@ -4,8 +4,9 @@
 import { useRef } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Emoji } from "../../api";
+import { switchLang } from "../../test/i18n";
 import EmojiPicker from "./EmojiPicker";
 
 const EMOJIS: Emoji[] = [
@@ -59,5 +60,20 @@ describe("EmojiPicker", () => {
     it("stays away on a server without emojis", () => {
         render(<Harness value="" onChange={() => undefined} emojis={[]} />);
         expect(screen.queryByRole("button", { name: /Server-Emoji/ })).not.toBeInTheDocument();
+    });
+});
+
+describe("EmojiPicker in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("labels its button and search in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        render(<Harness value="" onChange={() => undefined} />);
+        const button = screen.getByRole("button", { name: /Server emoji/ });
+        expect(button).toHaveAttribute("data-tip", "Insert server emoji");
+        await user.click(button);
+        await user.type(screen.getByPlaceholderText(/Search emoji/), "xyz");
+        expect(screen.getByText("No matches.")).toBeInTheDocument();
     });
 });

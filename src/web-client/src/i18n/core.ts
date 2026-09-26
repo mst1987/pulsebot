@@ -65,9 +65,9 @@ export function pluralForm(lang: Lang, count: number): string {
     }
 }
 
-/** A leaf as text: a plural object picks its form by params.count. */
-export function renderLeaf(leaf: Leaf, lang: Lang, params?: Params): string {
-    if (typeof leaf === "string") return interpolate(leaf, params);
+/** The text of a leaf before its {params} are filled in: a plural object picks its form by params.count. */
+function pickForm(leaf: Leaf, lang: Lang, params?: Params): string {
+    if (typeof leaf === "string") return leaf;
     const count = Number(params && params.count);
     const forms = leaf;
     let form = forms.other;
@@ -76,7 +76,35 @@ export function renderLeaf(leaf: Leaf, lang: Lang, params?: Params): string {
         const picked = forms[pluralForm(lang, Number.isFinite(count) ? count : 0)];
         if (picked !== undefined) form = picked;
     }
-    return interpolate(form, params);
+    return form;
+}
+
+/** A leaf as text: a plural object picks its form by params.count. */
+export function renderLeaf(leaf: Leaf, lang: Lang, params?: Params): string {
+    return interpolate(pickForm(leaf, lang, params), params);
+}
+
+/**
+ * Like interpolate, but every filled-in value stays a piece of its own:
+ * "{count} offen" + { count: 2 } -> ["2", " offen"]. As React children these
+ * are the same text nodes the JSX `{count} offen` made, so a translated badge
+ * draws pixel for pixel like its hard-coded original (#440).
+ */
+export function interpolateParts(text: string, params?: Params): string[] {
+    return text.split(/(\{\w+\})/).map((piece) => {
+        const m = /^\{(\w+)\}$/.exec(piece);
+        const value = m && params ? params[m[1]] : undefined;
+        return m && value !== undefined && value !== null ? String(value) : piece;
+    }).filter((piece) => piece !== "");
+}
+
+/** The leaf of `key` in `lang`, else in German (reported to onMissing), else null. */
+function lookup(dicts: Record<string, FlatDict>, lang: Lang, key: string, onMissing?: (lang: Lang, key: string) => void): { leaf: Leaf; lang: Lang } | null {
+    const own = dicts[lang] && dicts[lang][key];
+    if (own !== undefined) return { leaf: own, lang };
+    if (onMissing) onMissing(lang, key);
+    const fallback = lang !== DEFAULT_LANG && dicts[DEFAULT_LANG] ? dicts[DEFAULT_LANG][key] : undefined;
+    return fallback !== undefined ? { leaf: fallback, lang: "de" } : null;
 }
 
 /**
@@ -86,12 +114,14 @@ export function renderLeaf(leaf: Leaf, lang: Lang, params?: Params): string {
  * lacks (the German fallback included), so dev and tests can list them.
  */
 export function translate(dicts: Record<string, FlatDict>, lang: Lang, key: string, params?: Params, onMissing?: (lang: Lang, key: string) => void): string {
-    const own = dicts[lang] && dicts[lang][key];
-    if (own !== undefined) return renderLeaf(own, lang, params);
-    if (onMissing) onMissing(lang, key);
-    const fallback = lang !== DEFAULT_LANG && dicts[DEFAULT_LANG] ? dicts[DEFAULT_LANG][key] : undefined;
-    if (fallback !== undefined) return renderLeaf(fallback, "de", params);
-    return key;
+    const hit = lookup(dicts, lang, key, onMissing);
+    return hit ? renderLeaf(hit.leaf, hit.lang, params) : key;
+}
+
+/** translate, as the pieces of interpolateParts. */
+export function translateParts(dicts: Record<string, FlatDict>, lang: Lang, key: string, params?: Params, onMissing?: (lang: Lang, key: string) => void): string[] {
+    const hit = lookup(dicts, lang, key, onMissing);
+    return hit ? interpolateParts(pickForm(hit.leaf, hit.lang, params), params) : [key];
 }
 
 /** Keys one dictionary has and the other lacks, both ways — the parity check. */

@@ -8,6 +8,7 @@ import { FieldLabel } from "../../components/ui/Field";
 import Chip from "../../components/ui/Chip";
 import { Button, IconButton } from "../../components/ui/Button";
 import { splitList } from "./settingsDraft";
+import { useT } from "../../i18n";
 
 // The drops the guild counts as "big". Picked from the live Wowhead search and
 // stored with icon + quality, so the dashboard can render an award without
@@ -16,6 +17,7 @@ export function TopItemsField({ items, onChange }: {
     items: TopItem[];
     onChange: (items: TopItem[]) => void;
 }) {
+    const t = useT();
     const add = (it: { id: number; name: string; iconUrl?: string; quality?: number | null }) => {
         if (items.some((x) => x.id === it.id)) return;
         onChange([...items, { id: it.id, name: it.name, iconUrl: it.iconUrl || "", quality: it.quality ?? null }]);
@@ -23,21 +25,21 @@ export function TopItemsField({ items, onChange }: {
 
     return (
         <div className="set-field">
-            <FieldLabel tip="Top-Items" tipSub="Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Latest Loot“ auf — mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.">Item hinzufügen</FieldLabel>
+            <FieldLabel tip={t("settings.sections.topitems.label")} tipSub={t("settings.fields.topItemsSub")}>{t("settings.fields.addItem")}</FieldLabel>
             <ItemSearchPicker search={searchSettingsItems} onPick={add} />
             {items.length > 0 ? (
                 <ul className="topitem-list">
                     {items.map((it) => (
                         <li key={it.id} className="topitem">
-                            <span className="topitem-name" data-tip={it.name || `Item ${it.id}`} data-tip-sub={`Item-ID ${it.id}`}>
+                            <span className="topitem-name" data-tip={it.name || t("settings.fields.item", { id: it.id })} data-tip-sub={t("settings.fields.itemId", { id: it.id })}>
                                 {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
-                                <span {...itemQualityProps(it.quality)}>{it.name || `Item ${it.id}`}</span>
+                                <span {...itemQualityProps(it.quality)}>{it.name || t("settings.fields.item", { id: it.id })}</span>
                             </span>
-                            <IconButton icon={<XIcon />} tip="Entfernen" size="sm" onClick={() => onChange(items.filter((x) => x.id !== it.id))} />
+                            <IconButton icon={<XIcon />} tip={t("common.remove")} size="sm" onClick={() => onChange(items.filter((x) => x.id !== it.id))} />
                         </li>
                     ))}
                 </ul>
-            ) : <div className="empty">Noch kein Top-Item.</div>}
+            ) : <div className="empty">{t("settings.fields.noTopItem")}</div>}
         </div>
     );
 }
@@ -48,6 +50,7 @@ export function ChannelListField({ ids, channels, onChange }: {
     channels: TextChannel[];
     onChange: (ids: string[]) => void;
 }) {
+    const t = useT();
     const [typed, setTyped] = useState("");
     const byId = new Map(channels.map((c) => [c.id, c]));
     const add = (id: string) => {
@@ -60,8 +63,8 @@ export function ChannelListField({ ids, channels, onChange }: {
                 <div className="chip-row">
                     {ids.map((id) => (
                         <Chip
-                            key={id} tone="accent" tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} tipSub={`ID ${id}`}
-                            onRemove={() => onChange(ids.filter((x) => x !== id))} removeLabel="Kanal entfernen"
+                            key={id} tone="accent" tip={byId.get(id) ? `#${byId.get(id)!.name}` : t("settings.fields.unknownChannel")} tipSub={`ID ${id}`}
+                            onRemove={() => onChange(ids.filter((x) => x !== id))} removeLabel={t("settings.fields.removeChannel")}
                         >
                             {byId.get(id) ? `#${byId.get(id)!.name}` : <span className="mono">{id}</span>}
                         </Chip>
@@ -69,12 +72,12 @@ export function ChannelListField({ ids, channels, onChange }: {
                 </div>
             )}
             {channels.length ? (
-                <ChannelPicker value="" channels={channels.filter((c) => !ids.includes(c.id))} onChange={add} placeholder="+ Kanal hinzufügen" />
+                <ChannelPicker value="" channels={channels.filter((c) => !ids.includes(c.id))} onChange={add} placeholder={t("settings.fields.addChannel")} />
             ) : (
                 <div className="inline-add">
-                    <input type="text" className="mono" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Discord-Channel-ID"
+                    <input type="text" className="mono" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={t("settings.ui.channelIdPlaceholder")}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(typed); setTyped(""); } }} />
-                    <Button variant="ghost" onClick={() => { add(typed); setTyped(""); }} disabled={!typed.trim()}>Hinzufügen</Button>
+                    <Button variant="ghost" onClick={() => { add(typed); setTyped(""); }} disabled={!typed.trim()}>{t("common.add")}</Button>
                 </div>
             )}
         </>

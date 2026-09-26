@@ -3,6 +3,7 @@
 // checked on the source in test/web-client/raidhelperRetirement.test.js.
 import { describe, expect, it } from "vitest";
 import * as mod from "./raidhelperRetirement";
+import { inLang } from "../test/i18n";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
 const lib: any = mod;
@@ -55,6 +56,19 @@ describe("the checklist's rules", () => {
         expect(lib.importSummary({ ...base, summary: { ...base.summary, events: 0 } })).toBe("Keine Raid-Helper-Events gefunden.");
         expect(lib.unmappedText(base)).toBe("Nicht zuordenbar: Unholy_DPS (2×)");
         expect(lib.unmappedText({ ...base, summary: { ...base.summary, unmapped: {} } })).toBe("");
+    });
+
+    it("words the badges, the switch and the import in English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(lib.statusLook("ok")).toEqual({ tone: "ok", label: "done" });
+            expect(lib.headLook(checklist({ done: 2, total: 5 })).label).toBe("2 of 5 done");
+            expect(lib.switchState(checklist({ ready: false, blockers: ["categories"] })).reason).toBe("Finish first: Alle Event-Kategorien auf EventHelper.");
+            const now = Date.UTC(2026, 8, 16);
+            expect(lib.disabledSince(checklist({ disabled: true, disabledAt: now - 3 * 86400000, disabledBy: "Orga" }), now)).toBe("3 days ago by Orga");
+            const base = { dryRun: true, stored: null, summary: { events: 4, skippedEvents: 0, entries: 60, users: 18, unmapped: { Unholy_DPS: 2 } } };
+            expect(lib.importSummary(base)).toBe("4 events · 60 entries for 18 raiders would be saved.");
+            expect(lib.unmappedText(base)).toBe("Not assignable: Unholy_DPS (2×)");
+        });
     });
 });
 

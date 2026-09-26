@@ -6,6 +6,7 @@ import { classColorProps } from "../../components/ClassSpec";
 import { IconLink, RoleBadge } from "../../components/roster/RosterCommon";
 import { attendanceTone, combineAttendance, nightLabel } from "../../lib/rosterView";
 import { Badge, Button, WowIcon, buttonClass } from "../../components/ui";
+import { tParts, useT } from "../../i18n";
 
 function averageItemLevel(data: HistoryCharData): number {
     if (data.charSummary?.itemLevel) return data.charSummary.itemLevel;
@@ -33,6 +34,13 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
     const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
     const high = gear ? gear.issues.filter((i) => i.severity === "high").length : 0;
     const when = gear?.generatedAt ? fmtMs(gear.generatedAt, false) : "";
+    const t = useT();
+    const reportName = gear ? (gear.reportTitle || gear.zone || "") : "";
+    const evalSub = !gear
+        ? t("history.hero.evalNone")
+        : reportName && when
+            ? t("history.hero.evalSubDated", { report: reportName, date: when })
+            : t("history.hero.evalSub", { report: reportName || when });
 
     return (
         <header className="dash-card ros-hero" style={{ "--class-color": info?.classColor || undefined } as CSSProperties}>
@@ -41,10 +49,10 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                     {info?.className
                         ? <WowIcon name={`classicon_${info.className.toLowerCase()}`} size={46} />
                         : <span className="ros-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
-                    {!!summary?.level && <span className="ros-lvl" data-tip="Level" data-tip-sub="Laut Battle.net-Profil.">{summary.level}</span>}
+                    {!!summary?.level && <span className="ros-lvl" data-tip={t("history.hero.level")} data-tip-sub={t("history.hero.perProfile")}>{summary.level}</span>}
                 </div>
                 <div className="ros-hero-ident">
-                    <div className="kicker">Charakter</div>
+                    <div className="kicker">{t("history.hero.kicker")}</div>
                     <h1 className="ros-hero-title">{data.character}</h1>
                     <div className="ros-hero-sub">
                         {info?.className
@@ -54,7 +62,7 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                                     {info.spec ? `${info.spec} ${info.className}` : info.className}
                                 </span>
                             )
-                            : <span>Klasse noch nicht aufgelöst</span>}
+                            : <span>{t("history.hero.classUnknown")}</span>}
                         {!!realm && <><span aria-hidden="true">·</span><span>{realm}</span></>}
                         {!!roster?.role && <RoleBadge role={roster.role} />}
                         {roster?.categories.map((c) => (
@@ -68,41 +76,41 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                     <IconLink href={data.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" size="md" />
                     <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
                     {data.gearConfigured
-                        ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>Gear neu laden</Button>
-                        : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />Battle.net einrichten</Link>}
+                        ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>{t("history.hero.reloadGear")}</Button>
+                        : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</Link>}
                 </div>
             </div>
             <div className="ros-hero-foot">
                 <HeroStat
-                    label="Ø iLvl"
+                    label={t("history.hero.avgLabel")}
                     tone="total"
-                    tip="Ø Item-Level"
-                    tipSub={data.charSummary?.itemLevel ? "Laut Battle.net-Profil." : "Mittel über das Gear, das die Battle.net-API zurückgegeben hat."}
+                    tip={t("history.hero.avgTip")}
+                    tipSub={data.charSummary?.itemLevel ? t("history.hero.perProfile") : t("history.hero.avgSubMean")}
                 >
                     {avgIlvl || "–"}
                 </HeroStat>
                 {att && (
                     <HeroStat
-                        label="Anwesenheit"
+                        label={t("history.char.attendance")}
                         tone={att.pct === null ? undefined : ({ ok: "ok", mid: "mid", bad: "warn" } as const)[attendanceTone(att.pct) || "ok"]}
-                        tip={att.total ? `${att.attended} von ${att.total} Raids` : "Keine Raids gezählt"}
-                        tipSub="Über alle Raid-Kategorien des Charakters, je Kategorie die letzten 11 Raids."
+                        tip={att.total ? t("history.hero.attTip", { attended: att.attended, total: att.total }) : t("history.hero.attNone")}
+                        tipSub={t("history.hero.attSub")}
                     >
                         {att.pct === null ? "–" : <>{att.pct}<small>% · {att.attended}/{att.total}</small></>}
                     </HeroStat>
                 )}
                 <HeroStat
-                    label="Gear-Probleme"
+                    label={t("history.hero.issues")}
                     tone={gear ? (gear.issueCount ? "warn" : "ok") : undefined}
-                    tip={gear ? `${gear.issueCount} Befund${gear.issueCount === 1 ? "" : "e"}` : "nicht ausgewertet"}
-                    tipSub={gear ? `Auswertung ${[gear.reportTitle || gear.zone, when].filter(Boolean).join(" vom ")}.` : "In keiner der gespeicherten Auswertungen enthalten."}
+                    tip={gear ? t("history.hero.findings", { count: gear.issueCount }) : t("history.shared.notEvaluated")}
+                    tipSub={evalSub}
                 >
-                    {gear ? <>{gear.issueCount}{!!high && <small>{high} schwer</small>}</> : "–"}
+                    {gear ? <>{gear.issueCount}{!!high && <small>{tParts("history.shared.high", { count: high })}</small>}</> : "–"}
                 </HeroStat>
-                <HeroStat label="Loot" tip="Importierte Items" tipSub="Aus den Gargul-/RCLootcouncil-Importen.">
-                    {data.items.length}<small>Items</small>
+                <HeroStat label={t("history.hero.loot")} tip={t("history.hero.lootTip")} tipSub={t("history.hero.lootSub")}>
+                    {data.items.length}<small>{t("history.hero.itemsUnit")}</small>
                 </HeroStat>
-                {!!summary?.lastLogin && <span className="ros-hero-seen">zuletzt online {nightLabel(summary.lastLogin)}</span>}
+                {!!summary?.lastLogin && <span className="ros-hero-seen">{tParts("history.hero.lastOnline", { date: nightLabel(summary.lastLogin) })}</span>}
             </div>
         </header>
     );

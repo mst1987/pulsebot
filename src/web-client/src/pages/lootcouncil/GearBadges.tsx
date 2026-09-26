@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { CouncilCandidate, WornItem } from "../../api";
 import { Badge, Button } from "../../components/ui";
 import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/icons";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { gearCounts, raiderHref, wornWowheadUrl } from "./council";
@@ -17,12 +18,17 @@ type CouncilGear = NonNullable<CouncilCandidate["gear"]>;
  * the comparison marks bottom left — and explain themselves in the tooltip box.
  */
 export function WornIcon({ item }: { item: WornItem }) {
+    const t = useT();
     const noench = item.enchantStatus === "missing";
     const marks = [
         item.isBis ? "lc-worn-bis" : "",
         noench ? "lc-worn-noench" : "",
         item.situational ? "lc-worn-sit" : "",
     ].filter(Boolean).join(" ");
+    const sub = item.replacedSituational;
+    const subSource = sub && !sub.sameRaid
+        ? (sub.reportTitle ? t("common.quoted", { text: sub.reportTitle }) : t("lootcouncil.gear.olderEvaluation"))
+        : "";
     return (
         <a
             className={`lc-worn ${marks}`}
@@ -34,21 +40,23 @@ export function WornIcon({ item }: { item: WornItem }) {
             {item.iconUrl
                 ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
                 : <span className="lc-worn-img lc-worn-blank" />}
-            {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" data-tip="BiS" data-tip-sub={`${item.itemName} steht auf der BiS-Liste dieses Raiders.`}>BiS</span> : null}
-            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" data-tip="Keine Verzauberung" data-tip-sub={`${item.itemName} trägt keine Verzauberung. Die Simulation rechnet das Teil so, wie es ist.`}>!</span> : null}
+            {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" data-tip="BiS" data-tip-sub={t("lootcouncil.gear.wornBisTipSub", { item: item.itemName })}>BiS</span> : null}
+            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" data-tip={t("lootcouncil.gear.wornNoEnchTip")} data-tip-sub={t("lootcouncil.gear.wornNoEnchTipSub", { item: item.itemName })}>!</span> : null}
             {item.emptySockets > 0
-                ? <span className="lc-worn-tag lc-worn-tag-socket" data-tip={`${item.emptySockets} leere${item.emptySockets === 1 ? "r" : ""} Sockel`} data-tip-sub="Die Simulation rechnet den Sockel leer." />
+                ? <span className="lc-worn-tag lc-worn-tag-socket" data-tip={t("lootcouncil.gear.emptySockets", { count: item.emptySockets })} data-tip-sub={t("lootcouncil.gear.emptySocketsTipSub")} />
                 : null}
             {item.situational ? (
-                <span className="lc-worn-mark lc-worn-mark-sit" data-tip="Zählt im Vergleich nicht" data-tip-sub={`${item.situational.note}.`}>!</span>
+                <span className="lc-worn-mark lc-worn-mark-sit" data-tip={t("lootcouncil.gear.sitMarkTip")} data-tip-sub={`${item.situational.note}.`}>!</span>
             ) : null}
-            {item.replacedSituational ? (
+            {sub ? (
                 <span
                     className="lc-worn-mark lc-worn-mark-sub"
-                    data-tip={`Steht hier statt „${item.replacedSituational.itemName}“`}
-                    data-tip-sub={`Das ${item.replacedSituational.note}. Gezeigt wird, was ${item.replacedSituational.sameRaid
-                        ? `im selben Raid${item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte`
-                        : `${item.replacedSituational.reportTitle ? `„${item.replacedSituational.reportTitle}“` : "eine ältere Auswertung"} auf dem Slot zeigt`}.`}
+                    data-tip={t("lootcouncil.gear.replacedTip", { item: sub.itemName })}
+                    data-tip-sub={sub.sameRaid
+                        ? (sub.fight
+                            ? t("lootcouncil.gear.replacedSameRaidFight", { note: sub.note, fight: sub.fight })
+                            : t("lootcouncil.gear.replacedSameRaid", { note: sub.note }))
+                        : t("lootcouncil.gear.replacedOlder", { note: sub.note, source: subSource })}
                 >
                     ↺
                 </span>
@@ -62,6 +70,7 @@ export function WornIcon({ item }: { item: WornItem }) {
  * trinkets, both hands for a two-hander — with the piece that would go marked.
  */
 export function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
+    const t = useT();
     const options = candidate.slotOptions.length
         ? candidate.slotOptions
         : [{ slot: candidate.slot, slotName: candidate.slotName, chosen: true, item: candidate.replaces }];
@@ -72,7 +81,7 @@ export function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
                     key={opt.slot}
                     className={`lc-slot${opt.chosen ? " lc-slot-chosen" : ""}`}
                     data-tip={opt.slotName}
-                    data-tip-sub={opt.chosen ? "Wird belegt." : "Bleibt, wie es ist."}
+                    data-tip-sub={opt.chosen ? t("lootcouncil.gear.slotChosen") : t("lootcouncil.gear.slotStays")}
                 >
                     {opt.item
                         ? <WornIcon item={opt.item} />
@@ -80,7 +89,7 @@ export function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
                 </span>
             ))}
             {candidate.twoHanded ? (
-                <Badge count tip="Zweihandwaffe" tipSub="Belegt Waffenhand und Nebenhand, beide Teile fallen weg.">2H</Badge>
+                <Badge count tip={t("lootcouncil.gear.twoHandTip")} tipSub={t("lootcouncil.gear.twoHandTipSub")}>2H</Badge>
             ) : null}
         </span>
     );
@@ -101,31 +110,32 @@ export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }
     /** "DPS-Gear"/"Heilgear" for a role mismatch — omitted where the role is not known here. */
     roleLabel?: string;
 }) {
+    const t = useT();
     if (!g) return null;
     const { noench, sockets } = gearCounts(g.items);
     const out: ReactNode[] = [];
     if (g.source === "armory") {
-        out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip="Aus der Armory" tipSub={`Aktuelles Gear, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
+        out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip={t("lootcouncil.gear.armoryTip")} tipSub={`${t("lootcouncil.gear.armoryTipSub", { date: fmtMs(g.armoryAt, true) })}${g.unverifiedEnchants ? ` ${t("lootcouncil.gear.armoryUnverified", { count: g.unverifiedEnchants })}` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
     } else if (g.source === "wcl") {
-        out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={`Aus dem Log „${g.reportTitle}“`} tipSub={`Geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.`}>Log · {fmtMs(g.seenAt, false)}</Badge>);
+        out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={t("lootcouncil.gear.wclTip", { title: g.reportTitle })} tipSub={t("lootcouncil.gear.wclTipSub", { date: fmtMs(g.wclAt, true) })}>Log · {fmtMs(g.seenAt, false)}</Badge>);
     } else {
-        out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={`Aus der Auswertung „${g.reportTitle}“`} tipSub={g.skippedReports ? `${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt oder PvP-Gear getragen wurde.` : "Das Set der letzten Auswertung, in der dieser Raider in seiner Rolle stand."}>Auswertung · {fmtMs(g.seenAt, false)}</Badge>);
+        out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={t("lootcouncil.gear.logTip", { title: g.reportTitle })} tipSub={g.skippedReports ? t("lootcouncil.gear.logSkipped", { count: g.skippedReports }) : t("lootcouncil.gear.logDefault")}>{t("lootcouncil.gear.evaluation")} · {fmtMs(g.seenAt, false)}</Badge>);
     }
     if (g.hitCap > 0) {
-        out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip="Zaubertrefferwertung" tipSub="Getragen / Obergrenze gegen Bosse. Über der Grenze zählt Hit im Vergleich nicht mehr.">Hit {g.spellHit}/{g.hitCap}</Badge>);
+        out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip={t("lootcouncil.gear.hitTip")} tipSub={t("lootcouncil.gear.hitTipSub")}>Hit {g.spellHit}/{g.hitCap}</Badge>);
     }
-    if (bisTotal) out.push(<Badge key="bis" tone="ok" tip="BiS-Teile" tipSub="Getragene Teile der BiS-Liste dieses Raiders.">BiS {bisOwned}/{bisTotal}</Badge>);
-    if (noench) out.push(<Badge key="noench" tone="bad" tip="Ohne Verzauberung" tipSub="Teile ohne Verzauberung — am Icon mit ! markiert.">{noench} ohne VZ</Badge>);
-    if (sockets) out.push(<Badge key="sock" tone="mid" tip="Leere Sockel" tipSub="Am Icon oben rechts markiert.">{sockets} Sockel leer</Badge>);
-    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip="Verzauberung unbekannt" tipSub="Seit der letzten Auswertung dazugekommen: Blizzards Verzauberungs-IDs sind nicht die, die WoWSims erwartet, die Simulation rechnet sie unverzaubert.">{g.unverifiedEnchants} ohne VZ-Info</Badge>);
-    if (g.pvpGear) out.push(<Badge key="pvp" tone="bad" tip="PvP-Gear" tipSub="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind mit Vorsicht zu lesen.">PvP-Gear</Badge>);
-    if (g.roleMismatch) out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip="Andere Rolle" tipSub={`Aus „${g.reportTitle}“ — dort wurde die andere Rolle gespielt. Ein Set der eingeplanten Rolle ist nicht geloggt.`}>{roleLabel || "andere Rolle"}</Badge>);
-    if (g.logRejected) out.push(<Badge key="logrej" tone={g.logRejected === "pvp" ? "bad" : "mid"} tip={g.logRejected === "pvp" ? "Log: PvP-Gear" : "Log: andere Rolle"} tipSub="Das geladene Log wurde nicht übernommen — bewertet wird weiter das Set aus der Auswertung.">Log abgelehnt</Badge>);
-    if (g.armoryRejected) out.push(<Badge key="armrej" tone={g.armoryRejected === "pvp" ? "bad" : "mid"} tip={g.armoryRejected === "pvp" ? "Armory: PvP-Gear" : "Armory: andere Rolle"} tipSub="Die Armory-Antwort wurde nicht übernommen — gegen einen Boss zählt sie nicht, bewertet wird weiter das Set aus dem letzten Raid.">Armory abgelehnt</Badge>);
-    if (g.situational) out.push(<Badge key="sit" tone="mid" tip="Situativ" tipSub={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer.`}>{g.situational} situativ</Badge>);
-    if (g.substituted) out.push(<Badge key="sub" tip="Ersetzt" tipSub={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>{g.substituted}× ersetzt</Badge>);
+    if (bisTotal) out.push(<Badge key="bis" tone="ok" tip={t("lootcouncil.gear.bisTip")} tipSub={t("lootcouncil.gear.bisTipSub")}>BiS {bisOwned}/{bisTotal}</Badge>);
+    if (noench) out.push(<Badge key="noench" tone="bad" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.gear.noEnchTipSub")}>{tParts("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);
+    if (sockets) out.push(<Badge key="sock" tone="mid" tip={t("lootcouncil.gear.socketsTip")} tipSub={t("lootcouncil.gear.socketsTipSub")}>{tParts("lootcouncil.gear.socketsCount", { count: sockets })}</Badge>);
+    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip={t("lootcouncil.gear.unverifiedTip")} tipSub={t("lootcouncil.gear.unverifiedTipSub")}>{tParts("lootcouncil.gear.unverifiedCount", { count: g.unverifiedEnchants })}</Badge>);
+    if (g.pvpGear) out.push(<Badge key="pvp" tone="bad" tip={t("lootcouncil.gear.pvpGear")} tipSub={t("lootcouncil.gear.pvpTipSub")}>{t("lootcouncil.gear.pvpGear")}</Badge>);
+    if (g.roleMismatch) out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip={t("lootcouncil.gear.otherRoleTip")} tipSub={t("lootcouncil.gear.otherRoleTipSub", { title: g.reportTitle })}>{roleLabel || t("lootcouncil.gear.otherRole")}</Badge>);
+    if (g.logRejected) out.push(<Badge key="logrej" tone={g.logRejected === "pvp" ? "bad" : "mid"} tip={g.logRejected === "pvp" ? t("lootcouncil.gear.logPvpTip") : t("lootcouncil.gear.logRoleTip")} tipSub={t("lootcouncil.gear.logRejectedTipSub")}>{t("lootcouncil.gear.logRejected")}</Badge>);
+    if (g.armoryRejected) out.push(<Badge key="armrej" tone={g.armoryRejected === "pvp" ? "bad" : "mid"} tip={g.armoryRejected === "pvp" ? t("lootcouncil.gear.armoryPvpTip") : t("lootcouncil.gear.armoryRoleTip")} tipSub={t("lootcouncil.gear.armoryRejectedTipSub")}>{t("lootcouncil.gear.armoryRejected")}</Badge>);
+    if (g.situational) out.push(<Badge key="sit" tone="mid" tip={t("lootcouncil.gear.sitTip")} tipSub={t("lootcouncil.gear.sitTipSub", { count: g.situational })}>{tParts("lootcouncil.gear.situationalCount", { count: g.situational })}</Badge>);
+    if (g.substituted) out.push(<Badge key="sub" tip={t("lootcouncil.gear.subTip")} tipSub={t("lootcouncil.gear.subTipSub", { count: g.substituted })}>{tParts("lootcouncil.gear.subCount", { count: g.substituted })}</Badge>);
     for (const d of g.dropped) {
-        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={`${d.slotName} leer`} tipSub={`„${d.itemName}“ ${d.note}. Der Slot zählt als leer, weil keine andere Quelle sagt, was ${character} dort sonst trägt.`}>{d.slotName} leer</Badge>);
+        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={t("lootcouncil.gear.slotEmpty", { slot: d.slotName })} tipSub={t("lootcouncil.gear.droppedTipSub", { item: d.itemName, note: d.note, character })}>{tParts("lootcouncil.gear.slotEmpty", { slot: d.slotName })}</Badge>);
     }
     return <>{out}</>;
 }
@@ -144,13 +154,14 @@ export function CandidateGearPanel({ candidate, busy, onLoadLog, onLoadArmory }:
     onLoadLog?: (character: string) => void;
     onLoadArmory?: (character: string) => void;
 }) {
+    const t = useT();
     const g = candidate.gear;
     return (
         <div className="lc-gearpanel">
             {g && g.pvpGear ? (
                 <div className="lc-pvphint">
                     <AlertIcon />
-                    <span><b>PvP-Gear — kein Boss-Set bekannt.</b> Jede der letzten Auswertungen zeigt {candidate.character} im Arena-Set; Resilienz zählt gegen einen Boss nichts. Gear aus der Armory oder einem Log laden, um zu simulieren.</span>
+                    <span><b>{t("lootcouncil.gear.pvpHintHead")}</b> {tParts("lootcouncil.gear.pvpHint", { character: candidate.character })}</span>
                 </div>
             ) : null}
             <div className="lc-hints">
@@ -161,16 +172,16 @@ export function CandidateGearPanel({ candidate, busy, onLoadLog, onLoadArmory }:
                     {g.items.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
                 </div>
             ) : (
-                <div className="lc-muted">Kein Gear bekannt — in keiner Auswertung gesehen.</div>
+                <div className="lc-muted">{t("lootcouncil.gear.noGear")}</div>
             )}
             <div className="lc-gearpanel-act">
-                {onLoadLog ? <Button variant="ghost" size="sm" icon="inv_scroll_03" running={busy} onClick={() => onLoadLog(candidate.character)}>Log laden</Button> : null}
+                {onLoadLog ? <Button variant="ghost" size="sm" icon="inv_scroll_03" running={busy} onClick={() => onLoadLog(candidate.character)}>{t("lootcouncil.gear.loadLog")}</Button> : null}
                 {onLoadArmory ? (
                     <Button variant={g && g.pvpGear ? "primary" : "ghost"} size="sm" icon="inv_shield_06" running={busy} onClick={() => onLoadArmory(candidate.character)}>
-                        {g && g.pvpGear ? "Gear jetzt aus Armory holen" : "Gear aus Armory holen"}
+                        {g && g.pvpGear ? t("lootcouncil.gear.armoryFetchNow") : t("lootcouncil.gear.armoryFetch")}
                     </Button>
                 ) : null}
-                <Link className="lc-extlink" to={raiderHref(candidate.character)}>Vollständige Details<ExternalIcon /></Link>
+                <Link className="lc-extlink" to={raiderHref(candidate.character)}>{t("lootcouncil.gear.fullDetails")}<ExternalIcon /></Link>
             </div>
         </div>
     );

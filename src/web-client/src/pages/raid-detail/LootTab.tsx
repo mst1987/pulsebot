@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import type { LootItem } from "../../api";
 import { clearHistoryEvent, deleteLootItems, type ApiError } from "../../api";
-import { fmtMs } from "../../lib/format";
+import { fmtMs, formatTime } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { usePersistedState } from "../../lib/persistedState";
 import { PartHead } from "../../components/ui/PartHead";
@@ -206,7 +206,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                                 {groupBy === "character" ? (it.boss || "—") : <span {...classColorProps(it.classColor)}>{it.character}</span>}
                                             </span>
                                             <span><ReasonBadge it={it} /></span>
-                                            <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? new Date(it.awardedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }) : "—"}</span>
+                                            <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? formatTime(it.awardedAt) : "—"}</span>
                                             <span><Badge>{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</Badge></span>
                                             <IconButton
                                                 size="sm" tone="danger" icon={<TrashIcon />}

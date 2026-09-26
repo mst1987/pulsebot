@@ -20,6 +20,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { LootEventsTab } from "./LootEventsTab";
 import { LogsTab } from "./LogsTab";
 import { CharactersTab } from "./CharactersTab";
+import { tParts, useT } from "../../i18n";
 
 type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
 
@@ -33,22 +34,23 @@ type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
 // its own — see the page component and src/config/permissions.js.
 type AreaId = "loot" | "raids" | "chars";
 
-const AREAS: { id: AreaId; label: string; icon: string; views: { id: Tab; label: string }[] }[] = [
+// Labels are translated at render (history.page.area.<id> / history.page.view.<id>).
+const AREAS: { id: AreaId; icon: string; views: { id: Tab }[] }[] = [
     {
-        id: "loot", label: "Loot", icon: "inv_misc_bag_10", views: [
-            { id: "awards", label: "Vergaben" },
-            { id: "items", label: "Items" },
-            { id: "reasons", label: "Gründe" },
-            { id: "loot", label: "Nach Raid" },
+        id: "loot", icon: "inv_misc_bag_10", views: [
+            { id: "awards" },
+            { id: "items" },
+            { id: "reasons" },
+            { id: "loot" },
         ],
     },
     {
-        id: "raids", label: "Raids & Logs", icon: "inv_misc_note_02", views: [
-            { id: "raids", label: "Raids" },
-            { id: "logs", label: "Warcraft Logs" },
+        id: "raids", icon: "inv_misc_note_02", views: [
+            { id: "raids" },
+            { id: "logs" },
         ],
     },
-    { id: "chars", label: "Charaktere", icon: "achievement_guildperk_everybodysfriend", views: [{ id: "chars", label: "Charaktere" }] },
+    { id: "chars", icon: "achievement_guildperk_everybodysfriend", views: [{ id: "chars" }] },
 ];
 
 // The main view of the page — where the sidebar link lands.
@@ -69,6 +71,7 @@ const LEGACY_INBOX = "inbox";
 const STATS_TABS: Tab[] = ["reasons", "items"];
 
 export default function HistoryPage() {
+    const t = useT();
     const { user } = useOutletContext<ShellContext>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -140,18 +143,18 @@ export default function HistoryPage() {
             <PageHead
                 icon="inv_misc_bag_10"
                 tone="history"
-                kicker={guildName || "Gilde"}
-                title="Historie & Loot"
+                kicker={guildName || t("history.page.guild")}
+                title={t("history.shared.kicker")}
                 action={(fullHistory || canWrite) ? (
                     <>
                         {fullHistory && (
                             <Button variant="ghost" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
-                                Addon-Inbox
-                                {inboxCount > 0 && <Badge tone="mid" count>{inboxCount} offen</Badge>}
+                                {t("history.page.inbox")}
+                                {inboxCount > 0 && <Badge tone="mid" count>{tParts("history.page.inboxOpen", { count: inboxCount })}</Badge>}
                             </Button>
                         )}
                         {canWrite && (
-                            <Button icon="inv_scroll_03" disabled={!data} onClick={() => setImportOpen(true)}>Loot importieren</Button>
+                            <Button icon="inv_scroll_03" disabled={!data} onClick={() => setImportOpen(true)}>{t("history.page.import")}</Button>
                         )}
                     </>
                 ) : undefined}
@@ -159,8 +162,8 @@ export default function HistoryPage() {
         </div>
     );
 
-    if (error) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
-    if (!data) return <>{head}<RaidLoader text="Historie wird geladen" /></>;
+    if (error) return <>{head}<div className="empty">{tParts("history.shared.loadError", { message: error.message })}</div></>;
+    if (!data) return <>{head}<RaidLoader text={t("history.page.loading")} /></>;
 
     return (
         <>
@@ -171,8 +174,8 @@ export default function HistoryPage() {
             {areas.length > 1 && (
                 <div className="hl-areas">
                     <Segment<AreaId>
-                        ariaLabel="Bereich"
-                        options={areas.map((a) => ({ value: a.id, label: a.label, icon: a.icon }))}
+                        ariaLabel={t("history.page.areaAria")}
+                        options={areas.map((a) => ({ value: a.id, label: t(`history.page.area.${a.id}`), icon: a.icon }))}
                         value={activeArea.id}
                         onChange={(id) => setTab((areas.find((a) => a.id === id) || areas[0]).views[0].id)}
                     />
@@ -184,7 +187,7 @@ export default function HistoryPage() {
                         const count = counts[v.id];
                         return (
                             <button key={v.id} type="button" className={`subnav-item${tab === v.id ? " active" : ""}`} role="tab" aria-selected={tab === v.id} onClick={() => setTab(v.id)}>
-                                {v.label}
+                                {t(`history.page.view.${v.id}`)}
                                 {!!count && <span className="subnav-count">{count}</span>}
                             </button>
                         );
@@ -196,28 +199,28 @@ export default function HistoryPage() {
                 <div className="dash-card hl-card">
                     <PartHead
                         icon="inv_misc_note_02" tone="history"
-                        title={raidWhen === "past" ? "Vergangene Raids" : "Kommende Raids"}
-                        crumb="Raids & Logs › Raids"
-                        tip={raidWhen === "past" ? "Gelaufene Raids" : "Angesetzte Raids"}
+                        title={raidWhen === "past" ? t("history.page.raids.pastTitle") : t("history.page.raids.upcomingTitle")}
+                        crumb={t("history.page.raids.crumb")}
+                        tip={raidWhen === "past" ? t("history.page.raids.pastTip") : t("history.page.raids.upcomingTip")}
                         tipSub={raidWhen === "past"
-                            ? "Jeder Termin, der vorbei ist, mit seinen Logs und dem importierten Loot."
-                            : "Was im Kalender steht. Geplant wird er unter Raid-Events."}
+                            ? t("history.page.raids.pastSub")
+                            : t("history.page.raids.upcomingSub")}
                         action={(
                             <Segment<RaidWhen>
-                                ariaLabel="Zeitraum"
+                                ariaLabel={t("history.page.raids.whenAria")}
                                 size="sm"
                                 value={raidWhen}
                                 onChange={setRaidWhen}
                                 options={[
-                                    { value: "past", label: `Vergangene (${data.pastRaids.events.length})`, icon: "inv_misc_pocketwatch_01", tip: "Schon gelaufen" },
-                                    { value: "upcoming", label: `Kommende (${data.upcomingRaids.events.length})`, icon: "inv_misc_note_02", tip: "Noch angesetzt" },
+                                    { value: "past", label: t("history.page.raids.past", { count: data.pastRaids.events.length }), icon: "inv_misc_pocketwatch_01", tip: t("history.page.raids.pastOptTip") },
+                                    { value: "upcoming", label: t("history.page.raids.upcoming", { count: data.upcomingRaids.events.length }), icon: "inv_misc_note_02", tip: t("history.page.raids.upcomingOptTip") },
                                 ]}
                             />
                         )}
                     />
                     {raidWhen === "past"
-                        ? <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." sortKey="raids-past-sort" />
-                        : <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." sortKey="raids-upcoming-sort" initialDir="asc" />}
+                        ? <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage={t("history.page.raids.pastEmpty")} sortKey="raids-past-sort" />
+                        : <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage={t("history.page.raids.upcomingEmpty")} sortKey="raids-upcoming-sort" initialDir="asc" />}
                 </div>
             )}
             {tab === "loot" && (
@@ -230,9 +233,9 @@ export default function HistoryPage() {
             {tab === "awards" && <LatestLootTab categories={data.categories} />}
             {STATS_TABS.includes(tab) && (
                 statsError
-                    ? <div className="empty">Fehler beim Laden: {statsError.message}</div>
+                    ? <div className="empty">{tParts("history.shared.loadError", { message: statsError.message })}</div>
                     : !stats
-                        ? <RaidLoader compact text="Übersicht wird geladen" />
+                        ? <RaidLoader compact text={t("history.page.statsLoading")} />
                         : tab === "reasons"
                             ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} />
                             : (

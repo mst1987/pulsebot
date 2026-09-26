@@ -4,10 +4,11 @@
 // select, no "Item nachtragen", no delete — on the page, the event page and the
 // character page alike. The API refuses those calls anyway.
 import { screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { HistoryCharData, HistoryData, HistoryEventData, LootItem, SessionUser } from "../../api";
 import { adminUser, renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import HistoryCharPage from "./HistoryCharPage";
 import HistoryEventPage from "./HistoryEventPage";
 import HistoryPage from "./HistoryPage";
@@ -91,5 +92,26 @@ describe("the history page's write actions", () => {
         renderPage(<HistoryCharPage />, { route: "/history/char?name=Ahri&tab=loot", user: lootOnly });
         expect(await screen.findByText("Krakenherz-Umhang", { exact: false })).toBeInTheDocument();
         expect(deleteButton()).not.toBeInTheDocument();
+    });
+});
+
+describe("in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("labels the event page's write actions in English", async () => {
+        await switchLang("en");
+        renderPage(<HistoryEventPage />, { route: "/history/event?event=e1", user: writer });
+        expect(await screen.findByRole("button", { name: "Delete loot" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Add item manually" })).toBeInTheDocument();
+        expect(screen.getByText("History & loot · By raid")).toBeInTheDocument();
+        expect(screen.getByText("1 item")).toBeInTheDocument();
+    });
+
+    it("labels the loot view's category select in English", async () => {
+        await switchLang("en");
+        renderPage(<HistoryPage />, { route: "/history?tab=loot", user: writer });
+        expect(await screen.findByRole("combobox", { name: "Category" })).toHaveValue("c1");
+        expect(screen.getByRole("option", { name: "— no category —" })).toBeInTheDocument();
+        expect(screen.getByText("1 event")).toBeInTheDocument();
     });
 });

@@ -1,8 +1,9 @@
 // The pieces roster and character page share (design issue #218): the
 // attendance bar with its tone and tooltip, and the icon link.
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { AttendanceBar, IconLink } from "./RosterCommon";
+import { afterEach, describe, expect, it } from "vitest";
+import { switchLang } from "../../test/i18n";
+import { AttendanceBar, GearStateBadge, IconLink, RoleBadge } from "./RosterCommon";
 
 const SECONDS = Math.floor(Date.UTC(2026, 5, 15, 20, 0, 0) / 1000); // Mo 15.06.2026, as the API sends it
 
@@ -44,6 +45,27 @@ describe("AttendanceBar", () => {
         const el = container.querySelector("[data-tip]") as HTMLElement;
         expect(el).toHaveAttribute("data-tip", "Keine Raids gezählt");
         expect(el).toHaveTextContent("–");
+    });
+});
+
+describe("in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("words the attendance bar, the role and the gear badge in English", async () => {
+        await switchLang("en");
+        const { container } = render(
+            <AttendanceBar
+                attendance={{ attended: 1, total: 2, pct: 50, missed: [{ eventId: "e1", title: "Kara", startTime: SECONDS, reason: "not in log" }] }}
+                categoryName="Montagsraid"
+            />,
+        );
+        const el = container.querySelector("[data-tip]") as HTMLElement;
+        expect(el).toHaveAttribute("data-tip", "1 of 2 raids · 50 %");
+        expect(el.getAttribute("data-tip-sub")).toContain("Missed: Mon 15/06 (not in log).");
+        render(<RoleBadge role="healer" />);
+        expect(screen.getByText("Healer")).toBeInTheDocument();
+        render(<GearStateBadge gear={null} />);
+        expect(screen.getByText("not evaluated")).toBeInTheDocument();
     });
 });
 

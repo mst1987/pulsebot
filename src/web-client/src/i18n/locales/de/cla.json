@@ -1,0 +1,179 @@
+{
+    "page": {
+        "title": "Log-Auswertung",
+        "newEvaluation": "Neue Auswertung",
+        "loading": "Logs werden geladen",
+        "loadError": "Fehler beim Laden: {message}"
+    },
+    "choices": {
+        "bothSub": "Komplette Auswertung auf einer Report-Seite",
+        "claLabel": "nur CLA",
+        "claSub": "Gear, Consumables, Kampfverlauf",
+        "rpbLabel": "nur RPB",
+        "rpbSub": "Schaden, Tode, Aktivität, Cooldowns"
+    },
+    "analyses": {
+        "claSub": "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi",
+        "rpbSub": "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung"
+    },
+    "filters": {
+        "ariaLabel": "Logs filtern",
+        "all": {
+            "label": "Alle",
+            "tip": "Alle Logs",
+            "sub": "Vom Bot im Log-Channel erkannte Warcraft-Logs und per Link ausgewertete Reports, neueste Post-Zeit zuerst. Jeder Report wird nur einmal ausgewertet.",
+            "empty": "Noch keine Logs. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf."
+        },
+        "open": {
+            "label": "Offen",
+            "tip": "Noch nicht ausgewertet",
+            "sub": "Logs, für die weder CLA noch RPB gelaufen ist. Über den Log-Link vorab prüfen, dann „Auswerten“.",
+            "empty": "Kein Log wartet auf eine Auswertung."
+        },
+        "unlinked": {
+            "label": "Ohne Raid-Event",
+            "tip": "Keinem Raid-Event zugeordnet",
+            "sub": "Jedes Log gehört zu dem Raid, dessen Startzeit zur Post-Zeit passt. Der Vorschlag ist im Zuordnen-Dialog vorgewählt.",
+            "empty": "Alle Logs sind einem Raid-Event zugeordnet."
+        },
+        "done": {
+            "label": "Ausgewertet",
+            "tip": "Mindestens eine Hälfte ausgewertet",
+            "sub": "Logs mit CLA- oder RPB-Auswertung und die per Link erstellten Reports.",
+            "empty": "Noch keine Auswertungen."
+        }
+    },
+    "offset": {
+        "onTime": "pünktlich zum Start",
+        "after": "{span} nach Start",
+        "before": "{span} vor Start"
+    },
+    "jobs": {
+        "evalLabel": "{label}-Auswertung",
+        "already": "{label}-Auswertung lag bereits vor.",
+        "created": "{label}-Auswertung erstellt.",
+        "bothDone": "CLA + RPB ausgewertet.",
+        "reportCreated": "Auswertung erstellt.",
+        "viewReport": "Report ansehen"
+    },
+    "confirm": {
+        "resetTitle": "{label}-Auswertung verwerfen?",
+        "resetText": "Die {label}-Auswertung von „{title}“ wird verworfen und kann danach neu gestartet werden.",
+        "deleteLogTitle": "Log aus der Liste löschen?",
+        "deleteLogText": "„{title}“ wird aus der Liste entfernt. Eine vorhandene Auswertung bleibt als Report erhalten.",
+        "deleted": "Gelöscht.",
+        "deleteReportTitle": "Auswertung löschen?",
+        "deleteReportText": "„{title}“ wird gelöscht.",
+        "unlinkTitle": "Zuordnung entfernen?",
+        "unlinkText": "Die Zuordnung von „{title}“ zu „{event}“ wird entfernt. Die Auswertung selbst bleibt bestehen."
+    },
+    "columns": {
+        "log": "Log",
+        "logSub": "Titel aus Warcraft Logs, Post-Zeit und Kanal. Sortiert nach der Post-Zeit im Channel.",
+        "content": "Inhalt",
+        "contentSub": "Welche Raids das Log enthält und wie viele Bosse liegen. Gelb: der Endboss fehlt, der Raid läuft vielleicht noch.",
+        "evaluation": "Auswertung",
+        "evaluationSub": "CLA (Gear, Consumables, Kampfverlauf) und RPB (Schaden, Tode, Aktivität). Zeit, Spieler und Probleme im Tooltip des Badges.",
+        "event": "Raid-Event",
+        "eventSub": "Das Raid-Helper-Event, zu dem das Log gehört – das Event, dessen Startzeit zur Post-Zeit passt."
+    },
+    "toolbar": {
+        "autoMatch": "Automatisch zuordnen",
+        "autoMatchSub": "Ordnet jedes offene Log dem Raid-Event zu, dessen Startzeit eindeutig passt. Mehrdeutige bleiben für den Zuordnen-Dialog.",
+        "scanning": "Suche läuft …",
+        "scan": "Log-Channels durchsuchen",
+        "scanSub": "Sucht in den Log-Channels nach Warcraft-Logs-Links, die der Bot verpasst hat.",
+        "noChannels": "Keine Log-Channels",
+        "noChannelsSub": "Ohne Log-Channel erkennt der Bot keine Logs von selbst. In den Einstellungen festlegen.",
+        "setupChannels": "Log-Channels einrichten"
+    },
+    "raids": {
+        "zoneSub": "Die Bosse dieses Logs sind noch nicht gelesen.",
+        "unknown": "Inhalt unbekannt",
+        "unknownSub": "Warcraft Logs hat die Kampfliste noch nicht geliefert – sie wird beim nächsten Laden erneut abgefragt."
+    },
+    "badges": {
+        "players": {
+            "one": "{count} Spieler",
+            "other": "{count} Spieler"
+        },
+        "issues": {
+            "one": "{count} Probleme",
+            "other": "{count} Probleme"
+        },
+        "running": "{label} läuft",
+        "runningSub": "Fortschritt im Hinweis unten in der Mitte.",
+        "done": "{label} ausgewertet",
+        "open": "{label} offen",
+        "noneTip": "Noch nicht ausgewertet",
+        "noneSub": "„Auswerten“ startet CLA und RPB nacheinander, beide landen auf einer Report-Seite.",
+        "none": "offen"
+    },
+    "event": {
+        "fallback": "Raid-Event",
+        "start": "Start {when} · ",
+        "auto": "automatisch zugeordnet",
+        "manual": "manuell zugeordnet",
+        "sub": "{start}{source}. Ändern über das Zeilenmenü.",
+        "reportTip": "Ohne Log nicht zuordenbar",
+        "reportSub": "Dieser Report wurde per Link erstellt. Zugeordnet wird ein Log – postet den Link im Log-Channel, dann erscheint er als Log.",
+        "report": "ohne Log",
+        "errorTip": "Raid-Events nicht geladen",
+        "error": "Events fehlen",
+        "noneTip": "Kein passendes Event",
+        "noneSub": "Kein Raid-Event hat eine Startzeit, die zur Post-Zeit dieses Logs passt.",
+        "none": "kein passendes Event",
+        "ambiguous": "Mehrere Events passen",
+        "ambiguousSub": "Die Startzeiten liegen nah beieinander – bitte prüfen.",
+        "found": "Passendes Event gefunden",
+        "assign": "Zuordnen"
+    },
+    "row": {
+        "running": "läuft",
+        "evaluateBoth": "CLA + RPB auswerten",
+        "evaluateBothSub": "Beide Hälften nacheinander, eine Report-Seite.",
+        "evaluate": "Auswerten",
+        "evaluateOne": "{label} auswerten",
+        "report": "Report",
+        "viaLink": "Per Link ausgewertet",
+        "logChannel": "Log-Channel",
+        "link": "Link",
+        "moreActions": "Weitere Aktionen für „{title}“"
+    },
+    "menu": {
+        "more": "Weitere Aktionen",
+        "openReport": "Report öffnen",
+        "wcl": "Log bei Warcraft Logs",
+        "message": "Nachricht im Log-Channel",
+        "changeAssign": "Zuordnung ändern",
+        "assign": "Raid-Event zuordnen",
+        "reset": "{label}-Auswertung verwerfen",
+        "deleteLog": "Aus der Liste löschen",
+        "deleteReport": "Auswertung löschen"
+    },
+    "assign": {
+        "kicker": "{title} · gepostet {posted}",
+        "title": "Raid-Event zuordnen",
+        "hint": "Zuordnung jederzeit über das Zeilenmenü änderbar.",
+        "unlink": "Zuordnung entfernen",
+        "submit": "Zuordnen",
+        "linked": "ist zugeordnet ({how})",
+        "auto": "automatisch",
+        "manual": "manuell",
+        "fitting": "{count} Events passen",
+        "sortedHint": "nach Nähe zur Post-Zeit sortiert – der erste ist vorgewählt",
+        "candidatesAria": "Passende Raid-Events",
+        "sameCategory": "gleiche Kategorie",
+        "current": "aktuell",
+        "none": "Kein Raid-Event mit passender Startzeit gefunden."
+    },
+    "newEval": {
+        "kicker": "Warcraft-Logs-Report per Link",
+        "hint": "Läuft im Hintergrund – Fortschritt unten in der Mitte.",
+        "submit": "Auswerten",
+        "linkLabel": "Report-Link oder Report-ID",
+        "linkTip": "Report-Link oder -ID",
+        "linkTipSub": "Der Link aus Warcraft Logs oder nur die ID dahinter. Vom Bot erkannte Logs stehen schon in der Liste und lassen sich dort direkt auswerten.",
+        "which": "Welche Analysen"
+    }
+}

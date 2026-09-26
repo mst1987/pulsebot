@@ -14,8 +14,10 @@ import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { tParts, useT } from "../../i18n";
 
 export default function HistoryEventPage() {
+    const t = useT();
     const ask = useConfirm();
     const { user } = useOutletContext<ShellContext>();
     // Reachable with the read-only "Loot-Ansichten" too, which sees the loot but
@@ -30,11 +32,11 @@ export default function HistoryEventPage() {
     const [busy, setBusy] = useState(false);
 
     const clear = async () => {
-        if (!(await ask({ title: "Event-Loot löschen?", text: `Der gesamte Loot dieses Events (${event.data?.items.length || 0} Einträge) wird gelöscht. Ein erneuter Import bringt ihn zurück.`, action: "Loot löschen" }))) return;
+        if (!(await ask({ title: t("history.event.clearTitle"), text: t("history.event.clearText", { count: event.data?.items.length || 0 }), action: t("history.event.clearAction") }))) return;
         setBusy(true);
         try {
             const r = await clearHistoryEvent(eventId);
-            toast(`${r.removed} Loot-Eintrag/-Einträge gelöscht.`);
+            toast(t("history.event.cleared", { count: r.removed }));
             event.setData((d) => (d ? { ...d, items: [] } : d));
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -49,30 +51,30 @@ export default function HistoryEventPage() {
         try {
             await deleteLootItems([it.id]);
             event.setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
-            toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+            toast(t("history.shared.deleted", { item: it.itemName || t("history.shared.itemFallback", { id: it.itemId }) }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
     };
 
     return (
-        <AsyncView state={event} loading={<RaidLoader text="Raid wird geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+        <AsyncView state={event} loading={<RaidLoader text={t("history.event.loading")} />} error={(err) => <div className="empty">{tParts("history.shared.loadError", { message: err.message })}</div>}>
             {(data) => {
                 return (
                     <>
                         <div className="hl-inbox-head">
-                            <IconButton icon={<ChevronLeftIcon />} tip="Zurück zu Historie & Loot" onClick={() => navigate("/history?tab=loot")} />
+                            <IconButton icon={<ChevronLeftIcon />} tip={t("history.shared.back")} onClick={() => navigate("/history?tab=loot")} />
                             <div>
-                                <div className="kicker">Historie &amp; Loot · Nach Raid</div>
+                                <div className="kicker">{t("history.event.kicker")}</div>
                                 <h1>{data.label}</h1>
                             </div>
                         </div>
                         <div className="dash-card hl-card">
                             <PartHead
-                                icon="inv_misc_bag_10" tone="history" title="Loot" crumb="Loot › Nach Raid"
+                                icon="inv_misc_bag_10" tone="history" title={t("history.shared.loot")} crumb={t("history.event.crumb")}
                                 action={(
                                     <>
-                                        <Badge count>{data.items.length} Items</Badge>
+                                        <Badge count>{tParts("history.shared.items", { count: data.items.length })}</Badge>
                                         {/* Reloads the event afterwards instead of appending the
                                             row: the new item has to land in the table's own sort
                                             order, and one round trip per nachgetragenem Item is
@@ -86,14 +88,14 @@ export default function HistoryEventPage() {
                                             />
                                         )}
                                         {canEdit && data.items.length > 0 && (
-                                            <Button variant="danger" icon={<TrashIcon />} disabled={busy} onClick={clear}>Loot löschen</Button>
+                                            <Button variant="danger" icon={<TrashIcon />} disabled={busy} onClick={clear}>{t("history.event.clearAction")}</Button>
                                         )}
                                     </>
                                 )}
                             />
                             {data.items.length
                                 ? <LootTable items={data.items} onDelete={canEdit ? removeItem : undefined} />
-                                : <div className="empty">Kein Loot (mehr) für dieses Event.</div>}
+                                : <div className="empty">{t("history.event.empty")}</div>}
                         </div>
                     </>
                 );

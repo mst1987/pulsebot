@@ -13,10 +13,11 @@ import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } fr
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
 import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/icons";
 import { ReasonBadge } from "../../components/loot/LootBadges";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
-import { ROLE_LABEL, dropHref, gearCounts, wornWowheadUrl } from "./council";
+import { dropHref, gearCounts, roleLabel, wornWowheadUrl } from "./council";
 import { ContentBadge, ItemLink, RaiderIdent } from "./ItemBits";
 import { GearBadges, WornIcon } from "./GearBadges";
 import { NeedBar } from "./NeedBar";
@@ -26,14 +27,16 @@ type LogPick = { reportId?: string; link?: string };
 
 // The slot groups a character sheet reads in (slot ids from
 // utils/logcheck/gearIssues.js): armour top to bottom, rings and trinkets, weapons.
-const GEAR_GROUPS: { label: string; slots: number[] }[] = [
-    { label: "Rüstung", slots: [0, 1, 2, 14, 4, 8, 9, 5, 6, 7] },
-    { label: "Ringe & Schmuck", slots: [10, 11, 12, 13] },
-    { label: "Waffen", slots: [15, 16, 17] },
+// The group names are keys (lootcouncil.dialog.sheet.*), translated at render.
+const GEAR_GROUPS: { id: string; slots: number[] }[] = [
+    { id: "armour", slots: [0, 1, 2, 14, 4, 8, 9, 5, 6, 7] },
+    { id: "jewellery", slots: [10, 11, 12, 13] },
+    { id: "weapons", slots: [15, 16, 17] },
 ];
 
 /** The worn set in three columns, each piece with its icon, name and slot. */
 function GearSheet({ items }: { items: WornItem[] }) {
+    const t = useT();
     const groups = GEAR_GROUPS.map((g) => ({ ...g, items: g.slots.flatMap((s) => items.filter((i) => i.slot === s)) }));
     // A slot id the groups do not know still gets shown, under the armour.
     const rest = items.filter((i) => !GEAR_GROUPS.some((g) => g.slots.includes(i.slot)));
@@ -41,8 +44,8 @@ function GearSheet({ items }: { items: WornItem[] }) {
     return (
         <div className="lc-sheet">
             {groups.map((g) => (
-                <div key={g.label} className="lc-sheet-col">
-                    <div className="lc-th">{g.label}</div>
+                <div key={g.id} className="lc-sheet-col">
+                    <div className="lc-th">{t(`lootcouncil.dialog.sheet.${g.id}`)}</div>
                     {g.items.map((item) => (
                         <div key={`${item.slot}-${item.itemId}`} className="lc-sheet-row">
                             <WornIcon item={item} />
@@ -71,6 +74,7 @@ function LogPanel({ raider, logs, loading, onLoad }: {
     loading: boolean;
     onLoad: (pick: LogPick) => void;
 }) {
+    const t = useT();
     const [link, setLink] = useState("");
     const current = raider.gear && raider.gear.source === "wcl" ? raider.gear.reportId : "";
     const submitLink = () => {
@@ -79,36 +83,36 @@ function LogPanel({ raider, logs, loading, onLoad }: {
         onLoad({ link: value });
     };
     return (
-        <div className="lc-logpanel2" role="region" aria-label={`Gear von ${raider.character} aus einem Log laden`}>
+        <div className="lc-logpanel2" role="region" aria-label={t("lootcouncil.dialog.log.aria", { character: raider.character })}>
             <div className="lc-logrow2">
                 <span className="lc-logrow2-name">
-                    <b>Neuestes Log mit {raider.character}</b>
-                    <span className="lc-muted">probiert die letzten Logs der Reihe nach</span>
+                    <b>{tParts("lootcouncil.dialog.log.newest", { character: raider.character })}</b>
+                    <span className="lc-muted">{t("lootcouncil.dialog.log.newestSub")}</span>
                 </span>
-                <Button size="sm" variant="run" icon="inv_scroll_03" running={loading} disabled={!logs.length} onClick={() => onLoad({})}>Laden</Button>
+                <Button size="sm" variant="run" icon="inv_scroll_03" running={loading} disabled={!logs.length} onClick={() => onLoad({})}>{t("lootcouncil.dialog.log.load")}</Button>
             </div>
             {logs.map((log) => (
                 <div key={log.reportId} className={`lc-logrow2${log.reportId === current ? " current" : ""}`}>
                     <span className="lc-logrow2-name">
                         <b>{log.title || log.reportId}</b>
                         {log.eventLabel ? <span className="lc-muted">{log.eventLabel}</span> : null}
-                        {log.reportId === current ? <Badge tone="ok">geladen</Badge> : null}
+                        {log.reportId === current ? <Badge tone="ok">{t("lootcouncil.dialog.log.loaded")}</Badge> : null}
                     </span>
                     <span className="lc-logrow2-date">{log.postedAt ? fmtMs(log.postedAt, false) : ""}</span>
-                    <Button size="sm" variant="ghost" disabled={loading} onClick={() => onLoad({ reportId: log.reportId })}>Laden</Button>
+                    <Button size="sm" variant="ghost" disabled={loading} onClick={() => onLoad({ reportId: log.reportId })}>{t("lootcouncil.dialog.log.load")}</Button>
                 </div>
             ))}
-            {!logs.length ? <div className="lc-muted">Der Bot kennt noch kein Log — einen Warcraft-Logs-Link einfügen.</div> : null}
+            {!logs.length ? <div className="lc-muted">{t("lootcouncil.dialog.log.none")}</div> : null}
             <div className="lc-loglink">
                 <input
                     type="text"
                     value={link}
                     placeholder="https://classic.warcraftlogs.com/reports/…"
-                    aria-label="Warcraft-Logs-Link"
+                    aria-label={t("lootcouncil.dialog.log.linkAria")}
                     onChange={(e) => setLink(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") submitLink(); }}
                 />
-                <Button size="sm" variant="ghost" disabled={loading || !link.trim()} onClick={submitLink}>Aus Link laden</Button>
+                <Button size="sm" variant="ghost" disabled={loading || !link.trim()} onClick={submitLink}>{t("lootcouncil.dialog.log.fromLink")}</Button>
             </div>
         </div>
     );
@@ -121,6 +125,7 @@ function LogPanel({ raider, logs, loading, onLoad }: {
  * reads gear and talents from the JSON but not the class.
  */
 export function ExportDialog({ data, onClose }: { data: CouncilExport | null; onClose: () => void }) {
+    const t = useT();
     const [copied, setCopied] = useState(false);
     const copy = async () => {
         if (!data) return;
@@ -138,23 +143,23 @@ export function ExportDialog({ data, onClose }: { data: CouncilExport | null; on
             open={!!data}
             onClose={onClose}
             icon="inv_gizmo_02"
-            kicker={data ? `Sim-Export · ${data.specLabel} · Gear vom ${fmtMs(data.seenAt, false)}` : "Sim-Export"}
-            title={data ? `WoWSims-Export — ${data.character}` : ""}
+            kicker={data ? t("lootcouncil.dialog.export.kicker", { spec: data.specLabel, date: fmtMs(data.seenAt, false) }) : t("lootcouncil.dialog.export.name")}
+            title={data ? t("lootcouncil.dialog.export.title", { character: data.character }) : ""}
             width={720}
             footer={data ? (
                 <>
-                    <a className={buttonClass("ghost", "md", true)} href={data.simUrl} target="_blank" rel="noreferrer"><ExternalIcon />WoWSims öffnen</a>
-                    <Button icon={<CopyIcon />} onClick={copy}>{copied ? "Kopiert" : "JSON kopieren"}</Button>
+                    <a className={buttonClass("ghost", "md", true)} href={data.simUrl} target="_blank" rel="noreferrer"><ExternalIcon />{t("lootcouncil.dialog.export.open")}</a>
+                    <Button icon={<CopyIcon />} onClick={copy}>{copied ? t("common.copied") : t("lootcouncil.dialog.export.copyJson")}</Button>
                 </>
             ) : null}
         >
             {data ? (
                 <div className="lc-export">
                     <ol className="lc-export-steps">
-                        <li>WoWSims öffnen — <b>{data.simUrl.replace("https://", "")}</b> (die Seite muss zur Klasse passen)</li>
-                        <li>Oben rechts <b>Import</b> → <b>From JSON</b></li>
-                        <li>Das JSON unten einfügen und bestätigen</li>
-                        <li><b>Simulate</b> — die DPS sollte der hier angezeigten entsprechen</li>
+                        <li>{t("lootcouncil.dialog.export.step1")} <b>{data.simUrl.replace("https://", "")}</b> {t("lootcouncil.dialog.export.step1Note")}</li>
+                        <li>{t("lootcouncil.dialog.export.step2")} <b>Import</b> → <b>From JSON</b></li>
+                        <li>{t("lootcouncil.dialog.export.step3")}</li>
+                        <li><b>Simulate</b> {t("lootcouncil.dialog.export.step4")}</li>
                     </ol>
                     {data.warnings.length ? <div className="lc-hints">{data.warnings.map((w, i) => <Badge key={i} tone="mid">{w}</Badge>)}</div> : null}
                     <textarea className="lc-export-json" readOnly value={data.json} spellCheck={false} onFocus={(e) => e.currentTarget.select()} />
@@ -184,6 +189,7 @@ export default function RaiderDialog({
     onExport: (character: string) => void;
     onExclude: (character: string) => void;
 }) {
+    const t = useT();
     const ref = useRef<HTMLDialogElement>(null);
     const [section, setSection] = useState<Section>("gear");
     const [logOpen, setLogOpen] = useState(false);
@@ -216,16 +222,16 @@ export default function RaiderDialog({
     };
 
     const sections: { id: Section; label: string; icon: string; count: number; tone?: "mid" }[] = [
-        { id: "gear", label: "Gear", icon: "inv_chest_cloth_49", count: gearIssues, tone: gearIssues ? "mid" : undefined },
-        { id: "bis", label: "BiS-Lücken", icon: "inv_misc_gem_variety_02", count: gaps.length },
-        { id: "loot", label: "Erhaltener Loot", icon: "inv_misc_bag_10", count: r.lootCount },
+        { id: "gear", label: t("lootcouncil.dialog.section.gear"), icon: "inv_chest_cloth_49", count: gearIssues, tone: gearIssues ? "mid" : undefined },
+        { id: "bis", label: t("lootcouncil.dialog.section.bis"), icon: "inv_misc_gem_variety_02", count: gaps.length },
+        { id: "loot", label: t("lootcouncil.dialog.section.loot"), icon: "inv_misc_bag_10", count: r.lootCount },
     ];
 
     return (
         <dialog
             ref={ref}
             className="dlg lc-dlg"
-            aria-label={`Details zu ${r.character}`}
+            aria-label={t("lootcouncil.list.detailsAria", { character: r.character })}
             onCancel={(e) => { e.preventDefault(); onClose(); }}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
@@ -238,33 +244,33 @@ export default function RaiderDialog({
                         className={r.className}
                         size={44}
                         big
-                        sub={<span className="kicker">Loot-Council › Raider · Rang {rank} von {total}</span>}
+                        sub={<span className="kicker">{tParts("lootcouncil.dialog.kicker", { rank, total })}</span>}
                     />
                     <span className="lc-dlg-spec">{r.specLabel}{r.className ? ` ${r.className}` : ""}</span>
                     <span className="lc-grow" />
                     {canWrite && r.roleOptions.length > 1 ? (
                         <Segment
-                            ariaLabel={`${r.character} einplanen als`}
+                            ariaLabel={t("lootcouncil.dialog.roleAria", { character: r.character })}
                             value={r.role}
                             size="sm"
                             onChange={(role) => onRole(r.character, r.roleOverride === role ? "" : role as "caster" | "healer")}
                             options={r.roleOptions.map((o) => ({
                                 value: o as "caster" | "healer",
-                                label: ROLE_LABEL[o] || o,
+                                label: roleLabel(o),
                                 disabled: busy.has(`role:${r.character}`),
                                 tip: r.roleOverride === o
-                                    ? "So festgelegt — noch einmal klicken nimmt die Festlegung zurück"
-                                    : `Als ${ROLE_LABEL[o] || o} einplanen`,
+                                    ? t("lootcouncil.dialog.roleFixed")
+                                    : t("lootcouncil.dialog.rolePlanAs", { role: roleLabel(o) }),
                             }))}
                         />
                     ) : null}
-                    <IconButton icon={<XIcon />} tip="Schließen" size="sm" onClick={onClose} />
+                    <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
                 </div>
 
                 <div className="dlg-body lc-dlg-body">
                     <div className="lc-stats">
                         <div className="lc-stat2">
-                            <span className="lc-th tipped" data-tip="Bedarf" data-tip-sub="Wartezeit, Loot-Anteil und BiS-Lücke, gewichtet 50 / 40 / 10.">Bedarf</span>
+                            <span className="lc-th tipped" data-tip={t("lootcouncil.word.need")} data-tip-sub={t("lootcouncil.dialog.needTipSub")}>{t("lootcouncil.word.need")}</span>
                             <NeedBar width={140} subject={{
                                 needScore: r.needScore, needParts: r.needParts, daysSinceLoot: r.daysSinceLoot,
                                 lootCount: r.lootCount, bisOwned: r.bis.owned, bisTotal: r.bis.total,
@@ -272,28 +278,28 @@ export default function RaiderDialog({
                             />
                         </div>
                         <div className="lc-stat2">
-                            <span className="lc-th">Zuletzt</span>
-                            <span className="lc-stat2-v" data-tip={r.lastAwardAt ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}` : "Hat noch nie ein Item bekommen"}>
-                                {r.lastAwardAt ? <>{r.daysSinceLoot} <small>Tage</small></> : <>∞ <small>nie</small></>}
+                            <span className="lc-th">{t("lootcouncil.word.last")}</span>
+                            <span className="lc-stat2-v" data-tip={r.lastAwardAt ? t("lootcouncil.waited.lastAward", { date: fmtMs(r.lastAwardAt, false) }) : t("lootcouncil.waited.never")}>
+                                {r.lastAwardAt ? <>{r.daysSinceLoot} <small>{t("lootcouncil.word.daysUnit")}</small></> : <>∞ <small>{t("lootcouncil.word.never")}</small></>}
                             </span>
                         </div>
                         <div className="lc-stat2">
-                            <span className="lc-th tipped" data-tip="Items" data-tip-sub="Im Content-Filter · insgesamt. Offspec, Entzaubern und Bank zählen nicht.">Items</span>
-                            <span className="lc-stat2-v">{r.lootCount} <small>im Filter · {r.lootTotal} gesamt</small></span>
+                            <span className="lc-th tipped" data-tip={t("lootcouncil.word.items")} data-tip-sub={t("lootcouncil.dialog.itemsTipSub")}>{t("lootcouncil.word.items")}</span>
+                            <span className="lc-stat2-v">{r.lootCount} <small>{tParts("lootcouncil.dialog.itemsSub", { total: r.lootTotal })}</small></span>
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th">BiS</span>
-                            <span className="lc-stat2-v">{r.bis.total ? <>{r.bis.owned}<small>/{r.bis.total}</small></> : <small>keine Liste</small>}</span>
+                            <span className="lc-stat2-v">{r.bis.total ? <>{r.bis.owned}<small>/{r.bis.total}</small></> : <small>{t("lootcouncil.word.noList")}</small>}</span>
                         </div>
                         <div className="lc-stat2">
-                            <span className="lc-th tipped" data-tip="DPS" data-tip-sub="Simuliert mit WoWSims, gleicher Seed für alle.">DPS</span>
+                            <span className="lc-th tipped" data-tip="DPS" data-tip-sub={t("lootcouncil.dialog.dpsTipSub")}>DPS</span>
                             <span className="lc-stat2-v">
-                                {entry && entry.baseline !== null ? <>{Math.round(entry.baseline)} <small>WoWSims</small></> : <small>{r.simSupported ? "nicht simuliert" : "keine Simulation"}</small>}
+                                {entry && entry.baseline !== null ? <>{Math.round(entry.baseline)} <small>WoWSims</small></> : <small>{r.simSupported ? t("lootcouncil.sim.notSimulated") : t("lootcouncil.dialog.noSim")}</small>}
                             </span>
                         </div>
                     </div>
 
-                    <div className="lc-secs" role="tablist" aria-label="Abschnitte">
+                    <div className="lc-secs" role="tablist" aria-label={t("lootcouncil.dialog.sections")}>
                         {sections.map((s) => (
                             <button
                                 key={s.id}
@@ -314,29 +320,29 @@ export default function RaiderDialog({
                         <>
                             <PartHead
                                 icon="inv_chest_cloth_49"
-                                title="Getragenes Set"
-                                crumb={`${r.character} › Gear`}
+                                title={t("lootcouncil.dialog.gearTitle")}
+                                crumb={t("lootcouncil.dialog.gearCrumb", { character: r.character })}
                                 action={canWrite ? (
                                     <Segment
-                                        ariaLabel={`Gear-Quelle für ${r.character}`}
+                                        ariaLabel={t("lootcouncil.dialog.sourceAria", { character: r.character })}
                                         value={logOpen ? "wcl" : source}
                                         onChange={onSource}
                                         options={[
-                                            { value: "log", label: "Auswertung", icon: "inv_misc_pocketwatch_01", disabled: loadingLog,
-                                                tip: source === "log" ? "Das Set aus der letzten Auswertung" : "Zurück zum Set aus der letzten Auswertung" },
+                                            { value: "log", label: t("lootcouncil.gear.evaluation"), icon: "inv_misc_pocketwatch_01", disabled: loadingLog,
+                                                tip: source === "log" ? t("lootcouncil.dialog.sourceLogTip") : t("lootcouncil.dialog.sourceLogBackTip") },
                                             { value: "wcl", label: "Log", icon: "inv_scroll_03",
-                                                tip: "Gear aus einem Log laden: eines der letzten Logs des Bots oder ein Warcraft-Logs-Link" },
+                                                tip: t("lootcouncil.dialog.sourceWclTip") },
                                             { value: "armory", label: "Armory", icon: "inv_shield_06", disabled: busy.has(`armory:${r.character}`),
-                                                tip: source === "armory" ? "Gear noch einmal aus der Armory holen" : "Gear aus der Armory holen — der Stand von jetzt" },
+                                                tip: source === "armory" ? t("lootcouncil.dialog.sourceArmoryAgainTip") : t("lootcouncil.dialog.sourceArmoryTip") },
                                         ]}
                                     />
                                 ) : undefined}
                             />
                             <div className="lc-hints lc-gearbadges">
-                                <GearBadges gear={g} bisOwned={r.bis.owned} bisTotal={r.bis.total} character={r.character} roleLabel={r.role === "healer" ? "DPS-Gear" : "Heilgear"} />
+                                <GearBadges gear={g} bisOwned={r.bis.owned} bisTotal={r.bis.total} character={r.character} roleLabel={r.role === "healer" ? t("lootcouncil.gear.dpsGear") : t("lootcouncil.gear.healGear")} />
                                 {r.armoryUrl ? (
                                     <a className="lc-extlink" href={r.armoryUrl} target="_blank" rel="noopener noreferrer">
-                                        Armory im Browser <ExternalIcon />
+                                        {t("lootcouncil.dialog.armoryLink")} <ExternalIcon />
                                     </a>
                                 ) : null}
                             </div>
@@ -350,7 +356,7 @@ export default function RaiderDialog({
                             ) : null}
                             {g && g.items.length
                                 ? <GearSheet items={g.items} />
-                                : <div className="empty lc-empty">Kein Gear bekannt — in keiner Auswertung gesehen. Oben ein Log laden oder die Armory holen.</div>}
+                                : <div className="empty lc-empty">{t("lootcouncil.dialog.noGear")}</div>}
                         </>
                     ) : null}
 
@@ -358,20 +364,20 @@ export default function RaiderDialog({
                         <>
                             <PartHead
                                 icon="inv_misc_gem_variety_02"
-                                title="Offene BiS-Teile"
-                                crumb={`${r.character} › BiS-Lücken`}
-                                tip={r.bis.sourceLabel || "BiS-Liste"}
+                                title={t("lootcouncil.dialog.bisTitle")}
+                                crumb={t("lootcouncil.dialog.bisCrumb", { character: r.character })}
+                                tip={r.bis.sourceLabel || t("lootcouncil.candidates.listTip")}
                                 tipSub={[
-                                    r.bis.source === "wowhead" ? "Geschriebene Wowhead-Liste: nennt Items, keine Sockel und keine Verzauberungen." : "Simuliertes WoWSims-Set.",
-                                    r.bis.borrowedFrom ? `Liste von ${r.bis.borrowedFrom}.` : "",
-                                    r.bis.tier ? `Tier ${r.bis.tier.toUpperCase()}${r.bis.exact ? "" : " (neueste verfügbare Liste)"}.` : "",
+                                    r.bis.source === "wowhead" ? t("lootcouncil.dialog.wowheadNote") : t("lootcouncil.dialog.wowsimsNote"),
+                                    r.bis.borrowedFrom ? t("lootcouncil.dialog.listOf", { from: r.bis.borrowedFrom }) : "",
+                                    r.bis.tier ? t(r.bis.exact ? "lootcouncil.dialog.tierExact" : "lootcouncil.dialog.tierOlder", { tier: r.bis.tier.toUpperCase() }) : "",
                                 ].filter(Boolean).join(" ")}
-                                action={r.bis.total ? <Badge tone="ok">{r.bis.owned}/{r.bis.total} getragen</Badge> : undefined}
+                                action={r.bis.total ? <Badge tone="ok">{tParts("lootcouncil.dialog.bisWorn", { owned: r.bis.owned, total: r.bis.total })}</Badge> : undefined}
                             />
                             {!r.bis.total ? (
-                                <div className="empty lc-empty">Für diese Spec und dieses Tier gibt es keine BiS-Liste.</div>
+                                <div className="empty lc-empty">{t("lootcouncil.dialog.noBisList")}</div>
                             ) : !gaps.length ? (
-                                <div className="empty lc-empty">Trägt die ganze Liste.</div>
+                                <div className="empty lc-empty">{t("lootcouncil.dialog.fullList")}</div>
                             ) : (
                                 <div className="lc-dlist">
                                     {gaps.map((item) => (
@@ -380,7 +386,7 @@ export default function RaiderDialog({
                                             <ContentBadge contentId={item.contentId} label={item.boss} />
                                             <span className="lc-muted">{item.boss}{item.ilvl ? ` · ilvl ${item.ilvl}` : ""}</span>
                                             <Link className={buttonClass("ghost", "sm", true, "lc-dlist-act")} to={dropHref(item.id)}>
-                                                <WowIcon name="inv_misc_bag_10" size={18} />Als Drop prüfen
+                                                <WowIcon name="inv_misc_bag_10" size={18} />{t("lootcouncil.word.checkAsDrop")}
                                             </Link>
                                         </div>
                                     ))}
@@ -393,10 +399,10 @@ export default function RaiderDialog({
                         <>
                             <PartHead
                                 icon="inv_misc_bag_10"
-                                title="Erhaltener Loot"
-                                crumb={`${r.character} › Loot`}
-                                tip="Im Content-Filter"
-                                tipSub="Offspec, Entzaubern und Bank zählen nicht als erhaltener Loot."
+                                title={t("lootcouncil.dialog.section.loot")}
+                                crumb={t("lootcouncil.dialog.lootCrumb", { character: r.character })}
+                                tip={t("lootcouncil.dialog.lootTip")}
+                                tipSub={t("lootcouncil.dialog.lootTipSub")}
                                 action={<Badge count>{r.lootCount}</Badge>}
                             />
                             {r.items.length ? (
@@ -412,9 +418,9 @@ export default function RaiderDialog({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="empty lc-empty">Im gewählten Content nichts bekommen.</div>
+                                <div className="empty lc-empty">{t("lootcouncil.dialog.noLoot")}</div>
                             )}
-                            {r.otherCount ? <div className="lc-muted lc-note">Dazu {r.otherCount} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.</div> : null}
+                            {r.otherCount ? <div className="lc-muted lc-note">{tParts("lootcouncil.items.otherNote", { count: r.otherCount })}</div> : null}
                         </>
                     ) : null}
                 </div>
@@ -422,19 +428,19 @@ export default function RaiderDialog({
                 <div className="dlg-foot lc-dlg-foot">
                     {canWrite ? (
                         <Button variant="danger" size="sm" icon={<AbsenceIcon />} running={busy.has(`exclude:${r.character}`)} onClick={() => onExclude(r.character)}>
-                            Nicht einplanen
+                            {t("lootcouncil.page.excludeAction")}
                         </Button>
                     ) : null}
                     {g && r.simSupported ? (
                         <Button variant="ghost" size="sm" icon="inv_gizmo_02" running={busy.has(`export:${r.character}`)} onClick={() => onExport(r.character)}>
-                            Sim-Export
+                            {t("lootcouncil.dialog.export.name")}
                         </Button>
                     ) : null}
                     <span className="lc-grow" />
-                    <Button variant="ghost" onClick={onClose}>Schließen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
                     {canWrite ? (
                         <Button variant="run" icon="inv_shield_06" running={busy.has(`armory:${r.character}`)} onClick={() => onArmory(r.character)}>
-                            Gear aus Armory holen
+                            {t("lootcouncil.gear.armoryFetch")}
                         </Button>
                     ) : null}
                 </div>

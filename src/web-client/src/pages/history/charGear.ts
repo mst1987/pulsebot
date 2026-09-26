@@ -1,5 +1,6 @@
 import type { GearItem } from "../../api";
 import { wowheadItemUrl } from "../../lib/wowheadItems";
+import { t } from "../../i18n";
 
 // Character-sheet order in two columns, weapons underneath. Shirt and tabard
 // are left out: they take a slot on the sheet and carry no raid value.
@@ -11,7 +12,14 @@ export const GEAR_BOTTOM = ["MAIN_HAND", "OFF_HAND", "RANGED"];
 
 export const NO_RAID_VALUE = new Set(["SHIRT", "TABARD"]);
 
-export const SOCKET_DE: Record<string, string> = { RED: "Rot", YELLOW: "Gelb", BLUE: "Blau", META: "Meta", PRISMATIC: "Prismatisch" };
+// Socket colour names. Getters, so every read is in the active language.
+export const SOCKET_DE: Record<string, string> = {
+    get RED() { return t("history.sockets.red"); },
+    get YELLOW() { return t("history.sockets.yellow"); },
+    get BLUE() { return t("history.sockets.blue"); },
+    get META() { return t("history.sockets.meta"); },
+    get PRISMATIC() { return t("history.sockets.prismatic"); },
+};
 
 // The game's own empty-socket art (same files Wowhead's tooltips use).
 const SOCKET_ICON: Record<string, string> = {

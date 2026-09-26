@@ -4,10 +4,11 @@
 // (#435: formerly source scans in test/web-client/pingsRoleSync.test.js).
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, RoleSyncData } from "../../api";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import RoleSyncPart from "./SettingsRoleSync";
 
 vi.mock("../../api", async (orig) => ({
@@ -41,6 +42,7 @@ async function show(data: RoleSyncData) {
 beforeEach(() => {
     vi.mocked(api.updateSettings).mockResolvedValue({ config: { saved: true } as unknown as AdminConfig });
 });
+afterEach(() => switchLang("de"));
 
 describe("Rollen-Abgleich part", () => {
     it("shows one line per role pair", async () => {
@@ -105,5 +107,16 @@ describe("Rollen-Abgleich part", () => {
     it("says nothing about permissions when the bot may manage the side it writes to", async () => {
         await show(roleSync({ canManage: { event: false, talk: true } }));
         expect(screen.queryByText(/„Rollen verwalten“ fehlt/)).not.toBeInTheDocument();
+    });
+
+    it("speaks English once the page is switched", async () => {
+        await switchLang("en");
+        await show(roleSync({ canManage: { event: true, talk: false }, driftTotal: 3 }));
+        expect(screen.getByText("Role sync")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Mapping" })).toBeInTheDocument();
+        expect(screen.getByText("3 drifts")).toBeInTheDocument();
+        expect(screen.getByText(/"Manage Roles" is missing on the communication Discord/)).toBeInTheDocument();
+        const row = screen.getByText("@Raider").closest("li")!;
+        expect(within(row).getByText("→")).toHaveAttribute("data-tip", "Event → Talk");
     });
 });

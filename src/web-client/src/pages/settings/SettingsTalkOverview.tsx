@@ -4,6 +4,7 @@ import { talkOverviewBadge } from "../../lib/settingsLogic";
 import { useToast } from "../../components/Jobs";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 
 // One row of an event server's card (#257, #361): that server's own raid
 // overview state as a badge (the times and any error in its tooltip), where it
@@ -27,14 +28,15 @@ export default function TalkOverviewRow({
 }) {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const repost = async () => {
         setBusy(true);
         try {
             const { result, status: next } = await repostTalkOverview(guildId);
             if (next) onReposted(next);
-            if (result.status === "error") toast(result.error || "Übersicht konnte nicht gepostet werden.", "err");
-            else toast("Raid-Übersicht neu gepostet.");
+            if (result.status === "error") toast(result.error || t("settings.talkOverview.postFailed"), "err");
+            else toast(t("settings.talkOverview.reposted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -46,7 +48,7 @@ export default function TalkOverviewRow({
     const target = [targetChannelName, targetGuildName].filter(Boolean).join(" · ");
     return (
         <div>
-            <dt tabIndex={0} data-tip="Raid-Übersicht" data-tip-sub={target ? `Wird gepostet auf ${target}.` : undefined}>Übersicht</dt>
+            <dt tabIndex={0} data-tip={t("settings.overviewBadge.title")} data-tip-sub={target ? t("settings.talkOverview.postedOn", { target }) : undefined}>{t("settings.talkOverview.label")}</dt>
             <dd className="talk-overview">
                 {status && status.messageUrl ? (
                     <a href={status.messageUrl} target="_blank" rel="noreferrer">
@@ -55,7 +57,7 @@ export default function TalkOverviewRow({
                 ) : (
                     <Badge tone={badge.tone || undefined} tip={badge.tip} tipSub={badge.tipSub}>{badge.label}</Badge>
                 )}
-                <Button variant="ghost" size="sm" onClick={repost} disabled={busy}>{busy ? "Postet…" : "Neu posten"}</Button>
+                <Button variant="ghost" size="sm" onClick={repost} disabled={busy}>{busy ? t("settings.talkOverview.posting") : t("settings.talkOverview.repost")}</Button>
             </dd>
         </div>
     );

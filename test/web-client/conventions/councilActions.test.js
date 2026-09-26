@@ -5,7 +5,7 @@
 //   * no estimates: a gain appears once simulated, never before;
 //   * every wait is a job toast, the simulation with its real progress;
 //   * a loaded log or armory answer that was refused is reported.
-const { files, fn } = require("./councilHelpers");
+const { files, fn, text } = require("./councilHelpers");
 
 const { page, council, parts, dialog, drop, api, jobs } = files;
 
@@ -57,7 +57,8 @@ describe("loot council — no estimates", () => {
     it("says 'nicht simuliert' where a guess would go", () => {
         const cell = fn(parts, "GainCell");
         expect(cell).toMatch(/if \(typeof simDelta !== "number"\)/);
-        expect(cell).toMatch(/nicht simuliert/);
+        expect(cell).toMatch(/t\("lootcouncil\.sim\.notSimulated"\)/);
+        expect(text("sim.notSimulated")).toBe("nicht simuliert");
         expect(fn(parts, "CandidateRow")).toMatch(/<GainCell candidate=\{candidate\} simDelta=\{simDelta\}/);
     });
 
@@ -69,7 +70,8 @@ describe("loot council — no estimates", () => {
         const pick = fn(council, "pickVerdict");
         expect(pick).toMatch(/basis: "pending"/);
         expect(pick).toMatch(/basis: "need"/);
-        expect(fn(page, "VerdictGain")).toMatch(/höchster Bedarf/);
+        expect(fn(page, "VerdictGain")).toMatch(/t\("lootcouncil\.sim\.highestNeed"\)/);
+        expect(text("sim.highestNeed")).toBe("höchster Bedarf");
         expect(fn(page, "GapCard")).toMatch(/verdict\.basis === "pending"/);
         expect(drop).toMatch(/verdict\?\.basis === "pending"/);
     });
@@ -87,12 +89,16 @@ describe("loot council — no estimates", () => {
 describe("loot council — waits are toasts", () => {
     it("reports through the shared job channel", () => {
         expect(page).toMatch(/import \{ useJobs, useToast \} from "\.\.\/\.\.\/components\/Jobs";/);
-        for (const label of ["Loot-Council wird geladen", "Armory wird geladen", "Log wird geladen"]) {
-            expect(page).toContain(`label: "${label}"`);
+        const labels = { loading: "Loot-Council wird geladen", armoryLoading: "Armory wird geladen", logLoading: "Log wird geladen" };
+        for (const [key, label] of Object.entries(labels)) {
+            expect(page).toContain(`label: t("lootcouncil.page.${key}")`);
+            expect(text(`page.${key}`)).toBe(label);
         }
-        expect(drop).toContain("label: \"Drop wird geprüft\"");
-        expect(council).toContain("label: \"Simulation\"");
-        expect(page).toMatch(/label: "Loot-Council wird geladen", quiet: true/);
+        expect(drop).toContain("label: translate(\"lootcouncil.drop.loading\")");
+        expect(text("drop.loading")).toBe("Drop wird geprüft");
+        expect(council).toContain("label: t(\"lootcouncil.sim.label\")");
+        expect(text("sim.label")).toBe("Simulation");
+        expect(page).toMatch(/label: t\("lootcouncil\.page\.loading"\), quiet: true/);
     });
 
     it("feeds the simulation's real progress into the toast and merges results", () => {
@@ -111,7 +117,8 @@ describe("loot council — waits are toasts", () => {
     it("tells the reader what the armory and a loaded log did, refusals included", () => {
         const main = fn(page, "LootCouncilPage");
         expect(main).toMatch(/armoryRejected === "pvp"/);
-        expect(main).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid/);
+        expect(main).toMatch(/t\("lootcouncil\.page\.armoryPvp", \{ names: pvp\.join\(", "\) \}\)/);
+        expect(text("page.armoryPvp")).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid/);
         expect(main).toMatch(/const fresh = await reloadAll\(\);[\s\S]{0,400}logRejected === "pvp"/);
         expect(main).toMatch(/loadCouncilLogGear\(\{ character, \.\.\.pick \}\)/);
         expect(main).toMatch(/loadCouncilLogGear\(\{ character, clear: true \}\)/);
@@ -128,8 +135,12 @@ describe("loot council — waits are toasts", () => {
     });
 
     it("confirms the per-raider actions in a toast", () => {
-        expect(page).toMatch(/wird nicht mehr eingeplant\./);
-        expect(page).toMatch(/wird wieder eingeplant\./);
-        expect(page).toMatch(/eingeplant\.`\s*:\s*`Festlegung für/);
+        expect(page).toContain("t(\"lootcouncil.page.excluded\", { character })");
+        expect(page).toContain("t(\"lootcouncil.page.included\", { character })");
+        expect(page).toMatch(/t\("lootcouncil\.page\.roleSet"[\s\S]{0,80}:\s*t\("lootcouncil\.page\.roleCleared"/);
+        expect(text("page.excluded")).toMatch(/wird nicht mehr eingeplant\./);
+        expect(text("page.included")).toMatch(/wird wieder eingeplant\./);
+        expect(text("page.roleSet")).toMatch(/eingeplant\.$/);
+        expect(text("page.roleCleared")).toMatch(/^Festlegung für/);
     });
 });

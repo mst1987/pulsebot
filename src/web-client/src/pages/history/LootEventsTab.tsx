@@ -9,6 +9,7 @@ import { useToast } from "../../components/Jobs";
 import { IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
+import { tParts, useT } from "../../i18n";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -26,6 +27,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
     // the loot views are read-only (src/config/permissions.js).
     canEdit: boolean;
 }) {
+    const t = useT();
     const [saving, setSaving] = useState<string | null>(null);
     const toast = useToast();
     const navigate = useNavigate();
@@ -44,7 +46,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
         setSaving(eventId);
         try {
             const r = await setLootCategory({ event: eventId, categoryId });
-            onChanged(`Kategorie gesetzt (${r.updated} Item(s)).`);
+            onChanged(t("history.lootEvents.categorySet", { count: r.updated }));
         } catch (err) {
             // Not onChanged: nothing changed, so this must not reload the list
             // and must not be reported in the success tone.
@@ -56,13 +58,13 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
 
     const head = (
         <PartHead
-            icon="inv_misc_bag_10" tone="history" title="Nach Raid" crumb="Loot › Nach Raid"
-            tip="Nach Raid" tipSub="Der importierte Loot je Event. Die Kategorie ordnet Loot ohne Raid-Helper-Event einer Raid-Serie zu."
-            action={<Badge count>{lootEvents.length} Events</Badge>}
+            icon="inv_misc_bag_10" tone="history" title={t("history.page.view.loot")} crumb={t("history.event.crumb")}
+            tip={t("history.page.view.loot")} tipSub={t("history.lootEvents.tipSub")}
+            action={<Badge count>{tParts("history.lootEvents.count", { count: lootEvents.length })}</Badge>}
         />
     );
 
-    if (!lootEvents.length) return <div className="dash-card hl-card">{head}<div className="empty">Noch kein Loot importiert.</div></div>;
+    if (!lootEvents.length) return <div className="dash-card hl-card">{head}<div className="empty">{t("history.shared.noLoot")}</div></div>;
 
     const sorted = apply(lootEvents, (e, key) => {
         switch (key) {
@@ -83,11 +85,11 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
             <table className="idx" style={{ margin: 0 }}>
                 <thead>
                     <tr>
-                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} tip="Kategorie" tipSub="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event." />
-                        <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="event" label={t("history.shared.colEvent")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="date" label={t("history.shared.colDate")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="category" label={t("history.shared.category")} sort={sort} dir={dir} onSort={onSort} tip={t("history.shared.category")} tipSub={t("history.lootEvents.categorySub")} />
+                        <SortTh sortKey="count" label={t("history.shared.colItems")} sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="source" label={t("history.shared.colSource")} sort={sort} dir={dir} onSort={onSort} />
                         <th />
                     </tr>
                 </thead>
@@ -99,17 +101,17 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
                             <td className="small">
                                 {canEdit ? (
                                     <select
-                                        aria-label="Kategorie"
+                                        aria-label={t("history.shared.category")}
                                         value={e.categoryId || ""}
                                         disabled={saving === e.eventId}
                                         onChange={(ev) => save(e.eventId, ev.target.value)}
                                     >
-                                        <option value="">— ohne Kategorie —</option>
+                                        <option value="">{t("history.lootEvents.noCategoryOption")}</option>
                                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         {/* A category the bot can't see right now (channel gone / Discord offline)
                                             must stay selectable, else opening the tab silently reassigns it. */}
                                         {e.categoryId && !categories.some((c) => c.id === e.categoryId) && (
-                                            <option value={e.categoryId}>{e.categoryId} (unbekannt)</option>
+                                            <option value={e.categoryId}>{tParts("history.lootEvents.unknownCategory", { id: e.categoryId })}</option>
                                         )}
                                     </select>
                                 ) : (categoryNameById.get(e.categoryId || "") || e.categoryId || "—")}
@@ -121,7 +123,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
                             <td className="cell-actions">
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
                                     <IconButton
-                                        icon={<ChevronRightIcon />} size="sm" tip="Loot ansehen" tipSub="Alle Items dieses Events, mit Nachtragen und Löschen"
+                                        icon={<ChevronRightIcon />} size="sm" tip={t("history.shared.viewLoot")} tipSub={t("history.lootEvents.viewSub")}
                                         onClick={() => navigate(`/history/event?event=${encodeURIComponent(e.eventId)}`)}
                                     />
                                 </div>

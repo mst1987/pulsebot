@@ -15,7 +15,7 @@
 // fallback for any key English lacks, and src/web-client/src/i18n/core.test.ts fails
 // as soon as the two languages hold different keys.
 import { useSyncExternalStore } from "react";
-import { DEFAULT_LANG, LOCALES, flatten, normalizeLang, translate, type FlatDict, type Lang, type Params } from "./core";
+import { DEFAULT_LANG, LOCALES, flatten, normalizeLang, translate, translateParts, type FlatDict, type Lang, type Params } from "./core";
 
 export { LANGS, LANG_LABELS, type Lang, type Params } from "./core";
 
@@ -162,6 +162,16 @@ function onMissing(lang: Lang, key: string) {
 /** Translates `key` in the active language (German fallback, else the key). */
 export function t(key: string, params?: Params): string {
     return translate(DICTS, current, key, params, onMissing);
+}
+
+/**
+ * `t` as pieces for JSX children — `<Badge>{tParts("x.open", { count })}</Badge>`
+ * renders the same text nodes as the former `<Badge>{count} offen</Badge>`, so
+ * a counter badge keeps its exact look (a text in one node is drawn a subpixel
+ * apart from the same text in two).
+ */
+export function tParts(key: string, params?: Params): string[] {
+    return translateParts(DICTS, current, key, params, onMissing);
 }
 
 /** Whether `key` exists in the active language or the German fallback. */

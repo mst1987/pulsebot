@@ -7,8 +7,9 @@ import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment } from "../../components/ui";
 import { ChevronDownIcon } from "../../components/icons";
-import { ROLE_ICON, ROLE_LABEL, categoryNote, type FilterView } from "./council";
+import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
+import { tParts, useT } from "../../i18n";
 
 // The short name a tier wears on its badge.
 const TIER_SHORT: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
@@ -28,6 +29,7 @@ function ContentFilter({ data, view, patch }: {
     view: FilterView;
     patch: (p: Partial<FilterView>) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const o = data.options;
@@ -35,7 +37,7 @@ function ContentFilter({ data, view, patch }: {
     useDismiss(ref, open, () => setOpen(false));
 
     const toggleIn = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
-    const tiers = o.tiers.filter((t) => view.tiers.includes(t.id));
+    const tiers = o.tiers.filter((tier) => view.tiers.includes(tier.id));
     const contents = o.contents.filter((c) => view.contents.includes(c.id));
 
     return (
@@ -45,34 +47,34 @@ function ContentFilter({ data, view, patch }: {
                 className="lc-selbtn"
                 aria-haspopup="true"
                 aria-expanded={open}
-                data-tip="Content"
-                data-tip-sub="Welche Raids beim Loot zählen. Ohne Auswahl zählt aller Loot; Tiers und einzelne Raids lassen sich kombinieren („T5 plus Hyjal“), wenn die Gilde gerade wechselt."
+                data-tip={t("lootcouncil.filter.content")}
+                data-tip-sub={t("lootcouncil.filter.contentTipSub")}
                 onClick={() => setOpen((v) => !v)}
             >
                 <FunnelIcon />
-                <span>Content</span>
-                {tiers.map((t) => <span key={t.id} className={`lc-cbadge lc-h-${t.id}`}>{TIER_SHORT[t.id] || t.label}</span>)}
+                <span>{t("lootcouncil.filter.content")}</span>
+                {tiers.map((tier) => <span key={tier.id} className={`lc-cbadge lc-h-${tier.id}`}>{TIER_SHORT[tier.id] || tier.label}</span>)}
                 {contents.map((c) => <span key={c.id} className={`lc-cbadge lc-h-${c.id}`}>{c.short}</span>)}
-                {!tiers.length && !contents.length ? <span className="lc-muted">alle</span> : null}
+                {!tiers.length && !contents.length ? <span className="lc-muted">{t("lootcouncil.filter.all")}</span> : null}
                 <ChevronDownIcon />
             </button>
             {open ? (
-                <div className="lc-popmenu" role="dialog" aria-label="Content wählen">
-                    <div className="kicker">Tier</div>
+                <div className="lc-popmenu" role="dialog" aria-label={t("lootcouncil.filter.chooseContent")}>
+                    <div className="kicker">{t("lootcouncil.filter.tier")}</div>
                     <div className="lc-popbtns">
-                        {o.tiers.map((t) => (
+                        {o.tiers.map((tier) => (
                             <button
-                                key={t.id}
+                                key={tier.id}
                                 type="button"
-                                className={`btn btn-sm lc-filter lc-filter-tier lc-h-${t.id}${view.tiers.includes(t.id) ? " on" : ""}`}
-                                data-tip={`Ganze Stufe ${t.label} ein-/ausschalten`}
-                                onClick={() => patch({ tiers: toggleIn(view.tiers, t.id) })}
+                                className={`btn btn-sm lc-filter lc-filter-tier lc-h-${tier.id}${view.tiers.includes(tier.id) ? " on" : ""}`}
+                                data-tip={t("lootcouncil.filter.tierToggle", { tier: tier.label })}
+                                onClick={() => patch({ tiers: toggleIn(view.tiers, tier.id) })}
                             >
-                                {t.label}
+                                {tier.label}
                             </button>
                         ))}
                     </div>
-                    <div className="kicker">Raids</div>
+                    <div className="kicker">{t("lootcouncil.filter.raids")}</div>
                     <div className="lc-popbtns">
                         {o.contents.map((c) => (
                             <button
@@ -87,7 +89,7 @@ function ContentFilter({ data, view, patch }: {
                         ))}
                     </div>
                     {view.tiers.length || view.contents.length ? (
-                        <Button variant="ghost" size="sm" onClick={() => patch({ tiers: [], contents: [] })}>Zurücksetzen</Button>
+                        <Button variant="ghost" size="sm" onClick={() => patch({ tiers: [], contents: [] })}>{t("common.reset")}</Button>
                     ) : null}
                 </div>
             ) : null}
@@ -105,74 +107,75 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
     simulated: number;
     simulatable: number;
 }) {
+    const t = useT();
     const o = data.options;
-    const derivedTier = data.filter.bisTierDerived ? o.bisTiers.find((t) => t.id === data.filter.bisTier) : null;
+    const derivedTier = data.filter.bisTierDerived ? o.bisTiers.find((b) => b.id === data.filter.bisTier) : null;
     const note = categoryNote(data);
     const roster = data.roster.length;
 
     return (
         <div className="lc-panel lc-filterbar">
             <Segment
-                ariaLabel="Rolle"
+                ariaLabel={t("lootcouncil.filter.role")}
                 value={view.role}
                 onChange={(role) => patch({ role })}
                 options={[
-                    ...o.roles.map((r) => ({ value: r.id, label: ROLE_LABEL[r.id] || r.label, icon: ROLE_ICON[r.id] })),
-                    { value: "", label: "Alle" },
+                    ...o.roles.map((r) => ({ value: r.id, label: roleLabel(r.id, r.label), icon: ROLE_ICON[r.id] })),
+                    { value: "", label: t("common.all") },
                 ]}
             />
             <ContentFilter data={data} view={view} patch={patch} />
             <select
                 className="lc-sel"
-                aria-label="Raid-Kategorie"
+                aria-label={t("lootcouncil.filter.category")}
                 value={view.category}
                 onChange={(e) => patch({ category: e.target.value })}
             >
-                <option value="">Alle Raid-Kategorien</option>
+                <option value="">{t("lootcouncil.filter.allCategories")}</option>
                 {o.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <span
                 className="lc-selwrap"
-                data-tip={derivedTier ? `Aus dem neuesten Loot abgeleitet: ${derivedTier.label}` : undefined}
-                data-tip-sub={derivedTier ? "Gemessen wird gegen die Liste des Tiers, aus dem der neueste Loot der Gilde stammt." : undefined}
+                data-tip={derivedTier ? t("lootcouncil.filter.derivedTip", { tier: derivedTier.label }) : undefined}
+                data-tip-sub={derivedTier ? t("lootcouncil.filter.derivedTipSub") : undefined}
             >
                 <select
                     className="lc-sel"
-                    aria-label="BiS-Liste"
+                    aria-label={t("lootcouncil.filter.bisList")}
                     value={view.bisTier}
                     onChange={(e) => patch({ bisTier: e.target.value })}
                 >
-                    <option value="">BiS-Liste {derivedTier ? `${TIER_SHORT[derivedTier.id] || derivedTier.label} (auto)` : "automatisch"}</option>
-                    {o.bisTiers.map((t) => <option key={t.id} value={t.id}>BiS-Liste {TIER_SHORT[t.id] || t.label}</option>)}
+                    <option value="">{derivedTier ? t("lootcouncil.filter.bisAuto", { tier: TIER_SHORT[derivedTier.id] || derivedTier.label }) : t("lootcouncil.filter.bisAutomatic")}</option>
+                    {o.bisTiers.map((b) => <option key={b.id} value={b.id}>{tParts("lootcouncil.filter.bisTier", { tier: TIER_SHORT[b.id] || b.label })}</option>)}
                 </select>
             </span>
             <span className="lc-filterbar-badges">
                 {note ? (
                     <Badge tone={note.empty ? "bad" : undefined} icon="achievement_guildperk_everybodysfriend" tip={note.head} tipSub={note.sub}>
-                        {note.empty ? "Kategorie leer" : `${data.filter.skipped.category + data.filter.skipped.excluded} ausgeblendet`}
+                        {note.empty ? t("lootcouncil.filter.categoryEmpty") : t("lootcouncil.filter.hidden", { count: data.filter.skipped.category + data.filter.skipped.excluded })}
                     </Badge>
                 ) : null}
                 <Badge
                     tone={armoryCount ? "accent" : undefined}
                     icon="inv_shield_06"
-                    tip="Gear-Stand"
+                    tip={t("lootcouncil.filter.gearTip")}
                     tipSub={`${armoryCount
-                        ? `${armoryCount} von ${roster} Raider(n) mit Gear aus der Armory, der Rest aus der letzten Auswertung.`
-                        : "Alles Gear stammt aus der letzten Auswertung — wer seitdem etwas angezogen hat, wird mit dem alten Set bewertet."} Verzauberungen kommen weiter aus den Auswertungen: Blizzards Verzauberungs-IDs sind nicht die, die WoWSims erwartet. Ein seitdem neues Teil wird unverzaubert gerechnet und fällt etwas zu niedrig aus.`}
+                        ? t("lootcouncil.filter.gearArmory", { armory: armoryCount, count: roster })
+                        : t("lootcouncil.filter.gearAllLog")} ${t("lootcouncil.filter.gearEnchants")}`}
                 >
-                    {armoryCount ? `Gear: ${armoryCount} Armory` : "Gear: Auswertung"}
+                    {armoryCount ? t("lootcouncil.filter.gearBadgeArmory", { count: armoryCount }) : t("lootcouncil.filter.gearBadgeLog")}
                 </Badge>
                 {data.sim.available ? (
                     <Badge
                         tone={simulatable && simulated >= simulatable ? "ok" : undefined}
                         icon="inv_gizmo_02"
                         tip={`WoWSims ${data.sim.version}`}
-                        tipSub={`${simulated} von ${simulatable} simulierbaren Raidern haben eine DPS. Ein Zugewinn erscheint erst mit einer Simulation — die Seite zeigt keine Schätzungen aus Stat-Gewichten.`}
+                        tipSub={t("lootcouncil.filter.simTipSub", { done: simulated, total: simulatable })}
                     >
                         Sim {simulated}/{simulatable}
                     </Badge>
                 ) : (
-                    <Badge tone="bad" icon="inv_gizmo_02" tip="Keine Simulation" tipSub={data.sim.hint}>Sim aus</Badge>
+                    <Badge tone="bad" icon="inv_gizmo_02" tip={t("lootcouncil.sim.noSim")} tipSub={data.sim.hint}>{t("lootcouncil.filter.simOff")}</Badge>
                 )}
             </span>
         </div>

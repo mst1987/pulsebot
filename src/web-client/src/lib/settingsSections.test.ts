@@ -3,8 +3,10 @@
 // save themselves, and where an id merged away in the redesign (#224) lands.
 import { describe, expect, it } from "vitest";
 import {
-    LEGACY_SECTIONS, SECTION_PARAM_IDS, SETTINGS_SECTIONS, groupedSections, resolveSection, savesWithForm, visibleSections,
+    LEGACY_SECTIONS, SECTION_PARAM_IDS, SETTINGS_SECTIONS, groupLabel, groupedSections, resolveSection, savesWithForm, sectionCrumb, sectionLabel,
+    visibleSections, type SettingsGroup,
 } from "./settingsSections";
+import { inLang } from "../test/i18n";
 
 const ids = () => SETTINGS_SECTIONS.map((s) => s.id);
 const byId = (id: string) => SETTINGS_SECTIONS.find((s) => s.id === id);
@@ -16,11 +18,23 @@ describe("the sections", () => {
             "raids", "raidsheets", "topitems", "logs", "recruitment",
         ]));
         expect(new Set(ids()).size).toBe(ids().length);
-        expect(groupedSections(SETTINGS_SECTIONS).map((g) => g.group)).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
+        expect(groupedSections(SETTINGS_SECTIONS).map((g) => g.group)).toEqual(["access", "connections", "categories", "modules"]);
+        expect(groupedSections(SETTINGS_SECTIONS).map((g) => groupLabel(g.group))).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
         for (const s of SETTINGS_SECTIONS) {
-            expect({ id: s.id, icon: /^[a-z0-9_]+$/.test(s.icon), label: !!s.label, crumb: !!s.crumb })
+            // a missing text would come back as its key
+            const label = sectionLabel(s);
+            const crumb = sectionCrumb(s);
+            expect({ id: s.id, icon: /^[a-z0-9_]+$/.test(s.icon), label: !!label && !label.startsWith("settings."), crumb: !!crumb && !crumb.startsWith("settings.") })
                 .toEqual({ id: s.id, icon: true, label: true, crumb: true });
         }
+        expect(sectionLabel(SETTINGS_SECTIONS[0])).toBe("Berechtigungen");
+    });
+
+    it("names the sections and groups in English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(sectionLabel(SETTINGS_SECTIONS[0])).toBe("Permissions");
+            expect(groupLabel("modules")).toBe("Modules");
+        });
     });
 
     it("keeps the sections of a group together, so every heading prints once", () => {
@@ -32,9 +46,9 @@ describe("the sections", () => {
     });
 
     it("bundles neighbours only", () => {
-        const s = (id: string, group: string) => ({ id, group, label: id, icon: "x", crumb: "" });
-        expect(groupedSections([s("a", "A"), s("b", "A"), s("c", "B"), s("d", "A")]).map((g) => [g.group, g.items.map((i) => i.id)]))
-            .toEqual([["A", ["a", "b"]], ["B", ["c"]], ["A", ["d"]]]);
+        const s = (id: string, group: SettingsGroup) => ({ id, group, icon: "x" });
+        expect(groupedSections([s("a", "access"), s("b", "access"), s("c", "modules"), s("d", "access")]).map((g) => [g.group, g.items.map((i) => i.id)]))
+            .toEqual([["access", ["a", "b"]], ["modules", ["c"]], ["access", ["d"]]]);
     });
 });
 

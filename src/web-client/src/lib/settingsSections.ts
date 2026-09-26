@@ -10,15 +10,16 @@
 // fields, and none said whether something was missing there. Ten are left, each
 // with a WoW icon, and the two that can be incomplete carry a count.
 
+import { t } from "../i18n";
+
+export type SettingsGroup = "access" | "connections" | "categories" | "modules";
+
 export type SettingsSection = {
+    /** Also the key of its texts: settings.sections.<id>.label / .crumb. */
     id: string;
-    /** Sidebar entry and the part head's title. */
-    label: string;
-    group: string;
+    group: SettingsGroup;
     /** WoW icon of the sidebar entry and the part head. */
     icon: string;
-    /** Breadcrumb under the part head's title. */
-    crumb: string;
     /**
      * Full admins only. Mirrors what the API enforces (ACCESS_KEYS with
      * requireFullAdmin in src/web/apiRoutes/settings.js).
@@ -32,19 +33,34 @@ export type SettingsSection = {
 };
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
-    { id: "berechtigungen", group: "Zugang", label: "Berechtigungen", icon: "inv_scroll_11", crumb: "Zugang · wer darf welchen Bereich sehen oder bearbeiten", adminOnly: true },
+    { id: "berechtigungen", group: "access", icon: "inv_scroll_11", adminOnly: true },
 
-    { id: "verbindungen", group: "Verbindungen", label: "Verbindungen", icon: "inv_misc_horn_01", crumb: "Verbindungen", standalone: true },
-    { id: "discordserver", group: "Verbindungen", label: "Discord-Server", icon: "inv_letter_15", crumb: "Verbindungen · Event- und Kommunikations-Discord", adminOnly: true, standalone: true },
+    { id: "verbindungen", group: "connections", icon: "inv_misc_horn_01", standalone: true },
+    { id: "discordserver", group: "connections", icon: "inv_letter_15", adminOnly: true, standalone: true },
 
-    { id: "kategorien", group: "Raid-Kategorien", label: "Kategorien", icon: "inv_banner_03", crumb: "Raid-Kategorien · alles, was pro Raidtag gilt" },
+    { id: "kategorien", group: "categories", icon: "inv_banner_03" },
 
-    { id: "raids", group: "Module", label: "Raid-Standardwerte", icon: "inv_misc_note_02", crumb: "Module · womit ein neues Raid-Event vorbelegt wird" },
-    { id: "raidsheets", group: "Module", label: "Raidsheets", icon: "inv_scroll_03", crumb: "Module · Google-Sheets nach Content", standalone: true },
-    { id: "topitems", group: "Module", label: "Top-Items", icon: "inv_misc_bag_10", crumb: "Module · die großen Drops fürs Dashboard" },
-    { id: "logs", group: "Module", label: "Log-Auswertung", icon: "inv_misc_pocketwatch_01", crumb: "Module · wo Logs automatisch gepostet werden" },
-    { id: "recruitment", group: "Module", label: "Recruitment", icon: "inv_misc_grouplooking", crumb: "Module · Bewerbungen" },
+    { id: "raids", group: "modules", icon: "inv_misc_note_02" },
+    { id: "raidsheets", group: "modules", icon: "inv_scroll_03", standalone: true },
+    { id: "topitems", group: "modules", icon: "inv_misc_bag_10" },
+    { id: "logs", group: "modules", icon: "inv_misc_pocketwatch_01" },
+    { id: "recruitment", group: "modules", icon: "inv_misc_grouplooking" },
 ];
+
+/** Sidebar entry and the part head's title, in the active language. */
+export function sectionLabel(section: SettingsSection): string {
+    return t(`settings.sections.${section.id}.label`);
+}
+
+/** Breadcrumb under the part head's title. */
+export function sectionCrumb(section: SettingsSection): string {
+    return t(`settings.sections.${section.id}.crumb`);
+}
+
+/** The heading of a sidebar group. */
+export function groupLabel(group: SettingsGroup): string {
+    return t(`settings.groups.${group}`);
+}
 
 /**
  * Ids of the sections that were merged away, and where they went. A link such
@@ -80,8 +96,8 @@ export function resolveSection(stored: string, sections: SettingsSection[]): str
 }
 
 /** The sections in sidebar order, bundled under their group heading. */
-export function groupedSections(sections: SettingsSection[]): { group: string; items: SettingsSection[] }[] {
-    const out: { group: string; items: SettingsSection[] }[] = [];
+export function groupedSections(sections: SettingsSection[]): { group: SettingsGroup; items: SettingsSection[] }[] {
+    const out: { group: SettingsGroup; items: SettingsSection[] }[] = [];
     for (const section of sections) {
         const last = out[out.length - 1];
         if (last && last.group === section.group) last.items.push(section);

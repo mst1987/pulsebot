@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Emoji, TextChannel } from "../../api";
 import { CrestIcon } from "../../components/icons";
 import { parseDiscordMarkdown, type InlineToken, type MdBlock } from "../../lib/discordMarkdown";
+import { formatTime } from "../../lib/format";
+import { t as translate, useT } from "../../i18n";
 
 // How a recruitment message will look in Discord: the bot's name and avatar,
 // the text with Discord's markdown rendered and the server's own emojis in
@@ -18,26 +20,26 @@ function emojiUrl(token: { id: string }, emojis: Emoji[]): string {
 }
 
 function Inline({ tokens, emojis, channels }: { tokens: InlineToken[]; emojis: Emoji[]; channels: TextChannel[] }): ReactNode {
-    return tokens.map((t, i) => {
-        switch (t.type) {
-            case "text": return <span key={i}>{t.text}</span>;
-            case "bold": return <strong key={i}><Inline tokens={t.children} emojis={emojis} channels={channels} /></strong>;
-            case "italic": return <em key={i}><Inline tokens={t.children} emojis={emojis} channels={channels} /></em>;
-            case "underline": return <u key={i}><Inline tokens={t.children} emojis={emojis} channels={channels} /></u>;
-            case "strike": return <s key={i}><Inline tokens={t.children} emojis={emojis} channels={channels} /></s>;
-            case "code": return <code key={i} className="dc-code">{t.text}</code>;
+    return tokens.map((tok, i) => {
+        switch (tok.type) {
+            case "text": return <span key={i}>{tok.text}</span>;
+            case "bold": return <strong key={i}><Inline tokens={tok.children} emojis={emojis} channels={channels} /></strong>;
+            case "italic": return <em key={i}><Inline tokens={tok.children} emojis={emojis} channels={channels} /></em>;
+            case "underline": return <u key={i}><Inline tokens={tok.children} emojis={emojis} channels={channels} /></u>;
+            case "strike": return <s key={i}><Inline tokens={tok.children} emojis={emojis} channels={channels} /></s>;
+            case "code": return <code key={i} className="dc-code">{tok.text}</code>;
             case "emoji": {
-                const url = emojiUrl(t, emojis);
+                const url = emojiUrl(tok, emojis);
                 return url
-                    ? <img key={i} className="dc-emoji" src={url} alt={`:${t.name}:`} data-tip={`:${t.name}:`} loading="lazy" />
-                    : <span key={i} className="dc-emoji-missing" data-tip="Emoji nicht auf dem Server" data-tip-sub="Discord zeigt an dieser Stelle nur den Namen.">:{t.name}:</span>;
+                    ? <img key={i} className="dc-emoji" src={url} alt={`:${tok.name}:`} data-tip={`:${tok.name}:`} loading="lazy" />
+                    : <span key={i} className="dc-emoji-missing" data-tip={translate("recruitment.preview.missingEmoji")} data-tip-sub={translate("recruitment.preview.missingEmojiSub")}>:{tok.name}:</span>;
             }
             case "mention": {
-                if (t.kind === "channel") {
-                    const ch = channels.find((c) => c.id === t.id);
-                    return <span key={i} className="dc-mention">#{ch ? ch.name : "Kanal"}</span>;
+                if (tok.kind === "channel") {
+                    const ch = channels.find((c) => c.id === tok.id);
+                    return <span key={i} className="dc-mention">#{ch ? ch.name : translate("recruitment.preview.channel")}</span>;
                 }
-                return <span key={i} className="dc-mention">@{t.kind === "role" ? "Rolle" : "Mitglied"}</span>;
+                return <span key={i} className="dc-mention">@{tok.kind === "role" ? translate("recruitment.preview.role") : translate("recruitment.preview.member")}</span>;
             }
             default: return null;
         }
@@ -68,8 +70,9 @@ function Block({ block, emojis, channels }: { block: MdBlock; emojis: Emoji[]; c
     }
 }
 
+/** "Heute um 19:30" / "Today at 19:30" — what Discord writes next to a message of today. */
 function nowLabel(): string {
-    return `Heute um ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+    return translate("recruitment.preview.now", { time: formatTime(Date.now()) });
 }
 
 export default function DiscordPreview({ content, buttonLabel, emojis, channels = [], botName = "EventHelper" }: {
@@ -79,6 +82,7 @@ export default function DiscordPreview({ content, buttonLabel, emojis, channels 
     channels?: TextChannel[];
     botName?: string;
 }) {
+    const t = useT();
     const blocks = parseDiscordMarkdown(content);
     return (
         <div className="dc">
@@ -92,8 +96,9 @@ export default function DiscordPreview({ content, buttonLabel, emojis, channels 
                     </div>
                     {blocks.length
                         ? blocks.map((b, i) => <Block key={i} block={b} emojis={emojis} channels={channels} />)
-                        : <p className="dc-p dc-empty">Noch kein Text.</p>}
-                    {/* Same default label as buildRecruitmentMessage() in src/web/discord.js. */}
+                        : <p className="dc-p dc-empty">{t("recruitment.preview.empty")}</p>}
+                    {/* Same default label as buildRecruitmentMessage() in src/web/discord.js —
+                        what the bot posts, so it is not translated. */}
                     <div className="dc-btn">{buttonLabel.trim() || "Jetzt bewerben"}</div>
                 </div>
             </div>

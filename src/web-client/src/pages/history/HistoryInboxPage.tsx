@@ -16,8 +16,10 @@ import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { tParts, useT } from "../../i18n";
 
 export default function HistoryInboxPage() {
+    const t = useT();
     const navigate = useNavigate();
     const toast = useToast();
     const inbox = useApi(() => getLootInbox(), []);
@@ -39,33 +41,33 @@ export default function HistoryInboxPage() {
     return (
         <>
             <div className="hl-inbox-head">
-                <IconButton icon={<ChevronLeftIcon />} tip="Zurück zu Historie & Loot" onClick={() => navigate("/history")} />
+                <IconButton icon={<ChevronLeftIcon />} tip={t("history.shared.back")} onClick={() => navigate("/history")} />
                 <div>
-                    <div className="kicker">Historie &amp; Loot</div>
+                    <div className="kicker">{t("history.shared.kicker")}</div>
                     <h1>
-                        Addon-Inbox
-                        {!!sessions?.length && <Badge tone="mid" count>{sessions.length} offen</Badge>}
+                        {t("history.page.inbox")}
+                        {!!sessions?.length && <Badge tone="mid" count>{tParts("history.page.inboxOpen", { count: sessions.length })}</Badge>}
                     </h1>
                 </div>
                 <InfoTip
-                    tip="Uploads vom WoW-Addon"
-                    sub="Das Sync-Tool schickt jede Raid-Session hierher. Einmal übernehmen genügt: weiterer Loot desselben Raids landet danach automatisch im gewählten Event."
+                    tip={t("history.inbox.infoTip")}
+                    sub={t("history.inbox.infoSub")}
                 />
                 <div className="ph-act">
                     <Link className={buttonClass("ghost", "md", true)} to="/settings?section=lootsync">
-                        <WowIcon name="inv_misc_enggizmos_27" size={22} />Sync-Token verwalten
+                        <WowIcon name="inv_misc_enggizmos_27" size={22} />{t("history.inbox.manageToken")}
                     </Link>
                 </div>
             </div>
 
-            {loadError && <div className="empty">Inbox konnte nicht geladen werden: {loadError.message}</div>}
-            {!loadError && !sessions && <RaidLoader text="Inbox wird geladen" />}
+            {loadError && <div className="empty">{tParts("history.inbox.loadError", { message: loadError.message })}</div>}
+            {!loadError && !sessions && <RaidLoader text={t("history.inbox.loading")} />}
             {!loadError && sessions && !sessions.length && (
                 <div className="dash-card hl-card">
                     <div className="empty">
-                        Keine offenen Addon-Uploads.<br />
-                        Das Sync-Tool lädt Raid-Sessions hoch; ein Token dafür gibt es unter{" "}
-                        <Link className="mlink" to="/settings?section=lootsync">Einstellungen → Loot-Sync</Link>.
+                        {t("history.inbox.empty")}<br />
+                        {t("history.inbox.emptyHint")}{" "}
+                        <Link className="mlink" to="/settings?section=lootsync">{t("history.inbox.emptyLink")}</Link>.
                     </div>
                 </div>
             )}

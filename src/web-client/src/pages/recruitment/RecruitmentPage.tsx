@@ -10,6 +10,7 @@ import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";
 import "../../styles/recruitment.css";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { tParts, useT } from "../../i18n";
 import { ICONS } from "./shared";
 import { ApplicationsTab } from "./ApplicationsTab";
 import { TemplatesTab } from "./TemplatesTab";
@@ -29,24 +30,25 @@ type View = "posts" | "templates" | "applications";
 const VIEWS: View[] = ["posts", "templates", "applications"];
 
 function SubNav({ view, data, onChange }: { view: View; data: RecruitmentData; onChange: (v: View) => void }) {
+    const t = useT();
     const apps = data.applications;
     const fresh = apps ? apps.filter((a) => a.status === "neu").length : 0;
     const tabs: { id: View; label: string; icon: string; count: ReactNode; accent?: boolean }[] = [
-        { id: "posts", label: "Nachrichten", icon: ICONS.posts, count: data.posts.length },
-        { id: "templates", label: "Vorlagen", icon: ICONS.templates, count: data.templates.length },
-        { id: "applications", label: "Bewerbungen", icon: ICONS.applications, count: apps ? (fresh ? `${apps.length} · ${fresh} neu` : apps.length) : null, accent: fresh > 0 },
+        { id: "posts", label: t("recruitment.tabs.posts"), icon: ICONS.posts, count: data.posts.length },
+        { id: "templates", label: t("recruitment.tabs.templates"), icon: ICONS.templates, count: data.templates.length },
+        { id: "applications", label: t("recruitment.tabs.applications"), icon: ICONS.applications, count: apps ? (fresh ? t("recruitment.tabs.appCount", { total: apps.length, fresh }) : apps.length) : null, accent: fresh > 0 },
     ];
     return (
         <div className="subnav rc-subnav" role="tablist">
-            {tabs.map((t) => (
+            {tabs.map((tab) => (
                 <button
-                    key={t.id} type="button" role="tab" aria-selected={view === t.id}
-                    className={`subnav-item${view === t.id ? " active" : ""}`}
-                    onClick={() => onChange(t.id)}
+                    key={tab.id} type="button" role="tab" aria-selected={view === tab.id}
+                    className={`subnav-item${view === tab.id ? " active" : ""}`}
+                    onClick={() => onChange(tab.id)}
                 >
-                    <WowIcon name={t.icon} size={22} />
-                    {t.label}
-                    {t.count !== null && t.count !== 0 && <span className={`subnav-count${t.accent ? " accent" : ""}`}>{t.count}</span>}
+                    <WowIcon name={tab.icon} size={22} />
+                    {tab.label}
+                    {tab.count !== null && tab.count !== 0 && <span className={`subnav-count${tab.accent ? " accent" : ""}`}>{tab.count}</span>}
                 </button>
             ))}
         </div>
@@ -54,6 +56,7 @@ function SubNav({ view, data, onChange }: { view: View; data: RecruitmentData; o
 }
 
 export default function RecruitmentPage() {
+    const t = useT();
     const templateEditor = useCollectionEditor("edit");
     const postEditor = useCollectionEditor("editpost");
     const [storedView, setStoredView] = usePersistedSearchParam<View>("recruitment-view", "view", "posts", VIEWS);
@@ -88,18 +91,18 @@ export default function RecruitmentPage() {
     };
 
     return (
-        <AsyncView state={recruitment} loading={<RaidLoader text="Recruitment wird geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+        <AsyncView state={recruitment} loading={<RaidLoader text={t("recruitment.page.loading")} />} error={(err) => <div className="empty">{tParts("recruitment.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 // An id that no longer exists (deleted in another tab, stale link) falls
                 // back to the new-editor resp. the posting dialog rather than to nothing.
-                const editingTemplate = templateEditor.editId ? data.templates.find((t) => t.id === templateEditor.editId) || null : null;
+                const editingTemplate = templateEditor.editId ? data.templates.find((tpl) => tpl.id === templateEditor.editId) || null : null;
                 const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
 
                 return (
                     <div className="rc-page">
                         <PageHead
-                            icon={ICONS.page} tone="recruitment" kicker={data.guildName || "Discord-Server"} title="Recruitment"
-                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>Nachricht posten</Button>}
+                            icon={ICONS.page} tone="recruitment" kicker={data.guildName || t("recruitment.page.serverFallback")} title={t("recruitment.page.title")}
+                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>}
                         />
                         <SubNav view={view} data={data} onChange={switchView} />
                         {view === "applications" && <ApplicationsTab data={data} />}
@@ -120,7 +123,7 @@ export default function RecruitmentPage() {
                         {postEditor.open && editingPost && (
                             <PostEditor
                                 key={editingPost.id} data={data} post={editingPost}
-                                templateName={data.templates.find((t) => t.id === editingPost.templateId)?.name || ""}
+                                templateName={data.templates.find((tpl) => tpl.id === editingPost.templateId)?.name || ""}
                                 onSaved={afterChange} onClose={postEditor.close}
                             />
                         )}

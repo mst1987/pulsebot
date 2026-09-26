@@ -1,6 +1,8 @@
 {
     "done": "{label} fertig.",
     "failed": "{label} fehlgeschlagen.",
+    "lost": "Der Vorgang wurde unterbrochen. Bitte erneut starten.",
+    "slow": "Der Vorgang dauert ungewöhnlich lange. Er läuft im Hintergrund weiter — lade die Seite später neu.",
     "pageLoader": {
         "busy": "Wird verarbeitet"
     },

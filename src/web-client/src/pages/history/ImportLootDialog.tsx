@@ -22,6 +22,7 @@ import IconTile from "../../components/ui/IconTile";
 import { useToast } from "../../components/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";
+import { tParts, useT, type TFunction } from "../../i18n";
 
 // Everything typed into the import form. Kept as a draft (see useDraftState), so
 // a pasted export survives closing the dialog and a detour to another page —
@@ -30,12 +31,17 @@ type ImportDraft = { eventId: string; manualLabel: string; categoryId: string; t
 const IMPORT_DRAFT_DEFAULT: ImportDraft = { eventId: "__auto__", manualLabel: "", categoryId: "", tool: "auto", text: "" };
 
 type Tool = "auto" | "gargul" | "rclc" | "eventhelper";
-const TOOL_OPTIONS: { value: Tool; label: string; icon?: string; tip?: string }[] = [
-    { value: "auto", label: "Automatisch", tip: "JSON = RCLootcouncil, CSV = Gargul, Envelope = EventHelper-Addon" },
-    { value: "gargul", label: "Gargul" },
-    { value: "rclc", label: "RCLootcouncil" },
-    { value: "eventhelper", label: "EventHelper-Addon", icon: "inv_misc_enggizmos_27" },
-];
+const TOOLS: Tool[] = ["auto", "gargul", "rclc", "eventhelper"];
+
+/** The format choices, in the active language (a function, never a module-level table). */
+function toolOptions(t: TFunction): { value: Tool; label: string; icon?: string; tip?: string }[] {
+    return [
+        { value: "auto", label: t("history.import.toolAuto"), tip: t("history.import.toolAutoTip") },
+        { value: "gargul", label: "Gargul" },
+        { value: "rclc", label: "RCLootcouncil" },
+        { value: "eventhelper", label: t("history.import.toolAddon"), icon: "inv_misc_enggizmos_27" },
+    ];
+}
 
 // How long the text has to rest before the preview is asked for.
 const PREVIEW_DELAY_MS = 350;
@@ -46,6 +52,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
     data: HistoryData;
     onImported: (msg: string) => void;
 }) {
+    const t = useT();
     // categoryId is only used when the import lands without a Raid-Helper event:
     // a real event brings its own Discord category along (see api/loot.ts's
     // ImportLootInput).
@@ -87,7 +94,9 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
         setBusy(true);
         try {
             const r = await importLoot({ data: text, tool, event: eventId, manualLabel, categoryId });
-            onImported(`${r.added} Item(s) importiert${r.skipped ? ` · ${r.skipped} Duplikat(e) übersprungen` : ""} · ${r.eventLabel}`);
+            onImported(r.skipped
+                ? t("history.import.importedSkipped", { count: r.added, skipped: r.skipped, event: r.eventLabel })
+                : t("history.import.imported", { count: r.added, event: r.eventLabel }));
             // Only the imported content goes — the event and tool choice stay, the
             // next import of the evening usually belongs to the same raid.
             patch({ text: "", manualLabel: "" });
@@ -110,6 +119,8 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
     const toImport = preview ? Math.max(0, preview.count - preview.duplicates) : 0;
     const canSubmit = !!text.trim() && !busy && !(eventId === "__auto__" && match?.ambiguous);
 
+    const tools = toolOptions(t);
+
     return (
         <Modal
             open={open}
@@ -118,46 +129,46 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
             width={740}
             icon="inv_scroll_03"
             tone="history"
-            kicker="RCLootcouncil, Gargul oder EventHelper-Addon"
-            title="Loot importieren"
-            hint="Der Entwurf bleibt erhalten, wenn du das Fenster schließt."
+            kicker={t("history.import.kicker")}
+            title={t("history.page.import")}
+            hint={t("history.import.hint")}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button onClick={submit} disabled={!canSubmit} running={busy}>
-                        {preview ? `${toImport} Item${toImport === 1 ? "" : "s"} importieren` : "Loot importieren"}
+                        {preview ? t("history.import.submitCount", { count: toImport }) : t("history.page.import")}
                     </Button>
                 </>
             )}
         >
             <div className="hl-field">
-                <label className="hl-lbl" htmlFor="import-text">Export</label>
+                <label className="hl-lbl" htmlFor="import-text">{t("history.import.exportLabel")}</label>
                 <div className="hl-drop">
                     <textarea
                         id="import-text" value={text} rows={6}
                         onChange={(e) => patch({ text: e.target.value })}
-                        placeholder="RCLootcouncil-JSON, Gargul-CSV oder EventHelper-Addon-Export hier einfügen …"
+                        placeholder={t("history.import.placeholder")}
                     />
                     <div className="hl-drop-foot">
                         {preview && (
                             <>
-                                <Badge tone="ok" icon="inv_misc_bag_10">{preview.count} Items erkannt</Badge>
+                                <Badge tone="ok" icon="inv_misc_bag_10">{tParts("history.import.recognized", { count: preview.count })}</Badge>
                                 <Badge>{preview.formatLabel}</Badge>
                                 {preview.content.label && (
-                                    <Badge tone="accent" icon={contentIcon(preview.content.contentIds[0])} tip="Raid aus den Items" tipSub={`${preview.content.matched} von ${preview.count} Items einem Raid zugeordnet.`}>
+                                    <Badge tone="accent" icon={contentIcon(preview.content.contentIds[0])} tip={t("history.import.raidTip")} tipSub={t("history.import.raidSub", { matched: preview.content.matched, count: preview.count })}>
                                         {preview.content.label}
                                     </Badge>
                                 )}
                                 {preview.duplicates > 0 && (
-                                    <Badge tone="mid" count tip="Duplikate" tipSub="Diese Zeilen liegen im Ziel-Event schon vor und werden übersprungen.">
-                                        {preview.duplicates} Duplikat{preview.duplicates === 1 ? "" : "e"}
+                                    <Badge tone="mid" count tip={t("history.import.dupTip")} tipSub={t("history.import.dupSub")}>
+                                        {t("history.import.dups", { count: preview.duplicates })}
                                     </Badge>
                                 )}
                             </>
                         )}
-                        {!preview && previewError && <Badge tone="bad" tip="Nicht lesbar" tipSub={previewError}>Export nicht lesbar</Badge>}
-                        {!preview && !previewError && <span className="muted">Die Vorschau erscheint, sobald ein Export eingefügt ist.</span>}
-                        <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>Datei wählen</Button>
+                        {!preview && previewError && <Badge tone="bad" tip={t("history.import.unreadableTip")} tipSub={previewError}>{t("history.import.unreadable")}</Badge>}
+                        {!preview && !previewError && <span className="muted">{t("history.import.previewHint")}</span>}
+                        <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>{t("history.import.chooseFile")}</Button>
                         <input ref={fileRef} type="file" accept=".json,.csv,.txt,.tsv" onChange={onFile} hidden />
                     </div>
                 </div>
@@ -165,22 +176,22 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
 
             <div className="hl-field">
                 <span className="hl-lbl">
-                    Format
-                    <InfoTip tip="Format" sub="Wird aus der Kategorie des Events vorbelegt. „Automatisch“ erkennt alle drei Formate selbst: JSON = RCLootcouncil, CSV = Gargul, Envelope = EventHelper-Addon." />
+                    {t("history.import.format")}
+                    <InfoTip tip={t("history.import.format")} sub={t("history.import.formatSub")} />
                 </span>
-                <div><Segment<Tool> ariaLabel="Format" options={TOOL_OPTIONS} value={(TOOL_OPTIONS.some((o) => o.value === tool) ? tool : "auto") as Tool} onChange={(v) => patch({ tool: v })} /></div>
+                <div><Segment<Tool> ariaLabel={t("history.import.format")} options={tools} value={(TOOLS.includes(tool as Tool) ? tool : "auto") as Tool} onChange={(v) => patch({ tool: v })} /></div>
             </div>
 
             <div className="hl-field">
                 <span className="hl-lbl">
-                    Event
+                    {t("history.import.event")}
                     <InfoTip
-                        tip="Zuordnung nach Datum"
-                        sub="Vorgeschlagen wird das Raid-Helper-Event am Tag des Exports. Gibt es keins oder mehrere, wählst du selbst — ohne Event bekommt der Loot einen eigenen Titel und eine Kategorie."
+                        tip={t("history.import.matchTip")}
+                        sub={t("history.import.matchSub")}
                     />
                 </span>
                 {candidates.length > 0 && (
-                    <div className={candidates.length > 1 ? "hl-radio-grid" : "hl-radio-list"} role="radiogroup" aria-label="Event">
+                    <div className={candidates.length > 1 ? "hl-radio-grid" : "hl-radio-list"} role="radiogroup" aria-label={t("history.import.event")}>
                         {candidates.map((c) => {
                             const on = !manual && checkedId === c.id;
                             return (
@@ -191,38 +202,38 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                                         <b>{c.title || c.id}</b>
                                         <small>{c.startTime ? formatEventTime(Math.round(c.startTime / 1000)) : ""}</small>
                                     </span>
-                                    {!match?.ambiguous && <Badge tone="ok">passt zum Datum</Badge>}
+                                    {!match?.ambiguous && <Badge tone="ok">{t("history.import.fitsDate")}</Badge>}
                                 </button>
                             );
                         })}
                     </div>
                 )}
                 {match?.ambiguous && eventId === "__auto__" && (
-                    <Badge tone="bad">{candidates.length} Raids an diesem Tag — bitte eins wählen</Badge>
+                    <Badge tone="bad">{tParts("history.import.ambiguous", { count: candidates.length })}</Badge>
                 )}
                 {preview && !candidates.length && !manual && !inList && (
-                    <Badge tone="mid" tip="Kein Event gefunden" tipSub="Ohne Auswahl bekommt der Loot den Titel „Raid vom …“ nach dem Datum im Export.">Kein Event an diesem Tag</Badge>
+                    <Badge tone="mid" tip={t("history.import.noEventTip")} tipSub={t("history.import.noEventSub")}>{t("history.shared.noEvent")}</Badge>
                 )}
                 <div className="hl-row-inline">
-                    <select aria-label="Anderes Event wählen" value={inList && !candidates.some((c) => c.id === eventId) ? eventId : ""} onChange={(e) => selectEvent(e.target.value || "__auto__")}>
-                        <option value="">Anderes Event wählen …</option>
+                    <select aria-label={t("history.import.otherAria")} value={inList && !candidates.some((c) => c.id === eventId) ? eventId : ""} onChange={(e) => selectEvent(e.target.value || "__auto__")}>
+                        <option value="">{t("history.import.otherOption")}</option>
                         {data.events.map((ev) => (
                             <option key={ev.id} value={ev.id}>
-                                {ev.title || "(ohne Titel)"}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
+                                {ev.title || t("history.shared.untitled")}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
                             </option>
                         ))}
                     </select>
-                    <Expand open={manual} onToggle={() => patch({ eventId: manual ? "__auto__" : "__manual__" })} label="Ohne Event" />
+                    <Expand open={manual} onToggle={() => patch({ eventId: manual ? "__auto__" : "__manual__" })} label={t("history.import.withoutEvent")} />
                 </div>
                 {manual && (
                     <div className="hl-manual">
-                        <input type="text" aria-label="Titel" value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder="Titel, z.B. SSC/TK — 12.07.2026" />
+                        <input type="text" aria-label={t("history.shared.titleAria")} value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder={t("history.import.titlePlaceholder")} />
                         <select
-                            aria-label="Kategorie" value={categoryId} onChange={(e) => patch({ categoryId: e.target.value })}
-                            data-tip="Kategorie"
-                            data-tip-sub="Ohne Event fehlt dem Loot sonst die Kategorie (Pug, Montagsraid, …) und er taucht in den nach Kategorie gruppierten Übersichten nicht auf."
+                            aria-label={t("history.shared.category")} value={categoryId} onChange={(e) => patch({ categoryId: e.target.value })}
+                            data-tip={t("history.shared.category")}
+                            data-tip-sub={t("history.import.categorySub")}
                         >
-                            <option value="">Keine Kategorie</option>
+                            <option value="">{t("history.shared.noCategory")}</option>
                             {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>

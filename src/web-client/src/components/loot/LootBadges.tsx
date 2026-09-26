@@ -92,7 +92,7 @@ export function ReasonBadgeButton({ label, reasonLabel, tone, count, onOpen }: {
         <button
             type="button"
             className={reasonToneClass(tone)}
-            data-tip={differs ? `„${label}" · ${reasonLabel}` : label}
+            data-tip={differs ? t("history.badges.reasonDiffers", { label, reason: reasonLabel }) : label}
             data-tip-sub={t("raidDetail.lootBadges.itemsClick", { count })}
             onClick={onOpen}
         >

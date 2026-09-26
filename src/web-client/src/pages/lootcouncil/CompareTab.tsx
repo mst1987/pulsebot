@@ -1,5 +1,6 @@
 import { Fragment, useMemo } from "react";
 import type { CouncilLootItem, CouncilRaider } from "../../api";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { classColorProps, ClassSpecIcon } from "../../components/ClassSpec";
@@ -28,6 +29,7 @@ type CompareRow = {
     awards: Map<string, CouncilLootItem[]>;
 };
 
+/** `label` is empty for items without a raid — the page names those at render time. */
 type CompareGroup = { contentId: string; label: string; tier: string; rows: CompareRow[] };
 
 /**
@@ -49,7 +51,7 @@ function buildCompare(raiders: CouncilRaider[], contents: { id: string; label: s
             let group = groups.get(cid);
             if (!group) {
                 const meta = contents.find((c) => c.id === cid);
-                group = { contentId: cid, label: meta ? meta.label : "Ohne Raid-Zuordnung", tier: it.tier || (meta ? meta.tier : ""), rows: [] };
+                group = { contentId: cid, label: meta ? meta.label : "", tier: it.tier || (meta ? meta.tier : ""), rows: [] };
                 groups.set(cid, group);
             }
             const rowKey = `${cid}:${it.itemId}`;
@@ -90,6 +92,7 @@ function buildCompare(raiders: CouncilRaider[], contents: { id: string; label: s
  * only say "not this one"; "BiS offen" says why the row matters to them.
  */
 function CompareCell({ raider, row, awards }: { raider: CouncilRaider; row: CompareRow; awards: CouncilLootItem[] }) {
+    const t = useT();
     const entry = raider.bis.items.find((b) => b.id === row.itemId);
     if (!awards.length) {
         if (!entry) return <td className="lc-blcell lc-cmpcell"><span className="lc-blfree">—</span></td>;
@@ -100,10 +103,10 @@ function CompareCell({ raider, row, awards }: { raider: CouncilRaider; row: Comp
                 <span
                     className={`lc-cmpwant${entry.owned ? " worn" : ""}`}
                     data-tip={entry.owned
-                        ? "Steht auf der BiS-Liste und wird getragen — nur nicht in diesem Loot vergeben"
-                        : "Steht auf der BiS-Liste und fehlt noch"}
+                        ? t("lootcouncil.compare.wornTip")
+                        : t("lootcouncil.compare.openTip")}
                 >
-                    {entry.owned ? "trägt es" : "BiS offen"}
+                    {entry.owned ? t("lootcouncil.compare.worn") : t("lootcouncil.compare.open")}
                 </span>
             </td>
         );
@@ -112,11 +115,11 @@ function CompareCell({ raider, row, awards }: { raider: CouncilRaider; row: Comp
         <td className="lc-blcell lc-cmpcell got" data-tip={awards.map((a) => a.eventLabel).filter(Boolean).join(" · ")}>
             {awards.map((a, i) => (
                 <span key={`${a.awardedAt}-${i}`} className="lc-cmpaward">
-                    <span className="lc-cmpdate">{a.awardedAt ? fmtMs(a.awardedAt, false) : "erhalten"}</span>
+                    <span className="lc-cmpdate">{a.awardedAt ? fmtMs(a.awardedAt, false) : t("lootcouncil.compare.received")}</span>
                     {a.reasonLabel ? <ReasonBadge label={a.reasonLabel} tone={a.reasonTone} title={a.reason} /> : null}
                 </span>
             ))}
-            {entry ? <span className="lc-cmpbis" data-tip="Steht auf der BiS-Liste dieses Raiders">BiS</span> : null}
+            {entry ? <span className="lc-cmpbis" data-tip={t("lootcouncil.compare.bisTip")}>BiS</span> : null}
         </td>
     );
 }
@@ -127,6 +130,7 @@ export function CompareTab({ roster, view, patch, contents }: {
     patch: (p: Partial<View>) => void;
     contents: { id: string; label: string; tier: string }[];
 }) {
+    const t = useT();
     const off = useMemo(() => new Set(view.cmpOff), [view.cmpOff]);
     const active = useMemo(() => roster.filter((r) => !off.has(r.key)), [roster, off]);
     const groups = useMemo(() => buildCompare(active, contents), [active, contents]);
@@ -143,20 +147,20 @@ export function CompareTab({ roster, view, patch, contents }: {
         <>
             <Part
                 icon="achievement_guildperk_everybodysfriend"
-                crumb="Loot-Vergleich › Raider"
-                title="Welche Raider nebeneinander"
-                hint={`${active.length} von ${roster.length} Raidern aus dem Filter oben. Welcher Loot zählt, bestimmt der Content-Filter — Offspec, Entzaubern und Bank stehen hier nicht.`}
+                crumb={t("lootcouncil.compare.raidersCrumb")}
+                title={t("lootcouncil.compare.raidersTitle")}
+                hint={t("lootcouncil.compare.raidersHint", { active: active.length, total: roster.length })}
                 actions={
                     <div className="lc-blfilters">
                         <button type="button" className={`lc-filter${!view.cmpOff.length ? " active" : ""}`} onClick={() => patch({ cmpOff: [] })}>
-                            Alle
+                            {t("common.all")}
                         </button>
                         <button
                             type="button"
                             className={`lc-filter${roster.length && !active.length ? " active" : ""}`}
                             onClick={() => patch({ cmpOff: roster.map((r) => r.key) })}
                         >
-                            Keiner
+                            {t("lootcouncil.compare.none")}
                         </button>
                     </div>
                 }
@@ -170,7 +174,7 @@ export function CompareTab({ roster, view, patch, contents }: {
                                 className={`lc-blspec${off.has(r.key) ? " off" : ""}`}
                                 style={classColorProps(r.classColor).style}
                                 onClick={() => toggle(r.key)}
-                                data-tip={`${r.specLabel} · ${r.lootCount} Items im Filter`} aria-label={`${r.specLabel} · ${r.lootCount} Items im Filter`}
+                                data-tip={t("lootcouncil.compare.raiderTip", { spec: r.specLabel, count: r.lootCount })} aria-label={t("lootcouncil.compare.raiderTip", { spec: r.specLabel, count: r.lootCount })}
                             >
                                 <ClassSpecIcon iconUrl={r.specIconUrl} />
                                 <span className="class-colored">{r.character}</span>
@@ -180,33 +184,33 @@ export function CompareTab({ roster, view, patch, contents }: {
                         ))}
                     </div>
                 ) : (
-                    <div className="empty">Keine passenden Raider im Filter.</div>
+                    <div className="empty">{t("lootcouncil.compare.noRaiders")}</div>
                 )}
             </Part>
 
             <Part
                 tone="accent"
                 icon="inv_misc_bag_10"
-                crumb="Loot-Vergleich › Matrix"
-                title="Loot-Vergleich"
-                hint={`${itemCount} Items in ${groups.length} Raid(s) · Zeilen wie ein Charakterbogen, Spalten sind die Raider — wer am längsten nichts bekommen hat, steht links.`}
+                crumb={t("lootcouncil.compare.matrixCrumb")}
+                title={t("lootcouncil.tabs.compare")}
+                hint={t("lootcouncil.compare.matrixHint", { items: itemCount, raids: groups.length })}
                 actions={
                     <div className="lc-bllegend">
-                        <span className="lc-cmpwant">BiS offen</span>
-                        <span className="lc-muted">steht auf seiner Liste und fehlt noch</span>
+                        <span className="lc-cmpwant">{t("lootcouncil.compare.open")}</span>
+                        <span className="lc-muted">{t("lootcouncil.compare.legend")}</span>
                     </div>
                 }
             >
                 {!active.length ? (
-                    <div className="empty">Kein Raider ausgewählt — oben wieder einen zuschalten.</div>
+                    <div className="empty">{t("lootcouncil.compare.noneSelected")}</div>
                 ) : !itemCount ? (
-                    <div className="empty">Keiner der gewählten Raider hat im aktuellen Content-Filter etwas bekommen.</div>
+                    <div className="empty">{t("lootcouncil.compare.nothingReceived")}</div>
                 ) : (
                     <div className="lc-bltable">
                         <table className="idx lc-blmatrix lc-cmpmatrix">
                             <thead>
                                 <tr>
-                                    <th className="lc-blcorner lc-cmpitem">Item</th>
+                                    <th className="lc-blcorner lc-cmpitem">{t("lootcouncil.compare.item")}</th>
                                     {active.map((r) => (
                                         <th key={r.key} className="lc-blcol lc-cmpcol" style={classColorProps(r.classColor).style}>
                                             <span className="lc-blcolhead">
@@ -214,7 +218,7 @@ export function CompareTab({ roster, view, patch, contents }: {
                                                 <span className="lc-blcolname class-colored">{r.character}</span>
                                             </span>
                                             <span className="lc-cmpcolsub">
-                                                {r.lootCount} Items · BiS {r.bis.owned}/{r.bis.total}
+                                                {tParts("lootcouncil.compare.colSub", { count: r.lootCount, owned: r.bis.owned, total: r.bis.total })}
                                             </span>
                                         </th>
                                     ))}
@@ -226,8 +230,8 @@ export function CompareTab({ roster, view, patch, contents }: {
                                         <tr className="lc-cmpgroup">
                                             <th scope="rowgroup" colSpan={active.length + 1}>
                                                 <ContentBadge contentId={group.contentId} tier={group.tier} />
-                                                <span>{group.label}</span>
-                                                <span className="lc-muted">{group.rows.length} Items</span>
+                                                <span>{group.label || t("lootcouncil.compare.noRaid")}</span>
+                                                <span className="lc-muted">{tParts("lootcouncil.word.itemCount", { count: group.rows.length })}</span>
                                             </th>
                                         </tr>
                                         {group.rows.map((row) => (

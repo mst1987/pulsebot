@@ -6,7 +6,8 @@ import { Badge, Button, IconButton, Modal } from "../ui";
 import { XIcon } from "../icons";
 import { PencilIcon } from "./channelBits";
 import NamingBadge from "./NamingBadge";
-import { bulkChanges, KEEP, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
+import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
+import { tParts, useT } from "../../i18n";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
 // soon as something is selected, the "only what you change" edit dialog behind
@@ -24,20 +25,21 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
     onDelete?: () => void;
     onClear: () => void;
 }) {
+    const t = useT();
     if (!count) return null;
     const deleting = !onEdit;
     return (
-        <div className="kn-bulk" role="toolbar" aria-label="Auswahl bearbeiten">
+        <div className="kn-bulk" role="toolbar" aria-label={t("channels.bulk.toolbar")}>
             <span className="kn-bulk-sel">
-                <span className="kn-bulk-count">{count} ausgewählt</span>
+                <span className="kn-bulk-count">{tParts("channels.bulk.selected", { count })}</span>
                 {guildName && <span className="kn-kicker">{guildName}</span>}
             </span>
-            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>Kategorie …</Button>}
-            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("topic")}>Thema …</Button>}
-            {onRename && <Button size="sm" variant="ghost" onClick={onRename}>Umbenennen nach Schema …</Button>}
-            {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>Löschen …</Button>}
-            <Button size="sm" variant={deleting ? "danger" : "primary"} onClick={onArchive}>{archiveLabel || "Archivieren"}</Button>
-            <IconButton size="sm" icon={<XIcon />} tip="Auswahl aufheben" onClick={onClear} />
+            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>{t("channels.bulk.category")}</Button>}
+            {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("topic")}>{t("channels.bulk.topic")}</Button>}
+            {onRename && <Button size="sm" variant="ghost" onClick={onRename}>{t("channels.bulk.renameSchema")}</Button>}
+            {onDelete && <Button size="sm" variant="danger" onClick={onDelete}>{t("channels.bulk.delete")}</Button>}
+            <Button size="sm" variant={deleting ? "danger" : "primary"} onClick={onArchive}>{archiveLabel || t("channels.bulk.archive")}</Button>
+            <IconButton size="sm" icon={<XIcon />} tip={t("channels.bulk.clear")} onClick={onClear} />
         </div>
     );
 }
@@ -60,6 +62,7 @@ export function BulkEditDialog({ channels, data, focus, onClose, onApply }: {
     onClose: () => void;
     onApply: (changes: ChannelChanges) => void;
 }) {
+    const t = useT();
     const [parentId, setParentId] = useState(KEEP);
     const [topic, setTopic] = useState("");
     const [clearTopic, setClearTopic] = useState(false);
@@ -79,41 +82,41 @@ export function BulkEditDialog({ channels, data, focus, onClose, onApply }: {
             onClose={onClose}
             icon={<PencilIcon />}
             tone="channels"
-            kicker="nur geänderte Felder werden übernommen"
-            title={`${channels.length} ${channels.length === 1 ? "Kanal" : "Kanäle"} bearbeiten`}
+            kicker={t("channels.bulk.editKicker")}
+            title={t("channels.bulk.editTitle", { count: channels.length })}
             width={600}
             initialFocus={focus === "topic" ? "#kn-bulk-topic" : "#kn-bulk-cat"}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="kn-bulk" disabled={!n}>Übernehmen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="kn-bulk" disabled={!n}>{t("common.apply")}</Button>
                 </>
             )}
         >
             <form id="kn-bulk" className="kn-dlg-stack" onSubmit={submit}>
                 <SelectionChips channels={channels} />
                 <div className="kn-field">
-                    <label htmlFor="kn-bulk-cat">Kategorie</label>
+                    <label htmlFor="kn-bulk-cat">{t("channels.category")}</label>
                     <select id="kn-bulk-cat" className="kn-select" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                        <option value={KEEP}>unverändert</option>
-                        <option value="">— keine Kategorie —</option>
+                        <option value={KEEP}>{t("channels.unchanged")}</option>
+                        <option value="">{t("channels.noCategoryOption")}</option>
                         {data.categories.filter((c) => c.id !== archiveId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
                 <div className="kn-field">
-                    <label htmlFor="kn-bulk-topic">Thema</label>
+                    <label htmlFor="kn-bulk-topic">{t("channels.topic")}</label>
                     <div className="kn-input">
-                        <input id="kn-bulk-topic" type="text" value={clearTopic ? "" : topic} disabled={clearTopic} maxLength={1024} onChange={(e) => setTopic(e.target.value)} placeholder={clearTopic ? "wird geleert" : "unverändert"} />
+                        <input id="kn-bulk-topic" type="text" value={clearTopic ? "" : topic} disabled={clearTopic} maxLength={1024} onChange={(e) => setTopic(e.target.value)} placeholder={clearTopic ? t("channels.bulk.topicCleared") : t("channels.unchanged")} />
                     </div>
                     <label className="kn-check">
                         <input type="checkbox" className="kn-cb" checked={clearTopic} onChange={(e) => setClearTopic(e.target.checked)} />
-                        Thema leeren
+                        {t("channels.bulk.clearTopic")}
                     </label>
                 </div>
                 <div className="kn-field">
-                    <label htmlFor="kn-bulk-slow">Slowmode</label>
+                    <label htmlFor="kn-bulk-slow">{t("channels.slowmode")}</label>
                     <select id="kn-bulk-slow" className="kn-select" value={slowmode} onChange={(e) => setSlowmode(e.target.value)}>
-                        <option value={KEEP}>unverändert</option>
+                        <option value={KEEP}>{t("channels.unchanged")}</option>
                         {SLOWMODE_OPTIONS.map((s) => <option key={s} value={String(s)}>{slowmodeLabel(s)}</option>)}
                     </select>
                 </div>
@@ -131,6 +134,7 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
     // A selection from one category starts from that category's own schema;
     // without one the field stays empty, which names every channel like the
     // latest other event channel of its category (#285).
+    const t = useT();
     const categoryIds = [...new Set(channels.map((c) => c.parentId))];
     const stored = categoryIds.length === 1 ? data.schemas?.[categoryIds[0]] : undefined;
     const ownSchema = stored?.schema && stored.schema !== data.defaultSchema ? stored.schema : "";
@@ -161,27 +165,27 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
             onClose={onClose}
             icon={<PencilIcon />}
             tone="channels"
-            kicker="Umbenennen nach Schema"
-            title={`${channels.length} ${channels.length === 1 ? "Kanal" : "Kanäle"} umbenennen`}
+            kicker={t("channels.bulk.renameKicker")}
+            title={t("channels.bulk.renameTitle", { count: channels.length })}
             width={640}
             initialFocus="#kn-rename-schema"
-            hint="Kanäle mit Konflikt bleiben, wie sie sind."
+            hint={t("channels.bulk.renameHint")}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button disabled={!todo.length} onClick={() => onApply(todo)}>{todo.length} umbenennen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button disabled={!todo.length} onClick={() => onApply(todo)}>{tParts("channels.bulk.renameSubmit", { count: todo.length })}</Button>
                 </>
             )}
         >
             <div className="kn-dlg-stack">
                 <div className="kn-grid2">
                     <div className="kn-field">
-                        <label htmlFor="kn-rename-schema">Schema</label>
-                        <div className="kn-input"><input id="kn-rename-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder="leer = wie der letzte Event-Kanal" /></div>
+                        <label htmlFor="kn-rename-schema">{t("channels.schema")}</label>
+                        <div className="kn-input"><input id="kn-rename-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} /></div>
                     </div>
                     <div className="kn-field">
-                        <label htmlFor="kn-rename-raid">Raid</label>
-                        <div className="kn-input"><input id="kn-rename-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder="z.B. ssc-tk" /></div>
+                        <label htmlFor="kn-rename-raid">{t("channels.raid")}</label>
+                        <div className="kn-input"><input id="kn-rename-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
                     </div>
                 </div>
                 <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />
@@ -192,11 +196,11 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
                             <span className="kn-preview-from">{r.from}</span>
                             <span className="kn-kicker">→</span>
                             <span className="kn-preview-name">{r.to || "—"}</span>
-                            {r.conflict && <Badge tone="mid" tip="Konflikt" tipSub="Der Name ist leer oder gehört schon einem anderen Kanal. Dieser Kanal wird übersprungen.">existiert</Badge>}
-                            {!r.conflict && r.to === r.from && <Badge>unverändert</Badge>}
+                            {r.conflict && <Badge tone="mid" tip={t("channels.bulk.conflictTip")} tipSub={t("channels.bulk.conflictSub")}>{t("channels.exists")}</Badge>}
+                            {!r.conflict && r.to === r.from && <Badge>{t("channels.unchanged")}</Badge>}
                             {!r.conflict && r.to !== r.from && <NamingBadge naming={r.naming} short />}
-                            {!r.hasDate && !schema.trim() && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event — ohne sein Datum lässt sich der Name nicht ableiten, er bleibt.">kein Datum</Badge>}
-                            {!r.hasDate && /\{(tag|dd|mm|mon|yy|yyyy)\}/.test(schema) && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event, die Datumsteile bleiben leer.">kein Datum</Badge>}
+                            {!r.hasDate && !schema.trim() && <Badge tip={t("channels.bulk.noEventTip")} tipSub={t("channels.bulk.noEventKeepSub")}>{t("channels.bulk.noDate")}</Badge>}
+                            {!r.hasDate && /\{(tag|dd|mm|mon|yy|yyyy)\}/.test(schema) && <Badge tip={t("channels.bulk.noEventTip")} tipSub={t("channels.bulk.noEventEmptySub")}>{t("channels.bulk.noDate")}</Badge>}
                         </div>
                     ))}
                 </div>
@@ -207,10 +211,11 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
 
 /** The schema's placeholders as small buttons; a click appends one. */
 export function PlaceholderChips({ data, onPick }: { data: ChannelsData; onPick: (key: string) => void }) {
+    useT();
     return (
         <div className="kn-chips">
             {(data.placeholders || []).map((p) => (
-                <button key={p.key} type="button" className="kn-ph" data-tip={`{${p.key}}`} data-tip-sub={p.hint} onClick={() => onPick(p.key)}>
+                <button key={p.key} type="button" className="kn-ph" data-tip={`{${p.key}}`} data-tip-sub={placeholderHint(p)} onClick={() => onPick(p.key)}>
                     {`{${p.key}}`}
                 </button>
             ))}

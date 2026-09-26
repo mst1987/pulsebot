@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { contentName } from "../../lib/wowNames";
 import { usePersistedState } from "../../lib/persistedState";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { SortLabel, ariaSort } from "../../components/SortTh";
@@ -23,6 +24,7 @@ import Pager from "../../components/Pager";
 import { ItemIcon, RaiderChip, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, UNKNOWN_CONTENT, type ActiveFilter } from "../../components/loot/LootFilters";
 import { ItemAwardsDialog } from "./ItemAwardsDialog";
+import { tParts, useT } from "../../i18n";
 
 // The recipient column sorts by the alphabetically first raider in it, which is
 // what "sort by that column" can mean for a cell full of names (how many are in
@@ -79,6 +81,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     canEdit: boolean;
     onChanged: (msg: string) => void;
 }) {
+    const t = useT();
     const [view, setView] = usePersistedState<View>("history-items-view", VIEW_DEFAULT);
     const [pageNo, setPageNo] = useState(1);
     // Which item's dialog is open — by id, so it follows the reloaded list after
@@ -134,7 +137,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     const searchLower = view.search.trim().toLowerCase();
     const filtered = scoped.filter((it) => {
         if (searchLower) {
-            const name = (it.itemName || `Item ${it.itemId}`).toLowerCase();
+            const name = (it.itemName || t("history.shared.itemFallback", { id: it.itemId })).toLowerCase();
             if (!name.includes(searchLower) && String(it.itemId) !== searchLower) return false;
         }
         if (view.content === UNKNOWN_CONTENT ? !!it.contentId : view.content && it.contentId !== view.content) return false;
@@ -145,7 +148,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
 
     const sorted = sortRows(filtered, (it) => {
         switch (sort) {
-            case "item": return (it.itemName || `Item ${it.itemId}`).toLowerCase();
+            case "item": return (it.itemName || t("history.shared.itemFallback", { id: it.itemId })).toLowerCase();
             case "count": return it.count;
             case "recipients": return it.awards.map((a) => a.character.toLowerCase()).sort()[0] || "zzz";
             default: return "";
@@ -167,21 +170,21 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
 
     // The rare filters behind the "Filter" button, each removable from the badge
     // row. Hiding the shards is the default, so it is listed as what it is.
-    const tierLabel = tiers.find((t) => t.id === view.tier)?.label || view.tier;
+    const tierLabel = tiers.find((x) => x.id === view.tier)?.label || view.tier;
     const active: ActiveFilter[] = [
         ...(view.tier ? [{ key: "tier", label: tierLabel, tone: "accent" as const, onRemove: () => patch({ tier: "" }) }] : []),
         ...(view.category ? [{ key: "category", label: categoryNameById.get(view.category) || view.category, tone: "accent" as const, onRemove: () => patch({ category: "" }) }] : []),
-        ...(view.tokensOnly ? [{ key: "tokens", label: "Nur Tier-Token", tone: "accent" as const, onRemove: () => patch({ tokensOnly: false }) }] : []),
-        ...(hideDisenchanted ? [{ key: "de", label: "Entzaubertes ausgeblendet", onRemove: () => patch({ hideDisenchanted: false }) }] : []),
+        ...(view.tokensOnly ? [{ key: "tokens", label: t("history.items.tokensOnly"), tone: "accent" as const, onRemove: () => patch({ tokensOnly: false }) }] : []),
+        ...(hideDisenchanted ? [{ key: "de", label: t("history.items.deHidden"), onRemove: () => patch({ hideDisenchanted: false }) }] : []),
     ];
     const popoverCount = (view.tier ? 1 : 0) + (view.category ? 1 : 0) + (view.tokensOnly ? 1 : 0) + (hideDisenchanted ? 1 : 0);
-    const sortLabel = sort === "count" ? "Vergaben" : sort === "item" ? "Item" : "Empfänger";
+    const sortLabel = sort === "count" ? t("history.items.sortAwards") : sort === "item" ? t("history.items.sortItem") : t("history.items.sortRecipients");
 
     if (!items.length) {
         return (
             <div className="dash-card hl-card">
-                <PartHead icon="inv_misc_bag_10" tone="history" title="Items" crumb="Loot › Items" />
-                <div className="empty">Noch kein Loot importiert.</div>
+                <PartHead icon="inv_misc_bag_10" tone="history" title={t("history.page.view.items")} crumb={t("history.items.crumb")} />
+                <div className="empty">{t("history.shared.noLoot")}</div>
             </div>
         );
     }
@@ -189,25 +192,25 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     return (
         <div className="dash-card hl-card">
             <PartHead
-                icon="inv_misc_bag_10" tone="history" title="Items" crumb="Loot › Items"
-                tip="Items" tipSub="Jedes Item einmal, mit allen Vergaben. Klick auf eine Zeile zeigt, wer es wann und warum bekommen hat."
+                icon="inv_misc_bag_10" tone="history" title={t("history.page.view.items")} crumb={t("history.items.crumb")}
+                tip={t("history.page.view.items")} tipSub={t("history.items.tipSub")}
                 action={(
                     <>
-                        <Badge count>{sorted.length} Items</Badge>
-                        <Badge tone="accent" count>{awardCount} Vergaben</Badge>
+                        <Badge count>{tParts("history.shared.items", { count: sorted.length })}</Badge>
+                        <Badge tone="accent" count>{tParts("history.shared.awards", { count: awardCount })}</Badge>
                     </>
                 )}
             />
             <div className="filter-bar hl-filters">
-                <SearchBox id="items-search" value={view.search} onChange={(search) => patch({ search })} placeholder="Item oder ID …" />
+                <SearchBox id="items-search" value={view.search} onChange={(search) => patch({ search })} placeholder={t("history.items.searchPlaceholder")} />
                 <RaidChips contents={contentOptions} value={view.content} onChange={(content) => patch({ content })} unknownCount={view.tier ? 0 : unknownCount} />
-                <select id="items-reason" className="hl-sel" aria-label="Grund" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
-                    <option value="">Alle Gründe</option>
+                <select id="items-reason" className="hl-sel" aria-label={t("history.shared.reason")} value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
+                    <option value="">{t("history.shared.allReasons")}</option>
                     {reasonOptions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
                 <FilterPopover active={popoverCount}>
                     <div>
-                        <label className="hl-lbl" htmlFor="items-tier">Tier</label>
+                        <label className="hl-lbl" htmlFor="items-tier">{t("history.items.tier")}</label>
                         <select
                             id="items-tier"
                             value={view.tier}
@@ -220,24 +223,24 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                 patch({ tier, content: keepContent ? view.content : "" });
                             }}
                         >
-                            <option value="">Alle Tiers</option>
-                            {tiers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                            <option value="">{t("history.items.allTiers")}</option>
+                            {tiers.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
                         </select>
                     </div>
                     {categoryOptions.length > 1 && (
                         <div>
-                            <label className="hl-lbl" htmlFor="items-category">Kategorie</label>
+                            <label className="hl-lbl" htmlFor="items-category">{t("history.shared.category")}</label>
                             <select id="items-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                                <option value="">Alle Kategorien</option>
+                                <option value="">{t("history.shared.allCategories")}</option>
                                 {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                             </select>
                         </div>
                     )}
-                    <SwitchRow checked={view.tokensOnly} onChange={(tokensOnly) => patch({ tokensOnly })} label="Nur Tier-Token" />
+                    <SwitchRow checked={view.tokensOnly} onChange={(tokensOnly) => patch({ tokensOnly })} label={t("history.items.tokensOnly")} />
                     <SwitchRow
                         checked={hideDisenchanted}
-                        tip="Items, die niemand bekommen hat, sondern entzaubert wurden"
-                        label="Entzaubertes ausblenden"
+                        tip={t("history.items.deHideTip")}
+                        label={t("history.items.deHide")}
                         onChange={(hide) => {
                             // Hiding the shards while "Entzaubert" is the picked
                             // reason would leave an empty table with no visible
@@ -254,25 +257,25 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
             />
 
             {!sorted.length
-                ? <div className="empty">Keine Items für diese Filter.</div>
+                ? <div className="empty">{t("history.items.empty")}</div>
                 : (
                     <>
                         <div className="hl-grid items hl-th" role="row">
                             <span role="columnheader" aria-sort={ariaSort("item", sort, dir)}>
-                                <SortLabel sortKey="item" label="Item" sort={sort} dir={dir} onSort={onSort} tip="Item" tipSub="Darunter Boss und Raid, aus denen es droppt." />
+                                <SortLabel sortKey="item" label={t("history.shared.colItem")} sort={sort} dir={dir} onSort={onSort} tip={t("history.shared.colItem")} tipSub={t("history.items.itemSub")} />
                             </span>
                             <span role="columnheader" aria-sort={ariaSort("count", sort, dir)} className="hl-col-opt">
-                                <SortLabel sortKey="count" label="Vergaben" sort={sort} dir={dir} onSort={onSort} tip="Vergaben" tipSub="Wie oft das Item unter den aktiven Filtern vergeben wurde; der Balken misst gegen das häufigste." />
+                                <SortLabel sortKey="count" label={t("history.page.view.awards")} sort={sort} dir={dir} onSort={onSort} tip={t("history.page.view.awards")} tipSub={t("history.items.awardsSub")} />
                             </span>
-                            <span role="columnheader" className="hl-col-opt tipped" data-tip="Gründe" data-tip-sub="Die Vergaben nach Grund, als Balken in den Farben der Gründe.">Gründe</span>
+                            <span role="columnheader" className="hl-col-opt tipped" data-tip={t("history.shared.colReasons")} data-tip-sub={t("history.items.reasonsSub")}>{t("history.shared.colReasons")}</span>
                             <span role="columnheader" aria-sort={ariaSort("recipients", sort, dir)} className="hl-col-opt">
-                                <SortLabel sortKey="recipients" label="Erhalten von" sort={sort} dir={dir} onSort={onSort} tip="Erhalten von" tipSub="Die letzten Empfänger; wann, aus welchem Raid und warum steht in den Details. Sortiert nach dem alphabetisch ersten." />
+                                <SortLabel sortKey="recipients" label={t("history.items.colRecipients")} sort={sort} dir={dir} onSort={onSort} tip={t("history.items.colRecipients")} tipSub={t("history.items.recipientsSub")} />
                             </span>
                             <span />
                         </div>
                         {pageRows.map((it) => {
                             const content = contentById.get(it.contentId);
-                            const name = it.itemName || `Item ${it.itemId}`;
+                            const name = it.itemName || t("history.shared.itemFallback", { id: it.itemId });
                             const people = recipients(it.awards);
                             const open = () => setOpenItemId(it.itemId);
                             return (
@@ -281,7 +284,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                     className="hl-grid items hl-row"
                                     role="button"
                                     tabIndex={0}
-                                    aria-label={`${name}: Details öffnen`}
+                                    aria-label={t("history.items.openAria", { name })}
                                     onClick={open}
                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}
                                 >
@@ -291,7 +294,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                             <span {...itemQualityProps(it.itemQuality, "hl-item-name")}>{name}</span>
                                             <span className="hl-item-sub">
                                                 <WowIcon name={contentIcon(it.contentId)} size={14} />
-                                                {[it.boss, content?.label || "Raid unbekannt"].filter(Boolean).join(" · ")}
+                                                {[it.boss, (content && contentName(content.id, content.label)) || t("history.shared.raidUnknown")].filter(Boolean).join(" · ")}
                                                 {!!it.tokenTier && <Badge tone="accent">Token</Badge>}
                                             </span>
                                         </div>
@@ -303,20 +306,20 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                             <RaiderChip key={a.characterKey} character={a.character} classColor={a.classColor} iconUrl={a.iconUrl} />
                                         ))}
                                         {people.length > NAMED_RECIPIENTS && (
-                                            <Badge count tip={`${people.length} Empfänger`} tipSub={people.slice(NAMED_RECIPIENTS).map((a) => a.character).join(", ")}>
+                                            <Badge count tip={t("history.items.recipients", { count: people.length })} tipSub={people.slice(NAMED_RECIPIENTS).map((a) => a.character).join(", ")}>
                                                 +{people.length - NAMED_RECIPIENTS}
                                             </Badge>
                                         )}
                                     </div>
                                     <IconButton
-                                        icon={<ChevronRightIcon />} size="sm" tip="Details" tipSub="Alle Vergaben dieses Items"
+                                        icon={<ChevronRightIcon />} size="sm" tip={t("history.items.details")} tipSub={t("history.items.detailsSub")}
                                         onClick={(e) => { e.stopPropagation(); open(); }}
                                     />
                                 </div>
                             );
                         })}
                         <div className="hl-foot">
-                            <span className="muted">{pageRows.length} von {sorted.length} · sortiert nach {sortLabel}</span>
+                            <span className="muted">{tParts("history.items.foot", { shown: pageRows.length, total: sorted.length, sort: sortLabel })}</span>
                             {totalPages > 1 && <Pager page={{ page, totalPages, total: sorted.length }} onPage={setPageNo} />}
                         </div>
                     </>

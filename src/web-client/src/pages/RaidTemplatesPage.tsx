@@ -22,6 +22,7 @@ import CompositionEditor from "../components/CompositionEditor";
 import { RefreshIcon } from "../components/icons";
 import { WarnIcon } from "../components/settings/settingsUi";
 import "../styles/raid-templates.css";
+import { tParts, useT } from "../i18n";
 
 // Raid-Vorlagen (#266): what an evening looks like. One compact row per
 // template — instance icons, the name large, version and "Standard für …"
@@ -61,6 +62,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
     onSaved: (msg: string) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     const ask = useConfirm();
     const toast = useToast();
     const firstVersion = versions[0] || null;
@@ -106,7 +108,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
         setSaving(true);
         try {
             await saveRaidTemplate(draft);
-            onSaved(template ? "Vorlage gespeichert." : "Vorlage angelegt.");
+            onSaved(template ? t("raidTemplates.toast.saved") : t("raidTemplates.toast.created"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -116,10 +118,10 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
 
     const remove = async () => {
         if (!template) return;
-        if (!(await ask({ title: "Vorlage löschen?", text: `„${template.name}“ wird gelöscht. In Raid-Helper bleibt eine verknüpfte Vorlage bestehen.`, action: "Löschen" }))) return;
+        if (!(await ask({ title: t("raidTemplates.delete.title"), text: t("raidTemplates.delete.text", { name: template.name }), action: t("common.delete") }))) return;
         try {
             await deleteRaidTemplate(template.id);
-            onSaved("Vorlage gelöscht.");
+            onSaved(t("raidTemplates.toast.deleted"));
         } catch (err) {
             // 409: a category uses it as its default — the message names it.
             toast((err as ApiError).message, "err");
@@ -139,28 +141,28 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
             tone="raids"
             // Short names: "TBC · SSC + TK" — the full instance names sit in the chips' tooltips.
             kicker={[version?.short || draft.versionId, chosen.map((i) => i.short).join(" + ")].filter(Boolean).join(" · ")}
-            title={draft.name.trim() || (template ? "(ohne Name)" : "Neue Vorlage")}
+            title={draft.name.trim() || (template ? t("raidTemplates.noName") : t("raidTemplates.editor.newTitle"))}
             width={640}
-            hint={template && canWrite ? <Button variant="danger" size="sm" onClick={remove}>Löschen</Button> : undefined}
+            hint={template && canWrite ? <Button variant="danger" size="sm" onClick={remove}>{t("common.delete")}</Button> : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    {canWrite && <Button running={saving} disabled={!!problem} onClick={save} data-tip={problem || undefined}>Speichern</Button>}
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    {canWrite && <Button running={saving} disabled={!!problem} onClick={save} data-tip={problem || undefined}>{t("common.save")}</Button>}
                 </>
             )}
         >
             <div className="field">
-                <label htmlFor="rt-name">Name</label>
-                <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="z. B. SSC + TK 25er" />
+                <label htmlFor="rt-name">{t("common.name")}</label>
+                <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("raidTemplates.editor.namePlaceholder")} />
             </div>
             <div className="rt-field">
-                <FieldLabel text="Spielversion" />
-                <Segment size="sm" ariaLabel="Spielversion" value={draft.versionId} onChange={changeVersion}
+                <FieldLabel text={t("raidTemplates.version")} />
+                <Segment size="sm" ariaLabel={t("raidTemplates.version")} value={draft.versionId} onChange={changeVersion}
                     options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
             </div>
             <InstancePicker version={version} value={draft.instanceIds} onToggle={toggleInstance} />
             <SizePicker version={version} instanceIds={draft.instanceIds} size={draft.size} free={freeSize} onFree={setFreeSize} onSize={(size) => changeSize(size)}>
-                {draft.size === null && <Badge tone="mid" icon={<WarnIcon />}>Größe ergänzen</Badge>}
+                {draft.size === null && <Badge tone="mid" icon={<WarnIcon />}>{t("raidTemplates.addSize")}</Badge>}
             </SizePicker>
             <CompositionEditor
                 size={draft.size}
@@ -168,7 +170,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
                 onChange={(c) => patch({ composition: { ...draft.composition, ...c } })}
             />
             <details className="rt-more">
-                <summary>Mehr: Aussehen, Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Dauer, Warteliste, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                <summary>{t("raidTemplates.editor.more")}{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                 <div className="rt-more-body">
                     <AppearanceFields idPrefix="rt" version={version} instanceIds={draft.instanceIds}
                         color={draft.color || ""} image={draft.image || { mode: "thumbnail", url: "" }} emojiStyle={emojiStyleOf(draft.emojiStyle)}
@@ -177,21 +179,21 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
                         onChange={(r) => patch({ composition: { ...draft.composition, ...r } })} />
                     <BuffPicker version={version} value={draft.requiredBuffs} onToggle={toggleBuff} />
                     <div className="rt-row2">
-                        <NumberInput id="rt-deadline" label="Anmeldeschluss (Stunden vor Start)" value={draft.signupDeadline ? draft.signupDeadline.hoursBefore : null}
-                            onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder="keiner" max={336} />
-                        <NumberInput id="rt-duration" label="Dauer (Minuten)" value={draft.durationMinutes}
+                        <NumberInput id="rt-deadline" label={t("raidTemplates.editor.deadline")} value={draft.signupDeadline ? draft.signupDeadline.hoursBefore : null}
+                            onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder={t("raidTemplates.editor.deadlinePlaceholder")} max={336} />
+                        <NumberInput id="rt-duration" label={t("raidTemplates.editor.duration")} value={draft.durationMinutes}
                             onChange={(d) => patch({ durationMinutes: d })} placeholder="180" max={600} />
                         <div className="rt-num-field">
-                            <label htmlFor="rt-rh">Raid-Helper-Vorlage (ID)</label>
-                            <input id="rt-rh" type="text" className="inp-sm mono" value={draft.raidhelperTemplateId} placeholder="z. B. 3"
+                            <label htmlFor="rt-rh">{t("raidTemplates.editor.raidHelperId")}</label>
+                            <input id="rt-rh" type="text" className="inp-sm mono" value={draft.raidhelperTemplateId} placeholder={t("raidTemplates.editor.raidHelperIdPlaceholder")}
                                 onChange={(e) => patch({ raidhelperTemplateId: e.target.value })} />
                         </div>
                     </div>
                     <div className="rt-switches">
-                        <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
-                        <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
-                        <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank. Aus: die Anmeldung wird abgelehnt." checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
-                        <SwitchRow label="Anmeldung schließen, wenn voll" tip="Sobald die Plätze belegt sind, schließt die Anmeldung. Abmelden öffnet sie nicht wieder." checked={!!draft.lockAtLimit} onChange={(lockAtLimit) => patch({ lockAtLimit })} />
+                        <SwitchRow label={t("raidTemplates.editor.fairness")} tip={t("raidTemplates.editor.fairnessTip")} checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
+                        <SwitchRow label={t("raidTemplates.editor.wishes")} tip={t("raidTemplates.editor.wishesTip")} checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
+                        <SwitchRow label={t("raidTemplates.editor.overflow")} tip={t("raidTemplates.editor.overflowTip")} checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
+                        <SwitchRow label={t("raidTemplates.editor.lockAtLimit")} tip={t("raidTemplates.editor.lockAtLimitTip")} checked={!!draft.lockAtLimit} onChange={(lockAtLimit) => patch({ lockAtLimit })} />
                     </div>
                 </div>
             </details>
@@ -205,6 +207,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
 
 export default function RaidTemplatesPage() {
     const { user } = useOutletContext<ShellContext>();
+    const t = useT();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
@@ -214,14 +217,14 @@ export default function RaidTemplatesPage() {
     const [versionFilter, setVersionFilter] = usePersistedState("raid-templates-version", "");
     const [importing, setImporting] = useState(false);
 
-    if (loaded.error) return <div className="empty">Fehler beim Laden: {loaded.error.message}</div>;
-    if (!data || !versions) return <RaidLoader text="Raid-Vorlagen werden geladen" />;
+    if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
+    if (!data || !versions) return <RaidLoader text={t("raidTemplates.page.loading")} />;
 
     const shortOf = (id: string) => versions.find((v) => v.id === id)?.short || id;
     // A remembered filter for a version that has no template shows everything instead of nothing.
     const filter = versionFilter && versions.some((v) => v.id === versionFilter) ? versionFilter : "";
     const shown = filterByVersion(data.templates, filter);
-    const entry = editor.editId ? data.templates.find((t) => t.id === editor.editId) || null : null;
+    const entry = editor.editId ? data.templates.find((tpl) => tpl.id === editor.editId) || null : null;
 
     const afterChange = (msg: string) => {
         toast(msg);
@@ -233,7 +236,7 @@ export default function RaidTemplatesPage() {
         setImporting(true);
         try {
             const r = await importRaidTemplates();
-            toast(`${r.added} neu, ${r.updated} schon vorhanden.`);
+            toast(t("raidTemplates.toast.imported", { added: r.added, updated: r.updated }));
             loaded.reload();
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -242,49 +245,49 @@ export default function RaidTemplatesPage() {
         }
     };
 
-    const iconsOf = (t: RaidTemplate) => instancesOf(versions.find((v) => v.id === t.versionId), t.instanceIds).map((i) => i.icon);
+    const iconsOf = (tpl: RaidTemplate) => instancesOf(versions.find((v) => v.id === tpl.versionId), tpl.instanceIds).map((i) => i.icon);
 
     return (
         <div className="rt-page">
             <PageHead
                 icon="inv_misc_note_02"
                 tone="raids"
-                kicker="Raid-Events"
-                title="Raid-Vorlagen"
+                kicker={t("raidTemplates.page.kicker")}
+                title={t("raidTemplates.page.title")}
                 action={(
                     <>
-                        <Segment size="sm" ariaLabel="Spielversion" value={filter} onChange={setVersionFilter}
-                            options={[{ value: "", label: "Alle" }, ...versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))]} />
+                        <Segment size="sm" ariaLabel={t("raidTemplates.version")} value={filter} onChange={setVersionFilter}
+                            options={[{ value: "", label: t("common.all") }, ...versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))]} />
                         {canWrite && (
-                            <IconButton icon={<RefreshIcon />} tip="Aus Raid-Helper laden" tipSub="Übernimmt die Raid-Helper-Vorlagen der aktuellen Events als Vorlagen ohne Größe." disabled={importing} onClick={importFromRaidHelper} />
+                            <IconButton icon={<RefreshIcon />} tip={t("raidTemplates.page.import")} tipSub={t("raidTemplates.page.importSub")} disabled={importing} onClick={importFromRaidHelper} />
                         )}
-                        {canWrite && <Button icon="inv_misc_note_05" onClick={editor.startNew}>Vorlage</Button>}
+                        {canWrite && <Button icon="inv_misc_note_05" onClick={editor.startNew}>{t("raidTemplates.page.new")}</Button>}
                     </>
                 )}
             />
 
             <div className="rt-list">
-                {shown.map((t) => (
-                    <button key={t.id} type="button" className="rt-row" onClick={() => editor.startEdit(t.id)}>
-                        <InstanceIcons icons={iconsOf(t)} />
+                {shown.map((tpl) => (
+                    <button key={tpl.id} type="button" className="rt-row" onClick={() => editor.startEdit(tpl.id)}>
+                        <InstanceIcons icons={iconsOf(tpl)} />
                         <div className="rt-main">
-                            <div className="rt-name">{t.name || "(ohne Name)"}</div>
+                            <div className="rt-name">{tpl.name || t("raidTemplates.noName")}</div>
                             <div className="rt-sub">
-                                <span className="rt-lbl">{templateLabel(t, shortOf(t.versionId), data.categoryNames)}</span>
-                                {t.incomplete && <Badge tone="mid" icon={<WarnIcon />}>Infos fehlen</Badge>}
-                                {t.needsSize && <Badge tone="mid" icon={<WarnIcon />}>Größe ergänzen</Badge>}
+                                <span className="rt-lbl">{templateLabel(tpl, shortOf(tpl.versionId), data.categoryNames)}</span>
+                                {tpl.incomplete && <Badge tone="mid" icon={<WarnIcon />}>{t("raidTemplates.page.incomplete")}</Badge>}
+                                {tpl.needsSize && <Badge tone="mid" icon={<WarnIcon />}>{t("raidTemplates.addSize")}</Badge>}
                             </div>
                         </div>
                         <div className="rt-vals">
-                            <Value label="Größe" value={t.size} />
-                            <Value label="Tanks" value={t.needsSize ? null : t.composition.tank} />
-                            <Value label="Heiler" value={t.needsSize ? null : t.composition.healer} />
+                            <Value label={t("raidTemplates.page.size")} value={tpl.size} />
+                            <Value label={t("raidTemplates.page.tanks")} value={tpl.needsSize ? null : tpl.composition.tank} />
+                            <Value label={t("raidTemplates.page.healers")} value={tpl.needsSize ? null : tpl.composition.healer} />
                         </div>
                     </button>
                 ))}
                 {!shown.length && (
                     <div className="empty">
-                        {data.templates.length ? "Keine Vorlage für diese Spielversion." : "Noch keine Raid-Vorlage."}
+                        {data.templates.length ? t("raidTemplates.page.emptyVersion") : t("raidTemplates.page.empty")}
                     </div>
                 )}
             </div>

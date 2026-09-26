@@ -1,0 +1,172 @@
+{
+    "page": {
+        "loadError": "Fehler beim Laden: {message}",
+        "loading": "Roster wird geladen",
+        "categories": {
+            "one": "{count} Raid-Kategorie",
+            "other": "{count} Raid-Kategorien"
+        },
+        "title": "Roster",
+        "infoTip": "Alle Charaktere je Raid-Kategorie",
+        "infoSub": "Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung.",
+        "listAria": "Liste",
+        "tabActive": "Roster ({count})",
+        "tabActiveTip": "Wer aktuell zählt",
+        "tabHidden": "Ausgeblendet ({count})",
+        "tabHiddenTip": "Nicht mehr dabei",
+        "searchPlaceholder": "Charakter suchen …",
+        "searchAria": "Charakter suchen",
+        "roleAria": "Rolle",
+        "classAria": "Klasse",
+        "classOn": "Klick hebt den Klassenfilter auf.",
+        "specOn": "Klick hebt den Spec-Filter auf.",
+        "showOnly": "Nur {label} zeigen.",
+        "emptyHidden": "Niemand ausgeblendet. Über das Augen-Symbol in einer Zeile kommt jemand hierher, der nicht mehr mitraidet.",
+        "emptyActive": "Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen.",
+        "noMatch": "Keine Charaktere zu diesem Filter.",
+        "lastRaids": {
+            "one": "letzte {count} Raid",
+            "other": "letzte {count} Raids"
+        },
+        "noRaids": "noch keine Raids gezählt",
+        "ungrouped": "Ohne Kategorie",
+        "ungroupedCrumb": "nur aus Loot-Importen bekannt"
+    },
+    "hide": {
+        "title": "Charakter ausblenden?",
+        "text": "„{name}\" verschwindet aus den Listen und aus den Zahlen oben. Loot, Auswertungen und die Charakter-Seite bleiben unverändert — über den Tab „Ausgeblendet\" kommt er jederzeit zurück.",
+        "action": "Ausblenden",
+        "hidden": "{name} ausgeblendet.",
+        "back": "{name} ist wieder im Roster."
+    },
+    "claims": {
+        "tip": {
+            "one": "{count} Charakter doppelt beansprucht",
+            "other": "{count} Charaktere doppelt beansprucht"
+        },
+        "sub": "Mehrere Konten haben denselben Charakter in „Mein Profil\" eingetragen:\n{lines}",
+        "badge": "{count} doppelt vergeben"
+    },
+    "row": {
+        "hiddenTip": "Ausgeblendet",
+        "hiddenBy": "Von {by}, seit {date}",
+        "hiddenSince": "seit {date}",
+        "hiddenBadge": "ausgeblendet",
+        "lootOnly": "nur Loot",
+        "lootOnlySub": "Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.",
+        "unhide": "Wieder ins Roster",
+        "unhideSub": "Der Charakter taucht wieder in den Listen und in den Zahlen oben auf.",
+        "hideSub": "Nimmt den Charakter aus den Listen und den Zahlen oben — Loot, Auswertungen und die Charakter-Seite bleiben unverändert."
+    },
+    "group": {
+        "count": {
+            "one": "{count} Charakter",
+            "other": "{count} Charaktere"
+        },
+        "withIssues": "{count} mit Gear-Problemen",
+        "details": "Details",
+        "showLess": "Weniger zeigen",
+        "showMore": "{count} weitere zeigen"
+    },
+    "cols": {
+        "name": "Charakter",
+        "nameSub": "Name in Klassenfarbe, darunter die Spec. Klick öffnet die Charakter-Seite.",
+        "role": "Rolle",
+        "roleSub": "Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec.",
+        "attendance": "Anwesenheit",
+        "attendanceSub": "Die letzten 11 Raids dieser Kategorie: im Log = da; ohne Log zählt die Raid-Helper-Anmeldung des zugeordneten Raiders.\nGrün ab 80 %, gelb ab 60 %.",
+        "gear": "Gear-Stand",
+        "gearSub": "Befunde aus der neuesten Log-Auswertung, in der der Charakter vorkommt: fehlende Verzauberung, leere Sockel, inaktiver Meta-Gem.\n„nicht ausgewertet“ = in keiner gespeicherten Auswertung.",
+        "loot": "Loot",
+        "lootSub": "Importierte Items dieses Charakters; die neuesten im Tooltip.",
+        "links": "Links"
+    },
+    "kpi": {
+        "chars": "Charaktere",
+        "charsTip": {
+            "one": "{count} Charakter",
+            "other": "{count} Charaktere"
+        },
+        "charsSub": "{evaluated} ausgewertet · {assigned} zugeordnet · {lootOnly} nur aus Loot",
+        "attendance": "Ø Anwesenheit",
+        "attendanceNone": "Noch keine Anwesenheit gezählt",
+        "attendanceTip": "Ø {pct} % Anwesenheit",
+        "attendanceNoneSub": "Gezählt wird aus Raid-Helper-Anmeldungen und den Logs, die einem Raid-Event zugeordnet sind.",
+        "attendanceSub": {
+            "one": "Mittel über {count} Charakter mit gezählten Raids, je Kategorie die letzten 11 Raids.",
+            "other": "Mittel über {count} Charaktere mit gezählten Raids, je Kategorie die letzten 11 Raids."
+        },
+        "issues": "Gear-Probleme",
+        "issuesOff": "Filter aufheben",
+        "issuesOn": "Nur Charaktere mit Gear-Problemen zeigen",
+        "issuesSub": "{withIssues} von {evaluated} ausgewerteten Charakteren · {findings}{high}",
+        "findings": {
+            "one": "{count} Befund",
+            "other": "{count} Befunde"
+        },
+        "high": ", {count} schwer",
+        "issuesNone": "Keine Befunde in den letzten Auswertungen.",
+        "loot": "Loot-Items",
+        "lootTip": "{count} importierte Items",
+        "lootSub": "Ø {avg} je Charakter"
+    },
+    "badge": {
+        "roleUnknown": "Rolle unbekannt",
+        "roleUnknownSub": "Weder ein Log noch die Spec sagen, was der Charakter spielt.",
+        "noRaids": "Keine Raids gezählt",
+        "noRaidsSub": "{category}: kein zugeordnetes Log, in dem der Charakter vorkommen könnte, und keine Raider-Zuordnung, deren Anmeldungen zählen.",
+        "thisCategory": "Diese Kategorie",
+        "category": "Kategorie",
+        "counted": "{category}, gezählt aus Anmeldungen und Logs der letzten {total} Raids.",
+        "missed": "Gefehlt: {list}.",
+        "noneMissed": "Keinen gezählten Raid verpasst.",
+        "attendanceTip": "{attended} von {total} Raids · {pct} %",
+        "notEvaluated": "nicht ausgewertet",
+        "notEvaluatedSub": "Der Charakter kommt in keiner der gespeicherten Log-Auswertungen vor.",
+        "clean": "Sauber",
+        "cleanSub": "Keine Gear-Probleme in der Auswertung {source}.",
+        "gear": "Gear",
+        "moreOnChar": "… und {count} weitere auf der Charakter-Seite",
+        "gearProblems": {
+            "one": "{count} Gear-Problem",
+            "other": "{count} Gear-Probleme"
+        },
+        "high": " · {count} schwer",
+        "fromEvaluation": "Aus der Auswertung {source}.",
+        "problems": {
+            "one": "{count} Problem",
+            "other": "{count} Probleme"
+        },
+        "item": "Item {id}",
+        "more": "… und {count} weitere",
+        "lootHint": "Klick öffnet die ganze Loot-Historie.",
+        "noLootYet": "Noch kein Loot importiert.",
+        "itemsReceived": {
+            "one": "{count} Item erhalten",
+            "other": "{count} Items erhalten"
+        },
+        "noLoot": "Kein Loot"
+    },
+    "slot": {
+        "HEAD": "Kopf",
+        "NECK": "Hals",
+        "SHOULDER": "Schulter",
+        "BACK": "Rücken",
+        "CHEST": "Brust",
+        "SHIRT": "Hemd",
+        "TABARD": "Wappenrock",
+        "WRIST": "Handgelenk",
+        "HANDS": "Hände",
+        "WAIST": "Taille",
+        "LEGS": "Beine",
+        "FEET": "Füße",
+        "FINGER_1": "Ring 1",
+        "FINGER_2": "Ring 2",
+        "TRINKET_1": "Schmuck 1",
+        "TRINKET_2": "Schmuck 2",
+        "MAIN_HAND": "Haupthand",
+        "OFF_HAND": "Nebenhand",
+        "RANGED": "Fernkampf"
+    },
+    "finding": "Befund"
+}

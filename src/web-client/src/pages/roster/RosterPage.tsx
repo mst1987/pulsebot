@@ -14,7 +14,9 @@ import { useApi } from "../../hooks/useApi";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort, type Dir } from "../../lib/tableSort";
 import { RosterKpis } from "./RosterHero";
-import { CLASS_LABELS, ROLE_ORDER, classIconName } from "../../lib/rosterView";
+import { ROLE_ORDER, classIconName } from "../../lib/rosterView";
+import { classLabel, roleLabel } from "../../lib/wowNames";
+import { tParts, useT } from "../../i18n";
 import { IconTile, Segment, WowIcon } from "../../components/ui";
 import { SearchIcon } from "../../components/icons";
 import type { ShellContext } from "../../components/Shell";
@@ -62,6 +64,7 @@ export default function RosterPage() {
     const toast = useToast();
     const ask = useConfirm();
     const canWrite = canAccess(user, "roster", "write");
+    const t = useT();
 
     const showHidden = stored.tab === "hidden";
     const chars = useMemo(() => (showHidden ? data?.hiddenChars : data?.chars) || [], [data, showHidden]);
@@ -81,9 +84,9 @@ export default function RosterPage() {
      */
     const toggleHidden = async (c: RosterChar, hide: boolean) => {
         if (hide && !(await ask({
-            title: "Charakter ausblenden?",
-            text: `„${c.character}" verschwindet aus den Listen und aus den Zahlen oben. Loot, Auswertungen und die Charakter-Seite bleiben unverändert — über den Tab „Ausgeblendet" kommt er jederzeit zurück.`,
-            action: "Ausblenden",
+            title: t("roster.hide.title"),
+            text: t("roster.hide.text", { name: c.character }),
+            action: t("roster.hide.action"),
         }))) return;
         try {
             await setRosterHidden(c.character, hide);
@@ -103,7 +106,7 @@ export default function RosterPage() {
                     hiddenChars: prev.hiddenChars.filter((x) => x.key !== c.key),
                 };
             });
-            toast(hide ? `${c.character} ausgeblendet.` : `${c.character} ist wieder im Roster.`, "ok");
+            toast(hide ? t("roster.hide.hidden", { name: c.character }) : t("roster.hide.back", { name: c.character }), "ok");
             // The KPI band is aggregated server-side, so it only agrees with the
             // lists again once the roster comes back — quietly, in the background:
             // the change itself went through, so a failed refresh must not turn
@@ -127,8 +130,8 @@ export default function RosterPage() {
         return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [chars]);
 
-    if (roster.error) return <div className="empty">Fehler beim Laden: {roster.error.message}</div>;
-    if (!data) return <RaidLoader text="Roster wird geladen" />;
+    if (roster.error) return <div className="empty">{tParts("roster.page.loadError", { message: roster.error.message })}</div>;
+    if (!data) return <RaidLoader text={t("roster.page.loading")} />;
 
     // A stored view from an older build lacks fields or carries old ones
     // (category, classSpec, sort) — only the known fields are read.
@@ -170,7 +173,7 @@ export default function RosterPage() {
         .map((id) => {
             const info = data.categoryInfo?.[id];
             const crumbParts = [...(info?.contents || [])];
-            crumbParts.push(info?.raids ? `letzte ${info.raids} Raid${info.raids === 1 ? "" : "s"}` : "noch keine Raids gezählt");
+            crumbParts.push(info?.raids ? t("roster.page.lastRaids", { count: info.raids }) : t("roster.page.noRaids"));
             return {
                 id,
                 title: categoryNameById.get(id) || id,
@@ -183,7 +186,7 @@ export default function RosterPage() {
         .sort((a, b) => a.title.localeCompare(b.title));
     const ungrouped = filtered.filter((c) => !c.categoryIds.length);
     if (ungrouped.length) {
-        groups.push({ id: UNGROUPED, title: "Ohne Kategorie", crumb: "nur aus Loot-Importen bekannt", icon: "inv_misc_note_02", chars: ungrouped });
+        groups.push({ id: UNGROUPED, title: t("roster.page.ungrouped"), crumb: t("roster.page.ungroupedCrumb"), icon: "inv_misc_note_02", chars: ungrouped });
     }
 
     const openIds = view.open ?? (groups[0] ? [groups[0].id] : []);
@@ -196,14 +199,14 @@ export default function RosterPage() {
             <div className="page-head">
                 <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
                 <div className="ph-text">
-                    <div className="kicker">{data.stats.categories} Raid-Kategorie{data.stats.categories === 1 ? "" : "n"}</div>
+                    <div className="kicker">{t("roster.page.categories", { count: data.stats.categories })}</div>
                     <h1 className="ros-title">
-                        Roster
+                        {t("roster.page.title")}
                         <span
                             className="ros-info"
                             tabIndex={0}
-                            data-tip="Alle Charaktere je Raid-Kategorie"
-                            data-tip-sub={"Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung."}
+                            data-tip={t("roster.page.infoTip")}
+                            data-tip-sub={t("roster.page.infoSub")}
                         >
                             ?
                         </span>
@@ -218,17 +221,17 @@ export default function RosterPage() {
                 {(!!data.hiddenChars.length || canWrite) && (
                     <div className="ros-tabs">
                         <Segment<Tab>
-                            ariaLabel="Liste"
+                            ariaLabel={t("roster.page.listAria")}
                             value={view.tab}
                             onChange={(tab) => patch({ tab })}
                             options={[
                                 {
-                                    value: "active", label: `Roster (${data.chars.length})`, icon: "achievement_guildperk_everybodysfriend",
-                                    tip: "Wer aktuell zählt",
+                                    value: "active", label: t("roster.page.tabActive", { count: data.chars.length }), icon: "achievement_guildperk_everybodysfriend",
+                                    tip: t("roster.page.tabActiveTip"),
                                 },
                                 {
-                                    value: "hidden", label: `Ausgeblendet (${data.hiddenChars.length})`, icon: "inv_misc_book_09",
-                                    tip: "Nicht mehr dabei",
+                                    value: "hidden", label: t("roster.page.tabHidden", { count: data.hiddenChars.length }), icon: "inv_misc_book_09",
+                                    tip: t("roster.page.tabHiddenTip"),
                                 },
                             ]}
                         />
@@ -239,28 +242,28 @@ export default function RosterPage() {
                         <SearchIcon />
                         <input
                             type="search"
-                            placeholder="Charakter suchen …"
-                            aria-label="Charakter suchen"
+                            placeholder={t("roster.page.searchPlaceholder")}
+                            aria-label={t("roster.page.searchAria")}
                             value={view.search}
                             onChange={(e) => patch({ search: e.target.value })}
                         />
                     </label>
                     <Segment<RoleFilter>
-                        ariaLabel="Rolle"
+                        ariaLabel={t("roster.page.roleAria")}
                         value={view.role}
                         onChange={(role) => patch({ role })}
                         options={[
-                            { value: "all", label: "Alle" },
-                            { value: "tank", label: "Tank", icon: "inv_shield_06" },
-                            { value: "healer", label: "Heiler", icon: "spell_holy_flashheal" },
-                            { value: "dps", label: "DPS", icon: "ability_dualwield" },
+                            { value: "all", label: t("common.all") },
+                            { value: "tank", label: roleLabel("tank"), icon: "inv_shield_06" },
+                            { value: "healer", label: roleLabel("healer"), icon: "spell_holy_flashheal" },
+                            { value: "dps", label: roleLabel("dps"), icon: "ability_dualwield" },
                         ]}
                     />
                     {!!classCounts.length && (
-                        <div className="ros-chips" role="group" aria-label="Klasse">
+                        <div className="ros-chips" role="group" aria-label={t("roster.page.classAria")}>
                             {classCounts.map(([className, count]) => {
                                 const on = view.className === className;
-                                const label = CLASS_LABELS[className] || className;
+                                const label = classLabel(className);
                                 return (
                                     <button
                                         key={className}
@@ -269,7 +272,7 @@ export default function RosterPage() {
                                         aria-pressed={on}
                                         aria-label={`${label} · ${count}`}
                                         data-tip={`${label} · ${count}`}
-                                        data-tip-sub={on ? "Klick hebt den Klassenfilter auf." : `Nur ${label} zeigen.`}
+                                        data-tip-sub={on ? t("roster.page.classOn") : t("roster.page.showOnly", { label })}
                                         onClick={() => patch({ className: on ? "" : className })}
                                     >
                                         <WowIcon name={classIconName(className)} size={26} />
@@ -295,7 +298,7 @@ export default function RosterPage() {
                                     className={`ros-spec${on ? " is-on" : ""}`}
                                     aria-pressed={on}
                                     data-tip={spec}
-                                    data-tip-sub={on ? "Klick hebt den Spec-Filter auf." : `Nur ${spec} zeigen.`}
+                                    data-tip-sub={on ? t("roster.page.specOn") : t("roster.page.showOnly", { label: spec })}
                                     onClick={() => patch({ spec: on ? "" : spec })}
                                 >
                                     {spec}
@@ -308,11 +311,11 @@ export default function RosterPage() {
                 {!chars.length && (
                     <p className="sub ros-empty">
                         {showHidden
-                            ? "Niemand ausgeblendet. Über das Augen-Symbol in einer Zeile kommt jemand hierher, der nicht mehr mitraidet."
-                            : "Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen."}
+                            ? t("roster.page.emptyHidden")
+                            : t("roster.page.emptyActive")}
                     </p>
                 )}
-                {!!chars.length && !filtered.length && <p className="sub ros-empty">Keine Charaktere zu diesem Filter.</p>}
+                {!!chars.length && !filtered.length && <p className="sub ros-empty">{t("roster.page.noMatch")}</p>}
                 {groups.map((g) => (
                     <RosterGroup
                         key={g.id}

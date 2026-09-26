@@ -11,6 +11,7 @@ import WowIcon from "../ui/WowIcon";
 import { InfoIcon, SearchIcon } from "../icons";
 import { contentIcon } from "./LootBadges";
 import { useDismiss } from "../../hooks/useDismiss";
+import { useT } from "../../i18n";
 
 export function SearchBox({ id, value, onChange, placeholder }: {
     id: string;
@@ -34,10 +35,11 @@ export function RaidChips({ contents, value, onChange, unknownCount = 0 }: {
     /** Items whose raid the table does not know — offered as their own chip. */
     unknownCount?: number;
 }) {
+    const t = useT();
     return (
-        <div className="hl-chips" role="radiogroup" aria-label="Raid">
+        <div className="hl-chips" role="radiogroup" aria-label={t("history.filters.raidAria")}>
             <button type="button" role="radio" aria-checked={!value} className={`hl-fchip plain${!value ? " on" : ""}`} onClick={() => onChange("")}>
-                Alle Raids
+                {t("history.filters.allRaids")}
             </button>
             {contents.map((c) => (
                 <button
@@ -54,11 +56,11 @@ export function RaidChips({ contents, value, onChange, unknownCount = 0 }: {
                 <button
                     type="button" role="radio" aria-checked={value === UNKNOWN_CONTENT}
                     className={`hl-fchip${value === UNKNOWN_CONTENT ? " on" : ""}`}
-                    data-tip="Raid unbekannt" data-tip-sub="Items, die nicht in der Content-Tabelle stehen (scripts/fetch-tbc-loot.js)."
+                    data-tip={t("history.shared.raidUnknown")} data-tip-sub={t("history.filters.unknownSub")}
                     onClick={() => onChange(value === UNKNOWN_CONTENT ? "" : UNKNOWN_CONTENT)}
                 >
                     <WowIcon name="inv_misc_questionmark" size={22} />
-                    Unbekannt <span className="rbadge-count">{unknownCount}</span>
+                    {t("history.filters.unknown")} <span className="rbadge-count">{unknownCount}</span>
                 </button>
             )}
         </div>
@@ -74,6 +76,7 @@ export const UNKNOWN_CONTENT = "__unknown__";
 
 /** "Filter" with the number of active rare filters, opening a small panel. */
 export function FilterPopover({ active, children }: { active: number; children: ReactNode }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -82,10 +85,10 @@ export function FilterPopover({ active, children }: { active: number; children: 
     return (
         <div ref={ref} className="hl-filter-btn">
             <Button variant="ghost" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((o) => !o)}>
-                Filter
+                {t("history.filters.filter")}
                 {active > 0 && <Badge tone="accent" count>{active}</Badge>}
             </Button>
-            {open && <div className="hl-pop" role="dialog" aria-label="Weitere Filter">{children}</div>}
+            {open && <div className="hl-pop" role="dialog" aria-label={t("history.filters.moreAria")}>{children}</div>}
         </div>
     );
 }
@@ -94,18 +97,19 @@ export type ActiveFilter = { key: string; label: string; tone?: "accent"; onRemo
 
 /** The active filters as removable badges; nothing when there are none. */
 export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; onReset?: () => void }) {
+    const t = useT();
     if (!filters.length) return null;
     return (
         <div className="hl-active">
-            <span className="kicker">aktiv</span>
+            <span className="kicker">{t("history.filters.active")}</span>
             {filters.map((f) => (
-                <Badge key={f.key} tone={f.tone} onRemove={f.onRemove} removeLabel={`Filter „${f.label}" entfernen`} removeTip="Filter entfernen">
+                <Badge key={f.key} tone={f.tone} onRemove={f.onRemove} removeLabel={t("history.filters.removeLabel", { label: f.label })} removeTip={t("history.filters.removeTip")}>
                     {f.label}
                 </Badge>
             ))}
             {onReset && filters.length > 1 && (
                 <button type="button" className="mlink hl-reset" style={{ background: "none", border: 0, cursor: "pointer" }} onClick={onReset}>
-                    Alle zurücksetzen
+                    {t("history.filters.resetAll")}
                 </button>
             )}
         </div>

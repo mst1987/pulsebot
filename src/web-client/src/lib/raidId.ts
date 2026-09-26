@@ -3,7 +3,8 @@
 // the next ID for a viewer elsewhere. Written without typed consts, so the
 // tests run it as it is (src/web-client/src/lib/raidId.test.ts).
 
-const TZ = "Europe/Berlin";
+import { isoDay } from "./format";
+
 const DAY_MS = 86400000;
 /**
  * The EU weekly reset is early on Wednesday morning: a raid that starts after
@@ -14,7 +15,7 @@ const RESET_HOUR = 5;
 
 /** The calendar day (UTC midnight of that date) an epoch-ms time falls on in TZ. */
 function dayOf(ms: number): number {
-    return Date.parse(new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ }));
+    return Date.parse(isoDay(ms));
 }
 
 /** Wednesday of the raid ID the day lies in, as a UTC-midnight timestamp. */

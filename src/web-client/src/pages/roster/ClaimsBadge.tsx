@@ -1,5 +1,6 @@
 import type { CharacterClaim } from "../../api";
 import { Badge } from "../../components/ui";
+import { tParts, useT } from "../../i18n";
 
 /**
  * Characters more than one account added to its profile. There is no
@@ -7,14 +8,15 @@ import { Badge } from "../../components/ui";
  * resolves them — a badge with the list in its tooltip, not a block.
  */
 export function ClaimsBadge({ claims }: { claims: CharacterClaim[] }) {
+    const t = useT();
     const lines = claims.map((c) => `${c.character}: ${c.claims.map((x) => x.name || x.userId).join(", ")}`).join("\n");
     return (
         <Badge
             tone="mid"
-            tip={`${claims.length} Charakter${claims.length === 1 ? "" : "e"} doppelt beansprucht`}
-            tipSub={`Mehrere Konten haben denselben Charakter in „Mein Profil" eingetragen:\n${lines}`}
+            tip={t("roster.claims.tip", { count: claims.length })}
+            tipSub={t("roster.claims.sub", { lines })}
         >
-            {claims.length} doppelt vergeben
+            {tParts("roster.claims.badge", { count: claims.length })}
         </Badge>
     );
 }

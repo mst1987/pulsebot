@@ -9,9 +9,10 @@ import { CopyIcon, SearchIcon } from "../icons";
 import { useToast } from "../Jobs";
 import { ChannelTypeIcon, PurposeBadge, PurposeChip, StatusBadge } from "./channelBits";
 import {
-    groupByCategory, isTextLike, rightsStatus,
+    groupByCategory, groupName, isTextLike, purposeHint, purposeLabel, rightsStatus,
     TYPE_ANNOUNCEMENT, TYPE_FORUM, TYPE_STAGE, TYPE_TEXT, TYPE_VOICE,
 } from "../../lib/channels";
+import { useT } from "../../i18n";
 
 // The four dialogs of the Kanäle page (design issue #216): purpose → channels,
 // channel → purposes, create a channel, duplicate a channel. Each reports back
@@ -35,8 +36,10 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
     const [query, setQuery] = useState("");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
     const isCategory = purpose.kind === "category";
     const q = query.trim().toLowerCase();
+    const label = purposeLabel(purpose);
 
     const toggle = (id: string) => {
         if (purpose.multiple) setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
@@ -56,7 +59,7 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
         setBusy(true);
         try {
             await saveChannelPurpose(purpose, selected);
-            toast(`${purpose.label}: Zuordnung gespeichert.`);
+            toast(t("channels.purposeDialog.saved", { label }));
             onSaved();
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -84,15 +87,15 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
             onClose={onClose}
             icon={purpose.icon}
             tone="channels"
-            kicker="Kanäle › Zwecke"
-            title={`${purpose.label} zuordnen`}
+            kicker={t("channels.purposeList.dialogKicker")}
+            title={t("channels.purposeDialog.title", { label })}
             width={620}
             initialFocus=".kn-search input"
-            hint={<><Badge tone="accent" count>{selected.length}</Badge> ausgewählt</>}
+            hint={<><Badge tone="accent" count>{selected.length}</Badge>{` ${t("channels.purposeDialog.selected")}`}</>}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon={purpose.icon} running={busy} onClick={save}>Zuordnung speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon={purpose.icon} running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
                 </>
             )}
         >
@@ -100,10 +103,10 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
                 <div className="kn-dlg-toolbar">
                     <label className="kn-search">
                         <SearchIcon />
-                        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={isCategory ? "Kategorie suchen…" : "Kanal suchen…"} aria-label="Suchen" />
+                        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={isCategory ? t("channels.purposeDialog.searchCategory") : t("channels.purposeDialog.searchChannel")} aria-label={t("channels.purposeDialog.searchLabel")} />
                     </label>
-                    <Badge tone="accent" tip={purpose.multiple ? "Mehrere möglich" : "Genau einer"} tipSub={purpose.hint}>
-                        {purpose.multiple ? "mehrere möglich" : isCategory ? "eine Kategorie" : "ein Kanal"}
+                    <Badge tone="accent" tip={purpose.multiple ? t("channels.purposeDialog.multipleTip") : t("channels.purposeDialog.singleTip")} tipSub={purposeHint(purpose)}>
+                        {purpose.multiple ? t("channels.purposeDialog.multiple") : isCategory ? t("channels.purposeDialog.oneCategory") : t("channels.purposeDialog.oneChannel")}
                     </Badge>
                 </div>
                 <div className="kn-pick">
@@ -111,20 +114,20 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
                         <label className="kn-pick-row none">
                             <input type={inputType} name={`purpose-${purpose.id}`} checked={!selected.length} onChange={() => setSelected([])} />
                             <span className="kn-type" />
-                            <span className="kn-pick-name">kein Kanal</span>
+                            <span className="kn-pick-name">{t("channels.purposeDialog.noChannel")}</span>
                         </label>
                     )}
                     {isCategory
                         ? categories.map((c) => row(c.id, c.name, { category: true }))
                         : candidates.map((g) => (
                             <div key={g.id || "loose"}>
-                                <div className="kn-pick-cat">{g.name}</div>
+                                <div className="kn-pick-cat">{groupName(g)}</div>
                                 {g.channels.map((c) => row(c.id, c.name, { type: c.type, channel: c }))}
                             </div>
                         ))}
                     {foreign.length > 0 && (
                         <div>
-                            <div className="kn-pick-cat">Nicht auf diesem Server</div>
+                            <div className="kn-pick-cat">{t("channels.purposeDialog.foreign")}</div>
                             {foreign.map((i) => (
                                 <label key={i.id} className="kn-pick-row">
                                     <input type={inputType} name={`purpose-${purpose.id}`} checked={selected.includes(i.id)} onChange={() => toggle(i.id)} />
@@ -135,11 +138,11 @@ export function PurposeDialog({ purpose, data, onClose, onSaved }: {
                             ))}
                         </div>
                     )}
-                    {!isCategory && !candidates.length && !foreign.length && <div className="kn-empty">Kein Kanal passt.</div>}
-                    {isCategory && !categories.length && <div className="kn-empty">Keine Kategorie passt.</div>}
+                    {!isCategory && !candidates.length && !foreign.length && <div className="kn-empty">{t("channels.purposeDialog.noChannelMatch")}</div>}
+                    {isCategory && !categories.length && <div className="kn-empty">{t("channels.purposeDialog.noCategoryMatch")}</div>}
                 </div>
                 <div className="kn-dlg-note">
-                    Gespeichert als Einstellung — auch unter <Link to={settingsLink(purpose)}>Einstellungen</Link> zu ändern.
+                    {t("channels.purposeDialog.noteBefore")} <Link to={settingsLink(purpose)}>{t("channels.purposeDialog.noteLink")}</Link>{t("channels.purposeDialog.noteAfter")}
                 </div>
             </div>
         </Modal>
@@ -161,6 +164,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
     const [on, setOn] = useState<string[]>(initial);
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const save = async () => {
         const changed = channelPurposes.filter((p) => on.includes(p.id) !== initial.includes(p.id));
@@ -173,7 +177,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
                     : p.ids.filter((id) => id !== channel.id);
                 await saveChannelPurpose(p, ids);
             }
-            toast(`#${channel.name}: Zwecke gespeichert.`);
+            toast(t("channels.assignDialog.saved", { name: channel.name }));
             onSaved();
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -188,14 +192,14 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
             onClose={onClose}
             icon="inv_misc_note_02"
             tone="channels"
-            kicker={`Kanäle › ${channel.name}`}
-            title="Zweck zuordnen"
+            kicker={t("channels.kickerPath", { name: channel.name })}
+            title={t("channels.assignDialog.title")}
             width={560}
             initialFocus=".kn-zweck"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon="inv_misc_note_02" running={busy} onClick={save}>Zuordnung speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon="inv_misc_note_02" running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
                 </>
             )}
         >
@@ -210,7 +214,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
                                 purpose={p}
                                 on={on.includes(p.id)}
                                 onToggle={() => setOn((s) => (s.includes(p.id) ? s.filter((x) => x !== p.id) : [...s, p.id]))}
-                                tipSub={replaces ? `${p.hint}\nErsetzt #${replaces.name || replaces.id}.` : p.hint}
+                                tipSub={replaces ? `${purposeHint(p)}\n${t("channels.assignDialog.replaces", { name: replaces.name || replaces.id })}` : purposeHint(p)}
                             />
                         );
                     })}
@@ -228,12 +232,13 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
 // Create
 // ---------------------------------------------------------------------------
 
+// The label of each option is the channel type's name (channels.types.<type>), translated at render.
 const TYPE_OPTIONS = [
-    { value: "text", label: "Text", type: TYPE_TEXT },
-    { value: "voice", label: "Voice", type: TYPE_VOICE },
-    { value: "announcement", label: "Ankündigung", type: TYPE_ANNOUNCEMENT },
-    { value: "forum", label: "Forum", type: TYPE_FORUM },
-    { value: "stage", label: "Stage", type: TYPE_STAGE },
+    { value: "text", type: TYPE_TEXT },
+    { value: "voice", type: TYPE_VOICE },
+    { value: "announcement", type: TYPE_ANNOUNCEMENT },
+    { value: "forum", type: TYPE_FORUM },
+    { value: "stage", type: TYPE_STAGE },
 ];
 
 /**
@@ -241,8 +246,9 @@ const TYPE_OPTIONS = [
  * and a channel type has no game meaning — so the same classes, locally.
  */
 function TypeSegment({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const t = useT();
     return (
-        <div className="seg kn-type-seg" role="radiogroup" aria-label="Typ">
+        <div className="seg kn-type-seg" role="radiogroup" aria-label={t("channels.createDialog.type")}>
             {TYPE_OPTIONS.map((o) => (
                 <button
                     key={o.value}
@@ -253,7 +259,7 @@ function TypeSegment({ value, onChange }: { value: string; onChange: (v: string)
                     onClick={() => onChange(o.value)}
                 >
                     <ChannelTypeIcon type={o.type} />
-                    {o.label}
+                    {t(`channels.types.${o.type}`)}
                 </button>
             ))}
         </div>
@@ -273,6 +279,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
     const [purposeId, setPurposeId] = useState("");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
     const textLike = type === "text" || type === "announcement";
     const purposes = data.purposes.filter((p) => p.kind === "channel");
 
@@ -285,12 +292,12 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
             if (purpose) {
                 try {
                     await saveChannelPurpose(purpose, purpose.multiple ? [...purpose.ids, created.id] : [created.id]);
-                    toast(`Kanal #${created.name} erstellt und als ${purpose.label} zugeordnet.`);
+                    toast(t("channels.createDialog.createdAssigned", { name: created.name, purpose: purposeLabel(purpose) }));
                 } catch (err) {
-                    toast(`Kanal #${created.name} erstellt, Zuordnung fehlgeschlagen: ${(err as ApiError).message}`, "err");
+                    toast(t("channels.createDialog.createdAssignFailed", { name: created.name, error: (err as ApiError).message }), "err");
                 }
             } else {
-                toast(`Kanal #${created.name} erstellt.`);
+                toast(t("channels.createDialog.created", { name: created.name }));
             }
             onDone();
         } catch (err) {
@@ -306,38 +313,38 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
             onClose={onClose}
             icon="inv_letter_15"
             tone="channels"
-            kicker="Kanäle"
-            title="Kanal erstellen"
+            kicker={t("channels.createDialog.kicker")}
+            title={t("channels.createDialog.title")}
             width={600}
             initialFocus="#kn-create-name"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="kn-create" icon="inv_letter_15" running={busy}>Kanal erstellen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="kn-create" icon="inv_letter_15" running={busy}>{t("channels.createDialog.submit")}</Button>
                 </>
             )}
         >
             <form id="kn-create" className="kn-dlg-stack" onSubmit={submit}>
                 <div className="kn-field">
-                    <label htmlFor="kn-create-name">Name</label>
-                    <div className="kn-input"><span>#</span><input id="kn-create-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. kara-anmeldung" required /></div>
+                    <label htmlFor="kn-create-name">{t("common.name")}</label>
+                    <div className="kn-input"><span>#</span><input id="kn-create-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("channels.createDialog.namePlaceholder")} required /></div>
                 </div>
                 <div className="kn-field">
-                    <label>Typ</label>
+                    <label>{t("channels.createDialog.type")}</label>
                     <TypeSegment value={type} onChange={setType} />
                 </div>
                 <div className="kn-field">
-                    <label htmlFor="kn-create-cat">Kategorie</label>
+                    <label htmlFor="kn-create-cat">{t("channels.category")}</label>
                     <select id="kn-create-cat" className="kn-select" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                        <option value="">— keine Kategorie —</option>
+                        <option value="">{t("channels.noCategoryOption")}</option>
                         {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                 </div>
                 {canAssign && textLike && (
                     <div className="kn-field">
                         <label>
-                            <span className="tipped" tabIndex={0} data-tip="Gleich zuordnen" data-tip-sub="Der neue Kanal übernimmt gleich einen Zweck. Bei Zwecken mit nur einem Kanal ersetzt er den bisherigen.">Gleich zuordnen</span>
-                            <span className="kn-opt">optional</span>
+                            <span className="tipped" tabIndex={0} data-tip={t("channels.createDialog.assignNow")} data-tip-sub={t("channels.createDialog.assignNowSub")}>{t("channels.createDialog.assignNow")}</span>
+                            <span className="kn-opt">{t("channels.optional")}</span>
                         </label>
                         <div className="kn-zwecke">
                             {purposes.map((p) => (
@@ -356,13 +363,14 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
 // ---------------------------------------------------------------------------
 
 function SourceCard({ channel, data }: { channel: Channel; data: ChannelsData }) {
+    const t = useT();
     const purposes = data.purposes.filter((p) => p.ids.includes(channel.id));
     return (
         <div className="kn-source">
             <span className="kn-type"><ChannelTypeIcon type={channel.type} /></span>
             <div className="kn-source-text">
                 <b>{channel.name}</b>
-                <span className="kicker">{channel.category || "Ohne Kategorie"}</span>
+                <span className="kicker">{channel.category || t("channels.noCategory")}</span>
             </div>
             {purposes.map((p) => <PurposeBadge key={p.id} purpose={p} />)}
         </div>
@@ -378,13 +386,14 @@ export function DuplicateChannelDialog({ source, data, onClose, onDone }: {
     const [name, setName] = useState(source.name);
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const submit = async (e: FormEvent) => {
         e.preventDefault();
         setBusy(true);
         try {
             const created = await duplicateChannel({ channelId: source.id, name });
-            toast(`Kanal #${created.name} dupliziert.`);
+            toast(t("channels.duplicateDialog.done", { name: created.name }));
             onDone();
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -399,31 +408,31 @@ export function DuplicateChannelDialog({ source, data, onClose, onDone }: {
             onClose={onClose}
             icon="inv_letter_15"
             tone="channels"
-            kicker={`Kanäle › ${source.name}`}
-            title="Kanal duplizieren"
+            kicker={t("channels.kickerPath", { name: source.name })}
+            title={t("channels.duplicateDialog.title")}
             width={560}
             initialFocus="#kn-dup-name"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="kn-dup" icon={<CopyIcon />} running={busy}>Duplizieren</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="kn-dup" icon={<CopyIcon />} running={busy}>{t("channels.duplicateDialog.submit")}</Button>
                 </>
             )}
         >
             <form id="kn-dup" className="kn-dlg-stack" onSubmit={submit}>
                 <SourceCard channel={source} data={data} />
                 <div className="kn-field">
-                    <label htmlFor="kn-dup-name">Name des Duplikats</label>
+                    <label htmlFor="kn-dup-name">{t("channels.duplicateDialog.name")}</label>
                     <div className="kn-input"><span>#</span><input id="kn-dup-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={source.name} /></div>
                 </div>
                 <div className="kn-field">
-                    <label>Wird übernommen</label>
+                    <label>{t("channels.duplicateDialog.carried")}</label>
                     <div className="badge-row">
-                        <Badge tone="ok" tip="Rechte" tipSub="Die Berechtigungen des Originals, Rolle für Rolle.">Rechte</Badge>
-                        <Badge tone="ok" tip="Thema" tipSub="Die Kanalbeschreibung.">Thema</Badge>
-                        <Badge tone="ok" tip="Slowmode">Slowmode</Badge>
-                        <Badge tone="ok" tip="Kategorie" tipSub={`Das Duplikat landet in ${source.category ? `„${source.category}“` : "keiner Kategorie"}, wie das Original.`}>Kategorie</Badge>
-                        <Badge className="dashed" tip="Zweck nicht" tipSub="Wofür der Bot das Original nutzt, geht nicht mit — das Duplikat danach über „Zweck zuordnen“ einsetzen.">Zweck nicht</Badge>
+                        <Badge tone="ok" tip={t("channels.duplicateDialog.rights")} tipSub={t("channels.duplicateDialog.rightsSub")}>{t("channels.duplicateDialog.rights")}</Badge>
+                        <Badge tone="ok" tip={t("channels.topic")} tipSub={t("channels.duplicateDialog.topicSub")}>{t("channels.topic")}</Badge>
+                        <Badge tone="ok" tip={t("channels.slowmode")}>{t("channels.slowmode")}</Badge>
+                        <Badge tone="ok" tip={t("channels.category")} tipSub={t("channels.duplicateDialog.categorySub", { where: source.category ? t("common.quoted", { text: source.category }) : t("channels.duplicateDialog.noCategory") })}>{t("channels.category")}</Badge>
+                        <Badge className="dashed" tip={t("channels.duplicateDialog.noPurpose")} tipSub={t("channels.duplicateDialog.noPurposeSub")}>{t("channels.duplicateDialog.noPurpose")}</Badge>
                     </div>
                 </div>
             </form>

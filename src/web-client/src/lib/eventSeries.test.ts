@@ -1,7 +1,8 @@
 // Wiederkehrende Events (#289) in the client: the rules behind the series page
 // (lib/eventSeries.ts), run for real. The page's shape is checked on the
 // source in test/web-client/eventSeries.test.js.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { switchLang } from "../test/i18n";
 import * as mod from "./eventSeries";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
@@ -53,6 +54,36 @@ describe("the lines a date reads as", () => {
         expect(lib.lastCreatedLine({ date: "2026-09-21", at: ms("2026-09-16T17:57:00Z"), channelName: "mo-21-09-ssc-tk" }))
             .toBe("zuletzt angelegt: Mo 21.09. als #mo-21-09-ssc-tk (am Mi 16.09.)");
         expect(lib.lastCreatedLine(null)).toBe("");
+    });
+});
+
+describe("the weekdays", () => {
+    afterEach(() => switchLang("de"));
+
+    it("keep their stored numbers and are named in the menu language", async () => {
+        expect(lib.WEEKDAYS.map((d: { value: number }) => d.value)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+        expect(lib.weekdayShort(3)).toBe("Mi");
+        expect(lib.weekdayLong(7)).toBe("Sonntag");
+        await switchLang("en");
+        expect(lib.weekdayShort(3)).toBe("Wed");
+        expect(lib.weekdayLong(7)).toBe("Sunday");
+    });
+});
+
+describe("the lines in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names days, states and what happens to a date in English", async () => {
+        await switchLang("en");
+        expect(lib.dayLabel("2026-09-23")).toBe("Wed 23/09");
+        expect(lib.dateLine(date())).toBe("will be created on Thu 17/09 at 19:30");
+        expect(lib.dateLine(date({ state: "created", at: ms("2026-09-17T17:31:00Z"), channelName: "mi-23-09-ssc-tk" })))
+            .toBe("created on Thu 17/09 19:31 as #mi-23-09-ssc-tk");
+        expect(lib.dateLine(date({ state: "failed", error: "", willRetry: true }))).toBe("failed: unknown error · will be retried");
+        expect(lib.stateBadge("deleted").label).toBe("deleted");
+        expect(lib.stateBadge("bogus").label).toBe("planned");
+        expect(lib.lastCreatedLine({ date: "2026-09-21", at: ms("2026-09-16T17:57:00Z"), channelName: "mo-21-09-ssc-tk" }))
+            .toBe("last created: Mon 21/09 as #mo-21-09-ssc-tk (on Wed 16/09)");
     });
 });
 

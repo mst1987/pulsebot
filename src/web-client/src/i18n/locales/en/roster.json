@@ -1,0 +1,172 @@
+{
+    "page": {
+        "loadError": "Failed to load: {message}",
+        "loading": "Loading roster",
+        "categories": {
+            "one": "{count} raid category",
+            "other": "{count} raid categories"
+        },
+        "title": "Roster",
+        "infoTip": "All characters per raid category",
+        "infoSub": "Who plays which character in which raid is assigned under Settings → Categories; on top of that every raid in which a character got loot counts.\nAttendance from Raid-Helper signups and assigned logs, gear state from the latest evaluation.",
+        "listAria": "List",
+        "tabActive": "Roster ({count})",
+        "tabActiveTip": "Who currently counts",
+        "tabHidden": "Hidden ({count})",
+        "tabHiddenTip": "No longer around",
+        "searchPlaceholder": "Search character …",
+        "searchAria": "Search character",
+        "roleAria": "Role",
+        "classAria": "Class",
+        "classOn": "Click to clear the class filter.",
+        "specOn": "Click to clear the spec filter.",
+        "showOnly": "Show only {label}.",
+        "emptyHidden": "Nobody hidden. The eye icon in a row moves someone here who no longer raids.",
+        "emptyActive": "No characters known yet — import loot or assign raiders to their characters under Settings → Categories.",
+        "noMatch": "No characters match this filter.",
+        "lastRaids": {
+            "one": "last {count} raid",
+            "other": "last {count} raids"
+        },
+        "noRaids": "no raids counted yet",
+        "ungrouped": "No category",
+        "ungroupedCrumb": "only known from loot imports"
+    },
+    "hide": {
+        "title": "Hide character?",
+        "text": "“{name}” disappears from the lists and from the figures above. Loot, evaluations and the character page stay as they are — the “Hidden” tab brings it back at any time.",
+        "action": "Hide",
+        "hidden": "{name} hidden.",
+        "back": "{name} is back in the roster."
+    },
+    "claims": {
+        "tip": {
+            "one": "{count} character claimed twice",
+            "other": "{count} characters claimed twice"
+        },
+        "sub": "Several accounts have entered the same character in “My profile”:\n{lines}",
+        "badge": "{count} claimed twice"
+    },
+    "row": {
+        "hiddenTip": "Hidden",
+        "hiddenBy": "By {by}, since {date}",
+        "hiddenSince": "since {date}",
+        "hiddenBadge": "hidden",
+        "lootOnly": "loot only",
+        "lootOnlySub": "Only known from loot — not yet assigned to a raider in this category.",
+        "unhide": "Back to the roster",
+        "unhideSub": "The character shows up again in the lists and in the figures above.",
+        "hideSub": "Takes the character out of the lists and the figures above — loot, evaluations and the character page stay as they are."
+    },
+    "group": {
+        "count": {
+            "one": "{count} character",
+            "other": "{count} characters"
+        },
+        "withIssues": "{count} with gear problems",
+        "details": "Details",
+        "showLess": "Show less",
+        "showMore": "Show {count} more"
+    },
+    "cols": {
+        "name": "Character",
+        "nameSub": "Name in class colour, the spec below. Click opens the character page.",
+        "role": "Role",
+        "roleSub": "The role from the newest log the character appears in; without a log, from the spec.",
+        "attendance": "Attendance",
+        "attendanceSub": "The last 11 raids of this category: in the log = present; without a log the Raid-Helper signup of the assigned raider counts.\nGreen from 80 %, yellow from 60 %.",
+        "gear": "Gear state",
+        "gearSub": "Findings from the newest log evaluation the character appears in: missing enchant, empty sockets, inactive meta gem.\n“not evaluated” = in no saved evaluation.",
+        "loot": "Loot",
+        "lootSub": "Imported items of this character; the newest in the tooltip.",
+        "links": "Links"
+    },
+    "kpi": {
+        "chars": "Characters",
+        "charsTip": {
+            "one": "{count} character",
+            "other": "{count} characters"
+        },
+        "charsSub": "{evaluated} evaluated · {assigned} assigned · {lootOnly} from loot only",
+        "attendance": "Ø attendance",
+        "attendanceNone": "No attendance counted yet",
+        "attendanceTip": "Ø {pct} % attendance",
+        "attendanceNoneSub": "Counted from Raid-Helper signups and the logs assigned to a raid event.",
+        "attendanceSub": {
+            "one": "Average over {count} character with counted raids, the last 11 raids per category.",
+            "other": "Average over {count} characters with counted raids, the last 11 raids per category."
+        },
+        "issues": "Gear problems",
+        "issuesOff": "Clear filter",
+        "issuesOn": "Show only characters with gear problems",
+        "issuesSub": "{withIssues} of {evaluated} evaluated characters · {findings}{high}",
+        "findings": {
+            "one": "{count} finding",
+            "other": "{count} findings"
+        },
+        "high": ", {count} severe",
+        "issuesNone": "No findings in the latest evaluations.",
+        "loot": "Loot items",
+        "lootTip": "{count} imported items",
+        "lootSub": "Ø {avg} per character"
+    },
+    "badge": {
+        "roleUnknown": "Role unknown",
+        "roleUnknownSub": "Neither a log nor the spec tells what the character plays.",
+        "noRaids": "No raids counted",
+        "noRaidsSub": "{category}: no assigned log the character could appear in, and no raider assignment whose signups count.",
+        "thisCategory": "This category",
+        "category": "Category",
+        "counted": "{category}, counted from signups and logs of the last {total} raids.",
+        "missed": "Missed: {list}.",
+        "noneMissed": "No counted raid missed.",
+        "attendanceTip": "{attended} of {total} raids · {pct} %",
+        "notEvaluated": "not evaluated",
+        "notEvaluatedSub": "The character does not appear in any of the saved log evaluations.",
+        "clean": "Clean",
+        "cleanSub": "No gear problems in the evaluation {source}.",
+        "gear": "Gear",
+        "moreOnChar": "… and {count} more on the character page",
+        "gearProblems": {
+            "one": "{count} gear problem",
+            "other": "{count} gear problems"
+        },
+        "high": " · {count} severe",
+        "fromEvaluation": "From the evaluation {source}.",
+        "problems": {
+            "one": "{count} problem",
+            "other": "{count} problems"
+        },
+        "item": "Item {id}",
+        "more": "… and {count} more",
+        "lootHint": "Click opens the full loot history.",
+        "noLootYet": "No loot imported yet.",
+        "itemsReceived": {
+            "one": "{count} item received",
+            "other": "{count} items received"
+        },
+        "noLoot": "No loot"
+    },
+    "slot": {
+        "HEAD": "Head",
+        "NECK": "Neck",
+        "SHOULDER": "Shoulder",
+        "BACK": "Back",
+        "CHEST": "Chest",
+        "SHIRT": "Shirt",
+        "TABARD": "Tabard",
+        "WRIST": "Wrist",
+        "HANDS": "Hands",
+        "WAIST": "Waist",
+        "LEGS": "Legs",
+        "FEET": "Feet",
+        "FINGER_1": "Ring 1",
+        "FINGER_2": "Ring 2",
+        "TRINKET_1": "Trinket 1",
+        "TRINKET_2": "Trinket 2",
+        "MAIN_HAND": "Main hand",
+        "OFF_HAND": "Off hand",
+        "RANGED": "Ranged"
+    },
+    "finding": "Finding"
+}

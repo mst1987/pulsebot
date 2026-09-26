@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { searchCouncilItems, getBisLists, type ApiError, type BisListsData, type CouncilItemHit } from "../../api";
+import { t as translate, tOr, useT } from "../../i18n";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { slotLabel, specClassLabel } from "../../lib/wowNames";
 import { classColorProps } from "../../components/ClassSpec";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";
@@ -23,20 +25,19 @@ const TIER_LABEL: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: 
 // WoWSims-Liste ist ein simuliertes Loadout mit Sockeln und Verzauberungen, eine
 // Wowhead-Liste eine geschriebene Empfehlung, die nur Items nennt. Beides als
 // dasselbe darzustellen hieße, für die Heiler mehr zu behaupten, als dasteht.
-const SOURCE_NOTE: Record<string, string> = {
-    wowsims: "Simuliertes WoWSims-Set — mit Sockeln und Verzauberungen.",
-    wowhead: "Geschriebene Wowhead-Empfehlung — nennt Items, keine Sockel und keine Verzauberungen.",
-};
+// (Beim Rendern übersetzt: lootcouncil.bisLists.source.*.)
+const sourceNote = (source: string) => tOr(`lootcouncil.bisLists.source.${source}`, "");
 
 // Neun Spalten sind zu viele, um sie einzeln wegzuklicken, wenn man nur eine
-// Hälfte sehen will.
+// Hälfte sehen will. Die Namen sind Schlüssel, übersetzt beim Rendern.
 const LIST_GROUPS = [
-    { id: "", label: "Alle" },
-    { id: "caster", label: "Caster" },
-    { id: "healer", label: "Heiler" },
+    { id: "", labelKey: "common.all" },
+    { id: "caster", labelKey: "lootcouncil.role.caster" },
+    { id: "healer", labelKey: "lootcouncil.role.healer" },
 ];
 
 export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) => void }) {
+    const t = useT();
     const [data, setData] = useState<BisListsData | null>(null);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState("");
@@ -48,7 +49,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
         setLoading(true);
         getBisLists(view.listTier)
             .then((d) => { if (alive) { setData(d); setFailed(""); } })
-            .catch((e: ApiError) => { if (alive) setFailed(e.message || "Die BiS-Listen konnten nicht geladen werden."); })
+            .catch((e: ApiError) => { if (alive) setFailed(e.message || translate("lootcouncil.bisLists.loadFailed")); })
             .finally(() => { if (alive) setLoading(false); });
         return () => { alive = false; };
     }, [view.listTier]);
@@ -81,7 +82,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
         patch({ listOff: data.specs.map((s) => s.key).filter((k) => k !== specKey), listFocus: itemId });
     };
 
-    if (loading && !data) return <div className="hint">BiS-Listen werden geladen …</div>;
+    if (loading && !data) return <div className="hint">{t("lootcouncil.bisLists.loading")}</div>;
     if (failed) return <div className="empty">{failed}</div>;
     if (!data) return null;
 
@@ -91,15 +92,15 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
         <>
             <Part
                 icon="inv_misc_spyglass_03"
-                crumb="BiS-Listen › Suche"
-                title="Item nachschlagen"
-                hint="Der umgekehrte Weg: Teil eingeben, sehen für welche Specs es BiS ist — und von dort in die Liste springen, gefiltert auf genau die."
+                crumb={t("lootcouncil.bisLists.searchCrumb")}
+                title={t("lootcouncil.bisLists.searchTitle")}
+                hint={t("lootcouncil.bisLists.searchHint")}
             >
                 <input
                     className="lc-blsearch"
                     type="text"
                     value={query}
-                    placeholder="Itemname, z. B. Skull of Gul'dan"
+                    placeholder={t("lootcouncil.bisLists.searchPlaceholder")}
                     onChange={(e) => setQuery(e.target.value)}
                 />
                 {searching ? (
@@ -117,7 +118,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                     </div>
                                     {hit.bisSpecs.length ? (
                                         <div className="lc-blresultspecs">
-                                            <span className="lc-blbisfor">BiS für</span>
+                                            <span className="lc-blbisfor">{t("lootcouncil.word.bisFor")}</span>
                                             {hit.bisSpecs.map((spec) => (
                                                 <button
                                                     key={spec.specKey}
@@ -125,42 +126,42 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                                     className="lc-bllink"
                                                     style={classColorProps(spec.classColor).style}
                                                     onClick={() => only(spec.specKey, hit.id)}
-                                                    data-tip={`Liste auf ${spec.label} filtern und das Teil dort hervorheben`}
+                                                    data-tip={t("lootcouncil.bisLists.filterTip", { spec: specClassLabel(spec.specKey, spec.label) })}
                                                 >
-                                                    {spec.label}
+                                                    {specClassLabel(spec.specKey, spec.label)}
                                                 </button>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="lc-blnobis">Steht auf keiner Liste dieses Tiers.</div>
+                                        <div className="lc-blnobis">{t("lootcouncil.bisLists.notOnList")}</div>
                                     )}
                                 </div>
                             </div>
                         ))}
-                        {!hits.length ? <div className="lc-blnobis">Kein Item mit diesem Namen.</div> : null}
+                        {!hits.length ? <div className="lc-blnobis">{t("lootcouncil.bisLists.noHit")}</div> : null}
                     </div>
                 ) : null}
             </Part>
 
             <Part
                 icon="inv_misc_book_09"
-                crumb="BiS-Listen › Specs"
-                title="Welche Specs nebeneinander"
-                hint={`${data.specs.length} Specs, ${data.columns.length} Listen. Wer keine eigene hat, spielt die einer anderen Spec — das steht an der Spalte.`}
+                crumb={t("lootcouncil.bisLists.specsCrumb")}
+                title={t("lootcouncil.bisLists.specsTitle")}
+                hint={t("lootcouncil.bisLists.specsHint", { specs: data.specs.length, lists: data.columns.length })}
                 actions={
                     <div className="lc-blfilters">
-                        {data.tiers.map((t) => (
+                        {data.tiers.map((tier) => (
                             <button
-                                key={t.id}
+                                key={tier.id}
                                 type="button"
-                                className={`lc-filter lc-h-${TIER_HUE[t.id] || "bt"}${t.id === data.tier ? " active" : ""}`}
-                                onClick={() => patch({ listTier: t.id, listFocus: 0 })}
-                                data-tip={t.missing.length
-                                    ? `Für ${t.missing.join(" und ")} gibt es kein Set dieses Tiers`
-                                    : t.label}
+                                className={`lc-filter lc-h-${TIER_HUE[tier.id] || "bt"}${tier.id === data.tier ? " active" : ""}`}
+                                onClick={() => patch({ listTier: tier.id, listFocus: 0 })}
+                                data-tip={tier.missing.length
+                                    ? t("lootcouncil.bisLists.tierMissing", { specs: tier.missing.join(` ${t("lootcouncil.word.and")} `) })
+                                    : tier.label}
                             >
-                                {TIER_LABEL[t.id] || t.label}
-                                {t.missing.length ? <span className="lc-blgap">!</span> : null}
+                                {TIER_LABEL[tier.id] || tier.label}
+                                {tier.missing.length ? <span className="lc-blgap">!</span> : null}
                             </button>
                         ))}
                     </div>
@@ -181,7 +182,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                     listFocus: 0,
                                 })}
                             >
-                                {group.label}
+                                {t(group.labelKey)}
                             </button>
                         );
                     })}
@@ -198,10 +199,10 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                     ? view.listOff.filter((k) => k !== spec.key)
                                     : [...view.listOff, spec.key],
                             })}
-                            data-tip={spec.ownList ? "Eigene Liste" : "Spielt die Liste einer anderen Spec"} aria-label={spec.ownList ? "Eigene Liste" : "Spielt die Liste einer anderen Spec"}
+                            data-tip={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")} aria-label={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")}
                         >
                             <img src={spec.iconUrl} alt="" loading="lazy" />
-                            <span className="class-colored">{spec.label}</span>
+                            <span className="class-colored">{specClassLabel(spec.key, spec.label)}</span>
                             <span className="lc-blmark" />
                         </button>
                     ))}
@@ -211,13 +212,13 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
             <Part
                 tone="accent"
                 icon="inv_misc_gem_variety_02"
-                crumb="BiS-Listen › Matrix"
+                crumb={t("lootcouncil.bisLists.matrixCrumb")}
                 title={TIER_LABEL[data.tier] || data.tier.toUpperCase()}
-                hint={`${columns.length} von ${data.columns.length} Listen · ${data.contested} Teile stehen auf mehr als einer`}
+                hint={t("lootcouncil.bisLists.matrixHint", { shown: columns.length, total: data.columns.length, contested: data.contested })}
                 actions={
                     <div className="lc-bllegend">
                         <span className="lc-blshare">×N</span>
-                        <span className="lc-muted">steht auf mehreren Listen</span>
+                        <span className="lc-muted">{t("lootcouncil.bisLists.legend")}</span>
                     </div>
                 }
             >
@@ -226,15 +227,15 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                         <table className="idx lc-blmatrix">
                             <thead>
                                 <tr>
-                                    <th className="lc-blcorner">Slot</th>
+                                    <th className="lc-blcorner">{t("lootcouncil.bisLists.slot")}</th>
                                     {columns.map((col) => (
                                         <th key={col.key} className="lc-blcol" style={classColorProps(col.classColor).style}>
                                             <span className="lc-blcolhead">
                                                 <img src={col.iconUrl} alt="" loading="lazy" />
-                                                <span className="lc-blcolname class-colored">{col.label}</span>
+                                                <span className="lc-blcolname class-colored">{specClassLabel(col.key, col.label)}</span>
                                             </span>
                                             {col.source === "wowhead" ? (
-                                                <span className="lc-blsource" data-tip={SOURCE_NOTE[col.source]}>
+                                                <span className="lc-blsource" data-tip={sourceNote(col.source)}>
                                                     {col.sourceLabel}
                                                 </span>
                                             ) : null}
@@ -244,10 +245,10 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                                         key={u.key}
                                                         className="lc-bluser"
                                                         data-tip={u.ownList
-                                                            ? "Diese Liste gehört ihm"
-                                                            : "Spielt diese Liste, hat keine eigene"}
+                                                            ? t("lootcouncil.bisLists.userOwnTip")
+                                                            : t("lootcouncil.bisLists.userBorrowTip")}
                                                     >
-                                                        {u.ownList ? "eigene Liste" : u.label}
+                                                        {u.ownList ? t("lootcouncil.bisLists.ownListShort") : specClassLabel(u.key, u.label)}
                                                     </span>
                                                 ))}
                                             </span>
@@ -258,7 +259,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                             <tbody>
                                 {data.rows.map((row) => (
                                     <tr key={row.slot}>
-                                        <th scope="row" className="lc-blslot">{row.slotName}</th>
+                                        <th scope="row" className="lc-blslot">{slotLabel(row.slot, row.slotName)}</th>
                                         {columns.map((col) => {
                                             const cell = row.cells.find((c) => c.column === col.key);
                                             return (
@@ -276,7 +277,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                         </table>
                     </div>
                 ) : (
-                    <div className="empty">Keine Spec ausgewählt — oben wieder eine zuschalten.</div>
+                    <div className="empty">{t("lootcouncil.bisLists.noSpec")}</div>
                 )}
             </Part>
         </>
@@ -289,19 +290,23 @@ function BisListCell({ cell, source, focused }: {
     source: string;
     focused: boolean;
 }) {
-    if (!cell || !cell.item) return <td className="lc-blcell"><span className="lc-blfree">frei</span></td>;
+    const t = useT();
+    if (!cell || !cell.item) return <td className="lc-blcell"><span className="lc-blfree">{t("lootcouncil.bisLists.free")}</span></td>;
     const item = cell.item;
     const shared = cell.shared || 1;
     // Nur ein simuliertes Set weiß etwas über Sockel und Verzauberungen. Bei
     // einer geschriebenen Liste "keine Sockel" zu melden wäre eine Aussage über
     // das Item statt über die Quelle — und damit falsch.
     const reference = source === "wowsims"
-        ? `WoWSims-Referenz: ${cell.gems ? `${cell.gems} Sockel` : "keine Sockel"}, ${cell.enchanted ? "verzaubert" : "keine Verzauberung"}`
-        : SOURCE_NOTE[source] || "";
+        ? t("lootcouncil.bisLists.reference", {
+            gems: cell.gems ? t("lootcouncil.bisLists.gems", { count: cell.gems }) : t("lootcouncil.bisLists.noGems"),
+            enchant: cell.enchanted ? t("lootcouncil.bisLists.enchanted") : t("lootcouncil.bisLists.notEnchanted"),
+        })
+        : sourceNote(source);
     return (
         <td
             className={`lc-blcell${shared > 1 ? " shared" : ""}${focused ? " focused" : ""}`}
-            data-tip={[reference, shared > 1 ? `steht auf ${shared} Listen` : ""].filter(Boolean).join(" · ")}
+            data-tip={[reference, shared > 1 ? t("lootcouncil.bisLists.onLists", { count: shared }) : ""].filter(Boolean).join(" · ")}
         >
             <span className="lc-blitem">
                 <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-blicon")} />

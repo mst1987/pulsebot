@@ -2,12 +2,13 @@
 // admin deletes them — by name, never on their own; the page only reminds.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
 import { ARCHIVE, channelsData } from "./ChannelsPage.fixture";
 import type { ChannelsData } from "../api";
+import { switchLang } from "../test/i18n";
 
 vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
@@ -121,5 +122,25 @@ describe("ChannelsPage — reminds of waiting channels, never deletes by itself"
         await openPage(channelsData(), "/channels");
         expect(screen.queryByText(/warten auf Löschung$/, { selector: ".badge" })).not.toBeInTheDocument();
         expect(api.deleteChannels).not.toHaveBeenCalled();
+    });
+});
+
+describe("ChannelsPage — archive tab in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("lists the archive and asks for the name in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        vi.mocked(api.getChannels).mockResolvedValue(channelsData());
+        renderPage(<ChannelsPage />, { route: "/channels?tab=archive", user: adminUser() });
+        await screen.findByRole("radiogroup", { name: "View" });
+        expect(screen.getByText("alt-raid", { selector: ".kn-name" })).toHaveAttribute("data-tip-sub", expect.stringMatching(/^archived on .+ by Nerathil · from Raids$/));
+        expect(screen.getByText("3 days")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Archive settings" })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("Delete #alt-raid")).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: "Delete for good" })).toBeDisabled();
+        expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     });
 });

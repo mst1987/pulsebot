@@ -44,6 +44,17 @@ describe("i18n core", () => {
         expect(core.translate(dicts, "de", "a.n", { count: 1 })).toBe("1 Raid");
     });
 
+    it("gives the same text as pieces, each filled-in value on its own (tParts)", () => {
+        expect(core.interpolateParts("{count} offen", { count: 2 })).toEqual(["2", " offen"]);
+        expect(core.interpolateParts("in {n} Tagen", { n: 3 })).toEqual(["in ", "3", " Tagen"]);
+        expect(core.interpolateParts("{a} + {b}", { a: 1 })).toEqual(["1", " + ", "{b}"]);
+        expect(core.translateParts(dicts, "en", "a.n", { count: 4 })).toEqual(["4", " raids"]);
+        expect(core.translateParts(dicts, "en", "a.n", { count: 0 })).toEqual(["no raids"]);
+        expect(core.translateParts(dicts, "en", "a.only")).toEqual(["nur deutsch"]);
+        expect(core.translateParts(dicts, "en", "a.nothing")).toEqual(["a.nothing"]);
+        expect(core.translateParts(dicts, "de", "a.n", { count: 1 }).join("")).toBe(core.translate(dicts, "de", "a.n", { count: 1 }));
+    });
+
     it("falls back to German, then to the key, and reports what is missing", () => {
         const missing: string[] = [];
         const report = (lang: string, key: string) => missing.push(`${lang}:${key}`);
@@ -95,6 +106,18 @@ describe("the dictionaries", () => {
         expect(shape).toEqual([]);
     });
 
+    // A German word left in the English file would show up on the English page
+    // without any fallback warning. Proper names that need an umlaut go here.
+    const ENGLISH_UMLAUT_OK = new Set<string>([]);
+
+    it("have no German umlaut in the English texts", () => {
+        const texts = (v: core.FlatDict[string]) => (typeof v === "string" ? [v] : Object.values(v));
+        const german = Object.entries(en)
+            .filter(([k, v]) => !ENGLISH_UMLAUT_OK.has(k) && texts(v).some((s) => /[äöüÄÖÜß]/.test(String(s))))
+            .map(([k]) => k);
+        expect(german).toEqual([]);
+    });
+
     it("name the WoW roles and classes with the game's English terms", async () => {
         await inLang("en", () => {
             expect(["tank", "healer", "melee", "ranged"].map((r) => t(`wow.role.${r}`))).toEqual(["Tank", "Healer", "Melee", "Ranged"]);
@@ -117,7 +140,7 @@ describe("keys used in the client", () => {
         expect(Object.keys(sources).length).toBeGreaterThan(100);
         const unknown: string[] = [];
         for (const [file, src] of Object.entries(sources)) {
-            for (const m of src.matchAll(/\bt\(\s*"([a-zA-Z][\w-]*(?:\.[\w-]+)+)"/g)) {
+            for (const m of src.matchAll(/\bt(?:Parts)?\(\s*"([a-zA-Z][\w-]*(?:\.[\w-]+)+)"/g)) {
                 if (de[m[1]] === undefined) unknown.push(`${file}: ${m[1]}`);
             }
         }

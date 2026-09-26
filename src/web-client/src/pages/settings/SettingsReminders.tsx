@@ -3,7 +3,8 @@ import {
     getReminders, updateSettings,
     type AdminConfig, type ApiError, type PingTarget, type ReminderRule, type RemindersData,
 } from "../../api";
-import { TARGET_TEXT, pingTargetOptions, reminderSummary, remindersPatch } from "../../lib/settingsLogic";
+import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settingsLogic";
+import { useT } from "../../i18n";
 import { useToast } from "../../components/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
@@ -27,6 +28,7 @@ export default function RemindersPart({ onConfig }: {
     const [error, setError] = useState("");
     const [editing, setEditing] = useState<string | null>(null);
     const toast = useToast();
+    const t = useT();
 
     const load = () => {
         getReminders().then((d) => { setData(d); setError(""); }).catch((err: ApiError) => setError(err.message));
@@ -37,14 +39,14 @@ export default function RemindersPart({ onConfig }: {
         <PartHead
             icon="spell_holy_borrowedtime"
             tone="settings"
-            title="Erinnerungen"
-            tip="Erinnerungen pro Kategorie"
-            tipSub="X Stunden vor Anmeldeschluss an alle mit Raider-Rolle, die noch fehlen; Y Stunden vor Raidbeginn an alle Angemeldeten. Jede Erinnerung geht genau einmal raus und nie nach Raidbeginn. Ohne Anmeldeschluss zählt der Raidbeginn."
+            title={t("settings.reminders.title")}
+            tip={t("settings.reminders.tip")}
+            tipSub={t("settings.reminders.tipSub")}
         />
     );
 
     if (error) return <section className="sync-part">{head}<div className="empty">{error}</div></section>;
-    if (!data) return <section className="sync-part">{head}<RaidLoader compact text="Erinnerungen werden geladen" /></section>;
+    if (!data) return <section className="sync-part">{head}<RaidLoader compact text={t("settings.reminders.loading")} /></section>;
 
     const editingCategory = editing ? data.categories.find((c) => c.id === editing) : null;
 
@@ -52,26 +54,26 @@ export default function RemindersPart({ onConfig }: {
         <section className="sync-part">
             {head}
             {data.categories.length === 0
-                ? <div className="sync-empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
+                ? <div className="sync-empty">{t("settings.reminders.empty")}</div>
                 : (
                     <ul className="sync-list">
                         {data.categories.map((c) => {
                             const rule = data.categoryReminders[c.id];
-                            const off = reminderSummary(rule) === "aus";
+                            const off = reminderOff(rule);
                             return (
                                 <li key={c.id} className={`sync-row${off ? " is-off" : ""}`}>
                                     {/* A category the bot cannot see (deleted, other server) has no name: say so
                                         instead of showing an 18-digit id; the id stays in the tooltip. */}
                                     {c.name
                                         ? <span className="sync-role">{c.name}</span>
-                                        : <span className="sync-role is-unknown" tabIndex={0} data-tip="Unbekannte Kategorie" data-tip-sub={`Kategorie-ID ${c.id} — auf dem Event-Discord nicht (mehr) gefunden.`}>Unbekannte Kategorie</span>}
+                                        : <span className="sync-role is-unknown" tabIndex={0} data-tip={t("settings.reminders.unknownCategory")} data-tip-sub={t("settings.reminders.unknownCategorySub", { id: c.id })}>{t("settings.reminders.unknownCategory")}</span>}
                                     <span className="sync-muted">{reminderSummary(rule)}</span>
-                                    {rule && rule.target !== "event" && <Badge tip="Wohin" tipSub={TARGET_TEXT[rule.target]}>{rule.target === "talk" ? "Talk" : "Beides"}</Badge>}
+                                    {rule && rule.target !== "event" && <Badge tip={t("settings.reminders.where")} tipSub={targetText(rule.target)}>{rule.target === "talk" ? t("settings.reminders.targetTalk") : t("settings.reminders.targetBoth")}</Badge>}
                                     {rule && rule.missingHours > 0 && c.roleCount === 0 && (
-                                        <Badge tone="mid" tip="Keine Raider-Rolle" tipSub="Ohne Raider-Rolle der Kategorie weiß der Bot nicht, wer fehlt — die Erinnerung an Fehlende geht dann nicht raus.">keine Rolle</Badge>
+                                        <Badge tone="mid" tip={t("settings.reminders.noRole")} tipSub={t("settings.reminders.noRoleSub")}>{t("settings.reminders.noRoleBadge")}</Badge>
                                     )}
                                     <span className="grow" />
-                                    <IconButton size="sm" icon={<PenIcon />} tip="Erinnerungen bearbeiten" onClick={() => setEditing(c.id)} />
+                                    <IconButton size="sm" icon={<PenIcon />} tip={t("settings.reminders.edit")} onClick={() => setEditing(c.id)} />
                                 </li>
                             );
                         })}
@@ -80,14 +82,14 @@ export default function RemindersPart({ onConfig }: {
 
             {editingCategory && (
                 <ReminderModal
-                    name={editingCategory.name || "Unbekannte Kategorie"}
+                    name={editingCategory.name || t("settings.reminders.unknownCategory")}
                     rule={data.categoryReminders[editingCategory.id] || OFF}
                     data={data}
                     onClose={() => setEditing(null)}
                     onSave={async (rule) => {
                         try {
                             const { config } = await updateSettings(remindersPatch(data.categoryReminders, editingCategory.id, rule) as Partial<AdminConfig>);
-                            toast("Erinnerungen gespeichert.");
+                            toast(t("settings.reminders.saved"));
                             onConfig(config);
                             setEditing(null);
                             load();
@@ -113,6 +115,7 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
     const [signedHours, setSignedHours] = useState(rule.signedHours ? String(rule.signedHours) : "");
     const [target, setTarget] = useState<PingTarget>(rule.target);
     const [busy, setBusy] = useState(false);
+    const t = useT();
     const targets = pingTargetOptions(data.pingTargets);
 
     const submit = async () => {
@@ -127,30 +130,30 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
             onClose={onClose}
             icon="spell_holy_borrowedtime"
             tone="settings"
-            kicker="Erinnerungen"
+            kicker={t("settings.reminders.title")}
             title={name}
             width={480}
             initialFocus="input"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={busy}>Abbrechen</Button>
-                    <Button onClick={submit} disabled={busy}>{busy ? "Speichert…" : "Speichern"}</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+                    <Button onClick={submit} disabled={busy}>{busy ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 <div className="srv-channels">
-                    <Field className="dlg-field" htmlFor="rem-missing" label="Fehlende · h vorher" tip="An Fehlende" tipSub="Stunden vor Anmeldeschluss (ohne Anmeldeschluss: vor Raidbeginn) an alle mit Raider-Rolle, die noch nicht reagiert haben. Leer = aus.">
-                        <input id="rem-missing" type="number" min={0} max={168} step={1} value={missingHours} placeholder="aus" onChange={(e) => setMissingHours(e.target.value)} />
+                    <Field className="dlg-field" htmlFor="rem-missing" label={t("settings.reminders.missing")} tip={t("settings.reminders.missingTip")} tipSub={t("settings.reminders.missingSub")}>
+                        <input id="rem-missing" type="number" min={0} max={168} step={1} value={missingHours} placeholder={t("settings.reminderSummary.off")} onChange={(e) => setMissingHours(e.target.value)} />
                     </Field>
-                    <Field className="dlg-field" htmlFor="rem-signed" label="Angemeldete · h vorher" tip="An Angemeldete" tipSub="Stunden vor Raidbeginn an alle, die angemeldet sind (auch „kommt später“). Leer = aus.">
-                        <input id="rem-signed" type="number" min={0} max={168} step={1} value={signedHours} placeholder="aus" onChange={(e) => setSignedHours(e.target.value)} />
+                    <Field className="dlg-field" htmlFor="rem-signed" label={t("settings.reminders.signed")} tip={t("settings.reminders.signedTip")} tipSub={t("settings.reminders.signedSub")}>
+                        <input id="rem-signed" type="number" min={0} max={168} step={1} value={signedHours} placeholder={t("settings.reminderSummary.off")} onChange={(e) => setSignedHours(e.target.value)} />
                     </Field>
                 </div>
                 {targets.length > 0 && (
                     <div className="dlg-field">
-                        <FieldLabel tip="Wohin" tipSub="Event-Kanal, Ping-Kanal des Kommunikations-Discords oder beides. Wer bei „Talk“ nicht auf dem Kommunikations-Discord ist, bekommt eine DM.">Wohin</FieldLabel>
-                        <Segment<PingTarget> size="sm" ariaLabel="Wohin" options={targets} value={target} onChange={setTarget} />
+                        <FieldLabel tip={t("settings.reminders.where")} tipSub={t("settings.reminders.whereSub")}>{t("settings.reminders.where")}</FieldLabel>
+                        <Segment<PingTarget> size="sm" ariaLabel={t("settings.reminders.where")} options={targets} value={target} onChange={setTarget} />
                     </div>
                 )}
             </div>

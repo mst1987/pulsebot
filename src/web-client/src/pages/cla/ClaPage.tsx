@@ -14,7 +14,8 @@ import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";
 import "../../styles/log-auswertung.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { ANALYSES, EVAL_SECONDS, FILTER_META, FILTERS } from "./shared";
+import { tParts, useT } from "../../i18n";
+import { ANALYSES, EVAL_SECONDS, filterMeta, FILTERS } from "./shared";
 import { FilterSegment } from "./FilterSegment";
 import { ListRow } from "./ListRow";
 import { NewEvaluationDialog } from "./NewEvaluationDialog";
@@ -38,6 +39,7 @@ const SORTING_DEFAULT: Sorting = { sort: "date", dir: "desc" };
 // ---- the page ----
 
 export default function ClaPage() {
+    const t = useT();
     const ask = useConfirm();
     const jobs = useJobs();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -113,12 +115,12 @@ export default function ClaPage() {
         const key = `${row.logId}:${section}`;
         setRunning((keys) => [...keys, key]);
         jobs.run({
-            label: `${label}-Auswertung`,
+            label: t("cla.jobs.evalLabel", { label }),
             detail: row.title || row.reportId,
             expectedSeconds: EVAL_SECONDS[section],
             describe: (r) => ({
-                message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
-                link: r.url ? { href: r.url, label: "Report ansehen", external: true } : undefined,
+                message: r.alreadyEvaluated ? t("cla.jobs.already", { label }) : t("cla.jobs.created", { label }),
+                link: r.url ? { href: r.url, label: t("cla.jobs.viewReport"), external: true } : undefined,
             }),
         }, () => withIncompleteConfirm(ask, (force) => evalLog(row.logId, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
@@ -132,12 +134,12 @@ export default function ClaPage() {
         const keys = (["cla", "rpb"] as LogSection[]).map((s) => `${row.logId}:${s}`);
         setRunning((r) => [...r, ...keys]);
         jobs.run({
-            label: "CLA + RPB-Auswertung",
+            label: t("cla.jobs.evalLabel", { label: "CLA + RPB" }),
             detail: row.title || row.reportId,
             expectedSeconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb,
             describe: (r) => ({
-                message: "CLA + RPB ausgewertet.",
-                link: r.url ? { href: r.url, label: "Report ansehen", external: true } : undefined,
+                message: t("cla.jobs.bothDone"),
+                link: r.url ? { href: r.url, label: t("cla.jobs.viewReport"), external: true } : undefined,
             }),
         }, async () => {
             let force = false;
@@ -151,22 +153,22 @@ export default function ClaPage() {
 
     const reset = async (row: ClaRow, section: LogSection) => {
         const label = section.toUpperCase();
-        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: `Die ${label}-Auswertung von „${row.title}“ wird verworfen und kann danach neu gestartet werden.`, action: "Verwerfen" }))) return;
+        if (!(await ask({ title: t("cla.confirm.resetTitle", { label }), text: t("cla.confirm.resetText", { label, title: row.title }), action: t("common.discard") }))) return;
         await quick(() => resetEval(row.logId, section));
     };
 
     const removeLog = async (row: ClaRow) => {
-        if (!(await ask({ title: "Log aus der Liste löschen?", text: `„${row.title}“ wird aus der Liste entfernt. Eine vorhandene Auswertung bleibt als Report erhalten.`, action: "Löschen" }))) return;
+        if (!(await ask({ title: t("cla.confirm.deleteLogTitle"), text: t("cla.confirm.deleteLogText", { title: row.title }), action: t("common.delete") }))) return;
         await quick(async () => {
             await deleteLogEntry(row.logId);
-            return { message: "Gelöscht." };
+            return { message: t("cla.confirm.deleted") };
         });
     };
 
     const removeReport = async (row: ClaRow) => {
         if (!row.report) return;
         const reportId = row.report.id;
-        if (!(await ask({ title: "Auswertung löschen?", text: `„${row.title}“ wird gelöscht.`, action: "Löschen" }))) return;
+        if (!(await ask({ title: t("cla.confirm.deleteReportTitle"), text: t("cla.confirm.deleteReportText", { title: row.title }), action: t("common.delete") }))) return;
         await quick(() => deleteReport(reportId));
     };
 
@@ -177,7 +179,7 @@ export default function ClaPage() {
 
     const unlink = async (row: ClaRow) => {
         setAssignRow(null);
-        if (!(await ask({ title: "Zuordnung entfernen?", text: `Die Zuordnung von „${row.title}“ zu „${row.eventLabel || row.eventId}“ wird entfernt. Die Auswertung selbst bleibt bestehen.`, action: "Entfernen" }))) return;
+        if (!(await ask({ title: t("cla.confirm.unlinkTitle"), text: t("cla.confirm.unlinkText", { title: row.title, event: row.eventLabel || row.eventId }), action: t("common.remove") }))) return;
         await quick(() => unlinkLog(row.logId));
     };
 
@@ -186,20 +188,20 @@ export default function ClaPage() {
             icon="inv_misc_pocketwatch_01"
             tone="cla"
             kicker="Warcraft Logs · CLA & RPB"
-            title="Log-Auswertung"
-            action={<Button icon="inv_misc_spyglass_02" onClick={() => setNewOpen(true)}>Neue Auswertung</Button>}
+            title={t("cla.page.title")}
+            action={<Button icon="inv_misc_spyglass_02" onClick={() => setNewOpen(true)}>{t("cla.page.newEvaluation")}</Button>}
         />
     );
 
-    if (cla.error && !data) return <>{head}<div className="empty">Fehler beim Laden: {cla.error.message}</div></>;
-    if (!data) return <>{head}<RaidLoader text="Logs werden geladen" /></>;
+    if (cla.error && !data) return <>{head}<div className="empty">{tParts("cla.page.loadError", { message: cla.error.message })}</div></>;
+    if (!data) return <>{head}<RaidLoader text={t("cla.page.loading")} /></>;
 
     const list = data.page;
     const columns: { key?: string; label: string; tip: string; sub: string }[] = [
-        { key: "date", label: "Log", tip: "Log", sub: "Titel aus Warcraft Logs, Post-Zeit und Kanal. Sortiert nach der Post-Zeit im Channel." },
-        { key: "content", label: "Inhalt", tip: "Inhalt", sub: "Welche Raids das Log enthält und wie viele Bosse liegen. Gelb: der Endboss fehlt, der Raid läuft vielleicht noch." },
-        { key: "status", label: "Auswertung", tip: "Auswertung", sub: "CLA (Gear, Consumables, Kampfverlauf) und RPB (Schaden, Tode, Aktivität). Zeit, Spieler und Probleme im Tooltip des Badges." },
-        { key: "event", label: "Raid-Event", tip: "Raid-Event", sub: "Das Raid-Helper-Event, zu dem das Log gehört – das Event, dessen Startzeit zur Post-Zeit passt." },
+        { key: "date", label: t("cla.columns.log"), tip: t("cla.columns.log"), sub: t("cla.columns.logSub") },
+        { key: "content", label: t("cla.columns.content"), tip: t("cla.columns.content"), sub: t("cla.columns.contentSub") },
+        { key: "status", label: t("cla.columns.evaluation"), tip: t("cla.columns.evaluation"), sub: t("cla.columns.evaluationSub") },
+        { key: "event", label: t("cla.columns.event"), tip: t("cla.columns.event"), sub: t("cla.columns.eventSub") },
     ];
 
     return (
@@ -211,25 +213,25 @@ export default function ClaPage() {
                     {data.autoMatchCount > 0 && (
                         <Button
                             variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={automatching} onClick={automatch}
-                            data-tip="Automatisch zuordnen" data-tip-sub="Ordnet jedes offene Log dem Raid-Event zu, dessen Startzeit eindeutig passt. Mehrdeutige bleiben für den Zuordnen-Dialog."
+                            data-tip={t("cla.toolbar.autoMatch")} data-tip-sub={t("cla.toolbar.autoMatchSub")}
                         >
-                            Automatisch zuordnen <Badge count tone="mid">{data.autoMatchCount}</Badge>
+                            {t("cla.toolbar.autoMatch")} <Badge count tone="mid">{data.autoMatchCount}</Badge>
                         </Button>
                     )}
                     {data.logChannelsConfigured
                         ? (
                             <IconButton
                                 icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "inv_misc_spyglass_03"}
-                                tip={scanning ? "Suche läuft …" : "Log-Channels durchsuchen"}
-                                tipSub="Sucht in den Log-Channels nach Warcraft-Logs-Links, die der Bot verpasst hat."
+                                tip={scanning ? t("cla.toolbar.scanning") : t("cla.toolbar.scan")}
+                                tipSub={t("cla.toolbar.scanSub")}
                                 disabled={scanning} onClick={scan}
                             />
                         )
                         : (
                             <a
                                 className={buttonClass("ghost", "sm", true)} href="/settings?section=logs"
-                                data-tip="Keine Log-Channels" data-tip-sub="Ohne Log-Channel erkennt der Bot keine Logs von selbst. In den Einstellungen festlegen."
-                            ><WowIcon name="inv_letter_15" size={18} />Log-Channels einrichten</a>
+                                data-tip={t("cla.toolbar.noChannels")} data-tip-sub={t("cla.toolbar.noChannelsSub")}
+                            ><WowIcon name="inv_letter_15" size={18} />{t("cla.toolbar.setupChannels")}</a>
                         )}
                 </div>
             </div>
@@ -265,7 +267,7 @@ export default function ClaPage() {
                         <Pager page={list} onPage={goToPage} />
                     </>
                 )
-                : <div className="empty">{FILTER_META[data.filter].empty}</div>}
+                : <div className="empty">{filterMeta(data.filter).empty}</div>}
             <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
         </>

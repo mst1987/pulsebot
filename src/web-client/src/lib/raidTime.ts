@@ -2,8 +2,7 @@
 // Tuesday, lib/raidId.ts), past raids by month — both in the guild's time zone.
 import { locale, t } from "../i18n";
 import { idsFromNow, raidIdOf } from "./raidId";
-
-const TZ = "Europe/Berlin";
+import { DISPLAY_TZ as TZ } from "./format";
 const DAY_MS = 86400000;
 
 const ddmm = (day: number) => {

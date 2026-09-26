@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import type { RosterStats } from "../../api";
 import { IconTile, type TileTone } from "../../components/ui";
 import { attendanceTone, share } from "../../lib/rosterView";
+import { useT } from "../../i18n";
 
 type KpiTone = "accent" | "ok" | "mid" | "warn" | "none";
 
@@ -50,6 +51,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
     onlyIssues: boolean;
     onToggleIssues: () => void;
 }) {
+    const t = useT();
     const { total, loot, evaluated, withIssues, issues, highIssues, assigned, fromLootOnly, avgAttendance, attendanceCounted } = stats;
     const avgLoot = total ? Math.round((loot / total) * 10) / 10 : 0;
     const attTone = attendanceTone(avgAttendance);
@@ -58,19 +60,19 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
             <Kpi
                 icon="achievement_guildperk_everybodysfriend"
                 tone="accent"
-                label="Charaktere"
-                tip={`${total} Charakter${total === 1 ? "" : "e"}`}
-                tipSub={`${evaluated} ausgewertet · ${assigned} zugeordnet · ${fromLootOnly} nur aus Loot`}
+                label={t("roster.kpi.chars")}
+                tip={t("roster.kpi.charsTip", { count: total })}
+                tipSub={t("roster.kpi.charsSub", { evaluated, assigned, lootOnly: fromLootOnly })}
                 value={total}
             />
             <Kpi
                 icon="ability_warrior_rallyingcry"
                 tone={attTone === "bad" ? "warn" : attTone || "none"}
-                label="Ø Anwesenheit"
-                tip={avgAttendance === null ? "Noch keine Anwesenheit gezählt" : `Ø ${avgAttendance} % Anwesenheit`}
+                label={t("roster.kpi.attendance")}
+                tip={avgAttendance === null ? t("roster.kpi.attendanceNone") : t("roster.kpi.attendanceTip", { pct: avgAttendance })}
                 tipSub={avgAttendance === null
-                    ? "Gezählt wird aus Raid-Helper-Anmeldungen und den Logs, die einem Raid-Event zugeordnet sind."
-                    : `Mittel über ${attendanceCounted} Charakter${attendanceCounted === 1 ? "" : "e"} mit gezählten Raids, je Kategorie die letzten 11 Raids.`}
+                    ? t("roster.kpi.attendanceNoneSub")
+                    : t("roster.kpi.attendanceSub", { count: attendanceCounted })}
                 value={avgAttendance === null ? "–" : avgAttendance}
                 of={avgAttendance === null ? undefined : "%"}
                 meter={avgAttendance === null ? undefined : avgAttendance}
@@ -78,11 +80,15 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
             <Kpi
                 icon="inv_misc_gem_variety_02"
                 tone={withIssues ? "warn" : "ok"}
-                label="Gear-Probleme"
-                tip={onlyIssues ? "Filter aufheben" : "Nur Charaktere mit Gear-Problemen zeigen"}
+                label={t("roster.kpi.issues")}
+                tip={onlyIssues ? t("roster.kpi.issuesOff") : t("roster.kpi.issuesOn")}
                 tipSub={issues
-                    ? `${withIssues} von ${evaluated} ausgewerteten Charakteren · ${issues} Befund${issues === 1 ? "" : "e"}${highIssues ? `, ${highIssues} schwer` : ""}`
-                    : "Keine Befunde in den letzten Auswertungen."}
+                    ? t("roster.kpi.issuesSub", {
+                        withIssues, evaluated,
+                        findings: t("roster.kpi.findings", { count: issues }),
+                        high: highIssues ? t("roster.kpi.high", { count: highIssues }) : "",
+                    })
+                    : t("roster.kpi.issuesNone")}
                 value={withIssues}
                 of={`/ ${evaluated}`}
                 meter={share(withIssues, evaluated)}
@@ -92,9 +98,9 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
             <Kpi
                 icon="inv_misc_bag_10"
                 tone="none"
-                label="Loot-Items"
-                tip={`${loot} importierte Items`}
-                tipSub={`Ø ${avgLoot} je Charakter`}
+                label={t("roster.kpi.loot")}
+                tip={t("roster.kpi.lootTip", { count: loot })}
+                tipSub={t("roster.kpi.lootSub", { avg: avgLoot })}
                 value={loot}
             />
         </div>

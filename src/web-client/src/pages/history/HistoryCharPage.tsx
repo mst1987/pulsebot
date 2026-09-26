@@ -26,12 +26,14 @@ import { CharHero } from "./CharHero";
 import { GearSection } from "./GearSection";
 import { AttendanceSection } from "./AttendanceSection";
 import { ItemDetailModal } from "./ItemDetailModal";
+import { tParts, useT } from "../../i18n";
 
 type CharTab = "gear" | "loot" | "attendance";
 
 const CHAR_TABS: CharTab[] = ["gear", "loot", "attendance"];
 
 export default function HistoryCharPage() {
+    const t = useT();
     const { user } = useOutletContext<ShellContext>();
     // Also reachable read-only via "Loot-Ansichten" (src/config/permissions.js).
     const canEdit = canAccess(user, "history", "write");
@@ -61,7 +63,7 @@ export default function HistoryCharPage() {
         try {
             await deleteLootItems([it.id]);
             character.setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
-            toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+            toast(t("history.shared.deleted", { item: it.itemName || t("history.shared.itemFallback", { id: it.itemId }) }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -71,23 +73,23 @@ export default function HistoryCharPage() {
     useEffect(() => { refreshWowheadLinks(); }, [character.data, tab]);
 
     return (
-        <AsyncView state={character} loading={<RaidLoader text="Charakter wird geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+        <AsyncView state={character} loading={<RaidLoader text={t("history.char.loading")} />} error={(err) => <div className="empty">{tParts("history.shared.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const issueCount = data.gearIssues?.issueCount || 0;
                 const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";
                 const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
 
                 const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
-                    { id: "gear", label: "Ausrüstung", icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
-                    { id: "loot", label: "Loot-Historie", icon: "inv_misc_bag_10", count: data.items.length || null },
-                    { id: "attendance", label: "Anwesenheit", icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
+                    { id: "gear", label: t("history.char.gear"), icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
+                    { id: "loot", label: t("history.shared.lootHistory"), icon: "inv_misc_bag_10", count: data.items.length || null },
+                    { id: "attendance", label: t("history.char.attendance"), icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
                 ];
 
                 return (
                     <>
                         <CharHero data={data} roster={roster} loading={character.loading} onReload={character.reload} />
 
-                        <div className="ros-secs" role="tablist" aria-label="Bereich">
+                        <div className="ros-secs" role="tablist" aria-label={t("history.page.areaAria")}>
                             {sections.map((s) => (
                                 <button
                                     key={s.id}
@@ -110,12 +112,12 @@ export default function HistoryCharPage() {
                                 <PartHead
                                     icon="inv_misc_bag_10"
                                     tone="roster"
-                                    title="Loot-Historie"
-                                    crumb={`${data.items.length} Item${data.items.length === 1 ? "" : "s"} aus den Loot-Importen`}
+                                    title={t("history.shared.lootHistory")}
+                                    crumb={t("history.char.lootCrumb", { count: data.items.length })}
                                 />
                                 {data.items.length
                                     ? <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
-                                    : <p className="sub ros-empty">Kein Loot für diesen Charakter gespeichert.</p>}
+                                    : <p className="sub ros-empty">{t("history.char.lootEmpty")}</p>}
                             </div>
                         )}
                         {tab === "attendance" && <AttendanceSection roster={roster} />}
