@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const { dataPath } = require("../config/paths");
 const {
     discordClientId, discordClientSecret, publicBaseUrl, logcheckAdminIds,
     adminRoleIds: envAdminRoleIds, devAutoLogin,
@@ -18,7 +19,7 @@ const discord = require("./discord");
 // sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }
 // `access` is the per-area read/write map from config/permissions.js; full
 // admins carry fullAccess().
-const SESSIONS_FILE = path.join(__dirname, "..", "..", "data", "sessions.json");
+const SESSIONS_FILE = dataPath("sessions.json");
 const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 // How long a session's isAdmin flag and area access are trusted before they are
 // re-checked against the current role config — so admin roles and role
