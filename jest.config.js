@@ -6,7 +6,6 @@ module.exports = {
     collectCoverageFrom: [
         "src/**/*.js",
         "!src/bot.js",
-        "!src/discordcommands/**",
     ],
     coverageDirectory: "coverage",
     // Silence the bot's console.error/log noise during tests.

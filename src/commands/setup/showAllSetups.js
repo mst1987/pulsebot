@@ -28,8 +28,8 @@ module.exports = {
         if (setups.length < 1) {
             await botEditReply(
                 interaction,
-                messages.mysetups.errorTitle,
-                messages.gdkpraids.errorMessage
+                messages.allsetups.errorTitle,
+                messages.allsetups.errorMessage
             );
             return;
         } else {
