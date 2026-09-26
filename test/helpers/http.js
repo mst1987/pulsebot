@@ -96,4 +96,53 @@ function apiBodyMock({ body: payload = {}, raw = Buffer.alloc(0) } = {}) {
     };
 }
 
-module.exports = { mockRes, status, json, body, jsonRequest, apiMiddlewareMock, apiBodyMock };
+/**
+ * Drives /api/* requests through the real dispatcher (apiRouter.handle), the
+ * way server.js does: area gate, 404/405 and the JSON error envelope included.
+ * Pass the route module under test (anything with a `routes` table) to keep a
+ * suite to its own endpoints - a path another route module registers fails
+ * loudly instead of quietly testing that file (an unknown path still reaches
+ * the router, for the 404 cases). `handle` stays
+ * available for the odd request that must bypass that check.
+ *
+ *   const { get, post } = routerClient(require("../../../src/web/apiRoutes/history"));
+ *   const res = await post("/api/history/clear", { eventId: "e1" });
+ *
+ * Mutating requests carry `csrf` as their x-csrf-token header; the router is
+ * required lazily, so the suite's jest.mock calls apply to it.
+ */
+function routerClient(routeModule, { csrf = "tok" } = {}) {
+    const own = routeModule && Array.isArray(routeModule.routes)
+        ? new Set(routeModule.routes.map((r) => r.path))
+        : null;
+    const handle = (...args) => require("../../src/web/apiRouter").handle(...args);
+    const check = (pathname) => {
+        if (!own || own.has(pathname)) return;
+        const other = require("../../src/web/routeTable").ROUTES.find((r) => r.path === pathname);
+        if (other) throw new Error(`${pathname} belongs to apiRoutes/${other.module}.js, not to the route module under test`);
+    };
+    const urlFor = (pathname, query) => {
+        const qs = query ? `?${new URLSearchParams(query).toString()}` : "";
+        return new URL(`http://localhost${pathname}${qs}`);
+    };
+    async function request(method, pathname, payload, headers) {
+        check(pathname);
+        const req = jsonRequest(method, pathname, payload || {}, { "x-csrf-token": csrf, ...headers });
+        const res = mockRes();
+        await handle(pathname, req, res);
+        return res;
+    }
+    async function get(pathname, query) {
+        check(pathname);
+        const res = mockRes();
+        await handle(pathname, { method: "GET" }, res, urlFor(pathname, query));
+        return res;
+    }
+    return {
+        handle, urlFor, request, get,
+        post: (pathname, payload, headers) => request("POST", pathname, payload, headers),
+        patch: (pathname, payload, headers) => request("PATCH", pathname, payload, headers),
+    };
+}
+
+module.exports = { mockRes, status, json, body, jsonRequest, apiMiddlewareMock, apiBodyMock, routerClient };

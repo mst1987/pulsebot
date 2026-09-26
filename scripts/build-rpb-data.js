@@ -46,8 +46,8 @@ const conf = parseCsv(path.join(REF, "config", "configNew.csv"));
 const HEADER_ROW = 1; // 0-based index of the row carrying the section headers
 
 /** Column index whose header (row 2) matches the given predicate. */
-function findColumn(pred) {
-    const row = conf[HEADER_ROW] || [];
+function findColumn(pred, rows = conf) {
+    const row = rows[HEADER_ROW] || [];
     for (let c = 0; c < row.length; c++) {
         if (pred((row[c] || "").trim())) return c;
     }
@@ -55,11 +55,11 @@ function findColumn(pred) {
 }
 
 /** All non-empty cells of a column below the header row. */
-function columnValues(col) {
+function columnValues(col, rows = conf) {
     if (col < 0) return [];
     const out = [];
-    for (let r = HEADER_ROW + 1; r < conf.length; r++) {
-        const v = ((conf[r] || [])[col] || "").trim();
+    for (let r = HEADER_ROW + 1; r < rows.length; r++) {
+        const v = ((rows[r] || [])[col] || "").trim();
         if (v) out.push(v);
     }
     return out;
@@ -109,22 +109,22 @@ function parseEntry(raw, label) {
  * Read a section: the "[id]" column plus its German label column (the next
  * column over, "<section> DE").
  */
-function readSection(idHeaderPred, deHeaderPred) {
-    const idCol = findColumn(idHeaderPred);
-    const deCol = findColumn(deHeaderPred);
-    const raws = columnValues(idCol);
-    const labels = columnValues(deCol);
+function readSection(idHeaderPred, deHeaderPred, rows = conf) {
+    const idCol = findColumn(idHeaderPred, rows);
+    const deCol = findColumn(deHeaderPred, rows);
+    const raws = columnValues(idCol, rows);
+    const labels = columnValues(deCol, rows);
     const out = [];
     // The label column is aligned row-wise with the id column, so index by the
     // raw row rather than by the compacted list.
     const idRows = [];
-    for (let r = HEADER_ROW + 1; r < conf.length; r++) {
-        const v = ((conf[r] || [])[idCol] || "").trim();
+    for (let r = HEADER_ROW + 1; r < rows.length; r++) {
+        const v = ((rows[r] || [])[idCol] || "").trim();
         if (v) idRows.push(r);
     }
     raws.forEach((raw, i) => {
         const r = idRows[i];
-        const label = idCol >= 0 && deCol >= 0 ? ((conf[r] || [])[deCol] || "").trim() : "";
+        const label = idCol >= 0 && deCol >= 0 ? ((rows[r] || [])[deCol] || "").trim() : "";
         const entry = parseEntry(raw, label);
         if (entry) out.push(entry);
     });
@@ -170,14 +170,14 @@ const DEBUFFS = readSection(
  * of the WCL hit details (e.g. "Dodge outgoing", "Crushing Blow incoming") or
  * from buff uptimes ("Battle Shout uptime on you%"). Keep name + German label.
  */
-function readNameSection(idHeaderPred, deHeaderPred) {
-    const idCol = findColumn(idHeaderPred);
-    const deCol = findColumn(deHeaderPred);
+function readNameSection(idHeaderPred, deHeaderPred, rows = conf) {
+    const idCol = findColumn(idHeaderPred, rows);
+    const deCol = findColumn(deHeaderPred, rows);
     const out = [];
-    for (let r = HEADER_ROW + 1; r < conf.length; r++) {
-        const name = ((conf[r] || [])[idCol] || "").trim();
+    for (let r = HEADER_ROW + 1; r < rows.length; r++) {
+        const name = ((rows[r] || [])[idCol] || "").trim();
         if (!name) continue;
-        const label = deCol >= 0 ? ((conf[r] || [])[deCol] || "").trim() : "";
+        const label = deCol >= 0 ? ((rows[r] || [])[deCol] || "").trim() : "";
         out.push({ name, label: label || name });
     }
     return out;
@@ -205,8 +205,8 @@ const ABSORBS = readSection(
 
 // --- section headings (German, from the header cells themselves) ----------
 // e.g. "damageTaken DE {Vermeidbarer erhaltener Schaden ...}" -> the {} content
-function sectionHeading(prefix) {
-    for (const row of conf) {
+function sectionHeading(prefix, rows = conf) {
+    for (const row of rows) {
         for (const cell of row) {
             const v = (cell || "").trim();
             if (v.startsWith(prefix + " DE")) {
@@ -243,11 +243,8 @@ const VALIDATE_FILES = [
     "validateZALog.csv",
     "validateSWLog.csv",
 ];
-const TRASH_REQUIREMENTS = {};
-for (const file of VALIDATE_FILES) {
-    const full = path.join(REF, "config", file);
-    if (!fs.existsSync(full)) continue;
-    const rows = parseCsv(full);
+/** Add the trash requirements of one validate*Log tab to `target` (by zone). */
+function addTrashRequirements(rows, target) {
     for (const row of rows) {
         const zone = (row[1] || "").trim();
         const nameEn = (row[2] || "").trim();
@@ -269,23 +266,34 @@ for (const file of VALIDATE_FILES) {
         }
         if (ids.length === 0) continue;
 
-        (TRASH_REQUIREMENTS[zone] || (TRASH_REQUIREMENTS[zone] = [])).push({
+        (target[zone] || (target[zone] = [])).push({
             name: nameEn,
             label: nameDe || nameEn,
             minimum: Number(min),
             ids,
         });
     }
+    return target;
+}
+const TRASH_REQUIREMENTS = {};
+for (const file of VALIDATE_FILES) {
+    const full = path.join(REF, "config", file);
+    if (!fs.existsSync(full)) continue;
+    addTrashRequirements(parseCsv(full), TRASH_REQUIREMENTS);
 }
 
 // --- spell haste from gear ------------------------------------------------
-const sh = parseCsv(path.join(REF, "spell_haste_config.csv"));
-const SPELL_HASTE_ITEMS = {};
-for (const row of sh) {
-    const id = (row[0] || "").trim();
-    const v = (row[1] || "").trim();
-    if (/^\d+$/.test(id) && /^\d+$/.test(v)) SPELL_HASTE_ITEMS[id] = Number(v);
+/** item id -> spell haste rating, from the rows of spell_haste_config.csv. */
+function parseSpellHaste(rows) {
+    const out = {};
+    for (const row of rows) {
+        const id = (row[0] || "").trim();
+        const v = (row[1] || "").trim();
+        if (/^\d+$/.test(id) && /^\d+$/.test(v)) out[id] = Number(v);
+    }
+    return out;
 }
+const SPELL_HASTE_ITEMS = parseSpellHaste(parseCsv(path.join(REF, "spell_haste_config.csv")));
 
 // --- icons ----------------------------------------------------------------
 // Warcraft Logs carries an `abilityIcon` on most table rows, but not on all of
@@ -454,7 +462,25 @@ async function main() {
     });
 }
 
-main().catch((e) => {
-    console.error(e);
-    process.exit(1);
-});
+module.exports = {
+    parseCsv,
+    findColumn,
+    columnValues,
+    parseEntry,
+    readSection,
+    readNameSection,
+    sectionHeading,
+    addTrashRequirements,
+    parseSpellHaste,
+    iconCandidatesOf,
+    allEntries,
+    render,
+    MAX_ICON_TRIES,
+};
+
+if (require.main === module) {
+    main().catch((e) => {
+        console.error(e);
+        process.exit(1);
+    });
+}
