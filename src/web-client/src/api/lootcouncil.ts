@@ -425,12 +425,11 @@ export type SimJob = {
 };
 
 export function startCouncilSim(
-    csrfToken: string | null,
     id: string,
     subjects: { key: string; specKey: string }[],
     items: number[],
 ): Promise<{ status: string; alreadyRunning: boolean; id: string }> {
-    return send("POST", "/api/lootcouncil/sim", csrfToken, { id, subjects, items });
+    return send("POST", "/api/lootcouncil/sim", { id, subjects, items });
 }
 
 export function getCouncilSim(id: string): Promise<SimJob> {
@@ -445,13 +444,12 @@ export function getCouncilSim(id: string): Promise<SimJob> {
  * done. `onProgress` is called on every poll.
  */
 export async function runCouncilSim(
-    csrfToken: string | null,
     id: string,
     subjects: { key: string; specKey: string }[],
     items: number[],
     onProgress?: (job: SimJob) => void,
 ): Promise<SimResult> {
-    await startCouncilSim(csrfToken, id, subjects, items);
+    await startCouncilSim(id, subjects, items);
     const startedAt = Date.now();
     const POLL_MS = 1500;
     // One raider is ~1s per item; a whole roster against a full BiS gap list is
@@ -559,12 +557,11 @@ export function getBisLists(tier: string): Promise<BisListsData> {
  * out of the roster and the candidate lists until somebody takes them back in.
  */
 export function setCouncilExcluded(
-    csrfToken: string | null,
     character: string,
     excluded: boolean,
     reason = "",
 ): Promise<{ character: string; excluded: boolean }> {
-    return send("POST", "/api/lootcouncil/exclude", csrfToken, { character, exclude: excluded, reason });
+    return send("POST", "/api/lootcouncil/exclude", { character, exclude: excluded, reason });
 }
 
 /**
@@ -572,11 +569,10 @@ export function setCouncilExcluded(
  * zurück, und die Seite folgt wieder dem, was die Daten sagen.
  */
 export function setCouncilRole(
-    csrfToken: string | null,
     character: string,
     role: "" | "caster" | "healer",
 ): Promise<{ character: string; role: string }> {
-    return send("POST", "/api/lootcouncil/role", csrfToken, { character, role });
+    return send("POST", "/api/lootcouncil/role", { character, role });
 }
 
 /**
@@ -587,10 +583,9 @@ export function setCouncilRole(
  * council data has to be reloaded afterwards to show it.
  */
 export function refreshCouncilArmory(
-    csrfToken: string | null,
     characters: string[],
 ): Promise<{ asked: number; answered: number; configured: boolean }> {
-    return send("POST", "/api/lootcouncil/armory", csrfToken, { characters });
+    return send("POST", "/api/lootcouncil/armory", { characters });
 }
 
 /**
@@ -600,10 +595,9 @@ export function refreshCouncilArmory(
  * afterwards to show it.
  */
 export function loadCouncilLogGear(
-    csrfToken: string | null,
     body: { character: string; reportId?: string; link?: string; clear?: boolean },
 ): Promise<{ cleared?: boolean; reportId?: string; reportTitle?: string; reportStart?: number; items?: number; tried?: number }> {
-    return send("POST", "/api/lootcouncil/loggear", csrfToken, body);
+    return send("POST", "/api/lootcouncil/loggear", body);
 }
 
 /**

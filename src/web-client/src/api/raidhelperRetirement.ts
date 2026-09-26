@@ -39,10 +39,10 @@ export function getRaidhelperRetirement(): Promise<{ checklist: RetirementCheckl
     return get<{ checklist: RetirementChecklist }>("/api/settings/raidhelper-retirement");
 }
 
-export function setRaidhelperDisabled(csrfToken: string | null, disabled: boolean): Promise<{ checklist: RetirementChecklist }> {
-    return send("POST", "/api/settings/raidhelper-retirement", csrfToken, { disabled });
+export function setRaidhelperDisabled(disabled: boolean): Promise<{ checklist: RetirementChecklist }> {
+    return send("POST", "/api/settings/raidhelper-retirement", { disabled });
 }
 
-export function importRaidhelperHistory(csrfToken: string | null, body: { perCategory: number; dryRun: boolean }): Promise<HistoryImportResult> {
-    return send("POST", "/api/settings/raidhelper-history-import", csrfToken, body);
+export function importRaidhelperHistory(body: { perCategory: number; dryRun: boolean }): Promise<HistoryImportResult> {
+    return send("POST", "/api/settings/raidhelper-history-import", body);
 }

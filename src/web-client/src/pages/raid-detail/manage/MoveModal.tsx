@@ -15,7 +15,7 @@ import type { RaidCtx } from "../meta";
 
 export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const initial = berlinDateTime(data.event.startTime);
     const [date, setDate] = useState(initial.date);
     const [time, setTime] = useState(initial.time);
@@ -55,7 +55,7 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
         if (!plan) return;
         setBusy(true);
         try {
-            const r = await moveRaid(csrfToken, { event: eventId, date, time, renameChannel: rename, notify });
+            const r = await moveRaid({ event: eventId, date, time, renameChannel: rename, notify });
             onClose();
             onChanged([r.message, ...(r.warnings || [])].join("\n"));
         } catch (err) {

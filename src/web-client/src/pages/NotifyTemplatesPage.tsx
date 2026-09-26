@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useOutletContext } from "react-router-dom";
 import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
-    type ApiError, type NotifyTemplate,
-} from "../api";
+    type ApiError, type NotifyTemplate } from "../api";
 import { useDraftState } from "../lib/persistedState";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
-import type { ShellContext } from "../components/Shell";
 import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -98,8 +95,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
 
 // ---- editor ---------------------------------------------------------------------
 
-function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
-    csrfToken: string | null;
+function NotifyTemplateForm({ editing, onSaved, onDirty }: {
     editing: NotifyTemplate | null;
     onSaved: (msg: string) => void;
     onDirty: (dirty: boolean, clear: () => void) => void;
@@ -117,7 +113,7 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await saveNotifyTemplate(csrfToken, { id: editing?.id, name, title, body });
+            await saveNotifyTemplate({ id: editing?.id, name, title, body });
             clearDraft();
             onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
@@ -163,7 +159,6 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
 
 export default function NotifyTemplatesPage() {
     const ask = useConfirm();
-    const { csrfToken } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
 
     const [templates, setTemplates] = useState<NotifyTemplate[] | null>(null);
@@ -190,7 +185,7 @@ export default function NotifyTemplatesPage() {
     const remove = async (t: NotifyTemplate) => {
         if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name}“ wird gelöscht.`, action: "Löschen" }))) return;
         try {
-            await deleteNotifyTemplate(csrfToken, t.id);
+            await deleteNotifyTemplate(t.id);
             afterChange("Gelöscht.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -283,7 +278,6 @@ export default function NotifyTemplatesPage() {
                 {editor.open && (
                     <NotifyTemplateForm
                         key={entry?.id ?? "new"}
-                        csrfToken={csrfToken}
                         editing={entry}
                         onSaved={afterChange}
                         onDirty={(d, clear) => {

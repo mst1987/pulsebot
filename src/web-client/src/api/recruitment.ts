@@ -85,34 +85,31 @@ export function getRecruitmentData(params: { view?: string; edit?: string; editp
 }
 
 export function saveRecruitmentTemplate(
-    csrfToken: string | null,
     input: { id?: string; name: string; content: string; buttonLabel: string },
 ): Promise<RecruitmentTemplate> {
-    return send("POST", "/api/recruitment", csrfToken, input);
+    return send("POST", "/api/recruitment", input);
 }
 
-export function deleteRecruitmentTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/recruitment/delete", csrfToken, { id });
+export function deleteRecruitmentTemplate(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/recruitment/delete", { id });
 }
 
 export function postRecruitmentTemplate(
-    csrfToken: string | null,
     input: { templateId: string; channelId: string },
 ): Promise<RecruitmentPost> {
-    return send("POST", "/api/recruitment/post", csrfToken, input);
+    return send("POST", "/api/recruitment/post", input);
 }
 
 export function updateRecruitmentPost(
-    csrfToken: string | null,
     input: { id: string; content: string; buttonLabel: string },
 ): Promise<RecruitmentPost> {
-    return send("POST", "/api/recruitment/post-update", csrfToken, input);
+    return send("POST", "/api/recruitment/post-update", input);
 }
 
-export function deleteRecruitmentPost(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/recruitment/post-delete", csrfToken, { id });
+export function deleteRecruitmentPost(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/recruitment/post-delete", { id });
 }
 
-export function scanRecruitmentPosts(csrfToken: string | null): Promise<{ count: number }> {
-    return send("POST", "/api/recruitment/scan", csrfToken, {});
+export function scanRecruitmentPosts(): Promise<{ count: number }> {
+    return send("POST", "/api/recruitment/scan", {});
 }

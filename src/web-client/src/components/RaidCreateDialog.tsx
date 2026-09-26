@@ -153,12 +153,11 @@ function Figure({ label, value }: { label: string; value: ReactNode }) {
     return <div className="re-fig"><span className="re-fig-lbl">{label}</span><span className="re-fig-val">{value}</span></div>;
 }
 
-export default function RaidCreateDialog({ open, sourceId, editEventId = "", csrfToken, userId, onClose, onCreated }: {
+export default function RaidCreateDialog({ open, sourceId, editEventId = "", userId, onClose, onCreated }: {
     open: boolean;
     sourceId: string;
     /** an own event's id: the dialog edits it instead of creating one */
     editEventId?: string;
-    csrfToken: string | null;
     userId: string;
     onClose: () => void;
     onCreated: () => void;
@@ -434,14 +433,14 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         setSaving(true);
         try {
             if (editing) {
-                const r = await updateRaid(csrfToken, { id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId });
+                const r = await updateRaid({ id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId });
                 if (r.messageError) toast(t("raidCreate.toast.savedWithError", { error: r.messageError }), "err");
                 else toast(t("raidCreate.toast.saved"));
             } else {
                 const where = channelMode === "clone" && sourceEvent
                     ? { sourceEventId: sourceEvent.id, channelName }
                     : channelMode === "new" ? { newChannel: { name: channelName, categoryId } } : { channelId };
-                const r = await createRaid(csrfToken, {
+                const r = await createRaid({
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
                     ...(eh ? { ...planBody(plan), announce, voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
                 });
@@ -468,7 +467,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         setTplSaving(true);
         try {
             const base = tplMode === "update" ? baseTemplate : null;
-            const saved = await saveRaidTemplate(csrfToken, templateFromPlan(plan, base, tplName));
+            const saved = await saveRaidTemplate(templateFromPlan(plan, base, tplName));
             setCtx((c) => (c ? { ...c, raidTemplates: [saved, ...(c.raidTemplates || []).filter((t) => t.id !== saved.id)] } : c));
             setPlan((p) => ({ ...p, raidTemplateId: saved.id }));
             setTplOpen(false);

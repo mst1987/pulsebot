@@ -54,7 +54,7 @@ describe("Historie & Loot module", () => {
         const dlg = src["components/ItemAwardsDialog.tsx"];
         expect(dlg).toContain("const ask = useConfirm();");
         expect(dlg.match(/if \(!\(await ask\(\{ title: /g)).toHaveLength(1);
-        expect(dlg).toContain("deleteLootItems(csrfToken, [awardId])");
+        expect(dlg).toContain("deleteLootItems([awardId])");
         expect(dlg).toMatch(/\{canEdit && a\.id\s*\?/);
         expect(src["pages/HistoryPage.tsx"]).toContain("canEdit={canWrite}");
     });
@@ -87,8 +87,8 @@ describe("Historie & Loot module", () => {
     it("imports in a dialog that keeps the draft and previews before saving", () => {
         const dlg = src["components/ImportLootDialog.tsx"];
         expect(dlg).toContain("useDraftState<ImportDraft>(\"history-import\", IMPORT_DRAFT_DEFAULT)");
-        expect(dlg).toContain("previewLootImport(csrfToken, { data: text, tool, event: eventId })");
-        expect(dlg).toContain("importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId })");
+        expect(dlg).toContain("previewLootImport({ data: text, tool, event: eventId })");
+        expect(dlg).toContain("importLoot({ data: text, tool, event: eventId, manualLabel, categoryId })");
         // the six help paragraphs went into tooltips
         expect(dlg).not.toContain("className=\"hint\"");
         expect(src["pages/HistoryPage.tsx"]).not.toContain("function ImportForm(");

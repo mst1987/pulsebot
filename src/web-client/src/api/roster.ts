@@ -18,11 +18,10 @@ export function getRaiderCharacters(categoryId: string): Promise<RaiderCharacter
 }
 
 export function saveRaiderCharacters(
-    csrfToken: string | null,
     categoryId: string,
     assignments: Record<string, string>,
 ): Promise<{ assignments: Record<string, string> }> {
-    return send("POST", "/api/raider-characters", csrfToken, { categoryId, assignments });
+    return send("POST", "/api/raider-characters", { categoryId, assignments });
 }
 
 // ===== Roster (all characters per raid category) =====
@@ -156,12 +155,11 @@ export function getRoster(): Promise<RosterData> {
  * stay whole; the roster simply stops listing them.
  */
 export function setRosterHidden(
-    csrfToken: string | null,
     character: string,
     hidden: boolean,
     reason = "",
 ): Promise<{ character: string; hidden: boolean }> {
-    return send("POST", "/api/roster/hide", csrfToken, { character, hide: hidden, reason });
+    return send("POST", "/api/roster/hide", { character, hide: hidden, reason });
 }
 
 /** A spec whose BiS list carries an item — see lootCouncil.js's bisSpecsView(). */

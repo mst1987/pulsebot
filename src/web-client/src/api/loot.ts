@@ -130,8 +130,8 @@ export function getLootAwards(q: LootAwardsQuery): Promise<LootAwardsData> {
     return get<LootAwardsData>(`/api/history/loot-awards?${qs.toString()}`);
 }
 
-export function deleteHistoryLog(csrfToken: string | null, logId: string): Promise<{ id: string }> {
-    return send("POST", "/api/history/log-delete", csrfToken, { logId });
+export function deleteHistoryLog(logId: string): Promise<{ id: string }> {
+    return send("POST", "/api/history/log-delete", { logId });
 }
 
 // `categoryId` only takes effect when the import ends up without a Raid-Helper
@@ -140,22 +140,20 @@ export function deleteHistoryLog(csrfToken: string | null, logId: string): Promi
 export type ImportLootInput = { data: string; tool: string; event: string; manualLabel: string; categoryId?: string };
 
 export function importLoot(
-    csrfToken: string | null,
     input: ImportLootInput,
 ): Promise<{ eventId: string; eventLabel: string; categoryId: string; added: number; skipped: number }> {
-    return send("POST", "/api/history/import", csrfToken, input);
+    return send("POST", "/api/history/import", input);
 }
 
 /** File an already-imported loot bucket under a raid category ("" clears it). */
 export function setLootCategory(
-    csrfToken: string | null,
     input: { event: string; categoryId: string },
 ): Promise<{ eventId: string; categoryId: string; updated: number }> {
-    return send("POST", "/api/history/loot-category", csrfToken, input);
+    return send("POST", "/api/history/loot-category", input);
 }
 
-export function clearHistoryEvent(csrfToken: string | null, event: string): Promise<{ removed: number }> {
-    return send("POST", "/api/history/clear", csrfToken, { event });
+export function clearHistoryEvent(event: string): Promise<{ removed: number }> {
+    return send("POST", "/api/history/clear", { event });
 }
 
 /**
@@ -164,8 +162,8 @@ export function clearHistoryEvent(csrfToken: string | null, event: string): Prom
  * wrong raider. Re-importing the same export brings it back (the import dedupes
  * against what is stored).
  */
-export function deleteLootItems(csrfToken: string | null, ids: string[]): Promise<{ removed: number }> {
-    return send("POST", "/api/history/loot-delete", csrfToken, { ids });
+export function deleteLootItems(ids: string[]): Promise<{ removed: number }> {
+    return send("POST", "/api/history/loot-delete", { ids });
 }
 
 // ---- adding one award by hand ("Item nachtragen") ----
@@ -236,10 +234,9 @@ export type AddLootInput = {
  * stored — that is a double submit, not a second drop.
  */
 export function addLootItem(
-    csrfToken: string | null,
     input: AddLootInput,
 ): Promise<{ eventId: string; eventLabel: string; added: number; skipped: number; item: LootItem }> {
-    return send("POST", "/api/history/loot-add", csrfToken, input);
+    return send("POST", "/api/history/loot-add", input);
 }
 
 // ---- addon inbox: raid sessions the loot-sync tool uploaded, awaiting a decision ----
@@ -331,10 +328,9 @@ export type ImportPreview = {
 
 /** What importLoot() would do with this export, without storing anything. */
 export function previewLootImport(
-    csrfToken: string | null,
     input: { data: string; tool: string; event: string },
 ): Promise<ImportPreview> {
-    return send("POST", "/api/history/import-preview", csrfToken, input);
+    return send("POST", "/api/history/import-preview", input);
 }
 
 /**
@@ -343,16 +339,14 @@ export function previewLootImport(
  * the match the upload already suggested.
  */
 export function acceptLootInbox(
-    csrfToken: string | null,
     input: { id: string; event?: string; manualLabel?: string; categoryId?: string },
 ): Promise<{ eventId: string; eventLabel: string; categoryId: string; added: number; skipped: number }> {
-    return send("POST", "/api/history/inbox-accept", csrfToken, input);
+    return send("POST", "/api/history/inbox-accept", input);
 }
 
 /** Throw a session away. The decision sticks — re-uploads will not bring it back. */
 export function dismissLootInbox(
-    csrfToken: string | null,
     id: string,
 ): Promise<{ id: string; sessionId: string }> {
-    return send("POST", "/api/history/inbox-dismiss", csrfToken, { id });
+    return send("POST", "/api/history/inbox-dismiss", { id });
 }

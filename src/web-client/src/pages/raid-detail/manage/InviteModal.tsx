@@ -13,7 +13,7 @@ import { useT } from "../../../i18n";
 type Preview = { count: number; text: string; groups: number[] };
 
 export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const [preview, setPreview] = useState<Preview | null>(null);
     const [problem, setProblem] = useState("");
     const [busy, setBusy] = useState(false);
@@ -25,18 +25,18 @@ export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         let alive = true;
         setPreview(null);
         setProblem("");
-        previewInviteCall(csrfToken, eventId)
+        previewInviteCall(eventId)
             .then((p) => { if (alive) setPreview(p); })
             .catch((err: ApiError) => { if (alive) setProblem(err.message); });
         return () => {
             alive = false;
         };
-    }, [open, csrfToken, eventId]);
+    }, [open, eventId]);
 
     const submit = async () => {
         setBusy(true);
         try {
-            const r = await callInvite(csrfToken, eventId);
+            const r = await callInvite(eventId);
             onClose();
             onChanged(r.message);
         } catch (err) {

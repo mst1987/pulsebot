@@ -2,6 +2,7 @@
 // re-exported here so a page imports from "../api" as before; the access
 // helpers live in lib/access.ts and stay reachable here for the transition.
 export * from "./client";
+export * from "./csrf";
 export * from "./session";
 export * from "./dashboard";
 export * from "./channels";

@@ -235,7 +235,7 @@ function ClaimsBadge({ claims }: { claims: CharacterClaim[] }) {
 }
 
 export default function RosterPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [data, setData] = useState<RosterData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [claims, setClaims] = useState<CharacterClaim[]>([]);
@@ -273,7 +273,7 @@ export default function RosterPage() {
             action: "Ausblenden",
         }))) return;
         try {
-            await setRosterHidden(csrfToken, c.character, hide);
+            await setRosterHidden(c.character, hide);
             setData((prev) => {
                 if (!prev) return prev;
                 if (hide) {

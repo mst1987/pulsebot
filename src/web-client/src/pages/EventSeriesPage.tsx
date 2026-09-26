@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
     deleteEventSeries, getEventSeries, previewEventSeries, runEventSeries, saveEventSeries,
-    type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview,
-} from "../api";
+    type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday,
-} from "../lib/eventSeries";
-import type { ShellContext } from "../components/Shell";
+    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday } from "../lib/eventSeries";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -68,11 +65,10 @@ function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
     );
 }
 
-function SeriesModal({ category, data, canWrite, csrfToken, onChanged, onClose }: {
+function SeriesModal({ category, data, canWrite, onChanged, onClose }: {
     category: SeriesCategory;
     data: EventSeriesData;
     canWrite: boolean;
-    csrfToken: string | null;
     onChanged: (msg: string, close: boolean) => void;
     onClose: () => void;
 }) {
@@ -101,7 +97,7 @@ function SeriesModal({ category, data, canWrite, csrfToken, onChanged, onClose }
     const save = async () => {
         setSaving(true);
         try {
-            const r = await saveEventSeries(csrfToken, draft);
+            const r = await saveEventSeries(draft);
             onChanged(r.message, true);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -113,7 +109,7 @@ function SeriesModal({ category, data, canWrite, csrfToken, onChanged, onClose }
     const remove = async () => {
         if (!(await ask({ title: "Serie löschen?", text: "Es werden keine weiteren Events angelegt. Bereits angelegte Events und Kanäle bleiben.", action: "Löschen" }))) return;
         try {
-            const r = await deleteEventSeries(csrfToken, category.id);
+            const r = await deleteEventSeries(category.id);
             onChanged(r.message, true);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -122,7 +118,7 @@ function SeriesModal({ category, data, canWrite, csrfToken, onChanged, onClose }
 
     const retry = async (date: string) => {
         try {
-            const r = await runEventSeries(csrfToken, category.id, date);
+            const r = await runEventSeries(category.id, date);
             onChanged(r.message, false);
             setPreview(null);
             setReload((n) => n + 1);
@@ -272,7 +268,6 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
 }
 
 export default function EventSeriesPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const [data, setData] = useState<EventSeriesData | null>(null);
@@ -293,7 +288,7 @@ export default function EventSeriesPage() {
     const runNow = async () => {
         setRunning(true);
         try {
-            const r = await runEventSeries(csrfToken);
+            const r = await runEventSeries();
             toast(r.message, r.failed ? "err" : undefined);
             load();
         } catch (err) {
@@ -331,7 +326,6 @@ export default function EventSeriesPage() {
                     category={editing}
                     data={data}
                     canWrite={canWrite}
-                    csrfToken={csrfToken}
                     onClose={editor.close}
                     onChanged={(msg, close) => {
                         toast(msg);

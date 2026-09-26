@@ -43,7 +43,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { eventId, csrfToken } = ctx;
+    const { eventId } = ctx;
 
     const [view, setView] = useState<RaidplanView | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -130,7 +130,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         if (!view || saving) return;
         setSaving(true);
         try {
-            const v = await saveRaidplan(csrfToken, { event: eventId, version: view.plan.version, bosses: toSave(draft, bossKeys) });
+            const v = await saveRaidplan({ event: eventId, version: view.plan.version, bosses: toSave(draft, bossKeys) });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -151,7 +151,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const publish = async (published: boolean, rotate = false) => {
         setSaving(true);
         try {
-            const v = await publishRaidplan(csrfToken, { event: eventId, published, rotate });
+            const v = await publishRaidplan({ event: eventId, published, rotate });
             // Only the publishing state changes here: the unsaved draft stays.
             setView((cur) => (cur ? { ...cur, plan: { ...cur.plan, status: v.plan.status, publicPath: v.plan.publicPath } } : v));
             toast(rotate ? t("raidBoard.share.rotated") : published ? t("raidBoard.share.published") : t("raidBoard.share.unpublished"));
@@ -170,7 +170,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         setSaving(true);
         try {
             // The server copies the template onto the *saved* plan; unsaved edits are replaced by it (asked above).
-            const v = await applyRaidplanTemplate(csrfToken, { event: eventId, templateId: tpl.id, version: view.plan.version });
+            const v = await applyRaidplanTemplate({ event: eventId, templateId: tpl.id, version: view.plan.version });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -237,7 +237,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
-                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
+                    mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
                     bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
                     status={(
@@ -304,7 +304,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
-                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")} csrfToken={csrfToken}
+                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}
                 profiles={profiles} categories={categories} bosses={view.bosses} bossKey={selected}
                 draft={modal === "save" ? board : null} limits={view.limits}
                 onChanged={(list, saved) => {

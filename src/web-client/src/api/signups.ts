@@ -137,8 +137,8 @@ export type BulkSignupResult = {
     counts: SignupCounts | null;
 };
 
-export function saveSignupsBulk(csrfToken: string | null, input: { eventIds: string[]; characters: { character: string; spec: string }[]; status: SignupStatus }): Promise<{ results: BulkSignupResult[] }> {
-    return send("POST", "/api/signups/bulk", csrfToken, input);
+export function saveSignupsBulk(input: { eventIds: string[]; characters: { character: string; spec: string }[]; status: SignupStatus }): Promise<{ results: BulkSignupResult[] }> {
+    return send("POST", "/api/signups/bulk", input);
 }
 
 /** One signup of an own event as the orga sees it (raid detail, GET /api/signups/event). */
@@ -160,8 +160,8 @@ export type SaveSignupResult = {
     notice?: string;
 };
 
-export function saveSignup(csrfToken: string | null, input: SignupInput): Promise<SaveSignupResult> {
-    return send("PUT", "/api/signups", csrfToken, input);
+export function saveSignup(input: SignupInput): Promise<SaveSignupResult> {
+    return send("PUT", "/api/signups", input);
 }
 
 export function getEventSignups(eventId: string): Promise<{ eventId: string; counts: SignupCounts; signups: EventSignupEntry[] }> {

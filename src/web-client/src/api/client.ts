@@ -7,6 +7,7 @@
 
 import type { ClaRaid } from "./cla";
 import { t } from "../i18n";
+import { getCsrfToken, mutatingHeaders } from "./csrf";
 
 export type ApiError = { code: string; message: string };
 
@@ -49,15 +50,13 @@ export async function get<T>(path: string): Promise<T> {
 }
 
 // Mutating requests carry the CSRF token from GET /api/session as a header
-// (the SSR forms use a hidden _csrf field instead — see src/web/auth.js).
-export async function send<T>(method: string, path: string, csrfToken: string | null, jsonBody?: unknown): Promise<T> {
+// (csrf.ts keeps it; the SSR forms use a hidden _csrf field instead — see
+// src/web/auth.js).
+export async function send<T>(method: string, path: string, jsonBody?: unknown): Promise<T> {
     const res = await fetch(path, {
         method,
         credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-            ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-        },
+        headers: mutatingHeaders("application/json", getCsrfToken()),
         body: JSON.stringify(jsonBody ?? {}),
     });
     const body = await parseJson(res);
@@ -69,11 +68,11 @@ export async function send<T>(method: string, path: string, csrfToken: string | 
  * A mutating request whose body is not JSON — the raidplan map upload sends the
  * file itself. Same CSRF header and error handling as send().
  */
-export async function sendRaw<T>(method: string, path: string, csrfToken: string | null, body: BodyInit, contentType: string): Promise<T> {
+export async function sendRaw<T>(method: string, path: string, body: BodyInit, contentType: string): Promise<T> {
     const res = await fetch(path, {
         method,
         credentials: "include",
-        headers: { "Content-Type": contentType, ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) },
+        headers: mutatingHeaders(contentType, getCsrfToken()),
         body,
     });
     const parsed = await parseJson(res);

@@ -680,7 +680,7 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     const start = async () => {
         setRunning(true);
         await jobs.run({ label: t("setup.explain.title"), detail: data.event.title, icon: "inv_scroll_03", expectedSeconds: 30 }, async () => {
-            await explainRaidSetup(ctx.csrfToken, ctx.eventId);
+            await explainRaidSetup(ctx.eventId);
             for (;;) {
                 await new Promise((r) => setTimeout(r, 2000));
                 const state = await getRaidSetupExplain(ctx.eventId);
@@ -742,7 +742,7 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
     const regenerate = async (next: SearchNeeds) => {
         setWriting(true);
         try {
-            const r = await previewRaidSearch(ctx.csrfToken, ctx.eventId, { roles: next.roles, buffs: next.buffs.map((b) => ({ key: b.key, required: b.required, specs: b.specs })) });
+            const r = await previewRaidSearch(ctx.eventId, { roles: next.roles, buffs: next.buffs.map((b) => ({ key: b.key, required: b.required, specs: b.specs })) });
             setText(r.text);
             setTouched(false);
         } catch (e) {
@@ -775,7 +775,7 @@ function SearchModal({ open, onClose, ctx, search }: { open: boolean; onClose: (
     const post = async () => {
         setPosting(true);
         try {
-            const r = await postRaidSearch(ctx.csrfToken, ctx.eventId, text);
+            const r = await postRaidSearch(ctx.eventId, text);
             jobs.notify(r.message || t("setup.search.posted"), "ok");
             onClose();
         } catch (e) {
@@ -1049,7 +1049,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setData({ ...shown, ...patch, setup: applyLocal(shown.setup, input) });
         chain.current = chain.current.then(async () => {
             try {
-                const next = await saveRaidSetup(ctx.csrfToken, ctx.eventId, { ...input, ...extra, version: confirmedVersion.current });
+                const next = await saveRaidSetup(ctx.eventId, { ...input, ...extra, version: confirmedVersion.current });
                 if (next.setup) confirmedVersion.current = next.setup.version;
                 // only the last pending save redraws; earlier answers would flash an older lineup
                 if (ticket === saving.current) {
@@ -1111,7 +1111,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         try {
             await chain.current;
             // the size itself first, so the lineup save below already reads it back applied
-            await updateRaidSize(ctx.csrfToken, ctx.eventId, newSize);
+            await updateRaidSize(ctx.eventId, newSize);
             await save(resized, {}, { event: { ...shown.event, size: newSize }, groupCount });
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.sizeFailed"), "err");
@@ -1144,7 +1144,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setBusy(true);
         await chain.current;
         const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
-            proposeRaidSetup(ctx.csrfToken, ctx.eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }) })
+            proposeRaidSetup(ctx.eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }) })
         ));
         setBusy(false);
         if (next) accept(next, next.message);
@@ -1165,7 +1165,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         try {
             // approve what is drawn: wait for the moves still on their way first
             await chain.current;
-            const next = await approveRaidSetup(ctx.csrfToken, ctx.eventId, confirmedVersion.current);
+            const next = await approveRaidSetup(ctx.eventId, confirmedVersion.current);
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.approveFailed"), "err");
@@ -1179,7 +1179,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setPosting(true);
         try {
             await chain.current;
-            const next = await publishRaidSetup(ctx.csrfToken, ctx.eventId);
+            const next = await publishRaidSetup(ctx.eventId);
             accept(next, next.message);
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.postFailed"), "err");
@@ -1191,7 +1191,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
     const toggleExtra = async (userId: string, role: "tank" | "healer", on: boolean) => {
         try {
-            const next = await saveSetupExtraRole(ctx.csrfToken, ctx.eventId, userId, role, on);
+            const next = await saveSetupExtraRole(ctx.eventId, userId, role, on);
             setData((prev) => (prev ? { ...prev, extraRoles: next.extraRoles } : prev));
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
@@ -1200,7 +1200,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
     const savePingText = async (text: string) => {
         try {
-            const next = await saveSetupPingText(ctx.csrfToken, ctx.eventId, text);
+            const next = await saveSetupPingText(ctx.eventId, text);
             setData((prev) => (prev ? { ...prev, pingText: next.pingText } : prev));
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");

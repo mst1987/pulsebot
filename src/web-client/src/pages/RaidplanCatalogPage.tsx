@@ -31,7 +31,7 @@ export default function RaidplanCatalogPage() {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "raids", "write");
     const [data, setData] = useState<CatalogAdmin | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -93,7 +93,7 @@ export default function RaidplanCatalogPage() {
     const remove = async (kind: Tab, e: CatalogMob | CatalogSpell) => {
         const isDefault = e.id.startsWith("d:");
         if (!(await ask({ title: t(isDefault ? "catalog.hideTitle" : "catalog.deleteTitle", { name: e.name }), text: t(isDefault ? "catalog.hideText" : "catalog.deleteText"), action: t(isDefault ? "catalog.hide" : "catalog.delete"), tone: "danger" }))) return;
-        await run(() => deleteCatalogEntry(csrfToken, kind, e.id), t("catalog.removed"));
+        await run(() => deleteCatalogEntry(kind, e.id), t("catalog.removed"));
     };
 
     const row = (kind: Tab, e: CatalogMob | CatalogSpell, icon: JSX.Element, meta: string, extra?: ReactNode) => (
@@ -105,7 +105,7 @@ export default function RaidplanCatalogPage() {
             {canWrite && (
                 <span className="rp-crow-tools">
                     <IconButton size="sm" icon={<Pencil size={15} />} tip={t("catalog.edit")} onClick={() => setDraft({ ...e })} />
-                    {e.source === "override" && <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("catalog.reset")} onClick={() => run(() => resetCatalogEntry(csrfToken, kind, e.id), t("catalog.wasReset"))} />}
+                    {e.source === "override" && <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("catalog.reset")} onClick={() => run(() => resetCatalogEntry(kind, e.id), t("catalog.wasReset"))} />}
                     <IconButton size="sm" tone="danger" icon={<Trash2 size={15} />} tip={t(e.id.startsWith("d:") ? "catalog.hide" : "catalog.delete")} onClick={() => remove(kind, e)} />
                 </span>
             )}
@@ -158,7 +158,7 @@ export default function RaidplanCatalogPage() {
                         {hidden.map((e) => (
                             <li key={e.id} className="rp-crow is-hidden">
                                 <span className="rp-crow-main"><strong>{e.name}</strong></span>
-                                {canWrite && <Button variant="ghost" size="sm" onClick={() => run(() => resetCatalogEntry(csrfToken, which, e.id), t("catalog.wasReset"))}><RotateCcw size={14} /> {t("catalog.restore")}</Button>}
+                                {canWrite && <Button variant="ghost" size="sm" onClick={() => run(() => resetCatalogEntry(which, e.id), t("catalog.wasReset"))}><RotateCcw size={14} /> {t("catalog.restore")}</Button>}
                             </li>
                         ))}
                     </ul>
@@ -168,7 +168,7 @@ export default function RaidplanCatalogPage() {
             {draft && (
                 <EntryModal
                     which={which} data={data} initial={draft} onClose={() => setDraft(null)}
-                    onSave={async (d) => { if (await run(() => saveCatalogEntry(csrfToken, which, d), t("catalog.saved"))) setDraft(null); }}
+                    onSave={async (d) => { if (await run(() => saveCatalogEntry(which, d), t("catalog.saved"))) setDraft(null); }}
                 />
             )}
         </div>

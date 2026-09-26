@@ -84,7 +84,7 @@ const TAB_ICONS: Record<Tab, string> = {
 
 export default function RaidDetailPage() {
     const t = useT();
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [editing, setEditing] = useState(false);
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
@@ -126,10 +126,10 @@ export default function RaidDetailPage() {
     };
 
     const ctx: RaidCtx | null = data && {
-        data, eventId, csrfToken, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
+        data, eventId, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
         canManage: data.event.source === "eventhelper" && canAccess(user, "raids", "write"),
     };
-    const evaluator = useEvaluate({ csrfToken, onChanged: afterChange });
+    const evaluator = useEvaluate({ onChanged: afterChange });
 
     const backLink = <p className="note"><Link className="mlink" to="/raids">{t("raidDetail.page.back")}</Link></p>;
     if (error) return <>{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: error.message })}</div></>;
@@ -177,7 +177,7 @@ export default function RaidDetailPage() {
             const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "inv_misc_map02" });
             if (!ok) return;
             try {
-                await setRaidplanLink(csrfToken, { event: ev.id, enabled: false });
+                await setRaidplanLink({ event: ev.id, enabled: false });
                 if (tab === "plan") switchTab("roster");
                 afterChange(t("raidDetail.raidplanLink.deactivated"));
             } catch (err) {
@@ -203,7 +203,7 @@ export default function RaidDetailPage() {
                 : { title: t("raidDetail.page.signups.closeTitle"), text: t("raidDetail.page.signups.closeText"), action: t("raidDetail.page.signups.closeAction"), tone: "primary", icon: "inv_misc_note_02" });
             if (!ok) return;
             try {
-                const r = await setRaidSignupsOpen(csrfToken, { event: ev.id, open });
+                const r = await setRaidSignupsOpen({ event: ev.id, open });
                 afterChange([r.message, ...(r.warnings || [])].join("\n"));
             } catch (err) {
                 jobs.notify((err as ApiError).message, "err");
@@ -215,7 +215,7 @@ export default function RaidDetailPage() {
             });
             if (!ok) return;
             try {
-                const r = await reopenRaid(csrfToken, { event: ev.id });
+                const r = await reopenRaid({ event: ev.id });
                 afterChange([r.message, ...(r.warnings || [])].join("\n"));
             } catch (err) {
                 jobs.notify((err as ApiError).message, "err");
@@ -303,7 +303,7 @@ export default function RaidDetailPage() {
             {canSwitchPlan && <RaidplanLinkModal ctx={ctx} open={linkOpen} onClose={() => setLinkOpen(false)} onDone={() => { load(); switchTab("plan"); }} />}
             {editing && (
                 <RaidCreateDialog
-                    open sourceId="" editEventId={data.event.id} csrfToken={csrfToken} userId={user?.id || ""}
+                    open sourceId="" editEventId={data.event.id} userId={user?.id || ""}
                     onClose={() => setEditing(false)} onCreated={() => { setEditing(false); load(); }}
                 />
             )}

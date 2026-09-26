@@ -12,7 +12,7 @@ import type { RaidCtx } from "../meta";
 
 export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx: RaidCtx; open: boolean; onClose: () => void; onDone: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken } = ctx;
+    const { data, eventId } = ctx;
     const toast = useToast();
     const [view, setView] = useState<RaidplanLinkView | null>(null);
     const [chosen, setChosen] = useState<string[]>([]);
@@ -46,7 +46,7 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
         if (!chosen.length) return;
         setBusy(true);
         try {
-            await setRaidplanLink(csrfToken, { event: eventId, enabled: true, instanceIds: chosen, size, versionId: view ? view.suggestion.versionId : "tbc" });
+            await setRaidplanLink({ event: eventId, enabled: true, instanceIds: chosen, size, versionId: view ? view.suggestion.versionId : "tbc" });
             toast(t("raidDetail.raidplanLink.activated"));
             onClose();
             onDone();

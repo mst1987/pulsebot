@@ -2,13 +2,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet, searchSettingsItems, getIngestTokens,
     type ApiError, type SettingsData, type AdminConfig, type Raidsheet,
-    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel, type EventSource,
-} from "../api";
-import { useOutletContext } from "react-router-dom";
+    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel, type EventSource } from "../api";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
-import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
 import BotCommandAccess from "../components/BotCommandAccess";
 import Segment from "../components/ui/Segment";
@@ -26,8 +23,7 @@ import { ChannelPicker, PenIcon, RolePicker } from "../components/settingsUi";
 import Field, { FieldLabel, InfoTip } from "../components/ui/Field";
 import Chip from "../components/ui/Chip";
 import {
-    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
-} from "../lib/settingsSections";
+    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection } from "../lib/settingsSections";
 import { draftChanges, missingConnections, serverIssues } from "../lib/settingsLogic";
 import { useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -184,9 +180,8 @@ function ChannelListField({ ids, channels, onChange }: {
 type SheetSortKey = "name" | "sheetName" | "keywords";
 const SHEET_SORT_DEFAULTS: Record<SheetSortKey, Dir> = { name: "asc", sheetName: "asc", keywords: "asc" };
 
-function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
+function RaidsheetForm({ sheet, onSaved, onCancel }: {
     sheet: Raidsheet | null;
-    csrfToken: string | null;
     onSaved: (msg: string) => void;
     onCancel: () => void;
 }) {
@@ -202,7 +197,7 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
         e.preventDefault();
         setBusy(true);
         try {
-            await saveRaidsheet(csrfToken, { id: sheet?.id, name, spreadsheetId, sheetName, gid, keywords: splitList(keywords) });
+            await saveRaidsheet({ id: sheet?.id, name, spreadsheetId, sheetName, gid, keywords: splitList(keywords) });
             onSaved(sheet ? `Raidsheet „${name}“ gespeichert.` : `Raidsheet „${name}“ angelegt.`);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -231,9 +226,8 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
 }
 
 // The guild's raidsheet templates: the list first, one editor at a time.
-function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
+function RaidsheetsSection({ sheets, onChanged }: {
     sheets: Raidsheet[];
-    csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
     const ask = useConfirm();
@@ -244,7 +238,7 @@ function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
     const remove = async (sheet: Raidsheet) => {
         if (!(await ask({ title: `Raidsheet „${sheet.name}“ löschen?`, action: "Löschen" }))) return;
         try {
-            await deleteRaidsheet(csrfToken, sheet.id);
+            await deleteRaidsheet(sheet.id);
             onChanged(`Raidsheet „${sheet.name}“ gelöscht.`);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -267,7 +261,7 @@ function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
             idOf={(s) => s.id}
             newLabel="Neues Raidsheet"
             editorTitle={(s) => (s ? `Raidsheet „${s.name || ""}“ bearbeiten` : "Neues Raidsheet")}
-            editorFor={(s) => <RaidsheetForm sheet={s} csrfToken={csrfToken} onSaved={saved} onCancel={editor.close} />}
+            editorFor={(s) => <RaidsheetForm sheet={s} onSaved={saved} onCancel={editor.close} />}
         >
             {sheets.length ? (
                 <div className="set-card table-scroll">
@@ -315,7 +309,6 @@ type PermView = "areas" | "bot";
 const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
 
 export default function SettingsPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SettingsData | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [tokens, setTokens] = useState<IngestToken[] | null>(null);
@@ -387,7 +380,7 @@ export default function SettingsPage() {
     const submit = async () => {
         setSaving(true);
         try {
-            const { config } = await updateSettings(csrfToken, {
+            const { config } = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
@@ -461,7 +454,7 @@ export default function SettingsPage() {
     const panel = () => {
         switch (active) {
             case "berechtigungen": return permView === "bot" ? (
-                <BotCommandAccess csrfToken={csrfToken} viewSwitch={permSwitch} icon={activeSection.icon} crumb="Zugang · wer darf welchen Bot-Befehl im Discord nutzen" />
+                <BotCommandAccess viewSwitch={permSwitch} icon={activeSection.icon} crumb="Zugang · wer darf welchen Bot-Befehl im Discord nutzen" />
             ) : (
                 <RolePermissionsEditor
                     viewSwitch={permSwitch}
@@ -485,7 +478,6 @@ export default function SettingsPage() {
                 <ConnectionsSection
                     data={data}
                     tokens={tokens}
-                    csrfToken={csrfToken}
                     onConfig={(config) => setData({ ...data, config })}
                     onTokensChanged={loadTokens}
                     icon={activeSection.icon}
@@ -495,7 +487,6 @@ export default function SettingsPage() {
 
             case "discordserver": return (
                 <DiscordServersSection
-                    csrfToken={csrfToken}
                     onConfig={(config) => {
                         setData({ ...data, config });
                         // The cards behind the sidebar badge changed with the servers;
@@ -548,7 +539,6 @@ export default function SettingsPage() {
                         value: draft.categoryRaidTemplate,
                         onChange: (id, templateId) => patch({ categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: templateId } }),
                     }}
-                    csrfToken={csrfToken}
                     icon={activeSection.icon}
                     crumb={activeSection.crumb}
                 />
@@ -569,7 +559,7 @@ export default function SettingsPage() {
             case "raidsheets": return (
                 <>
                     {head(activeSection, undefined, "Raidsheet-Vorlagen", "Google-Sheets nach Content (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raid-Kategorie wird unter Kategorien zugewiesen.")}
-                    <RaidsheetsSection sheets={data.raidsheets} csrfToken={csrfToken} onChanged={(msg) => { toast(msg); load(); }} />
+                    <RaidsheetsSection sheets={data.raidsheets} onChanged={(msg) => { toast(msg); load(); }} />
                 </>
             );
 

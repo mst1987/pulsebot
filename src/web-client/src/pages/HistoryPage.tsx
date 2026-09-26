@@ -82,10 +82,9 @@ const LOOT_EVENT_SORT_DEFAULTS: Record<LootEventSortKey, Dir> = {
     event: "asc", date: "desc", category: "asc", count: "desc", source: "asc",
 };
 
-function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }: {
+function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
     lootEvents: LootEventSummary[];
     categories: Category[];
-    csrfToken: string | null;
     onChanged: (msg: string) => void;
     // Without write access to "Historie & Loot" the category is shown, not set —
     // the loot views are read-only (src/config/permissions.js).
@@ -108,7 +107,7 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
     const save = async (eventId: string, categoryId: string) => {
         setSaving(eventId);
         try {
-            const r = await setLootCategory(csrfToken, { event: eventId, categoryId });
+            const r = await setLootCategory({ event: eventId, categoryId });
             onChanged(`Kategorie gesetzt (${r.updated} Item(s)).`);
         } catch (err) {
             // Not onChanged: nothing changed, so this must not reload the list
@@ -202,7 +201,7 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
 type LogSortKey = "log" | "date" | "zone" | "event" | "status";
 const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", zone: "asc", event: "asc", status: "asc" };
 
-function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: string | null; onChanged: (msg: string) => void }) {
+function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg: string) => void }) {
     const ask = useConfirm();
     const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
     const toast = useToast();
@@ -210,7 +209,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     const remove = async (l: LootLog) => {
         if (!(await ask({ title: "Log entfernen?", text: `„${l.title || l.reportId || "Log"}" wird aus der Liste entfernt.`, action: "Entfernen" }))) return;
         try {
-            await deleteHistoryLog(csrfToken, l.id);
+            await deleteHistoryLog(l.id);
             onChanged("Gelöscht.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -359,10 +358,9 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
     );
 }
 
-function CharactersTab({ chars, categories, csrfToken, onChanged }: {
+function CharactersTab({ chars, categories, onChanged }: {
     chars: AnnotatedCharacter[];
     categories: Category[];
-    csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
@@ -384,7 +382,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     const resolve = async () => {
         setBusy(true);
         try {
-            const r = await resolveCharacters(csrfToken);
+            const r = await resolveCharacters();
             onChanged(r.message);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -523,7 +521,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
 }
 
 export default function HistoryPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     // Two ways in: "history" opens the whole page, the narrower "loot" only the
@@ -695,7 +693,7 @@ export default function HistoryPage() {
             )}
             {tab === "loot" && (
                 <LootEventsTab
-                    lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken}
+                    lootEvents={data.lootEvents} categories={data.categories}
                     onChanged={afterChange} canEdit={canAccess(user, "history", "write")}
                 />
             )}
@@ -717,20 +715,18 @@ export default function HistoryPage() {
                                     categories={data.categories}
                                     unknownContentCount={stats.unknownContentCount}
                                     canEdit={canWrite}
-                                    csrfToken={csrfToken}
                                     onChanged={afterChange}
                                 />
                             )
             )}
-            {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
-            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "logs" && <LogsTab logs={data.logs} onChanged={afterChange} />}
+            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} onChanged={afterChange} />}
 
             {canWrite && (
                 <ImportLootDialog
                     open={importOpen}
                     onClose={() => { setImportOpen(false); if (legacyTab === LEGACY_IMPORT) setTab(DEFAULT_TAB); }}
                     data={data}
-                    csrfToken={csrfToken}
                     onImported={afterChange}
                 />
             )}

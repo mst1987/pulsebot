@@ -55,11 +55,10 @@ function Value({ label, value }: { label: string; value: number | null }) {
 
 // ---- editor -----------------------------------------------------------------------
 
-function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, onClose }: {
+function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
     template: RaidTemplate | null;
     versions: GameVersion[];
     canWrite: boolean;
-    csrfToken: string | null;
     onSaved: (msg: string) => void;
     onClose: () => void;
 }) {
@@ -107,7 +106,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
     const save = async () => {
         setSaving(true);
         try {
-            await saveRaidTemplate(csrfToken, draft);
+            await saveRaidTemplate(draft);
             onSaved(template ? "Vorlage gespeichert." : "Vorlage angelegt.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -120,7 +119,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
         if (!template) return;
         if (!(await ask({ title: "Vorlage löschen?", text: `„${template.name}“ wird gelöscht. In Raid-Helper bleibt eine verknüpfte Vorlage bestehen.`, action: "Löschen" }))) return;
         try {
-            await deleteRaidTemplate(csrfToken, template.id);
+            await deleteRaidTemplate(template.id);
             onSaved("Vorlage gelöscht.");
         } catch (err) {
             // 409: a category uses it as its default — the message names it.
@@ -206,7 +205,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
 // ---- page -----------------------------------------------------------------------
 
 export default function RaidTemplatesPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
@@ -241,7 +240,7 @@ export default function RaidTemplatesPage() {
     const importFromRaidHelper = async () => {
         setImporting(true);
         try {
-            const r = await importRaidTemplates(csrfToken);
+            const r = await importRaidTemplates();
             toast(`${r.added} neu, ${r.updated} schon vorhanden.`);
             load();
         } catch (err) {
@@ -304,7 +303,6 @@ export default function RaidTemplatesPage() {
                     template={entry}
                     versions={versions}
                     canWrite={canWrite}
-                    csrfToken={csrfToken}
                     onSaved={afterChange}
                     onClose={editor.close}
                 />

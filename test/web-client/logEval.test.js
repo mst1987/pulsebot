@@ -111,7 +111,7 @@ describe("Log-Auswertung: one action per row", () => {
 
     it("evaluates a detected log as CLA + RPB in one job, CLA first, the force answer reused", () => {
         expect(page).toContain("const evaluateBoth = (row: ClaRow) => {");
-        expect(page).toMatch(/evalLog\(csrfToken, row\.logId, "cla", \{ force: f \}\)[\s\S]*evalLog\(csrfToken, row\.logId, "rpb", \{ force \}\)/);
+        expect(page).toMatch(/evalLog\(row\.logId, "cla", \{ force: f \}\)[\s\S]*evalLog\(row\.logId, "rpb", \{ force \}\)/);
     });
 
     it("asks through the page's confirm dialog before discarding, deleting or unlinking", () => {
@@ -132,7 +132,7 @@ describe("Log-Auswertung: modals", () => {
         expect(page).toMatch(/\{ key: "rpb", label: "nur RPB"[^}]*icon: "ability_warrior_offensivestance"[^}]*sections: \["rpb"\] \}/);
         // the draft survives closing the dialog
         expect(dlg).toContain("useDraftState(\"cla-report-link\", { link: \"\", sections: \"both\" as SectionChoice })");
-        expect(dlg).toContain("createReport(csrfToken, target, { force, sections: choice.sections })");
+        expect(dlg).toContain("createReport(target, { force, sections: choice.sections })");
         // the hint is a tooltip on the "?" now
         expect(dlg).toContain("className=\"la-qm\"");
     });

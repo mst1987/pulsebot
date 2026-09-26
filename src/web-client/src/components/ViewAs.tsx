@@ -23,10 +23,9 @@ function reloadMenu() {
     window.location.assign("/");
 }
 
-function ViewAsDialog({ open, onClose, csrfToken, current }: {
+function ViewAsDialog({ open, onClose, current }: {
     open: boolean;
     onClose: () => void;
-    csrfToken: string | null;
     current: string[];
 }) {
     const t = useT();
@@ -54,7 +53,7 @@ function ViewAsDialog({ open, onClose, csrfToken, current }: {
     const start = async () => {
         setBusy(true);
         try {
-            await setViewAs(csrfToken, { roleIds: picked });
+            await setViewAs({ roleIds: picked });
             reloadMenu();
         } catch (e) {
             toast(t("shell.viewAs.failed", { message: (e as ApiError).message }), "err");
@@ -108,7 +107,7 @@ function ViewAsDialog({ open, onClose, csrfToken, current }: {
 }
 
 /** The top-bar button — only for a real full admin, and not while a view runs (the banner has "Ändern" then). */
-export function ViewAsButton({ user, csrfToken }: { user: SessionUser; csrfToken: string | null }) {
+export function ViewAsButton({ user }: { user: SessionUser }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     if (!user.canViewAs || user.viewAs) return null;
@@ -119,13 +118,13 @@ export function ViewAsButton({ user, csrfToken }: { user: SessionUser; csrfToken
                     <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
                 </svg>
             </button>
-            <ViewAsDialog open={open} onClose={() => setOpen(false)} csrfToken={csrfToken} current={[]} />
+            <ViewAsDialog open={open} onClose={() => setOpen(false)} current={[]} />
         </>
     );
 }
 
 /** The bar above every page while the menu shows another role's rights. */
-export function ViewAsBanner({ user, csrfToken }: { user: SessionUser; csrfToken: string | null }) {
+export function ViewAsBanner({ user }: { user: SessionUser }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -135,7 +134,7 @@ export function ViewAsBanner({ user, csrfToken }: { user: SessionUser; csrfToken
     const stop = async () => {
         setBusy(true);
         try {
-            await setViewAs(csrfToken, { stop: true });
+            await setViewAs({ stop: true });
             reloadMenu();
         } catch (e) {
             toast(t("shell.viewAs.failed", { message: (e as ApiError).message }), "err");
@@ -151,7 +150,7 @@ export function ViewAsBanner({ user, csrfToken }: { user: SessionUser; csrfToken
                 {user.canViewAs && <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>{t("shell.viewAs.change")}</Button>}
                 <Button size="sm" onClick={stop} running={busy}>{t("shell.viewAs.stop")}</Button>
             </span>
-            {user.canViewAs && <ViewAsDialog open={open} onClose={() => setOpen(false)} csrfToken={csrfToken} current={user.viewAs.roleIds} />}
+            {user.canViewAs && <ViewAsDialog open={open} onClose={() => setOpen(false)} current={user.viewAs.roleIds} />}
         </div>
     );
 }

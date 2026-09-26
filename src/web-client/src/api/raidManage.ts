@@ -55,12 +55,12 @@ export function getMovePreview(eventId: string, date: string, time: string): Pro
     return get<MovePlan>(`/api/raids/manage/move?${q.toString()}`);
 }
 
-export function moveRaid(csrfToken: string | null, input: { event: string; date: string; time: string; renameChannel: boolean; notify: boolean }): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/move", csrfToken, input);
+export function moveRaid(input: { event: string; date: string; time: string; renameChannel: boolean; notify: boolean }): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/move", input);
 }
 
-export function setRaidSignupsOpen(csrfToken: string | null, input: { event: string; open: boolean }): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/signups", csrfToken, input);
+export function setRaidSignupsOpen(input: { event: string; open: boolean }): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/signups", input);
 }
 
 export function getRaiderCandidates(eventId: string): Promise<ManageCandidates> {
@@ -68,27 +68,25 @@ export function getRaiderCandidates(eventId: string): Promise<ManageCandidates> 
 }
 
 export function addRaiderToRaid(
-    csrfToken: string | null,
     input: { event: string; userId: string; character: string; spec: string; status: SignupStatus },
 ): Promise<ManageResult & { profileChanged?: boolean }> {
-    return send("POST", "/api/raids/manage/raider", csrfToken, input);
+    return send("POST", "/api/raids/manage/raider", input);
 }
 
-export function removeRaiderFromRaid(csrfToken: string | null, input: { event: string; userId: string }): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/raider/remove", csrfToken, input);
+export function removeRaiderFromRaid(input: { event: string; userId: string }): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/raider/remove", input);
 }
 
-export function cancelRaid(csrfToken: string | null, input: { event: string; reason: string; archiveChannel: boolean; notify: boolean }): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/cancel", csrfToken, input);
+export function cancelRaid(input: { event: string; reason: string; archiveChannel: boolean; notify: boolean }): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/cancel", input);
 }
 
-export function reopenRaid(csrfToken: string | null, input: { event: string }): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/reopen", csrfToken, input);
+export function reopenRaid(input: { event: string }): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/reopen", input);
 }
 
 export function deleteRaid(
-    csrfToken: string | null,
     input: { event: string; archiveChannel: boolean; notify: boolean; confirmStarted: boolean },
 ): Promise<ManageResult> {
-    return send("POST", "/api/raids/manage/delete", csrfToken, input);
+    return send("POST", "/api/raids/manage/delete", input);
 }

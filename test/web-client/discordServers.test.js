@@ -26,7 +26,7 @@ describe("Discord-Server section", () => {
     });
 
     it("saves only the server block, through the shared patch rule", () => {
-        expect(section).toContain("updateSettings(csrfToken, discordServersPatch(fields)");
+        expect(section).toContain("updateSettings(discordServersPatch(fields)");
     });
 
     it("keeps the rights list in the tooltip, not on the card", () => {
@@ -43,7 +43,7 @@ describe("Discord-Server section", () => {
         expect(section).not.toMatch(/Zuordnung|Anmeldung pro Kategorie/);
         // The role sync needs a talk server; reminders also work on one server.
         expect(section).toContain("{data.talk && <RoleSyncPart");
-        expect(section).toContain("<RemindersPart csrfToken={csrfToken} onConfig={onConfig} />");
+        expect(section).toContain("<RemindersPart onConfig={onConfig} />");
     });
 
     it("renders one card per configured event server, keyed by its guild id", () => {
@@ -123,10 +123,10 @@ describe("raid overview row (#257, #361)", () => {
 
     it("talks to the endpoint the router serves and re-posts with the CSRF token and guild id", () => {
         expect(api).toContain('get<{ statuses: TalkOverviewStatus[] }>("/api/settings/talk-overview?preview=0")');
-        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true, guildId });');
+        expect(api).toContain('send("POST", "/api/settings/talk-overview", { repost: true, guildId });');
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
-        expect(row).toContain("repostTalkOverview(csrfToken, guildId)");
+        expect(row).toContain("repostTalkOverview(guildId)");
     });
 
     it("is a controlled row fed from the parent, not a self-fetching one", () => {

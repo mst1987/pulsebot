@@ -70,7 +70,7 @@ function Figure({ label, value, tone, tip, tipSub, onClick }: {
 }
 
 export default function ChannelsPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [data, setData] = useState<ChannelsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [dialog, setDialog] = useState<Dialog>(null);
@@ -136,15 +136,15 @@ export default function ChannelsPage() {
     };
 
     const applyChanges = (ids: string[], changes: ChannelChanges, label = "Kanäle ändern") => stepJob(
-        label, "geändert", ids, (id) => patchChannels(csrfToken, [id], changes).then((r) => r.results),
+        label, "geändert", ids, (id) => patchChannels([id], changes).then((r) => r.results),
     );
 
     const applyRename = (rows: RenamePreviewRow[]) => {
         const target = new Map(rows.map((r) => [r.id, r.to]));
-        return stepJob("Umbenennen nach Schema", "umbenannt", rows.map((r) => r.id), (id) => patchChannels(csrfToken, [id], { name: target.get(id) }).then((r) => r.results));
+        return stepJob("Umbenennen nach Schema", "umbenannt", rows.map((r) => r.id), (id) => patchChannels([id], { name: target.get(id) }).then((r) => r.results));
     };
 
-    const archiveNow = (ids: string[]) => stepJob("Archivieren", "archiviert", ids, (id) => archiveChannels(csrfToken, [id]).then((r) => r.results));
+    const archiveNow = (ids: string[]) => stepJob("Archivieren", "archiviert", ids, (id) => archiveChannels([id]).then((r) => r.results));
 
     const askArchive = (ids: string[], categoryName: string) => ask({
         title: ids.length === 1 ? `#${byId.get(ids[0])?.name || "Kanal"} archivieren?` : `${ids.length} Kanäle archivieren?`,
@@ -169,7 +169,7 @@ export default function ChannelsPage() {
         await run({ label: anywhere ? "Kanäle löschen" : "Aus dem Archiv löschen", detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
             // One request: the server checks the confirmation for the whole set and
             // deletes one channel after another with a pause.
-            const result = await deleteChannels(csrfToken, ids, confirm, anywhere);
+            const result = await deleteChannels(ids, confirm, anywhere);
             if (result.failed) throw new Error(result.message);
             return result.message;
         });
@@ -182,7 +182,7 @@ export default function ChannelsPage() {
         const label = input.withEvent ? "Kanäle und Events anlegen" : "Kanäle anlegen";
         // The message carries one line per channel whose event failed (the toast keeps the line breaks).
         await run({ label, detail: `${count} nach Schema`, icon: "inv_letter_15", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
-            const result = await quickCreateChannels(csrfToken, input);
+            const result = await quickCreateChannels(input);
             if (result.failed) throw new Error(result.message || "Anlegen fehlgeschlagen.");
             return result.message || "Kanäle angelegt.";
         });
@@ -191,7 +191,7 @@ export default function ChannelsPage() {
 
     const saveArchiveSettings = async (input: ArchiveSettingsInput, then?: string[]) => {
         setDialog(null);
-        const saved = await run({ label: "Archiv-Einstellungen", icon: "inv_letter_15", describe: () => ({ message: "Archiv gespeichert." }) }, () => saveChannelConfig(csrfToken, input));
+        const saved = await run({ label: "Archiv-Einstellungen", icon: "inv_letter_15", describe: () => ({ message: "Archiv gespeichert." }) }, () => saveChannelConfig(input));
         if (!saved) return;
         const fresh = await getChannels().catch(() => null);
         if (fresh) setData(fresh);
@@ -348,22 +348,22 @@ export default function ChannelsPage() {
                 <PurposesDialog data={data} canEdit={canEditPurposes} onEdit={(purpose) => setDialog({ kind: "purpose", purpose })} onClose={() => setDialog(null)} />
             )}
             {dialog?.kind === "purpose" && (
-                <PurposeDialog purpose={dialog.purpose} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onSaved={done} />
+                <PurposeDialog purpose={dialog.purpose} data={data} onClose={() => setDialog(null)} onSaved={done} />
             )}
             {dialog?.kind === "assign" && (
-                <AssignChannelDialog channel={dialog.channel} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onSaved={done} />
+                <AssignChannelDialog channel={dialog.channel} data={data} onClose={() => setDialog(null)} onSaved={done} />
             )}
             {dialog?.kind === "duplicate" && (
-                <DuplicateChannelDialog source={dialog.channel} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onDone={done} />
+                <DuplicateChannelDialog source={dialog.channel} data={data} onClose={() => setDialog(null)} onDone={done} />
             )}
             {dialog?.kind === "create" && (
-                <CreateChannelDialog data={data} csrfToken={csrfToken} canAssign={canEditPurposes} onClose={() => setDialog(null)} onDone={done} />
+                <CreateChannelDialog data={data} canAssign={canEditPurposes} onClose={() => setDialog(null)} onDone={done} />
             )}
             {dialog?.kind === "quick" && (
-                <QuickCreateDialog data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onCreate={quickCreate} />
+                <QuickCreateDialog data={data} onClose={() => setDialog(null)} onCreate={quickCreate} />
             )}
             {dialog?.kind === "schema" && (
-                <CategorySchemaDialog data={data} csrfToken={csrfToken} categoryId={dialog.categoryId} onClose={() => setDialog(null)} onSaved={done} />
+                <CategorySchemaDialog data={data} categoryId={dialog.categoryId} onClose={() => setDialog(null)} onSaved={done} />
             )}
             {dialog?.kind === "edit" && (
                 <ChannelEditDialog
@@ -390,7 +390,7 @@ export default function ChannelsPage() {
                 />
             )}
             {dialog?.kind === "rename" && (
-                <RenameSchemaDialog channels={selectedChannels} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onApply={applyRename} />
+                <RenameSchemaDialog channels={selectedChannels} data={data} onClose={() => setDialog(null)} onApply={applyRename} />
             )}
             {dialog?.kind === "delete" && (
                 <DeleteChannelsDialog

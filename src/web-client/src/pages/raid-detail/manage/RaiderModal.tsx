@@ -24,7 +24,7 @@ const NEW = "__new";
 
 export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const [candidates, setCandidates] = useState<ManageCandidates | null>(null);
     const [query, setQuery] = useState("");
     const [userId, setUserId] = useState("");
@@ -71,7 +71,7 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         if (!raiderInputOk(userId, characterName, spec)) return;
         setBusy(true);
         try {
-            const r = await addRaiderToRaid(csrfToken, { event: eventId, userId, character: characterName.trim(), spec, status });
+            const r = await addRaiderToRaid({ event: eventId, userId, character: characterName.trim(), spec, status });
             onClose();
             onChanged(r.message);
         } catch (err) {
@@ -86,7 +86,7 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         const who = raider.signup?.character || raider.name;
         if (!(await ask({ title: t("raidManage.raider.removeTitle", { who }), text: t("raidManage.raider.removeText"), action: t("raidManage.raider.remove") }))) return;
         try {
-            const r = await removeRaiderFromRaid(csrfToken, { event: eventId, userId: raider.userId });
+            const r = await removeRaiderFromRaid({ event: eventId, userId: raider.userId });
             onClose();
             onChanged(r.message);
         } catch (err) {

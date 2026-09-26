@@ -118,24 +118,24 @@ export function getProfile(): Promise<ProfileData> {
     return get<ProfileData>("/api/profile");
 }
 
-export function saveProfile(csrfToken: string | null, patch: ProfilePatch): Promise<{ profile: RaiderProfile }> {
-    return send("PUT", "/api/profile", csrfToken, patch);
+export function saveProfile(patch: ProfilePatch): Promise<{ profile: RaiderProfile }> {
+    return send("PUT", "/api/profile", patch);
 }
 
 export function getLogCharacters(q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
     return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}`);
 }
 
-export function addProfileCharacter(csrfToken: string | null, input: AddCharacterInput): Promise<{
+export function addProfileCharacter(input: AddCharacterInput): Promise<{
     character: ProfileCharacter;
     armory: { linked: boolean; fetched: boolean } | null;
     profile: RaiderProfile;
 }> {
-    return send("POST", "/api/profile/characters", csrfToken, input);
+    return send("POST", "/api/profile/characters", input);
 }
 
-export function removeProfileCharacter(csrfToken: string | null, key: string): Promise<{ removed: boolean; profile: RaiderProfile }> {
-    return send("POST", "/api/profile/characters", csrfToken, { remove: key });
+export function removeProfileCharacter(key: string): Promise<{ removed: boolean; profile: RaiderProfile }> {
+    return send("POST", "/api/profile/characters", { remove: key });
 }
 
 export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
@@ -165,10 +165,10 @@ export function getCalendarTokens(): Promise<CalendarTokens> {
     return get("/api/profile/calendar");
 }
 
-export function createCalendarToken(csrfToken: string | null): Promise<CalendarTokens & { token: string; url: string }> {
-    return send("POST", "/api/profile/calendar", csrfToken, {});
+export function createCalendarToken(): Promise<CalendarTokens & { token: string; url: string }> {
+    return send("POST", "/api/profile/calendar", {});
 }
 
-export function revokeCalendarToken(csrfToken: string | null, id: string): Promise<CalendarTokens & { revoked: boolean }> {
-    return send("POST", "/api/profile/calendar", csrfToken, { revoke: id });
+export function revokeCalendarToken(id: string): Promise<CalendarTokens & { revoked: boolean }> {
+    return send("POST", "/api/profile/calendar", { revoke: id });
 }

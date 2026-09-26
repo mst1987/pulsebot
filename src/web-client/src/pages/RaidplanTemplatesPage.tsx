@@ -54,7 +54,7 @@ const fieldsOf = (tpl: RaidplanTemplate): Fields => ({ name: tpl.name, category:
  */
 export default function RaidplanTemplatesPage() {
     const t = useT();
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const canWrite = canAccess(user, "raids", "write");
     const [templates, setTemplates] = useState<RaidplanTemplate[] | null>(null);
@@ -83,7 +83,7 @@ export default function RaidplanTemplatesPage() {
     if (current) {
         return (
             <TemplateEditor
-                key={current.id} template={current} csrfToken={csrfToken} canWrite={canWrite} version={version} guilds={guilds}
+                key={current.id} template={current} canWrite={canWrite} version={version} guilds={guilds}
                 profiles={profiles} onProfiles={setProfiles} onSaved={setTemplates} onBack={editor.close}
             />
         );
@@ -91,7 +91,7 @@ export default function RaidplanTemplatesPage() {
 
     return (
         <TemplateList
-            templates={templates} version={version} guilds={guilds} canWrite={canWrite} csrfToken={csrfToken}
+            templates={templates} version={version} guilds={guilds} canWrite={canWrite}
             isNew={editor.isNew} onNew={editor.startNew} onCloseNew={editor.close} onOpen={editor.startEdit} onTemplates={setTemplates}
         />
     );
@@ -142,12 +142,11 @@ function TemplateThumb({ tpl }: { tpl: RaidplanTemplate }) {
 }
 
 /** The overview: search and filters, then one card per template — newest change first. */
-function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
+function TemplateList({ templates, version, guilds, canWrite, isNew, onNew, onCloseNew, onOpen, onTemplates }: {
     templates: RaidplanTemplate[];
     version: GameVersion | null;
     guilds: SessionGuild[];
     canWrite: boolean;
-    csrfToken: string | null;
     isNew: boolean;
     onNew: () => void;
     onCloseNew: () => void;
@@ -175,7 +174,7 @@ function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, 
     const remove = async (tpl: RaidplanTemplate) => {
         if (!(await ask({ title: t("planTemplates.deleteTitle", { name: tpl.name }), text: t("planTemplates.deleteText"), action: t("raidBoard.profile.delete"), tone: "danger" }))) return;
         try {
-            const r = await deleteRaidplanTemplate(csrfToken, tpl.id);
+            const r = await deleteRaidplanTemplate(tpl.id);
             onTemplates(r.templates);
             toast(t("planTemplates.deleted"));
         } catch (err) {
@@ -184,7 +183,7 @@ function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, 
     };
     const duplicate = async (tpl: RaidplanTemplate) => {
         try {
-            const r = await duplicateRaidplanTemplate(csrfToken, tpl.id);
+            const r = await duplicateRaidplanTemplate(tpl.id);
             onTemplates(r.templates);
             toast(t("planTemplates.duplicated", { name: r.template ? r.template.name : tpl.name }));
         } catch (err) {
@@ -289,7 +288,7 @@ function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, 
                     onClose={onCloseNew}
                     onSave={async (fields) => {
                         try {
-                            const r = await createRaidplanTemplate(csrfToken, fields);
+                            const r = await createRaidplanTemplate(fields);
                             onTemplates(r.templates);
                             toast(t("planTemplates.created", { name: fields.name }));
                             if (r.template) onOpen(r.template.id);
@@ -305,7 +304,7 @@ function TemplateList({ templates, version, guilds, canWrite, csrfToken, isNew, 
                     onClose={() => setRenaming(null)}
                     onSave={async (fields) => {
                         try {
-                            const r = await updateRaidplanTemplate(csrfToken, renaming.id, fields);
+                            const r = await updateRaidplanTemplate(renaming.id, fields);
                             onTemplates(r.templates);
                             setRenaming(null);
                         } catch (err) {
@@ -412,9 +411,8 @@ function FieldsModal({ title, initial, version, guilds, onClose, onSave }: {
 }
 
 /** The editor of one template: the shared board workspace (sticky tool bar, boss chips, palette, board, properties / background / layers panel). */
-function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profiles, onProfiles, onSaved, onBack }: {
+function TemplateEditor({ template, canWrite, version, guilds, profiles, onProfiles, onSaved, onBack }: {
     template: RaidplanTemplate;
-    csrfToken: string | null;
     canWrite: boolean;
     version: GameVersion | null;
     guilds: SessionGuild[];
@@ -482,7 +480,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const save = async () => {
         setSaving(true);
         try {
-            const r = await updateRaidplanTemplate(csrfToken, tpl.id, { bosses: toSave(draft, bossKeys), version: tpl.version });
+            const r = await updateRaidplanTemplate(tpl.id, { bosses: toSave(draft, bossKeys), version: tpl.version });
             adopt(r, false);
             setConflict(false);
             toast(r.dropped ? t("raidBoard.bar.savedDropped", { count: r.dropped }) : t("planTemplates.saved"));
@@ -516,7 +514,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
     const remove = async () => {
         if (!(await ask({ title: t("planTemplates.deleteTitle", { name: tpl.name }), text: t("planTemplates.deleteText"), action: t("raidBoard.profile.delete"), tone: "danger" }))) return;
         try {
-            const r = await deleteRaidplanTemplate(csrfToken, tpl.id);
+            const r = await deleteRaidplanTemplate(tpl.id);
             onSaved(r.templates);
             toast(t("planTemplates.deleted"));
             onBack();
@@ -560,7 +558,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     mode="template" eventId="" besetzung={tpl.besetzung} catalog={tpl.catalog} boss={boss} allBosses={tpl.bossList} board={board} edit={edit} editAll={editAllBoards} roster={[]} canWrite={canWrite} limits={limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
-                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps}
+                    mapRows={mapRows} onMapsChanged={reloadMaps}
                     defaultRows={boardOf(draft, DEFAULTS_KEY).assignments} onCopyDefaults={copyDefaults}
                     bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={tpl.bossList} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, inSheet: on })) : undefined} onMap={canWrite ? (k, on) => histEdit(k, (b) => ({ ...b, showMap: on })) : undefined} />}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("planTemplates.conflict")} /> : undefined}
@@ -580,7 +578,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                     title={t("planTemplates.details")} initial={fieldsOf(tpl)} version={version} guilds={guilds} onClose={() => setModal("")}
                     onSave={async (fields) => {
                         try {
-                            const r = await updateRaidplanTemplate(csrfToken, tpl.id, fields);
+                            const r = await updateRaidplanTemplate(tpl.id, fields);
                             adopt(r, true);
                             setModal("");
                         } catch (err) {
@@ -596,7 +594,7 @@ function TemplateEditor({ template, csrfToken, canWrite, version, guilds, profil
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
-                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")} csrfToken={csrfToken}
+                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}
                 profiles={profiles} categories={categories} bosses={tpl.bossList} bossKey={selected}
                 draft={modal === "save" ? board : null} limits={limits}
                 onChanged={(list, saved) => {

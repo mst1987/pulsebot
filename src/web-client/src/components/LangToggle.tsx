@@ -9,14 +9,14 @@ import { LANGS, setLang, useLang, useT, LANG_LABELS, type Lang } from "../i18n";
  * account so it follows them to another device. A failed save changes nothing
  * on the page — the browser still remembers it.
  */
-export default function LangToggle({ csrfToken }: { csrfToken?: string | null }) {
+export default function LangToggle({ account = false }: { account?: boolean }) {
     const lang = useLang();
     const t = useT();
 
     const pick = (next: Lang) => {
         if (next === lang) return;
         setLang(next);
-        if (csrfToken) saveLang(csrfToken, next).catch(() => {});
+        if (account) saveLang(next).catch(() => {});
     };
 
     return (

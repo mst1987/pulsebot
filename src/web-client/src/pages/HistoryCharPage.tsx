@@ -478,7 +478,7 @@ function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
 }
 
 export default function HistoryCharPage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     // Also reachable read-only via "Loot-Ansichten" (src/config/permissions.js).
     const canEdit = canAccess(user, "history", "write");
     const [tab, switchTab] = usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", CHAR_TABS);
@@ -516,7 +516,7 @@ export default function HistoryCharPage() {
     // get it. Drop the row locally instead of refetching the whole character.
     const removeItem = async (it: LootItem) => {
         try {
-            await deleteLootItems(csrfToken, [it.id]);
+            await deleteLootItems([it.id]);
             setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
             toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
         } catch (err) {

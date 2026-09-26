@@ -14,12 +14,11 @@ export function getNotifyTemplates(): Promise<{ templates: NotifyTemplate[] }> {
 }
 
 export function saveNotifyTemplate(
-    csrfToken: string | null,
     input: { id?: string; name: string; title: string; body: string },
 ): Promise<{ template: NotifyTemplate }> {
-    return send("POST", "/api/notify-templates", csrfToken, input);
+    return send("POST", "/api/notify-templates", input);
 }
 
-export function deleteNotifyTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/notify-templates/delete", csrfToken, { id });
+export function deleteNotifyTemplate(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/notify-templates/delete", { id });
 }

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useOutletContext } from "react-router-dom";
 import {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate,
     postRecruitmentTemplate, updateRecruitmentPost, deleteRecruitmentPost, scanRecruitmentPosts,
-    type ApiError, type Application, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost, type TextChannel,
-} from "../api";
+    type ApiError, type Application, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost, type TextChannel } from "../api";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import { useCollectionEditor, type CollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
@@ -14,7 +12,6 @@ import { channelUrl, messageLink } from "../lib/discordLinks";
 import EmojiPicker from "../components/EmojiPicker";
 import SpecPicker, { SpecImg } from "../components/SpecPicker";
 import DiscordPreview from "../components/DiscordPreview";
-import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
 import { CheckIcon, ExternalIcon, TrashIcon } from "../components/icons";
 import { classColorProps } from "../components/ClassSpec";
@@ -230,9 +227,8 @@ function DraftBadge({ dirty }: { dirty: boolean }) {
     );
 }
 
-function TemplateEditor({ data, csrfToken, template, postedIn, onSaved, onClose }: {
+function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
     data: RecruitmentData;
-    csrfToken: string | null;
     /** null while creating. */
     template: RecruitmentTemplate | null;
     postedIn: number;
@@ -251,7 +247,7 @@ function TemplateEditor({ data, csrfToken, template, postedIn, onSaved, onClose 
         e.preventDefault();
         setBusy(true);
         try {
-            await saveRecruitmentTemplate(csrfToken, { id: template?.id, ...draft });
+            await saveRecruitmentTemplate({ id: template?.id, ...draft });
             clearDraft();
             onSaved(template ? "Vorlage gespeichert." : "Vorlage angelegt.");
         } catch (err) {
@@ -295,9 +291,8 @@ function TemplateEditor({ data, csrfToken, template, postedIn, onSaved, onClose 
     );
 }
 
-function PostEditor({ data, csrfToken, post, templateName, onSaved, onClose }: {
+function PostEditor({ data, post, templateName, onSaved, onClose }: {
     data: RecruitmentData;
-    csrfToken: string | null;
     post: RecruitmentPost;
     templateName: string;
     onSaved: (msg: string) => void;
@@ -314,7 +309,7 @@ function PostEditor({ data, csrfToken, post, templateName, onSaved, onClose }: {
         e.preventDefault();
         setBusy(true);
         try {
-            await updateRecruitmentPost(csrfToken, { id: post.id, ...draft });
+            await updateRecruitmentPost({ id: post.id, ...draft });
             clearDraft();
             onSaved("Nachricht in Discord aktualisiert.");
         } catch (err) {
@@ -353,9 +348,8 @@ function PostEditor({ data, csrfToken, post, templateName, onSaved, onClose }: {
     );
 }
 
-function PostDialog({ data, csrfToken, presetTemplateId, onPosted, onClose }: {
+function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
     data: RecruitmentData;
-    csrfToken: string | null;
     presetTemplateId: string;
     onPosted: (msg: string) => void;
     onClose: () => void;
@@ -386,7 +380,7 @@ function PostDialog({ data, csrfToken, presetTemplateId, onPosted, onClose }: {
         if (!template) return;
         setPosting(true);
         try {
-            await postRecruitmentTemplate(csrfToken, { templateId: template.id, channelId: target.channelId });
+            await postRecruitmentTemplate({ templateId: template.id, channelId: target.channelId });
             onPosted("Nachricht gepostet.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -465,9 +459,8 @@ function PostDialog({ data, csrfToken, presetTemplateId, onPosted, onClose }: {
 
 // ---- the three tabs ----
 
-function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
+function PostsTab({ data, editor, onChanged, reload }: {
     data: RecruitmentData;
-    csrfToken: string | null;
     editor: CollectionEditor;
     onChanged: (msg: string) => void;
     reload: () => void;
@@ -493,7 +486,7 @@ function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
         setScanning(true);
         const r = await run(
             { label: "Server durchsuchen", icon: ICONS.scan, detail: "Sucht Bot-Nachrichten mit Bewerben-Button", describe: (x: { count: number }) => ({ message: `${x.count} Nachricht(en) gefunden oder aktualisiert.` }) },
-            () => scanRecruitmentPosts(csrfToken),
+            () => scanRecruitmentPosts(),
         );
         setScanning(false);
         if (r) reload();
@@ -502,7 +495,7 @@ function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
     const removePost = async (p: RecruitmentPost) => {
         if (!(await ask({ title: "Aus der Verwaltung entfernen?", text: `Die Nachricht in #${p.channelName || p.channelId} bleibt in Discord bestehen — sie wird hier nur nicht mehr geführt.`, action: "Entfernen" }))) return;
         try {
-            await deleteRecruitmentPost(csrfToken, p.id);
+            await deleteRecruitmentPost(p.id);
             onChanged("Aus der Verwaltung entfernt.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -579,9 +572,8 @@ function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
     );
 }
 
-function TemplatesTab({ data, csrfToken, editor, onPost, onChanged }: {
+function TemplatesTab({ data, editor, onPost, onChanged }: {
     data: RecruitmentData;
-    csrfToken: string | null;
     editor: CollectionEditor;
     onPost: (templateId: string) => void;
     onChanged: (msg: string) => void;
@@ -602,7 +594,7 @@ function TemplatesTab({ data, csrfToken, editor, onPost, onChanged }: {
     const remove = async (t: RecruitmentTemplate) => {
         if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name || "(ohne Name)"}" wird gelöscht. Bereits gepostete Nachrichten bleiben bestehen.`, action: "Löschen" }))) return;
         try {
-            await deleteRecruitmentTemplate(csrfToken, t.id);
+            await deleteRecruitmentTemplate(t.id);
             onChanged("Vorlage gelöscht.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -798,7 +790,6 @@ function ApplicationsTab({ data }: { data: RecruitmentData }) {
 }
 
 export default function RecruitmentPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const templateEditor = useCollectionEditor("edit");
     const postEditor = useCollectionEditor("editpost");
     const [storedView, setStoredView] = usePersistedSearchParam<View>("recruitment-view", "view", "posts", VIEWS);
@@ -858,28 +849,28 @@ export default function RecruitmentPage() {
             <SubNav view={view} data={data} onChange={switchView} />
             {view === "applications" && <ApplicationsTab data={data} />}
             {view === "templates" && (
-                <TemplatesTab data={data} csrfToken={csrfToken} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
+                <TemplatesTab data={data} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
             )}
             {view === "posts" && (
-                <PostsTab data={data} csrfToken={csrfToken} editor={postEditor} onChanged={afterChange} reload={load} />
+                <PostsTab data={data} editor={postEditor} onChanged={afterChange} reload={load} />
             )}
 
             {templateEditor.open && (
                 <TemplateEditor
-                    key={editingTemplate?.id ?? "new"} data={data} csrfToken={csrfToken} template={editingTemplate}
+                    key={editingTemplate?.id ?? "new"} data={data} template={editingTemplate}
                     postedIn={editingTemplate ? data.posts.filter((p) => p.templateId === editingTemplate.id).length : 0}
                     onSaved={afterChange} onClose={templateEditor.close}
                 />
             )}
             {postEditor.open && editingPost && (
                 <PostEditor
-                    key={editingPost.id} data={data} csrfToken={csrfToken} post={editingPost}
+                    key={editingPost.id} data={data} post={editingPost}
                     templateName={data.templates.find((t) => t.id === editingPost.templateId)?.name || ""}
                     onSaved={afterChange} onClose={postEditor.close}
                 />
             )}
             {postEditor.open && !editingPost && (
-                <PostDialog data={data} csrfToken={csrfToken} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
+                <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
             )}
         </div>
     );

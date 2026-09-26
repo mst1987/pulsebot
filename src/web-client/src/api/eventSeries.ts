@@ -83,14 +83,14 @@ export function previewEventSeries(query: string): Promise<SeriesPreview> {
     return get<SeriesPreview>(`/api/raids/series/preview?${query}`);
 }
 
-export function saveEventSeries(csrfToken: string | null, input: EventSeriesInput): Promise<{ series: EventSeries; message: string }> {
-    return send("PUT", "/api/raids/series", csrfToken, input);
+export function saveEventSeries(input: EventSeriesInput): Promise<{ series: EventSeries; message: string }> {
+    return send("PUT", "/api/raids/series", input);
 }
 
-export function deleteEventSeries(csrfToken: string | null, categoryId: string): Promise<{ categoryId: string; message: string }> {
-    return send("DELETE", "/api/raids/series", csrfToken, { categoryId });
+export function deleteEventSeries(categoryId: string): Promise<{ categoryId: string; message: string }> {
+    return send("DELETE", "/api/raids/series", { categoryId });
 }
 
-export function runEventSeries(csrfToken: string | null, categoryId = "", retryDate = ""): Promise<{ created: number; failed: number; message: string }> {
-    return send("POST", "/api/raids/series/run", csrfToken, { categoryId, retryDate });
+export function runEventSeries(categoryId = "", retryDate = ""): Promise<{ created: number; failed: number; message: string }> {
+    return send("POST", "/api/raids/series/run", { categoryId, retryDate });
 }

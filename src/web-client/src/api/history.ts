@@ -154,8 +154,8 @@ export type ResolveCharactersResult = {
     message: string;
 };
 
-export function resolveCharacters(csrfToken: string | null): Promise<ResolveCharactersResult> {
-    return send("POST", "/api/history/characters-resolve", csrfToken, {});
+export function resolveCharacters(): Promise<ResolveCharactersResult> {
+    return send("POST", "/api/history/characters-resolve", {});
 }
 
 export type GearSocket = {

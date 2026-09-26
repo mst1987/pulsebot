@@ -99,20 +99,20 @@ export type ChannelBulkResult = { results: ChannelResult[]; done: number; failed
 export type ChannelChanges = { name?: string; topic?: string; parentId?: string; rateLimitPerUser?: number };
 
 /** Change channels; only the fields present in `changes` are applied. */
-export function patchChannels(csrfToken: string | null, ids: string[], changes: ChannelChanges): Promise<ChannelBulkResult> {
-    return send("PATCH", "/api/channels", csrfToken, { ids, changes });
+export function patchChannels(ids: string[], changes: ChannelChanges): Promise<ChannelBulkResult> {
+    return send("PATCH", "/api/channels", { ids, changes });
 }
 
-export function archiveChannels(csrfToken: string | null, ids: string[]): Promise<ChannelBulkResult> {
-    return send("POST", "/api/channels/archive", csrfToken, { ids });
+export function archiveChannels(ids: string[]): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/archive", { ids });
 }
 
 /**
  * Delete channels; `confirm` is the channel's name, or LÖSCHEN for several.
  * Without `anywhere` only from the archive; with it (the channel list) any channel, never a category.
  */
-export function deleteChannels(csrfToken: string | null, ids: string[], confirm: string, anywhere = false): Promise<ChannelBulkResult> {
-    return send("POST", "/api/channels/delete", csrfToken, anywhere ? { ids, confirm, anywhere: true } : { ids, confirm });
+export function deleteChannels(ids: string[], confirm: string, anywhere = false): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/delete", anywhere ? { ids, confirm, anywhere: true } : { ids, confirm });
 }
 
 /**
@@ -134,8 +134,8 @@ export type ChannelNameSuggestion = ChannelNaming & { name: string; replaced: { 
 
 export type RenamePreviewRow = { id: string; from: string; to: string; hasDate: boolean; conflict: boolean; naming?: ChannelNaming | null };
 
-export function renamePreview(csrfToken: string | null, input: { ids: string[]; schema: string; raid: string }): Promise<{ rows: RenamePreviewRow[] }> {
-    return send("POST", "/api/channels/rename-preview", csrfToken, input);
+export function renamePreview(input: { ids: string[]; schema: string; raid: string }): Promise<{ rows: RenamePreviewRow[] }> {
+    return send("POST", "/api/channels/rename-preview", input);
 }
 
 export type QuickCreateInput = {
@@ -156,35 +156,33 @@ export type QuickCreateInput = {
 };
 export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
 
-export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[]; naming?: ChannelNaming | null } & Partial<ChannelBulkResult> & { skipped?: number }> {
-    return send("POST", "/api/channels/batch", csrfToken, input);
+export function quickCreateChannels(input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[]; naming?: ChannelNaming | null } & Partial<ChannelBulkResult> & { skipped?: number }> {
+    return send("POST", "/api/channels/batch", input);
 }
 
 /** A category's naming schema on its own; an empty schema = like the latest event channel again. */
 export function saveChannelSchema(
-    csrfToken: string | null,
     input: { categoryId: string; schema: string; raid: string; templateChannelId: string },
 ): Promise<{ schema: ChannelSchema }> {
-    return send("POST", "/api/channels/schema", csrfToken, input);
+    return send("POST", "/api/channels/schema", input);
 }
 
 export function saveChannelConfig(
-    csrfToken: string | null,
     input: { archiveCategoryId?: string; archiveDeleteHintDays?: number; createArchiveCategory?: string },
 ): Promise<{ config: { archiveCategoryId: string; archiveDeleteHintDays: number } }> {
-    return send("POST", "/api/channels/config", csrfToken, input);
+    return send("POST", "/api/channels/config", input);
 }
 
 /**
  * Store a purpose's channels (or categories). The assignment is a setting, so
  * it goes through PATCH /api/settings and needs write access to Einstellungen.
  */
-export function saveChannelPurpose(csrfToken: string | null, purpose: ChannelPurpose, ids: string[]): Promise<{ config: AdminConfig }> {
+export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[]): Promise<{ config: AdminConfig }> {
     const clean = [...new Set(ids.filter(Boolean))];
     const partial: Record<string, unknown> = purpose.key === "raidDefaults.channelId"
         ? { raidDefaults: { channelId: clean[0] || "" } }
         : { [purpose.key]: purpose.multiple ? clean : (clean[0] || "") };
-    return send("PATCH", "/api/settings", csrfToken, partial);
+    return send("PATCH", "/api/settings", partial);
 }
 
 export function getChannels(): Promise<ChannelsData> {
@@ -192,15 +190,13 @@ export function getChannels(): Promise<ChannelsData> {
 }
 
 export function createChannel(
-    csrfToken: string | null,
     input: { name: string; type: string; parentId: string },
 ): Promise<{ id: string; name: string }> {
-    return send("POST", "/api/channels", csrfToken, input);
+    return send("POST", "/api/channels", input);
 }
 
 export function duplicateChannel(
-    csrfToken: string | null,
     input: { channelId: string; name: string },
 ): Promise<{ id: string; name: string }> {
-    return send("POST", "/api/channels/duplicate", csrfToken, input);
+    return send("POST", "/api/channels/duplicate", input);
 }

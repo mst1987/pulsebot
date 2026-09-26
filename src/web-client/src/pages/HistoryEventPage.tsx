@@ -15,7 +15,7 @@ import RaidLoader from "../components/ui/RaidLoader";
 
 export default function HistoryEventPage() {
     const ask = useConfirm();
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     // Reachable with the read-only "Loot-Ansichten" too, which sees the loot but
     // must not add to or delete from it (src/config/permissions.js).
     const canEdit = canAccess(user, "history", "write");
@@ -36,7 +36,7 @@ export default function HistoryEventPage() {
         if (!(await ask({ title: "Event-Loot löschen?", text: `Der gesamte Loot dieses Events (${data?.items.length || 0} Einträge) wird gelöscht. Ein erneuter Import bringt ihn zurück.`, action: "Loot löschen" }))) return;
         setBusy(true);
         try {
-            const r = await clearHistoryEvent(csrfToken, eventId);
+            const r = await clearHistoryEvent(eventId);
             toast(`${r.removed} Loot-Eintrag/-Einträge gelöscht.`);
             setData((d) => (d ? { ...d, items: [] } : d));
         } catch (err) {
@@ -50,7 +50,7 @@ export default function HistoryEventPage() {
     // away rather than refetching the event for a single removal.
     const removeItem = async (it: LootItem) => {
         try {
-            await deleteLootItems(csrfToken, [it.id]);
+            await deleteLootItems([it.id]);
             setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
             toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
         } catch (err) {
@@ -85,7 +85,6 @@ export default function HistoryEventPage() {
                                     eventId={eventId}
                                     eventTitle={data.label}
                                     defaultAwardedAt={data.items[0]?.awardedAt || 0}
-                                    csrfToken={csrfToken}
                                     onAdded={(msg) => { toast(msg); getHistoryEvent(eventId).then(setData).catch(() => {}); }}
                                 />
                             )}

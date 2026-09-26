@@ -195,8 +195,8 @@ export type CreateRaidInput = Partial<EventPlanInput> & {
     description: string;
 };
 
-export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null; announced?: boolean; announceError?: string | null }> {
-    return send("POST", "/api/raids", csrfToken, input);
+export function createRaid(input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null; announced?: boolean; announceError?: string | null }> {
+    return send("POST", "/api/raids", input);
 }
 
 export type UpdateRaidInput = Partial<EventPlanInput> & {
@@ -211,8 +211,8 @@ export type UpdateRaidInput = Partial<EventPlanInput> & {
 };
 
 /** Edit an own (EventHelper) event with the same dialog (#261). */
-export function updateRaid(csrfToken: string | null, input: UpdateRaidInput): Promise<{ id: string; messageError?: string | null }> {
-    return send("PATCH", "/api/raids", csrfToken, input);
+export function updateRaid(input: UpdateRaidInput): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", input);
 }
 
 /**
@@ -220,6 +220,6 @@ export function updateRaid(csrfToken: string | null, input: UpdateRaidInput): Pr
  * — the same PATCH /api/raids `updateEvent` already takes as a partial edit,
  * just without the rest of UpdateRaidInput's fields.
  */
-export function updateRaidSize(csrfToken: string | null, eventId: string, size: number): Promise<{ id: string; messageError?: string | null }> {
-    return send("PATCH", "/api/raids", csrfToken, { id: eventId, size });
+export function updateRaidSize(eventId: string, size: number): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", { id: eventId, size });
 }

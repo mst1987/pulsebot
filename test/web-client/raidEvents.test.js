@@ -138,7 +138,7 @@ describe("Neues Event dialog", () => {
         expect(dialog).toContain("value={tpl.raidhelperTemplateId}");
         expect(dialog).toContain("(data.categoryTemplates || {})[ev.categoryId]");
         expect(dialog).toContain("setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || \"\")");
-        expect(templates).toContain("importRaidTemplates(csrfToken)");
+        expect(templates).toContain("importRaidTemplates()");
     });
 });
 

@@ -242,17 +242,17 @@ export function getRaidplanLink(eventId: string): Promise<RaidplanLinkView> {
 }
 
 /** Switches a Raid-Helper event's raid plan on (with instances / size / version) or off (the plan stays, its public link goes). */
-export function setRaidplanLink(csrfToken: string | null, input: { event: string; enabled: boolean; instanceIds?: string[]; size?: number; versionId?: string }): Promise<RaidplanLinkView> {
-    return send("POST", "/api/raidplan/link", csrfToken, input);
+export function setRaidplanLink(input: { event: string; enabled: boolean; instanceIds?: string[]; size?: number; versionId?: string }): Promise<RaidplanLinkView> {
+    return send("POST", "/api/raidplan/link", input);
 }
 
-export function saveRaidplan(csrfToken: string | null, input: { event: string; version: number; bosses: Record<string, RaidplanBoard> }): Promise<RaidplanView> {
-    return send("PUT", "/api/raidplan", csrfToken, input);
+export function saveRaidplan(input: { event: string; version: number; bosses: Record<string, RaidplanBoard> }): Promise<RaidplanView> {
+    return send("PUT", "/api/raidplan", input);
 }
 
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
-export function suggestRaidplan(csrfToken: string | null, input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[] }): Promise<{ assignments: RaidplanAssignment[] }> {
-    return send("POST", "/api/raidplan/suggest", csrfToken, input);
+export function suggestRaidplan(input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[] }): Promise<{ assignments: RaidplanAssignment[] }> {
+    return send("POST", "/api/raidplan/suggest", input);
 }
 
 export function getRaidplanCatalog(): Promise<CatalogAdmin> {
@@ -260,43 +260,43 @@ export function getRaidplanCatalog(): Promise<CatalogAdmin> {
 }
 
 /** Creates (no id) or changes (id; a default's id makes an override) a mob or a spell; answers the whole catalog. */
-export function saveCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", input: Partial<CatalogMob & CatalogSpell>): Promise<CatalogAdmin> {
-    return send(input.id ? "PATCH" : "POST", `/api/raidplan/catalog/${kind}`, csrfToken, input);
+export function saveCatalogEntry(kind: "mobs" | "spells", input: Partial<CatalogMob & CatalogSpell>): Promise<CatalogAdmin> {
+    return send(input.id ? "PATCH" : "POST", `/api/raidplan/catalog/${kind}`, input);
 }
 
 /** Deletes an own entry; a default is hidden instead. */
-export function deleteCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
-    return send("DELETE", `/api/raidplan/catalog/${kind}`, csrfToken, { id });
+export function deleteCatalogEntry(kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
+    return send("DELETE", `/api/raidplan/catalog/${kind}`, { id });
 }
 
 /** A default entry back to what the code says (its override goes, a hidden one is shown again). */
-export function resetCatalogEntry(csrfToken: string | null, kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
-    return send("POST", "/api/raidplan/catalog/reset", csrfToken, { kind, id });
+export function resetCatalogEntry(kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
+    return send("POST", "/api/raidplan/catalog/reset", { kind, id });
 }
 
-export function publishRaidplan(csrfToken: string | null, input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {
-    return send("POST", "/api/raidplan/publish", csrfToken, input);
+export function publishRaidplan(input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {
+    return send("POST", "/api/raidplan/publish", input);
 }
 
 /** Uploads a room map: the file itself is the request body (PNG/JPG/WebP, up to 3 MB). */
-export function uploadRaidplanMap(csrfToken: string | null, key: string, file: File): Promise<{ key: string }> {
-    return sendRaw("POST", `/api/raidplan/map?key=${encodeURIComponent(key)}`, csrfToken, file, file.type || "application/octet-stream");
+export function uploadRaidplanMap(key: string, file: File): Promise<{ key: string }> {
+    return sendRaw("POST", `/api/raidplan/map?key=${encodeURIComponent(key)}`, file, file.type || "application/octet-stream");
 }
 
-export function deleteRaidplanMap(csrfToken: string | null, key: string): Promise<{ key: string; removed: boolean }> {
-    return send("POST", "/api/raidplan/map/delete", csrfToken, { key });
+export function deleteRaidplanMap(key: string): Promise<{ key: string; removed: boolean }> {
+    return send("POST", "/api/raidplan/map/delete", { key });
 }
 
-export function createRaidplanProfile(csrfToken: string | null, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
-    return send("POST", "/api/raidplan/profiles", csrfToken, input);
+export function createRaidplanProfile(input: RaidplanProfileInput): Promise<RaidplanProfiles> {
+    return send("POST", "/api/raidplan/profiles", input);
 }
 
-export function updateRaidplanProfile(csrfToken: string | null, id: string, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
-    return send("PATCH", "/api/raidplan/profiles", csrfToken, { id, ...input });
+export function updateRaidplanProfile(id: string, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
+    return send("PATCH", "/api/raidplan/profiles", { id, ...input });
 }
 
-export function deleteRaidplanProfile(csrfToken: string | null, id: string): Promise<RaidplanProfiles> {
-    return send("DELETE", "/api/raidplan/profiles", csrfToken, { id });
+export function deleteRaidplanProfile(id: string): Promise<RaidplanProfiles> {
+    return send("DELETE", "/api/raidplan/profiles", { id });
 }
 
 /** The read view behind /p/<token> — no login, the token is the authentication. */
@@ -304,8 +304,8 @@ export function getRaidplanPublic(token: string): Promise<RaidplanPublic> {
     return get<RaidplanPublic>(`/api/raidplan/public?token=${encodeURIComponent(token)}`);
 }
 
-export function applyRaidplanTemplate(csrfToken: string | null, input: { event: string; templateId: string; version: number }): Promise<RaidplanView> {
-    return send("POST", "/api/raidplan/apply", csrfToken, input);
+export function applyRaidplanTemplate(input: { event: string; templateId: string; version: number }): Promise<RaidplanView> {
+    return send("POST", "/api/raidplan/apply", input);
 }
 
 export type RaidplanTemplates = { templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
@@ -315,21 +315,21 @@ export function getRaidplanTemplates(): Promise<RaidplanTemplates> {
     return get<RaidplanTemplates>("/api/raidplan/templates");
 }
 
-export function createRaidplanTemplate(csrfToken: string | null, input: RaidplanTemplateInput): Promise<RaidplanTemplates> {
-    return send("POST", "/api/raidplan/templates", csrfToken, input);
+export function createRaidplanTemplate(input: RaidplanTemplateInput): Promise<RaidplanTemplates> {
+    return send("POST", "/api/raidplan/templates", input);
 }
 
 /** Changes fields and/or, with `bosses` + the `version` that was read, the boards. */
-export function updateRaidplanTemplate(csrfToken: string | null, id: string, input: RaidplanTemplateInput & { bosses?: Record<string, RaidplanBoard>; version?: number }): Promise<RaidplanTemplates> {
-    return send("PATCH", "/api/raidplan/templates", csrfToken, { id, ...input });
+export function updateRaidplanTemplate(id: string, input: RaidplanTemplateInput & { bosses?: Record<string, RaidplanBoard>; version?: number }): Promise<RaidplanTemplates> {
+    return send("PATCH", "/api/raidplan/templates", { id, ...input });
 }
 
-export function duplicateRaidplanTemplate(csrfToken: string | null, id: string): Promise<RaidplanTemplates> {
-    return send("POST", "/api/raidplan/templates/duplicate", csrfToken, { id });
+export function duplicateRaidplanTemplate(id: string): Promise<RaidplanTemplates> {
+    return send("POST", "/api/raidplan/templates/duplicate", { id });
 }
 
-export function deleteRaidplanTemplate(csrfToken: string | null, id: string): Promise<RaidplanTemplates> {
-    return send("DELETE", "/api/raidplan/templates", csrfToken, { id });
+export function deleteRaidplanTemplate(id: string): Promise<RaidplanTemplates> {
+    return send("DELETE", "/api/raidplan/templates", { id });
 }
 
 export function getRaidplanProfiles(): Promise<RaidplanProfiles> {

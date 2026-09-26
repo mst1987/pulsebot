@@ -83,8 +83,7 @@ function guildSelectOptions(guilds: DiscordServersData["guilds"], value: string,
 const NOTE_TIP = "Vielleicht- & Absage-Nachrichten";
 const NOTE_TIP_SUB = "Wer in Discord „Vielleicht“ oder „Absagen“ drückt, kann eine kurze Nachricht an die Raidleitung hinterlassen — der Bot postet sie hier. Ob gefragt wird (Pflicht, optional, keine), stellst du je Kategorie unter Kategorien ein.";
 
-export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb }: {
-    csrfToken: string | null;
+export default function DiscordServersSection({ onConfig, icon, crumb }: {
     onConfig: (config: AdminConfig) => void;
     icon: string;
     crumb: string;
@@ -149,7 +148,6 @@ export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb
                                 )}
                                 {hasOverview && (
                                     <TalkOverviewRow
-                                        csrfToken={csrfToken}
                                         guildId={card.id}
                                         targetGuildName={card.overviewGuildName || card.overviewGuildId}
                                         targetChannelName={channelName(overviewChannels, card.overviewChannelId)}
@@ -182,13 +180,12 @@ export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb
             )}
 
             {/* #264: the role sync needs a talk server; reminders work with one server as well. */}
-            {data.talk && <RoleSyncPart csrfToken={csrfToken} onConfig={onConfig} />}
-            <RemindersPart csrfToken={csrfToken} onConfig={onConfig} />
+            {data.talk && <RoleSyncPart onConfig={onConfig} />}
+            <RemindersPart onConfig={onConfig} />
 
             {editing && (
                 <ServersModal
                     data={data}
-                    csrfToken={csrfToken}
                     onClose={() => setEditing(false)}
                     onSaved={(config) => { onConfig(config); setEditing(false); load(); }}
                 />
@@ -310,9 +307,8 @@ function EventGuildRow({ entry, index, guilds, exclude, onChange, onRemove }: {
 const emptyEventGuild = (): EventGuildEntry => ({ guildId: "", label: "", overviewGuildId: "", overviewChannelId: "" });
 
 /** Every event server (own overview target each) plus the talk server's two channels, saved on their own. */
-function ServersModal({ data, csrfToken, onClose, onSaved }: {
+function ServersModal({ data, onClose, onSaved }: {
     data: DiscordServersData;
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: (config: AdminConfig) => void;
 }) {
@@ -329,7 +325,7 @@ function ServersModal({ data, csrfToken, onClose, onSaved }: {
     const save = async () => {
         setBusy(true);
         try {
-            const { config } = await updateSettings(csrfToken, discordServersPatch(fields) as Partial<AdminConfig>);
+            const { config } = await updateSettings(discordServersPatch(fields) as Partial<AdminConfig>);
             toast("Discord-Server gespeichert.");
             onSaved(config);
         } catch (err) {

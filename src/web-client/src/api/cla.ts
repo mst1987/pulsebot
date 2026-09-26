@@ -106,11 +106,10 @@ export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?
  * so it keeps going while the admin browses elsewhere.
  */
 export async function createReport(
-    csrfToken: string | null,
     link: string,
     opts: { force?: boolean; sections?: LogSection[] } = {},
 ): Promise<{ id: string; url: string }> {
-    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link, force: !!opts.force, sections: opts.sections });
+    const started = await send<{ jobId: string }>("POST", "/api/cla", { link, force: !!opts.force, sections: opts.sections });
     const state = await pollJob(
         () => get<JobPollStatus>(`/api/cla/report-status?jobId=${encodeURIComponent(started.jobId)}`),
         "Die Auswertung konnte nicht erstellt werden.",
@@ -119,10 +118,9 @@ export async function createReport(
 }
 
 export function deleteReport(
-    csrfToken: string | null,
     reportId: string,
 ): Promise<{ reportId: string; logId: string; message: string }> {
-    return send("POST", "/api/cla/report-delete", csrfToken, { reportId });
+    return send("POST", "/api/cla/report-delete", { reportId });
 }
 
 /**
@@ -152,12 +150,11 @@ export type EvalStatus = {
 
 /** Kick off one half of a log's analysis. Returns as soon as the job is queued. */
 export function startEval(
-    csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
     opts: { force?: boolean } = {},
 ): Promise<EvalStart> {
-    return send("POST", "/api/cla/eval", csrfToken, { logId, section, force: !!opts.force });
+    return send("POST", "/api/cla/eval", { logId, section, force: !!opts.force });
 }
 
 /** Current state of a started evaluation. */
@@ -172,11 +169,10 @@ export function getEvalStatus(logId: string, section: LogSection): Promise<EvalS
  * report page goes away and the log falls back to "offen".
  */
 export function resetEval(
-    csrfToken: string | null,
     logId: string,
     section: LogSection,
 ): Promise<{ logId: string; section: LogSection; remaining: string[]; message: string }> {
-    return send("POST", "/api/cla/eval-reset", csrfToken, { logId, section });
+    return send("POST", "/api/cla/eval-reset", { logId, section });
 }
 
 /**
@@ -190,12 +186,11 @@ export function resetEval(
  * so the evaluation (and its progress toast) survives leaving the CLA page.
  */
 export async function evalLog(
-    csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
     opts: { force?: boolean } = {},
 ): Promise<{ url: string; id?: string; alreadyEvaluated?: boolean; section?: LogSection }> {
-    const started = await startEval(csrfToken, logId, section, opts);
+    const started = await startEval(logId, section, opts);
     if (started.alreadyEvaluated) {
         return { url: started.url || "", alreadyEvaluated: true, section };
     }
@@ -203,34 +198,32 @@ export async function evalLog(
     return { url: state.url || "", id: state.id, section };
 }
 
-export function scanLogs(csrfToken: string | null): Promise<{ found: number; message: string }> {
-    return send("POST", "/api/cla/scan", csrfToken, {});
+export function scanLogs(): Promise<{ found: number; message: string }> {
+    return send("POST", "/api/cla/scan", {});
 }
 
-export function deleteLogEntry(csrfToken: string | null, logId: string): Promise<{ logId: string }> {
-    return send("POST", "/api/cla/log-delete", csrfToken, { logId });
+export function deleteLogEntry(logId: string): Promise<{ logId: string }> {
+    return send("POST", "/api/cla/log-delete", { logId });
 }
 
 export function linkLog(
-    csrfToken: string | null,
     logId: string,
     eventId: string,
 ): Promise<{ logId: string; eventId: string; eventLabel: string; message: string }> {
-    return send("POST", "/api/cla/log-link", csrfToken, { logId, eventId });
+    return send("POST", "/api/cla/log-link", { logId, eventId });
 }
 
 export function linkLogUrl(
-    csrfToken: string | null,
     link: string,
     eventId: string,
 ): Promise<{ logId: string; eventId: string; eventLabel: string; message: string }> {
-    return send("POST", "/api/cla/log-link-url", csrfToken, { link, eventId });
+    return send("POST", "/api/cla/log-link-url", { link, eventId });
 }
 
-export function unlinkLog(csrfToken: string | null, logId: string): Promise<{ logId: string; message: string }> {
-    return send("POST", "/api/cla/log-unlink", csrfToken, { logId });
+export function unlinkLog(logId: string): Promise<{ logId: string; message: string }> {
+    return send("POST", "/api/cla/log-unlink", { logId });
 }
 
-export function autoMatchLogs(csrfToken: string | null): Promise<{ matched: number; remaining: number; message: string }> {
-    return send("POST", "/api/cla/log-automatch", csrfToken, {});
+export function autoMatchLogs(): Promise<{ matched: number; remaining: number; message: string }> {
+    return send("POST", "/api/cla/log-automatch", {});
 }

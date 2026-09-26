@@ -126,8 +126,8 @@ describe("ProfilePage", () => {
         // may create and revoke, and must never ask for one back.
         it("creates and revokes through the one profile endpoint", () => {
             expect(page).toContain("getCalendarTokens()");
-            expect(page).toContain("createCalendarToken(csrfToken)");
-            expect(page).toContain("revokeCalendarToken(csrfToken, token.id)");
+            expect(page).toContain("createCalendarToken()");
+            expect(page).toContain("revokeCalendarToken(token.id)");
             expect(api).toContain("/api/profile/calendar");
             expect(api).toMatch(/send\("POST", "\/api\/profile\/calendar"/);
         });

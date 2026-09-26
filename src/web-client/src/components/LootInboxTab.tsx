@@ -71,11 +71,10 @@ function EventRadio({ ev, checked, onPick, aside }: {
     );
 }
 
-export function InboxSessionCard({ session, events, categories, csrfToken, onDone }: {
+export function InboxSessionCard({ session, events, categories, onDone }: {
     session: InboxSession;
     events: HistoryEvent[];
     categories: Category[];
-    csrfToken: string | null;
     onDone: (msg: string) => void;
 }) {
     const ask = useConfirm();
@@ -102,7 +101,7 @@ export function InboxSessionCard({ session, events, categories, csrfToken, onDon
     const accept = async () => {
         setBusy("accept");
         try {
-            const r = await acceptLootInbox(csrfToken, { id: session.id, event: eventId, manualLabel, categoryId });
+            const r = await acceptLootInbox({ id: session.id, event: eventId, manualLabel, categoryId });
             onDone(
                 `${r.added} Item(s) zu „${r.eventLabel}" übernommen`
                 + `${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`
@@ -118,7 +117,7 @@ export function InboxSessionCard({ session, events, categories, csrfToken, onDon
         if (!(await ask({ title: "Session verwerfen?", text: `${title}, ${sessionSpan(session)}, ${session.itemCount} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.`, action: "Verwerfen" }))) return;
         setBusy("dismiss");
         try {
-            await dismissLootInbox(csrfToken, session.id);
+            await dismissLootInbox(session.id);
             onDone("Session verworfen.");
         } catch (err) {
             toast((err as ApiError).message, "err");

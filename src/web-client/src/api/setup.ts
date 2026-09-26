@@ -164,28 +164,28 @@ export type SetupPublish = {
     } | null;
 };
 
-export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+export function publishRaidSetup(eventId: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/post", { event: eventId });
 }
 
 /** The message for needs the orga edited — nothing is posted. */
-export function previewRaidSearch(csrfToken: string | null, eventId: string, needs: { roles: { role: string; missing: number; specs: string[] }[]; buffs: { key: string; required: boolean; specs: string[] }[] }): Promise<{ text: string }> {
-    return send("POST", "/api/raids/setup/search/text", csrfToken, { event: eventId, roles: needs.roles, buffs: needs.buffs });
+export function previewRaidSearch(eventId: string, needs: { roles: { role: string; missing: number; specs: string[] }[]; buffs: { key: string; required: boolean; specs: string[] }[] }): Promise<{ text: string }> {
+    return send("POST", "/api/raids/setup/search/text", { event: eventId, roles: needs.roles, buffs: needs.buffs });
 }
 
 /** Post the "we are looking for …" message into the event channel; `text` = the edited message. */
-export function postRaidSearch(csrfToken: string | null, eventId: string, text: string): Promise<{ message: string; url?: string }> {
-    return send("POST", "/api/raids/setup/search", csrfToken, { event: eventId, text });
+export function postRaidSearch(eventId: string, text: string): Promise<{ message: string; url?: string }> {
+    return send("POST", "/api/raids/setup/search", { event: eventId, text });
 }
 
 /** Save the ping text sent when the setup is posted; "" clears it back to the default. */
-export function saveSetupPingText(csrfToken: string | null, eventId: string, text: string): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/ping-text", csrfToken, { event: eventId, text });
+export function saveSetupPingText(eventId: string, text: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/ping-text", { event: eventId, text });
 }
 
 /** Mark a raider as an extra tank / healer (`on`), or take the mark away; not part of the setup, a new proposal keeps it. */
-export function saveSetupExtraRole(csrfToken: string | null, eventId: string, userId: string, role: "tank" | "healer", on: boolean): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/extra-role", csrfToken, { event: eventId, userId, role, on });
+export function saveSetupExtraRole(eventId: string, userId: string, role: "tank" | "healer", on: boolean): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/extra-role", { event: eventId, userId, role, on });
 }
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */
@@ -204,20 +204,20 @@ export function getRaidSetup(eventId: string): Promise<SetupEditorData> {
     return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}`);
 }
 
-export function proposeRaidSetup(csrfToken: string | null, eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/propose", csrfToken, { event: eventId, ...options });
+export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean } = {}): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/propose", { event: eventId, ...options });
 }
 
-export function saveRaidSetup(csrfToken: string | null, eventId: string, input: SetupPlacementInput): Promise<SetupEditorData> {
-    return send("PUT", "/api/raids/setup", csrfToken, { event: eventId, ...input });
+export function saveRaidSetup(eventId: string, input: SetupPlacementInput): Promise<SetupEditorData> {
+    return send("PUT", "/api/raids/setup", { event: eventId, ...input });
 }
 
-export function approveRaidSetup(csrfToken: string | null, eventId: string, version: number): Promise<SetupEditorData> {
-    return send("POST", "/api/raids/setup/approve", csrfToken, { event: eventId, version });
+export function approveRaidSetup(eventId: string, version: number): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/approve", { event: eventId, version });
 }
 
-export function explainRaidSetup(csrfToken: string | null, eventId: string): Promise<{ eventId: string; status: string; alreadyRunning: boolean }> {
-    return send("POST", "/api/raids/setup/explain", csrfToken, { event: eventId });
+export function explainRaidSetup(eventId: string): Promise<{ eventId: string; status: string; alreadyRunning: boolean }> {
+    return send("POST", "/api/raids/setup/explain", { event: eventId });
 }
 
 export function getRaidSetupExplain(eventId: string): Promise<{ eventId: string; job: SetupJob; explanation: StoredSetup["explanation"]; version: number }> {

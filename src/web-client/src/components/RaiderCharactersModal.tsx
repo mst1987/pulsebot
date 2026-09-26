@@ -12,10 +12,9 @@ import RaidLoader from "./ui/RaidLoader";
 // section of its own with a second category picker; it now opens from the
 // category's row, so the category is a prop, not a choice.
 
-export default function RaiderCharactersModal({ categoryId, categoryName, csrfToken, onClose, onSaved }: {
+export default function RaiderCharactersModal({ categoryId, categoryName, onClose, onSaved }: {
     categoryId: string;
     categoryName: string;
-    csrfToken: string | null;
     onClose: () => void;
     onSaved: (info: RaiderCharactersData) => void;
 }) {
@@ -35,7 +34,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, csrfTo
         if (!info) return;
         setSaving(true);
         try {
-            const { assignments } = await saveRaiderCharacters(csrfToken, categoryId, draftMap);
+            const { assignments } = await saveRaiderCharacters(categoryId, draftMap);
             const next = { ...info, assignments };
             toast(`Zuordnung für ${categoryName} gespeichert.`);
             onSaved(next);

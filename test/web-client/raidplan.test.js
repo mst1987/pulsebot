@@ -769,7 +769,7 @@ describe("the pages", () => {
     });
 
     it("applies a template on the server's answer and asks first only when the plan holds something", () => {
-        expect(tab).toContain("applyRaidplanTemplate(csrfToken, { event: eventId, templateId: tpl.id, version: view.plan.version })");
+        expect(tab).toContain("applyRaidplanTemplate({ event: eventId, templateId: tpl.id, version: view.plan.version })");
         expect(tab).toContain("planHasContent(view.plan.bosses, bossKeys)");
     });
 

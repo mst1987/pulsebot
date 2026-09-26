@@ -4,12 +4,10 @@
 // brings four cards, each with its own event choice, and that does not fit into
 // a modal. The head button on the history page leads here with the open count.
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox,
-    type ApiError, type Category, type HistoryEvent, type InboxLinkedSession, type InboxSession,
-} from "../api";
-import type { ShellContext } from "../components/Shell";
+    type ApiError, type Category, type HistoryEvent, type InboxLinkedSession, type InboxSession } from "../api";
 import { useToast } from "../components/Jobs";
 import { IconButton, buttonClass } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -21,7 +19,6 @@ import "../styles/historie-loot.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
 export default function HistoryInboxPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const navigate = useNavigate();
     const toast = useToast();
     const [sessions, setSessions] = useState<InboxSession[] | null>(null);
@@ -86,7 +83,7 @@ export default function HistoryInboxPage() {
             {sessions?.map((s) => (
                 <InboxSessionCard
                     key={s.id} session={s} events={events} categories={categories}
-                    csrfToken={csrfToken} onDone={afterChange}
+                    onDone={afterChange}
                 />
             ))}
             <LinkedSessions linked={linked} />

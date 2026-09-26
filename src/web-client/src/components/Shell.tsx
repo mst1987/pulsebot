@@ -14,7 +14,7 @@ import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuil
 import { deployLine, type DeployVersion } from "../lib/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../i18n";
 
-export type ShellContext = { user: SessionUser; csrfToken: string | null };
+export type ShellContext = { user: SessionUser };
 
 // The menu entries come from src/config/menu.json, the one list the SSR chrome
 // of the report pages (src/web/adminChrome.js) renders too. `areas` are the
@@ -127,7 +127,7 @@ function DeployLine({ user }: { user: SessionUser }) {
     );
 }
 
-export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellContext & {
+export default function Shell({ user, guilds, activeGuildId }: ShellContext & {
     guilds: SessionGuild[];
     activeGuildId: string;
 }) {
@@ -186,24 +186,24 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                         {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                     </div>
                     <div className="top-actions">
-                        <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
-                        <ViewAsButton user={user} csrfToken={csrfToken} />
+                        <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} />
+                        <ViewAsButton user={user} />
                         {/* A real link, not a button: it leaves the SPA for the
                             server-rendered docs page (src/web/docsPage.js). */}
                         <a className="ibtn" href="/docs" aria-label={t("shell.docs")} data-tip={t("shell.docs")}>
                             <BookIcon />
                         </a>
-                        <LangToggle csrfToken={csrfToken} />
+                        <LangToggle account />
                         <ThemeToggle />
                     </div>
                 </header>
                 <div className="content" key={lang}>
                     {/* While an admin looks at the menu as a role: which one, and the way back. */}
-                    <ViewAsBanner user={user} csrfToken={csrfToken} />
+                    <ViewAsBanner user={user} />
                     {/* Every page is its own chunk (App.tsx, #436): while one loads,
                         the menu stays and only the page body shows the loader. */}
                     <Suspense fallback={<RaidLoader />}>
-                        <Outlet context={{ user, csrfToken } satisfies ShellContext} />
+                        <Outlet context={{ user } satisfies ShellContext} />
                     </Suspense>
                 </div>
             </div>

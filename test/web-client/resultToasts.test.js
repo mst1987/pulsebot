@@ -77,7 +77,7 @@ describe("action results are toasts", () => {
         // table, far below where the old flash line was drawn.
         const src = readClient("pages", "HistoryPage.tsx");
         const resolve = src.match(/const resolve = async \(\) => \{[\s\S]*?\n {4}\};/)[0];
-        expect(resolve).toContain("resolveCharacters(csrfToken)");
+        expect(resolve).toContain("resolveCharacters()");
         // Success goes through onChanged (toast + reload), failure straight to a
         // toast — never onChanged, which would reload as if it had worked.
         expect(resolve).toContain("onChanged(r.message)");

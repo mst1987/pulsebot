@@ -1,4 +1,5 @@
 import { get, send } from "./client";
+import { setCsrfToken } from "./csrf";
 import type { DeployVersion } from "../lib/deployVersion";
 
 // One admin-menu section a role can be given access to (src/config/permissions.js).
@@ -30,12 +31,15 @@ export type Session = {
     activeGuildId: string;
 };
 
-export function getSession(): Promise<Session> {
-    return get<Session>("/api/session");
+/** The session — and, as a side effect, the CSRF token every send() from now on carries (csrf.ts). */
+export async function getSession(): Promise<Session> {
+    const session = await get<Session>("/api/session");
+    setCsrfToken(session.csrfToken);
+    return session;
 }
 
-export function switchGuild(csrfToken: string | null, guildId: string): Promise<{ activeGuildId: string }> {
-    return send("POST", "/api/session/guild", csrfToken, { guildId });
+export function switchGuild(guildId: string): Promise<{ activeGuildId: string }> {
+    return send("POST", "/api/session/guild", { guildId });
 }
 
 /** The roles a full admin can look at the menu as. */
@@ -44,13 +48,13 @@ export function getViewAsRoles(): Promise<{ roles: ViewAsRole[]; maxRoles: numbe
 }
 
 /** Start the view as these roles ([] = only the base access), or stop it. */
-export function setViewAs(csrfToken: string | null, input: { roleIds: string[] } | { stop: true }): Promise<{ viewAs: { roleIds: string[] } | null }> {
-    return send("POST", "/api/session/view-as", csrfToken, input);
+export function setViewAs(input: { roleIds: string[] } | { stop: true }): Promise<{ viewAs: { roleIds: string[] } | null }> {
+    return send("POST", "/api/session/view-as", input);
 }
 
 /** Saves the menu language for the own account, so it follows the user to other devices. */
-export function saveLang(csrfToken: string | null, lang: "de" | "en"): Promise<{ lang: string }> {
-    return send("POST", "/api/session/lang", csrfToken, { lang });
+export function saveLang(lang: "de" | "en"): Promise<{ lang: string }> {
+    return send("POST", "/api/session/lang", { lang });
 }
 
 /** Which commit the server runs and how far behind main it is (#314) — settings readers only. */

@@ -69,7 +69,7 @@ function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: Vi
 
 export default function RaidsPage() {
     const t = useT();
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -187,7 +187,6 @@ export default function RaidsPage() {
                 <RaidCreateDialog
                     open={creating}
                     sourceId={creating ? searchParams.get("source") || "" : ""}
-                    csrfToken={csrfToken}
                     userId={user?.id || ""}
                     onClose={closeCreate}
                     onCreated={() => { closeCreate(); load(); }}

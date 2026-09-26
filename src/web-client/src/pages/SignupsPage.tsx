@@ -26,7 +26,7 @@ import "../styles/anmeldung.css";
 
 export default function SignupsPage() {
     const t = useT();
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SignupsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [params, setParams] = useSearchParams();
@@ -135,7 +135,6 @@ export default function SignupsPage() {
                 rows={bulkRows}
                 profile={data.profile}
                 classes={data.classes}
-                csrfToken={csrfToken}
                 onClose={() => setBulkRows([])}
                 onDone={onBulkDone}
             />
@@ -144,7 +143,6 @@ export default function SignupsPage() {
                 row={openRow}
                 profile={data.profile}
                 classes={data.classes}
-                csrfToken={csrfToken}
                 onClose={() => open("")}
                 onSaved={onSaved}
             />

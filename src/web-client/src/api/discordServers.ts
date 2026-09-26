@@ -77,8 +77,7 @@ export function getTalkOverview(): Promise<{ statuses: TalkOverviewStatus[] }> {
 }
 
 export function repostTalkOverview(
-    csrfToken: string | null,
     guildId: string,
 ): Promise<{ result: { guildId: string; label: string; status: string; error?: string; messageId?: string }; status: TalkOverviewStatus | null }> {
-    return send("POST", "/api/settings/talk-overview", csrfToken, { repost: true, guildId });
+    return send("POST", "/api/settings/talk-overview", { repost: true, guildId });
 }

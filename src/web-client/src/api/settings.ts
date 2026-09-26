@@ -204,16 +204,16 @@ export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
 }
 
-export function updateSettings(csrfToken: string | null, partial: Partial<AdminConfig>): Promise<{ config: AdminConfig }> {
-    return send("PATCH", "/api/settings", csrfToken, partial);
+export function updateSettings(partial: Partial<AdminConfig>): Promise<{ config: AdminConfig }> {
+    return send("PATCH", "/api/settings", partial);
 }
 
-export function saveRaidsheet(csrfToken: string | null, input: Partial<Raidsheet>): Promise<Raidsheet> {
-    return send("POST", "/api/settings/raidsheets", csrfToken, input);
+export function saveRaidsheet(input: Partial<Raidsheet>): Promise<Raidsheet> {
+    return send("POST", "/api/settings/raidsheets", input);
 }
 
-export function deleteRaidsheet(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/settings/raidsheets/delete", csrfToken, { id });
+export function deleteRaidsheet(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/settings/raidsheets/delete", { id });
 }
 
 // ---- loot-sync API tokens (full admins only) ----
@@ -235,12 +235,11 @@ export function getIngestTokens(): Promise<{ tokens: IngestToken[] }> {
 
 /** Mints a token. `token` is the plaintext and is returned exactly once. */
 export function createIngestToken(
-    csrfToken: string | null,
     name: string,
 ): Promise<{ token: string; record: IngestToken }> {
-    return send("POST", "/api/settings/ingest-tokens", csrfToken, { name });
+    return send("POST", "/api/settings/ingest-tokens", { name });
 }
 
-export function deleteIngestToken(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/settings/ingest-tokens/delete", csrfToken, { id });
+export function deleteIngestToken(id: string): Promise<{ id: string }> {
+    return send("POST", "/api/settings/ingest-tokens/delete", { id });
 }

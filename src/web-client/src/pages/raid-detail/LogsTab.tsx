@@ -16,7 +16,7 @@ import { useT } from "../../i18n";
 
 export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: Evaluator }) {
     const t = useT();
-    const { data, csrfToken, onChanged, openModal } = ctx;
+    const { data, onChanged, openModal } = ctx;
     const ask = useConfirm();
     const [unlinkBusyId, setUnlinkBusyId] = useState("");
     const logs = data.eventLogs;
@@ -25,7 +25,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
         const label = section.toUpperCase();
         if (!(await ask({ title: t("raidDetail.logs.resetTitle", { label }), text: t("raidDetail.logs.resetText"), action: t("raidDetail.logs.resetAction") }))) return;
         try {
-            const r = await resetEval(csrfToken, l.id, section);
+            const r = await resetEval(l.id, section);
             onChanged(r.message);
         } catch (err) {
             onChanged((err as ApiError).message);
@@ -36,7 +36,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
         if (!(await ask({ title: t("raidDetail.logs.unlinkTitle"), text: t("raidDetail.logs.unlinkText"), action: t("raidDetail.logs.unlinkAction") }))) return;
         setUnlinkBusyId(l.id);
         try {
-            const r = await unlinkLog(csrfToken, l.id);
+            const r = await unlinkLog(l.id);
             onChanged(r.message);
         } catch (err) {
             onChanged((err as ApiError).message);

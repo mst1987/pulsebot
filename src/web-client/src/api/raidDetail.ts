@@ -226,48 +226,43 @@ export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
 // ---- Raid detail Part B: mutating actions (Anmeldung & Sheet, Softres tabs, header quick-posts) ----
 
 export function notifyRaid(
-    csrfToken: string | null,
     input: { event: string; templateId: string; channelId: string; roleIds: string[]; target?: PingTarget },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/notify", csrfToken, input);
+    return send("POST", "/api/raids/notify", input);
 }
 
 export function pingMissingRaiders(
-    csrfToken: string | null,
     input: { event: string; text: string; target?: PingTarget },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/ping-missing", csrfToken, input);
+    return send("POST", "/api/raids/ping-missing", input);
 }
 
 /** "Invite callen": who of groups 1–5 would be pinged, and the line — nothing is posted. */
-export function previewInviteCall(csrfToken: string | null, event: string): Promise<{ count: number; text: string; groups: number[] }> {
-    return send("POST", "/api/raids/invite-call", csrfToken, { event, dryRun: true });
+export function previewInviteCall(event: string): Promise<{ count: number; text: string; groups: number[] }> {
+    return send("POST", "/api/raids/invite-call", { event, dryRun: true });
 }
 
 /** "Invite callen": ping groups 1–5 of the approved setup with "/w <Charakter> inv". */
-export function callInvite(csrfToken: string | null, event: string): Promise<{ message: string; count: number; text: string }> {
-    return send("POST", "/api/raids/invite-call", csrfToken, { event });
+export function callInvite(event: string): Promise<{ message: string; count: number; text: string }> {
+    return send("POST", "/api/raids/invite-call", { event });
 }
 
 export function fillRaidsheet(
-    csrfToken: string | null,
     input: { event: string; sheetId: string; tank3: string; eventTitle: string; eventStartTime: number },
 ): Promise<{ message: string; playerCount: number }> {
-    return send("POST", "/api/raids/fill", csrfToken, input);
+    return send("POST", "/api/raids/fill", input);
 }
 
 export function postRaidSheet(
-    csrfToken: string | null,
     input: { event: string; message?: string },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/post-sheet", csrfToken, input);
+    return send("POST", "/api/raids/post-sheet", input);
 }
 
 export function postRaidSoftres(
-    csrfToken: string | null,
     input: { event: string; message?: string },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/post-softres", csrfToken, input);
+    return send("POST", "/api/raids/post-softres", input);
 }
 
 export type SoftresSearchItem = ItemSearchResult;
@@ -278,7 +273,6 @@ export function searchSoftresItems(edition: string, q: string): Promise<{ items:
 }
 
 export function createSoftres(
-    csrfToken: string | null,
     input: {
         event: string;
         instanceCodes: string[];
@@ -290,20 +284,18 @@ export function createSoftres(
         protection?: boolean;
     },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/softres", csrfToken, input);
+    return send("POST", "/api/raids/softres", input);
 }
 
 export function linkSoftres(
-    csrfToken: string | null,
     input: { event: string; softresUrl: string; softresEditUrl: string },
 ): Promise<{ message: string }> {
-    return send("POST", "/api/raids/softres/link", csrfToken, input);
+    return send("POST", "/api/raids/softres/link", input);
 }
 
 /** This raid's loot system where it differs from its category's (`system` "" = like the category). */
 export function setRaidLootSystem(
-    csrfToken: string | null,
     input: { event: string; system: LootSystemKey | ""; softres: boolean },
 ): Promise<{ message: string; lootSystem: LootSystem }> {
-    return send("POST", "/api/raids/loot-system", csrfToken, input);
+    return send("POST", "/api/raids/loot-system", input);
 }

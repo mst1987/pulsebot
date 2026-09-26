@@ -78,7 +78,7 @@ describe("roster page", () => {
 
     it("hides a character into its own list instead of deleting anything", () => {
         expect(roster).toContain("<Segment<Tab>");
-        expect(roster).toContain("setRosterHidden(csrfToken, c.character, hide)");
+        expect(roster).toContain("setRosterHidden(c.character, hide)");
         expect(roster).toContain("<EyeOffIcon />");
         expect(roster).toContain("<EyeIcon />");
         // behind a confirm, and only with write access

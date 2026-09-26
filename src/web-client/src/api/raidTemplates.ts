@@ -123,17 +123,17 @@ export function getRaidTemplates(): Promise<RaidTemplatesData> {
 }
 
 /** Create (no id) or update (id) a raid template. */
-export function saveRaidTemplate(csrfToken: string | null, input: RaidTemplateInput): Promise<RaidTemplate> {
+export function saveRaidTemplate(input: RaidTemplateInput): Promise<RaidTemplate> {
     return input.id
-        ? send("PATCH", "/api/raid-templates", csrfToken, input)
-        : send("POST", "/api/raid-templates", csrfToken, input);
+        ? send("PATCH", "/api/raid-templates", input)
+        : send("POST", "/api/raid-templates", input);
 }
 
 /** 409 while a category uses it as its default — the message names the category. */
-export function deleteRaidTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("DELETE", "/api/raid-templates", csrfToken, { id });
+export function deleteRaidTemplate(id: string): Promise<{ id: string }> {
+    return send("DELETE", "/api/raid-templates", { id });
 }
 
-export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
-    return send("POST", "/api/raid-templates/import", csrfToken, {});
+export function importRaidTemplates(): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
+    return send("POST", "/api/raid-templates/import", {});
 }

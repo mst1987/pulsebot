@@ -14,7 +14,7 @@ import type { RaidCtx } from "../meta";
 
 export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const [info, setInfo] = useState<ManageInfo | null>(null);
     const [reason, setReason] = useState("");
     const [notify, setNotify] = useState(true);
@@ -39,7 +39,7 @@ export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         if (!cancelReasonOk(reason)) return;
         setBusy(true);
         try {
-            const r = await cancelRaid(csrfToken, { event: eventId, reason, notify, archiveChannel: archive });
+            const r = await cancelRaid({ event: eventId, reason, notify, archiveChannel: archive });
             onClose();
             onChanged([r.message, ...(r.warnings || [])].join("\n"));
         } catch (err) {

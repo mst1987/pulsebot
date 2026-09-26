@@ -150,7 +150,7 @@ type Subject = { key: string; specKey: string };
  * minutes and seconds. Results are merged, not replaced: simulating one drop
  * must not throw away the deltas of the BiS run somebody started earlier.
  */
-export function useCouncilSim(csrfToken: string | null) {
+export function useCouncilSim() {
     const jobs = useJobs();
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simRunning, setSimRunning] = useState(false);
@@ -175,7 +175,7 @@ export function useCouncilSim(csrfToken: string | null) {
                         : `DPS berechnet für ${Object.keys(r).length} Raider.`,
                 }),
             },
-            (update) => runCouncilSim(csrfToken, id, subjects, items, (job) => update({
+            (update) => runCouncilSim(id, subjects, items, (job) => update({
                 progress: job.total ? (job.progress ?? 0) / job.total : undefined,
                 detail: `${detail} · ${job.progress ?? 0} von ${job.total ?? total}`,
             })),
@@ -193,7 +193,7 @@ export function useCouncilSim(csrfToken: string | null) {
             }
             return merged;
         });
-    }, [csrfToken, jobs]);
+    }, [jobs]);
 
     return { sim, setSim, simRunning, runSim };
 }

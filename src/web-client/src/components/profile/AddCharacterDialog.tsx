@@ -28,13 +28,12 @@ const WAYS: { value: AddWay; key: string; icon: string }[] = [
 
 const MATCH_KEY: Record<string, string> = { assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
 
-export default function AddCharacterDialog({ way, onClose, classes, csrfToken, onAdded, suggestion = null }: {
+export default function AddCharacterDialog({ way, onClose, classes, onAdded, suggestion = null }: {
     way: AddWay | null;
     /** #291: class, specs and name from the raider's imported Raid-Helper signups — prefills "Von Hand". */
     suggestion?: CharacterSuggestion | null;
     onClose: () => void;
     classes: GameClass[];
-    csrfToken: string | null;
     onAdded: (profile: RaiderProfile, key: string) => void;
 }) {
     const t = useT();
@@ -74,7 +73,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
         setBusy(true);
         setError("");
         try {
-            const res = await addProfileCharacter(csrfToken, input);
+            const res = await addProfileCharacter(input);
             onAdded(res.profile, res.character.key);
         } catch (e) {
             const err = e as ApiError;

@@ -16,7 +16,7 @@ import type { RaidCtx } from "../meta";
 
 export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken } = ctx;
+    const { data, eventId } = ctx;
     const [info, setInfo] = useState<ManageInfo | null>(null);
     const [notify, setNotify] = useState(false);
     const [archive, setArchive] = useState(false);
@@ -42,7 +42,7 @@ export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         if (!deleteReady(d, confirmed)) return;
         setBusy(true);
         try {
-            const r = await deleteRaid(csrfToken, { event: eventId, notify: !!d && d.canNotify && notify, archiveChannel: archive, confirmStarted: confirmed });
+            const r = await deleteRaid({ event: eventId, notify: !!d && d.canNotify && notify, archiveChannel: archive, confirmStarted: confirmed });
             onClose();
             toast([r.message, ...(r.warnings || [])].join("\n"), r.warnings && r.warnings.length ? "err" : "ok");
             navigate("/raids");

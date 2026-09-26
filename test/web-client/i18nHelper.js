@@ -84,6 +84,8 @@ function loadTs(rel, inject = {}) {
             out.push(`function ${fn[2]}(${params.join(", ")}) {`);
             continue;
         }
+        // a typed top-level `let x: T = …` / `const x: T = …` (api/csrf.ts) loses its type; a type holding "=" (a function type) is left alone
+        if (/^(export )?(let|const) \w+: [^=]+ = /.test(line)) { out.push(line.replace(/^(export )?(let|const) (\w+): [^=]+ = /, "$2 $3 = ")); continue; }
         // lib/raidplan.ts uses type assertions (`x as Foo`) and lib/setupEditor.ts typed locals, which are only types: drop them there (no other lib is touched)
         out.push(line.replace(rel === "lib/assign.ts" || rel === "lib/steps.ts" ? /^\} as Record<.*>;$/ : /(?!)/, "};").replace(rel === "lib/setupEditor.ts" ? /^(\s*const \w+): Partial<.*?> = / : /(?!)/, "$1 = ").replace(/^export (default )?/, "").replace(rel === "lib/raidplan.ts" || rel === "lib/assign.ts" ? / as [A-Za-z_]\w*(\["\w+"\])?/g : /(?!)/g, ""));
     }

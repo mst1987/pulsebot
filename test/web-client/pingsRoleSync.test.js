@@ -22,7 +22,7 @@ describe("Wohin in the raid-detail modals", () => {
     it("sends the target with both calls", () => {
         expect(api).toContain("input: { event: string; text: string; target?: PingTarget }");
         expect(api).toMatch(/roleIds: string\[\]; target\?: PingTarget \}/);
-        expect(pingModal).toContain("pingMissingRaiders(csrfToken, { event: eventId, text, target })");
+        expect(pingModal).toContain("pingMissingRaiders({ event: eventId, text, target })");
         expect(notifyModal).toContain("roleIds, target });");
     });
 
@@ -50,7 +50,7 @@ describe("Rollen-Abgleich part", () => {
     });
 
     it("saves the list through the shared patch rule and edits in a modal", () => {
-        expect(roleSync).toContain("updateSettings(csrfToken, roleSyncPatch(rules)");
+        expect(roleSync).toContain("updateSettings(roleSyncPatch(rules)");
         expect(roleSync).toContain("<RoleRuleModal");
         expect(roleSync).toContain("<Modal");
     });

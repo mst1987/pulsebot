@@ -101,10 +101,9 @@ type FormState = { name: string; category: string; bossKey: string };
  * there. `draft` opens straight on a new tactic from the section's steps ("Als Taktik speichern"): slots and classes are kept, players
  * are left out (a library tactic is for any raid).
  */
-export function ProfilesModal({ open, onClose, csrfToken, profiles, categories, bosses, bossKey, draft, limits, onChanged }: {
+export function ProfilesModal({ open, onClose, profiles, categories, bosses, bossKey, draft, limits, onChanged }: {
     open: boolean;
     onClose: () => void;
-    csrfToken: string | null;
     profiles: RaidplanProfile[];
     categories: string[];
     bosses: RaidplanBoss[];
@@ -147,7 +146,7 @@ export function ProfilesModal({ open, onClose, csrfToken, profiles, categories, 
         if (!canSave || busy) return;
         setBusy(true);
         try {
-            const r = editing === "new" ? await createRaidplanProfile(csrfToken, input) : await updateRaidplanProfile(csrfToken, editing, input);
+            const r = editing === "new" ? await createRaidplanProfile(input) : await updateRaidplanProfile(editing, input);
             toast(t("raidBoard.profile.saved", { name: input.name || "" }));
             onChanged(r.profiles, r.profile);
             if (draft) onClose(); else setEditing("");
@@ -161,7 +160,7 @@ export function ProfilesModal({ open, onClose, csrfToken, profiles, categories, 
     const remove = async (p: RaidplanProfile) => {
         if (!(await ask({ title: t("raidBoard.profile.deleteTitle", { name: p.name }), text: t("raidBoard.profile.deleteText"), action: t("raidBoard.profile.delete"), tone: "danger" }))) return;
         try {
-            const r = await deleteRaidplanProfile(csrfToken, p.id);
+            const r = await deleteRaidplanProfile(p.id);
             toast(t("raidBoard.profile.deleted"));
             onChanged(r.profiles);
             setEditing("");

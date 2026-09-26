@@ -107,7 +107,7 @@ const MOB_TYPES = ["tank", "trashtank", "special", "cc", "kick", "dispel", "othe
  * the others appear with their first row or through "Karte hinzufügen". The old task rows are
  * rows of the type "other".
  */
-export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, csrfToken, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults, openRequest = null }: {
+export default function AssignPanel({ scope, board, edit, roster, players, isEvent, canWrite, eventId, groupCount, links, onLinks, catalog, sectionMobs, inherited = [], defaultRows = [], onCopyDefaults, openRequest = null }: {
     scope: string;
     board: RaidplanBoard;
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard) => void;
@@ -116,7 +116,6 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     isEvent: boolean;
     canWrite: boolean;
     eventId: string;
-    csrfToken: string | null;
     groupCount: number;
     links: boolean;
     onLinks: (on: boolean) => void;
@@ -200,7 +199,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         try {
             // the rows of this type made by hand stay: the suggestion goes round the raiders they already name
             const keep = board.assignments.filter((a) => a.type === type && !a.suggested);
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
+            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
             if (r.assignments.length === 0) toast(t("raidBoard.assign.noSuggestion"));
             else edit((b) => applySuggestions(b, type, r.assignments));
         } catch (err) {
@@ -284,7 +283,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
         try {
             const keep = board.assignments.filter((x) => x.type === a.type && x.id !== a.id);
-            const r = await suggestRaidplan(csrfToken, { event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
+            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;
         } catch (err) {

@@ -14,7 +14,7 @@ type Mode = "detected" | "url";
 
 export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const unlinked = data.unlinkedLogs;
     const toast = useToast();
     const [mode, setMode] = useState<Mode>(unlinked.length ? "detected" : "url");
@@ -30,13 +30,13 @@ export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; o
             if (mode === "detected") {
                 const logId = picked || unlinked[0]?.id;
                 if (!logId) return;
-                const r = await linkLog(csrfToken, logId, eventId);
+                const r = await linkLog(logId, eventId);
                 setPicked("");
                 onClose();
                 onChanged(r.message);
             } else {
                 if (!urlDraft.wclUrl.trim()) return;
-                const r = await linkLogUrl(csrfToken, urlDraft.wclUrl.trim(), eventId);
+                const r = await linkLogUrl(urlDraft.wclUrl.trim(), eventId);
                 patchUrlDraft({ wclUrl: "" });
                 onClose();
                 onChanged(r.message);

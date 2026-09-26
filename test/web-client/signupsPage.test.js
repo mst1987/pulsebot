@@ -208,9 +208,9 @@ describe("SignupDialog", () => {
         expect(api).toMatch(/send\("PUT", "\/api\/signups"/);
         expect(api).toContain("\"/api/signups\"");
         expect(api).toContain("/api/signups/event?id=");
-        expect(dialog).toContain("saveSignup(csrfToken,");
+        expect(dialog).toContain("saveSignup({");
         expect(api).toMatch(/send\("POST", "\/api\/signups\/bulk"/);
-        expect(bulk).toContain("saveSignupsBulk(csrfToken,");
+        expect(bulk).toContain("saveSignupsBulk({");
     });
 });
 

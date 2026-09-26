@@ -86,6 +86,6 @@ describe("texts and wiring", () => {
     it("the map panel shrinks before it uploads", () => {
         const panel = fs.readFileSync(path.join(root, "pages/raid-detail/raidplan/MapPanel.tsx"), "utf8");
         expect(panel).toContain("prepareMapFile(file)");
-        expect(panel.indexOf("prepareMapFile(file)")).toBeLessThan(panel.indexOf("uploadRaidplanMap(csrfToken"));
+        expect(panel.indexOf("prepareMapFile(file)")).toBeLessThan(panel.indexOf("uploadRaidplanMap("));
     });
 });
