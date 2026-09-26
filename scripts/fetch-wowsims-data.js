@@ -519,7 +519,23 @@ function writeJson(fileName, payload) {
     console.log(`-> src/config/generated/wowsims/${fileName}`);
 }
 
-main().catch((e) => {
-    console.error(e);
-    process.exit(1);
-});
+module.exports = {
+    medianIlvl,
+    statsOf,
+    isRaidItem,
+    BIS_FILES,
+    BIS_MELEE,
+    APL_FILES,
+    TIER_ILVL_HINT,
+    HAND_TYPE,
+    TYPE_TO_SLOTS,
+    STAT_KEYS,
+    RELEVANT_STATS,
+};
+
+if (require.main === module) {
+    main().catch((e) => {
+        console.error(e);
+        process.exit(1);
+    });
+}
