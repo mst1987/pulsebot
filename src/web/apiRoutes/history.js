@@ -175,7 +175,7 @@ function pickedCategory(req, requested) {
  * @returns {{ eventId, eventLabel, categoryId } | { error, status, code }}
  */
 async function resolveImportTarget(req, { event, manualLabel, items }) {
-    let eventId = String(event || "").trim();
+    const eventId = String(event || "").trim();
     const manualTitle = String(manualLabel || "").trim();
 
     if (eventId === "__manual__") {

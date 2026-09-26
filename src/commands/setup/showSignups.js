@@ -1,4 +1,4 @@
-﻿const { getAllSignUps } = require("../../utils/raidhelper");
+const { getAllSignUps } = require("../../utils/raidhelper");
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const messages = require("../../config/messages");
@@ -11,7 +11,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("show-signups")
         .setDescription("Show all signups for the current category"),
-    async execute(interaction, client) {
+    async execute(interaction) {
         try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             if (!interaction.channel.parent) {
@@ -31,7 +31,7 @@ module.exports = {
                     formattedSignUps.signUps
                 )
             );
-        } catch (error) {
+        } catch {
             await botEditReply(
                 interaction,
                 messages.general.errorTitle,

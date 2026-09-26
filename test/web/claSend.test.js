@@ -12,12 +12,8 @@ let mockClient = {};
 jest.mock("../../src/web/reportStore.js", () => ({
     getReport: (...a) => mockGetReport(...a), saveReport: (...a) => mockSaveReport(...a), listReports: jest.fn(() => []), deleteReport: jest.fn(),
 }));
-jest.mock("../../src/web/apiMiddleware.js", () => ({
-    requireAdmin: (req, res) => { if (mockUser) return mockUser; res.writeHead(401); res.end("{}"); return null; },
-    requireCsrf: (req, res) => { if (mockCsrf) return true; res.writeHead(403); res.end("{}"); return false; },
-    requireFullAdmin: () => mockUser,
-}));
-jest.mock("../../src/web/apiBody.js", () => ({ readJsonBody: jest.fn(async () => mockBody) }));
+jest.mock("../../src/web/apiMiddleware.js", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
+jest.mock("../../src/web/apiBody.js", () => require("../helpers/http").apiBodyMock({ body: () => mockBody }));
 jest.mock("../../src/web/recommendationSend.js", () => ({ sendApproved: (...a) => mockSendApproved(...a), sendStatus: (...a) => mockSendStatus(...a) }));
 jest.mock("../../src/web/raiderCharactersStore.js", () => ({ listAllAssignments: () => mockAssignments() }));
 jest.mock("../../src/web/discord.js", () => ({ getClient: () => mockClient, sendDirectMessage: jest.fn(), embed: jest.fn() }));
@@ -34,11 +30,7 @@ jest.mock("../../src/web/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
 
 const { recommendationSendStatus, sendRecommendations } = require("../../src/web/apiRoutes/cla.js");
 
-function res() {
-    const r = { status: 0, body: "", writeHead(s) { r.status = s; }, end(b) { r.body = b || ""; } };
-    r.json = () => JSON.parse(r.body || "{}");
-    return r;
-}
+const { mockRes, status, json } = require("../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -53,27 +45,27 @@ beforeEach(() => {
 
 describe("GET /api/cla/recommendations/send", () => {
     it("returns the per-raider send status from the assignments", async () => {
-        const r = res();
+        const r = mockRes();
         await recommendationSendStatus({}, r, new URL("http://x/api/cla/recommendations/send?id=abc123"));
-        expect(r.status).toBe(200);
-        expect(r.json().data.players).toEqual([{ name: "Farin", approved: 2, mapped: true }]);
+        expect(status(r)).toBe(200);
+        expect(json(r).data.players).toEqual([{ name: "Farin", approved: 2, mapped: true }]);
         expect(mockSendStatus).toHaveBeenCalledWith(expect.objectContaining({ id: "abc123" }), { c1: { u1: "Farin" } });
     });
 
     it("404s an unknown report", async () => {
-        const r = res();
+        const r = mockRes();
         await recommendationSendStatus({}, r, new URL("http://x/api/cla/recommendations/send?id=nope"));
-        expect(r.status).toBe(404);
+        expect(status(r)).toBe(404);
     });
 });
 
 describe("POST /api/cla/recommendations/send", () => {
     it("sends through the module, saves the updated report and summarises", async () => {
         mockBody = { reportId: "abc123" };
-        const r = res();
+        const r = mockRes();
         await sendRecommendations({}, r);
-        expect(r.status).toBe(200);
-        const { data } = r.json();
+        expect(status(r)).toBe(200);
+        const { data } = json(r);
         expect(data.message).toBe("1 Raider angeschrieben, 1 übersprungen.");
         expect(data.sent).toHaveLength(1);
         const opts = mockSendApproved.mock.calls[0][1];
@@ -85,7 +77,7 @@ describe("POST /api/cla/recommendations/send", () => {
 
     it("passes the named raiders and force through", async () => {
         mockBody = { reportId: "abc123", players: ["Farin", "", 7], force: true };
-        await sendRecommendations({}, res());
+        await sendRecommendations({}, mockRes());
         const opts = mockSendApproved.mock.calls[0][1];
         expect(opts.only).toEqual(["Farin", "7"]);
         expect(opts.force).toBe(true);
@@ -94,34 +86,34 @@ describe("POST /api/cla/recommendations/send", () => {
     it("words an empty send by its reason", async () => {
         mockSendApproved.mockResolvedValueOnce({ sent: [], skipped: [{ name: "Farin", reason: "already_sent", message: "x" }], report: {} });
         mockBody = { reportId: "abc123" };
-        const r = res();
+        const r = mockRes();
         await sendRecommendations({}, r);
-        expect(r.json().data.message).toBe("Nichts gesendet – siehe Gründe.");
+        expect(json(r).data.message).toBe("Nichts gesendet – siehe Gründe.");
         mockSendApproved.mockResolvedValueOnce({ sent: [], skipped: [], report: {} });
-        const r2 = res();
+        const r2 = mockRes();
         await sendRecommendations({}, r2);
-        expect(r2.json().data.message).toBe("Nichts freigegeben.");
+        expect(json(r2).data.message).toBe("Nichts freigegeben.");
     });
 
     it("refuses without the bot, without CSRF, and on an unknown report", async () => {
         mockClient = null;
         mockBody = { reportId: "abc123" };
-        let r = res();
+        let r = mockRes();
         await sendRecommendations({}, r);
-        expect(r.status).toBe(503);
+        expect(status(r)).toBe(503);
         expect(mockSendApproved).not.toHaveBeenCalled();
 
         mockClient = {};
         mockCsrf = false;
-        r = res();
+        r = mockRes();
         await sendRecommendations({}, r);
-        expect(r.status).toBe(403);
+        expect(status(r)).toBe(403);
 
         mockCsrf = true;
         mockBody = { reportId: "zzz" };
-        r = res();
+        r = mockRes();
         await sendRecommendations({}, r);
-        expect(r.status).toBe(404);
+        expect(status(r)).toBe(404);
         expect(mockSaveReport).not.toHaveBeenCalled();
     });
 });

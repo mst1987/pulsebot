@@ -12,6 +12,8 @@ jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({}))
 
 const discord = require("../../src/web/discord");
 const ping = require("../../src/web/pingDelivery");
+const { event: baseEvent } = require("../factories/events");
+const { makeGuild, makeChannel } = require("../helpers/discordClient");
 
 const config = (over = {}) => ({
     guildId: "100000",
@@ -19,12 +21,14 @@ const config = (over = {}) => ({
     roleSync: [],
     ...over,
 });
-const event = { id: "e1", title: "Karazhan", startTime: 1900000000, channelId: "110000" };
-const talkGuild = { name: "Pulse Talk", channels: { cache: new Map([["210000", { name: "pings" }]]) } };
+const event = baseEvent({ title: "Karazhan", startTime: 1900000000, channelId: "110000" });
 
 beforeEach(() => {
     jest.resetAllMocks();
-    discord.getGuild.mockImplementation((id) => (id === "200000" ? talkGuild : { name: "Event" }));
+    // built after the reset, so the guilds' own mocks keep their implementations
+    const talkGuild = makeGuild({ id: "200000", name: "Pulse Talk", channels: [makeChannel({ id: "210000", name: "pings", guildId: "200000" })] });
+    const eventGuild = makeGuild({ id: "100000", name: "Event" });
+    discord.getGuild.mockImplementation((id) => (id === "200000" ? talkGuild : eventGuild));
     // Users 1 and 2 are on the talk server, 3 is not.
     discord.fetchGuildMembersCached.mockResolvedValue([{ id: "1" }, { id: "2" }]);
     discord.postMissingPing.mockResolvedValue({ channelId: "x", messageId: "m" });

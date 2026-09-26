@@ -1,6 +1,7 @@
 const {
     analyzeMechanics, mechanicsForFight, judgeDeaths, summarize, isAvoidable, TRACKED,
 } = require("../../../src/utils/logcheck/mechanics");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 /** First tracked id of a mechanic by its rpbData name and kind. */
 function idFor(name, kind = "damage") {
@@ -9,7 +10,7 @@ function idFor(name, kind = "damage") {
 }
 
 const START = 300000;
-const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", kill: true, start_time: START, end_time: START + 200000, duration: 200000 };
+const fight = gruulFight({ start_time: START, end_time: START + 200000, duration: 200000 });
 const players = { 7: { name: "Aldra", type: "Mage" }, 8: { name: "Brokk", type: "Warrior" }, 9: { name: "Cyra", type: "Rogue" } };
 const hit = (target, name, at, amount, absorbed = 0) => ({ type: "damage", timestamp: START + at, targetID: target, amount, absorbed, ability: { guid: idFor(name), name, abilityIcon: "icon_from_log" } });
 const debuff = (target, name, at, type = "applydebuff") => ({ type, timestamp: START + at, targetID: target, ability: { guid: idFor(name, "debuff"), name } });

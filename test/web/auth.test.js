@@ -23,34 +23,41 @@ const { getConfig } = require("../../src/web/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 const auth = require("../../src/web/auth.js");
 const discord = require("../../src/web/discord");
+const fs = require("fs");
+const { DATA_DIR, dataPath } = require("../../src/config/paths");
+const { makeClient, makeGuild, discordError } = require("../helpers/discordClient");
+
+// The sessions auth.js persists: test/setup/environment.js points DATA_DIR at a
+// scratch directory of this suite's own, never the checkout's data/ (#433).
+const storedSessions = () => JSON.parse(fs.readFileSync(dataPath("sessions.json"), "utf8"));
 
 // Flush the background admin re-check kicked off by sessionFor().
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 /** A fake bot client whose guild resolves members via the given fetch impl. */
 function fakeClient(memberFetch) {
-    const guild = { members: { fetch: memberFetch } };
-    return {
-        guild,
-        client: { guilds: { cache: { get: () => guild }, fetch: jest.fn() } },
-    };
+    const guild = guildWith("guild-1", memberFetch);
+    return { guild, client: makeClient({ guilds: [guild] }) };
 }
 
-const NOT_A_MEMBER = Object.assign(new Error("Unknown Member"), { code: 10007 });
-const NOT_ON_GUILD = Object.assign(new Error("Unknown Guild"), { code: 10004 });
+/** The event server `id`, its members answered by `memberFetch`. */
+function guildWith(id, memberFetch) {
+    const guild = makeGuild({ id });
+    guild.members.fetch = memberFetch;
+    return guild;
+}
 
-/** A fake bot client on several guilds at once, `{ [guildId]: memberFetch | "offline" }`. */
+const NOT_A_MEMBER = discordError("member");
+
+/**
+ * A fake bot client on several guilds at once, `{ [guildId]: memberFetch | "offline" }`;
+ * an offline guild is not on the client, so fetching it rejects with Unknown Guild.
+ */
 function fakeMultiGuildClient(byGuild) {
-    const guilds = {};
-    for (const [guildId, memberFetch] of Object.entries(byGuild)) {
-        if (memberFetch !== "offline") guilds[guildId] = { members: { fetch: memberFetch } };
-    }
-    return {
-        guilds: {
-            cache: { get: (id) => guilds[id] },
-            fetch: jest.fn(async (id) => guilds[id] || Promise.reject(NOT_ON_GUILD)),
-        },
-    };
+    const guilds = Object.entries(byGuild)
+        .filter(([, memberFetch]) => memberFetch !== "offline")
+        .map(([guildId, memberFetch]) => guildWith(guildId, memberFetch));
+    return makeClient({ guilds });
 }
 
 /** A fake guild member holding exactly the given role ids. */
@@ -177,6 +184,9 @@ describe("web/auth", () => {
                 name: "Admin User",
                 isAdmin: true,
             });
+            // persisted for a restart - in the suite's scratch data directory
+            expect(DATA_DIR).toContain("eh-test-data-");
+            expect(storedSessions()[sid]).toMatchObject({ id: "233598324022837249", isAdmin: true });
         });
 
         it("falls back to username and marks non-admins", async () => {
@@ -434,8 +444,7 @@ describe("web/auth", () => {
                     adminRoleIds: ["role-admin"],
                     baseAccess: { loot: { read: true, write: false } },
                 }));
-                const notAMember = Object.assign(new Error("Unknown Member"), { code: 10007 });
-                discord.setClient(fakeClient(jest.fn().mockRejectedValue(notAMember)).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(NOT_A_MEMBER)).client);
 
                 const { req } = await loginAs("608");
                 const user = auth.getUser(req);
@@ -631,10 +640,19 @@ describe("web/auth", () => {
 
             auth.destroy(sid);
             expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toBeNull();
+            expect(storedSessions()).not.toHaveProperty(sid);
         });
 
-        it("tolerates a falsy sid", () => {
-            expect(() => auth.destroy(undefined)).not.toThrow();
+        it("ignores a falsy sid without touching the stored sessions", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "t" } });
+            axios.get.mockResolvedValue({ data: { id: "2", username: "v" } });
+            const sid = await auth.completeLogin("d");
+            const before = storedSessions();
+
+            expect(auth.destroy(undefined)).toBeUndefined();
+            expect(auth.destroy("")).toBeUndefined();
+            expect(storedSessions()).toEqual(before);
+            expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toMatchObject({ id: "2" });
         });
     });
 });

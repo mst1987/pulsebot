@@ -8,10 +8,11 @@ const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
+const { event: baseEvent } = require("../../factories/events");
 
 const now = Math.floor(Date.now() / 1000);
-const event = (over = {}) => ({
-    id: "e1", title: "SSC/TK", startTime: now + 86400, channelId: "ch1", leaderId: "lead", signUps: [], ...over,
+const event = (over = {}) => baseEvent({
+    title: "SSC/TK", startTime: now + 86400, channelId: "ch1", leaderId: "lead", signUps: [], ...over,
 });
 const groups = (events, error = null) => ({ groups: [{ categoryName: "Montagsraid", events }], error });
 

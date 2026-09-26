@@ -2,6 +2,7 @@ const fixture = require("../../fixtures/wcl/fight-timeline.json");
 const {
     analyzeFightTimeline, clipBands, mergeBands, gapsBetween, stackBands, deathsForFight,
 } = require("../../../src/utils/logcheck/fightTimeline");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 const GRUUL = fixture.fights.fights[2];
 
@@ -153,7 +154,7 @@ describe("analyzeFightTimeline", () => {
     });
 
     it("skips a fight with no duration", async () => {
-        const fights = { fights: [{ id: 1, boss: 650, name: "Gruul the Dragonkiller", start_time: 10, end_time: 10 }] };
+        const fights = { fights: [gruulFight({ id: 1, start_time: 10, end_time: 10 })] };
         expect(await analyzeFightTimeline(wcl(), "abc", fights)).toBeNull();
     });
 
@@ -165,7 +166,7 @@ describe("analyzeFightTimeline", () => {
     });
 
     it("leaves fightPercentage null when a wipe carries none", async () => {
-        const fights = { fights: [{ id: 1, boss: 650, name: "Gruul the Dragonkiller", start_time: 0, end_time: 1000 }] };
+        const fights = { fights: [gruulFight({ id: 1, kill: false, start_time: 0, end_time: 1000 })] };
         const result = await analyzeFightTimeline(wcl(), "abc", fights);
         expect(result.fights[0].fightPercentage).toBeNull();
     });

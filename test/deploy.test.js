@@ -145,7 +145,7 @@ describe("Dockerfile", () => {
 
     it("copies what the bot reads at runtime", () => {
         for (const dir of ["src", "assets", "scripts"]) {
-            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \./${dir}/$`, "m"));
+            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \\./${dir}/$`, "m"));
         }
         // The client imports the shared menu list from outside its folder.
         expect(docker).toMatch(/COPY src\/config\/menu\.json/);
@@ -210,15 +210,30 @@ describe("CI workflow (#414)", () => {
     });
 
     it("never lets the client's warning budget grow", () => {
-        // A ratchet from the 30 warnings at the time of #414: lower it, never raise it.
+        // A ratchet (30 warnings at #414, 18 after #415): lower it, never raise it.
         const budget = Number(job("web-client").match(/--max-warnings=(\d+)/)[1]);
-        expect(budget).toBeLessThanOrEqual(30);
+        expect(budget).toBeLessThanOrEqual(18);
     });
 
     it("deploys only after lint, tests and the web client passed", () => {
         const needs = job("deploy").match(/needs: \[([^\]]*)\]/);
         expect(needs).not.toBeNull();
         expect(needs[1].split(",").map((s) => s.trim()).sort()).toEqual(["lint", "test", "web-client"]);
+    });
+
+    it("runs deploys one after another and never cancels a queued one", () => {
+        // Three overlapping deploys crash-looped the bot on the server (see the
+        // comment in ci.yml): each ran git reset + npm ci while another one was
+        // restarting pm2. A concurrency group serialises them.
+        expect(job("deploy")).toMatch(/concurrency:\n\s+group: deploy-production\n\s+cancel-in-progress: false/);
+    });
+
+    it("gives the SSH script more than the action's 10-minute default", () => {
+        // The web client build alone takes 4-5 min on the server; the default
+        // once cut the script off in the middle of it.
+        const minutes = job("deploy").match(/command_timeout: (\d+)m/);
+        expect(minutes).not.toBeNull();
+        expect(Number(minutes[1])).toBeGreaterThanOrEqual(20);
     });
 
     it("runs the tests with coverage", () => {

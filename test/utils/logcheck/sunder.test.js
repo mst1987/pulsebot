@@ -1,4 +1,5 @@
 const { analyzeSunder } = require("../../../src/utils/logcheck/sunder");
+const { makeWcl: wclDouble } = require("../../factories/wcl");
 
 const fights = { end: 300 };
 const idToPlayer = {
@@ -6,9 +7,7 @@ const idToPlayer = {
     2: { name: "Pala", type: "Paladin" },
 };
 
-function makeWcl(events) {
-    return { getAllEvents: jest.fn(async () => events) };
-}
+const makeWcl = (events) => wclDouble({ getAllEvents: jest.fn(async () => events) });
 
 describe("logcheck/sunder analyzeSunder", () => {
     test("counts applications and how many landed below 5 stacks", async () => {
@@ -47,7 +46,7 @@ describe("logcheck/sunder analyzeSunder", () => {
     });
 
     test("API error returns null", async () => {
-        const wcl = { getAllEvents: jest.fn(async () => { throw new Error("fail"); }) };
+        const wcl = wclDouble({ getAllEvents: jest.fn(async () => { throw new Error("fail"); }) });
         expect(await analyzeSunder(wcl, "rep", fights, idToPlayer)).toBeNull();
     });
 });

@@ -2,6 +2,7 @@
 // /api/* handler — menu user or full admin, write right, CSRF, JSON body — in the
 // order the handlers always ran it, each refusal sent by the middleware it came from.
 const { EventEmitter } = require("events");
+const { mockRes, status, json: sent, jsonRequest } = require("../helpers/http");
 
 let mockUser = null;
 let mockCsrf = true;
@@ -16,22 +17,12 @@ const { emptyAccess } = require("../../src/config/permissions");
 const admin = { id: "1", name: "Admin", isAdmin: true };
 const limited = (grants) => ({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), ...grants } });
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const sent = (res) => JSON.parse(res.end.mock.calls[0][0]);
-const status = (res) => res.writeHead.mock.calls[0][0];
 
 /** Runs a wrapped handler like the router does, feeding `json` as the request body. */
 async function call(handler, { method = "POST", json, url } = {}) {
-    const req = new EventEmitter();
-    req.method = method;
-    req.headers = { "x-csrf-token": "tok" };
+    const req = jsonRequest(method, "/", json, { "x-csrf-token": "tok" });
     const res = mockRes();
-    const p = handler(req, res, url);
-    if (json !== undefined) req.emit("data", JSON.stringify(json));
-    req.emit("end");
-    await p;
+    await handler(req, res, url);
     return res;
 }
 

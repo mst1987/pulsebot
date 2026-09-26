@@ -309,7 +309,7 @@ describe("Kanäle — Threads nisten unter ihrem Kanal (#361)", () => {
         expect(bits).toContain("case TYPE_ANNOUNCEMENT_THREAD:");
         expect(bits).toContain("return <ThreadIcon />;");
         const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "discord.js"), "utf8");
-        expect(server).toContain('[ChannelType.PublicThread]: "Thread",');
-        expect(server).toContain('[ChannelType.PrivateThread]: "Privater Thread",');
+        expect(server).toContain("[ChannelType.PublicThread]: \"Thread\",");
+        expect(server).toContain("[ChannelType.PrivateThread]: \"Privater Thread\",");
     });
 });

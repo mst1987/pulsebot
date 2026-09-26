@@ -16,10 +16,10 @@ const specPicker = read("components", "SpecPicker.tsx");
 describe("Recruitment page", () => {
     it("heads the page with the shared PageHead and one primary action", () => {
         expect(page).toMatch(/<PageHead\s+icon=\{ICONS\.page\} tone="recruitment"/);
-        expect(page).toContain('page: "inv_misc_grouplooking"');
-        expect(page).toContain('post: "ability_warrior_battleshout"');
+        expect(page).toContain("page: \"inv_misc_grouplooking\"");
+        expect(page).toContain("post: \"ability_warrior_battleshout\"");
         expect(page).toMatch(/action=\{<Button icon=\{ICONS\.post\} onClick=\{\(\) => openPostDialog\(\)\}>Nachricht posten<\/Button>\}/);
-        expect(page).not.toContain('className="page-title"');
+        expect(page).not.toContain("className=\"page-title\"");
     });
 
     it("gives every tab its WoW icon and a part head", () => {
@@ -49,7 +49,7 @@ describe("Recruitment page", () => {
     });
 
     it("draws one row per application with its details in a modal", () => {
-        expect(page).not.toContain('className="applist"');
+        expect(page).not.toContain("className=\"applist\"");
         expect(page).toContain("<ApplicationDetails app={opened} onClose={() => setOpenId(\"\")} />");
         expect(page).toMatch(/<Expand open=\{openId === a\.threadId\}/);
         expect(page).toContain("{...classColorProps(a.classColor)}");
@@ -67,16 +67,16 @@ describe("Recruitment page", () => {
         expect(css).toMatch(/\.rc-specs \{[^}]*flex-wrap: wrap/);
         // The channel column takes what is left, so no width of its own — and
         // the full name stays readable in the tooltip box.
-        expect(page).toContain('<SortTh sortKey="channel" label="Channel" sort={sort} dir={dir} onSort={onSort} />');
+        expect(page).toContain("<SortTh sortKey=\"channel\" label=\"Channel\" sort={sort} dir={dir} onSort={onSort} />");
         expect(page).toContain("data-tip={`#${p.channelName || ch?.name || p.channelId}`}");
     });
 
     it("styles itself in its own stylesheet", () => {
-        expect(page).toContain('import "../styles/recruitment.css";');
+        expect(page).toContain("import \"../styles/recruitment.css\";");
         const css = read("styles", "recruitment.css");
         expect(css).toContain(".rc-editor");
         // light and dark for the Discord preview
-        expect(css).toContain(':root[data-theme="light"] .rc-page');
+        expect(css).toContain(":root[data-theme=\"light\"] .rc-page");
         expect(read("index.css")).not.toContain(".applist");
     });
 });
@@ -94,8 +94,8 @@ describe("editor pieces", () => {
         // an emoji the server does not have falls back to its name, as in Discord
         expect(preview).toContain(":{t.name}:");
         // the default button label matches the one the bot posts
-        expect(preview).toContain('buttonLabel.trim() || "Jetzt bewerben"');
-        expect(read("..", "..", "web", "discord.js")).toContain('template.buttonLabel || "Jetzt bewerben"');
+        expect(preview).toContain("buttonLabel.trim() || \"Jetzt bewerben\"");
+        expect(read("..", "..", "web", "discord.js")).toContain("template.buttonLabel || \"Jetzt bewerben\"");
     });
 
     it("counts against Discord's message limit", () => {

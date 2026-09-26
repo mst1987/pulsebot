@@ -37,13 +37,14 @@ const eventStore = require("../../src/web/eventStore");
 const store = require("../../src/web/eventSeriesStore");
 const series = require("../../src/web/eventSeries");
 const { buildTasks, _internal: { eventSeriesTask } } = require("../../src/web/dashboardOverview");
+const { series: baseSeries } = require("../factories/events");
 
 const ZONE = "Europe/Berlin";
 const at = (iso) => DateTime.fromISO(iso, { zone: ZONE }).toMillis();
 const utc = (ms) => new Date(ms).toISOString();
 const WED = 3;
 const SAT = 6;
-const base = { categoryId: "cat1", enabled: true, weekdays: [WED], time: "19:30", raidTemplateId: "tpl-ssc", daysBefore: 6, title: "", skipDates: [] };
+const base = baseSeries({ weekdays: [WED] });
 
 beforeEach(() => {
     jest.clearAllMocks();

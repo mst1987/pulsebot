@@ -34,7 +34,7 @@ Every other script (emojis, generated data, dev seed, …) with its npm alias: [
 - `.claude/hooks/guardMainShell.js` (PreToolUse on Bash/PowerShell, #315) does the same for a **shell write**: twice an empty file landed in the main checkout through a redirection the Edit guard never sees. It is a prefilter, not a shell parser: it refuses **only** a redirection or write cmdlet whose resolved target lies in the main checkout and is not git-ignored, and lets everything it cannot read with certainty pass (what it reads: the hook's head comment) — silence beats a false alarm.
 - `.claude/hooks/mainCheckoutClean.js` (Stop / SubagentStop, #315) runs `scripts/check-main-clean.js` when an agent is done and blocks the stop while the main checkout holds anything unexpected — one line per find. The same script is the by-hand check (`node scripts/check-main-clean.js`, exit 1 with the lines, silent when clean); it finds the main worktree through `git worktree list`, so it works from any worktree; git-ignored files (`.env*`, `data/`, `coverage/`) never count, and there is no list of excused names. It never loops (`stop_hook_active` ends it after one round).
 - `.claude/hooks/lintChanged.js` (PostToolUse on Edit/Write/MultiEdit) runs ESLint on the file just written (`src/`, `test/`, the hooks, and `src/web-client/` with its own config) and feeds the problems straight back, so style errors are fixed at the edit, not at the PR. No ESLint installed yet (fresh worktree) means it stays silent.
-All are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers `src/`, `scripts/` and the hooks (#320 — the one exception is the quote rule in `scripts/render-ui-emojis.js`, whose SVG constants are single-quoted on purpose; see the comment in `eslint.config.mjs`).
+All are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers `src/`, `scripts/`, `test/` and the hooks (#320 — the one exception is the quote rule in `scripts/render-ui-emojis.js`, whose SVG constants are single-quoted on purpose; see the comment in `eslint.config.mjs`).
 
 0. **Sync `main` first — always, before touching anything.** Every unit of work starts by fetching and fast-forwarding `main` so the branch is cut from the current production state: `git fetch origin && git checkout main && git pull --ff-only origin main`. Never start editing on a stale `main` or a branch whose base has moved on.
 1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
@@ -137,6 +137,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLootcouncil), Addon-Sync und Inbox, Vergabegrund und Raid-Inhalt |
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter, Spec-Historie |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
+| [docs/testing.md](docs/testing.md) | Test-Helfer und Fabriken (`test/helpers/`, `test/factories/`), was `test/setup/` jeder Suite mitgibt, Mock-Konvention und Coverage-Schwellen |
 | [docs/deployment.md](docs/deployment.md) | Wie ein Merge auf den Server kommt und woran man den laufenden Stand sieht |
 | [docs/data-storage.md](docs/data-storage.md) | Alle Dateien unter `data/`: Eigentümer-Modul, Inhalt, sensibel ja/nein, Sichern und Wiederherstellen |
 | [docs/guide-discord.md](docs/guide-discord.md) | Endnutzer-Guide für Raider: alle Slash-Commands und Bot-Interaktionen im Discord |
@@ -163,7 +164,8 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 - **Indentation:** 4 spaces.
 - **Quotes:** Double quotes (enforced by ESLint).
 - **Semicolons:** Always (enforced by ESLint).
-- **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint (a fixed rule broke the Linux CI).
+- **Line endings:** LF, set by `.gitattributes` (`* text=auto eol=lf`) — not enforced by ESLint (a fixed rule broke the Linux CI).
+- **Lint rules:** `@eslint/js` recommended plus `no-undef`, `no-unused-vars` (unused args as `_x`), `prefer-const`, `no-var`, `indent` 4 (`SwitchCase: 1`) and `complexity` (warn at 30) for `src/`, `scripts/`, hooks and `test/` (there also `eslint-plugin-jest`); the client adds `eslint-plugin-react` and `jsx-a11y`.
 - **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: docs/signups.md, docs/bot-commands.md.
 - **No TypeScript** in the bot (the web client in `src/web-client/` is TypeScript).
 

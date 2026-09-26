@@ -3,11 +3,8 @@
 // the public read view. The stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn(), readRawBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
 jest.mock("../../src/web/eventStore", () => ({
@@ -19,6 +16,7 @@ jest.mock("../../src/web/eventStore", () => ({
 const { readJsonBody, readRawBody } = require("../../src/web/apiBody");
 const { requireCsrf } = require("../../src/web/apiMiddleware");
 const { tempStoreFile } = require("../helpers/tempStore");
+const { ownEvent } = require("../factories/events");
 const store = require("../../src/web/raidplanStore");
 const profiles = require("../../src/web/raidplanProfileStore");
 const route = require("../../src/web/apiRoutes/raidplan");
@@ -35,23 +33,18 @@ const APPROVED = {
     groups: [{ index: 1, slots: [person("u1", "Tanky", "Warrior-Protection", "tank"), person("u2", "Heally", "Priest-Holy", "healer")] }],
     bench: [person("u3", "Benchy", "Mage-Fire", "ranged")],
 };
-const DRAFT_ONLY = { u9: person("u9", "Drafty", "Rogue-Combat", "melee") };
 
 function eventWith(setup) {
-    return { id: "eh_1", title: "Black Temple", startTime: 1800000000, versionId: "tbc", instanceIds: ["bt"], setup };
+    return ownEvent({ id: "eh_1", title: "Black Temple", startTime: 1800000000, instanceIds: ["bt"], setup });
 }
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => {
-    const parsed = JSON.parse(r.end.mock.calls[0][0]);
-    return parsed.data || parsed.error;
-};
+const { mockRes, status, json } = require("../helpers/http");
+const body = (r) => { const p = json(r); return p.data || p.error; };
 
 async function call(handler, user, payload, query = "") {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
 }
@@ -193,7 +186,7 @@ describe("room map upload", () => {
     const upload = async (user, key, buffer) => {
         mockUser = user;
         readRawBody.mockResolvedValue(buffer);
-        const r = res();
+        const r = mockRes();
         await route.postMap({ headers: {} }, r, new URL(`http://x/api/raidplan/map?key=${encodeURIComponent(key)}`));
         return r;
     };
@@ -259,7 +252,7 @@ describe("GET /api/raidplan/public", () => {
 
     const publicGet = async (token, viewer = null) => {
         mockViewer = viewer;
-        const r = res();
+        const r = mockRes();
         await route.getPublic({ headers: {} }, r, new URL(`http://x/api/raidplan/public?token=${token}`));
         return r;
     };

@@ -8,7 +8,7 @@
 // raider. Same client, model setting and call shape as the recommendation
 // phrasing (utils/logcheck/recommendationText.js); without an Anthropic key
 // (Einstellungen → Verbindungen) the route refuses before this is called.
-const Anthropic = require("@anthropic-ai/sdk");
+const { createAnthropicClient } = require("../../classes/anthropic");
 const { DEFAULT_MODEL } = require("../logcheck/recommendationText");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
@@ -73,7 +73,7 @@ function textOf(response) {
  */
 async function explainSetup(setup, ctx = {}, { apiKey, model = DEFAULT_MODEL, client = null } = {}) {
     if (!client && !apiKey) throw new Error("Kein Anthropic-API-Key hinterlegt.");
-    const api = client || new Anthropic({ apiKey });
+    const api = client || createAnthropicClient({ apiKey });
     const response = await api.beta.messages.create({
         model,
         max_tokens: 4096,

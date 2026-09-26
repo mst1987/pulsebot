@@ -20,10 +20,10 @@ import WowIcon from "./ui/WowIcon";
 import { t as translate, useT } from "../i18n";
 import "../styles/uebersicht.css";
 
-export const awardKey = (it: TopLootAward) => `${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`;
+const awardKey = (it: TopLootAward) => `${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`;
 
 /** The winner's tooltip: spec and class as head, the raw addon answer as explanation. */
-export function winnerTip(it: Pick<TopLootAward, "character" | "className" | "spec" | "response">): { head: string; sub: string } {
+function winnerTip(it: Pick<TopLootAward, "character" | "className" | "spec" | "response">): { head: string; sub: string } {
     const who = [it.spec, it.className].filter(Boolean).join(" ");
     return {
         head: who ? `${it.character} · ${who}` : it.character,

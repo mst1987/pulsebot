@@ -2,7 +2,7 @@ const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discor
 const { pendingApplications } = require("../../utils/applicationState");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
-const { getConfig } = require("../../web/settingsStore");
+const { getConfig } = require("../../web/configStore");
 const { getClass } = require("../../config/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant } = require("../../utils/logcheck/applicant");

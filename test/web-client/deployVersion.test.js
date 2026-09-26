@@ -171,6 +171,6 @@ describe("the menu's version line", () => {
     it("lets the dashboard task open an address outside the menu", () => {
         const page = read("pages", "DashboardPage.tsx");
         expect(page).toContain("https?:\\/\\/");
-        expect(page).toContain('target="_blank"');
+        expect(page).toContain("target=\"_blank\"");
     });
 });

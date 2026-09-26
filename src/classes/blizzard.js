@@ -1,5 +1,8 @@
-const axios = require("axios");
+const { createClient } = require("./httpClient");
 const wowhead = require("../utils/wowhead");
+
+const TOKEN_TIMEOUT_MS = 10000;
+const PROFILE_TIMEOUT_MS = 12000;
 
 // Normalize a Blizzard gem stat text for table lookup: lowercase, "&" → "and",
 // collapsed whitespace, no trailing period ("+8 Agility" → "+8 agility").
@@ -104,6 +107,15 @@ const TBC_GEM_NAME_BY_TEXT = {
 // settings store, so they can be configured from the admin menu (kept out of
 // .env on purpose). env vars BLIZZARD_CLIENT_ID / BLIZZARD_CLIENT_SECRET act as a
 // fallback bootstrap.
+//
+// Error contract: getEquipment() / getCharacterSummary() never throw — `null`
+// plus `lastError`: { reason: "not_configured" | "no_name" } before any request,
+// else { status, message, namespace } (status null without an answer, message
+// the error code such as ERR_BAD_REQUEST / ECONNABORTED, or its text). The
+// requests go through classes/httpClient.js; its ApiError is translated into
+// that shape in _getCharacter(). One retry on 5xx/network/timeout (a profile
+// page waits on it); 403/404 — the usual "not available on Classic" — never.
+// getToken() is the one method that throws (its only caller catches).
 class Blizzard {
     /**
      * @param {object} opts
@@ -130,6 +142,7 @@ class Blizzard {
         // Reason the last getEquipment() returned null, for UI diagnostics:
         // { status, message } or { reason: "not_configured" | "no_name" }.
         this.lastError = null;
+        this.http = createClient({ service: "Blizzard", timeout: PROFILE_TIMEOUT_MS, retry: { retries: 1, methods: ["get", "post"] } });
     }
 
     /** Whether credentials are present. Without them getEquipment() short-circuits to null. */
@@ -153,15 +166,11 @@ class Blizzard {
      */
     async getToken() {
         if (this._token && Date.now() < this._tokenExpiry) return this._token;
-        const res = await axios.post(
-            this.tokenUrl,
-            "grant_type=client_credentials",
-            {
-                auth: { username: this.clientId, password: this.clientSecret },
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                timeout: 10000,
-            }
-        );
+        const res = await this.http.post(this.tokenUrl, "grant_type=client_credentials", {
+            auth: { username: this.clientId, password: this.clientSecret },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            timeout: TOKEN_TIMEOUT_MS,
+        });
         this._token = res.data.access_token;
         // expires_in is seconds; refresh a minute early to avoid edge expiry.
         const ttl = Number(res.data.expires_in) || 0;
@@ -193,16 +202,15 @@ class Blizzard {
         const url = `${host}/profile/wow/character/${encodeURIComponent(realm)}/${name}${subPath}`;
         try {
             const token = await this.getToken();
-            const res = await axios.get(url, {
+            const res = await this.http.get(url, {
                 params: { namespace, locale: this.locale },
                 headers: { Authorization: `Bearer ${token}` },
-                timeout: 12000,
             });
             this.lastError = null;
             return res.data;
         } catch (err) {
-            const status = err.response && err.response.status;
-            this.lastError = { status: status || null, message: (err.code || err.message || "unbekannt"), namespace };
+            const status = err.status || null;
+            this.lastError = { status, message: (err.code || err.message || "unbekannt"), namespace };
             console.warn(
                 `Blizzard profile lookup failed for ${characterName}@${realm} [${namespace}]${subPath} (${status || err.code || err.message}) — falling back.`
             );

@@ -1,4 +1,4 @@
-﻿const { getSetupsFromEvents } = require("../../utils/raidhelper");
+const { getSetupsFromEvents } = require("../../utils/raidhelper");
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");

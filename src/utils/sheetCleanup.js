@@ -43,4 +43,10 @@ function startSheetCleanup({ intervalMs = 60 * 60 * 1000 } = {}) {
     return timer;
 }
 
-module.exports = { sweepDueSheets, startSheetCleanup };
+/** Stop the periodic sweep (idempotent); a later start begins afresh. */
+function stopSheetCleanup() {
+    if (timer) clearInterval(timer);
+    timer = null;
+}
+
+module.exports = { sweepDueSheets, startSheetCleanup, stopSheetCleanup };

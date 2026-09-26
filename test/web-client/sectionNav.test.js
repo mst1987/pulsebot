@@ -95,7 +95,7 @@ describe("Einstellungen sections", () => {
         expect(map.loot).toBe("topitems");
         // resolveSection follows the map, and the url accepts the old ids at all.
         expect(sectionsSrc).toContain("const id = LEGACY_SECTIONS[stored] || stored;");
-        expect(settingsSrc).toContain('usePersistedSearchParam(\n        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,');
+        expect(settingsSrc).toContain("usePersistedSearchParam(\n        \"settings-section\", \"section\", \"berechtigungen\", SECTION_PARAM_IDS,");
     });
 
     it("marks the permission section adminOnly", () => {
@@ -121,7 +121,7 @@ describe("Einstellungen sections", () => {
 
     it("hides the credentials of a limited settings user in the connection cards", () => {
         const logic = readClient("lib", "settingsLogic.ts");
-        expect(logic).toContain('return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "lootsync"] : ["battlenet"];');
+        expect(logic).toContain("return canManageAccess ? [\"discord\", \"battlenet\", \"wcl\", \"anthropic\", \"lootsync\"] : [\"battlenet\"];");
         expect(readClient("components", "SettingsConnections.tsx")).toContain("visibleConnections(data.canManageAccess)");
     });
 
@@ -164,10 +164,10 @@ describe("Einstellungen sections", () => {
     });
 
     it("turns the hint paragraphs into tooltips", () => {
-        expect(settingsSrc).not.toContain('className="hint"');
+        expect(settingsSrc).not.toContain("className=\"hint\"");
         expect(settingsSrc).not.toContain("<p className=\"note\">");
-        expect(readClient("components", "RolePermissions.tsx")).not.toContain('className="hint"');
-        expect(readClient("components", "CategoryMatrix.tsx")).not.toContain('className="hint"');
+        expect(readClient("components", "RolePermissions.tsx")).not.toContain("className=\"hint\"");
+        expect(readClient("components", "CategoryMatrix.tsx")).not.toContain("className=\"hint\"");
     });
 });
 

@@ -2,11 +2,8 @@
 // path is area `raids`, writes need write by method, the two reads check write
 // in the handler, and each route hands the body to the service as it should.
 let mockUser = null;
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => mockUser),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../src/web/eventManage", () => ({
     manageInfo: jest.fn(async () => ({ status: 200, body: { event: { id: "eh-a" } } })),
@@ -33,17 +30,12 @@ const PATHS = [
     "/api/raids/manage/raider/remove", "/api/raids/manage/cancel", "/api/raids/manage/reopen", "/api/raids/manage/delete",
 ];
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const status = (r) => r.writeHead.mock.calls[0][0];
-const body = (r) => {
-    const parsed = JSON.parse(r.end.mock.calls[0][0]);
-    return parsed.data || parsed;
-};
+const { mockRes, status, body } = require("../helpers/http");
 
 async function call(handler, user, payload, query) {
     mockUser = user;
     readJsonBody.mockResolvedValue(payload || {});
-    const r = res();
+    const r = mockRes();
     await handler({ headers: {} }, r, query ? new URL(`http://x/api/raids/manage?${query}`) : undefined);
     return r;
 }

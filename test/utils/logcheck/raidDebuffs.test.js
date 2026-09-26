@@ -2,13 +2,14 @@ const {
     analyzeRaidDebuffs, debuffRowsForFight, classCounts, mainTargetEvents, summarize,
 } = require("../../../src/utils/logcheck/raidDebuffs");
 const { DEBUFFS, expectedDebuffs, debuffByGuid } = require("../../../src/config/raidDebuffs");
+const { fight: gruulFight } = require("../../factories/wcl");
 
 const SUNDER = 25225;   // Sunder Armor rank 6
 const COE = 27228;      // Curse of the Elements rank 4
 const FF = 26993;       // Faerie Fire rank 5
 const MISERY = 33198;   // Misery rank 3
 
-const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", kill: true, start_time: 300000, end_time: 420000 };
+const fight = gruulFight();
 const fights = { end: 500000, fights: [{ id: 1, boss: 0, name: "Trash", start_time: 0, end_time: 1000 }, fight] };
 
 function sunderEvents(base, targetID = 30) {

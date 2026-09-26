@@ -54,6 +54,7 @@ const formCommand = require("../../../src/commands/event/eventManageForm");
 const contextCommand = require("../../../src/commands/event/eventManageContext");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
+const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
 const GUILD = "300000000000000001";
 const CHANNEL = "200000000000000001";
@@ -229,7 +230,7 @@ describe("actions", () => {
 
     it("deletes only with LÖSCHEN typed: the event and its signups go, the message is deleted, the panel says so", async () => {
         const message = { delete: jest.fn(async () => ({})) };
-        const client = { channels: { fetch: jest.fn(async () => ({ isTextBased: () => true, messages: { fetch: jest.fn(async () => message) } })) } };
+        const client = makeClient({ channels: [makeChannel({ id: CHANNEL, guildId: GUILD, messages: [["700000000000000001", message]] })] });
         require("../../../src/web/discord").getClient.mockReturnValue(client);
 
         const modal = interaction({ customId: bot._internal.manageId("l", event.id) });

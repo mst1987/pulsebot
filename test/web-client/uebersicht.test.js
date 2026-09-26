@@ -59,12 +59,12 @@ describe("Übersicht (DashboardPage)", () => {
         expect(page).not.toMatch(/ClaIcon|ClockIcon|BoltIcon|RecruitmentIcon/);
         expect(page).toContain("t(\"dashboard.page.newRaid\")");
         expect(de("dashboard.page.newRaid")).toBe("Raid-Event anlegen");
-        expect(page).toContain('icon="inv_misc_note_02"');
+        expect(page).toContain("icon=\"inv_misc_note_02\"");
     });
 
     it("links the next raid straight to its page: the title and an „Öffnen“ beside „Details“", () => {
         const card = page.slice(page.indexOf("function NextRaidCard"), page.indexOf("const TASK_TILE"));
-        expect(card).toContain('<Link className="ov-next-title" to={raidDetailHref(raid.id)}>');
+        expect(card).toContain("<Link className=\"ov-next-title\" to={raidDetailHref(raid.id)}>");
         expect(card).toMatch(/to=\{raidDetailHref\(raid\.id\)\}[^>]*>\{t\("dashboard\.next\.open"\)\}<\/Link>/);
         expect(de("dashboard.next.open")).toBe("Öffnen");
         expect(de("dashboard.next.details")).toBe("Details");
@@ -80,7 +80,7 @@ describe("Übersicht (DashboardPage)", () => {
     });
 
     it("keeps its styles in its own file", () => {
-        expect(page).toContain('import "../styles/uebersicht.css";');
+        expect(page).toContain("import \"../styles/uebersicht.css\";");
         const css = read("styles", "uebersicht.css");
         expect(css).toMatch(/\.ov-grid-top \{/);
         expect(css).not.toMatch(/gold|#ffd700|goldenrod/i);
@@ -121,7 +121,7 @@ describe("Latest-Loot list", () => {
 
     it("writes boss and date as one grey line instead of two chips", () => {
         expect(list).not.toContain("toploot-badge");
-        expect(list).toContain('[it.boss, awardDate(it.awardedAt)].filter(Boolean).join(" · ")');
+        expect(list).toContain("[it.boss, awardDate(it.awardedAt)].filter(Boolean).join(\" · \")");
     });
 
     it("explains the winner with spec, class and the raw addon answer in the tooltip", () => {

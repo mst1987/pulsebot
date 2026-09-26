@@ -1,0 +1,14 @@
+# Text files are stored with LF and checked out with LF on every platform
+# (see .editorconfig); binaries are never touched.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary

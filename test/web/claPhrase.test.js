@@ -12,12 +12,8 @@ let mockCsrf = true;
 jest.mock("../../src/web/reportStore.js", () => ({
     getReport: (...a) => mockGetReport(...a), saveReport: (...a) => mockSaveReport(...a), listReports: jest.fn(() => []), deleteReport: jest.fn(),
 }));
-jest.mock("../../src/web/apiMiddleware.js", () => ({
-    requireAdmin: (req, res) => { if (mockUser) return mockUser; res.writeHead(401); res.end("{}"); return null; },
-    requireCsrf: (req, res) => { if (mockCsrf) return true; res.writeHead(403); res.end("{}"); return false; },
-    requireFullAdmin: () => mockUser,
-}));
-jest.mock("../../src/web/apiBody.js", () => ({ readJsonBody: jest.fn(async () => mockBody) }));
+jest.mock("../../src/web/apiMiddleware.js", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
+jest.mock("../../src/web/apiBody.js", () => require("../helpers/http").apiBodyMock({ body: () => mockBody }));
 jest.mock("../../src/utils/logcheck/recommendationText.js", () => ({ phraseReport: (...a) => mockPhraseReport(...a) }));
 jest.mock("../../src/web/evalJobs.js", () => ({ startJob: (...a) => mockStartJob(...a), getJob: (...a) => mockGetJob(...a) }));
 jest.mock("../../src/web/settingsStore.js", () => ({ getConfig: () => mockConfig }));
@@ -35,11 +31,7 @@ jest.mock("../../src/web/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
 
 const { phraseRecommendations, phraseStatus } = require("../../src/web/apiRoutes/cla.js");
 
-function res() {
-    const r = { status: 0, body: "", writeHead(s) { r.status = s; }, end(b) { r.body = b || ""; } };
-    r.json = () => JSON.parse(r.body || "{}");
-    return r;
-}
+const { mockRes, status, json } = require("../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -55,10 +47,10 @@ beforeEach(() => {
 describe("POST /api/cla/recommendations/phrase", () => {
     it("starts a background job that phrases with the stored key and saves the report", async () => {
         mockBody = { reportId: "abc123", players: ["Farin"] };
-        const r = res();
+        const r = mockRes();
         await phraseRecommendations({}, r);
-        expect(r.status).toBe(202);
-        expect(r.json().data).toEqual({ reportId: "abc123", status: "running", alreadyRunning: false });
+        expect(status(r)).toBe(202);
+        expect(json(r).data).toEqual({ reportId: "abc123", status: "running", alreadyRunning: false });
         expect(mockStartJob).toHaveBeenCalledWith("abc123", "phrase", expect.any(Function));
 
         const runner = mockStartJob.mock.calls[0][2];
@@ -72,9 +64,9 @@ describe("POST /api/cla/recommendations/phrase", () => {
         mockConfig = { anthropic: { apiKey: "sk-test", model: "claude-sonnet-5" } };
         mockStartJob.mockReturnValue({ status: "running", alreadyRunning: true });
         mockBody = { reportId: "abc123" };
-        const r = res();
+        const r = mockRes();
         await phraseRecommendations({}, r);
-        expect(r.status).toBe(200);
+        expect(status(r)).toBe(200);
         await mockStartJob.mock.calls[0][2]();
         expect(mockPhraseReport.mock.calls[0][1]).toEqual({ apiKey: "sk-test", model: "claude-sonnet-5", only: null });
     });
@@ -82,39 +74,39 @@ describe("POST /api/cla/recommendations/phrase", () => {
     it("refuses without a key, without CSRF, and on an unknown report", async () => {
         mockConfig = { anthropic: { apiKey: "", model: "" } };
         mockBody = { reportId: "abc123" };
-        let r = res();
+        let r = mockRes();
         await phraseRecommendations({}, r);
-        expect(r.status).toBe(400);
-        expect(r.json().error.code).toBe("no_api_key");
+        expect(status(r)).toBe(400);
+        expect(json(r).error.code).toBe("no_api_key");
         expect(mockStartJob).not.toHaveBeenCalled();
 
         mockConfig = { anthropic: { apiKey: "sk-test" } };
         mockCsrf = false;
-        r = res();
+        r = mockRes();
         await phraseRecommendations({}, r);
-        expect(r.status).toBe(403);
+        expect(status(r)).toBe(403);
 
         mockCsrf = true;
         mockBody = { reportId: "nope" };
-        r = res();
+        r = mockRes();
         await phraseRecommendations({}, r);
-        expect(r.status).toBe(404);
+        expect(status(r)).toBe(404);
     });
 });
 
 describe("GET /api/cla/recommendations/phrase", () => {
     it("returns the job state, the last run and whether a key is stored", async () => {
         mockGetJob.mockReturnValue({ status: "done", url: "3", error: "" });
-        const r = res();
+        const r = mockRes();
         await phraseStatus({}, r, new URL("http://x/api/cla/recommendations/phrase?id=abc123"));
-        expect(r.status).toBe(200);
-        expect(r.json().data).toEqual({ reportId: "abc123", job: { status: "done", url: "3", error: "" }, last: { at: 1, model: "m", phrased: 3, players: 2, errors: [] }, hasApiKey: true });
+        expect(status(r)).toBe(200);
+        expect(json(r).data).toEqual({ reportId: "abc123", job: { status: "done", url: "3", error: "" }, last: { at: 1, model: "m", phrased: 3, players: 2, errors: [] }, hasApiKey: true });
         expect(mockGetJob).toHaveBeenCalledWith("abc123", "phrase");
     });
 
     it("404s an unknown report", async () => {
-        const r = res();
+        const r = mockRes();
         await phraseStatus({}, r, new URL("http://x/api/cla/recommendations/phrase?id=zzz"));
-        expect(r.status).toBe(404);
+        expect(status(r)).toBe(404);
     });
 });

@@ -1,4 +1,5 @@
 const { dayKey, candidatesForDay, bestDayMatch, formatDayDisplay } = require("../../src/web/lootEventMatch");
+const { event: baseEvent } = require("../factories/events");
 
 const secs = (ms) => Math.floor(ms / 1000);
 // A Sunday raid, 20:00 Europe/Berlin (CEST, UTC+2) = 18:00 UTC.
@@ -6,7 +7,7 @@ const RAID_START = Date.UTC(2026, 6, 12, 18, 0, 0);
 // Gargul's date-only export normalizes to UTC midnight of the same calendar day.
 const GARGUL_AWARDED = Date.UTC(2026, 6, 12, 0, 0, 0);
 
-const event = (over = {}) => ({ id: "e1", title: "SSC/TK", startTime: secs(RAID_START), categoryId: "cat1", ...over });
+const event = (over = {}) => baseEvent({ title: "SSC/TK", startTime: secs(RAID_START), categoryId: "cat1", ...over });
 
 describe("web/lootEventMatch", () => {
     describe("dayKey", () => {

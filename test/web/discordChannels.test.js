@@ -7,15 +7,17 @@ jest.mock("../../src/web/discord", () => ({
 const { ChannelType } = require("discord.js");
 const discord = require("../../src/web/discord");
 const dc = require("../../src/web/discordChannels");
+const discordClient = require("../helpers/discordClient");
 
+// A channel of guild "g1" that can be edited, deleted and cloned; the bot and a raider role hold overwrites.
 function makeChannel(fields = {}) {
-    const channel = {
-        id: "c1", name: "mi-kara", type: ChannelType.GuildText, parentId: "cat1", parent: { name: "Mittwoch" },
-        topic: "", rateLimitPerUser: 0, guildId: "g1",
-        guild: { id: "g1", roles: { everyone: { id: "g1" } }, members: { me: { id: "bot" } } },
+    const channel = discordClient.makeChannel({
+        id: "c1", name: "mi-kara", parentId: "cat1", parent: { name: "Mittwoch" },
+        topic: "", rateLimitPerUser: 0,
+        guild: discordClient.makeGuild({ id: "g1" }),
         permissionOverwrites: { cache: new Map([["role-raider", {}], ["bot", {}]]), edit: jest.fn(async () => {}) },
         ...fields,
-    };
+    });
     channel.edit = jest.fn(async (payload) => Object.assign(channel, payload.name ? { name: payload.name } : {}, payload.parent !== undefined ? { parentId: payload.parent || "" } : {}));
     channel.delete = jest.fn(async () => {});
     channel.clone = jest.fn(async (opts) => ({ id: "clone", name: opts.name }));
@@ -23,8 +25,7 @@ function makeChannel(fields = {}) {
 }
 
 function withChannels(...channels) {
-    const cache = new Map(channels.map((c) => [c.id, c]));
-    discord.getClient.mockReturnValue({ channels: { cache, fetch: jest.fn(async (id) => cache.get(id) || null) } });
+    discord.getClient.mockReturnValue(discordClient.makeClient({ channels, missing: "null" }));
 }
 
 beforeEach(() => jest.clearAllMocks());
@@ -117,7 +118,9 @@ describe("web/discordChannels", () => {
     describe("createCategory / createFromTemplate", () => {
         it("creates a category", async () => {
             const create = jest.fn(async (p) => ({ id: "newcat", name: p.name }));
-            discord.getGuild.mockReturnValue({ channels: { create } });
+            const guild = discordClient.makeGuild({ id: "g1" });
+            guild.channels.create = create;
+            discord.getGuild.mockReturnValue(guild);
             await expect(dc.createCategory("g1", " Archiv ")).resolves.toEqual({ id: "newcat", name: "Archiv" });
             expect(create).toHaveBeenCalledWith({ name: "Archiv", type: ChannelType.GuildCategory });
         });
@@ -167,12 +170,13 @@ describe("web/discordChannels", () => {
     });
 
     it("lists topic, slowmode and permission sync per channel", () => {
-        discord.getGuild.mockReturnValue({
-            channels: { cache: new Map([
-                ["cat", { id: "cat", type: ChannelType.GuildCategory }],
-                ["c1", { id: "c1", type: ChannelType.GuildText, topic: "Flasks", rateLimitPerUser: 5, permissionsLocked: true }],
-            ]) },
-        });
+        discord.getGuild.mockReturnValue(discordClient.makeGuild({
+            id: "g1",
+            channels: [
+                { id: "cat", type: ChannelType.GuildCategory },
+                { id: "c1", type: ChannelType.GuildText, topic: "Flasks", rateLimitPerUser: 5, permissionsLocked: true },
+            ],
+        }));
         expect(dc.listChannelDetails("g1")).toEqual({ c1: { topic: "Flasks", rateLimitPerUser: 5, permissionsLocked: true } });
     });
 

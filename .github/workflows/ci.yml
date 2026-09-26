@@ -79,11 +79,11 @@ jobs:
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      # A ratchet: 30 warnings today (29 react-refresh/only-export-components,
+      # A ratchet: 18 warnings today (17 react-refresh/only-export-components,
       # 1 react-hooks/exhaustive-deps). A new one fails the job; lower the
       # number whenever one is fixed, down to 0.
       - name: Run ESLint
-        run: npm run lint -- --max-warnings=30
+        run: npm run lint -- --max-warnings=18
 
       - name: Type-check
         run: npx tsc -b
@@ -96,6 +96,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test, web-client]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    # Deploys queue up instead of running side by side. Three merges within
+    # eight minutes (#472, #473, #475) each ran `git reset` + `npm ci` on the
+    # server while another one was restarting pm2: the bot crash-looped and
+    # every healthcheck timed out. Nothing is cancelled - the last deploy still
+    # brings the newest main to the server, it just waits for its turn.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
 
     # Which directory the checkout lives in on the server. A repository variable
     # (Settings -> Secrets and variables -> Actions -> Variables) wins, so the
@@ -135,6 +144,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           # Optional — 22 unless the server listens elsewhere.
           port: ${{ secrets.SSH_PORT || 22 }}
+          # The action's default (10 min) once cut the script off in the middle
+          # of the web client build, which alone takes 4-5 min on the server.
+          command_timeout: 20m
           envs: DEPLOY_DIR
           script: |
             set -e

@@ -217,52 +217,52 @@ module.exports = {
         const uid = interaction.user.id;
 
         switch (action) {
-        case "join":
-            return onJoin(interaction, event);
-        case "class":
-            return onClass(interaction, event, "");
-        case "late":
-        case "bench":
-            return onStatus(interaction, event, action);
-        case "tentative": {
-            // The message first (unless the category asks for none), refused cases before it.
-            const mode = noteMode(event.categoryId);
-            if (mode === "none") return onStatus(interaction, event, action);
-            const why = await blocked(event, uid, action);
-            if (why) return reply(interaction, why);
-            return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required" }));
-        }
-        case "absence": {
-            // Signing off is always allowed until the start — unless the event is cancelled.
-            const why = refusal(event, "absence");
-            if (why) return reply(interaction, why);
-            const mode = noteMode(event.categoryId);
-            if (mode === "none") return signOff(interaction, event);
-            return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required" }));
-        }
-        case "why":
-            return onAbsence(interaction, event);
-        case "note":
-            if (!isModal || !status) return reply(interaction, "Unknown action.");
-            return onNote(interaction, event, status);
-        case "pick":
-            return onPick(interaction, event, status || "signed");
-        case "other":
-            return interaction.update(buildClassPicker(event, status || "signed", { emojis: await emojisFor(interaction) }));
-        case "cls": {
-            const picker = buildSpecPicker(event, status || "signed", String((interaction.values || [])[0] || ""), { emojis: await emojisFor(interaction) });
-            return picker ? interaction.update(picker) : done(interaction, "Unknown class.");
-        }
-        case "spec": {
-            const specKey = String((interaction.values || [])[0] || "");
-            if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.");
-            return interaction.showModal(buildNameModal(event, uid, status || "signed", specKey, { displayName: displayName(interaction) }));
-        }
-        case "name":
-            if (!isModal) return done(interaction, "Unknown action.");
-            return onName(interaction, event, status || "signed", arg);
-        default:
-            return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.");
+            case "join":
+                return onJoin(interaction, event);
+            case "class":
+                return onClass(interaction, event, "");
+            case "late":
+            case "bench":
+                return onStatus(interaction, event, action);
+            case "tentative": {
+                // The message first (unless the category asks for none), refused cases before it.
+                const mode = noteMode(event.categoryId);
+                if (mode === "none") return onStatus(interaction, event, action);
+                const why = await blocked(event, uid, action);
+                if (why) return reply(interaction, why);
+                return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required" }));
+            }
+            case "absence": {
+                // Signing off is always allowed until the start — unless the event is cancelled.
+                const why = refusal(event, "absence");
+                if (why) return reply(interaction, why);
+                const mode = noteMode(event.categoryId);
+                if (mode === "none") return signOff(interaction, event);
+                return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required" }));
+            }
+            case "why":
+                return onAbsence(interaction, event);
+            case "note":
+                if (!isModal || !status) return reply(interaction, "Unknown action.");
+                return onNote(interaction, event, status);
+            case "pick":
+                return onPick(interaction, event, status || "signed");
+            case "other":
+                return interaction.update(buildClassPicker(event, status || "signed", { emojis: await emojisFor(interaction) }));
+            case "cls": {
+                const picker = buildSpecPicker(event, status || "signed", String((interaction.values || [])[0] || ""), { emojis: await emojisFor(interaction) });
+                return picker ? interaction.update(picker) : done(interaction, "Unknown class.");
+            }
+            case "spec": {
+                const specKey = String((interaction.values || [])[0] || "");
+                if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.");
+                return interaction.showModal(buildNameModal(event, uid, status || "signed", specKey, { displayName: displayName(interaction) }));
+            }
+            case "name":
+                if (!isModal) return done(interaction, "Unknown action.");
+                return onName(interaction, event, status || "signed", arg);
+            default:
+                return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.");
         }
     },
 };

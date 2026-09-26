@@ -17,11 +17,12 @@ const { specProfile } = require("../../src/utils/setupView");
 const { signupStatus } = require("../../src/utils/attendance");
 const { buildClasses, CLASSES } = require("../../src/config/gameVersions/classes");
 
-const ownEvent = (over = {}) => ({
-    id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
+const { ownEvent: baseOwnEvent } = require("../factories/events");
+
+const ownEvent = (over = {}) => baseOwnEvent({
+    id: "eh-1", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
     channelId: "c1", channelName: "kara-do", title: "Kara", description: "", leaderId: "u9",
-    startTime: 2000000000, versionId: "tbc", instanceIds: ["kara"], size: 10,
-    composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: 0, ...over,
+    startTime: 2000000000, instanceIds: ["kara"], signupDeadline: 0, ...over,
 });
 
 describe("web/eventSources", () => {

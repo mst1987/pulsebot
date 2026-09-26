@@ -8,9 +8,14 @@ describe("utils/httpAgent", () => {
         jest.resetModules();
     });
 
-    it("is an https.Agent", () => {
+    it("is one shared https.Agent without keep-alive, verifying only in production", () => {
         const agent = require("../../src/utils/httpAgent.js");
         expect(agent).toBeInstanceOf(https.Agent);
+        expect(require("../../src/utils/httpAgent.js")).toBe(agent);
+        expect(agent.keepAlive).toBe(false);
+        // jest runs with NODE_ENV "test": certificates are not verified
+        expect(process.env.NODE_ENV).toBe("test");
+        expect(agent.options.rejectUnauthorized).toBe(false);
     });
 
     it("verifies certificates in production", () => {

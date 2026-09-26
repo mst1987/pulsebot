@@ -4,8 +4,9 @@
 const { buildSetupProposal, evaluateSetup } = require("../../../src/utils/setup/proposal");
 const { validatePlacement } = require("../../../src/utils/setup/manual");
 const { su } = require("./fixtures");
+const { event: baseEvent } = require("../../factories/events");
 
-const event = (over = {}) => ({ id: "ev", title: "Kara", size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, ...over });
+const event = (over = {}) => baseEvent({ id: "ev", size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, ...over });
 
 /** Zibbo (holy priest) first, Zibbowar (prot warrior) as "kann auch mit". */
 const zibbo = (extra = {}) => su("zibbo", "Priest-Holy", {

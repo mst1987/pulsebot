@@ -1,9 +1,6 @@
 // The Kanäle API handlers (issue #259), called directly with Discord mocked.
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(),
-    requireCsrf: jest.fn(() => true),
-}));
-jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
+jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -68,11 +65,7 @@ const CHANNELS = [
     { id: "a1", name: "alt", type: 0, parentId: "arch" },
 ];
 
-function mockRes() {
-    return { writeHead: jest.fn(), end: jest.fn() };
-}
-const status = (res) => res.writeHead.mock.calls[0][0];
-const body = (res) => JSON.parse(res.end.mock.calls[0][0]);
+const { mockRes, status, json } = require("../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -89,7 +82,7 @@ describe("GET /api/channels", () => {
         archiveStore.listArchived.mockReturnValue([{ channelId: "a1", at: Date.now() - 20 * 86400000, byName: "Nerathil" }, { channelId: "gone", at: 0 }]);
         const res = mockRes();
         await routes.getChannels({}, res);
-        const data = body(res).data;
+        const data = json(res).data;
         expect(data.events.c1).toMatchObject({ status: "past", title: "SSC" });
         expect(data.archive).toMatchObject({ categoryId: "arch", count: 1, overdue: 1, hintDays: 14 });
         expect(data.defaultSchema).toBe("{tag}-{dd}-{mm}-{raid}");
@@ -109,7 +102,7 @@ describe("PATCH /api/channels", () => {
         await routes.patchChannels({}, res);
         expect(dc.editChannel).toHaveBeenCalledTimes(2);
         expect(dc.editChannel).toHaveBeenCalledWith("c1", { topic: "Flasks Pflicht" });
-        const data = body(res).data;
+        const data = json(res).data;
         expect(data.results.map((r) => [r.id, r.ok, r.error])).toEqual([
             ["c1", true, undefined], ["c2", false, "fehlende Rechte"], ["elsewhere", false, "Kanal nicht auf diesem Server"],
         ]);
@@ -133,14 +126,14 @@ describe("POST /api/channels/archive", () => {
         await routes.archiveChannels({}, res);
         expect(dc.archiveChannel).toHaveBeenCalledWith("c1", "arch");
         expect(archiveStore.recordArchived).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1", guildId: "g1", by: "u1", byName: "Nerathil", fromCategory: "Raids" }));
-        expect(body(res).data.message).toBe("1 Kanal archiviert");
+        expect(json(res).data.message).toBe("1 Kanal archiviert");
     });
 
     it("needs an archive category first", async () => {
         archiveStore.getChannelConfig.mockReturnValueOnce({ archiveCategoryId: "", schemas: {}, archiveDeleteHintDays: 14 });
         const res = mockRes();
         await routes.archiveChannels({}, res);
-        expect(body(res).error.code).toBe("no_archive");
+        expect(json(res).error.code).toBe("no_archive");
     });
 });
 
@@ -149,7 +142,7 @@ describe("POST /api/channels/delete", () => {
         readJsonBody.mockResolvedValue({ ids: ["a1"], confirm: "falsch" });
         const res = mockRes();
         await routes.deleteChannels({}, res);
-        expect(body(res).error.code).toBe("not_confirmed");
+        expect(json(res).error.code).toBe("not_confirmed");
         expect(dc.deleteChannel).not.toHaveBeenCalled();
     });
 
@@ -162,7 +155,7 @@ describe("POST /api/channels/delete", () => {
         readJsonBody.mockResolvedValue({ ids: ["a1", "c1"], confirm: routes.BULK_DELETE_WORD });
         const res = mockRes();
         await routes.deleteChannels({}, res);
-        const data = body(res).data;
+        const data = json(res).data;
         expect(data.results.map((r) => [r.id, r.ok])).toEqual([["a1", true], ["c1", false]]);
         expect(data.results[1].error).toContain("Nur Kanäle im Archiv");
         expect(archiveStore.forgetArchived).toHaveBeenCalledWith(["a1"]);
@@ -176,7 +169,7 @@ describe("POST /api/channels/delete", () => {
         const res = mockRes();
         await routes.deleteChannels({}, res);
         expect(dc.deleteChannel).toHaveBeenCalledWith("c1", "", { anywhere: true });
-        expect(body(res).data.results).toEqual([expect.objectContaining({ id: "c1", ok: true })]);
+        expect(json(res).data.results).toEqual([expect.objectContaining({ id: "c1", ok: true })]);
     });
 
     it("keeps the archive rule without anywhere — and only a literal true counts", async () => {
@@ -187,7 +180,7 @@ describe("POST /api/channels/delete", () => {
         archiveStore.getChannelConfig.mockReturnValueOnce({ archiveCategoryId: "", schemas: {}, archiveDeleteHintDays: 14 });
         const res = mockRes();
         await routes.deleteChannels({}, res);
-        expect(body(res).error.code).toBe("no_archive");
+        expect(json(res).error.code).toBe("no_archive");
     });
 });
 
@@ -197,7 +190,7 @@ describe("POST /api/channels/batch", () => {
         readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{tag}-{dd}-{mm}-{raid}", raid: "ssc", from: "2026-09-23", count: 2, interval: "weekly", dryRun: true });
         const res = mockRes();
         await routes.batchCreate({}, res);
-        expect(body(res).data.plan).toEqual([
+        expect(json(res).data.plan).toEqual([
             { date: "2026-09-23", name: "mi-23-09-ssc", exists: true },
             { date: "2026-09-30", name: "mi-30-09-ssc", exists: false },
         ]);
@@ -212,7 +205,7 @@ describe("POST /api/channels/batch", () => {
         expect(dc.createFromTemplate).toHaveBeenCalledTimes(1);
         expect(dc.createFromTemplate).toHaveBeenCalledWith("g1", { name: "mi-30-09-ssc", parentId: "cat1", templateChannelId: "c1" });
         expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: "{tag}-{dd}-{mm}-{raid}", raid: "ssc", templateChannelId: "c1" });
-        expect(body(res).data.message).toBe("1 Kanal angelegt, 1 übersprungen (existiert)");
+        expect(json(res).data.message).toBe("1 Kanal angelegt, 1 übersprungen (existiert)");
     });
 
     describe("named and designed like the previous event channel (#285)", () => {
@@ -229,7 +222,7 @@ describe("POST /api/channels/batch", () => {
             readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "", from: "2026-09-23", count: 2, interval: "weekly", dryRun: true });
             const res = mockRes();
             await routes.batchCreate({}, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.plan.map((p) => p.name)).toEqual(["🔥・mi-23-09-kara", "🔥・mi-30-09-kara"]);
             expect(data.naming).toMatchObject({
                 source: "previous", label: "abgeleitet aus #🔥・mi-16-09-kara", detail: "Datum 16-09 → 23-09",
@@ -253,12 +246,12 @@ describe("POST /api/channels/batch", () => {
                 const stored = mockRes();
                 readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "kara", from: "2026-09-23", dryRun: true });
                 await routes.batchCreate({}, stored);
-                expect(body(stored).data.plan[0].name).toBe("kara-23-sep");
+                expect(json(stored).data.plan[0].name).toBe("kara-23-sep");
                 const derived = mockRes();
                 readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "", from: "2026-09-23", dryRun: true, ignoreStoredSchema: true });
                 await routes.batchCreate({}, derived);
-                expect(body(derived).data.plan[0].name).toBe("🔥・mi-23-09-kara");
-                expect(body(derived).data.naming).toMatchObject({ source: "previous" });
+                expect(json(derived).data.plan[0].name).toBe("🔥・mi-23-09-kara");
+                expect(json(derived).data.naming).toMatchObject({ source: "previous" });
             } finally {
                 archiveStore.getChannelConfig.mockReturnValue({ archiveCategoryId: "arch", schemas: {}, archiveDeleteHintDays: 14 });
             }
@@ -268,8 +261,8 @@ describe("POST /api/channels/batch", () => {
             readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{raid}-{dd}{mm}", raid: "kara", from: "2026-09-23", templateChannelId: "c2", dryRun: true });
             const res = mockRes();
             await routes.batchCreate({}, res);
-            expect(body(res).data.plan[0].name).toBe("kara-2309");
-            expect(body(res).data.naming).toMatchObject({ source: "typed", label: "nach eingegebenem Schema", templateChannelId: "c2", design: "Rechte und Thema von #do-18-09-bt" });
+            expect(json(res).data.plan[0].name).toBe("kara-2309");
+            expect(json(res).data.naming).toMatchObject({ source: "typed", label: "nach eingegebenem Schema", templateChannelId: "c2", design: "Rechte und Thema von #do-18-09-bt" });
         });
 
         it("renames by an empty schema like the latest other event channel of the category", async () => {
@@ -280,7 +273,7 @@ describe("POST /api/channels/batch", () => {
             readJsonBody.mockResolvedValue({ ids: ["c1", "c2"], schema: "", raid: "" });
             const res = mockRes();
             await routes.renamePreview({}, res);
-            const [c1, c2] = body(res).data.rows;
+            const [c1, c2] = json(res).data.rows;
             expect(c1).toMatchObject({ from: "mi-17-09-ssc", to: "🔥・mi-23-09-kara", hasDate: true, conflict: false });
             expect(c1.naming).toMatchObject({ source: "previous", label: "abgeleitet aus #🔥・mi-16-09-kara", detail: "Datum 16-09 → 23-09" });
             // no event, no date: the name stays
@@ -295,7 +288,7 @@ describe("POST /api/channels/batch", () => {
             readJsonBody.mockResolvedValue({ ids: ["g"], schema: "", raid: "" });
             const res = mockRes();
             await routes.renamePreview({}, res);
-            expect(body(res).data.rows[0]).toMatchObject({ from: "general", to: "general", naming: { source: "default" } });
+            expect(json(res).data.rows[0]).toMatchObject({ from: "general", to: "general", naming: { source: "default" } });
             listRaidEvents.mockReturnValue([]);
         });
     });
@@ -327,7 +320,7 @@ describe("POST /api/channels/batch", () => {
             });
             expect(eventCreate.createEvent.mock.calls[1][0].body.date).toBe("2026-10-07");
             expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: input.schema, raid: "kara", templateChannelId: "", time: "19:30" });
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.results.map((r) => [r.name, r.ok, r.eventId, r.eventError])).toEqual([
                 ["mi-23-09-kara", true, "eh-1", undefined],
                 ["mi-07-10-kara", true, undefined, "Mehr Tanks und Heiler als Plätze."],
@@ -343,7 +336,7 @@ describe("POST /api/channels/batch", () => {
             const res = mockRes();
             await routes.batchCreate({}, res);
             expect(eventCreate.createEvent.mock.calls[0][0].body).toEqual({ title: "Raids", date: "2026-09-23", time: "19:30", channelId: "new-mi-23-09-kara", signupSource: "raidhelper" });
-            expect(body(res).data).toMatchObject({ failed: 0, message: "1 Kanal angelegt · 1 Event angelegt" });
+            expect(json(res).data).toMatchObject({ failed: 0, message: "1 Kanal angelegt · 1 Event angelegt" });
         });
 
         it("needs raids write, a category and a valid time — before anything is created", async () => {
@@ -357,12 +350,12 @@ describe("POST /api/channels/batch", () => {
             readJsonBody.mockResolvedValue({ ...input, categoryId: "" });
             res = mockRes();
             await routes.batchCreate({}, res);
-            expect(body(res).error.code).toBe("no_category");
+            expect(json(res).error.code).toBe("no_category");
 
             readJsonBody.mockResolvedValue({ ...input, time: "25:00" });
             res = mockRes();
             await routes.batchCreate({}, res);
-            expect(body(res).error.code).toBe("invalid_time");
+            expect(json(res).error.code).toBe("invalid_time");
             expect(dc.createFromTemplate).not.toHaveBeenCalled();
             expect(eventCreate.createEvent).not.toHaveBeenCalled();
         });
@@ -370,7 +363,7 @@ describe("POST /api/channels/batch", () => {
         it("offers the switch with the category defaults in GET /api/channels", async () => {
             const res = mockRes();
             await routes.getChannels({}, res);
-            const data = body(res).data;
+            const data = json(res).data;
             expect(data.canCreateEvents).toBe(true);
             expect(data.eventDefaults.cat1).toEqual({ templateId: "tpl-kara", templateName: "Karazhan 10er", source: "eventhelper" });
             expect(data.eventDefaults.arch).toEqual({ templateId: "", templateName: "", source: "raidhelper" });
@@ -381,7 +374,7 @@ describe("POST /api/channels/batch", () => {
         readJsonBody.mockResolvedValue({ from: "2026-02-30", dryRun: true });
         const res = mockRes();
         await routes.batchCreate({}, res);
-        expect(body(res).error.code).toBe("invalid_date");
+        expect(json(res).error.code).toBe("invalid_date");
     });
 });
 
@@ -391,7 +384,7 @@ describe("POST /api/channels/rename-preview", () => {
         readJsonBody.mockResolvedValue({ ids: ["c1", "c2"], schema: "{tag}-{dd}-{mm}-{raid}", raid: "ssc" });
         const res = mockRes();
         await routes.renamePreview({}, res);
-        expect(body(res).data.rows).toEqual([
+        expect(json(res).data.rows).toEqual([
             { id: "c1", from: "mi-17-09-ssc", to: "mi-16-09-ssc", hasDate: true, conflict: false, naming: null },
             { id: "c2", from: "do-18-09-bt", to: "ssc", hasDate: false, conflict: false, naming: null },
         ]);
@@ -411,7 +404,7 @@ describe("POST /api/channels/schema", () => {
         const res = await save({ categoryId: "cat1", schema: " 🔥・{tag}-{dd}-{mon}-{raid} ", raid: "kara", templateChannelId: "c1" });
         expect(status(res)).toBe(200);
         expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: "🔥・{tag}-{dd}-{mon}-{raid}", raid: "kara", templateChannelId: "c1" });
-        expect(body(res).data.schema).toMatchObject({ schema: "🔥・{tag}-{dd}-{mon}-{raid}" });
+        expect(json(res).data.schema).toMatchObject({ schema: "🔥・{tag}-{dd}-{mon}-{raid}" });
     });
 
     it("takes an empty schema as 'wie der letzte Event-Kanal' again", async () => {
@@ -428,7 +421,7 @@ describe("POST /api/channels/schema", () => {
     ])("refuses %j (%s)", async (input, code) => {
         const res = await save(input);
         expect(status(res)).toBe(400);
-        expect(body(res).error.code).toBe(code);
+        expect(json(res).error.code).toBe(code);
         expect(archiveStore.saveCategorySchema).not.toHaveBeenCalled();
     });
 });
@@ -446,6 +439,6 @@ describe("POST /api/channels/config", () => {
         readJsonBody.mockResolvedValue({ archiveCategoryId: "fremd" });
         const res = mockRes();
         await routes.saveConfig({}, res);
-        expect(body(res).error.code).toBe("unknown_category");
+        expect(json(res).error.code).toBe("unknown_category");
     });
 });

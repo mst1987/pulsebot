@@ -1,4 +1,4 @@
-jest.mock("../../src/web/apiMiddleware", () => ({ requireFullAdmin: jest.fn() }));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
@@ -14,8 +14,7 @@ const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../s
 const { makeCollection } = require("../helpers/mockInteraction");
 
 const ORGA = "123456789012345678";
-const mockRes = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const body = (res) => JSON.parse(res.end.mock.calls[0][0]);
+const { mockRes, body } = require("../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -90,7 +89,7 @@ describe("GET /api/bot-commands", () => {
         ]);
         const res = mockRes();
         await getBotCommands({}, res);
-        const data = body(res).data;
+        const data = body(res);
         expect(discord.listRoles).toHaveBeenCalledWith("900000000000000001");
         expect(data.groups.map((g) => g.id)).toEqual(["signup"]);
         expect(data.commands).toHaveLength(1);
@@ -105,6 +104,6 @@ describe("GET /api/bot-commands", () => {
         discord.fetchGuildMembersCached.mockRejectedValue(new Error("no intent"));
         const res = mockRes();
         await getBotCommands({}, res);
-        expect(body(res).data.roles[0].memberCount).toBeNull();
+        expect(body(res).roles[0].memberCount).toBeNull();
     });
 });

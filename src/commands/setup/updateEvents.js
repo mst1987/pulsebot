@@ -1,5 +1,5 @@
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
-﻿const { showAllEvents } = require("../../utils/helper");
+const { showAllEvents } = require("../../utils/helper");
 
 module.exports = {
     name: "update-events",
@@ -9,7 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("update-events")
         .setDescription("Update event overview for the current category"),
-    async execute(interaction, client) {
+    async execute(interaction) {
         if (!interaction.channel.parent) {
             return interaction.reply({ content: "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.", flags: MessageFlags.Ephemeral });
         }

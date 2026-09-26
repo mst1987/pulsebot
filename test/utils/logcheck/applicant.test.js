@@ -57,8 +57,8 @@ describe("logcheck/applicant analyzeApplicant", () => {
     test("matches the character entry case-insensitively", async () => {
         const wcl = fullWcl("ZuG");
         const res = await analyzeApplicant(wcl, "zug", { className: "Warlock" });
-        expect(res.consumables).toBeTruthy();
-        expect(res.potions).toBeTruthy();
+        expect(res.consumables).toEqual({ name: "ZuG", type: "Warlock", flask: 100, elixir: 0, buffed: 100, food: 0, weaponOiled: false });
+        expect(res.potions).toEqual({ name: "ZuG", type: "Warlock", destruction: 2, haste: 0, mana: 0, byType: { destruction: 2 }, total: 2 });
     });
 
     test("relevant potions depend on class/spec", async () => {
@@ -90,7 +90,7 @@ describe("logcheck/applicant analyzeApplicant", () => {
     test("no matching casts entry leaves gear/consumables unset", async () => {
         const wcl = fullWcl("SomeoneElse");
         const res = await analyzeApplicant(wcl, "Zug", { className: "Warlock" });
-        expect(res.overview).toBeDefined();
+        expect(res.overview.map((p) => `${p.encounterName}:${p.reportID}`)).toEqual(["Gruul:BBB", "Magtheridon:CCC"]);
         expect(res.gearIssues).toBeUndefined();
     });
 });
