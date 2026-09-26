@@ -1,0 +1,49 @@
+{
+    "preview": {
+        "aria": "Vorschau der Discord-Nachricht",
+        "role": "@Rolle",
+        "channel": "#kanal",
+        "app": "App",
+        "today": "heute um {time}",
+        "empty": "Noch kein Titel und kein Text."
+    },
+    "form": {
+        "nameSub": "Nur zur Auswahl beim Posten – steht nicht in der Nachricht.",
+        "namePlaceholder": "z.B. Kara-Reminder",
+        "title": "Titel der Nachricht",
+        "titlePlaceholder": "Anmeldung offen!",
+        "text": "Text",
+        "textSub": "Discord-Markdown erlaubt (**fett**, *kursiv*, __unterstrichen__). Die Rollen-Pings werden beim Posten je Event gewählt.",
+        "textPlaceholder": "Bitte tragt euch für den Raid ein …",
+        "preview": "Vorschau in Discord",
+        "ping": "Rollen-Ping",
+        "pingNote": "wird beim Posten je Event gewählt"
+    },
+    "toast": {
+        "saved": "Gespeichert.",
+        "created": "Vorlage angelegt.",
+        "deleted": "Gelöscht."
+    },
+    "delete": {
+        "title": "Vorlage löschen?",
+        "text": "„{name}“ wird gelöscht."
+    },
+    "page": {
+        "loadError": "Fehler beim Laden: {message}",
+        "loading": "Vorlagen werden geladen",
+        "kicker": "Raid-Events › Vorlagen",
+        "title": "Aufruf-Vorlagen",
+        "infoSub": "Nachrichten, die der Bot im Event mit Rollen-Ping postet (Event → Anmeldung → Aufruf posten).",
+        "new": "Neue Vorlage",
+        "colText": "Text",
+        "noName": "(ohne Name)",
+        "noTitle": "ohne Titel",
+        "empty": "Noch keine Aufruf-Vorlagen angelegt."
+    },
+    "modal": {
+        "kickerEdit": "Aufruf-Vorlage bearbeiten",
+        "kickerNew": "Neue Aufruf-Vorlage",
+        "draft": "Entwurf",
+        "draftSub": "Ungespeicherte Änderungen – im Browser zwischengespeichert, bis du speicherst oder abbrichst."
+    }
+}
