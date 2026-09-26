@@ -258,8 +258,8 @@ turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs
 apply, map order), `raidplanTemplateRoute.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
 `raidplanRoute.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
 routing in `test/web/server.test.js`, `readRawBody` in `apiBody.test.js`, and
-`test/web-client/raidplan.test.js` (board logic run for real, structure of the pages, texts in both
-languages).
+`test/web-client/raidplan.<thema>.test.js` (board logic run for real in `boards`, `editing`, `slots`, `tokens`,
+`roleGroups`; structure of the pages and texts in both languages in `pages`).
 
 ## Raid-Helper-Events (feature/raidplan-12)
 

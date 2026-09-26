@@ -240,7 +240,7 @@ Besides:
 - **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so
   they never meet (before it sat at the lower right, on the name's first line).
 
-Tests: `test/web-client/labelScale.test.js`, "names on a group ring" in `test/web-client/raidplan.test.js`.
+Tests: `test/web-client/labelScale.test.js`, "names on a group ring" in `test/web-client/raidplan.roleGroups.test.js`.
 
 **A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from
 the default:
@@ -254,7 +254,7 @@ the default:
   memberPx)` = the bigger of the two - the ring grows with the tokens it carries (also for the places the
   facing finds). Raiders moved by hand keep their stored offsets.
 
-Tests: "a group's own token size" in `test/web-client/raidplan.test.js`.
+Tests: "a group's own token size" in `test/web-client/raidplan.roleGroups.test.js`.
 
 ### Role groups and group chips scale with themselves (feature/raidplan-15, part 2)
 
@@ -277,7 +277,7 @@ Tests: "a group's own token size" in `test/web-client/raidplan.test.js`.
   0 = automatic; kept by `raidplanBoard.cleanBoard` for groups only). Before, the chip was laid out in a
   zero-wide anchor, so every name broke at its spaces ("Darkdisi /" + "Lakunoc").
 
-Tests: "role groups and group chips scale with themselves" in `test/web-client/raidplan.test.js`, "a group
+Tests: "role groups and group chips scale with themselves" in `test/web-client/raidplan.roleGroups.test.js`, "a group
 chip's width" in `test/web/raidplanBoard.test.js`.
 
 ## Role groups: turned, names inside, symbol size, label outside (feature/raidplan-16)
@@ -314,7 +314,7 @@ chip's width" in `test/web/raidplanBoard.test.js`.
   lines on a dark plate inside (less contrast against the fill, harder to tell from each other); V3 the old
   column outside below the zone, only more compact (still covers tokens below and grows with every name).
 
-Tests: "role groups turned, their names inside" in `test/web-client/raidplan.test.js`, "role groups in a
+Tests: "role groups turned, their names inside" in `test/web-client/raidplan.roleGroups.test.js`, "role groups in a
 multi-selection" in `test/web-client/multiOptions.test.js`, "a role group's symbol size and label place" in
 `test/web/raidplanBoard.test.js`.
 
