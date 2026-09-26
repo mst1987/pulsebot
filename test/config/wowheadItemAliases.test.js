@@ -33,7 +33,8 @@ describe("config/wowheadItemAliases", () => {
             for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
                 const p = path.join(dir, e.name);
                 if (e.isDirectory()) walk(p);
-                else if (/\.tsx?$/.test(e.name) && e.name !== "wowheadItems.ts"
+                // the client's own tests (Vitest, *.test.ts(x)) may spell a link out as an expectation
+                else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) && e.name !== "wowheadItems.ts"
                     && fs.readFileSync(p, "utf8").includes("wowhead.com/tbc/item=")) hits.push(e.name);
             }
         };

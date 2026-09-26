@@ -1,6 +1,6 @@
 // The read view's tables, derived from the assignments (nothing to maintain): "Tank | Ziel | Heiler", the group healing,
 // and the slim tables of the other types. Pure; the component (pages/raid-detail/raidplan/ReadTables.tsx) only draws them.
-// Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
+// Tests: src/web-client/src/lib/planTables.test.ts.
 import type { RaidplanAssignment, RaidplanPlayer } from "../api";
 import { resolveAssignee, resolveTarget } from "./assign";
 import type { AssignCtx, Resolved } from "./assign";

@@ -1,5 +1,5 @@
 // The number fields of the raid plan (size, opacity, angle, counts): what a typed text becomes, and what the arrow keys do.
-// Pure, so the rules are tested (test/web-client/numberField.test.js). Written with function declarations only (the tests load it).
+// Pure, so the rules are tested (src/web-client/src/lib/numberField.test.ts). Written with function declarations only (the tests load it).
 
 /** A value inside min..max, rounded to a whole number (or to `decimals` places). */
 export function clampNumber(value: number, min: number, max: number, decimals = 0): number {

@@ -1,7 +1,7 @@
 // The raid ID — the lockout week from the Wednesday reset to the Tuesday after
 // it — in the guild's time zone, so a raid on Tuesday 23:30 does not slip into
 // the next ID for a viewer elsewhere. Written without typed consts, so the
-// tests run it as it is (test/web-client/raidId.test.js).
+// tests run it as it is (src/web-client/src/lib/raidId.test.ts).
 
 const TZ = "Europe/Berlin";
 const DAY_MS = 86400000;

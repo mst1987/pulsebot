@@ -1,7 +1,7 @@
 // The one line in the menu's footer that says which code is running (#314):
 // "Server läuft auf a1b2c3d vom 12.09. · main ist 9 Commits weiter".
 //
-// Pure and strippable, like lib/eventSeries.ts — test/web-client/deployVersion.test.js
+// Pure and strippable, like lib/eventSeries.ts — src/web-client/src/lib/deployVersion.test.ts
 // runs these functions for real. Everything the line does not fit goes into the
 // tooltip; the footer stays one quiet line. The texts come from the "deploy"
 // namespace (i18n/locales/<lang>/deploy.json); the test injects a real `t`.

@@ -1,5 +1,5 @@
 // "That is you": where the visitor's own characters are named in free text (notes, texts, titles, free-text targets) and how a text
-// is cut into the parts that name them. Pure, so the rule is tested (test/web-client/mention.test.js). Written with function
+// is cut into the parts that name them. Pure, so the rule is tested (src/web-client/src/lib/mention.test.ts). Written with function
 // declarations and one-line signatures only (the tests load it).
 import type { RaidplanAssignment } from "../api";
 

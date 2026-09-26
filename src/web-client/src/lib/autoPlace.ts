@@ -15,7 +15,7 @@
 // Keys: "t:<row>:<n>" (the row's id, a copy of a default row keeps the default's) and "m:<mob>#<n>". The layout works on a nominal
 // board (LAYOUT_W x LAYOUT_H reference px), so the editor, the template and the sheet put everything at the same place.
 //
-// Written to be strippable (test/web-client/autoPlace.test.js runs it): imports, `export type`, tables and one-line signatures only.
+// Written to be strippable (src/web-client/src/lib/autoPlace.test.ts runs it): imports, `export type`, tables and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanAutoStyle, RaidplanBoard, RaidplanIcon, RaidplanPlayer } from "../api";
 
 export const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];

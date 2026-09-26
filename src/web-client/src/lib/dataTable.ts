@@ -1,6 +1,6 @@
 // The pure half of components/ui/DataTable.tsx (#439): which rows a page of a
-// client-side paged table shows. Kept free of React so Jest runs it through
-// loadTs (test/web-client/dataTable.test.js).
+// client-side paged table shows. Kept free of React, tested in
+// src/web-client/src/lib/dataTable.test.ts.
 
 /** One page of rows plus what the Pager shows ("Seite X / Y · Z gesamt"). */
 export type PageSlice<T> = { rows: T[]; page: number; totalPages: number; total: number };

@@ -1,7 +1,7 @@
 // The look of a group: its colour and its raid mark. Group n gets a fixed default colour from a palette that tells the groups apart for people with
 // colour-blindness too (Okabe-Ito plus a grey; the number is always shown next to it, colour is never the only sign); a colour can be set per group
 // and a raid mark (skull, cross ...) once per board. Stored on the board as `groupColors` / `groupMarks` (group number -> value), empty = the defaults.
-// Pure and tested (test/web-client/groupStyle.test.js); written with function declarations and one-line signatures only.
+// Pure and tested (src/web-client/src/lib/groupStyle.test.ts); written with function declarations and one-line signatures only.
 import type { RaidplanBoard } from "../api";
 
 /** The default colours of groups 1..8; group 9 starts over. */

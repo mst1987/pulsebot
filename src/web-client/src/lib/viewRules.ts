@@ -1,4 +1,4 @@
-// What is drawn on a board and for whom (pure, tested in test/web-client/viewRules.test.js): the plan's own switches, the switch of one object and what one
+// What is drawn on a board and for whom (pure, tested in src/web-client/src/lib/viewRules.test.ts): the plan's own switches, the switch of one object and what one
 // viewer chose for himself. The plan says what everybody sees; a viewer can only hide more, never show what the plan hides.
 // Written with function declarations and one-line signatures only.
 

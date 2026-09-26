@@ -1,7 +1,7 @@
 // Zoom and pan of a board: a view setting only (never stored in the plan), the same picture as at "fit", enlarged. The view is {z, ox, oy}: the zoom
 // factor (1 = fit = what the read view shows) and where the canvas starts, as fractions of the visible frame. Board points stay where they are:
 // converting a screen point to a board fraction is (px - rect.left) / rect.width on the canvas' own (transformed) rectangle, at any zoom.
-// Pure and tested (test/web-client/boardView.test.js); written with function declarations and one-line signatures only.
+// Pure and tested (src/web-client/src/lib/boardView.test.ts); written with function declarations and one-line signatures only.
 
 export const MIN_Z = 0.5;
 export const MAX_Z = 4;

@@ -1,6 +1,6 @@
 // Selecting several objects of a board at once and acting on them together (rubber band, Ctrl/Shift click, Ctrl+A, delete,
 // move, scale, duplicate, copy / paste, align, look). Pure: a board goes in, a board comes out, so every action is ONE undo step.
-// Written with function declarations and one-line signatures only, so the tests can load it (test/web-client/i18nHelper.js).
+// Tests: src/web-client/src/lib/multiSelect.test.ts.
 import type { RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanSlot, RaidplanText, RaidplanZone } from "../api";
 import { MIN_ZONE, SIZE_RANGES, turnedBox, arrowOf, autoStyleOf, canFace, clamp01, normAngle, patchArrow, patchAutoStyle, scaleArrow, duplicateObject, isLocked, isRoleKind, lookOf, moveObject, newRowId, objectPoint, patchLook, removeObject, reorderObject, objectPercent, scaleObject, setObjectPercent, setObjectSize, sizeOf, unplaceSlot, updateIcon, updateLine, updateText, updateZone } from "./raidplan";
 import type { ObjectKind } from "./raidplan";

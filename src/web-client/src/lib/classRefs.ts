@@ -6,7 +6,7 @@
 //
 // The COUNT of a class in a row ("Hunter x 2") is the number of its references in the row (Hunter 1, Hunter 2), so every reference stays one
 // place with its own number, its own hand-made pick and its own chip; the running number counts on over all rows of the same kind of task
-// (a second misdirect row gets "Hunter 2", a third "Hunter 3"). Pure and tested (test/web-client/classRefs.test.js), the server twin is
+// (a second misdirect row gets "Hunter 2", a third "Hunter 3"). Pure and tested (src/web-client/src/lib/classRefs.test.ts), the server twin is
 // src/web/raidplanAssign.js (expandClassRefs, renumberClassRefs); written with function declarations and one-line signatures only.
 import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanPlayer } from "../api";
 

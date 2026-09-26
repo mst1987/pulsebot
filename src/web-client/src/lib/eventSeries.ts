@@ -2,7 +2,7 @@
 // coming date reads ("wird am Do 17.09. um 19:30 angelegt", "angelegt am
 // 17.09. als #…"), which badge it gets, and how the modal's draft becomes a
 // preview request. No React in here, and strippable (one-line signatures, no
-// types inside bodies), so test/web-client/eventSeries.test.js runs it for real.
+// types inside bodies), so src/web-client/src/lib/eventSeries.test.ts runs it for real.
 import type { EventSeries, EventSeriesInput, SeriesDate, SeriesDateState } from "../api";
 
 const TZ = "Europe/Berlin";

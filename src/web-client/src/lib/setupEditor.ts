@@ -4,7 +4,7 @@
 // is on its way. The server validates and values every change again; these
 // rules only keep the page from sending what it already knows is refused.
 //
-// Written to be strippable like raidTemplates.ts (test/web-client/setupEditor.test.js
+// Written to be strippable like raidTemplates.ts (test/web-client/conventions/setupEditor.test.js
 // runs it for real, with `t` injected): imports, `export type` and one-line
 // signatures only.
 import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, SetupSearch, StoredSetup } from "../api";

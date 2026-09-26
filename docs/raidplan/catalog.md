@@ -215,6 +215,6 @@ a verb is a step.
   English "tanks" -> "tank"; his chip carries "DU", the one mark), then "Alle Schritte" in their order (his
   own dimmed there so the numbers do not jump); on a phone the rows wrap.
 - Tests: `test/services/raidplan/raidplanSteps.test.js` (validation, template without players, clamping, board, resolution
-  incl. mage tank / missing class, migration of profiles), `test/web-client/steps.test.js` (editing and
+  incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/steps.test.ts` (editing and
   sorting, timing words, sentence parts, du form, @ mentions, resolution, library, starters, structure,
   texts).

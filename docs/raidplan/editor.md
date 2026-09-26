@@ -18,7 +18,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
   even with a full setup (the earlier rule hid them all, which made splitting unusable) and the "Nicht
   platziert" list still lists such players; once a member's slot is dragged onto the map, the ring token of
   that person disappears (no duplicate). Own-character highlight is unchanged. Tests:
-  `test/web-client/groupTag.test.js`.
+  `src/web-client/src/lib/groupTag.test.ts`.
 
 - **Layout** (`BoardWorkspace.tsx`, `styles/raidplan.css`, one component for the template and the event
   editor): tool bar and boss chips (sticky), then the **bands** above the board (palette as one horizontal
@@ -46,7 +46,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
   entry shows a tally `placed/total` and is greyed out when all are placed (`slotTally`). Existing boards are
   repaired when opened (`repairSlots`, part of `ensureBesetzung`): duplicate slots of a role above the count
   are merged into the free ones or removed, references stay valid. Regression tests in
-  `test/web-client/raidplan.slots.test.js`.
+  `src/web-client/src/lib/raidplan.slots.test.ts`.
 - **Chips of the Besetzung are draggable** (`dropChip`, pure): an unplaced chip dragged onto the map places
   the slot exactly there (ghost at the pointer, Esc cancels, a drop outside the map does nothing); a placed
   chip dragged onto the bar leaves the map, dragged onto the map moves; a plain click on a chip opens its
@@ -215,7 +215,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 
 - **One resolution, two twins.** `expandClassRefs` in `src/services/raidplan/raidplanAssign.js` (sheet `/p/<token>`,
   suggestions) and in `src/web-client/src/lib/classRefs.ts` (editor, template editor, facing, "Meine
-  Aufgaben") are the same algorithm; `test/web-client/classCount.test.js` runs both on the same boards and
+  Aufgaben") are the same algorithm; `src/web-client/src/lib/classCount.test.ts` runs both on the same boards and
   compares. Per board and **kind of task**: raiders named by hand (`user:`, a filled slot, `picks`) are taken
   first; then the references of a **named class** in row order; then the **"Any"** references. A reference
   starts at its own number in its pool and takes the first raider nobody of that task has yet; nobody free =
@@ -256,7 +256,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   paladin row is served first, "any tank" takes the next free tank) and a third misdirect row at the council
   that stays open (two hunters, both already misdirect there).
 - Tests: `test/services/raidplan/raidplanRoundRobin.test.js` (2 hunters / 3 rows, count, general tank without a ret paladin,
-  no fallback, allow several, migration, suggestions with `keep`), `test/web-client/classCount.test.js`
+  no fallback, allow several, migration, suggestions with `keep`), `src/web-client/src/lib/classCount.test.ts`
   (count, carry, candidates, twin check, dialog structure), updated `raidplanClassRefs.test.js` /
   `classRefs.test.js`.
 
@@ -334,7 +334,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
   Einteilungen" (`openAssignments` over every section with its Besetzung, `missingNames`), a click lists them
   per section (a click on a section opens it); applying a template ends with a toast "2 Einteilungen offen:
   Magier, Jäger fehlen". The sheet shows only the chip. A template has no setup and no such warning.
-- Tests: `test/web-client/assignModal.test.js` (categories, people list and filter, counters, class counts,
+- Tests: `src/web-client/src/lib/assignModal.test.ts` (categories, people list and filter, counters, class counts,
   preview, row states, card counter, any-spec roles and names, open rows plan-wide, twin check, structure,
   texts), `classCount.test.js` (count / role of a class in the dialog), `test/services/raidplan/raidplanRoundRobin.test.js`
   (mage tank with `any`, no fallback, healing keeps its role, `any` saved).
@@ -441,7 +441,7 @@ dot (`lib/raidplan.dirtyKeys`, its label says "ungespeichert"). The tab title st
 saves (the browser's "save page" is suppressed), leaving the page (reload, close, another address) asks via
 `beforeunload`. Saved: a calm green "Gespeichert" with a short flash. A conflict (409) is red instead of
 amber. In-app navigation inside the menu (the router is a plain BrowserRouter without blockers) is not
-intercepted. Tests: `test/web-client/saveState.test.js`.
+intercepted. Tests: `src/web-client/src/lib/saveState.test.ts`.
 
 ## Round 13 (feature/raidplan-13): one mob of several, the zoom as in the sheet, options of a multi-selection
 
@@ -471,7 +471,7 @@ mob in the board's order), stored for the label where the map is not at hand.
   the kind and each icon once; `raidplanBoard.cleanBoard` drops an `oid` whose icon is gone or stands for
   another mob (the target means the kind again, its `n` stays); `reidBoard` (a template applied) moves the
   `oid` to the icon's new id.
-- Tests: `test/web-client/mobInstances.test.js`, the `oid` part of `test/services/raidplan/raidplanBoard.test.js`.
+- Tests: `src/web-client/src/lib/mobInstances.test.ts`, the `oid` part of `test/services/raidplan/raidplanBoard.test.js`.
 
 ### The zoom as in the sheet
 
@@ -494,4 +494,4 @@ Tank drehen" or one of the eight directions for all) and the **arrow** (size, hi
 `setLookSelection`, `setColorSelection`, `setFacingSelection`, `patchArrowSelection` apply a change to every
 selected object that has the option (locked ones keep theirs) — one board change, so one undo step. "Zum
 eigenen Tank" follows the rule above: with several Flames each turns to the tank of that very icon. No native
-selects; the compass is buttons. Tests: `test/web-client/multiOptions.test.js`.
+selects; the compass is buttons. Tests: `src/web-client/src/lib/multiOptions.test.ts`.

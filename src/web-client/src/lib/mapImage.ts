@@ -5,7 +5,7 @@
 // the canvas work is in pages/raid-detail/raidplan/mapUpload.ts. The server still
 // checks the type by its first bytes and the size (the safety net stays).
 //
-// Written to be strippable (test/web-client/mapImage.test.js runs it): one-line
+// Written to be strippable (src/web-client/src/lib/mapImage.test.ts runs it): one-line
 // signatures, no typed locals.
 
 /** What the server accepts (raidplanStore.LIMITS.mapBytes = 3 MB). */

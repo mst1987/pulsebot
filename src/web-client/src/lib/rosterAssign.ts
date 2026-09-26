@@ -1,6 +1,6 @@
 // Giving the roster slots (Tank 1..n, Heiler 1..n, DPS / Melee / Ranged n) to players in the event plan: assign with a swap, clear, fill
 // what is open by role and class, and the candidates of a slot. Pure (a board goes in, a board comes out, one undo step each), so the
-// rules are tested (test/web-client/rosterAssign.test.js). Written with function declarations and one-line signatures only.
+// rules are tested (src/web-client/src/lib/rosterAssign.test.ts). Written with function declarations and one-line signatures only.
 import type { RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../api";
 import { assignSlot, roleOn } from "./raidplan";
 

@@ -4,7 +4,7 @@
 // The server checks and cleans every save again and makes the suggestions
 // (src/web/raidplanAssign.js); these rules keep the page consistent while the orga works.
 //
-// Written to be strippable (test/web-client/assign.test.js runs it, with `t` injected):
+// Written to be strippable (src/web-client/src/lib/assign.test.ts runs it, with `t` injected):
 // imports, `export type`, tables and one-line signatures only, no typed locals or casts.
 import { mentionsInRow } from "./mention";
 import { ANY, parseClassRef } from "./classRefs";

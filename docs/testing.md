@@ -1,6 +1,6 @@
 # Tests: Helfer, Fabriken und Mock-Konvention
 
-Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter `test/`, wo genau, sagt der nächste Abschnitt. Diese Datei sagt, was es schon gibt, damit kein Test eine eigene Kopie davon anlegt. Die Grundregeln (jedes Feature mit Tests, kein echtes Netzwerk, Stores über `tempStoreFile`) stehen im Abschnitt „Testing“ in CLAUDE.md.
+Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter `test/`, wo genau, sagt der nächste Abschnitt. Der React-Client hat eine eigene Suite mit Vitest (Abschnitt „Web-Client“ unten). Diese Datei sagt, was es schon gibt, damit kein Test eine eigene Kopie davon anlegt. Die Grundregeln (jedes Feature mit Tests, kein echtes Netzwerk, Stores über `tempStoreFile`) stehen im Abschnitt „Testing“ in CLAUDE.md.
 
 ## Wo ein Test hingehört
 
@@ -11,7 +11,8 @@ Die Regel (#434), kurz auch in CLAUDE.md:
 | `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/stores/`), die Dienste (`src/services/<bereich>/`) und die Module unter `src/web/<bereich>/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/stores/eventStore.js` → `test/stores/eventStore.test.js`, `src/services/events/eventCreate.js` → `test/services/events/eventCreate.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
 | ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
 | der Dispatcher `src/web/http/apiRouter.js` | `test/web/http/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
-| eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/loot/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |
+| eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/loot/lootCouncil.gear.test.js`; im Client `src/web-client/src/lib/raidplan.slots.test.ts` |
+| der React-Client `src/web-client/src/**` | Vitest, neben dem Modul: `lib/raidplan.ts` → `lib/raidplan.test.ts` (oder `raidplan.<thema>.test.ts`), `pages/ChannelsPage.tsx` → `pages/ChannelsPage.test.tsx`; strukturelle Konventionen unter `test/web-client/conventions/` (siehe „Web-Client“) |
 
 Eine Route-Suite fährt ihre Anfragen durch den echten Router (`routerClient` aus `http.js`, siehe unten) und bindet ihn an ihr Route-Modul: ein Pfad, den ein anderes Route-Modul registriert, lässt den Test sofort scheitern, statt still die falsche Datei zu testen. Sie mockt nur, was ihre Route erreicht. Wer einen Handler lieber direkt aufruft (Validierung, Randfälle), tut das in derselben Datei, wie in `apiRoutes/settings.test.js` und `apiRoutes/channels.test.js` („handlers called directly“).
 
@@ -72,6 +73,29 @@ Eine Suite mit eigener Form baut einen Einzeiler darauf: `const event = (over = 
 - **Automock** (`jest.mock("axios")` ohne Factory) nur für Module, deren Rückgaben der Test ohnehin vollständig setzt.
 - **Stores**, die eine Suite wirklich schreiben lässt, bekommen `useFile(tempStoreFile("x.json"))` oder `memoryFs` — nie `os.tmpdir()` plus `process.pid`, nie das `data/` des Checkouts.
 - **Assertions auf konkrete Werte:** `toEqual`/`toMatchObject`/`toBe` auf das Ergebnis, nicht nur `toBeDefined()`, `not.toThrow()` oder `length > 0`.
+
+## Web-Client (Vitest)
+
+Der React-Client unter `src/web-client` testet sich selbst mit **Vitest** (#435): `cd src/web-client && npm test` (einmal, so läuft es auch in der CI im Job `web-client`), `npm run test:watch` beim Arbeiten. `vitest.config.ts` übernimmt die Vite-Konfiguration der App (TSX, JSON, `import.meta.glob`) und rendert in **jsdom**. Der Root-Jest sieht diese Tests nicht (`testMatch` greift nur `test/**/*.test.js`), und aus `tsc -b`/dem Build sind sie ausgenommen (`tsconfig.app.json`).
+
+- **Wo:** neben dem Modul als `*.test.ts` bzw. `*.test.tsx` (`lib/assign.ts` → `lib/assign.test.ts`, `pages/ProfilePage.tsx` → `pages/ProfilePage.test.tsx`; ein Thema quer dazu als `ClaPage.actions.test.tsx`). Imports explizit aus `"vitest"`, keine Globals.
+- **Logik** (`lib/`, `api/`, `i18n/core.ts`) wird einfach importiert — volles TypeScript, Generics und `as` inklusive. Den früheren Regex-Stripper (`loadTs`) gibt es nicht mehr.
+- **Komponenten und Seiten** werden gerendert und so geprüft, wie ein Nutzer sie sieht: `@testing-library/react` (`screen.getByRole`, `findByText`), `@testing-library/user-event` für Klicks und Tastatur, `@testing-library/jest-dom` für `toBeInTheDocument`/`toHaveAttribute`. Gesucht wird nach Rolle, Text und Label, nicht nach CSS-Klassen — außer die Klasse ist das Verhalten (Ton eines Badges).
+- **Die API ist nie echt:** `vi.mock("../api", async (orig) => ({ ...(await orig<typeof import("../api")>()), getChannels: vi.fn() }))`, dann `vi.mocked(api.getChannels).mockResolvedValue(...)`; wer `api/client.ts` selbst testet, stubbt `fetch` (`vi.stubGlobal`). `clearMocks`/`restoreMocks` sind an — Rückgabewerte gehören in `beforeEach` oder in den Test.
+- **Helfer unter `src/web-client/src/test/`:**
+
+| Datei | Wofür |
+|---|---|
+| `setup.ts` | läuft vor jeder Datei: jest-dom-Matcher, `<dialog>`-Nachbau (jsdom kennt `showModal` nicht; Escape feuert `cancel`), `matchMedia`-Stub, nach jedem Test `cleanup` und leerer local-/sessionStorage |
+| `render.tsx` | `renderPage(<Seite />, { route, path, user })` — MemoryRouter, der Outlet-Kontext `{ user }` wie in der Shell, `JobsProvider` (Toasts) und `ConfirmProvider`; `adminUser(over)` für ein Konto |
+| `i18n.ts` | der echte `t` ist Deutsch; `switchLang("en")` bzw. `inLang("en", fn)` für englische Fälle |
+| `backend.ts` | `requireBackend("web/raidTemplates")` — ein CommonJS-Modul aus `src/`, für Tests, die Client und Server gegeneinander halten |
+
+- **Bekannte Eigenheit:** Der Titel eines `Modal` ist nicht mit dem `<dialog>` verbunden (kein `aria-labelledby`), `getByRole("dialog", { name })` findet ihn also nicht — Tests suchen den offenen Dialog über seinen Titeltext.
+
+### Konventionen: `test/web-client/conventions/` (Jest)
+
+Was kein Render-Test sehen kann, prüft weiter der Root-Jest am Quelltext: jedes Modul mit eigenem Stylesheet und eigenem Klassen-Präfix (`cssNamespaces`), lazy geladene Routen (`codeSplitting`), die API-Aufteilung (`apiSplit`), kein durchgereichter CSRF-Token (`csrf`), keine deutschen Literale in übersetzten Dateien (`i18n-phase1`, `i18n-*`), kein nativer `title`, keine zweite Kopie eines Bausteins (`icons`, `raidLoader`, `useDismiss`, `listSection`, `resultToasts`, …). Dateien lesen sie über `test/web-client/clientSource.js` (`read`, `sourceFiles`, `clientSources`, `stripComments`, `dictionary`); jeder Durchlauf über den Client lässt dessen eigene Tests aus. Eine neue Konvention kommt dorthin — **Verhalten** einer Komponente dagegen gehört als Render-Test in den Client, nicht als `toContain` auf den Quelltext.
 
 ## Coverage-Schwellen
 

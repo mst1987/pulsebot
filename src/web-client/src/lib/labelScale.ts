@@ -3,7 +3,7 @@
 // NEVER changes: the name looks the same under its icon at 50 %, 100 % and 300 %, in the editor and the sheet. The only limit is legibility: when the
 // name would be smaller than HIDE_SCREEN_FONT px on screen it is hidden (the icon is too small on screen to carry it) - it is never blown up
 // beyond its share, which made names wider than the room between two raiders and let them lie on the next one while zoomed out (#raidplan-14).
-// Pure and tested (test/web-client/labelScale.test.js); function declarations with one-line signatures only.
+// Pure and tested (src/web-client/src/lib/labelScale.test.ts); function declarations with one-line signatures only.
 
 /** The font of a name as a share of the icon's size: tokens, slots and group members; icons (boss, mob) whose default is bigger use a smaller share. */
 export const NAME_FACTOR = 0.3;

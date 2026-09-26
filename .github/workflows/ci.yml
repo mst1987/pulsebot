@@ -81,6 +81,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # A few client tests hold a client module against its backend twin
+      # (src/web-client/src/test/backend.ts loads it with Node's require), so
+      # the backend's runtime dependencies (axios, luxon, ...) must be there.
+      - name: Install backend dependencies
+        working-directory: .
+        run: npm ci --omit=dev --ignore-scripts
+
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
 
@@ -89,6 +96,10 @@ jobs:
       # number whenever one is fixed, down to 0.
       - name: Run ESLint
         run: npm run lint -- --max-warnings=18
+
+      # The client's own tests (Vitest + jsdom, #435).
+      - name: Test
+        run: npm test
 
       - name: Type-check
         run: npx tsc -b

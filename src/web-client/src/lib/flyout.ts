@@ -3,7 +3,7 @@
 // ends, more entries mean another page, a search or a tab), lets several be ticked at once and range / all at a click.
 // The component is components/raidplan/Flyout.tsx.
 //
-// Written to be strippable (test/web-client/flyout.test.js runs it): one-line signatures, no typed locals or casts.
+// Written to be strippable (src/web-client/src/lib/flyout.test.ts runs it): one-line signatures, no typed locals or casts.
 
 export type FlyItem = { key: string; label: string; on: boolean; group: string };
 export type FlySection = { title: string; items: FlyItem[] };

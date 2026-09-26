@@ -357,5 +357,5 @@ restart.
 
 Tests: `test/web/raidplan/raidhelperRoster.test.js`, `test/web/raidplan/raidplanTitle.test.js`,
 `test/web/apiRoutes/raidplan.raidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
-Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `test/web-client/raidplanRaidhelper.test.js`, plus the
+Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `src/web-client/src/lib/raidplanRaidhelper.test.ts`, plus the
 store / board additions.

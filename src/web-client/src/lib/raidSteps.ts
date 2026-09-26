@@ -4,7 +4,7 @@
 // der Server (src/web/raidDetailSteps.js' eventSteps) — hier steht nur, wie ein
 // Zustand heißt und wie die Leiste auf dem Handy zu einer Zeile zusammenfällt.
 // Strippable wie lib/eventManage.ts (einzeilige Signaturen, keine Typen in den
-// Rümpfen), damit test/web-client/raidSteps.test.js sie wirklich ausführt und
+// Rümpfen), damit src/web-client/src/lib/raidSteps.test.ts sie wirklich ausführt und
 // gegen die Server-Regel hält.
 import type { RaidEventStep, RaidEventStepState, RaidEventSteps, RaidStepDeed } from "../api";
 import type { Tone } from "../components/ui/Badge";

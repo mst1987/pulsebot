@@ -1,5 +1,5 @@
 // Client twin of wowIconUrl() in src/config/menu.js — same rules, kept in step by
-// test/web-client/uiFoundation.test.js (the client is TypeScript and the tests
+// src/web-client/src/components/ui/uiFoundation.test.ts (the client is TypeScript and the tests
 // run plain Node, so the function cannot simply be shared).
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons";
