@@ -747,3 +747,49 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         expect(timeline.fights[0].buffs).toBeNull();
     });
 });
+
+describe("logcheck/raidBuffs — a kill and a wipe (characterisation, #431)", () => {
+    // Pinned before buffsForFight was split into phases: the same raid over a
+    // clean kill and a wipe in which everybody dies — once at the pull, twice,
+    // or behind a broken death entry.
+    const kill = { id: 3, start_time: 300000, end_time: 420000, kill: true };
+    const wipe = { id: 5, start_time: 440000, end_time: 480000, kill: false };
+    function nightBands() {
+        return {
+            Brokk: { byKey: { kings: FULL, fortitude: FULL, motw: FULL, might: FULL } },
+            Elun: { byKey: { kings: FULL, fortitude: FULL, intellect: FULL, spirit: FULL } },
+            Aldra: { byKey: { kings: FULL, fortitude: FULL, motw: [band(290000, 330000)], intellect: FULL } },
+            Dorn: { byKey: { kings: FULL, fortitude: FULL, motw: FULL } },
+            Leaf: { byKey: { kings: FULL, fortitude: FULL, motw: FULL, intellect: FULL } },
+            Uther: { byKey: { kings: FULL, fortitude: FULL, motw: FULL, intellect: FULL } },
+        };
+    }
+    const wipeDeaths = [
+        null, { at: NaN, name: "Brokk" }, { at: 0, name: "Brokk" }, { at: 12000, name: "Elun" }, { at: 15000, name: "Aldra" },
+        { at: 9000, name: "Aldra" }, { at: 20000, name: "Dorn" }, { at: 25000, name: "Leaf" }, { at: 30000, name: "Uther" },
+    ];
+
+    it("judges everybody until their first death and leaves out who died at the pull", () => {
+        const r = buffsForFight({ fight: wipe, roster: roster(), bandsByName: nightBands(), deaths: wipeDeaths });
+        expect(r.players.map((p) => [p.name, p.judgedUntil, p.diedAt, p.missing, p.late, p.partial, p.wrong])).toEqual([
+            ["Elun", 12000, 12000, ["motw"], [], [], []],
+            ["Aldra", 9000, 9000, ["motw"], [], [], []],
+            ["Dorn", 20000, 20000, ["intellect"], [], [], []],
+            ["Leaf", 25000, 25000, [], [], [], []],
+            ["Uther", 30000, 30000, [], [], [], []],
+        ]);
+    });
+
+    it("sums the kill and the wipe", () => {
+        const a = buffsForFight({ fight: kill, roster: roster(), bandsByName: nightBands(), deaths: [] });
+        const b = buffsForFight({ fight: wipe, roster: roster(), bandsByName: nightBands(), deaths: wipeDeaths });
+        const s = summarize([{ id: 3, buffs: a }, { id: 5, buffs: b }]);
+        expect(s.players.map((p) => [p.name, p.fights, p.missing, p.partial])).toEqual([
+            ["Brokk", 1, 0, 0], ["Elun", 2, 2, 0], ["Aldra", 2, 1, 1], ["Dorn", 2, 2, 0], ["Leaf", 2, 0, 0], ["Uther", 2, 0, 0],
+        ]);
+        expect(s.rows.map((row) => [row.key, row.slots, row.full, row.partial, row.none, row.missingPlayers])).toEqual([
+            ["kings", 11, 11, 0, 0, 0], ["might", 0, 0, 0, 0, 0], ["fortitude", 11, 11, 0, 0, 0],
+            ["spirit", 0, 0, 0, 0, 0], ["motw", 11, 7, 1, 3, 2], ["intellect", 10, 8, 0, 2, 1],
+        ]);
+    });
+});
