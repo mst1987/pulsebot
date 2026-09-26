@@ -10,11 +10,10 @@ export const KEEP = "__keep";
 
 /**
  * The word a bulk delete is confirmed with — the server's BULK_DELETE_WORD
- * ("LOESCHEN" with an umlaut). A protocol value the server checks, not a text to
- * translate: it is the same in every language, hence the escape (the i18n guard
- * looks for umlauts in texts).
+ * A protocol value the server checks, not a text to translate: it is the same
+ * in every language (listed in ALLOWED of test/web-client/conventions/i18n.test.js).
  */
-export const BULK_DELETE_WORD = "L\u00d6SCHEN";
+export const BULK_DELETE_WORD = "LÖSCHEN";
 
 /**
  * What the bulk edit form turns into: only the fields that are not
