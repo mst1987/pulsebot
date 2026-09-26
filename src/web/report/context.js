@@ -18,7 +18,7 @@ const ROLE_LABEL = { tank: "Tank", healer: "Heiler", dps: "DPS" };
  */
 function reportContext(report, user) {
     const idxByName = {};
-    (report.roster || []).forEach((p, i) => { idxByName[p.name] = i; });
+    (report.roster || []).forEach((p, i) => { if (p && p.name) idxByName[p.name] = i; });
     const linkFor = (name) => (idxByName[name] !== undefined ? `/r/${report.id}/p/${idxByName[name]}` : null);
     const reviewer = canReview(user);
     const rec = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
