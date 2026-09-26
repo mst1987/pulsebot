@@ -5,12 +5,13 @@ const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/classes/sheets.js");
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
+jest.mock("../../../src/utils/format.js");
 jest.mock("../../../src/utils/fillSetup.js", () => ({
     fillSetupSheet: jest.fn(async (client, slots) => ({ playerCount: slots.length, tanks: ["", "", ""], healers: 0, warlocks: 0, priests: 0, mages: 0, hunters: 0 })),
 }));
 jest.mock("../../../src/utils/raidhelper/queries.js");
-jest.mock("../../../src/utils/responses.js");
+jest.mock("../../../src/utils/setup/response.js");
 jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/web/eventSources", () => ({
     ownEventInChannel: jest.fn(() => null),
@@ -23,7 +24,7 @@ jest.mock("../../../src/web/eventStore", () => ({
 jest.mock("../../../src/web/setupEditor", () => ({ raidHelperSlots: jest.fn(() => []) }));
 
 const Raidhelper = require("../../../src/classes/raidhelper.js");
-const helper = require("../../../src/utils/helper.js");
+const reply = require("../../../src/utils/discord/reply.js");
 const { fillSetupSheet } = require("../../../src/utils/fillSetup.js");
 const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const eventSources = require("../../../src/web/eventSources");
@@ -56,9 +57,9 @@ describe("legacy setup commands with own events (#291)", () => {
             const interaction = mockInteraction({ options: { specs: "Shadow" } });
             await signup.execute(interaction, {});
             expect(eventSources.ownEventInChannel).toHaveBeenCalledWith("channel-1");
-            expect(helper.botReply).toHaveBeenCalledTimes(1);
-            expect(helper.botReply.mock.calls[0][1]).toBe("Anmeldung über den EventHelper");
-            expect(helper.botReply.mock.calls[0][2]).toMatch(/SSC Mittwoch.*Anmelden/s);
+            expect(reply.botReply).toHaveBeenCalledTimes(1);
+            expect(reply.botReply.mock.calls[0][1]).toBe("Anmeldung über den EventHelper");
+            expect(reply.botReply.mock.calls[0][2]).toMatch(/SSC Mittwoch.*Anmelden/s);
             expect(rh.getEvent).not.toHaveBeenCalled();
             expect(rh.signUpToRaid).not.toHaveBeenCalled();
         });
@@ -71,7 +72,7 @@ describe("legacy setup commands with own events (#291)", () => {
             await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-7" } }), {});
             expect(rh.getSetup).not.toHaveBeenCalled();
             expect(fillSetupSheet).toHaveBeenCalledWith(expect.anything(), SLOTS, expect.any(Object));
-            expect(helper.botEditReply.mock.calls[0][1]).toBe("Setup befüllt");
+            expect(reply.botEditReply.mock.calls[0][1]).toBe("Setup befüllt");
         });
 
         it("takes the channel's own event when no id is given", async () => {
@@ -84,14 +85,14 @@ describe("legacy setup commands with own events (#291)", () => {
         it("refuses before approval, an unknown eh- id and an empty id without an own event", async () => {
             eventStore.getEvent.mockReturnValue(OWN);
             await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-7" } }), {});
-            expect(helper.botEditReply.mock.calls[0][2]).toMatch(/kein freigegebenes Setup/);
+            expect(reply.botEditReply.mock.calls[0][2]).toMatch(/kein freigegebenes Setup/);
 
             eventStore.getEvent.mockReturnValue(null);
             await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-404" } }), {});
-            expect(helper.botEditReply.mock.calls[1][2]).toMatch(/Event nicht gefunden/);
+            expect(reply.botEditReply.mock.calls[1][2]).toMatch(/Event nicht gefunden/);
 
             await fillSetup.execute(mockInteraction({ options: {} }), {});
-            expect(helper.botEditReply.mock.calls[2][2]).toMatch(/Keine Setup-ID/);
+            expect(reply.botEditReply.mock.calls[2][2]).toMatch(/Keine Setup-ID/);
             expect(fillSetupSheet).not.toHaveBeenCalled();
         });
 

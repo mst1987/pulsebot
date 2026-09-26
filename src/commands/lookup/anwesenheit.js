@@ -7,7 +7,7 @@ const { myCharacters } = require("../../web/userCharacters");
 const { characterAttendance, overall, attendanceFields } = require("../../web/attendanceLookup");
 const { buildAttendanceContext } = require("../../web/rosterAttendance");
 const { eventGuildId } = require("../../web/guildRoles");
-const { webUrl, lookupReply } = require("../../utils/botLookup");
+const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 
 /** The reply for one or more characters: the overall number large, the categories below. */
 function attendanceReply(interaction, title, results, links) {

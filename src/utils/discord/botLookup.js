@@ -7,9 +7,9 @@
 
 // MessageFlags.Ephemeral as a plain number, so this file stays free of discord.js.
 const EPHEMERAL = 64;
-const { embedAccentColor } = require("../config/variables");
-const { publicBaseUrl } = require("./publicUrl");
-const { clip, plural } = require("./text");
+const { embedAccentColor } = require("../../config/variables");
+const { publicBaseUrl } = require("../publicUrl");
+const { clip, plural } = require("../text");
 
 /** Discord's embed limits — a reply above any of them is refused as a whole. */
 const EMBED_LIMITS = { title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, footer: 2048, total: 6000 };

@@ -1,10 +1,12 @@
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/classes/raidhelper.js");
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
+jest.mock("../../../src/utils/format.js");
 
 const Raidhelper = require("../../../src/classes/raidhelper.js");
-const helper = require("../../../src/utils/helper.js");
+const reply = require("../../../src/utils/discord/reply.js");
+const format = require("../../../src/utils/format.js");
 const messages = require("../../../src/config/messages.js");
 const signup = require("../../../src/commands/setup/signup.js");
 
@@ -31,8 +33,8 @@ describe("commands/setup/signup", () => {
         getEvent = jest.fn().mockResolvedValue({ id: "evt1", templateId: "10" });
         signUpToRaid = jest.fn().mockResolvedValue(undefined);
         Raidhelper.mockImplementation(() => ({ getEvent, signUpToRaid }));
-        helper.formatSpecs.mockReturnValue([{ className: "Paladin", specName: "Holy1" }]);
-        helper.formatSignUps.mockReturnValue("icons");
+        format.formatSpecs.mockReturnValue([{ className: "Paladin", specName: "Holy1" }]);
+        format.formatSignUps.mockReturnValue("icons");
     });
 
     it("exports the correct command contract", () => {
@@ -55,8 +57,8 @@ describe("commands/setup/signup", () => {
             [{ className: "Paladin", specName: "Holy1" }],
             interaction.user.id
         );
-        expect(helper.botReply).toHaveBeenCalledTimes(1);
-        expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.successTitle);
+        expect(reply.botReply).toHaveBeenCalledTimes(1);
+        expect(reply.botReply.mock.calls[0][1]).toBe(messages.signup.successTitle);
     });
 
     it("replies with the error message when the channel has no raidhelper event", async () => {
@@ -68,8 +70,8 @@ describe("commands/setup/signup", () => {
         expect(signUpToRaid).not.toHaveBeenCalled();
         // With no raid found the command now returns a clear error reply
         // instead of silently swallowing a TypeError.
-        expect(helper.botReply).toHaveBeenCalledTimes(1);
-        expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
+        expect(reply.botReply).toHaveBeenCalledTimes(1);
+        expect(reply.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
     });
 
     it("skips non-event bot messages and replies with an error", async () => {
@@ -82,7 +84,7 @@ describe("commands/setup/signup", () => {
         await signup.execute(interaction, {});
 
         expect(signUpToRaid).not.toHaveBeenCalled();
-        expect(helper.botReply).toHaveBeenCalledTimes(1);
-        expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
+        expect(reply.botReply).toHaveBeenCalledTimes(1);
+        expect(reply.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
     });
 });

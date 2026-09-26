@@ -2,7 +2,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { characterAttendance, knownCharacterNames } = require("../../web/attendanceLookup");
 const { eventGuildId } = require("../../web/guildRoles");
-const { webUrl, respondChoices, clip } = require("../../utils/botLookup");
+const { webUrl, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { attendanceReply } = require("./anwesenheit");
 
 module.exports = {

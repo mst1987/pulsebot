@@ -40,7 +40,7 @@ const { MIN_DURATION, MAX_DURATION } = require("./eventStore");
 const { instanceById } = require("../config/gameVersions");
 const { WEEKDAYS } = require("../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../utils/time");
-const { webUrl, clip } = require("../utils/botLookup");
+const { webUrl, clip } = require("../utils/discord/botLookup");
 const { isSnowflake } = require("../utils/ids");
 
 const STEP_PREFIX = "event-new";

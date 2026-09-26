@@ -48,7 +48,7 @@ When adding a new command:
 
 ### Lookups with a link into the web menu (issue #265) and `/kanal` (#259)
 
-Short answers in Discord, the big view one click away: every reply is **ephemeral**, one compact embed (the headline number large, a few lines of detail) and an „Im Web öffnen“ link button to the page with the full view (`publicBaseUrl` from `config/variables.js`, i.e. `PUBLIC_BASE_URL`). The shared pieces — `lookupReply()`, `clampEmbed()` (Discord's embed limits), `linkRow()`, `respondChoices()` (autocomplete, ranked and capped at 25), `discordTime()` — are in `src/utils/botLookup.js`. **No second logic:** the data comes from the functions the API uses.
+Short answers in Discord, the big view one click away: every reply is **ephemeral**, one compact embed (the headline number large, a few lines of detail) and an „Im Web öffnen“ link button to the page with the full view (`publicBaseUrl` from `config/variables.js`, i.e. `PUBLIC_BASE_URL`). The shared pieces — `lookupReply()`, `clampEmbed()` (Discord's embed limits), `linkRow()`, `respondChoices()` (autocomplete, ranked and capped at 25), `discordTime()` — are in `src/utils/discord/botLookup.js`. **No second logic:** the data comes from the functions the API uses.
 
 | Command | Default | Reads | Links to |
 |---|---|---|---|

@@ -1,10 +1,10 @@
 const {
     EMBED_LIMITS, clip, webUrl, clampEmbed, embedSize, linkRow, lookupReply, deferLookup,
     rankChoices, respondChoices, focusedName, discordTime, plural,
-} = require("../../src/utils/botLookup");
+} = require("../../../src/utils/discord/botLookup");
 const { MessageFlags } = require("discord.js");
-const { publicBaseUrl } = require("../../src/config/variables");
-const { mockInteraction } = require("../helpers/mockInteraction");
+const { publicBaseUrl } = require("../../../src/config/variables");
+const { mockInteraction } = require("../../helpers/mockInteraction");
 
 describe("utils/botLookup", () => {
     it("clips text with an ellipsis only when something was dropped", () => {

@@ -9,7 +9,7 @@
 //
 // A new cycle fails with its members. The usual fix: move what both sides need
 // into a small module below them (setupCore.js, raidplanConstants.js). Since
-// the second part of #424 the whole tree is checked: utils/helper.js,
+// the second part of #424 the whole tree is checked: utils/raidhelper/channelEvents.js,
 // utils/raidhelper/queries.js and utils/raidhelper/fixture.js require their web modules
 // at the top now, which is safe exactly because this graph has no cycle.
 const fs = require("fs");

@@ -4,7 +4,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../web/eventLookup");
 const { eventGuildId } = require("../../web/guildRoles");
-const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/botLookup");
+const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { TIMEZONE } = require("../../config/timezone");
 
 /** "Mi 24.09. 20:00" in the guild's time zone — autocomplete names cannot carry Discord timestamps. */

@@ -9,7 +9,7 @@ const discordChannels = require("../../web/discordChannels");
 const archiveStore = require("../../web/channelArchiveStore");
 const channelNaming = require("../../web/channelNaming");
 const { normalizeChannelName, renderChannelName, parseDay } = require("../../utils/channelNames");
-const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/botLookup");
+const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/discord/botLookup");
 
 const LINK = () => [{ label: "Im Web öffnen", url: webUrl("/channels") }];
 const DATE_PLACEHOLDER = /\{(tag|dd|mm|yy|yyyy)\}/i;

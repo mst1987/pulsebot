@@ -3,11 +3,11 @@ const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/classes/sheets.js");
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
 
 const Raidhelper = require("../../../src/classes/raidhelper.js");
 const SheetsClient = require("../../../src/classes/sheets.js");
-const helper = require("../../../src/utils/helper.js");
+const reply = require("../../../src/utils/discord/reply.js");
 const fillSetup = require("../../../src/commands/setup/fillSetup.js");
 
 function setupRaidhelper(getSetupImpl) {
@@ -55,9 +55,9 @@ describe("commands/setup/fillSetup", () => {
 
         await fillSetup.execute(interaction, {});
 
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Fehler");
-        expect(helper.botEditReply.mock.calls[0][2]).toMatch(/Setup nicht gefunden/);
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
+        expect(reply.botEditReply.mock.calls[0][2]).toMatch(/Setup nicht gefunden/);
     });
 
     it("edits an error reply when Raidhelper throws", async () => {
@@ -68,9 +68,9 @@ describe("commands/setup/fillSetup", () => {
 
         await fillSetup.execute(interaction, {});
 
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Fehler");
-        expect(helper.botEditReply.mock.calls[0][2]).toMatch(/Raidhelper Fehler: api down/);
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
+        expect(reply.botEditReply.mock.calls[0][2]).toMatch(/Raidhelper Fehler: api down/);
     });
 
     it("edits an error reply when Google Sheets throws", async () => {
@@ -84,9 +84,9 @@ describe("commands/setup/fillSetup", () => {
 
         await fillSetup.execute(interaction, {});
 
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Fehler");
-        expect(helper.botEditReply.mock.calls[0][2]).toMatch(/Google Sheets Fehler: sheet boom/);
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
+        expect(reply.botEditReply.mock.calls[0][2]).toMatch(/Google Sheets Fehler: sheet boom/);
     });
 
     it("writes to the sheet and reports success on the happy path", async () => {
@@ -106,8 +106,8 @@ describe("commands/setup/fillSetup", () => {
         expect(sheets.batchClear).toHaveBeenCalled();
         expect(sheets.batchWrite).toHaveBeenCalled();
         expect(sheets.applyConditionalFormatting).toHaveBeenCalled();
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Setup befüllt");
-        expect(helper.botEditReply.mock.calls[0][2]).toMatch(/2\*\* Spieler/);
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Setup befüllt");
+        expect(reply.botEditReply.mock.calls[0][2]).toMatch(/2\*\* Spieler/);
     });
 });

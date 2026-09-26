@@ -7,7 +7,8 @@
 const golden = require("../fixtures/golden/classlistConsumers.json");
 const classlist = require("../../src/config/classlist");
 const setupView = require("../../src/utils/setupView");
-const helper = require("../../src/utils/helper");
+const reply = require("../../src/utils/discord/reply");
+const format = require("../../src/utils/format");
 const recruitment = require("../../src/utils/recruitmentSpecs");
 const fillSetup = require("../../src/utils/fillSetup");
 const { specKeyFromRaidHelper } = require("../../src/web/eventSources");
@@ -91,8 +92,8 @@ describe("classlist golden master", () => {
         });
 
         it("shows the same emoji and signs up with the same class and spec", () => {
-            expect(helper.getCharacterIcon(interaction, name)).toBe(expected(name, "characterIcon"));
-            expect(helper.formatSpecs(name, "1")).toEqual(expected(name, "formatSpecs1"));
+            expect(reply.getCharacterIcon(interaction, name)).toBe(expected(name, "characterIcon"));
+            expect(format.formatSpecs(name, "1")).toEqual(expected(name, "formatSpecs1"));
         });
 
         it("maps to the same rule-set spec key for every class", () => {
@@ -104,10 +105,10 @@ describe("classlist golden master", () => {
             const entry = classlist.entryFor(name);
             const recorded = golden[name].formatSpecs40;
             if (!entry) {
-                expect(helper.formatSpecs(name, "40")).toEqual(recorded);
+                expect(format.formatSpecs(name, "40")).toEqual(recorded);
                 return;
             }
-            expect(helper.formatSpecs(name, "40")).toEqual([{ className: entry.role || undefined, specName: recorded[0].specName }]);
+            expect(format.formatSpecs(name, "40")).toEqual([{ className: entry.role || undefined, specName: recorded[0].specName }]);
             // Same role as the old field wherever it had one, but lower case —
             // bar the survival hunter, see EXPECTED_CHANGES.
             const old = recorded[0].className;

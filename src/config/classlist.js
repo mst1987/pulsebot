@@ -96,7 +96,7 @@ const ALIASES = {
 const ROLE_OVERRIDES = { TankRogue: "tank", TankWL: "tank", TankShaman: "tank" };
 
 // The names Raid-Helper files under its own "Tank" class. /signup has to send
-// that class name back to Raid-Helper's API (utils/helper.js formatSpecs), and
+// that class name back to Raid-Helper's API (utils/format.js formatSpecs), and
 // the setup view counts them as tanks whatever the spec.
 const RAIDHELPER_TANK_CLASS = new Set(["Protection1", "ProtPala", "ProtWarrior", "WARRIOR", "Blood_Tank", "BloodTank"]);
 

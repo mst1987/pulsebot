@@ -1,4 +1,4 @@
-// The util builds on classes/raidhelper (network) and helper.getCategoryEvents
+// The util builds on classes/raidhelper (network) and channelEvents.getCategoryEvents
 // (also network). Both are mocked so no real HTTP happens.
 const mockGetSetup = jest.fn();
 const mockGetCategoryEvents = jest.fn();
@@ -7,10 +7,11 @@ jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getSetup: mockGetSetup }))
 );
 
-jest.mock("../../../src/utils/helper", () => ({
+jest.mock("../../../src/utils/raidhelper/channelEvents", () => ({
     getCategoryEvents: mockGetCategoryEvents,
+}));
+jest.mock("../../../src/utils/discord/reply", () => ({
     getCharacterIcon: (interaction, spec) => `[${spec}]`,
-    delay: jest.fn(),
 }));
 
 const mockOwnEvents = new Map();
@@ -23,7 +24,7 @@ const {
 } = require("../../../src/utils/raidhelper/queries.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-describe("utils/raidhelper", () => {
+describe("utils/raidhelper/queries", () => {
     describe("getAllSignUps", () => {
         it("splits events into those with and without a real (non-Absence) signup", async () => {
             const interaction = mockInteraction({ userId: "123" });
@@ -45,7 +46,7 @@ describe("utils/raidhelper", () => {
             const result = await getAllSignUps(interaction, "cat-1");
             // cB (other user) and cC (Absence only) count as missing signups.
             expect(result.noSignUps).toBe("<#cB>\n<#cC>");
-            // cA is the only real signup; spec icon comes from the mocked helper.
+            // cA is the only real signup; spec icon comes from the mocked reply helper.
             expect(result.signUps).toBe("<#cA>  [Holy1]\n");
         });
     });

@@ -11,7 +11,7 @@ const own = require("../../../src/commands/lookup/anwesenheit");
 const other = require("../../../src/commands/lookup/anwesenheitRaider");
 const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
 const { characterAttendance, knownCharacterNames } = require("../../../src/web/attendanceLookup");
-const { EMBED_LIMITS, embedSize } = require("../../../src/utils/botLookup");
+const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 

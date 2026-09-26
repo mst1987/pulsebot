@@ -1,10 +1,10 @@
 const { MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/discord/reply.js");
 jest.mock("../../../src/utils/raidhelper/queries.js");
 
-const helper = require("../../../src/utils/helper.js");
+const reply = require("../../../src/utils/discord/reply.js");
 const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const messages = require("../../../src/config/messages.js");
 const mySetups = require("../../../src/commands/setup/mySetupsv2.js");
@@ -35,8 +35,8 @@ describe("commands/setup/mySetupsv2", () => {
 
         await mySetups.execute(interaction, {});
 
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe("Fehler");
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
         expect(utilsRaidhelper.getCategorySetups).not.toHaveBeenCalled();
     });
 
@@ -47,8 +47,8 @@ describe("commands/setup/mySetupsv2", () => {
         await mySetups.execute(interaction, {});
 
         expect(utilsRaidhelper.getCategorySetups).toHaveBeenCalledWith(interaction, "category-1");
-        expect(helper.botEditReply).toHaveBeenCalledTimes(1);
-        expect(helper.botEditReply.mock.calls[0][1]).toBe(messages.mysetups.successTitle);
+        expect(reply.botEditReply).toHaveBeenCalledTimes(1);
+        expect(reply.botEditReply.mock.calls[0][1]).toBe(messages.mysetups.successTitle);
     });
 
     it("falls back to a generic error reply when the query throws", async () => {
@@ -57,7 +57,7 @@ describe("commands/setup/mySetupsv2", () => {
 
         await mySetups.execute(interaction, {});
 
-        const lastCall = helper.botEditReply.mock.calls.at(-1);
+        const lastCall = reply.botEditReply.mock.calls.at(-1);
         expect(lastCall[1]).toBe(messages.general.errorTitle);
         expect(lastCall[2]).toBe(messages.general.errorMessage);
     });

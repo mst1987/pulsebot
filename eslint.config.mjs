@@ -51,19 +51,6 @@ export default [
         rules: { "no-var": "off", "prefer-const": "off" },
     },
     {
-        // Parallel refactors own these two files (#424 part 2 for utils/raidhelper.js,
-        // the helper split for utils/helper.js); their leftovers stay warnings
-        // until that work lands, so this change does not collide with it.
-        files: ["src/utils/helper.js"],
-        rules: {
-            "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-            "prefer-const": "warn",
-            "no-var": "warn",
-            // utils/raidhelper.js is still indented with two spaces.
-            indent: "off",
-        },
-    },
-    {
         // scripts/render-ui-emojis.js keeps the flat UI icons as SVG fragments, and
         // SVG attributes are written in double quotes ('<path d="…"/>'). The
         // project's double-quote rule would mean escaping every attribute of every

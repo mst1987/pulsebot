@@ -6,7 +6,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/tbcLootNames");
 const { itemCatalog } = require("../../web/lootStats");
 const { itemLink } = require("../../utils/loot/wowhead");
-const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/botLookup");
+const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
 
 /** Every item the council can be asked about: all raid drops plus whatever was ever looted. */
 function councilItems() {
