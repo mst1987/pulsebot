@@ -78,8 +78,8 @@ function cleanClasses(raw) {
     return [...new Set((Array.isArray(raw) ? raw : []).map((c) => String(c === null || c === undefined ? "" : c).trim()).filter((c) => CLASS_IDS.includes(c)))];
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
-const newId = () => require("crypto").randomBytes(5).toString("hex");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
 /** Which of several mobs of one kind a target means: 1..20, 0 = none given (the row's own). */
 const mobInstance = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 1 && n <= 20 ? n : 0; };
 
@@ -98,7 +98,7 @@ function cleanAssignments(raw, allowed = new Set()) {
     for (const a of list) {
         const o = a && typeof a === "object" ? a : {};
         let id = str(o.id).replace(/[^\w-]/g, "").slice(0, 24);
-        if (!id || ids.has(id)) id = newId();
+        if (!id || ids.has(id)) id = newId(5);
         ids.add(id);
 
         const assignees = [];
@@ -158,14 +158,14 @@ function cleanAssignments(raw, allowed = new Set()) {
 
 /** The same assignments under new ids (a template copied into a plan); the references stay. */
 function reidAssignments(list) {
-    return (list || []).map((a) => ({ ...a, id: newId() }));
+    return (list || []).map((a) => ({ ...a, id: newId(5) }));
 }
 
 // ---- suggestions ---------------------------------------------------------------------------
 
 const slotsOf = (slots, kind) => (slots || []).filter((s) => s.kind === kind).sort((a, b) => a.n - b.n);
 const refOf = (s) => `slot:${s.kind}:${s.n}`;
-const make = (type, assignees, targets, spell = null, pref = [], allowOthers = false) => ({ id: newId(), type, title: "", spell, assignees, targets, note: "", suggested: true, preferredClasses: cleanClasses(pref), allowOthers: allowOthers === true });
+const make = (type, assignees, targets, spell = null, pref = [], allowOthers = false) => ({ id: newId(5), type, title: "", spell, assignees, targets, note: "", suggested: true, preferredClasses: cleanClasses(pref), allowOthers: allowOthers === true });
 
 // The catalog is read lazily (the catalog store needs this module's type list).
 const catalog = () => require("./raidplanCatalogStore");
@@ -333,7 +333,7 @@ function targetsToAssignments(targets, known) {
     const out = [];
     for (const r of Array.isArray(targets) ? targets : []) {
         const users = (Array.isArray(r && r.userIds) ? r.userIds : []).map(str).filter((u) => u && (!known || known.has(u)));
-        out.push({ id: str(r && r.id) || newId(), type: "other", title: str(r && r.title).slice(0, LIMITS.title), assignees: users.map((u) => `user:${u}`), targets: [], note: "", suggested: false });
+        out.push({ id: str(r && r.id) || newId(5), type: "other", title: str(r && r.title).slice(0, LIMITS.title), assignees: users.map((u) => `user:${u}`), targets: [], note: "", suggested: false });
     }
     return out;
 }

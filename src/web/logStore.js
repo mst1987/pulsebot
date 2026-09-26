@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
+const { newId } = require("../utils/ids");
 
 // Detected/evaluated Warcraft-Logs from the log channels are tracked here so a
 // report is only ever evaluated once. Stored as a single JSON file next to the
@@ -24,10 +24,6 @@ function readAll() {
 function writeAll(logs) {
     ensureDir();
     fs.writeFileSync(LOGS_FILE, JSON.stringify({ logs }, null, 2));
-}
-
-function newId() {
-    return crypto.randomBytes(6).toString("hex");
 }
 
 /** All tracked logs, newest detection first. */

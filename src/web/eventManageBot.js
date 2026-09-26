@@ -34,12 +34,12 @@ const { setupSummary } = require("./setupEditor");
 const { parseComposition } = require("./eventDraft");
 const { parseGermanDate, parseClockTime } = require("../utils/date");
 const { webUrl, clip } = require("../utils/botLookup");
+const { isSnowflake } = require("../utils/ids");
 
 const MANAGE_PREFIX = "event-manage";
 const FORM_PREFIX = "event-manage-form";
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
-const SNOWFLAKE = /^\d{5,25}$/;
 const MAX_OPTIONS = 25;
 
 const COLOR = 0x38bdf8;
@@ -207,7 +207,7 @@ function editModal(event) {
 }
 
 function moveModal(event) {
-    const dt = DateTime.fromSeconds(event.startTime, { zone: ZONE });
+    const dt = DateTime.fromSeconds(event.startTime, { zone: TIMEZONE });
     return new ModalBuilder()
         .setCustomId(`${FORM_PREFIX}:v:${event.id}`)
         .setTitle(clip(`${event.title} verschieben`, 45))
@@ -311,11 +311,11 @@ async function handleComponent(interaction, guildId) {
     }
     if (f === "u") {
         const userId = String((interaction.values || [])[0] || "");
-        if (!SNOWFLAKE.test(userId)) return edit(overview(event.id, { notice: "⚠️ Kein Raider gewählt.", tone: "err" }));
+        if (!isSnowflake(userId)) return edit(overview(event.id, { notice: "⚠️ Kein Raider gewählt.", tone: "err" }));
         return edit(raiderView(event, userId));
     }
     if (f === "a") {
-        const userId = SNOWFLAKE.test(args[0] || "") ? args[0] : "";
+        const userId = isSnowflake(args[0] || "") ? args[0] : "";
         const [charKey = "", specKey = ""] = String((interaction.values || [])[0] || "").split("|");
         const character = (profiles.getProfile(userId) || { characters: [] }).characters.find((c) => c.key === charKey);
         if (!userId || !character) return edit(overview(event.id, { notice: "⚠️ Den Charakter gibt es im Profil nicht mehr.", tone: "err" }));
@@ -336,7 +336,7 @@ async function handleComponent(interaction, guildId) {
         const start = Number(args[0]) || 0;
         const flags = String(args[1] || "11");
         if (!start) return edit(overview(event.id, { notice: "⚠️ Kein Termin.", tone: "err" }));
-        const dt = DateTime.fromSeconds(start, { zone: ZONE });
+        const dt = DateTime.fromSeconds(start, { zone: TIMEZONE });
         const result = await manage.moveEvent({
             guildId, eventId: event.id, date: dt.toISODate(), time: dt.toFormat("HH:mm"),
             renameChannel: flags[0] === "1", notify: flags[1] === "1", ...actor,

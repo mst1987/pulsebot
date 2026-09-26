@@ -82,7 +82,7 @@ async function postRecruitmentTemplate(req, res) {
     if (!template || !channelId) return error(res, 400, "invalid", "Vorlage oder Channel fehlt.");
     try {
         const posted = await discord.postRecruitment(channelId, template);
-        const channel = discord.getClient() ? await discord.getClient().channels.fetch(channelId) : null;
+        const channel = await discord.fetchTextChannel(channelId).catch(() => null);
         const saved = saveRecruitmentPost({
             guildId: posted.guildId,
             channelId: posted.channelId,

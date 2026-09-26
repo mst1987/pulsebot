@@ -323,8 +323,8 @@ function getReminders(req, res) {
  */
 function botStatus(guildId) {
     try {
-        const client = typeof discord.getClient === "function" ? discord.getClient() : null;
-        const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
+        const client = discord.getClient();
+        const guild = discord.getGuild(guildId);
         return {
             online: !!(client && typeof client.isReady === "function" && client.isReady()),
             readySince: client && client.readyTimestamp ? client.readyTimestamp : 0,

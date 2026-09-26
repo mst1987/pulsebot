@@ -29,8 +29,8 @@ const { evaluateSetup } = require("../utils/setup/proposal");
 const { validatePlacement, placeSlots } = require("../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../utils/setup/score");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
+const { str } = require("../utils/text");
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 function fail(code, error) {
     return { code, error };

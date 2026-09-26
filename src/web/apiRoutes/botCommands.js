@@ -14,7 +14,7 @@ const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
  * without them (tests, a bare web start) — read from src/commands/ directly.
  */
 function loadedCommands() {
-    const client = typeof discord.getClient === "function" ? discord.getClient() : null;
+    const client = discord.getClient();
     if (client && client.commands && client.commands.size) return [...client.commands.values()];
     const out = [];
     for (const folder of fs.readdirSync(COMMANDS_DIR)) {

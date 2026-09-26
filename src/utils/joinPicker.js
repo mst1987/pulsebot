@@ -12,7 +12,8 @@
 // `<characterKey>:<specKey>:<roleMask>` — the same state signupDialog.js
 // carries, so its handlers take over seamlessly. A customId is a hint, never a
 // permission: every save goes through signupService.submitSignup.
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
+const { embedAccentColor } = require("../config/variables");
+const { publicBaseUrl } = require("./publicUrl");
 const { getSignup, lastSignupOf } = require("../web/signupStore");
 const profiles = require("../web/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../web/signupService");
@@ -31,7 +32,6 @@ const GEAR_RANK = { ready: 2, usable: 1, none: 0 };
 const ROLE_TEXT = { tank: "Tank", healer: "Healer" };
 const CLASS_LABEL = new Map(buildClasses().map((c) => [c.id, c.labelEn || c.label]));
 
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
 /** customId of a picker component; the state is dropped when the id would pass 100 characters. */
 function joinId(eventId, status, field, state) {
@@ -191,8 +191,8 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
         ],
     });
     // A link button needs an absolute url.
-    if (/^https?:\/\//.test(baseUrl())) {
-        components[components.length - 1].components.push({ type: 2, style: 5, label: "Profile", url: `${baseUrl()}/profile` });
+    if (/^https?:\/\//.test(publicBaseUrl())) {
+        components[components.length - 1].components.push({ type: 2, style: 5, label: "Profile", url: `${publicBaseUrl()}/profile` });
     }
 
     const embed = {

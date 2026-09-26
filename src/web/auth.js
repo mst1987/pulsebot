@@ -10,6 +10,9 @@ const { getConfig } = require("./settingsStore");
 const guildRoles = require("./guildRoles");
 const { fullAccess, emptyAccess, accessForRoles, accessForUser, baseAccessMap, mergeAccess } = require("../config/permissions");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
+// The bot client (read for guild roles) is the one discord.js holds; server
+// startup hands it over there, not here.
+const discord = require("./discord");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }
@@ -24,12 +27,6 @@ const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 const ADMIN_REFRESH_MS = 300000; // 5 minutes
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
-
-// The Discord bot client, injected from server startup, used to read guild roles.
-let botClient = null;
-function setClient(client) {
-    botClient = client;
-}
 
 function loadSessions() {
     try {
@@ -289,6 +286,7 @@ async function computeAccess(userId) {
     // The event servers are admin-editable (data/settings/config.json); an
     // install that never configured one falls back to guildId, .env-only in turn.
     const guildIds = guildRoles.eventGuildIds(config);
+    const botClient = discord.getClient();
     if (!botClient || !guildIds.length) throw new Error("bot client or guild id not available");
     let access = base;
     let reachedAnyGuild = false;
@@ -371,5 +369,5 @@ function destroy(sid) {
 
 module.exports = {
     configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
-    setClient, csrfToken, checkCsrf, getActiveGuild, setActiveGuild,
+    csrfToken, checkCsrf, getActiveGuild, setActiveGuild,
 };

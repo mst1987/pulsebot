@@ -201,6 +201,7 @@ jest.mock("../../src/utils/lootImport", () => {
         // characterKey, and buildManualItem's shape (dedup key included) is what
         // the loot-add endpoint is tested for — a stub would test the stub.
         characterKey: actual.characterKey,
+        characterKeyOf: actual.characterKeyOf,
         splitPlayer: actual.splitPlayer,
         buildManualItem: actual.buildManualItem,
         LootParseError,
@@ -211,7 +212,7 @@ jest.mock("../../src/web/lootEventMatch", () => ({
     formatDayDisplay: jest.fn(() => "12.07.2026"),
     dayKey: jest.fn(() => "2026-07-12"),
 }));
-jest.mock("../../src/web/discord", () => ({
+jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({
     listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
