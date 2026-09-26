@@ -1,5 +1,5 @@
 // A button, select or modal that only hands the interaction on to its logic in
-// src/web/ (#413): the module is just its name, its description, whose access
+// src/services/ (#413): the module is just its name, its description, whose access
 // it inherits and the handler. Lives directly in src/commands/, not in a
 // subfolder, so the loaders do not take it for a command.
 //

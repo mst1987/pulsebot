@@ -108,7 +108,9 @@ A rough map without file lists (`ls` is always current); each row names the doc 
 | `src/classes/` | External API clients (Raid-Helper, Warcraft Logs, Blizzard, Google) | docs/bot-commands.md |
 | `src/config/` | Env, defaults, constants, generated data (never by hand), `gameVersions/`, permissions | docs/raid-templates.md |
 | `src/utils/` | Domain logic without HTTP, one folder per area (`signup/`, `setup/`, `raidhelper/`, `loot/`, `logcheck/`, `recruitment/`, `discord/`, `time/`, `wowsims/`) plus a few flat helpers | docs/bot-commands.md, docs/logcheck.md, docs/setup.md |
-| `src/web/` | HTTP server, `apiRoutes/`, stores (`*Store.js`), report rendering, Discord side of web features | docs/web-admin.md |
+| `src/stores/` | The JSON stores (`*Store.js` on `jsonStore.js`), `configStore`/`configSchema`, the `settingsStore` facade | docs/data-storage.md |
+| `src/services/<area>/` | Domain logic commands, utils and web share (`events/`, `signups/`, `setup/`, `raidplan/`, `discord/`, `loot/`, `characters/`, `logcheck/`, `talk/`) | docs/web-admin.md |
+| `src/web/` | HTTP only: `http/` (server, router, auth, jobs), `apiRoutes/`, `report/` + `pages/` (SSR), per area what only the web reads (`events/`, `loot/`, …). `commands/` and `utils/` never require from here (`test/docs/layering.test.js`) | docs/web-admin.md |
 | `src/web-client/` | Web admin SPA: React + Vite + TypeScript, built to `dist/` | docs/web-admin.md |
 | `scripts/` | Registration, generators (`data-sources/` = their input), dev seed, agent overview | scripts/README.md |
 | `assets/` | Checked-in images (app emojis) | docs/signups.md |
@@ -172,7 +174,7 @@ NODE_ENV=production     # On the server: TLS verification on, dev shortcuts off
 ## Testing
 
 The project uses [Jest](https://jestjs.io/). Tests live under `test/`. **Where a test goes:**
-- `utils/`, `classes/`, `commands/`, `config/` and the stores (`src/web/*Store.js`) are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
+- `utils/`, `classes/`, `commands/`, `config/`, `stores/`, `services/` and `web/` are mirrored one to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
 - A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js` (through the real router with `routerClient` from `test/helpers/http.js`); `test/web/http/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
 - A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it (`test/web/loot/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails otherwise; its allowlist is for pure data tables (with a reason). Details in docs/testing.md.

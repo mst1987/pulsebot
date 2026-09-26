@@ -13,7 +13,7 @@
 const { execFileSync } = require("child_process");
 const path = require("path");
 
-// The project root (src/web/ -> ../..), the working directory of the git call.
+// The project root (src/web/http/ -> ../../..), the working directory of the git call.
 // Deliberately never reported: a filesystem path is nobody's business.
 const REPO_DIR = path.resolve(__dirname, "..", "..", "..");
 const GIT_TIMEOUT_MS = 2000;

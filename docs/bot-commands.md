@@ -21,7 +21,7 @@ module.exports = {
 };
 ```
 
-A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access. A component that only hands the interaction to its logic in `src/web/` is built with `componentRoute({ name, description, accessOf, handler })` from `src/commands/componentRoute.js` (checks the event server via `guildFor` first; `guild: false` skips that, `onGuildError: "update"` answers by replacing the message).
+A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access. A component that only hands the interaction to its logic in `src/services/` is built with `componentRoute({ name, description, accessOf, handler })` from `src/commands/componentRoute.js` (checks the event server via `guildFor` first; `guild: false` skips that, `onGuildError: "update"` answers by replacing the message).
 
 **Commands and components:** a module with `data` is a **command** (slash command or context menu), one without is a **component** — `kindOf()` in `loader.js`. Both sit in `client.commands`, keyed by name resp. customId prefix; the router lets a slash command, context menu or autocomplete reach only a command, a button/select/modal reaches either (the overview buttons call `update-events` etc.). A few components carry their own `group` because they are the entry point of a flow (`apply`, `event-btn`, `event-join`, `event-signup`, `talk-signup`); `test/commands/loader.test.js` keeps that list explicit.
 

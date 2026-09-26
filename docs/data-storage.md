@@ -26,12 +26,12 @@ davon lässt sich aus GitHub wiederherstellen.
 
 ## Dateien
 
-Eigentümer = das Modul, das die Datei schreibt (unter `src/web/`, wenn nicht anders angegeben). Sensibel = enthält
+Eigentümer = das Modul, das die Datei schreibt (unter `src/stores/`, wenn nicht anders angegeben; seit #425 liegen alle Stores dort, nicht mehr unter `src/web/`). Sensibel = enthält
 Zugangsdaten, Token oder Sitzungen.
 
 | Datei (unter `DATA_DIR`) | Eigentümer | Inhalt | Sensibel |
 |---|---|---|---|
-| `sessions.json` | `auth.js` | Web-Sitzungen: sid → `{ id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }` | **ja** (eine sid ist ein Login) |
+| `sessions.json` | `web/http/auth.js` | Web-Sitzungen: sid → `{ id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }` | **ja** (eine sid ist ein Login) |
 | `settings/config.json` | `settingsStore.js` | Bot-Einstellungen aus dem Web: Server, Kanäle, Rollen, Rechte, API-Zugänge (u. a. Blizzard-, WCL-v2- und Anthropic-Schlüssel) | **ja** |
 | `settings/ingest-tokens.json` | `ingestTokenStore.js` | Token des Loot-Sync-Tools, nur als sha256-Hash | **ja** (Hashes) |
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
@@ -48,7 +48,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/event-sheets.json` | `eventSheetStore.js` | Welche Events ins Google-Raidsheet geschrieben wurden | nein |
 | `settings/event-softres.json` | `eventSoftresStore.js` | Angelegte softres.it-Listen je Event (Links) | nein |
 | `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) | nein |
-| `settings/category-names.json` | `categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
+| `settings/category-names.json` | `services/discord/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
 | `settings/channel-archive.json` | `channelArchiveStore.js` | Archiv-Kategorie, Namensschema, Archiv-Log der Kanäle-Seite | nein |
 | `settings/raidplans.json` | `raidplanStore.js` | Raidpläne: `{ plans: [...] }` mit Boards je Boss, `publicToken` der Freigabe | nein (der Token öffnet nur die Lese-Ansicht) |
 | `raidplan-maps/` | `raidplanStore.js` | Hochgeladene Raumkarten (Bilder) je Boss/Instanz/Vorlage | nein |

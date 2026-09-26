@@ -8,12 +8,14 @@ Die Regel (#434), kurz auch in CLAUDE.md:
 
 | Quelle | Test |
 |---|---|
-| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/web/*Store.js`) und die übrigen Module unter `src/web/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
+| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/stores/`), die Dienste (`src/services/<bereich>/`) und die Module unter `src/web/<bereich>/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/stores/eventStore.js` → `test/stores/eventStore.test.js`, `src/services/events/eventCreate.js` → `test/services/events/eventCreate.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
 | ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
 | der Dispatcher `src/web/http/apiRouter.js` | `test/web/http/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
 | eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/loot/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |
 
 Eine Route-Suite fährt ihre Anfragen durch den echten Router (`routerClient` aus `http.js`, siehe unten) und bindet ihn an ihr Route-Modul: ein Pfad, den ein anderes Route-Modul registriert, lässt den Test sofort scheitern, statt still die falsche Datei zu testen. Sie mockt nur, was ihre Route erreicht. Wer einen Handler lieber direkt aufruft (Validierung, Randfälle), tut das in derselben Datei, wie in `apiRoutes/settings.test.js` und `apiRoutes/channels.test.js` („handlers called directly“).
+
+**Schichten (#425):** `test/docs/layering.test.js` hält fest, dass `src/commands/` und `src/utils/` nie aus `src/web/` laden und `src/services/` und `src/stores/` nur `web/http/apiResult.js` (die `fail(...)`-Form). Braucht ein Befehl ein Modul, das noch unter `src/web/` liegt, zieht es nach `src/services/<bereich>/` um, samt Test nach `test/services/<bereich>/`.
 
 **Jedes Backend-Modul wird von mindestens einem Test geladen.** `test/docs/testMirror.test.js` liest alle Dateien unter `test/` und sucht für jedes `src/**/*.js` (ohne `src/web-client/` und `src/bot.js`) ein `require(...)` oder `jest.requireActual(...)` mit festem relativem Pfad; ein `jest.mock(...)`-Pfad zählt nicht. Ausnahmen stehen dort in `ALLOWED`, jede mit Grund: reine Datentabellen (`config/profanity.js`, `config/softresInstances.js`, …), die ein Test des lesenden Moduls schon abdeckt, und Dateien, die ein Test über einen berechneten Pfad lädt (`web/static/report.js`). Ein Eintrag, der nicht mehr nötig ist, lässt den Test ebenfalls scheitern. Ein neues Modul bekommt also seinen Test gleich mit, sonst ist die Suite rot.
 
@@ -73,4 +75,4 @@ Eine Suite mit eigener Form baut einen Einzeiler darauf: `const event = (over = 
 
 ## Coverage-Schwellen
 
-`npm run test:coverage` bricht ab, wenn die Abdeckung unter die Schwellen in `jest.config.js` fällt (gemessen 2026-09-26, #432): global, `src/utils/logcheck/` als Ganzes und `src/web/**/*Store.js` je Datei. Die Werte liegen etwa einen Punkt unter dem erreichten Stand — ein Feature darf die Abdeckung der Module, die es berührt, nicht senken.
+`npm run test:coverage` bricht ab, wenn die Abdeckung unter die Schwellen in `jest.config.js` fällt (gemessen 2026-09-26, #432): global, `src/utils/logcheck/` als Ganzes und `src/stores/**/*Store.js` je Datei. Die Werte liegen etwa einen Punkt unter dem erreichten Stand — ein Feature darf die Abdeckung der Module, die es berührt, nicht senken.
