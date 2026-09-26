@@ -195,7 +195,7 @@ export function objectName(board: RaidplanBoard, kind: ObjectKind, id: string, p
 /** Every object of the board, front to back — the layer list. Within a kind the last one added is in front. */
 export function layerList(board: RaidplanBoard, players: Map<string, RaidplanPlayer>): LayerRow[] {
     const rows: LayerRow[] = [];
-    const add = (kind, list, idOf) => {
+    const add = <T extends { lock?: boolean; hidden?: boolean }>(kind: ObjectKind, list: T[], idOf: (o: T) => string) => {
         for (let i = list.length - 1; i >= 0; i--) {
             const o = list[i];
             rows.push({ kind, id: idOf(o), name: objectName(board, kind, idOf(o), players), lock: !!o.lock, hidden: !!o.hidden });

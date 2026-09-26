@@ -60,7 +60,7 @@ export function sheetIncluded(bosses: Record<string, Partial<RaidplanBoard>>, ke
 
 /** The sections the sheet-quick-actions put IN, by mode: "all", "none", "bosses" (no trash, no Allgemein), "noTrash" (everything but the trash). */
 export function sheetKeysFor(sections: RaidplanBoss[], mode: string): string[] {
-    const keep = (b) => (mode === "all" ? true : mode === "none" ? false : mode === "bosses" ? !b.trash && !b.general : !b.trash);
+    const keep = (b: RaidplanBoss) => (mode === "all" ? true : mode === "none" ? false : mode === "bosses" ? !b.trash && !b.general : !b.trash);
     return sections.filter(keep).map((b) => b.key);
 }
 

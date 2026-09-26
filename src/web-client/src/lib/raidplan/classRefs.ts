@@ -300,4 +300,4 @@ export function candidatesOf(ref: string, type: string, roster: RaidplanPlayer[]
 }
 
 /** The colours of the nine classes (as WoW shows them), for the class chips. */
-export const CLASS_COLOR = { Warrior: "#C79C6E", Paladin: "#F58CBA", Hunter: "#ABD473", Rogue: "#FFF569", Priest: "#FFFFFF", Shaman: "#0070DE", Mage: "#69CCF0", Warlock: "#9482C9", Druid: "#FF7D0A", Any: "#6aa7ff" };
+export const CLASS_COLOR: Record<string, string> = { Warrior: "#C79C6E", Paladin: "#F58CBA", Hunter: "#ABD473", Rogue: "#FFF569", Priest: "#FFFFFF", Shaman: "#0070DE", Mage: "#69CCF0", Warlock: "#9482C9", Druid: "#FF7D0A", Any: "#6aa7ff" };

@@ -119,7 +119,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
 export function planFromEvent(ev: OwnEvent): EventPlan {
     const comp = ev.composition || { tank: 0, healer: 0, melee: 0, ranged: 0 };
     const max = ev.compositionMax || { melee: null, ranged: null };
-    const range = (min, top) => (min > 0 || (top !== null && top !== undefined) ? { min: min || 0, max: top ?? null } : null);
+    const range = (min: number, top: number | null | undefined) => (min > 0 || (top !== null && top !== undefined) ? { min: min || 0, max: top ?? null } : null);
     return {
         raidTemplateId: ev.raidTemplateId || "", versionId: ev.versionId, instanceIds: [...(ev.instanceIds || [])], size: ev.size,
         tank: comp.tank, healer: comp.healer, melee: range(comp.melee, max.melee), ranged: range(comp.ranged, max.ranged),
@@ -250,8 +250,8 @@ export function schemaName(schema: string, isoDate: string, raid: string): strin
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
     const day = m ? new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))) : null;
     const valid = !!day && day.getUTCDate() === Number(m && m[3]);
-    const pad = (n) => String(n).padStart(2, "0");
-    const values = {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const values: Record<string, string> = {
         tag: valid ? days[day.getUTCDay()] : "",
         dd: valid ? pad(day.getUTCDate()) : "",
         mm: valid ? pad(day.getUTCMonth() + 1) : "",

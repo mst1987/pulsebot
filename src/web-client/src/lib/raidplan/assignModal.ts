@@ -15,7 +15,7 @@ export const CATEGORY_ORDER = ["people", "classes", "roles", "groups", "marks", 
 /** The filter tabs of the people list. */
 export const PEOPLE_TABS = ["all", "tank", "healer", "dps"];
 /** The roles a class can play in TBC (the spec role of the setup; classes with one role have none to pick). */
-export const CLASS_ROLE_CHOICES = { Warrior: ["tank", "dps"], Paladin: ["tank", "healer", "dps"], Druid: ["tank", "healer", "dps"], Priest: ["healer", "dps"], Shaman: ["healer", "dps"], Hunter: [], Rogue: [], Mage: [], Warlock: [] };
+export const CLASS_ROLE_CHOICES: Record<string, string[]> = { Warrior: ["tank", "dps"], Paladin: ["tank", "healer", "dps"], Druid: ["tank", "healer", "dps"], Priest: ["healer", "dps"], Shaman: ["healer", "dps"], Hunter: [], Rogue: [], Mage: [], Warlock: [] };
 
 export type PeopleEntry = { key: string; kind: string; group: string; n: number; player: RaidplanPlayer | null; label: string };
 export type PreviewLine = { who: Resolved; targets: Resolved[]; open: boolean; order: number };

@@ -7,7 +7,7 @@ import type { AssignCtx } from "../../../lib/raidplan/assign";
 import { appendSteps, blankStep, duplicateStep, moveStep, moveStepTo, putStep, removeStep, resolveParticipants, starterTactics, stepsOf, timingLabel } from "../../../lib/raidplan/steps";
 import StepModal from "./StepModal";
 import { StepPeople, StepSentence, TimingChip } from "./StepParts";
-import { useT } from "../../../i18n";
+import { useT, type Params } from "../../../i18n";
 
 /**
  * "Taktik": the ordered steps of a section (who does what, when and how) as a card under the assignment cards, in the same grid look as the
@@ -147,7 +147,7 @@ export default function StepsCard({ board, edit, roster, players, isEvent, canWr
 }
 
 /** A starter step as one short line ("Tank 2 · kitet den Boss um die Arena"). */
-function starterLine(s: RaidplanStep, t: (k: string, v?: Record<string, unknown>) => string): string {
+function starterLine(s: RaidplanStep, t: (k: string, v?: Params) => string): string {
     const who = s.participants.map((r) => { const p = r.split(":"); return p[0] === "slot" ? t(`raidBoard.slot.${p[1]}`, { n: Number(p[2]) }) : ""; }).filter(Boolean).join(", ");
     return who ? `${who} · ${s.sentence}` : s.sentence;
 }

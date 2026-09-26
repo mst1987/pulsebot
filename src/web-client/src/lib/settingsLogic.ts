@@ -133,7 +133,7 @@ export type DraftShape = {
 export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf };
 
 // The draft field and the key of its label (translated when the line is built).
-const SIMPLE_FIELDS: [string, string][] = [
+const SIMPLE_FIELDS: ["officerRoleId" | "applicationChannelId" | "raidChannelId", string][] = [
     ["officerRoleId", "settings.page.officerRole"],
     ["applicationChannelId", "settings.page.appChannel"],
     ["raidChannelId", "settings.page.raidChannel"],
@@ -347,7 +347,7 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
  * one, "" = clear it, anything else = replace it.
  */
 export function connectionPatch(id: ConnectionId, fields: Record<string, string>, secret: string | undefined): Record<string, unknown> {
-    const v = (key) => String(fields[key] || "").trim();
+    const v = (key: string) => String(fields[key] || "").trim();
     // The server itself is picked under Discord-Server (discordServersPatch below).
     if (id === "discord") return { raidhelperServerId: v("raidhelperServerId") };
     if (id === "battlenet") {
@@ -438,7 +438,7 @@ export function serverIssues(servers: { events: ServerCardLike[]; talk: ServerCa
  * channel may sit on any server and is kept as it is.
  */
 export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
-    const v = (value) => String(value || "").trim();
+    const v = (value: unknown) => String(value || "").trim();
     const eventGuilds = fields.eventGuilds
         .map((entry) => {
             const overviewGuildId = v(entry.overviewGuildId);

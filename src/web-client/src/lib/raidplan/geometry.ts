@@ -1,4 +1,4 @@
-import type { RaidplanBoard } from "../../api";
+import type { RaidplanBoard, RaidplanSlot } from "../../api";
 import { clamp01, clampOpacity, MIN_ZONE, type ObjectKind, type Rect, SCALE_MAX, SCALE_MIN, SIZE_RANGES, type ZoneGrip } from "./model";
 import { isLocked, patchIn, updateIcon, updateLine, updateSlot, updateText, updateZone } from "./objects";
 import { autoRange, autoStyleOf, patchAutoStyle } from "./autoStyle";
@@ -161,8 +161,9 @@ export function pctSize(pct: number, def: number): number {
 export function setGroupScale(board: RaidplanBoard, slotId: string, patch: { groupScale?: number; ringSpread?: number; tokenScale?: number }): RaidplanBoard {
     const s = board.slots.find((x) => x.id === slotId);
     if (!s || s.kind !== "group" || s.lock) return board;
-    const next = {};
-    for (const k of Object.keys(patch)) next[k] = clampFactor(patch[k]);
+    const next: Partial<RaidplanSlot> = {};
+    // a key given as undefined clamps like before: not a number = 1
+    for (const k of Object.keys(patch) as (keyof typeof patch)[]) next[k] = clampFactor(patch[k] ?? NaN);
     return updateSlot(board, slotId, next);
 }
 

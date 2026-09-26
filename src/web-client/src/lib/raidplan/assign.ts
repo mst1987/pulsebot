@@ -183,7 +183,7 @@ export function outOfClass(row: { preferredClasses?: string[] }, player: { class
 /** Players of a roster in the order a picker shows them: the preferred classes first (in the order they were chosen), then the rest. */
 export function playersByClass<T extends { classId: string }>(list: T[], preferred: string[]): T[] {
     if (!preferred || preferred.length === 0) return list;
-    function rank(p) {
+    function rank(p: T) {
         const i = preferred.indexOf(p.classId);
         return i < 0 ? preferred.length : i;
     }
@@ -357,7 +357,7 @@ function roleResolved(role: string): Resolved {
 /** The role groups the dialog offers, as assignee references and as targets. */
 export const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 /** The colour of a role group chip (the board's role colours). */
-export const ROLE_TONE = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
+export const ROLE_TONE: Record<string, string> = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
 
 /** An assignee: `slot:<kind>:<n>` (the placeholder, or who stands in it) or `user:<userId>`. */
 export function resolveAssignee(ref: string, ctx: AssignCtx): Resolved {

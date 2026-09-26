@@ -222,10 +222,10 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
     for (const m of board.marks || []) if (!m.hidden) add(m.x * W, m.y * H, ((m.size || 34) * scale) / 2);
     // the spacing grows with the objects: the board's symbol size x the size of all auto objects together (reference units)
     const k = scale * (board.autoScale || 1);
-    const rOf = (o) => ((o.size || (o.key && o.key.indexOf("t:") === 0 ? S.token * 2 : S.icon * 2)) * scale) / 2;
-    const clampTo = (v, r, max) => Math.max(r + 4, Math.min(max - r - 4, v));
-    function free(x, y, r) {
-        const ok = (px, py) => placed.every((c) => Math.hypot(px - c.x, py - c.y) >= r + c.r + S.gap);
+    const rOf = (o: AutoMob | AutoTank) => ((o.size || (o.key && o.key.indexOf("t:") === 0 ? S.token * 2 : S.icon * 2)) * scale) / 2;
+    const clampTo = (v: number, r: number, max: number) => Math.max(r + 4, Math.min(max - r - 4, v));
+    function free(x: number, y: number, r: number): AutoPoint {
+        const ok = (px: number, py: number) => placed.every((c) => Math.hypot(px - c.x, py - c.y) >= r + c.r + S.gap);
         const bx = clampTo(x, r, W);
         const by = clampTo(y, r, H);
         if (ok(bx, by)) return { x: bx, y: by };
@@ -239,7 +239,7 @@ export function layoutAuto(mobs: AutoMob[], tanks: AutoTank[], board: RaidplanBo
         }
         return { x: bx, y: by };
     }
-    const put = (o, p, r) => { o.x = Math.round((p.x / W) * 10000) / 10000; o.y = Math.round((p.y / H) * 10000) / 10000; add(p.x, p.y, r); };
+    const put = (o: AutoMob | AutoTank, p: AutoPoint, r: number) => { o.x = Math.round((p.x / W) * 10000) / 10000; o.y = Math.round((p.y / H) * 10000) / 10000; add(p.x, p.y, r); };
     // what was moved by hand stays there
     for (const m of mobs) if (!m.iconId && over[m.key]) { m.moved = true; put(m, { x: over[m.key].x * W, y: over[m.key].y * H }, rOf(m)); }
     for (const t of tanks) if (!t.existing && over[t.key]) { t.moved = true; put(t, { x: over[t.key].x * W, y: over[t.key].y * H }, rOf(t)); }
