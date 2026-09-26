@@ -11,6 +11,7 @@ const { listEvents, getEvent, isOwnEventId } = require("./eventStore");
 const { listSignups } = require("./signupStore");
 const { listRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { getConfig } = require("./settingsStore");
+const aliases = require("../config/classlist");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
@@ -57,8 +58,6 @@ function specKeyFromRaidHelper(className, specName) {
     const raw = String(specName || "").trim();
     if (!raw) return "";
     const cls = WOW_CLASSES.find((c) => c.toLowerCase() === String(className || "").trim().toLowerCase()) || "";
-    // Lazily: classlist is only needed here.
-    const aliases = require("../config/classlist");
     const alias = aliases[raw] && aliases[raw].spec ? String(aliases[raw].spec) : "";
     const found = SPEC_KEY_BY_RH_NAME[raw.toLowerCase()]
         || SPEC_KEY_BY_RH_NAME[alias.toLowerCase()]

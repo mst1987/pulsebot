@@ -40,6 +40,7 @@ const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { parseClockTime } = require("../utils/date");
 
 const { TIMEZONE } = require("../config/timezone");
+const { createEvent } = require("./eventCreate");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;
@@ -256,8 +257,6 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
             summary.error = "Discord ist nicht verbunden — Serien warten auf den Bot.";
             return summary;
         }
-        // Loaded lazily: eventCreate pulls in the whole Discord/Raid-Helper chain.
-        const { createEvent } = require("./eventCreate");
         for (const series of all) {
             const categoryId = series.categoryId;
             if (signupSourceFor(categoryId) !== "eventhelper") { summary.ignored += 1; continue; }

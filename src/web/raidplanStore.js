@@ -35,6 +35,7 @@ const board = require("./raidplanBoard");
 const inherit = require("./raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
+const catalogStore = require("./raidplanCatalogStore");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -369,7 +370,7 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, t
         let tb = (template.bosses || {})[key] || {};
         const bm = meta.get(key);
         if (defaultRows.length > 0 && bm && !bm.general) {
-            if (!mobsOfCatalog) mobsOfCatalog = require("./raidplanCatalogStore").listMobs();
+            if (!mobsOfCatalog) mobsOfCatalog = catalogStore.listMobs();
             const section = inherit.sectionOf(bm, mobsOfCatalog, tb.mobs);
             tb = { ...tb, assignments: inherit.effectiveRows(defaultRows, tb, section) };
         }

@@ -23,6 +23,7 @@ const SIGNUPS_FILE = path.join(SETTINGS_DIR, "signups.json");
 
 const MAX_COMMENT = 300;
 const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
+const { lastImportedSpecOf } = require("./specHistoryStore");
 
 // Whoever wants to know that a roster changed (the bot's event message).
 const listeners = new Set();
@@ -142,8 +143,7 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
 function lastSignupOf(userId) {
     const own = lastOwnSignupOf(userId);
     if (own) return own;
-    // Lazily: the history is only needed for a raider without any own signup.
-    const imported = require("./specHistoryStore").lastImportedSpecOf(userId);
+    const imported = lastImportedSpecOf(userId);
     return imported ? { eventId: imported.eventId, character: imported.character, spec: imported.spec, imported: true } : null;
 }
 

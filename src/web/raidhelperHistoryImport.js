@@ -14,6 +14,8 @@ const { specKeyFromRaidHelper } = require("./eventSources");
 const specHistory = require("./specHistoryStore");
 const { listRaidEvents } = require("./raidEventStore");
 const { signupStatus } = require("../utils/attendance");
+const { createRaidhelperClient } = require("../utils/raidhelperClient");
+const discord = require("./discord");
 
 const DEFAULT_PER_CATEGORY = 10;
 const MAX_PER_CATEGORY = 50;
@@ -116,8 +118,6 @@ async function collectRaidHelperEvents(guildId, { live = true, now = Date.now() 
     let liveError = null;
     if (live) {
         try {
-            const { createRaidhelperClient } = require("../utils/raidhelperClient");
-            const discord = require("./discord");
             const rh = createRaidhelperClient();
             if (!rh.disabled) {
                 const since = Math.floor(now / 1000) - LIVE_LOOKBACK_DAYS * 86400;

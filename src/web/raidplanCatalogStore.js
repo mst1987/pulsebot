@@ -15,13 +15,12 @@ const path = require("path");
 const crypto = require("crypto");
 const defaults = require("./raidplanCatalogDefaults");
 const { instanceById } = require("../config/gameVersions");
-const { ASSIGN_TYPES } = require("./raidplanAssign");
+const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
 const { str } = require("../utils/text");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-catalog.json");
 const LIMITS = { mobs: 400, spells: 300, name: 60, note: 200 };
 const KINDS = ["boss", "add", "trash", "other"];
-const CLASS_IDS = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
 // a Wowhead icon name (spell_fire_fireball) or a boss icon (boss:<encounter id>) or a mob's portrait (mob:<NPC id>), "" = the generic enemy icon
 const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
 
