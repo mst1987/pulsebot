@@ -22,6 +22,7 @@ const discord = require("./discord");
 const auth = require("./auth");
 const apiRouter = require("./apiRouter");
 const staticClient = require("./staticClient");
+const { serveAsset } = require("./report/assets");
 
 function send(res, status, html, headers = {}) {
     res.writeHead(status, {
@@ -179,6 +180,12 @@ async function handle(req, res) {
             "X-Content-Type-Options": "nosniff",
         });
         return res.end(map.buffer);
+    }
+    // The report pages' stylesheet and client script (#423): /r-assets/<file>, no
+    // login, a fixed list of files — see report/assets.js.
+    if (pathname.startsWith("/r-assets/")) {
+        if (serveAsset(pathname, url, res)) return;
+        return send(res, 404, renderNotFound());
     }
     // The in-app documentation (#349): /docs, no login needed — the "Dokumentation"
     // icon in the web menu's topbar (Shell.tsx) points here too. See docsPage.js.

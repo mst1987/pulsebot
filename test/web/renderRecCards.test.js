@@ -42,7 +42,7 @@ describe("web/render — foldable raider cards", () => {
         // one icon button opens or closes every visible card
         expect(html).toContain("data-tip=\"Alle auf- oder zuklappen\"");
         expect(html).toContain("data-cards=\"toggle\"");
-        expect(html).toContain("window.__ehCards");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
     });
 
     it("keeps the reader's badge to the count of approved points", () => {
