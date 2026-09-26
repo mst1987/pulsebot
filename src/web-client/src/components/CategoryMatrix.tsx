@@ -7,12 +7,14 @@ import {
 } from "../lib/settingsLogic";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
+import Chip from "./ui/Chip";
 import Expand from "./ui/Expand";
 import PartHead from "./ui/PartHead";
 import Segment from "./ui/Segment";
 import WowIcon from "./ui/WowIcon";
 import RaiderCharactersModal from "./RaiderCharactersModal";
-import { CheckMark, FieldLabel, WarnIcon } from "./settingsUi";
+import { CheckMark, WarnIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Everything that is configured *per raid category*, as one list instead of a
 // card per Discord category: active switch, raider roles, where new events are
@@ -279,9 +281,9 @@ export default function CategoryMatrix({
                                     {roleOptions(cat.id).length ? roleOptions(cat.id).map((r) => {
                                         const on = assigned.includes(r.id);
                                         return (
-                                            <button key={r.id} type="button" className={`badge chip${on ? " accent" : ""}`} aria-pressed={on} onClick={() => onToggleRole(cat.id, r.id)}>
-                                                {on && <CheckMark />}@{r.name}
-                                            </button>
+                                            <Chip key={r.id} tone={on ? "accent" : undefined} pressed={on} icon={on ? <CheckMark /> : undefined} onClick={() => onToggleRole(cat.id, r.id)}>
+                                                @{r.name}
+                                            </Chip>
                                         );
                                     }) : <span className="note">Keine Rolle gefunden, deren Name „Raid“ enthält.</span>}
                                 </div>

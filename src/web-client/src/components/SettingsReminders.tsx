@@ -11,7 +11,8 @@ import Badge from "./ui/Badge";
 import PartHead from "./ui/PartHead";
 import RaidLoader from "./ui/RaidLoader";
 import Segment from "./ui/Segment";
-import { FieldLabel, PenIcon } from "./settingsUi";
+import { PenIcon } from "./settingsUi";
+import Field, { FieldLabel } from "./ui/Field";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a
@@ -140,14 +141,12 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
         >
             <div className="conn-form">
                 <div className="srv-channels">
-                    <div className="dlg-field">
-                        <FieldLabel htmlFor="rem-missing" tip="An Fehlende" tipSub="Stunden vor Anmeldeschluss (ohne Anmeldeschluss: vor Raidbeginn) an alle mit Raider-Rolle, die noch nicht reagiert haben. Leer = aus.">Fehlende · h vorher</FieldLabel>
+                    <Field className="dlg-field" htmlFor="rem-missing" label="Fehlende · h vorher" tip="An Fehlende" tipSub="Stunden vor Anmeldeschluss (ohne Anmeldeschluss: vor Raidbeginn) an alle mit Raider-Rolle, die noch nicht reagiert haben. Leer = aus.">
                         <input id="rem-missing" type="number" min={0} max={168} step={1} value={missingHours} placeholder="aus" onChange={(e) => setMissingHours(e.target.value)} />
-                    </div>
-                    <div className="dlg-field">
-                        <FieldLabel htmlFor="rem-signed" tip="An Angemeldete" tipSub="Stunden vor Raidbeginn an alle, die angemeldet sind (auch „kommt später“). Leer = aus.">Angemeldete · h vorher</FieldLabel>
+                    </Field>
+                    <Field className="dlg-field" htmlFor="rem-signed" label="Angemeldete · h vorher" tip="An Angemeldete" tipSub="Stunden vor Raidbeginn an alle, die angemeldet sind (auch „kommt später“). Leer = aus.">
                         <input id="rem-signed" type="number" min={0} max={168} step={1} value={signedHours} placeholder="aus" onChange={(e) => setSignedHours(e.target.value)} />
-                    </div>
+                    </Field>
                 </div>
                 {targets.length > 0 && (
                     <div className="dlg-field">

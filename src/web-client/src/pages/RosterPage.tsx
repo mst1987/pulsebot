@@ -81,14 +81,14 @@ function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
                 extra={hidden
                     ? (
                         <Badge
-                            className="ros-mini" tip="Ausgeblendet"
+                            size="sm" tip="Ausgeblendet"
                             tipSub={`${hidden.by ? `Von ${hidden.by}, ` : ""}seit ${formatDate(hidden.at)}${hidden.reason ? ` · ${hidden.reason}` : ""}`}
                         >
                             ausgeblendet
                         </Badge>
                     )
                     : !c.assigned && !!c.lootCount && (
-                        <Badge tone="accent" className="ros-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
+                        <Badge tone="accent" size="sm" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
                             nur Loot
                         </Badge>
                     )}

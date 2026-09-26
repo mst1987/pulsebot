@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Bookmark, BookmarkX, BoxSelect, CircleDashed, CircleUser, Hand, Hash, Link2, Map as MapIcon, Maximize, SlidersHorizontal, Star, Type, Wand2, ZoomIn, ZoomOut } from "lucide-react";
 import type { RaidplanBoard } from "../../../api";
 import { IconButton } from "../../../components/ui";
@@ -7,6 +7,7 @@ import { sameView, type BoardView } from "../../../lib/boardView";
 import { SCALE_MAX, SCALE_MIN, setAutoScale, setObjectScale } from "../../../lib/raidplan";
 import type { ViewPrefs } from "../../../lib/useViewPrefs";
 import { useT } from "../../../i18n";
+import { useDismiss } from "../../../hooks/useDismiss";
 
 /** Zoom out / in, the zoom in percent (a click fits the picture again: what the read view shows), the hand tool. */
 /**
@@ -36,14 +37,7 @@ export function ViewOptions({ board, canWrite, edit, prefs, setPref, links, onLi
     const t = useT();
     const [open, setOpen] = useState(false);
     const box = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (!open) return undefined;
-        const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
-        const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-        document.addEventListener("pointerdown", away, true);
-        document.addEventListener("keydown", esc);
-        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); };
-    }, [open]);
+    useDismiss(box, open, () => setOpen(false), { event: "pointerdown", capture: true });
     const flag = (key: "showNames" | "showBadges" | "showRoleRings" | "showRings" | "autoPlace", label: string, icon: JSX.Element) => (
         <label className="rp-check rp-view-row"><input type="checkbox" checked={board[key] !== false} disabled={!canWrite} onChange={(e) => edit((b) => ({ ...b, [key]: e.target.checked }))} />{icon}{label}</label>
     );
@@ -81,14 +75,7 @@ export function SheetViewMenu({ prefs, setPref, hasLinks }: { prefs: ViewPrefs; 
     const t = useT();
     const [open, setOpen] = useState(false);
     const box = useRef<HTMLSpanElement>(null);
-    useEffect(() => {
-        if (!open) return undefined;
-        const away = (e: PointerEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
-        const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-        document.addEventListener("pointerdown", away, true);
-        document.addEventListener("keydown", esc);
-        return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); };
-    }, [open]);
+    useDismiss(box, open, () => setOpen(false), { event: "pointerdown", capture: true });
     const row = (label: string, on: boolean, set: (v: boolean) => void, icon: JSX.Element) => (
         <label className="rp-check rp-view-row"><input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} />{icon}{label}</label>
     );

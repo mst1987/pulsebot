@@ -1,5 +1,6 @@
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
+import { MinusIcon, PlusIcon } from "./icons";
 import { dpsSlots } from "../lib/raidTemplates";
 import { rolePluralLabel } from "../lib/wowNames";
 import { useT } from "../i18n";
@@ -11,14 +12,6 @@ import "../styles/raid-templates.css";
 // starts from its template and can still change the counts.
 
 export type CompositionCounts = { tank: number; healer: number };
-
-function MinusIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>;
-}
-
-function PlusIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
-}
 
 const ROLES = [
     { key: "tank", icon: "ability_warrior_defensivestance" },
@@ -48,9 +41,9 @@ export default function CompositionEditor({ size, value, onChange, disabled = fa
                                 <div className="comp-lbl">{rolePluralLabel(r.key)}</div>
                                 <div className="comp-num" aria-live="polite">{n}</div>
                             </div>
-                            <IconButton icon={<MinusIcon />} tip={t(r.key === "tank" ? "raidPlan.comp.tankLess" : "raidPlan.comp.healerLess")} disabled={disabled || n <= 0}
+                            <IconButton icon={<MinusIcon strokeWidth={2.4} />} tip={t(r.key === "tank" ? "raidPlan.comp.tankLess" : "raidPlan.comp.healerLess")} disabled={disabled || n <= 0}
                                 onClick={() => onChange({ ...value, [r.key]: Math.max(0, n - 1) })} />
-                            <IconButton icon={<PlusIcon />} tip={t(r.key === "tank" ? "raidPlan.comp.tankMore" : "raidPlan.comp.healerMore")} disabled={disabled || full}
+                            <IconButton icon={<PlusIcon strokeWidth={2.4} />} tip={t(r.key === "tank" ? "raidPlan.comp.tankMore" : "raidPlan.comp.healerMore")} disabled={disabled || full}
                                 onClick={() => onChange({ ...value, [r.key]: n + 1 })} />
                         </div>
                     );

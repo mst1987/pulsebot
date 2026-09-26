@@ -80,7 +80,8 @@ describe("Historie & Loot module", () => {
         expect(items).toContain("<RaidChips");
         expect(items).toContain("<FilterPopover");
         expect(items).toContain("<ActiveFilters");
-        expect(src["components/LootFilters.tsx"]).toContain("aria-label={`Filter „${f.label}\" entfernen`}");
+        // removable through the shared Badge (ui/Badge onRemove, #439)
+        expect(src["components/LootFilters.tsx"]).toContain("onRemove={f.onRemove} removeLabel={`Filter „${f.label}\" entfernen`}");
     });
 
     it("imports in a dialog that keeps the draft and previews before saving", () => {

@@ -14,7 +14,8 @@ import Badge from "./ui/Badge";
 import IconTile from "./ui/IconTile";
 import RaidLoader from "./ui/RaidLoader";
 import { ChevronRightIcon } from "./icons";
-import { AdminOnlyBadge, CheckMark, InfoTip, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, CheckMark, WarnIcon } from "./settingsUi";
+import { InfoTip } from "./ui/Field";
 
 // Einstellungen → Verbindungen → "Umstieg von Raid-Helper" (#291). One compact
 // card: a line per checklist item (badge, label, value), everything else — why

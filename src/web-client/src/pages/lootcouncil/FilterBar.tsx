@@ -3,11 +3,12 @@
 // BiS list — and on the right two badges saying where the gear comes from and
 // how much is simulated. Every explanation that used to be a paragraph is the
 // tooltip of the control it explains.
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment } from "../../components/ui";
 import { ChevronDownIcon } from "../../components/icons";
 import { ROLE_ICON, ROLE_LABEL, categoryNote, type FilterView } from "./council";
+import { useDismiss } from "../../hooks/useDismiss";
 
 // The short name a tier wears on its badge.
 const TIER_SHORT: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
@@ -31,18 +32,7 @@ function ContentFilter({ data, view, patch }: {
     const ref = useRef<HTMLDivElement>(null);
     const o = data.options;
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     const toggleIn = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
     const tiers = o.tiers.filter((t) => view.tiers.includes(t.id));

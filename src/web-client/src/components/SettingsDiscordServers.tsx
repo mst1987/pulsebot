@@ -6,7 +6,7 @@ import {
 } from "../api";
 import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../lib/settingsLogic";
 import { useToast } from "./Jobs";
-import { TrashIcon } from "./icons";
+import { PlusIcon, TrashIcon } from "./icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
 import TalkOverviewRow from "./SettingsTalkOverview";
@@ -16,7 +16,8 @@ import Badge from "./ui/Badge";
 import IconTile from "./ui/IconTile";
 import PartHead from "./ui/PartHead";
 import RaidLoader from "./ui/RaidLoader";
-import { AdminOnlyBadge, ChannelPicker, CheckMark, FieldLabel, PenIcon, PlusIcon, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, ChannelPicker, CheckMark, PenIcon, WarnIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Einstellungen → Verbindungen → Discord-Server (#251, #361): any number of
 // event servers (event channels, Raid-Helper), each optionally posting its own

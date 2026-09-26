@@ -3,11 +3,11 @@
 // its marks, the candidate table of a drop. The page (LootCouncilPage.tsx) and
 // the drop check (DropCheckPage.tsx) use these, so a raider looks the same
 // wherever the council meets them.
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { BisSpec, CouncilCandidate, CouncilLootItem, SimResult, WornItem } from "../../api";
-import { Badge, Bar, Button, Expand, IconButton, WowIcon } from "../../components/ui";
+import { Badge, Bar, Button, Expand, IconButton, Popover, WowIcon } from "../../components/ui";
+import { tipPlacement } from "../../lib/popoverPosition";
 import { classColorProps } from "../../components/ClassSpec";
 import { AlertIcon, EmptySlotIcon, ExternalIcon, RefreshIcon } from "../../components/icons";
 import { ReasonBadge } from "../../components/LootBadges";
@@ -37,35 +37,10 @@ export function RichTip({ trigger, children, width = 300, label }: {
     label?: string;
 }) {
     const anchor = useRef<HTMLSpanElement>(null);
-    const box = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
 
-    useLayoutEffect(() => {
-        const t = anchor.current;
-        const b = box.current;
-        if (!open || !t || !b) return;
-        const r = t.getBoundingClientRect();
-        const w = b.getBoundingClientRect();
-        const x = r.left + r.width / 2 - w.width / 2;
-        let y = r.top - w.height - 9;
-        if (y < 8) y = r.bottom + 9;
-        b.style.left = `${Math.max(8, Math.min(x, window.innerWidth - w.width - 8))}px`;
-        b.style.top = `${y}px`;
-    }, [open]);
-
-    // Fixed coordinates go stale the moment the page scrolls under them.
-    useEffect(() => {
-        if (!open) return undefined;
-        const hide = () => setOpen(false);
-        window.addEventListener("scroll", hide, true);
-        window.addEventListener("resize", hide);
-        return () => {
-            window.removeEventListener("scroll", hide, true);
-            window.removeEventListener("resize", hide);
-        };
-    }, [open]);
-
-    const host = anchor.current ? anchor.current.closest("dialog") || document.body : document.body;
+    // Fixed coordinates go stale the moment the page scrolls under them: the
+    // Popover closes it then (follow="close"); mouse leave and blur close it too.
     return (
         <>
             <span
@@ -80,9 +55,10 @@ export function RichTip({ trigger, children, width = 300, label }: {
             >
                 {trigger}
             </span>
-            {open && createPortal(
-                <div ref={box} className="tip on lc-rtip" role="tooltip" style={{ width }}>{children}</div>,
-                host,
+            {open && (
+                <Popover anchor={anchor} place={tipPlacement()} host="dialog" onClose={() => setOpen(false)} dismiss={false} className="tip on lc-rtip" role="tooltip" style={{ width }}>
+                    {children}
+                </Popover>
             )}
         </>
     );
