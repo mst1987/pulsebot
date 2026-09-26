@@ -1,5 +1,5 @@
 const { ok } = require("../apiResponse");
-const { requireAdmin } = require("../apiMiddleware");
+const { withUser } = require("../apiHandler");
 const { deployStatus } = require("../deployStatus");
 
 /**
@@ -14,11 +14,14 @@ const { deployStatus } = require("../deployStatus");
  *
  * ?force=1 skips the ten-minute cache, for the reload after a deploy.
  */
-async function getVersion(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getVersion = withUser({}, async ({ res, url }) => {
     const force = String((url && url.searchParams.get("force")) || "") === "1";
     ok(res, await deployStatus({ force }));
-}
+});
 
-module.exports = { getVersion };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/version", handler: getVersion, area: "settings" },
+];
+
+module.exports = { getVersion, routes };

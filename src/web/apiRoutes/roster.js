@@ -1,7 +1,5 @@
 const { ok, error: apiError } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
-const { userCan } = require("../../config/permissions");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { buildRoster, rosterCharacter } = require("../roster");
 const { rosterStats } = require("../rosterStats");
@@ -14,9 +12,7 @@ const { bisSpecsView } = require("../lootCouncil");
 const MAX_ITEM_IDS = 30;
 
 /** GET /api/roster — every character grouped by raid category (see roster.js). */
-async function getRoster(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRoster = withUser({}, async ({ req, res }) => {
     // Same one-time backfill the loot pages run, so the hover panel never shows
     // "Item <id>" for rows imported before icon enrichment existed.
     await repairLootItemNames();
@@ -41,7 +37,7 @@ async function getRoster(req, res) {
         stats: rosterStats(active),
         activeGuildId: guildId,
     });
-}
+});
 
 /**
  * POST /api/roster/hide — take a character off the roster, or put it back.
@@ -50,13 +46,7 @@ async function getRoster(req, res) {
  * Nothing is deleted: the loot history, the evaluations and the character page
  * stay whole, the roster page simply stops listing them (see rosterHiddenStore).
  */
-async function postRosterHide(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!userCan(user, "roster", "write")) return apiError(res, 403, "Kein Schreibzugriff auf das Roster.");
-    if (!requireCsrf(req, res)) return;
-
-    const body = await readJsonBody(req);
+const postRosterHide = withUser({ write: "roster", csrf: true, body: true }, async ({ user, body, res }) => {
     const character = String(body.character || "").trim();
     if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
 
@@ -69,7 +59,7 @@ async function postRosterHide(req, res) {
         by: user.name || user.id,
     });
     ok(res, { character, hidden: true, entry });
-}
+});
 
 /**
  * What the item-details modal says about a worn piece beyond its tooltip:
@@ -96,9 +86,7 @@ function itemFacts(itemId) {
  * drop source and BiS specs. The page asks for it beside /api/history/char and
  * shows these parts only when the answer comes back.
  */
-async function getRosterChar(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRosterChar = withUser({}, async ({ req, res, url }) => {
     const name = String(url.searchParams.get("name") || "").trim();
     const guildId = activeGuildFor(req);
     const facts = name ? rosterCharacter(guildId, name) : null;
@@ -116,6 +104,13 @@ async function getRosterChar(req, res, url) {
         attendance: (facts && facts.attendance) || {},
         items,
     });
-}
+});
 
-module.exports = { getRoster, postRosterHide, getRosterChar, itemFacts, MAX_ITEM_IDS };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/roster", handler: getRoster, area: "roster" },
+    { method: "POST", path: "/api/roster/hide", handler: postRosterHide, area: "roster" },
+    { method: "GET", path: "/api/roster/char", handler: getRosterChar, area: ["roster", "history"] },
+];
+
+module.exports = { getRoster, postRosterHide, getRosterChar, itemFacts, MAX_ITEM_IDS, routes };

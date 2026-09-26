@@ -27,8 +27,9 @@
 // The area gate (apiAccess.js) decides read vs. write by method. The public route
 // is listed in UNGATED there; it hands out only what /p/<token> shows.
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody, readRawBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
+const { readRawBody } = require("../apiBody");
+const { sendFailure } = require("../apiResult");
 const { userCan } = require("../../config/permissions");
 const auth = require("../auth");
 const { getEvent, isOwnEventId } = require("../eventStore");
@@ -45,13 +46,7 @@ const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelperClient");
 
-const HTTP = { not_found: 404, conflict: 409, invalid: 400, too_large: 413 };
-
 const canWrite = (user) => userCan(user, "raids", "write");
-
-function sendFailure(res, result) {
-    return error(res, HTTP[result.code] || 400, result.code || "failed", result.error || "Fehlgeschlagen.");
-}
 
 /**
  * The event of a request's plan (raidplanRosterSource.planEventFor): an own event, or a Raid-Helper event whose plan is switched on -
@@ -74,35 +69,16 @@ function knownRosterOf(found) {
     return found.kind === "raidhelper" && found.info.authoritative ? found.loaded : null;
 }
 
-/** Refused for a caller without `raids` write — the area gate does this already; kept for direct calls. */
-function requireWrite(res, user) {
-    if (canWrite(user)) return true;
-    error(res, 403, "forbidden", "Keine Schreibrechte für „Raids“.");
-    return false;
-}
-
-/** The user of a mutating call: menu access, write right, CSRF. Null (answered) otherwise. */
-function writer(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user || !requireWrite(res, user)) return null;
-    if (!requireCsrf(req, res)) return null;
-    return user;
-}
 
 /** GET /api/raidplan?event=<id>[&fresh=1] — `fresh` asks Raid-Helper again now ("Neu laden") instead of the minute's cache. */
-async function getPlan(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getPlan = withUser({}, async ({ user, res, url }) => {
     const found = await eventOf(res, url.searchParams.get("event"), { fresh: url.searchParams.get("fresh") === "1" });
     if (!found) return;
     ok(res, raidplan.editorView(found.event, { canWrite: canWrite(user), me: user && user.id ? String(user.id) : "" }));
-}
+});
 
 /** PUT /api/raidplan — body `{ event, version, bosses }` */
-async function putPlan(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const putPlan = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -116,7 +92,7 @@ async function putPlan(req, res) {
     });
     if (result.error) return sendFailure(res, result);
     ok(res, { ...raidplan.editorView(await refreshed(found), { canWrite: true }), dropped: result.dropped });
-}
+});
 
 /**
  * POST /api/raidplan/suggest — body `{ event?, type, slots, roles?, keep? }` (`keep`: the rows of that type made by hand; the
@@ -124,26 +100,20 @@ async function putPlan(req, res) {
  * type from the board's placeholder slots and (with an event) its lineup. Nothing is saved;
  * the editor shows them marked as a suggestion. An unknown type answers an empty list.
  */
-async function postSuggest(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const postSuggest = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     let event = null;
     if (body.event) { const found = await eventOf(res, body.event); if (!found) return; event = found.event; }
     const type = String(body.type || "");
     ok(res, { assignments: assign.SUGGESTABLE.includes(type) ? raidplan.suggestFor(type, { event, slots: body.slots, roles: body.roles, preferredClasses: body.preferredClasses, allowOthers: body.allowOthers, keep: body.keep }) : [] });
-}
+});
 
 /** POST /api/raidplan/publish — body `{ event, published, rotate? }` */
-async function postPublish(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const postPublish = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     store.setPublished(found.event.id, body.published === true, { rotate: body.rotate === true, userId: user.id });
     ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
-}
+});
 
 /** The event of a request again after a write: the plan changed (a Raid-Helper event's gone raiders are read from it). */
 async function refreshed(found) {
@@ -173,9 +143,7 @@ function mapKeyOk(res, key) {
 }
 
 /** POST /api/raidplan/map?key=<key> — the body is the image itself. */
-async function postMap(req, res, url) {
-    const user = writer(req, res);
-    if (!user) return;
+const postMap = withUser({ write: "raids", csrf: true }, async ({ req, res, url }) => {
     const key = String(url.searchParams.get("key") || "").trim();
     if (!mapKeyOk(res, key)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
@@ -183,23 +151,17 @@ async function postMap(req, res, url) {
     const result = store.saveMap(key, buffer);
     if (result.error) return sendFailure(res, result);
     ok(res, { key });
-}
+});
 
 /** POST /api/raidplan/map/delete — body `{ key }` */
-async function postMapDelete(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const postMapDelete = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const key = String(body.key || "").trim();
     if (!mapKeyOk(res, key)) return;
     ok(res, { key, removed: store.deleteMap(key) });
-}
+});
 
 /** POST /api/raidplan/apply — body `{ event, templateId, version }` */
-async function postApply(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
@@ -215,50 +177,43 @@ async function postApply(req, res) {
     });
     if (result.error) return sendFailure(res, result);
     ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
-}
+});
 
 function templateList() {
     return { templates: templateStore.listTemplates().map(raidplan.templateView) };
 }
 
 /** GET /api/raidplan/templates */
-function getTemplates(req, res) {
-    if (!requireAdmin(req, res)) return;
+const getTemplates = withUser({}, async ({ res }) => {
     ok(res, templateList());
-}
+});
 
 /** POST /api/raidplan/templates — body `{ name, category?, description?, guildId?, instanceIds }` */
-async function postTemplate(req, res) {
-    if (!writer(req, res)) return;
-    const result = templateStore.createTemplate(await readJsonBody(req));
+const postTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+    const result = templateStore.createTemplate(body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
-}
+});
 
 /** PATCH /api/raidplan/templates — body `{ id, name?, category?, description?, guildId?, instanceIds?, bosses?, version? }` */
-async function patchTemplate(req, res) {
-    if (!writer(req, res)) return;
-    const body = await readJsonBody(req);
+const patchTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const result = templateStore.updateTemplate(body.id, body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template), dropped: result.dropped });
-}
+});
 
 /** POST /api/raidplan/templates/duplicate — body `{ id }` */
-async function postTemplateDuplicate(req, res) {
-    if (!writer(req, res)) return;
-    const result = templateStore.duplicateTemplate((await readJsonBody(req)).id);
+const postTemplateDuplicate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+    const result = templateStore.duplicateTemplate(body.id);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
-}
+});
 
 /** DELETE /api/raidplan/templates — body `{ id }` */
-async function deleteTemplate(req, res) {
-    if (!writer(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteTemplate = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     if (!templateStore.deleteTemplate(body.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     ok(res, templateList());
-}
+});
 
 function profileList() {
     const profiles = profileStore.listProfiles();
@@ -266,35 +221,29 @@ function profileList() {
 }
 
 /** GET /api/raidplan/profiles */
-function getProfiles(req, res) {
-    if (!requireAdmin(req, res)) return;
+const getProfiles = withUser({}, async ({ res }) => {
     ok(res, profileList());
-}
+});
 
 /** POST /api/raidplan/profiles — body `{ name, category?, bossKey?, targets?, notes? }` */
-async function postProfile(req, res) {
-    if (!writer(req, res)) return;
-    const result = profileStore.createProfile(await readJsonBody(req));
+const postProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
+    const result = profileStore.createProfile(body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...profileList(), profile: result.profile });
-}
+});
 
 /** PATCH /api/raidplan/profiles — body `{ id, name?, category?, bossKey?, targets?, notes? }` */
-async function patchProfile(req, res) {
-    if (!writer(req, res)) return;
-    const body = await readJsonBody(req);
+const patchProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     const result = profileStore.updateProfile(body.id, body);
     if (result.error) return sendFailure(res, result);
     ok(res, { ...profileList(), profile: result.profile });
-}
+});
 
 /** DELETE /api/raidplan/profiles — body `{ id }` */
-async function deleteProfile(req, res) {
-    if (!writer(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteProfile = withUser({ write: "raids", csrf: true, body: true }, async ({ body, res }) => {
     if (!profileStore.deleteProfile(body.id)) return error(res, 404, "not_found", "Profil nicht gefunden.");
     ok(res, profileList());
-}
+});
 
 /** The icons offered when a mob is made, by category (generated and checked by scripts/fetch-mob-icons.js). */
 function mobIconChoices() {
@@ -318,23 +267,20 @@ function catalogAnswer() {
 }
 
 /** GET /api/raidplan/catalog */
-function getCatalog(req, res) {
-    if (!requireAdmin(req, res)) return;
+const getCatalog = withUser({}, async ({ res }) => {
     ok(res, catalogAnswer());
-}
+});
 
 /** POST / PATCH / DELETE /api/raidplan/catalog/<mobs|spells> and POST /api/raidplan/catalog/reset — all answer the whole catalog. */
 function catalogWrite(kind, how) {
-    return async function handler(req, res) {
-        if (!writer(req, res)) return;
-        const body = await readJsonBody(req);
+    return withUser({ write: "raids", csrf: true, body: true }, async ({ body, req, res }) => {
         let r;
         if (how === "save") r = catalog.save(kind, how === "save" && req.method === "POST" ? { ...body, id: "" } : body);
         else if (how === "remove") r = catalog.remove(kind, body.id);
         else r = catalog.reset(body.kind === "spells" ? "spells" : "mobs", body.id);
         if (r.error) return sendFailure(res, r);
         ok(res, { ...catalogAnswer(), entry: r.entry || null });
-    };
+    });
 }
 
 /**
@@ -384,8 +330,7 @@ function linkView(eventId, ev, plan) {
 }
 
 /** GET /api/raidplan/link?event=<id> */
-async function getLink(req, res, url) {
-    if (!requireAdmin(req, res)) return;
+const getLink = withUser({}, async ({ req, res, url }) => {
     const id = String(url.searchParams.get("event") || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const plan = store.getPlan(id);
@@ -395,13 +340,10 @@ async function getLink(req, res, url) {
     // what Raid-Helper lists right now (read only, cached a minute): the dialog warns when the groups are only blocks of five
     const probe = await rosterSource.raidhelperPlanEvent({ ...(plan || store.emptyPlan(id)), link: { ...(plan && plan.link ? plan.link : {}), versionId: view.suggestion.versionId, instanceIds: view.suggestion.instanceIds } });
     ok(res, { ...view, lineup: { count: probe.loaded.length, available: probe.info.available, hasGroups: probe.info.hasGroups, origin: probe.info.origin, unmatchedNames: probe.info.unmatchedNames, unknown: probe.info.unknown } });
-}
+});
 
 /** POST /api/raidplan/link — body `{ event, enabled, instanceIds?, size?, versionId?, composition? }` */
-async function postLink(req, res) {
-    const user = writer(req, res);
-    if (!user) return;
-    const body = await readJsonBody(req);
+const postLink = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, req, res }) => {
     const id = String(body.event || "").trim();
     if (isOwnEventId(id)) return error(res, 400, "invalid", "Eigene Events haben ihren Raidplan immer.");
     const before = store.getPlan(id);
@@ -429,13 +371,53 @@ async function postLink(req, res) {
     const result = store.setLink(id, input, { userId: user.id, knownRoster });
     if (result.error) return sendFailure(res, result);
     ok(res, linkView(id, ev, result.plan));
-}
+});
+
+const postMob = catalogWrite("mobs", "save");
+const patchMob = catalogWrite("mobs", "save");
+const deleteMob = catalogWrite("mobs", "remove");
+const postSpell = catalogWrite("spells", "save");
+const patchSpell = catalogWrite("spells", "save");
+const deleteSpell = catalogWrite("spells", "remove");
+const postCatalogReset = catalogWrite("mobs", "reset");
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raidplan", handler: getPlan, area: "raids" },
+    { method: "PUT", path: "/api/raidplan", handler: putPlan, area: "raids" },
+    { method: "POST", path: "/api/raidplan/suggest", handler: postSuggest, area: "raids" },
+    { method: "POST", path: "/api/raidplan/publish", handler: postPublish, area: "raids" },
+    { method: "POST", path: "/api/raidplan/map", handler: postMap, area: "raids" },
+    { method: "POST", path: "/api/raidplan/map/delete", handler: postMapDelete, area: "raids" },
+    { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raids" },
+    { method: "POST", path: "/api/raidplan/catalog/mobs", handler: postMob, area: "raids" },
+    { method: "PATCH", path: "/api/raidplan/catalog/mobs", handler: patchMob, area: "raids" },
+    { method: "DELETE", path: "/api/raidplan/catalog/mobs", handler: deleteMob, area: "raids" },
+    { method: "POST", path: "/api/raidplan/catalog/spells", handler: postSpell, area: "raids" },
+    { method: "PATCH", path: "/api/raidplan/catalog/spells", handler: patchSpell, area: "raids" },
+    { method: "DELETE", path: "/api/raidplan/catalog/spells", handler: deleteSpell, area: "raids" },
+    { method: "POST", path: "/api/raidplan/catalog/reset", handler: postCatalogReset, area: "raids" },
+    { method: "GET", path: "/api/raidplan/profiles", handler: getProfiles, area: "raids" },
+    { method: "POST", path: "/api/raidplan/profiles", handler: postProfile, area: "raids" },
+    { method: "PATCH", path: "/api/raidplan/profiles", handler: patchProfile, area: "raids" },
+    { method: "DELETE", path: "/api/raidplan/profiles", handler: deleteProfile, area: "raids" },
+    { method: "POST", path: "/api/raidplan/apply", handler: postApply, area: "raids" },
+    { method: "GET", path: "/api/raidplan/templates", handler: getTemplates, area: "raids" },
+    { method: "POST", path: "/api/raidplan/templates", handler: postTemplate, area: "raids" },
+    { method: "PATCH", path: "/api/raidplan/templates", handler: patchTemplate, area: "raids" },
+    { method: "DELETE", path: "/api/raidplan/templates", handler: deleteTemplate, area: "raids" },
+    { method: "POST", path: "/api/raidplan/templates/duplicate", handler: postTemplateDuplicate, area: "raids" },
+    { method: "GET", path: "/api/raidplan/link", handler: getLink, area: "raids" },
+    { method: "POST", path: "/api/raidplan/link", handler: postLink, area: "raids" },
+    { method: "GET", path: "/api/raidplan/public", handler: getPublic, auth: "none" },
+];
 
 module.exports = {
     getLink, postLink,
     getPlan, putPlan, postSuggest, postPublish, postMap, postMapDelete,
-    getCatalog, postMob: catalogWrite("mobs", "save"), patchMob: catalogWrite("mobs", "save"), deleteMob: catalogWrite("mobs", "remove"),
-    postSpell: catalogWrite("spells", "save"), patchSpell: catalogWrite("spells", "save"), deleteSpell: catalogWrite("spells", "remove"), postCatalogReset: catalogWrite("mobs", "reset"),
+    getCatalog, postMob, patchMob, deleteMob,
+    postSpell, patchSpell, deleteSpell, postCatalogReset,
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,
     postApply, getTemplates, postTemplate, patchTemplate, deleteTemplate, postTemplateDuplicate,
+    routes,
 };

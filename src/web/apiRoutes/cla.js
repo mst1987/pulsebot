@@ -5,8 +5,9 @@
 // same German strings, same data shapes, minus the HTML rendering.
 const crypto = require("crypto");
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
+const { AppError } = require("../apiResult");
+const { q } = require("../apiParams");
 const { activeGuildFor } = require("../activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
@@ -34,23 +35,21 @@ const discord = require("../discord");
  * (reportList.prepareClaList), with a count per filter and how many open logs
  * "Automatisch zuordnen" would assign.
  */
-async function getClaData(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getClaData = withUser({}, async ({ req, res, query }) => {
     const guildId = activeGuildFor(req);
     const allLogs = listLogs();
     const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
     // which analyses already ran, normalised for legacy entries
     for (const l of logs) l.sections = evaluatedSections(l);
     annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
-    const query = {
-        filter: url.searchParams.get("filter"),
-        sort: url.searchParams.get("sort"),
-        dir: url.searchParams.get("dir"),
-        page: url.searchParams.get("page"),
+    const listQuery = {
+        filter: query.get("filter"),
+        sort: query.get("sort"),
+        dir: query.get("dir"),
+        page: query.get("page"),
     };
     const reports = listReports();
-    const { page, filter, counts } = prepareClaList(logs, reports, query, { allLogs });
+    const { page, filter, counts } = prepareClaList(logs, reports, listQuery, { allLogs });
 
     // Title and boss count of the logs on this page, read from WCL once, then
     // the rows rebuilt from the filled logs.
@@ -87,7 +86,7 @@ async function getClaData(req, res, url) {
         logChannelsConfigured: (getConfig().logChannelIds || []).length > 0,
         activeGuildId: guildId,
     });
-}
+});
 
 // Job "section" under which a report built from a pasted link is tracked. The
 // job key is a fresh id rather than a log id, since such a report has no log.
@@ -101,12 +100,8 @@ const REPORT_SECTION = "report";
  * connection open. Answers with a job id; the client polls report-status and
  * can navigate away in the meantime.
  */
-async function createReport(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const link = String(body.link || "").trim();
+const createReport = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const link = q.str(body, "link");
     if (!link) return error(res, 400, "build_failed", "Kein Report-Link angegeben.");
     // Sent once the client has asked whether a raid that is still running should
     // be evaluated regardless (see utils/logcheck/raidProgress.js).
@@ -127,36 +122,30 @@ async function createReport(req, res) {
         }
     });
     ok(res, { jobId, status: "running" }, 202);
-}
+});
 
 /**
  * GET /api/cla/report-status?jobId= — outcome of a started report build.
  * "unknown" means the job is gone (server restart, or collected long ago); the
  * report itself, if it was written, shows up in the regular list either way.
  */
-function reportStatus(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const jobId = String(url.searchParams.get("jobId") || "").trim();
+const reportStatus = withUser({}, async ({ res, query }) => {
+    const jobId = q.str(query, "jobId");
     const job = getJob(jobId, REPORT_SECTION);
     if (!job) return ok(res, { status: "unknown" });
     ok(res, {
         status: job.status, url: job.url, id: job.id, error: job.error,
         incomplete: job.incomplete, raids: job.raids, runningMs: job.runningMs,
     });
-}
+});
 
 /**
  * POST /api/cla/report-delete — body: { reportId }. Deletes a generated report.
  * The log it came from is kept but falls back to "offen", so the same log can be
  * evaluated again; its raid assignment is untouched.
  */
-async function deleteReportHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const reportId = String(body.reportId || "").trim();
+const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const reportId = q.str(body, "reportId");
     const log = getByReportRefId(reportId);
     const removed = deleteReport(reportId);
     if (!removed && !log) return error(res, 400, "not_found", "Auswertung nicht gefunden.");
@@ -168,23 +157,19 @@ async function deleteReportHandler(req, res) {
             ? "Auswertung gelöscht — das Log steht wieder auf „offen“."
             : "Auswertung gelöscht.",
     });
-}
+});
 
 /**
  * POST /api/cla/report-unlink — body: { reportId }. Removes the raid assignment
  * of the log this report was generated from. The report itself stays.
  */
-async function unlinkReport(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const reportId = String(body.reportId || "").trim();
+const unlinkReport = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const reportId = q.str(body, "reportId");
     const log = getByReportRefId(reportId);
     if (!log) return error(res, 400, "not_found", "Zu dieser Auswertung gibt es kein Log.");
     if (!unlinkLogEvent(log.id)) return error(res, 400, "not_linked", "Keine Zuordnung vorhanden.");
     ok(res, { reportId, logId: log.id, message: "Zuordnung entfernt." });
-}
+});
 
 /**
  * POST /api/cla/eval — body: { logId, section }. Starts one half of a tracked
@@ -195,13 +180,9 @@ async function unlinkReport(req, res) {
  * timeout, which reached the client as a gateway error instead of a result. The
  * caller polls GET /api/cla/eval-status for the outcome.
  */
-async function evalLog(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const section = String(body.section || "cla").trim() === "rpb" ? "rpb" : "cla";
-    const logId = String(body.logId || "").trim();
+const evalLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const section = (q.str(body, "section") || "cla") === "rpb" ? "rpb" : "cla";
+    const logId = q.str(body, "logId");
     if (!logId) return error(res, 400, "eval_failed", "Kein Log angegeben.");
 
     // Reject the obvious cases up front so the client gets a straight answer
@@ -219,7 +200,7 @@ async function evalLog(req, res) {
     const force = !!body.force;
     const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section, { force }));
     ok(res, { status: "running", section, logId, alreadyRunning }, 202);
-}
+});
 
 /**
  * POST /api/cla/eval-reset — body: { logId, section }. Discards one half of a
@@ -230,13 +211,9 @@ async function evalLog(req, res) {
  * result next to it. Was it the last half, the report page goes away entirely
  * and the log falls back to "offen".
  */
-async function resetEval(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const section = String(body.section || "").trim() === "rpb" ? "rpb" : "cla";
-    const logId = String(body.logId || "").trim();
+const resetEval = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const section = q.str(body, "section") === "rpb" ? "rpb" : "cla";
+    const logId = q.str(body, "logId");
 
     const log = getLog(logId);
     if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
@@ -267,7 +244,7 @@ async function resetEval(req, res) {
             ? `${section.toUpperCase()}-Auswertung verworfen — das Log steht wieder auf „offen“.`
             : `${section.toUpperCase()}-Auswertung verworfen und kann neu gestartet werden.`,
     });
-}
+});
 
 /**
  * GET /api/cla/eval-status?logId=&section= — outcome of a started evaluation.
@@ -275,11 +252,9 @@ async function resetEval(req, res) {
  * A job that is gone (server restarted, or it finished long ago) is answered from
  * the persisted state instead, so the UI still resolves to the right result.
  */
-function evalStatus(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const logId = String(url.searchParams.get("logId") || "").trim();
-    const section = String(url.searchParams.get("section") || "cla").trim() === "rpb" ? "rpb" : "cla";
+const evalStatus = withUser({}, async ({ res, query }) => {
+    const logId = q.str(query, "logId");
+    const section = (q.str(query, "section") || "cla") === "rpb" ? "rpb" : "cla";
 
     const job = getJob(logId, section);
     if (job) {
@@ -295,41 +270,29 @@ function evalStatus(req, res, url) {
         return ok(res, { status: "done", url: log.reportUrl, id: log.reportRefId, section });
     }
     ok(res, { status: "unknown", section });
-}
+});
 
 /** POST /api/cla/scan — scans the configured log channels for new logs. */
-async function scanLogs(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const scanLogs = withUser({ csrf: true }, async ({ req, res }) => {
     try {
         const found = await scanLogChannels(activeGuildFor(req));
         ok(res, { found, message: `${found} neue(r) Log(s) gefunden.` });
     } catch (e) {
-        console.error("log scan failed:", e.message);
-        error(res, 500, "scan_failed", e.message || "Scan fehlgeschlagen.");
+        throw new AppError("scan_failed", 500, e.message || "Scan fehlgeschlagen.");
     }
-}
+});
 
 /** POST /api/cla/log-delete — body: { logId }. Removes a tracked log from the list. */
-async function deleteLogHandler(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const logId = String(body.logId || "").trim();
+const deleteLogHandler = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const logId = q.str(body, "logId");
     deleteLog(logId);
     ok(res, { logId });
-}
+});
 
 /** POST /api/cla/log-link — body: { logId, eventId }. Assigns a log to its event. */
-async function linkLog(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const logId = String(body.logId || "").trim();
-    const eventId = String(body.eventId || "").trim();
+const linkLog = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const logId = q.str(body, "logId");
+    const eventId = q.str(body, "eventId");
     if (!getLog(logId)) return error(res, 400, "not_found", "Log nicht gefunden.");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event server-side; never trust the label posted by the client.
@@ -344,19 +307,15 @@ async function linkLog(req, res) {
         eventLabel: event.title || event.id,
         message: `Log „${event.title || event.id}" zugeordnet.`,
     });
-}
+});
 
 /**
  * POST /api/cla/log-link-url — body: { link, eventId }. Registers a pasted
  * Warcraft-Logs URL (if not already tracked) and assigns it to the event in one
  * step — for logs that were never posted in a tracked log channel.
  */
-async function linkLogUrl(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const eventId = String(body.eventId || "").trim();
+const linkLogUrl = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const eventId = q.str(body, "eventId");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event server-side, same as linkLog above.
     const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
@@ -372,25 +331,18 @@ async function linkLogUrl(req, res) {
         eventLabel: event.title || event.id,
         message: `WCL-Link „${event.title || event.id}" zugeordnet.`,
     });
-}
+});
 
 /** POST /api/cla/log-unlink — body: { logId }. Removes a log's event assignment. */
-async function unlinkLog(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const logId = String(body.logId || "").trim();
+const unlinkLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const logId = q.str(body, "logId");
     const removed = unlinkLogEvent(logId);
     if (!removed) return error(res, 400, "not_linked", "Keine Zuordnung vorhanden.");
     ok(res, { logId, message: "Zuordnung entfernt." });
-}
+});
 
 /** POST /api/cla/log-automatch — assigns every still-unassigned log with an unambiguous event match. */
-async function autoMatchLogs(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const autoMatchLogs = withUser({ csrf: true }, async ({ req, res }) => {
     const guildId = activeGuildFor(req);
     const { events, error: loadError } = await loadMatchableEvents(guildId);
     if (loadError) return error(res, 400, "events_unavailable", loadError);
@@ -401,16 +353,14 @@ async function autoMatchLogs(req, res) {
     const rest = logs.length - matches.length;
     const message = `${matches.length} Log(s) automatisch zugeordnet${rest ? `, ${rest} ohne eindeutiges Event` : ""}.`;
     ok(res, { matched: matches.length, remaining: rest, message });
-}
+});
 
 /**
  * GET /api/cla/recommendations?id=<reportId> — the report's recommendations with
  * the raid lead's review laid over them (approved / rejected / undecided, own text).
  */
-async function getRecommendations(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+const getRecommendations = withUser({}, async ({ res, query }) => {
+    const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     ok(res, {
@@ -418,7 +368,7 @@ async function getRecommendations(req, res, url) {
         title: report.title || "",
         recommendations: applyReview(report.recommendations, report.recommendationReview),
     });
-}
+});
 
 /**
  * POST /api/cla/recommendations — body: { reportId, scope: "raid"|"player",
@@ -426,17 +376,13 @@ async function getRecommendations(req, res, url) {
  * lead's verdict on one finding. Nothing is sent to anyone from here; approval
  * is what the later send step reads.
  */
-async function reviewRecommendation(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const reportId = String(body.reportId || "").trim();
+const reviewRecommendation = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+    const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     const scope = body.scope === "raid" ? "raid" : "player";
-    const key = String(body.key || "").trim();
-    const player = String(body.player || "").trim();
+    const key = q.str(body, "key");
+    const player = q.str(body, "player");
     if (!key || (scope === "player" && !player)) return error(res, 400, "bad_request", "Empfehlung nicht angegeben.");
     const rec = report.recommendations || { raid: [], players: [] };
     const known = scope === "raid"
@@ -458,20 +404,18 @@ async function reviewRecommendation(req, res) {
     report.recommendationReview = review;
     saveReport(report, reportId);
     ok(res, { reportId, scope, player, key, review: entry });
-}
+});
 
 /**
  * GET /api/cla/recommendations/send?id=<reportId> — per raider: approved
  * points, whether a Discord account is assigned, when they were last sent.
  */
-async function recommendationSendStatus(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+const recommendationSendStatus = withUser({}, async ({ res, query }) => {
+    const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     ok(res, { reportId, players: sendStatus(report, listAllAssignments()) });
-}
+});
 
 /**
  * POST /api/cla/recommendations/send — body: { reportId, players?: string[], force?: boolean }.
@@ -479,12 +423,8 @@ async function recommendationSendStatus(req, res, url) {
  * Already-sent, unchanged sets are skipped unless `force`; raiders without an
  * assigned account are listed, never guessed.
  */
-async function sendRecommendations(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const reportId = String(body.reportId || "").trim();
+const sendRecommendations = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+    const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     if (!discord.getClient()) return error(res, 503, "bot_offline", "Bot nicht verbunden – DMs können gerade nicht gesendet werden.");
@@ -497,7 +437,7 @@ async function sendRecommendations(req, res) {
         ? `${result.sent.length} Raider angeschrieben${result.skipped.length ? `, ${result.skipped.length} übersprungen` : ""}.`
         : (result.skipped.length ? "Nichts gesendet – siehe Gründe." : "Nichts freigegeben.");
     ok(res, { reportId, sent: result.sent, skipped: result.skipped, message });
-}
+});
 
 const PHRASE_SECTION = "phrase";
 
@@ -507,12 +447,8 @@ const PHRASE_SECTION = "phrase";
  * background; the client polls the status. Needs the Anthropic key from
  * Einstellungen → Verbindungen → KI-Formulierung.
  */
-async function phraseRecommendations(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const reportId = String(body.reportId || "").trim();
+const phraseRecommendations = withUser({ csrf: true, body: true }, async ({ body, res }) => {
+    const reportId = q.str(body, "reportId");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     const settings = (getConfig().anthropic) || {};
@@ -526,18 +462,40 @@ async function phraseRecommendations(req, res) {
         return { ok: true, id: reportId, url: `${result.phrased}` };
     });
     ok(res, { reportId, status: started.status, alreadyRunning: started.alreadyRunning }, started.alreadyRunning ? 200 : 202);
-}
+});
 
 /** GET /api/cla/recommendations/phrase?id=<reportId> — the job state plus the report's last phrasing record. */
-async function phraseStatus(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+const phraseStatus = withUser({}, async ({ res, query }) => {
+    const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
     if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
     const job = getJob(reportId, PHRASE_SECTION);
     ok(res, { reportId, job, last: report.recommendationPhrase || null, hasApiKey: !!((getConfig().anthropic || {}).apiKey) });
-}
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/cla", handler: getClaData, area: "cla" },
+    { method: "POST", path: "/api/cla", handler: createReport, area: "cla" },
+    { method: "GET", path: "/api/cla/report-status", handler: reportStatus, area: "cla" },
+    { method: "POST", path: "/api/cla/report-delete", handler: deleteReportHandler, area: "cla" },
+    { method: "POST", path: "/api/cla/report-unlink", handler: unlinkReport, area: "cla" },
+    { method: "POST", path: "/api/cla/eval", handler: evalLog, area: "cla" },
+    { method: "GET", path: "/api/cla/eval-status", handler: evalStatus, area: "cla" },
+    { method: "POST", path: "/api/cla/eval-reset", handler: resetEval, area: "cla" },
+    { method: "POST", path: "/api/cla/scan", handler: scanLogs, area: "cla" },
+    { method: "POST", path: "/api/cla/log-delete", handler: deleteLogHandler, area: "cla" },
+    { method: "POST", path: "/api/cla/log-link", handler: linkLog, area: "cla" },
+    { method: "POST", path: "/api/cla/log-link-url", handler: linkLogUrl, area: "cla" },
+    { method: "POST", path: "/api/cla/log-unlink", handler: unlinkLog, area: "cla" },
+    { method: "POST", path: "/api/cla/log-automatch", handler: autoMatchLogs, area: "cla" },
+    { method: "GET", path: "/api/cla/recommendations", handler: getRecommendations, area: "cla" },
+    { method: "POST", path: "/api/cla/recommendations", handler: reviewRecommendation, area: "cla" },
+    { method: "GET", path: "/api/cla/recommendations/send", handler: recommendationSendStatus, area: "cla" },
+    { method: "POST", path: "/api/cla/recommendations/send", handler: sendRecommendations, area: "cla" },
+    { method: "GET", path: "/api/cla/recommendations/phrase", handler: phraseStatus, area: "cla" },
+    { method: "POST", path: "/api/cla/recommendations/phrase", handler: phraseRecommendations, area: "cla" },
+];
 
 module.exports = {
     recommendationSendStatus, sendRecommendations, phraseRecommendations, phraseStatus,
@@ -545,4 +503,5 @@ module.exports = {
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
     getRecommendations, reviewRecommendation,
+    routes,
 };
