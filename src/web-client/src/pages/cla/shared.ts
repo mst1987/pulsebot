@@ -1,5 +1,6 @@
 import type { ClaFilter, ClaRow, LogSection } from "../../api";
 import { formatDateTime, formatDayDate } from "../../lib/format";
+import { t } from "../../i18n";
 
 export const FILTERS: ClaFilter[] = ["all", "open", "unlinked", "done"];
 
@@ -13,44 +14,29 @@ const REPORT_SECONDS = 30;
 // What a pasted link builds: both halves unless the dialog says otherwise.
 export type SectionChoice = "both" | "cla" | "rpb";
 
+// Labels and explanations are getters, so they are read in the language that
+// is active when the page renders (never at module load).
 export const SECTION_CHOICES: { key: SectionChoice; label: string; sub: string; icon: string; seconds: number; sections: LogSection[] }[] = [
-    { key: "both", label: "CLA + RPB", sub: "Komplette Auswertung auf einer Report-Seite", icon: "inv_misc_book_09", seconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb, sections: ["cla", "rpb"] },
-    { key: "cla", label: "nur CLA", sub: "Gear, Consumables, Kampfverlauf", icon: "inv_chest_cloth_43", seconds: REPORT_SECONDS, sections: ["cla"] },
-    { key: "rpb", label: "nur RPB", sub: "Schaden, Tode, Aktivität, Cooldowns", icon: "ability_warrior_offensivestance", seconds: EVAL_SECONDS.rpb, sections: ["rpb"] },
+    { key: "both", label: "CLA + RPB", get sub() { return t("cla.choices.bothSub"); }, icon: "inv_misc_book_09", seconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb, sections: ["cla", "rpb"] },
+    { key: "cla", get label() { return t("cla.choices.claLabel"); }, get sub() { return t("cla.choices.claSub"); }, icon: "inv_chest_cloth_43", seconds: REPORT_SECONDS, sections: ["cla"] },
+    { key: "rpb", get label() { return t("cla.choices.rpbLabel"); }, get sub() { return t("cla.choices.rpbSub"); }, icon: "ability_warrior_offensivestance", seconds: EVAL_SECONDS.rpb, sections: ["rpb"] },
 ];
 
 // The two halves of an analysis — label, icon and what each one looks at.
 export const ANALYSES: { key: LogSection; label: string; icon: string; sub: string }[] = [
-    { key: "cla", label: "CLA", icon: "inv_chest_cloth_43", sub: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
-    { key: "rpb", label: "RPB", icon: "ability_warrior_offensivestance", sub: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
+    { key: "cla", label: "CLA", icon: "inv_chest_cloth_43", get sub() { return t("cla.analyses.claSub"); } },
+    { key: "rpb", label: "RPB", icon: "ability_warrior_offensivestance", get sub() { return t("cla.analyses.rpbSub"); } },
 ];
 
-export const FILTER_META: Record<ClaFilter, { label: string; tip: string; sub: string; empty: string }> = {
-    all: {
-        label: "Alle",
-        tip: "Alle Logs",
-        sub: "Vom Bot im Log-Channel erkannte Warcraft-Logs und per Link ausgewertete Reports, neueste Post-Zeit zuerst. Jeder Report wird nur einmal ausgewertet.",
-        empty: "Noch keine Logs. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.",
-    },
-    open: {
-        label: "Offen",
-        tip: "Noch nicht ausgewertet",
-        sub: "Logs, für die weder CLA noch RPB gelaufen ist. Über den Log-Link vorab prüfen, dann „Auswerten“.",
-        empty: "Kein Log wartet auf eine Auswertung.",
-    },
-    unlinked: {
-        label: "Ohne Raid-Event",
-        tip: "Keinem Raid-Event zugeordnet",
-        sub: "Jedes Log gehört zu dem Raid, dessen Startzeit zur Post-Zeit passt. Der Vorschlag ist im Zuordnen-Dialog vorgewählt.",
-        empty: "Alle Logs sind einem Raid-Event zugeordnet.",
-    },
-    done: {
-        label: "Ausgewertet",
-        tip: "Mindestens eine Hälfte ausgewertet",
-        sub: "Logs mit CLA- oder RPB-Auswertung und die per Link erstellten Reports.",
-        empty: "Noch keine Auswertungen.",
-    },
-};
+/** Label, tooltip and empty text of a filter, in the active language. */
+export function filterMeta(filter: ClaFilter): { label: string; tip: string; sub: string; empty: string } {
+    return {
+        label: t(`cla.filters.${filter}.label`),
+        tip: t(`cla.filters.${filter}.tip`),
+        sub: t(`cla.filters.${filter}.sub`),
+        empty: t(`cla.filters.${filter}.empty`),
+    };
+}
 
 // ---- small formatting helpers ----
 
@@ -73,8 +59,8 @@ export function formatMatchOffset(diffMs: number): string {
     const hours = Math.floor(mins / 60);
     const rest = mins % 60;
     const span = hours ? `${hours} h${rest ? ` ${rest} min` : ""}` : `${mins} min`;
-    if (mins === 0) return "pünktlich zum Start";
-    return ms >= 0 ? `${span} nach Start` : `${span} vor Start`;
+    if (mins === 0) return t("cla.offset.onTime");
+    return ms >= 0 ? t("cla.offset.after", { span }) : t("cla.offset.before", { span });
 }
 
 export function discordUrl(row: ClaRow): string {

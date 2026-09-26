@@ -84,7 +84,9 @@ describe("web-client control styles", () => {
         expect(src).not.toContain("chip-x");
         expect(src).not.toContain("pill-chip");
         expect(src).toContain("tone=\"accent\" icon=\"inv_misc_note_02\" className=\"plain la-event\"");
-        expect(src).toMatch(/<Button variant="danger"[^\n]*>Zuordnung entfernen<\/Button>/);
+        // the button's text lives in the dictionary since the page is translated (#440)
+        expect(src).toMatch(/<Button variant="danger"[^\n]*>\{t\("cla\.assign\.unlink"\)\}<\/Button>/);
+        expect(require("../clientSource").dictionary("de")["cla.assign.unlink"]).toBe("Zuordnung entfernen");
         // the classes went with it
         expect(css).not.toMatch(/\n\.chip-x \{/);
         expect(css).not.toMatch(/\n\.pill-chip \{/);

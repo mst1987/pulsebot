@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Tip from "../../components/ui/Tip";
 import WowIcon from "../../components/ui/WowIcon";
+import { useT } from "../../i18n";
 import { SECTION_CHOICES, type SectionChoice } from "./shared";
 
 // ---- Modal "Neue Auswertung" ----
@@ -21,6 +22,7 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
     onClose: () => void;
     onChanged: () => void;
 }) {
+    const t = useT();
     const ask = useConfirm();
     const jobs = useJobs();
     const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "", sections: "both" as SectionChoice });
@@ -34,12 +36,12 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
         clearDraft();
         onClose();
         jobs.run({
-            label: `${choice.key === "both" ? "CLA + RPB" : choice.label.replace("nur ", "")}-Auswertung`,
+            label: t("cla.jobs.evalLabel", { label: choice.key === "both" ? "CLA + RPB" : choice.key.toUpperCase() }),
             detail: target,
             expectedSeconds: choice.seconds,
             describe: (r) => ({
-                message: "Auswertung erstellt.",
-                link: { href: r.url, label: "Report ansehen", external: true },
+                message: t("cla.jobs.reportCreated"),
+                link: { href: r.url, label: t("cla.jobs.viewReport"), external: true },
             }),
         }, () => withIncompleteConfirm(ask, (force) => createReport(target, { force, sections: choice.sections }))).then(onChanged);
     };
@@ -50,26 +52,26 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
             onClose={onClose}
             icon="inv_misc_spyglass_02"
             tone="cla"
-            kicker="Warcraft-Logs-Report per Link"
-            title="Neue Auswertung"
+            kicker={t("cla.newEval.kicker")}
+            title={t("cla.page.newEvaluation")}
             width={700}
             initialFocus="#la-link"
-            hint="Läuft im Hintergrund – Fortschritt unten in der Mitte."
+            hint={t("cla.newEval.hint")}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="la-new-eval" icon="inv_misc_pocketwatch_01" disabled={!link.trim()}>Auswerten</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="la-new-eval" icon="inv_misc_pocketwatch_01" disabled={!link.trim()}>{t("cla.newEval.submit")}</Button>
                 </>
             )}
         >
             <form id="la-new-eval" className="la-form" onSubmit={submit}>
                 <div>
                     <label className="la-lbl" htmlFor="la-link">
-                        Report-Link oder Report-ID
+                        {t("cla.newEval.linkLabel")}
                         <Tip
                             className="la-qm"
-                            head="Report-Link oder -ID"
-                            sub="Der Link aus Warcraft Logs oder nur die ID dahinter. Vom Bot erkannte Logs stehen schon in der Liste und lassen sich dort direkt auswerten."
+                            head={t("cla.newEval.linkTip")}
+                            sub={t("cla.newEval.linkTipSub")}
                         >?</Tip>
                     </label>
                     <input
@@ -79,7 +81,7 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
                     />
                 </div>
                 <div>
-                    <div className="la-lbl" id="la-opts-lbl">Welche Analysen</div>
+                    <div className="la-lbl" id="la-opts-lbl">{t("cla.newEval.which")}</div>
                     <div className="la-opts" role="radiogroup" aria-labelledby="la-opts-lbl">
                         {SECTION_CHOICES.map((c) => {
                             const on = choice.key === c.key;

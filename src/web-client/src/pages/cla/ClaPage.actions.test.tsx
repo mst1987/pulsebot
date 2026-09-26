@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { ClaData, ClaRow, IncompleteRaidError, MatchCandidate } from "../../api";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import { t } from "../../i18n";
 import ClaPage from "./ClaPage";
 
@@ -310,5 +311,44 @@ describe("Log-Auswertung: a raid that is still running", () => {
         await user.click(within(ask).getByRole("button", { name: t("common.cancel") }));
         expect(await screen.findByText(t("jobs.incomplete.cancelled"))).toBeInTheDocument();
         expect(api.evalLog).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("Log-Auswertung dialogs in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("assigns a raid event in English, with the offset spelled out", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        serve([row({ title: "Log 16.09.", candidates: [
+            { eventId: "e1", title: "Hyjal Mittwoch", startTime: 1789588800, categoryName: "T6", diffMs: 30 * 60000, sameCategory: true, contentId: "hyjal" },
+            { eventId: "e2", title: "BT Mittwoch", startTime: 1789592400, categoryName: "", diffMs: -(2 * 60 + 13) * 60000, sameCategory: false, contentId: "bt" },
+        ], matchAmbiguous: true })]);
+        renderPage(<ClaPage />, { route: "/cla" });
+        const r = await rowOf("Log 16.09.");
+        const open = within(r).getByRole("button", { name: /Assign/ });
+        expect(open).toHaveAttribute("data-tip", "Several events fit");
+        await user.click(open);
+
+        const dlg = dialog("Assign raid event");
+        expect(within(dlg).getByText(/^Log 16\.09\. · posted /)).toBeInTheDocument();
+        expect(within(dlg).getByText("2 events fit")).toBeInTheDocument();
+        const radios = within(within(dlg).getByRole("radiogroup", { name: "Matching raid events" })).getAllByRole("radio");
+        expect(within(radios[0]).getByText("30 min after start")).toBeInTheDocument();
+        expect(within(radios[0]).getByText("same category")).toBeInTheDocument();
+        expect(within(radios[1]).getByText("2 h 13 min before start")).toBeInTheDocument();
+        expect(within(dlg).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    });
+
+    it("offers the new evaluation's analyses in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        renderPage(<ClaPage />, { route: "/cla" });
+        await user.click(await screen.findByRole("button", { name: "New evaluation" }));
+        const dlg = dialog("New evaluation");
+        expect(within(dlg).getByText("Report link or report ID")).toBeInTheDocument();
+        const opts = within(within(dlg).getByRole("radiogroup")).getAllByRole("radio");
+        expect(opts.map((o) => o.querySelector("b")?.textContent)).toEqual(["CLA + RPB", "CLA only", "RPB only"]);
+        expect(within(opts[0]).getByText("Full evaluation on one report page")).toBeInTheDocument();
     });
 });

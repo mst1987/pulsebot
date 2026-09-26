@@ -5,10 +5,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { ClaData, ClaFilter, ClaRow } from "../../api";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import { t } from "../../i18n";
 import { LOG_FALLBACK_ICON, raidIcon } from "../../lib/logRaids";
 import { RAID_CONTENTS } from "../../lib/raidIcons";
@@ -322,5 +323,33 @@ describe("Log-Auswertung: one action per row", () => {
         expect(within(menu).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Raid-Event zuordnen", "Aus der Liste löschen"]);
         expect(within(menu).getAllByRole("separator")).toHaveLength(1);
         expect(menu.firstElementChild).toHaveAttribute("role", "menuitem");
+    });
+});
+
+describe("Log-Auswertung in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the head, the filters, the columns and the row in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        show();
+        expect(await screen.findByRole("heading", { level: 1, name: "Log analysis" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "New evaluation" })).toBeInTheDocument();
+        const group = screen.getByRole("radiogroup", { name: "Filter logs" });
+        expect(within(group).getAllByRole("radio").map((o) => o.textContent)).toEqual(["All3", "Open1", "No raid event2", "Evaluated0"]);
+        expect(screen.getByRole("columnheader", { name: /Evaluation/ })).toBeInTheDocument();
+
+        const r = await rowOf("Hyjal Mittwoch");
+        expect(within(r).getByRole("button", { name: "Evaluate" })).toBeInTheDocument();
+        expect(cell(r, "Raid event")).toHaveTextContent("no matching event");
+        await user.click(within(r).getByRole("button", { name: /^More actions/ }));
+        expect(within(within(r).getByRole("menu")).getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Assign raid event", "Delete from the list"]);
+    });
+
+    it("shows the filter's empty text in English", async () => {
+        await switchLang("en");
+        serve([]);
+        show("/cla?filter=open");
+        expect(await screen.findByText("No log is waiting for an evaluation.")).toBeInTheDocument();
     });
 });

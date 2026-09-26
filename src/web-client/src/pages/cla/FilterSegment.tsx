@@ -1,6 +1,7 @@
 import type { ClaFilter } from "../../api";
 import Badge from "../../components/ui/Badge";
-import { FILTER_META, FILTERS } from "./shared";
+import { useT } from "../../i18n";
+import { filterMeta, FILTERS } from "./shared";
 
 // ---- the filter segment with a count per option ----
 
@@ -14,11 +15,13 @@ export function FilterSegment({ value, counts, onChange }: {
     counts: Record<ClaFilter, number>;
     onChange: (f: ClaFilter) => void;
 }) {
+    const t = useT();
     return (
-        <div className="seg la-seg" role="radiogroup" aria-label="Logs filtern">
+        <div className="seg la-seg" role="radiogroup" aria-label={t("cla.filters.ariaLabel")}>
             {FILTERS.map((f) => {
                 const active = f === value;
                 const warn = (f === "open" || f === "unlinked") && counts[f] > 0;
+                const meta = filterMeta(f);
                 return (
                     <button
                         key={f}
@@ -26,11 +29,11 @@ export function FilterSegment({ value, counts, onChange }: {
                         role="radio"
                         aria-checked={active}
                         className={`seg-opt${active ? " active" : ""}`}
-                        data-tip={FILTER_META[f].tip}
-                        data-tip-sub={FILTER_META[f].sub}
+                        data-tip={meta.tip}
+                        data-tip-sub={meta.sub}
                         onClick={() => onChange(f)}
                     >
-                        {FILTER_META[f].label}
+                        {meta.label}
                         <Badge count tone={warn ? "mid" : undefined}>{counts[f] ?? 0}</Badge>
                     </button>
                 );

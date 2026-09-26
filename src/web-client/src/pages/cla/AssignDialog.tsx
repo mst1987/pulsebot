@@ -7,6 +7,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
+import { useT } from "../../i18n";
 import { fmtEventDay, fmtPosted, formatMatchOffset } from "./shared";
 import { QuestionIcon } from "./ClaIcons";
 
@@ -18,6 +19,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
     onAssign: (row: ClaRow, eventId: string) => void;
     onUnlink: (row: ClaRow) => void;
 }) {
+    const t = useT();
     const cands: MatchCandidate[] = row?.candidates || [];
     const [picked, setPicked] = useState("");
     useEffect(() => {
@@ -35,17 +37,17 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
             open={!!row}
             onClose={onClose}
             icon="inv_misc_note_02"
-            kicker={row ? `${row.title} · gepostet ${fmtPosted(row.postedAt)}` : ""}
-            title="Raid-Event zuordnen"
+            kicker={row ? t("cla.assign.kicker", { title: row.title, posted: fmtPosted(row.postedAt) }) : ""}
+            title={t("cla.assign.title")}
             width={720}
-            hint={row?.eventId ? undefined : "Zuordnung jederzeit über das Zeilenmenü änderbar."}
+            hint={row?.eventId ? undefined : t("cla.assign.hint")}
             footer={row && (
                 <>
                     {row.eventId && (
-                        <Button variant="danger" icon={<TrashIcon />} className="la-foot-left" onClick={() => onUnlink(row)}>Zuordnung entfernen</Button>
+                        <Button variant="danger" icon={<TrashIcon />} className="la-foot-left" onClick={() => onUnlink(row)}>{t("cla.assign.unlink")}</Button>
                     )}
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>Zuordnen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>{t("cla.assign.submit")}</Button>
                 </>
             )}
         >
@@ -56,18 +58,18 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                             <Badge tone="accent" icon="inv_misc_note_02" className="plain">
                                 {row.eventLabel || row.eventId}{row.eventStartTime ? ` · ${fmtEventDay(row.eventStartTime)}` : ""}
                             </Badge>
-                            <span className="la-muted">ist zugeordnet ({row.eventLinkSource === "auto" ? "automatisch" : "manuell"})</span>
+                            <span className="la-muted">{t("cla.assign.linked", { how: row.eventLinkSource === "auto" ? t("cla.assign.auto") : t("cla.assign.manual") })}</span>
                         </div>
                     )}
                     {row.matchAmbiguous && cands.length > 1 && (
                         <div className="la-assign-now">
-                            <Badge tone="mid" icon={<QuestionIcon />}>{cands.length} Events passen</Badge>
-                            <span className="la-muted">nach Nähe zur Post-Zeit sortiert – der erste ist vorgewählt</span>
+                            <Badge tone="mid" icon={<QuestionIcon />}>{t("cla.assign.fitting", { count: cands.length })}</Badge>
+                            <span className="la-muted">{t("cla.assign.sortedHint")}</span>
                         </div>
                     )}
                     {cands.length
                         ? (
-                            <div className="la-cands" role="radiogroup" aria-label="Passende Raid-Events">
+                            <div className="la-cands" role="radiogroup" aria-label={t("cla.assign.candidatesAria")}>
                                 {cands.map((c) => {
                                     const on = picked === c.eventId;
                                     return (
@@ -84,15 +86,15 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                                             </span>
                                             <span className="la-badges la-badges-end">
                                                 <Badge tone={Math.abs(c.diffMs) === nearest ? "ok" : "mid"} icon="spell_holy_borrowedtime">{formatMatchOffset(c.diffMs)}</Badge>
-                                                {c.sameCategory && <Badge tone="accent" className="plain">gleiche Kategorie</Badge>}
-                                                {c.eventId === row.eventId && <Badge className="plain">aktuell</Badge>}
+                                                {c.sameCategory && <Badge tone="accent" className="plain">{t("cla.assign.sameCategory")}</Badge>}
+                                                {c.eventId === row.eventId && <Badge className="plain">{t("cla.assign.current")}</Badge>}
                                             </span>
                                         </button>
                                     );
                                 })}
                             </div>
                         )
-                        : <p className="la-muted">Kein Raid-Event mit passender Startzeit gefunden.</p>}
+                        : <p className="la-muted">{t("cla.assign.none")}</p>}
                 </div>
             )}
         </Modal>
