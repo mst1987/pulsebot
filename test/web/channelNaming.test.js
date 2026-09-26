@@ -2,14 +2,14 @@
 // channel of the category, the stored schema, or the default one — and that
 // the result always says so.
 jest.mock("../../src/web/discord", () => ({ listAllChannels: jest.fn(() => []) }));
-jest.mock("../../src/web/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
+jest.mock("../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
 jest.mock("../../src/web/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /hyjal/i.test(title || "") ? ["hyjal", "bt"] : /ssc/i.test(title || "") ? ["ssc", "tk"] : [] }),
 }));
 
 const discord = require("../../src/web/discord");
-const archiveStore = require("../../src/web/channelArchiveStore");
+const archiveStore = require("../../src/stores/channelArchiveStore");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const naming = require("../../src/web/channelNaming");
 

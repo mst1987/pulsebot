@@ -1,11 +1,11 @@
-jest.mock("../../../src/web/lootStore", () => ({ listByCharacter: jest.fn() }));
+jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn() }));
 jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
 jest.mock("../../../src/web/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
 jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/loot");
-const { listByCharacter } = require("../../../src/web/lootStore");
+const { listByCharacter } = require("../../../src/stores/lootStore");
 const { itemCatalog } = require("../../../src/web/lootStats");
 const { annotatedCharacters } = require("../../../src/web/characterInfo");
 const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");

@@ -16,7 +16,7 @@ jest.mock("http", () => {
 jest.mock("../../src/web/version", () => ({
     versionInfo: () => ({ commit: "c0ffee", short: "c0ffee", committedAt: "2026-09-01T00:00:00Z", subject: "Stand", startedAt: "2026-09-02T00:00:00Z" }),
 }));
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/reportStore", () => ({
     getReport: jest.fn((id) => (id === "abc123" ? { id } : null)),
     deleteReport: jest.fn((id) => id === "abc123"),
 }));
@@ -60,12 +60,12 @@ jest.mock("../../src/web/icsFeed", () => ({
     icsFileName: jest.fn((id) => `raid-${id}.ics`),
 }));
 jest.mock("../../src/web/calendarFeed", () => ({ feedFor: jest.fn((token) => (token === "ehc_ok" ? { body: `FEED:${token}` } : null)) }));
-jest.mock("../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../src/web/eventStore"),
+jest.mock("../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../src/stores/eventStore"),
     getEvent: jest.fn((id) => (id === "eh-1" || id === "eh-leer" ? { id } : null)),
 }));
-jest.mock("../../src/web/raidplanStore", () => ({
-    ...jest.requireActual("../../src/web/raidplanStore"),
+jest.mock("../../src/stores/raidplanStore", () => ({
+    ...jest.requireActual("../../src/stores/raidplanStore"),
     readMap: jest.fn((key) => (key === "bt/supremus" || key === "t/abc/kara" ? { buffer: Buffer.from(`MAP:${key}`), mime: "image/png" } : null)),
 }));
 
@@ -82,7 +82,7 @@ jest.mock("../../src/web/report/assets", () => ({
 
 const http = require("http");
 const auth = require("../../src/web/auth");
-const reportStore = require("../../src/web/reportStore");
+const reportStore = require("../../src/stores/reportStore");
 const { startWebServer } = require("../../src/web/server.js");
 
 const GOLDEN = path.join(__dirname, "fixtures", "serverRoutes.golden.json");

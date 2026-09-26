@@ -3,8 +3,8 @@ const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { buildRoster, rosterCharacter } = require("../roster");
 const { rosterStats } = require("../rosterStats");
-const rosterHidden = require("../rosterHiddenStore");
-const { repairItemNames: repairLootItemNames } = require("../lootStore");
+const rosterHidden = require("../../stores/rosterHiddenStore");
+const { repairItemNames: repairLootItemNames } = require("../../stores/lootStore");
 const { sourceForItem, content, tier } = require("../../config/tbcContent");
 const { bisSpecsView } = require("../lootCouncil");
 

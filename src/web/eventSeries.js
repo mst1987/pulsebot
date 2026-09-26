@@ -30,13 +30,13 @@
 
 const { DateTime } = require("luxon");
 const discord = require("./discord");
-const store = require("./eventSeriesStore");
-const eventStore = require("./eventStore");
+const store = require("../stores/eventSeriesStore");
+const eventStore = require("../stores/eventStore");
 const guildRoles = require("./guildRoles");
 const channelNaming = require("./channelNaming");
 const { signupSourceFor, ownUpcomingRaw } = require("./eventSources");
 const { loadEventGroups } = require("./raidEventGroups");
-const { getConfig, getRaidTemplate } = require("./settingsStore");
+const { getConfig, getRaidTemplate } = require("../stores/settingsStore");
 const { parseClockTime } = require("../utils/time");
 
 const { TIMEZONE } = require("../config/timezone");

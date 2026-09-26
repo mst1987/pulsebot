@@ -1,4 +1,4 @@
-const { getEvent } = require("../../web/eventStore");
+const { getEvent } = require("../../stores/eventStore");
 const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../web/eventMessage");
 const { onJoin, onClass, reply, emojisFor } = require("./eventButton");
 

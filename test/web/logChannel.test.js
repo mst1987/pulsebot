@@ -1,5 +1,5 @@
-jest.mock("../../src/web/settingsStore.js");
-jest.mock("../../src/web/logStore.js");
+jest.mock("../../src/stores/settingsStore.js");
+jest.mock("../../src/stores/logStore.js");
 jest.mock("../../src/web/discord.js");
 jest.mock("../../src/utils/logcheck/report.js", () => {
     class ReportError extends Error {}
@@ -11,8 +11,8 @@ jest.mock("../../src/classes/warcraftlogs.js", () =>
 
 const { ChannelType } = require("discord.js");
 const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
-const { getConfig } = require("../../src/web/settingsStore.js");
-const logStore = require("../../src/web/logStore.js");
+const { getConfig } = require("../../src/stores/settingsStore.js");
+const logStore = require("../../src/stores/logStore.js");
 const discord = require("../../src/web/discord.js");
 require("../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");

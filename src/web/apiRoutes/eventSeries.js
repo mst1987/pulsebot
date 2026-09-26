@@ -12,8 +12,8 @@ const { withUser } = require("../apiHandler");
 const { sendResult } = require("../apiResult");
 const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
-const { listRaidTemplates } = require("../settingsStore");
-const store = require("../eventSeriesStore");
+const { listRaidTemplates } = require("../../stores/settingsStore");
+const store = require("../../stores/eventSeriesStore");
 const series = require("../eventSeries");
 
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();

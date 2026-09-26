@@ -1,17 +1,17 @@
 // The adapter: both sources in one shape. Stores mocked; the adapter is real.
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []),
     getEvent: jest.fn(() => null),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const eventStore = require("../../src/web/eventStore");
-const { listSignups } = require("../../src/web/signupStore");
-const { listRaidEvents, getRaidEvent } = require("../../src/web/raidEventStore");
-const { getConfig } = require("../../src/web/settingsStore");
+const eventStore = require("../../src/stores/eventStore");
+const { listSignups } = require("../../src/stores/signupStore");
+const { listRaidEvents, getRaidEvent } = require("../../src/stores/raidEventStore");
+const { getConfig } = require("../../src/stores/settingsStore");
 const sources = require("../../src/web/eventSources");
 const { specProfile } = require("../../src/utils/setup/setupView");
 const { signupStatus } = require("../../src/utils/attendance");

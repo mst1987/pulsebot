@@ -4,16 +4,16 @@ const { sendResult } = require("../apiResult");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
-const { getConfig, listRaidTemplates } = require("../settingsStore");
+const { getConfig, listRaidTemplates } = require("../../stores/settingsStore");
 const { createEvent, updateEvent } = require("../eventCreate");
 const { decorateTemplate } = require("../raidTemplates");
-const eventStore = require("../eventStore");
-const { getChannelConfig } = require("../channelArchiveStore");
+const eventStore = require("../../stores/eventStore");
+const { getChannelConfig } = require("../../stores/channelArchiveStore");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../channelNaming");
 const { signupSourceFor } = require("../eventSources");
-const { listSignups } = require("../signupStore");
+const { listSignups } = require("../../stores/signupStore");
 const discord = require("../discord");
 
 /**

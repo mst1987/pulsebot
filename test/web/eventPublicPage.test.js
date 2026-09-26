@@ -3,12 +3,12 @@
 // leave: the payload is checked against VIEW_KEYS, and the rendered HTML is
 // searched for every personal thing a signup carries — user ids, comments,
 // wishes, "kann auch mit", the profile and a setup draft.
-jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
+jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(() => null) }));
 
-const eventStore = require("../../src/web/eventStore");
-const signupStore = require("../../src/web/signupStore");
+const eventStore = require("../../src/stores/eventStore");
+const signupStore = require("../../src/stores/signupStore");
 const {
     VIEW_KEYS, publicEventView, renderPublicEventPage, renderEventPage,
 } = require("../../src/web/eventPublicPage");

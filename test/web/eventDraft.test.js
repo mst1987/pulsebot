@@ -1,6 +1,6 @@
 jest.mock("../../src/web/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn() }));
-jest.mock("../../src/web/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
+jest.mock("../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../src/web/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
 jest.mock("../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
@@ -8,8 +8,8 @@ jest.mock("../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1 }));
 
 const discord = require("../../src/web/discord");
-const archiveStore = require("../../src/web/channelArchiveStore");
-const settings = require("../../src/web/settingsStore");
+const archiveStore = require("../../src/stores/channelArchiveStore");
+const settings = require("../../src/stores/settingsStore");
 const { signupSourceFor } = require("../../src/web/eventSources");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const { eventGuildId } = require("../../src/web/guildRoles");

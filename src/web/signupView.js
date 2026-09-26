@@ -3,8 +3,8 @@
 // groups of eventSources/raidEventGroups, the profiles, resolved Discord names)
 // plus local store reads, so the rules — who sees which category, what a row carries — can be tested
 // without Discord or Raid-Helper.
-const profiles = require("./raiderProfileStore");
-const { getEvent } = require("./eventStore");
+const profiles = require("../stores/raiderProfileStore");
+const { getEvent } = require("../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
 const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("./signupService");
 const { upcomingRows } = require("./raidListing");

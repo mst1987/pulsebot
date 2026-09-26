@@ -6,7 +6,7 @@
 // none at all).
 //
 // Keep this table in step with the `fail(...)` / `error:` / `notice` texts of
-// web/signupService.js and web/raiderProfileStore.js; the test runs the real
+// web/signupService.js and stores/raiderProfileStore.js; the test runs the real
 // service refusals through it and fails on a German leftover.
 
 const RULES = [

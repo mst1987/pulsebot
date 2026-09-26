@@ -9,11 +9,11 @@
 // Everything resolved is cached in characterStore, so this only ever has to look up
 // what is still unknown.
 
-const { characters: lootCharacters, listByCharacter } = require("./lootStore");
+const { characters: lootCharacters, listByCharacter } = require("../stores/lootStore");
 // The slim slice: only the roster is read here — see reportStore.js.
-const { listReports, getReportRoster } = require("./reportStore");
-const { listLogsForEvent } = require("./logStore");
-const charStore = require("./characterStore");
+const { listReports, getReportRoster } = require("../stores/reportStore");
+const { listLogsForEvent } = require("../stores/logStore");
+const charStore = require("../stores/characterStore");
 const WarcraftLogs = require("../classes/warcraftlogs");
 const { rosterFromFights, rosterFromTable, mergeRosters } = require("../utils/logcheck/wclRoster");
 const { VALID_CLASSES } = require("../utils/logcheck/common");

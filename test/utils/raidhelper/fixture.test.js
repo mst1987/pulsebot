@@ -1,7 +1,7 @@
 // The dev-only Raid-Helper stand-in (src/utils/raidhelper/fixture.js): off in production whatever the variable says, never a network
 // request, refuses every write.
 jest.mock("../../../src/classes/raidhelper", () => jest.fn().mockImplementation(() => ({ real: true })));
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");

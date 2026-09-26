@@ -5,8 +5,8 @@ let mockViewer = null;
 jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
-jest.mock("../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../src/web/eventStore"),
+jest.mock("../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../src/stores/eventStore"),
     getEvent: jest.fn(() => null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
@@ -27,17 +27,17 @@ jest.mock("../../src/utils/raidhelper/client", () => ({
     raidhelperDisabled: jest.fn(() => mockRh.disabled),
 }));
 const mockSnapshots = {};
-jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
 const mockProfiles = {};
-jest.mock("../../src/web/raiderProfileStore", () => ({
-    ...jest.requireActual("../../src/web/raiderProfileStore"),
+jest.mock("../../src/stores/raiderProfileStore", () => ({
+    ...jest.requireActual("../../src/stores/raiderProfileStore"),
     getProfile: jest.fn((id) => mockProfiles[id] || null),
 }));
 
 const { readJsonBody } = require("../../src/web/apiBody");
 const { tempStoreFile } = require("../helpers/tempStore");
-const store = require("../../src/web/raidplanStore");
-const profiles = require("../../src/web/raidplanProfileStore");
+const store = require("../../src/stores/raidplanStore");
+const profiles = require("../../src/stores/raidplanProfileStore");
 const route = require("../../src/web/apiRoutes/raidplan");
 const rosterSource = require("../../src/web/raidplanRosterSource");
 const { checkAccess, areasFor } = require("../../src/web/apiAccess");
@@ -262,7 +262,7 @@ describe("the players come from Raid-Helper, never at the plan's cost", () => {
     });
 
     it("a template applies to it and fills the open slots from Raid-Helper's line-up", async () => {
-        const templates = require("../../src/web/raidplanTemplateStore");
+        const templates = require("../../src/stores/raidplanTemplateStore");
         templates.useFile(tempStoreFile("templates.json"));
         try {
             const t = templates.createTemplate({ name: "BT", instanceIds: ["bt"] }).template;

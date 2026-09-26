@@ -6,12 +6,12 @@ jest.mock("../../src/web/characterInfo", () => ({
 }));
 
 const mockListAllAssignments = jest.fn(() => ({}));
-jest.mock("../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../src/stores/raiderCharactersStore", () => ({
     listAllAssignments: (...a) => mockListAllAssignments(...a),
 }));
 
 const mockCharacterMap = jest.fn(() => ({}));
-jest.mock("../../src/web/characterStore", () => ({
+jest.mock("../../src/stores/characterStore", () => ({
     characterMap: (...a) => mockCharacterMap(...a),
 }));
 

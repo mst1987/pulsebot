@@ -9,7 +9,7 @@ jest.mock("../../src/web/discord", () => ({
     fetchGuildMembersCached: jest.fn(),
     listRoles: jest.fn(() => []),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../src/web/discord");
 const roleSync = require("../../src/web/roleSync");
@@ -133,7 +133,7 @@ describe("runRoleSync", () => {
 });
 
 describe("member events", () => {
-    const cfgModule = require("../../src/web/settingsStore");
+    const cfgModule = require("../../src/stores/settingsStore");
 
     it("syncs the one member whose roles changed", async () => {
         cfgModule.getConfig.mockReturnValue(config("toTalk"));

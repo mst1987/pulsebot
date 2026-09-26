@@ -23,7 +23,7 @@ jest.mock("../../src/web/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
 jest.mock("../../src/web/setupMessage", () => ({ refreshSetupMessage: jest.fn(async () => null) }));
 // #305: the Discord event rides along — mocked here, so the calls can be asserted.
@@ -44,12 +44,12 @@ const { refreshSetupMessage } = require("../../src/web/setupMessage");
 const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const { deliverUserPing, sendDms } = require("../../src/web/pingDelivery");
 const discord = require("../../src/web/discord");
-const settings = require("../../src/web/settingsStore");
-const eventStore = require("../../src/web/eventStore");
-const signupStore = require("../../src/web/signupStore");
-const profiles = require("../../src/web/raiderProfileStore");
-const reminderStore = require("../../src/web/reminderStore");
-const archiveStore = require("../../src/web/channelArchiveStore");
+const settings = require("../../src/stores/settingsStore");
+const eventStore = require("../../src/stores/eventStore");
+const signupStore = require("../../src/stores/signupStore");
+const profiles = require("../../src/stores/raiderProfileStore");
+const reminderStore = require("../../src/stores/reminderStore");
+const archiveStore = require("../../src/stores/channelArchiveStore");
 const signupService = require("../../src/web/signupService");
 const discordEvent = require("../../src/web/discordEvent");
 const manage = require("../../src/web/eventManage");
@@ -377,8 +377,8 @@ describe("deleting an event", () => {
         discord.getClient.mockReturnValue(null);
         const started = seed({ startTime: Math.floor(Date.now() / 1000) - 3600, signupDeadline: 0 });
         signupStore.saveSignup(started.id, RAIDER, { character: "Thorwald", spec: "Warrior-Protection", status: "signed" });
-        const logStore = require("../../src/web/logStore");
-        const lootStore = require("../../src/web/lootStore");
+        const logStore = require("../../src/stores/logStore");
+        const lootStore = require("../../src/stores/lootStore");
         const log = logStore.saveLog({ reportId: "abc", channelId: "c9", messageId: "m9", title: "Log" });
         logStore.linkEvent(log.id, { eventId: started.id, eventLabel: "SSC + TK", eventStartTime: started.startTime });
         lootStore.addImport(started.id, [{ source: "rclc", rawId: "1", itemId: 30000, character: "Thorwald" }], { eventLabel: "SSC + TK", categoryId: "cat" });
@@ -401,7 +401,7 @@ describe("deleting an event", () => {
 
     it("keeps a series date taken: the mark becomes deleted — also for a hand-made event in a category with a series", async () => {
         discord.getClient.mockReturnValue(null);
-        const seriesStore = require("../../src/web/eventSeriesStore");
+        const seriesStore = require("../../src/stores/eventSeriesStore");
         const date = DateTime.fromSeconds(event.startTime, { zone: ZONE }).toISODate();
         seriesStore.setRun("cat", date, { status: "created", at: 1, eventId: event.id, channelName: "mi-24-09-ssc-tk" });
         expect((await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA, byName: "Orga" })).body.seriesMarked).toBe(true);

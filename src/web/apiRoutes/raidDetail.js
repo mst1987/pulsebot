@@ -11,14 +11,14 @@ const { AppError, sendResult } = require("../apiResult");
 const { q } = require("../apiParams");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../settingsStore");
-const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
+const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
 const { sourceOfEventId } = require("../eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
-} = require("../eventSoftresStore");
+} = require("../../stores/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
-const { setEventLootSystem, lootSystemOf } = require("../eventLootSystemStore");
+const { setEventLootSystem, lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { normalizeLootSystem } = require("../lootSystem");
 const wowhead = require("../../utils/loot/wowhead");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
@@ -27,7 +27,7 @@ const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/time");
 const discord = require("../discord");
-const { getEvent } = require("../eventStore");
+const { getEvent } = require("../../stores/eventStore");
 const { raidHelperSlots } = require("../setupEditor");
 const { invitePlan, callInvite } = require("../inviteCall");
 const {

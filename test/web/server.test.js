@@ -7,7 +7,7 @@ jest.mock("http", () => {
     };
 });
 // Isolate routing from disk/network by mocking the collaborators.
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/reportStore", () => ({
     getReport: jest.fn(),
     deleteReport: jest.fn(),
 }));
@@ -39,20 +39,20 @@ jest.mock("../../src/web/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFile
 // The raider's subscription (#312) — again only the routing; the token check
 // and the content live in calendarFeed.test.js.
 jest.mock("../../src/web/calendarFeed", () => ({ feedFor: jest.fn(() => null) }));
-jest.mock("../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../src/web/eventStore"),
+jest.mock("../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../src/stores/eventStore"),
     getEvent: jest.fn(() => null),
 }));
 
 const http = require("http");
-const store = require("../../src/web/reportStore");
+const store = require("../../src/stores/reportStore");
 const render = require("../../src/web/render");
 const eventPublicPage = require("../../src/web/eventPublicPage");
 const docsPage = require("../../src/web/docsPage");
 const icsFeed = require("../../src/web/icsFeed");
 const calendarFeed = require("../../src/web/calendarFeed");
-const eventStore = require("../../src/web/eventStore");
-const raidplanStore = require("../../src/web/raidplanStore");
+const eventStore = require("../../src/stores/eventStore");
+const raidplanStore = require("../../src/stores/raidplanStore");
 const auth = require("../../src/web/auth");
 const apiRouter = require("../../src/web/apiRouter");
 const staticClient = require("../../src/web/staticClient");

@@ -3,7 +3,7 @@
 // orga's own text (else a default), the bench never. Stores and Discord are
 // mocks; the approved setup is read by the real setupCore.
 const mockEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
     appendEventLog: jest.fn(),
     setEventSetupPingText: jest.fn((id, text) => {
@@ -17,7 +17,7 @@ jest.mock("../../src/web/discord", () => ({ postMissingPing: jest.fn(async () =>
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 jest.mock("../../src/web/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const discord = require("../../src/web/discord");
 const { setupPingPlan, callSetupPing, saveSetupPingText } = require("../../src/web/setupPing");
 const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../src/web/setupCore");

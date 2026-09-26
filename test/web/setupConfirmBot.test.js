@@ -4,7 +4,7 @@
 const { MessageFlags } = require("discord.js");
 
 const mockEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -13,11 +13,11 @@ jest.mock("../../src/web/eventStore", () => ({
         return JSON.parse(JSON.stringify(e));
     }),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const confirmBot = require("../../src/web/setupConfirmBot");
 const setupCore = require("../../src/web/setupCore");
 

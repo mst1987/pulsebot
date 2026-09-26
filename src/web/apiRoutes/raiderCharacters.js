@@ -4,9 +4,9 @@
 const { ok, error } = require("../apiResponse");
 const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
-const { getConfig } = require("../settingsStore");
-const { getCategoryAssignments, setCategoryAssignments } = require("../raiderCharactersStore");
-const { listCharacters } = require("../characterStore");
+const { getConfig } = require("../../stores/settingsStore");
+const { getCategoryAssignments, setCategoryAssignments } = require("../../stores/raiderCharactersStore");
+const { listCharacters } = require("../../stores/characterStore");
 const discord = require("../discord");
 
 /**

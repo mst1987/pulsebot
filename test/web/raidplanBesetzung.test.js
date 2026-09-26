@@ -5,7 +5,7 @@ const bes = require("../../src/web/raidplanBesetzung");
 const board = require("../../src/web/raidplanBoard");
 const assign = require("../../src/web/raidplanAssign");
 const raidplan = require("../../src/web/raidplan");
-const templateStore = require("../../src/web/raidplanTemplateStore");
+const templateStore = require("../../src/stores/raidplanTemplateStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 
 describe("defaultBesetzung", () => {

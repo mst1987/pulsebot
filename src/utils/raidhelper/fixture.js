@@ -13,7 +13,7 @@
 // In production the variable does nothing: fixtureEnabled() checks NODE_ENV itself, so a stray variable on the server cannot switch
 // the real Raid-Helper off.
 const { logcheckAdminIds } = require("../../config/variables");
-const { listEvents } = require("../../web/eventStore");
+const { listEvents } = require("../../stores/eventStore");
 const discord = require("../../web/discord");
 
 const FIXTURE_EVENT_ID = "1400000000000000001";

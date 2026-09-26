@@ -6,7 +6,7 @@
 const { extractWclLinks } = require("../utils/logcheck/logLinks");
 const { eventStartMs } = require("./logEventMatch");
 const { eventLinkFields } = require("./matchableEvents");
-const logStore = require("./logStore");
+const logStore = require("../stores/logStore");
 
 /**
  * Register (if needed) and link a Warcraft-Logs report to an event, given the

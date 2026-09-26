@@ -3,10 +3,10 @@ jest.mock("../../src/web/discord", () => ({
     botPermissionsIn: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn() }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn() }));
 
 const discord = require("../../src/web/discord");
-const { getConfig } = require("../../src/web/settingsStore");
+const { getConfig } = require("../../src/stores/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 
 const servers = (over = {}) => ({

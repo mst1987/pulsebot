@@ -23,13 +23,13 @@
 
 // getReportRoster, not getReport: this walk reads the roster and three header
 // fields, and a stored report is mostly timeline (see reportStore.js).
-const { listReports, getReportRoster } = require("./reportStore");
+const { listReports, getReportRoster } = require("../stores/reportStore");
 const { characterKeyOf } = require("../utils/loot/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole, isPvpSet } = require("./gearProfile");
 const { situationalItem } = require("../config/situationalItems");
 const { armoryItemInSlot, armorySetFor } = require("./armoryGear");
-const { listLogGear } = require("./logGearStore");
+const { listLogGear } = require("../stores/logGearStore");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 

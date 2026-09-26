@@ -7,10 +7,10 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 
 | Piece | File |
 |---|---|
-| Plan store, validation, room maps | `src/web/raidplanStore.js` |
+| Plan store, validation, room maps | `src/stores/raidplanStore.js` |
 | The board of one boss (validation, slot auto-fill), shared by plans and templates | `src/web/raidplanBoard.js` |
-| Tactic profiles (collection store) | `src/web/raidplanProfileStore.js` |
-| Raid plan templates (collection store) | `src/web/raidplanTemplateStore.js` |
+| Tactic profiles (collection store) | `src/stores/raidplanProfileStore.js` |
+| Raid plan templates (collection store) | `src/stores/raidplanTemplateStore.js` |
 | What the editor and the public page are shown | `src/web/raidplan.js` |
 | API | `src/web/apiRoutes/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |

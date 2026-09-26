@@ -7,7 +7,7 @@ const { activeGuildFor } = require("../activeGuild");
 const retirement = require("../raidhelperRetirement");
 const historyImport = require("../raidhelperHistoryImport");
 const guildRoles = require("../guildRoles");
-const { getConfig } = require("../settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 /** GET /api/settings/raidhelper-retirement — the checklist, computed now. */
 const getRetirement = withUser({ full: true }, async ({ res }) => {

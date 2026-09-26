@@ -1,12 +1,12 @@
 // #291: the switch-over checklist — every item, what blocks the switch, and the switch itself.
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
 }));
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ fetchEventsCached: jest.fn(async () => ({ events: [], stale: false })) }));
 jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
@@ -15,13 +15,13 @@ jest.mock("../../src/web/discord", () => ({
     listCategories: jest.fn(() => []),
 }));
 jest.mock("../../src/web/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
-jest.mock("../../src/web/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
+jest.mock("../../src/stores/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
 
-const { getConfig, saveConfig } = require("../../src/web/settingsStore");
+const { getConfig, saveConfig } = require("../../src/stores/settingsStore");
 const { fetchEventsCached } = require("../../src/web/raidEventGroups");
 const discord = require("../../src/web/discord");
 const { listKnownCategories } = require("../../src/web/categoryNames");
-const specHistory = require("../../src/web/specHistoryStore");
+const specHistory = require("../../src/stores/specHistoryStore");
 const appEmojis = require("../../src/web/appEmojis");
 const { buildChecklist, loadChecklist, setRaidhelperDisabled } = require("../../src/web/raidhelperRetirement");
 

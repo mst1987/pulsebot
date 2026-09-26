@@ -8,7 +8,7 @@ jest.mock("../../src/config/variables", () => ({
     guildId: "guild-1",
     devAutoLogin: false,
 }));
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({ adminRoleIds: [] })),
 }));
 // The real guildRoles.js falls back to config.guildId, which in production
@@ -19,7 +19,7 @@ jest.mock("../../src/web/settingsStore", () => ({
 jest.mock("../../src/web/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
 
 const axios = require("axios");
-const { getConfig } = require("../../src/web/settingsStore");
+const { getConfig } = require("../../src/stores/settingsStore");
 const guildRoles = require("../../src/web/guildRoles");
 const auth = require("../../src/web/auth.js");
 const discord = require("../../src/web/discord");

@@ -9,22 +9,22 @@ jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" })
 let mockGroups = [];
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockConfig = {};
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
 jest.mock("../../../src/web/discord", () => ({
     memberRoleIds: jest.fn(async () => mockRoleIds),
     resolveUserNames: jest.fn(async () => ({ "200000000000000001": "anna_discord" })),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({ getEventSoftres: () => null }));
+jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: () => null }));
 
 const mockEvents = new Map();
-jest.mock("../../../src/web/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/web/signupStore", () => {
-    const actual = jest.requireActual("../../../src/web/signupStore");
+jest.mock("../../../src/stores/signupStore", () => {
+    const actual = jest.requireActual("../../../src/stores/signupStore");
     const list = (eventId) => [...mockSignups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
     return {
         normalizeSignup: actual.normalizeSignup,
@@ -41,7 +41,7 @@ jest.mock("../../../src/web/signupStore", () => {
 });
 
 const { readJsonBody } = require("../../../src/web/apiBody");
-const profiles = require("../../../src/web/raiderProfileStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
 const route = require("../../../src/web/apiRoutes/signups");
 const { categoryVisible } = require("../../../src/web/signupView");
 const { tempStoreFile } = require("../../helpers/tempStore");

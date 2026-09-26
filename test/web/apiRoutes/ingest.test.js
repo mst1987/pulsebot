@@ -10,12 +10,12 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/ingestTokenStore", () => ({
+jest.mock("../../../src/stores/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../src/web/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../src/stores/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../../src/web/lootInboxStore", () => ({
+jest.mock("../../../src/stores/lootInboxStore", () => ({
     upsertPending: jest.fn(() => ({ entry: { id: "inbox1", itemCount: 1 }, added: 1, created: true })),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -25,7 +25,7 @@ jest.mock("../../../src/web/lootInboxStore", () => ({
     noteAppended: jest.fn(() => true),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 1, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -54,9 +54,9 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
     searchItems: jest.fn(async () => []),
 }));
 
-const { verifyToken, touchToken } = require("../../../src/web/ingestTokenStore");
-const { upsertPending, resolutionFor } = require("../../../src/web/lootInboxStore");
-const { addImport } = require("../../../src/web/lootStore");
+const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
+const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
+const { addImport } = require("../../../src/stores/lootStore");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const { handle } = require("../../../src/web/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
@@ -193,7 +193,7 @@ describe("POST /api/ingest/loot", () => {
                 status: "appended", eventId: "e1", added: 1,
             });
             // counted for the inbox's "+n nachgeliefert"
-            const { noteAppended } = require("../../../src/web/lootInboxStore");
+            const { noteAppended } = require("../../../src/stores/lootInboxStore");
             expect(noteAppended).toHaveBeenCalledWith(expect.any(String), 1);
         });
 

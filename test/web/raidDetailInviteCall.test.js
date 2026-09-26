@@ -7,12 +7,12 @@ jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMid
 }));
 jest.mock("../../src/web/apiBody", () => require("../helpers/http").apiBodyMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../src/web/eventStore", () => ({ ...jest.requireActual("../../src/web/eventStore"), getEvent: jest.fn() }));
+jest.mock("../../src/stores/eventStore", () => ({ ...jest.requireActual("../../src/stores/eventStore"), getEvent: jest.fn() }));
 jest.mock("../../src/web/inviteCall", () => ({ invitePlan: jest.fn(), callInvite: jest.fn() }));
 
 const { readJsonBody } = require("../../src/web/apiBody");
 const { requireCsrf } = require("../../src/web/apiMiddleware");
-const { getEvent } = require("../../src/web/eventStore");
+const { getEvent } = require("../../src/stores/eventStore");
 const { invitePlan, callInvite } = require("../../src/web/inviteCall");
 const { postInviteCall } = require("../../src/web/apiRoutes/raidDetail");
 

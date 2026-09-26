@@ -13,24 +13,24 @@ const mockLogs = jest.fn(() => []);
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
 
-jest.mock("../../src/web/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../src/web/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
-jest.mock("../../src/web/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
-jest.mock("../../src/web/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
-jest.mock("../../src/web/councilStore", () => ({
+jest.mock("../../src/stores/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
+jest.mock("../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
+jest.mock("../../src/stores/councilStore", () => ({
     excludedKeys: (...a) => mockExcludedKeys(...a),
     plannedRoles: (...a) => mockPlannedRoles(...a),
 }));
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
 // The own events (#254) reach the council through the real adapter (eventSources.js).
 const mockOwnEvents = jest.fn(() => []);
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: (...a) => mockOwnEvents(...a), getEvent: () => null, isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../src/web/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../src/stores/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
+jest.mock("../../src/stores/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
 }));

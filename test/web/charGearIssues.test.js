@@ -2,7 +2,7 @@
 // issue is trimmed, not file I/O.
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
     // the slim slice of the same report — the fixtures carry roster/players

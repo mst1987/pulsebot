@@ -13,7 +13,7 @@
 // The text is for raiders, so it is English (like every raider-facing bot text)
 // and uses the English class and spec names; it ends with the link to the signup
 // message. The orga edits it before it goes out.
-const eventStore = require("./eventStore");
+const eventStore = require("../stores/eventStore");
 const discord = require("./discord");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("./appEmojis");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");

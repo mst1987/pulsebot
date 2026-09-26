@@ -7,11 +7,11 @@ jest.mock("../../src/web/pingDelivery", () => ({
     deliverAnnouncement: jest.fn(async ({ target }) => ({ target, event: { messageId: "m1" }, talk: null, mentioned: 0, dm: null })),
 }));
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const fs = require("fs");
 const { deliverAnnouncement } = require("../../src/web/pingDelivery");
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const announce = require("../../src/web/eventAnnounce");
 
 const CAT = "300000000000000001";

@@ -1,18 +1,18 @@
 // Attendance and role are derived from three stores — all mocked, so this tests
 // the counting rules themselves (see the header of rosterAttendance.js).
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../src/web/raidEventStore", () => ({
+jest.mock("../../src/stores/raidEventStore", () => ({
     listRaidEvents: (...a) => mockListRaidEvents(...a),
 }));
 
 const mockListLogs = jest.fn(() => []);
-jest.mock("../../src/web/logStore", () => ({
+jest.mock("../../src/stores/logStore", () => ({
     listLogs: (...a) => mockListLogs(...a),
 }));
 
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
 }));
@@ -20,13 +20,13 @@ jest.mock("../../src/web/reportStore", () => ({
 // The EventHelper's own events reach attendance through the real adapter.
 const mockListOwnEvents = jest.fn(() => []);
 const mockListSignups = jest.fn(() => []);
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: (...a) => mockListOwnEvents(...a),
     getEvent: jest.fn(),
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
 
 const {
     buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, roleFor, roleFromSpec, RAID_WINDOW,

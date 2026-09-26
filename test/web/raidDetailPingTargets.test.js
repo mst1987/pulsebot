@@ -7,7 +7,7 @@ jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(),
     eventLookbackSince: jest.fn(() => 0),
 }));
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryRoles: { 900000: ["500000"] } })),
     getNotify: jest.fn(),
     listNotify: jest.fn(() => []),
@@ -29,7 +29,7 @@ jest.mock("../../src/web/pingDelivery", () => {
 
 const { readJsonBody } = require("../../src/web/apiBody");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
-const settingsStore = require("../../src/web/settingsStore");
+const settingsStore = require("../../src/stores/settingsStore");
 const discord = require("../../src/web/discord");
 const pingDelivery = require("../../src/web/pingDelivery");
 const { postPingMissing, postNotify } = require("../../src/web/apiRoutes/raidDetail");

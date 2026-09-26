@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -45,12 +45,12 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -107,7 +107,7 @@ jest.mock("../../../src/utils/logcheck/report", () => {
     };
 });
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -119,12 +119,12 @@ jest.mock("../../../src/web/lootStore", () => ({
     repairItemNames: jest.fn(() => Promise.resolve(0)),
     decorate: jest.fn((it) => it),
 }));
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -195,18 +195,18 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventLootSystemStore", () => ({
+jest.mock("../../../src/stores/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -253,16 +253,16 @@ jest.mock("../../../src/web/setupEditor", () => ({
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
 const raidEventGroups = require("../../../src/web/raidEventGroups");
-const raidEventStore = require("../../../src/web/raidEventStore");
-const logStore = require("../../../src/web/logStore");
-const lootStore = require("../../../src/web/lootStore");
-const raiderCharactersStore = require("../../../src/web/raiderCharactersStore");
-const eventSheetStore = require("../../../src/web/eventSheetStore");
-const eventSoftresStore = require("../../../src/web/eventSoftresStore");
+const raidEventStore = require("../../../src/stores/raidEventStore");
+const logStore = require("../../../src/stores/logStore");
+const lootStore = require("../../../src/stores/lootStore");
+const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
+const eventSheetStore = require("../../../src/stores/eventSheetStore");
+const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
 const softres = require("../../../src/utils/loot/softres");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const raidsheetsUtil = require("../../../src/utils/setup/raidsheets");
@@ -357,7 +357,7 @@ describe("web/apiRoutes/raidDetail", () => {
 
         it("carries the loot system and leaves the softres step out when it has no softres list", async () => {
             setupDefaults();
-            const eventLootSystemStore = require("../../../src/web/eventLootSystemStore");
+            const eventLootSystemStore = require("../../../src/stores/eventLootSystemStore");
             eventLootSystemStore.lootSystemOf.mockReturnValueOnce({ system: "lootcouncil", label: "Loot-Council", source: "category", softres: false });
             const data = json(await get("/api/raids/detail", { event: "e1" })).data;
             expect(data.lootSystem).toMatchObject({ system: "lootcouncil", softres: false });
@@ -1331,7 +1331,7 @@ describe("web/apiRoutes/raidDetail", () => {
     });
 
     describe("POST /api/raids/loot-system", () => {
-        const eventLootSystemStore = require("../../../src/web/eventLootSystemStore");
+        const eventLootSystemStore = require("../../../src/stores/eventLootSystemStore");
         const groups = { groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC" }] }], error: null };
 
         beforeEach(() => {

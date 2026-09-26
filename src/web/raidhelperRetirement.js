@@ -12,7 +12,7 @@
 // `buildChecklist(inputs)` is pure (tests drive it); `loadChecklist()` gathers
 // the inputs from the stores, Discord and Raid-Helper, each best-effort.
 
-const { getConfig, saveConfig } = require("./settingsStore");
+const { getConfig, saveConfig } = require("../stores/settingsStore");
 const { signupSourceFor } = require("./eventSources");
 const { raidhelperDisabled } = require("../utils/raidhelper/client");
 const { TIMEZONE } = require("../config/timezone");
@@ -20,7 +20,7 @@ const discord = require("./discord");
 const guildRoles = require("./guildRoles");
 const { listKnownCategories } = require("./categoryNames");
 const appEmojis = require("./appEmojis");
-const specHistory = require("./specHistoryStore");
+const specHistory = require("../stores/specHistoryStore");
 const { fetchEventsCached } = require("./raidEventGroups");
 
 // Statuses: ok (green), mid (open, yellow), bad (red), unknown (cannot be

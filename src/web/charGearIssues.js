@@ -11,7 +11,7 @@
 // so a report's "Keslight" lines up with the loot history's "keslight".
 // The slim slice: this reads the roster (or, on an old report, the players)
 // and nothing else — see reportStore.js.
-const { listReports, getReportRoster } = require("./reportStore");
+const { listReports, getReportRoster } = require("../stores/reportStore");
 const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 

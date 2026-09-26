@@ -3,7 +3,7 @@
 // by Discord category, in one row shape with a `source` field — eventSources.js.
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("./discord");
-const { listRaidEvents } = require("./raidEventStore");
+const { listRaidEvents } = require("../stores/raidEventStore");
 const { signupStatus } = require("../utils/attendance");
 const { ownEventGroupRows } = require("./eventSources");
 

@@ -11,7 +11,7 @@
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
 const { openPayload } = require("../../web/eventManageBot");
-const { listEvents } = require("../../web/eventStore");
+const { listEvents } = require("../../stores/eventStore");
 const { whenLabel } = require("../../web/eventManage");
 const { respondChoices } = require("../../utils/discord/botLookup");
 

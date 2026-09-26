@@ -11,7 +11,7 @@
 // anyone may click, but only the raider's own placement is ever touched —
 // someone not in the lineup is told so, privately.
 const { MessageFlags } = require("discord.js");
-const eventStore = require("./eventStore");
+const eventStore = require("../stores/eventStore");
 const { approvedSetupOf, CONFIRM_PREFIX } = require("./setupCore");
 const { postOrEditSetupMessage } = require("./setupMessage");
 

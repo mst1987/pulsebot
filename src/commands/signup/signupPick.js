@@ -1,6 +1,6 @@
-const { getEvent } = require("../../web/eventStore");
-const { getSignup } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
+const { getEvent } = require("../../stores/eventStore");
+const { getSignup } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { defaultCanAlso } = require("../../web/signupService");
 const { ROLES } = require("../../config/gameVersions/classes");
 const {

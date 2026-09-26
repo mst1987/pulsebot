@@ -14,7 +14,7 @@
 const {
     MessageFlags, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const eventStore = require("./eventStore");
+const eventStore = require("../stores/eventStore");
 const { setupPingPlan, callSetupPing, saveSetupPingText } = require("./setupPing");
 const { PING_PREFIX, PING_TEXT_MAX, pingTextOf, pingId } = require("./setupCore");
 

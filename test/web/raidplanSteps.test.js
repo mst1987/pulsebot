@@ -2,7 +2,7 @@
 const { tempStoreFile } = require("../helpers/tempStore");
 const steps = require("../../src/web/raidplanSteps");
 const board = require("../../src/web/raidplanBoard");
-const profiles = require("../../src/web/raidplanProfileStore");
+const profiles = require("../../src/stores/raidplanProfileStore");
 
 const step = (over) => ({ id: "s1", action: "tank", participants: [], sentence: "tankt den Boss", targets: [], timing: { kind: "" }, ...over });
 

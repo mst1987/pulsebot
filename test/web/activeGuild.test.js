@@ -1,10 +1,10 @@
 jest.mock("../../src/web/discord", () => ({ listGuilds: jest.fn() }));
 jest.mock("../../src/web/auth", () => ({ getActiveGuild: jest.fn() }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "" })) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "" })) }));
 
 const discord = require("../../src/web/discord");
 const auth = require("../../src/web/auth");
-const settingsStore = require("../../src/web/settingsStore");
+const settingsStore = require("../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../src/web/activeGuild");
 
 beforeEach(() => {

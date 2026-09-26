@@ -2,7 +2,7 @@
 // the admin is currently managing.
 const discord = require("./discord");
 const auth = require("./auth");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 
 /**
  * The server the admin is managing, in this order:

@@ -7,8 +7,8 @@ jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").
 jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
 const mockEvents = {};
-jest.mock("../../../src/web/eventStore", () => ({
-    ...jest.requireActual("../../../src/web/eventStore"),
+jest.mock("../../../src/stores/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
 }));
@@ -16,9 +16,9 @@ jest.mock("../../../src/web/eventStore", () => ({
 const { readJsonBody, readRawBody } = require("../../../src/web/apiBody");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../factories/events");
-const plans = require("../../../src/web/raidplanStore");
-const profiles = require("../../../src/web/raidplanProfileStore");
-const templates = require("../../../src/web/raidplanTemplateStore");
+const plans = require("../../../src/stores/raidplanStore");
+const profiles = require("../../../src/stores/raidplanProfileStore");
+const templates = require("../../../src/stores/raidplanTemplateStore");
 const route = require("../../../src/web/apiRoutes/raidplan");
 const { checkAccess, areasFor } = require("../../../src/web/apiAccess");
 

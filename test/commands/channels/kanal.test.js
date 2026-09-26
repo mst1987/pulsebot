@@ -6,14 +6,14 @@ jest.mock("../../../src/web/discordChannels", () => {
         editChannel: jest.fn(), archiveChannel: jest.fn(), createFromTemplate: jest.fn(), deleteChannel: jest.fn(),
     };
 });
-jest.mock("../../../src/web/channelArchiveStore", () => ({ getChannelConfig: jest.fn(), recordArchived: jest.fn() }));
+jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(), recordArchived: jest.fn() }));
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/channels/kanal");
 const discord = require("../../../src/web/discord");
 const discordChannels = require("../../../src/web/discordChannels");
-const archiveStore = require("../../../src/web/channelArchiveStore");
+const archiveStore = require("../../../src/stores/channelArchiveStore");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");

@@ -32,8 +32,8 @@
 // and are stored, so an offline bot never fails an approval.
 const { publicBaseUrl } = require("../utils/publicUrl");
 const { embedColor } = require("./embedLook");
-const eventStore = require("./eventStore");
-const { getConfig } = require("./settingsStore");
+const eventStore = require("../stores/eventStore");
+const { getConfig } = require("../stores/settingsStore");
 const discord = require("./discord");
 const { buildClasses, ROLE_LABELS_EN } = require("../config/gameVersions/classes");
 const { toEnglish } = require("../utils/signup/botEnglish");

@@ -3,25 +3,25 @@
 // without a circular dependency (server.js requires apiRouter.js).
 const { listStoredEvents, ownUpcomingRaw } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
-const { listByEvent: listLootByEvent } = require("./lootStore");
-const { getEventSheet } = require("./eventSheetStore");
-const { getEventSoftres } = require("./eventSoftresStore");
-const { lootSystemOf } = require("./eventLootSystemStore");
-const { listLogs } = require("./logStore");
+const { listByEvent: listLootByEvent } = require("../stores/lootStore");
+const { getEventSheet } = require("../stores/eventSheetStore");
+const { getEventSoftres } = require("../stores/eventSoftresStore");
+const { lootSystemOf } = require("../stores/eventLootSystemStore");
+const { listLogs } = require("../stores/logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("./recentEvents");
 const { autoLinkLogs } = require("./logAutoLink");
 const { logPostedAt } = require("./reportList");
 const { listAwards } = require("./lootAwards");
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("./discord");
-const { getConfig, resolveEventSheetLink } = require("./settingsStore");
+const { getConfig, resolveEventSheetLink } = require("../stores/settingsStore");
 const { loadEventGroups } = require("./raidEventGroups");
-const { listReports, getReport } = require("./reportStore");
-const { listPending } = require("./lootInboxStore");
-const { getChannelConfig, listArchived, archiveHint } = require("./channelArchiveStore");
+const { listReports, getReport } = require("../stores/reportStore");
+const { listPending } = require("../stores/lootInboxStore");
+const { getChannelConfig, listArchived, archiveHint } = require("../stores/channelArchiveStore");
 const { buildRoster } = require("./roster");
 const { rosterStats } = require("./rosterStats");
-const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
+const { resolveAssignmentProfiles } = require("../stores/raiderCharactersStore");
 const { applyReview } = require("../utils/logcheck/recommendations");
 const softres = require("../utils/loot/softres");
 const {
@@ -31,7 +31,7 @@ const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
-const { getEvent } = require("./eventStore");
+const { getEvent } = require("../stores/eventStore");
 const { raidHelperSlots } = require("./setupEditor");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";

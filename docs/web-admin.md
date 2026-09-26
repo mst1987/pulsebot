@@ -32,7 +32,7 @@ Es gibt **eine** Liste aller `/api/*`-Routen, und sie steht bei den Handlern: je
 - **Query und Body lesen:** `q.str / q.int / q.bool / q.snowflake` aus `src/web/apiParams.js` (`q.str(query, "event")`, `q.str(body, "reportId")`) statt `String(body.x || "").trim()`; `cla.js`, `raidDetail.js` und `eventManage.js` machen es vor.
 - **Tests:** `test/web/routeTable.test.js` (Tabelle vollständig, Golden-Master der Dispatch-Liste), `test/web/apiRouter.test.js` (Dispatch, 404/405, AppError, Area-Gate), je Route-Modul `test/web/apiRoutes/<name>.test.js`, `test/web/apiHandler.test.js` (401/403/CSRF/Body), `test/web/apiResult.test.js`, `test/web/apiParams.test.js`.
 
-## Stores (`src/web/jsonStore.js`, `src/config/paths.js`, #419)
+## Stores (`src/stores/jsonStore.js`, `src/config/paths.js`, #419)
 
 Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und alle gehen dafür über **eine** Basis statt eigener `readAll`/`writeAll`-Kopien.
 
@@ -44,7 +44,7 @@ Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und a
 
 ### Die Einstellungen unter `data/settings/` (#420)
 
-`src/web/settingsStore.js` war früher ein Store für fünf Sammlungen. Heute ist es nur noch eine **Fassade**, die alle bisherigen Exporte unverändert weiterreicht — die ~50 Importeure und die vielen `jest.mock(".../settingsStore")` in Tests laufen ohne Änderung weiter. **Neuer Code importiert den Fach-Store**, den er braucht:
+`src/stores/settingsStore.js` war früher ein Store für fünf Sammlungen. Heute ist es nur noch eine **Fassade**, die alle bisherigen Exporte unverändert weiterreicht — die ~50 Importeure und die vielen `jest.mock(".../settingsStore")` in Tests laufen ohne Änderung weiter. **Neuer Code importiert den Fach-Store**, den er braucht:
 
 | Datei | Inhalt |
 |---|---|
@@ -59,7 +59,7 @@ Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und a
 - **`getConfig()` ist gecacht**: `configStore` hängt `normalizeConfig` als `normalize` an die Basis mit `cache: true`. Normalisiert wird nur, wenn die Datei eine neue Version hat (`mtime`/Größe/Inode), jedes Schreiben verwirft den Cache, jeder Aufrufer bekommt eine eigene Kopie — wer das Ergebnis verändert, verändert nie den Cache (heute tut das auch kein Aufrufer). Eine fehlende Datei liest sich als `normalizeConfig({})`, einmal berechnet.
 - **Keine Migration mehr im Lesepfad.** `bot.js` ruft beim Start einmal `migrateSettings()` auf. Die stellt um: alte Raid-Helper-Einträge `{ id, name }` in `raid-templates.json` → Vorlage ohne Größe (`rh-<id>`); einen alten Server-Block (`discordServers.eventGuildId`/`talkOverviewChannelId` ohne `eventGuilds`) → ein Eintrag in `eventGuilds`; den alten globalen `raidDefaults.templateId` → `categoryRaidTemplate` für jede Raid-Kategorie. Sie ist idempotent, schreibt nur bei einer Änderung, loggt jede Änderung als `[settings] Migration: …` und wirft nie (ein Fehler wird geloggt, der Start läuft weiter). Beim zweiten Start: keine Zeile, kein Schreiben. Danach normalisiert `getConfig()` nur noch das Schema. Die Fassade behält für `normalizeDiscordServers`/`normalizeEventGuilds` das alte Verhalten (alter Block zählt mit), `configSchema` kennt ihn nicht.
 - `signupSourcesOf()` (#291) bleibt bewusst im Schema: es hängt nur an der Datei selbst und wird mit ihr gecacht.
-- **Tests**: je Store `test/web/<name>.test.js`; `test/web/configSchema.test.js` ist ein Golden Master — `test/fixtures/configSchema/golden.json` ist die Ausgabe von `getConfig()`/`listRaidTemplates()` für die Stände in `cases.json`, eingefroren *vor* dem Umbau. Wer das Schema ändert, ändert bewusst auch `golden.json`.
+- **Tests**: je Store `test/web/<name>.test.js`; `test/stores/configSchema.test.js` ist ein Golden Master — `test/fixtures/configSchema/golden.json` ist die Ausgabe von `getConfig()`/`listRaidTemplates()` für die Stände in `cases.json`, eingefroren *vor* dem Umbau. Wer das Schema ändert, ändert bewusst auch `golden.json`.
 
 ## Hintergrundjobs (`src/web/jobs.js`, #424)
 
@@ -88,7 +88,7 @@ Das Menü spricht Deutsch und Englisch, pro Nutzer umschaltbar; umgeschaltet wir
 - **Datum/Zahlen:** `locale()` liefert `de-DE` bzw. `en-GB`; `lib/format.ts` nutzt es, kein festes `"de-DE"` in neuen Stellen.
 - **Fallback und Wächter:** fehlt ein englischer Schlüssel, erscheint der deutsche Text (im Dev-Build mit `console.warn`); fehlt er ganz, steht der Schlüssel selbst auf der Seite. `test/web-client/i18n.test.js` bricht, sobald `de` und `en` verschiedene Schlüssel oder Platzhalter haben oder eine Seite `t("…")` mit einem unbekannten Schlüssel ruft. `test/web-client/i18nHelper.js` gibt Tests ein echtes `t` (`makeT("de")`) und lädt Libs, die `t` importieren (`loadTs`). `test/web-client/i18n-phase1.test.js` scannt die Phase-1-Dateien (Liste `PHASE1` darin) auf hart codierte deutsche Texte: kein Umlaut/ß in einem String oder JSX-Text, keine deutsche Wortgruppe als JSX-Text; Kommentare zählen nicht. Soll ein Eigenname bleiben, kommt er mit Begründung in `ALLOWED`. Eine Seite, die in Phase 2 übersetzt ist, kommt in `PHASE1` dazu.
 - **Tests, die Quelltext lesen,** prüfen den `t("…")`-Aufruf an der Stelle und den deutschen Text über `makeT("de")(key)` — nicht mehr den deutschen Satz im TSX.
-- **Gespeichert wird die Wahl** sofort im Browser (`localStorage` `eh-lang`) und für angemeldete Menü-Nutzer am Konto: `POST /api/session/lang` → `src/web/userPrefsStore.js` (`data/settings/user-prefs.json`), zurück kommt sie als `user.lang` in `GET /api/session` und gewinnt beim Laden — so folgt sie auf ein anderes Gerät. `<html lang>` wird mitgesetzt; beim Umschalten wird der Seiteninhalt neu aufgebaut (`key={lang}` in `Shell.tsx`).
+- **Gespeichert wird die Wahl** sofort im Browser (`localStorage` `eh-lang`) und für angemeldete Menü-Nutzer am Konto: `POST /api/session/lang` → `src/stores/userPrefsStore.js` (`data/settings/user-prefs.json`), zurück kommt sie als `user.lang` in `GET /api/session` und gewinnt beim Laden — so folgt sie auf ein anderes Gerät. `<html lang>` wird mitgesetzt; beim Umschalten wird der Seiteninhalt neu aufgebaut (`key={lang}` in `Shell.tsx`).
 - **Stand (Phase 1):** übersetzt sind Shell/Menü, Login, Übersicht, Raid-Liste, Raid-Detail mit Cockpit, allen Tabs/Dialogen/Verwalten (inkl. „Invite callen“) und Setup-Editor, Event anlegen/bearbeiten, Anmeldungen (inkl. Status je Charakter und Nachricht an die Raidleitung) und „Mein Profil“ (inkl. Kalender-Abo und „Charakter hinzufügen“).
 - **Phase 2 (offen):** Loot-Council, Roster, Historie & Loot, Log-Auswertung, Recruitment, Kanäle, Einstellungen, Raid-/Aufruf-Vorlagen und Serien; alle **Texte, die der Server fertig schickt** — API-Fehlermeldungen und Toasts (`message`), die Texte der Fortschrittsleiste/Schritte von Raid-Helper-Events, Kanalnamen-Herkunft (`naming.label`), Gruppen-Labels des Raidplans, Instanznamen außerhalb von TBC/Classic — und die Report-Seiten (`src/web/report/`). Für Server-Texte braucht es entweder feste Ids/Codes, die der Client übersetzt, oder die Sprache des Kontos im Request.
 

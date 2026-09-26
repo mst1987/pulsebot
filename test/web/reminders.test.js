@@ -8,16 +8,16 @@ jest.mock("../../src/web/discord", () => ({ listMembersWithRoles: jest.fn() }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../src/web/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
 jest.mock("../../src/web/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
 jest.mock("../../src/web/setupInput", () => ({ proposeSetup: jest.fn() }));
 
 const discord = require("../../src/web/discord");
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const { proposeSetup } = require("../../src/web/setupInput");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const { deliverUserPing } = require("../../src/web/pingDelivery");
-const reminderStore = require("../../src/web/reminderStore");
+const reminderStore = require("../../src/stores/reminderStore");
 const reminders = require("../../src/web/reminders");
 
 const HOUR = 60 * 60 * 1000;

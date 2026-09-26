@@ -3,7 +3,7 @@
 // armory lookup. The profile store runs for real on a scratch file; the logs
 // index and the Blizzard client are mocks.
 jest.mock("../../src/classes/blizzard", () => jest.fn().mockImplementation(() => mockBlizzard));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({ blizzard: { clientId: "id" } })) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ blizzard: { clientId: "id" } })) }));
 jest.mock("../../src/web/profileLogs", () => ({
     ...jest.requireActual("../../src/web/profileLogs"),
     logIndex: jest.fn(() => new Map()),
@@ -13,9 +13,9 @@ let mockBlizzard = null;
 
 const fs = require("fs");
 const Blizzard = require("../../src/classes/blizzard");
-const { getConfig } = require("../../src/web/settingsStore");
+const { getConfig } = require("../../src/stores/settingsStore");
 const { logIndex } = require("../../src/web/profileLogs");
-const profiles = require("../../src/web/raiderProfileStore");
+const profiles = require("../../src/stores/raiderProfileStore");
 const { armoryUrlFor } = require("../../src/web/charLinks");
 const {
     profileView, suggestedRoles, effectiveRoles, lookupArmory, realmSlug,

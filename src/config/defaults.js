@@ -1,5 +1,5 @@
 // Bootstrap values: what a fresh install starts with before anyone has opened
-// the admin menu. They seed the settings store (web/settingsStore.js) and fill
+// the admin menu. They seed the settings store (stores/settingsStore.js) and fill
 // in where the environment names nothing; every one of them can be overridden
 // in the admin menu, which is where they are meant to be changed — not here and
 // not in .env.

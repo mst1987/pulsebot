@@ -6,10 +6,10 @@
 //   * the characters of the signup — "auto", nobody confirmed the link.
 // Whatever rests on a guess (signup characters only, or a class match in a log,
 // see rosterAttendance.attendanceForAccounts) is badged "auto".
-const signupStore = require("./signupStore");
-const profileStore = require("./raiderProfileStore");
-const characterStore = require("./characterStore");
-const { getCategoryAssignments } = require("./raiderCharactersStore");
+const signupStore = require("../stores/signupStore");
+const profileStore = require("../stores/raiderProfileStore");
+const characterStore = require("../stores/characterStore");
+const { getCategoryAssignments } = require("../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("./rosterAttendance");
 const { raidContentIds, raidSize } = require("./raidListing");
 const { benchHistory } = require("./setupInput");

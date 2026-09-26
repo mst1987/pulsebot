@@ -10,22 +10,22 @@
 //   - the gear each raider was last logged in (charGear, out of the CLA reports)
 //   - the BiS lists and item stats vendored from WoWSims (config/wowsims)
 //
-// The simulation half lives in web/simStore.js — it takes seconds per raider and
+// The simulation half lives in stores/simStore.js — it takes seconds per raider and
 // runs as a background job, while everything here answers in one page load.
 
-const { listAll } = require("./lootStore");
+const { listAll } = require("../stores/lootStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { classLook } = require("./lootClassLook");
-const { characterMap } = require("./characterStore");
+const { characterMap } = require("../stores/characterStore");
 const { gearByCharacter } = require("./charGear");
 const { countsAsLoot } = require("../utils/loot/lootReasons");
-const { getCategoryAssignments } = require("./raiderCharactersStore");
-const { excludedKeys, plannedRoles } = require("./councilStore");
+const { getCategoryAssignments } = require("../stores/raiderCharactersStore");
+const { excludedKeys, plannedRoles } = require("../stores/councilStore");
 const { armoryUrlFor } = require("./charLinks");
 const { characterKey, characterKeyOf } = require("../utils/loot/lootImport");
 const { listStoredEvents } = require("./eventSources");
-const { listLogs } = require("./logStore");
-const { listReports, getReport } = require("./reportStore");
+const { listLogs } = require("../stores/logStore");
+const { listReports, getReport } = require("../stores/reportStore");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { characterProfile } = require("../utils/setup/setupView");

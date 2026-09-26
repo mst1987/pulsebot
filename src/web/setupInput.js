@@ -18,10 +18,10 @@
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
 
-const eventStore = require("./eventStore");
-const signupStore = require("./signupStore");
-const profileStore = require("./raiderProfileStore");
-const settingsStore = require("./settingsStore");
+const eventStore = require("../stores/eventStore");
+const signupStore = require("../stores/signupStore");
+const profileStore = require("../stores/raiderProfileStore");
+const settingsStore = require("../stores/settingsStore");
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { listStoredEvents } = require("./eventSources");
 const { buildSetupProposal } = require("../utils/setup/proposal");

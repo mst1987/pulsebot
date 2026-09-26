@@ -1,10 +1,10 @@
-jest.mock("../../../src/web/reportStore", () => ({ listReports: jest.fn() }));
+jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn() }));
 jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
-const { listReports } = require("../../../src/web/reportStore");
+const { listReports } = require("../../../src/stores/reportStore");
 const { itemCatalog } = require("../../../src/web/lootStats");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");

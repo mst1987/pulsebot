@@ -10,7 +10,7 @@
 // the app — the client never owns a second copy of the palette (see
 // web-client's ClassSpec.tsx). A character nobody has resolved yet simply keeps
 // empty fields and renders uncoloured.
-const { characterMap } = require("./characterStore");
+const { characterMap } = require("../stores/characterStore");
 const { characterProfile } = require("../utils/setup/setupView");
 
 /**

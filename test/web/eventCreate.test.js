@@ -15,7 +15,7 @@ jest.mock("../../src/web/discordChannels", () => ({
     placeChannel: jest.fn(async () => true),
     discordErrorText: jest.requireActual("../../src/web/discordChannels").discordErrorText,
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
 // #305: the Discord event is best-effort — here it only records that it was asked.
 jest.mock("../../src/web/discordEvent", () => ({
@@ -25,7 +25,7 @@ jest.mock("../../src/web/discordEvent", () => ({
 }));
 jest.mock("../../src/web/eventAnnounce", () => ({ announceEvent: jest.fn(async () => ({ announced: true, target: "event" })) }));
 jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
-jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 1),
@@ -37,14 +37,14 @@ jest.mock("../../src/web/raidListing", () => ({
 const fs = require("fs");
 const discord = require("../../src/web/discord");
 const discordChannels = require("../../src/web/discordChannels");
-const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../src/stores/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../src/web/eventMessage");
 const { announceEvent } = require("../../src/web/eventAnnounce");
 const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const { createFromTemplate } = discordChannels;
-const channelArchiveStore = require("../../src/web/channelArchiveStore");
+const channelArchiveStore = require("../../src/stores/channelArchiveStore");
 const raidEventGroups = require("../../src/web/raidEventGroups");
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const discordEvent = require("../../src/web/discordEvent");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../src/web/eventCreate");
 

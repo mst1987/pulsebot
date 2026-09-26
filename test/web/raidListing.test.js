@@ -1,18 +1,18 @@
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
 jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
-jest.mock("../../src/web/lootStore", () => ({ listByEvent: jest.fn(() => []) }));
-jest.mock("../../src/web/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../src/web/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../src/stores/lootStore", () => ({ listByEvent: jest.fn(() => []) }));
+jest.mock("../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn((l) => l.postedAt || 0) }));
 
 const { raidContentIds, raidSize, upcomingRows, loadPastRaids } = require("../../src/web/raidListing");
-const { listRaidEvents } = require("../../src/web/raidEventStore");
+const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { scanRaidEvents } = require("../../src/web/raidEventScan");
 const { autoLinkLogs } = require("../../src/web/logAutoLink");
-const { listByEvent } = require("../../src/web/lootStore");
-const { getEventSoftres } = require("../../src/web/eventSoftresStore");
-const { listLogs } = require("../../src/web/logStore");
+const { listByEvent } = require("../../src/stores/lootStore");
+const { getEventSoftres } = require("../../src/stores/eventSoftresStore");
+const { listLogs } = require("../../src/stores/logStore");
 
 describe("web/raidListing", () => {
     beforeEach(() => jest.clearAllMocks());

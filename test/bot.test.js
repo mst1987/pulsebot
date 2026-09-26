@@ -11,7 +11,7 @@ jest.mock("../src/web/jobs", () => ({ startJobs: mockStartJobs }));
 jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
 // The start-up upgrade of old settings files (#420) must not touch the real data/.
 const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
-jest.mock("../src/web/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
+jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
 const mockGuard = jest.fn(async () => true);
 jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));

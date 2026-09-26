@@ -2,8 +2,8 @@
 // log channels, tracks them, and evaluates them once (via the shared buildReport
 // pipeline). Used by both the live messageCreate listener and the admin menu.
 
-const { getConfig } = require("./settingsStore");
-const logStore = require("./logStore");
+const { getConfig } = require("../stores/settingsStore");
+const logStore = require("../stores/logStore");
 const discord = require("./discord");
 const { extractWclLinks } = require("../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../utils/logcheck/report");

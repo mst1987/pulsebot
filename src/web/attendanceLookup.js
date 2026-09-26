@@ -3,7 +3,7 @@
 // building the whole roster (gear issues, links, every other character) for a
 // single answer.
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
-const { listAllAssignments } = require("./raiderCharactersStore");
+const { listAllAssignments } = require("../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listKnownCategories } = require("./categoryNames");
 const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");

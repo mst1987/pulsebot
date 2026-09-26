@@ -1,15 +1,15 @@
 jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
-jest.mock("../../src/web/signupStore", () => ({
+jest.mock("../../src/stores/signupStore", () => ({
     onSignupsChanged: jest.fn((fn) => {
         mockListeners.push(fn);
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     }),
 }));
 let mockStates = {}; // { [guildId]: state }
-jest.mock("../../src/web/talkOverviewStore", () => ({
+jest.mock("../../src/stores/talkOverviewStore", () => ({
     getOverviewState: jest.fn((guildId) => ({
         channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "", ...mockStates[guildId],
     })),
@@ -22,7 +22,7 @@ jest.mock("../../src/web/talkOverviewStore", () => ({
 const stateOf = (guildId = "111") => mockStates[guildId] || {};
 
 const discord = require("../../src/web/discord");
-const { getConfig } = require("../../src/web/settingsStore");
+const { getConfig } = require("../../src/stores/settingsStore");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const {
     channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,

@@ -64,8 +64,8 @@ const { publicBaseUrl } = require("../utils/publicUrl");
 // Colour and picture of the embed (#307): the event's own, else the rule set of
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
-const { getEvent, setEventMessage, listEvents } = require("./eventStore");
-const { listSignups, onSignupsChanged } = require("./signupStore");
+const { getEvent, setEventMessage, listEvents } = require("../stores/eventStore");
+const { listSignups, onSignupsChanged } = require("../stores/signupStore");
 const discord = require("./discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("./signupService");
@@ -81,9 +81,9 @@ const { migrateSignup } = require("./signupCharacters");
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../utils/text");
 const { approvedSetupOf } = require("./setupCore");
-const { getConfig, resolveEventSheetLink } = require("./configStore");
-const { getEventSheet } = require("./eventSheetStore");
-const { getEventSoftres } = require("./eventSoftresStore");
+const { getConfig, resolveEventSheetLink } = require("../stores/configStore");
+const { getEventSheet } = require("../stores/eventSheetStore");
+const { getEventSoftres } = require("../stores/eventSoftresStore");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";

@@ -3,7 +3,7 @@
 // bootstrap value of config/defaults.js steps in; secrets have no fallback.
 //
 // Values the admin menu can edit (guild, categories, raidsheets, Battle.net)
-// only *start* here — the settings store (web/settingsStore.js) seeds itself
+// only *start* here — the settings store (stores/settingsStore.js) seeds itself
 // from them and wins from then on.
 //
 // validateEnv() is called once at startup (src/bot.js) and names what is

@@ -9,7 +9,7 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -39,12 +39,12 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -101,11 +101,11 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
-const characterStore = require("../../../src/web/characterStore");
-const raiderCharactersStore = require("../../../src/web/raiderCharactersStore");
+const characterStore = require("../../../src/stores/characterStore");
+const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
 const { post, get } = routerClient(require("../../../src/web/apiRoutes/raiderCharacters"));
 
 describe("web/apiRoutes/raiderCharacters", () => {

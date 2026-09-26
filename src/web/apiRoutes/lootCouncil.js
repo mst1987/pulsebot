@@ -23,17 +23,17 @@ const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
 const { bisLists } = require("../bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../armoryGear");
-const { loadLogGear, clearLogGear, recentLogs } = require("../logGearStore");
+const { loadLogGear, clearLogGear, recentLogs } = require("../../stores/logGearStore");
 const { sourceForItem } = require("../../config/tbcContent");
-const { startCouncilSim, getJob } = require("../simStore");
+const { startCouncilSim, getJob } = require("../../stores/simStore");
 const { searchItems } = require("../../config/wowsims");
-const councilStore = require("../councilStore");
+const councilStore = require("../../stores/councilStore");
 const { gearFor, charKey } = require("../charGear");
-const { characterMap } = require("../characterStore");
+const { characterMap } = require("../../stores/characterStore");
 const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../discord");
-const { getConfig } = require("../settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */
 function listParam(url, name) {

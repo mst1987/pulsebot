@@ -3,18 +3,18 @@ const mockGetAllEvents = jest.fn();
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ fetchEvents: mockFetchEvents, getAllEvents: mockGetAllEvents })));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
 // The EventHelper's own store, read through the real adapter (eventSources.js).
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({ categorySignupSource: { cat1: "eventhelper" } })) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categorySignupSource: { cat1: "eventhelper" } })) }));
 
-const eventStore = require("../../src/web/eventStore");
-const { listSignups } = require("../../src/web/signupStore");
+const eventStore = require("../../src/stores/eventStore");
+const { listSignups } = require("../../src/stores/signupStore");
 const discord = require("../../src/web/discord");
-const { listRaidEvents } = require("../../src/web/raidEventStore");
+const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");
 const { event: baseEvent, ownEvent } = require("../factories/events");
 

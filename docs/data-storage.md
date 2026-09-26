@@ -4,7 +4,7 @@ Alles, was der Bot zur Laufzeit festhält, liegt als Datei unter **einem** Verze
 `src/config/paths.js`. Das ist `<repo>/data`, oder der Wert von `EVENTHELPER_DATA_DIR`, wenn er gesetzt ist
 (ein relativer Wert gilt ab Repo-Wurzel; Docker-Volume, zweite Instanz mit eigenen Daten). Die editierbaren
 JSON-Dateien der Stores liegen in `DATA_DIR/settings/`. Wie ein Store liest und (atomar) schreibt, steht in
-[web-admin.md, Abschnitt Stores](web-admin.md#stores-srcwebjsonstorejs-srcconfigpathsjs-419); neue Pfade immer
+[web-admin.md, Abschnitt Stores](web-admin.md#stores-srcstoresjsonstorejs-srcconfigpathsjs-419); neue Pfade immer
 über `dataPath(...)` / `settingsPath(name)` bauen.
 
 `data/` ist git-ignoriert und steht nur auf der Platte des Servers (bzw. im Docker-Volume `/app/data`). Nichts

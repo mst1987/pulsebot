@@ -9,7 +9,7 @@ jest.mock("../../src/web/characterInfo", () => ({
 }));
 
 const fs = require("fs");
-const { addImport } = require("../../src/web/lootStore.js");
+const { addImport } = require("../../src/stores/lootStore.js");
 const { annotatedCharacters } = require("../../src/web/characterInfo");
 const { reasonsByCharacter, itemCatalog, lootStats } = require("../../src/web/lootStats.js");
 

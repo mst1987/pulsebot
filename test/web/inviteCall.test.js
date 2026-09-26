@@ -2,14 +2,14 @@
 // groups 1–5 of the approved setup are pinged in the event channel with
 // "/w <Charakter> inv", the character being the caller's own. Stores and
 // Discord are mocks; the approved setup is read by the real setupCore.
-jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
-jest.mock("../../src/web/signupStore", () => ({ getSignup: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
+jest.mock("../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
 jest.mock("../../src/web/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
 jest.mock("../../src/web/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
-const eventStore = require("../../src/web/eventStore");
-const signupStore = require("../../src/web/signupStore");
+const eventStore = require("../../src/stores/eventStore");
+const signupStore = require("../../src/stores/signupStore");
 const discord = require("../../src/web/discord");
 const { invitePlan, callInvite, inviteCharacterOf } = require("../../src/web/inviteCall");
 const bot = require("../../src/web/inviteCallBot");

@@ -5,15 +5,15 @@
 // an einem einzelnen Event.
 const { MessageFlags } = require("discord.js");
 
-jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/web/talkOverview", () => ({ SELECT_ID: "talk-signup", ALL_BUTTON_ID: "talk-signup-all", MULTI_BUTTON_ID: "talk-signup-multi" }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/web/raiderProfileStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
 const multi = require("../../../src/utils/signup/multiSignup");
 const all = require("../../../src/commands/signup/talkSignupAll");
 const pickRaids = require("../../../src/commands/signup/talkSignupMulti");

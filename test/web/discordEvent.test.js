@@ -3,7 +3,7 @@
 // fehlendes Recht — und dass nichts davon je wirft.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventDiscordEvent: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -13,12 +13,12 @@ jest.mock("../../src/web/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../src/web/discord", () => ({ getGuild: jest.fn(), botCanManageEvents: jest.fn(() => true) }));
 
 const { ChannelType, GuildScheduledEventEntityType, GuildScheduledEventStatus } = require("discord.js");
 const discord = require("../../src/web/discord");
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const de = require("../../src/web/discordEvent");
 const { event: baseEvent } = require("../factories/events");
 const { makeGuild, makeChannel } = require("../helpers/discordClient");

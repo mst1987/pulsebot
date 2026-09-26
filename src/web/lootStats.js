@@ -6,7 +6,7 @@
 // Everything is aggregated in one pass here rather than in the route, because
 // the numbers are what gets tested: the route only adds class colours and icons.
 
-const { listAll, charLootPreview } = require("./lootStore");
+const { listAll, charLootPreview } = require("../stores/lootStore");
 const { wowheadLink } = require("../config/wowheadItemAliases");
 const { annotatedCharacters } = require("./characterInfo");
 const { reasonCatalog, reasonMeta } = require("../utils/loot/lootReasons");

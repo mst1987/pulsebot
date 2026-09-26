@@ -13,32 +13,32 @@ const { fail } = require("./apiResult");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
-} = require("./settingsStore");
+} = require("../stores/settingsStore");
 const { matchRaidsheet } = require("../utils/setup/raidsheets");
 const { buildSetupView, tankCandidates } = require("../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
     hasStarted, isRosterKnown,
 } = require("../utils/attendance");
-const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
-const { getEventSheet } = require("./eventSheetStore");
-const { getRaidEvent } = require("./raidEventStore");
+const { resolveAssignmentProfiles } = require("../stores/raiderCharactersStore");
+const { getEventSheet } = require("../stores/eventSheetStore");
+const { getRaidEvent } = require("../stores/raidEventStore");
 const { listStoredEvents } = require("./eventSources");
-const { getEventSoftres } = require("./eventSoftresStore");
+const { getEventSoftres } = require("../stores/eventSoftresStore");
 const softres = require("../utils/loot/softres");
-const { lootSystemOf } = require("./eventLootSystemStore");
-const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("./lootStore");
+const { lootSystemOf } = require("../stores/eventLootSystemStore");
+const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../stores/lootStore");
 const { raidSteps, eventSteps } = require("./raidDetailSteps");
 const { summarizePlayers } = require("./raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("./lootClassLook");
-const { listLogs, listLogsForEvent, evaluatedSections } = require("./logStore");
+const { listLogs, listLogsForEvent, evaluatedSections } = require("../stores/logStore");
 const { backfillLogTitles } = require("./logChannel");
 const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
 const discord = require("./discord");
-const { listSignups } = require("./signupStore");
+const { listSignups } = require("../stores/signupStore");
 const { eventSignupList } = require("./signupView");
-const { getEvent } = require("./eventStore");
-const raidplanStore = require("./raidplanStore");
+const { getEvent } = require("../stores/eventStore");
+const raidplanStore = require("../stores/raidplanStore");
 const { setupSummary } = require("./setupEditor");
 const { pingTargetInfo } = require("./pingDelivery");
 

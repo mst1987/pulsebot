@@ -3,7 +3,7 @@
 // only an approval makes the setup visible — and a change after the approval
 // is a draft again while raiders keep seeing the approved lineup.
 const mockEvents = new Map();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [...mockEvents.values()],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -14,9 +14,9 @@ jest.mock("../../src/web/eventStore", () => ({
     },
 }));
 let mockSignups = [];
-jest.mock("../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../src/web/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../src/web/eventSources", () => ({
     listStoredEvents: () => [],

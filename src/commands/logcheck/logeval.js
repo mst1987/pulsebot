@@ -2,7 +2,7 @@ const { MessageFlags } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
-const logStore = require("../../web/logStore");
+const logStore = require("../../stores/logStore");
 const discord = require("../../web/discord");
 
 // Button handler for the "CLA auswerten" / "RPB auswerten" buttons posted under a

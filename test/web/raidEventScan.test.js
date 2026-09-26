@@ -12,7 +12,7 @@ jest.mock("../../src/web/discord", () => ({
 
 const mockSaveRaidEvents = jest.fn(() => 0);
 const mockGetRaidEvent = jest.fn(() => null);
-jest.mock("../../src/web/raidEventStore", () => ({
+jest.mock("../../src/stores/raidEventStore", () => ({
     saveRaidEvents: (...a) => mockSaveRaidEvents(...a),
     getRaidEvent: (...a) => mockGetRaidEvent(...a),
 }));

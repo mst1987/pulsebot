@@ -9,14 +9,14 @@ jest.mock("../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../src/web/reportStore", () => ({
+jest.mock("../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../src/web/logStore", () => ({
+jest.mock("../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -62,11 +62,11 @@ jest.mock("../../src/web/raidEventGroups", () => ({
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
 }));
 const auth = require("../../src/web/auth");
-const reportStore = require("../../src/web/reportStore");
+const reportStore = require("../../src/stores/reportStore");
 const { activeGuildFor } = require("../../src/web/activeGuild");
 const discord = require("../../src/web/discord");
 const raidEventGroups = require("../../src/web/raidEventGroups");
-const logStore = require("../../src/web/logStore");
+const logStore = require("../../src/stores/logStore");
 const { AppError } = require("../../src/web/apiResult");
 const { emptyAccess } = require("../../src/config/permissions");
 const { request, post, patch, urlFor, handle } = routerClient();

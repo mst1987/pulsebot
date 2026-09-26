@@ -9,7 +9,7 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -39,12 +39,12 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -79,7 +79,7 @@ jest.mock("../../../src/web/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -156,12 +156,12 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
@@ -178,13 +178,13 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
 const raidEventGroups = require("../../../src/web/raidEventGroups");
-const raidEventStore = require("../../../src/web/raidEventStore");
+const raidEventStore = require("../../../src/stores/raidEventStore");
 const raidListing = require("../../../src/web/raidListing");
-const eventSoftresStore = require("../../../src/web/eventSoftresStore");
+const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/raids"));
 
 describe("web/apiRoutes/raids", () => {

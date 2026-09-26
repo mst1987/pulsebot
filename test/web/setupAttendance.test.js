@@ -2,14 +2,14 @@
 // its attendance — manual links (assignment, own profile) vs. the signup's own
 // characters (auto). The counting itself is tested in rosterAttendance.test.js.
 const mockSignups = {};
-jest.mock("../../src/web/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
 let mockProfiles = [];
-jest.mock("../../src/web/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
-jest.mock("../../src/web/characterStore", () => ({
+jest.mock("../../src/stores/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
+jest.mock("../../src/stores/characterStore", () => ({
     getCharacter: (name) => ({ Zibbo: { className: "Priest" } }[name] || null),
 }));
 let mockAssignments = {};
-jest.mock("../../src/web/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
+jest.mock("../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
 const mockCounted = jest.fn();
 jest.mock("../../src/web/rosterAttendance", () => ({
     buildAttendanceContext: () => ({}),

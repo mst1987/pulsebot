@@ -13,12 +13,12 @@ const { ok, error } = require("../apiResponse");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { addImport: addLootImport, eventsWithLoot } = require("../lootStore");
+const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch } = require("../lootEventMatch");
-const { verifyToken, touchToken, bearerFrom } = require("../ingestTokenStore");
-const { upsertPending, resolutionFor, noteAppended, listPending } = require("../lootInboxStore");
+const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
+const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {

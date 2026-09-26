@@ -28,8 +28,8 @@
 // a hybrid's spec in the loot export says little about whether they healed
 // last Thursday — and the spec only when no log knows them.
 const { listStoredEvents } = require("./eventSources");
-const { listLogs } = require("./logStore");
-const { listReports, getReport } = require("./reportStore");
+const { listLogs } = require("../stores/logStore");
+const { listReports, getReport } = require("../stores/reportStore");
 const { characterKeyOf } = require("../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../config/tbcContent");
 

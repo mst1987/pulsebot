@@ -1,7 +1,7 @@
 jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
 jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 jest.mock("../../../src/web/raidhelperRetirement", () => ({
     loadChecklist: jest.fn(async () => ({ ready: true, items: [] })),

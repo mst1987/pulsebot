@@ -1,7 +1,7 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { getStoredEvent } = require("../../web/eventSources");
-const { getEvent, isOwnEventId } = require("../../web/eventStore");
+const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { SELECT_ID } = require("../../web/talkOverview");
 const guildRoles = require("../../web/guildRoles");
 const { checkRaiderRole } = require("../../web/signupService");

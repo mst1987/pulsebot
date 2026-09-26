@@ -1,8 +1,8 @@
 // Filtering and paging behind both "Latest Loot" views (dashboard card and the
 // Historie tab). The stores are mocked; what is exercised is the selection, not
 // the disk.
-jest.mock("../../src/web/lootStore", () => {
-    const actual = jest.requireActual("../../src/web/lootStore");
+jest.mock("../../src/stores/lootStore", () => {
+    const actual = jest.requireActual("../../src/stores/lootStore");
     return {
         listAll: jest.fn(() => []),
         // The trimming itself is real: the row shape is the one the history
@@ -10,12 +10,12 @@ jest.mock("../../src/web/lootStore", () => {
         charLootPreview: actual.charLootPreview,
     };
 });
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 
-const lootStore = require("../../src/web/lootStore");
-const settingsStore = require("../../src/web/settingsStore");
-const charStore = require("../../src/web/characterStore");
+const lootStore = require("../../src/stores/lootStore");
+const settingsStore = require("../../src/stores/settingsStore");
+const charStore = require("../../src/stores/characterStore");
 const { listAwards, PAGE_SIZE, UNKNOWN_CONTENT } = require("../../src/web/lootAwards");
 
 // A decorated loot row as lootStore.listAll() hands it out, newest first.

@@ -1,5 +1,5 @@
-const { getEvent } = require("../../web/eventStore");
-const { getSignup } = require("../../web/signupStore");
+const { getEvent } = require("../../stores/eventStore");
+const { getSignup } = require("../../stores/signupStore");
 const { submitSignup } = require("../../web/signupService");
 const {
     COMMENT_PREFIX, parseCommentId, buildSignupDialog, buildCommentModal, plainUpdate,

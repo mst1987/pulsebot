@@ -7,7 +7,7 @@ const {
     discordClientId, discordClientSecret, publicBaseUrl, logcheckAdminIds,
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../config/variables");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const guildRoles = require("./guildRoles");
 const { fullAccess, emptyAccess, accessForRoles, accessForUser, baseAccessMap, mergeAccess } = require("../config/permissions");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");

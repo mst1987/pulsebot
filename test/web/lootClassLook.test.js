@@ -1,6 +1,6 @@
-jest.mock("../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 
-const { characterMap } = require("../../src/web/characterStore");
+const { characterMap } = require("../../src/stores/characterStore");
 const { withClassLook, classLook } = require("../../src/web/lootClassLook");
 
 describe("web/lootClassLook", () => {

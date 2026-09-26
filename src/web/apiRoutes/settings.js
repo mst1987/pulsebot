@@ -4,10 +4,10 @@ const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
-} = require("../settingsStore");
+} = require("../../stores/settingsStore");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
-} = require("../ingestTokenStore");
+} = require("../../stores/ingestTokenStore");
 const discord = require("../discord");
 const guildRoles = require("../guildRoles");
 const roleSync = require("../roleSync");

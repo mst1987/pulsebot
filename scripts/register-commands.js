@@ -71,7 +71,7 @@ async function main(argv) {
     const envFile = flags.dev ? ".env.dev" : ".env";
     require("dotenv").config({ path: envFile });
     // Loaded after dotenv: config/variables reads the env at require time.
-    const { getConfig } = require("../src/web/settingsStore");
+    const { getConfig } = require("../src/stores/settingsStore");
     const { configuredGuildIds } = require("../src/web/guildRoles");
 
     const token = process.env.DISCORDJS_BOT_TOKEN;

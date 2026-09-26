@@ -4,7 +4,7 @@
 
 const mockEvents = new Map();
 const mockLog = jest.fn();
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventState: (id, patch) => {
@@ -18,8 +18,8 @@ jest.mock("../../src/web/eventStore", () => ({
 }));
 const mockSignups = new Map();
 const mockChanged = jest.fn();
-jest.mock("../../src/web/signupStore", () => {
-    const actual = jest.requireActual("../../src/web/signupStore");
+jest.mock("../../src/stores/signupStore", () => {
+    const actual = jest.requireActual("../../src/stores/signupStore");
     return {
         normalizeSignup: actual.normalizeSignup,
         getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
@@ -35,11 +35,11 @@ jest.mock("../../src/web/signupStore", () => {
     };
 });
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
 jest.mock("../../src/web/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
 
-const profiles = require("../../src/web/raiderProfileStore");
+const profiles = require("../../src/stores/raiderProfileStore");
 const discord = require("../../src/web/discord");
 const service = require("../../src/web/signupService");
 const { tempStoreFile } = require("../helpers/tempStore");
@@ -241,7 +241,7 @@ describe("Status je Charakter (Anmelde-Buttons)", () => {
         // „Abgemeldet“ gibt es nur für die ganze Anmeldung: je Charakter gilt dann der Status der Anmeldung
         const odd = await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "absence" }], status: "tentative" }, { now: NOW });
         expect(odd.signup.characters.map((c) => c.status)).toEqual(["tentative"]);
-        expect(require("../../src/web/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
+        expect(require("../../src/stores/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
     });
 
     it("behält die Status der Charaktere, solange der Status der Anmeldung gleich bleibt", async () => {

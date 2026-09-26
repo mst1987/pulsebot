@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -46,7 +46,7 @@ jest.mock("../../../src/web/settingsStore", () => ({
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 // The account's menu language: none saved unless a test says otherwise.
-jest.mock("../../../src/web/userPrefsStore", () => ({
+jest.mock("../../../src/stores/userPrefsStore", () => ({
     getLang: jest.fn(() => ""),
     setLang: jest.fn((userId, lang) => (["de", "en"].includes(String(lang).trim().toLowerCase()) ? { lang: String(lang).trim().toLowerCase() } : { code: "unknown_lang" })),
 }));
@@ -68,7 +68,7 @@ jest.mock("../../../src/web/dashboardData", () => ({
 jest.mock("../../../src/web/deployStatus", () => ({
     deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
 }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -81,7 +81,7 @@ jest.mock("../../../src/web/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../src/web/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -117,7 +117,7 @@ jest.mock("../../../src/web/logEventMatch", () => ({
     autoMatches: jest.fn(() => []),
 }));
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -143,12 +143,12 @@ jest.mock("../../../src/web/characterInfo", () => ({
         fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
     })),
 }));
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -225,18 +225,18 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventLootSystemStore", () => ({
+jest.mock("../../../src/stores/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -266,7 +266,7 @@ jest.mock("../../../src/web/setupEditor", () => ({
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../../src/config/permissions");
@@ -458,7 +458,7 @@ describe("web/apiRoutes/session", () => {
     });
 
     describe("POST /api/session/lang", () => {
-        const userPrefs = require("../../../src/web/userPrefsStore");
+        const userPrefs = require("../../../src/stores/userPrefsStore");
 
         it("saves the language for the caller's own account", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });

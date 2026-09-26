@@ -11,9 +11,9 @@
 // proposal reads it, and only when the orga asks for it.
 
 const Blizzard = require("../classes/blizzard");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
-const profiles = require("./raiderProfileStore");
+const profiles = require("../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
 
 /** A spec entry with what the rule set says about it and what the logs say. */

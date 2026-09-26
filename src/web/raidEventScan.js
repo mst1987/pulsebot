@@ -7,7 +7,7 @@
 
 const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelper/client");
 const discord = require("./discord");
-const { saveRaidEvents, getRaidEvent } = require("./raidEventStore");
+const { saveRaidEvents, getRaidEvent } = require("../stores/raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
 const { signupStatus } = require("../utils/attendance");
 

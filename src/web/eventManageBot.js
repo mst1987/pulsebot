@@ -24,9 +24,9 @@
 const { DateTime } = require("luxon");
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const manage = require("./eventManage");
-const eventStore = require("./eventStore");
-const signupStore = require("./signupStore");
-const profiles = require("./raiderProfileStore");
+const eventStore = require("../stores/eventStore");
+const signupStore = require("../stores/signupStore");
+const profiles = require("../stores/raiderProfileStore");
 const { roleCounts } = require("./signupService");
 const { updateEvent } = require("./eventCreate");
 const { pingMissingRaiders } = require("./missingPing");

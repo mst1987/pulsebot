@@ -1,6 +1,6 @@
 const mockListLogs = jest.fn(() => []);
 const mockLinkEvent = jest.fn();
-jest.mock("../../src/web/logStore", () => ({
+jest.mock("../../src/stores/logStore", () => ({
     listLogs: (...a) => mockListLogs(...a),
     linkEvent: (...a) => mockLinkEvent(...a),
 }));

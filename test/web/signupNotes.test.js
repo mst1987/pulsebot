@@ -1,7 +1,7 @@
 // Die Nachricht zu „Vielleicht“ / „Absagen“: Modus je Kategorie, wann gepostet
 // wird, wie der Post aussieht und dass ein Fehlschlag nie wirft.
 jest.mock("../../src/web/discord", () => ({ postNotice: jest.fn(async () => ({ messageId: "m" })), channelVisible: jest.fn(() => true) }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
 
 const discord = require("../../src/web/discord");
 const notes = require("../../src/web/signupNotes");

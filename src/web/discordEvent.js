@@ -31,9 +31,9 @@ const {
     ChannelType, GuildScheduledEventEntityType, GuildScheduledEventPrivacyLevel, GuildScheduledEventStatus,
 } = require("discord.js");
 const discord = require("./discord");
-const eventStore = require("./eventStore");
+const eventStore = require("../stores/eventStore");
 const { eventEndTime } = require("../utils/time");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const { str, clip } = require("../utils/text");
 
 // Discord's limits for a scheduled event.

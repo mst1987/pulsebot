@@ -20,7 +20,7 @@
 
 const { DateTime } = require("luxon");
 const discord = require("./discord");
-const archiveStore = require("./channelArchiveStore");
+const archiveStore = require("../stores/channelArchiveStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { raidContentIds } = require("./raidListing");
 const { instanceById } = require("../config/gameVersions");

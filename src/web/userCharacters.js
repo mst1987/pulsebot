@@ -2,8 +2,8 @@
 // raid lead's raider→character assignment (per category) plus the characters the
 // raider entered in their own profile (#255). One entry per character; the
 // assignment comes first, since it is the one the raid lead confirmed.
-const { charactersForUser } = require("./raiderCharactersStore");
-const profiles = require("./raiderProfileStore");
+const { charactersForUser } = require("../stores/raiderCharactersStore");
+const profiles = require("../stores/raiderProfileStore");
 
 /** @returns {{ character: string, categoryIds: string[] }[]} */
 function myCharacters(userId) {

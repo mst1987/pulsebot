@@ -1,4 +1,4 @@
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
     getGuild: jest.fn(() => null),
@@ -6,7 +6,7 @@ jest.mock("../../src/web/discord", () => ({
 }));
 
 const { MessageFlags } = require("discord.js");
-const settingsStore = require("../../src/web/settingsStore");
+const settingsStore = require("../../src/stores/settingsStore");
 const discord = require("../../src/web/discord");
 const { logcheckAdminIds } = require("../../src/config/variables");
 const {

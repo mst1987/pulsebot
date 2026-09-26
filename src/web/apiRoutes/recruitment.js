@@ -5,7 +5,7 @@ const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
     getConfig,
-} = require("../settingsStore");
+} = require("../../stores/settingsStore");
 const discord = require("../discord");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitmentApplications");

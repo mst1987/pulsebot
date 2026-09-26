@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 const { publicVersions } = require("../../src/config/gameVersions");
-const { normalizePlan } = require("../../src/web/eventStore");
+const { normalizePlan } = require("../../src/stores/eventStore");
 const { renderChannelName } = require("../../src/utils/channelNames");
 const { makeT } = require("./i18nHelper");
 

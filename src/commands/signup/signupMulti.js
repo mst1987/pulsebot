@@ -1,6 +1,6 @@
 const { MessageFlags } = require("discord.js");
-const profiles = require("../../web/raiderProfileStore");
-const { getEvent } = require("../../web/eventStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { getEvent } = require("../../stores/eventStore");
 const { checkRaiderRole, allowedStatuses, submitSignups } = require("../../web/signupService");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
 const {

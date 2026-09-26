@@ -5,7 +5,7 @@
 //
 // The missing raiders are always re-derived here; no caller hands in the list.
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const { computeAttendance, hasStarted } = require("../utils/attendance");
 const discord = require("./discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS } = require("./pingDelivery");

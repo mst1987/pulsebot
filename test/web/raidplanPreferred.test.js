@@ -1,6 +1,6 @@
 // Preferred classes of an assignment row: cleaning, the class order of a suggestion, "allow others".
 const assign = require("../../src/web/raidplanAssign");
-const catalogStore = require("../../src/web/raidplanCatalogStore");
+const catalogStore = require("../../src/stores/raidplanCatalogStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 const { person: basePerson } = require("../factories/raidplan");
 

@@ -3,12 +3,12 @@
 // minted or has been revoked gets nothing back rather than an error that says
 // so. The cache is tested too: a subscribed calendar polls forever.
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example" }));
-jest.mock("../../src/web/eventStore", () => ({ listEvents: jest.fn(() => []) }));
-jest.mock("../../src/web/signupStore", () => ({ signupsOfUser: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/signupStore", () => ({ signupsOfUser: jest.fn(() => ({})) }));
 
-const eventStore = require("../../src/web/eventStore");
-const signupStore = require("../../src/web/signupStore");
-const tokens = require("../../src/web/calendarTokenStore");
+const eventStore = require("../../src/stores/eventStore");
+const signupStore = require("../../src/stores/signupStore");
+const tokens = require("../../src/stores/calendarTokenStore");
 const { tempStoreFile } = require("../helpers/tempStore");
 const { event: baseEvent, signup: baseSignup } = require("../factories/events");
 const { feedFor, collectEntries, clearCache, BACK_DAYS, FORWARD_DAYS, MAX_EVENTS, CACHE_MS } = require("../../src/web/calendarFeed");

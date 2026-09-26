@@ -5,10 +5,10 @@ let mockUser = null;
 jest.mock("../../../src/web/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
 }));
-jest.mock("../../../src/web/eventSeriesStore", () => ({
+jest.mock("../../../src/stores/eventSeriesStore", () => ({
     deleteSeries: jest.fn(() => true),
     getRuns: jest.fn(() => ({})),
     clearRun: jest.fn(),
@@ -24,7 +24,7 @@ jest.mock("../../../src/web/eventSeries", () => ({
 }));
 
 const { readJsonBody } = require("../../../src/web/apiBody");
-const store = require("../../../src/web/eventSeriesStore");
+const store = require("../../../src/stores/eventSeriesStore");
 const service = require("../../../src/web/eventSeries");
 const route = require("../../../src/web/apiRoutes/eventSeries");
 const { checkAccess } = require("../../../src/web/apiAccess");

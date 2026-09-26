@@ -2,17 +2,17 @@
 // Dialog mit der neuen Wahl neu. Dazu: der Zugang aller Dialog-Schritte hängt am
 // „Anmelden“-Button (Router-Guard).
 
-jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/web/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/web/discord", () => ({ getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn() }));
 jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/web/raiderProfileStore");
-const settings = require("../../../src/web/settingsStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
+const settings = require("../../../src/stores/settingsStore");
 const { guardInteraction } = require("../../../src/web/botAccess");
 const command = require("../../../src/commands/signup/signupPick");
 const statusCommand = require("../../../src/commands/signup/signupStatus");

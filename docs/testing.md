@@ -61,8 +61,8 @@ Eine Suite mit eigener Form baut einen Einzeiler darauf: `const event = (over = 
 - **Factory-Mock ist der Normalfall:** `jest.mock("../../src/web/x", () => ({ ... }))` mit genau den Funktionen, die der Test steuert. Variablen aus dem Test darf die Factory nur lesen, wenn sie mit `mock` beginnen (`mockUser`, `mockEvents`) — Jest hebt `jest.mock` an den Dateianfang.
 - **Nur einen Teil ersetzen:** `requireActual` spreizen und das Nötige überschreiben, damit reine Hilfsfunktionen echt bleiben:
   ```js
-  jest.mock("../../src/web/eventStore", () => ({
-      ...jest.requireActual("../../src/web/eventStore"),
+  jest.mock("../../src/stores/eventStore", () => ({
+      ...jest.requireActual("../../src/stores/eventStore"),
       getEvent: jest.fn(() => null),
   }));
   ```

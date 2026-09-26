@@ -9,13 +9,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -45,12 +45,12 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -108,12 +108,12 @@ jest.mock("../../../src/utils/logcheck/report", () => {
     };
 });
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../src/web/characterStore", () => ({
+jest.mock("../../../src/stores/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -189,11 +189,11 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 const auth = require("../../../src/web/auth");
-const reportStore = require("../../../src/web/reportStore");
-const settingsStore = require("../../../src/web/settingsStore");
+const reportStore = require("../../../src/stores/reportStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
-const logStore = require("../../../src/web/logStore");
+const logStore = require("../../../src/stores/logStore");
 const reportList = require("../../../src/web/reportList");
 const logEventMatch = require("../../../src/web/logEventMatch");
 const logChannel = require("../../../src/web/logChannel");

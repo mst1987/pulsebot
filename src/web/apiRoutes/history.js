@@ -3,28 +3,28 @@ const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData");
-const { getConfig, saveConfig } = require("../settingsStore");
-const { listLogs, deleteLog } = require("../logStore");
+const { getConfig, saveConfig } = require("../../stores/settingsStore");
+const { listLogs, deleteLog } = require("../../stores/logStore");
 const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
     decorate: decorateLootItem,
-} = require("../lootStore");
+} = require("../../stores/lootStore");
 const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
 const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { lootCatalog, suggestedContents } = require("../lootCatalog");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
-const { getCharacter } = require("../characterStore");
+const { getCharacter } = require("../../stores/characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions,
-} = require("../lootInboxStore");
+} = require("../../stores/lootInboxStore");
 const { sessionContentLabel } = require("../lootSessionContent");
 const { previewImport } = require("../lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");

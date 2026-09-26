@@ -9,22 +9,22 @@ const { withUser } = require("../apiHandler");
 const { AppError } = require("../apiResult");
 const { q } = require("../apiParams");
 const { activeGuildFor } = require("../activeGuild");
-const { listReports, deleteReport, getReport, saveReport } = require("../reportStore");
+const { listReports, deleteReport, getReport, saveReport } = require("../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
 const { contentsForText } = require("../../config/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
-} = require("../logStore");
+} = require("../../stores/logStore");
 const { annotateMatches, autoMatches } = require("../logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
 const { startJob, getJob } = require("../evalJobs");
-const { getConfig } = require("../settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { sendApproved, sendStatus } = require("../recommendationSend");
 const { phraseReport } = require("../../utils/logcheck/recommendationText");
-const { listAllAssignments } = require("../raiderCharactersStore");
+const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");

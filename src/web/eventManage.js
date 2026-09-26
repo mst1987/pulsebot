@@ -17,25 +17,25 @@
 // Discord calls are best-effort after the store changed: a channel that cannot be
 // renamed or a DM that does not arrive is reported, never a rolled-back action.
 const { DateTime } = require("luxon");
-const eventStore = require("./eventStore");
-const signupStore = require("./signupStore");
-const raidplanStore = require("./raidplanStore");
+const eventStore = require("../stores/eventStore");
+const signupStore = require("../stores/signupStore");
+const raidplanStore = require("../stores/raidplanStore");
 const signupService = require("./signupService");
-const profiles = require("./raiderProfileStore");
-const reminderStore = require("./reminderStore");
-const seriesStore = require("./eventSeriesStore");
-const logStore = require("./logStore");
-const lootStore = require("./lootStore");
+const profiles = require("../stores/raiderProfileStore");
+const reminderStore = require("../stores/reminderStore");
+const seriesStore = require("../stores/eventSeriesStore");
+const logStore = require("../stores/logStore");
+const lootStore = require("../stores/lootStore");
 const channelNaming = require("./channelNaming");
 const discordChannels = require("./discordChannels");
-const archiveStore = require("./channelArchiveStore");
+const archiveStore = require("../stores/channelArchiveStore");
 const discord = require("./discord");
 const { refreshEventMessage } = require("./eventMessage");
 const { refreshSetupMessage } = require("./setupMessage");
 const discordEvent = require("./discordEvent");
 const { scheduleOverviewSync } = require("./talkOverview");
 const { deliverUserPing, sendDms } = require("./pingDelivery");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const { setupSummary } = require("./setupEditor");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { toRaidHelperDate } = require("../utils/time");

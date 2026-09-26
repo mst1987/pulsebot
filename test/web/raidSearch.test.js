@@ -2,7 +2,7 @@
 // for it, and posting it into the event channel.
 const mockEvents = new Map();
 const mockLog = [];
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     appendEventLog: (id, entry) => mockLog.push({ id, ...entry }),

@@ -1,8 +1,8 @@
 // The start page's data assembly: the top-item card, the next raids and their
 // details modal, and the area figures. Raid-Helper, Discord and the stores are
 // mocked; the rules applied to their data live in dashboardOverview.js (own test).
-jest.mock("../../src/web/lootStore", () => {
-    const actual = jest.requireActual("../../src/web/lootStore");
+jest.mock("../../src/stores/lootStore", () => {
+    const actual = jest.requireActual("../../src/stores/lootStore");
     return {
         listAll: jest.fn(() => []),
         listByEvent: jest.fn(() => []),
@@ -11,25 +11,25 @@ jest.mock("../../src/web/lootStore", () => {
         charLootPreview: actual.charLootPreview,
     };
 });
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     resolveEventSheetLink: jest.fn((own) => (own && own.url ? { url: own.url } : null)),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
-jest.mock("../../src/web/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
-jest.mock("../../src/web/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
+jest.mock("../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../src/stores/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
 jest.mock("../../src/web/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
-jest.mock("../../src/web/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 // The EventHelper's own events, read through the real adapter (eventSources.js).
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
-jest.mock("../../src/web/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
-jest.mock("../../src/web/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../src/web/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../src/web/recentEvents", () => ({
     buildRecentEvents: jest.fn(() => []),
     matchLogsForEvent: jest.fn(() => []),
@@ -37,21 +37,21 @@ jest.mock("../../src/web/recentEvents", () => ({
 }));
 jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
 jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
-jest.mock("../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
 }));
 
-const lootStore = require("../../src/web/lootStore");
-const settingsStore = require("../../src/web/settingsStore");
-const charStore = require("../../src/web/characterStore");
-const eventSheetStore = require("../../src/web/eventSheetStore");
-const eventSoftresStore = require("../../src/web/eventSoftresStore");
+const lootStore = require("../../src/stores/lootStore");
+const settingsStore = require("../../src/stores/settingsStore");
+const charStore = require("../../src/stores/characterStore");
+const eventSheetStore = require("../../src/stores/eventSheetStore");
+const eventSoftresStore = require("../../src/stores/eventSoftresStore");
 const raidEventGroups = require("../../src/web/raidEventGroups");
-const reportStore = require("../../src/web/reportStore");
-const lootInboxStore = require("../../src/web/lootInboxStore");
+const reportStore = require("../../src/stores/reportStore");
+const lootInboxStore = require("../../src/stores/lootInboxStore");
 const { buildRoster } = require("../../src/web/roster");
 const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
 const discord = require("../../src/web/discord");
@@ -218,8 +218,8 @@ describe("web/dashboardData loadNextRaids", () => {
     });
 
     it("puts the EventHelper's own raids between Raid-Helper's, with their planned size and composition", async () => {
-        const eventStore = require("../../src/web/eventStore");
-        const { listSignups } = require("../../src/web/signupStore");
+        const eventStore = require("../../src/stores/eventStore");
+        const { listSignups } = require("../../src/stores/signupStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
         rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
         rh.getSetup.mockResolvedValue({ setup: [] });
@@ -244,7 +244,7 @@ describe("web/dashboardData loadNextRaids", () => {
     });
 
     it("counts an own event's approved setup (never a draft) and takes its icon from its raids (#291)", async () => {
-        const eventStore = require("../../src/web/eventStore");
+        const eventStore = require("../../src/stores/eventStore");
         const future = Math.floor(Date.now() / 1000) + 86400;
         rh.getAllEvents.mockResolvedValue([]);
         const approved = {

@@ -6,9 +6,9 @@ const { ok, error } = require("../apiResponse");
 const { requireCsrf } = require("../apiMiddleware");
 const { withUser } = require("../apiHandler");
 const { readJsonBody } = require("../apiBody");
-const userPrefs = require("../userPrefsStore");
+const userPrefs = require("../../stores/userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
-const { getConfig } = require("../settingsStore");
+const { getConfig } = require("../../stores/settingsStore");
 const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const { normalizeRoleIds, MAX_ROLES } = require("../viewAs");
 

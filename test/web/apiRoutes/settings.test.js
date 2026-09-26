@@ -14,13 +14,13 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/reportStore", () => ({
+jest.mock("../../../src/stores/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -50,7 +50,7 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -63,7 +63,7 @@ jest.mock("../../../src/web/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../src/web/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -151,7 +151,7 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
         itemLink: actual.itemLink,
     };
 });
-jest.mock("../../../src/web/ingestTokenStore", () => ({
+jest.mock("../../../src/stores/ingestTokenStore", () => ({
     listTokens: jest.fn(() => []),
     createToken: jest.fn(),
     revokeToken: jest.fn(),
@@ -171,7 +171,7 @@ jest.mock("../../../src/web/apiBody", () => {
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");

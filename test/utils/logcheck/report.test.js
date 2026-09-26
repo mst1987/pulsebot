@@ -41,7 +41,7 @@ jest.mock("../../../src/utils/logcheck/fightSeries.js", () => ({
     summarizeFightSeries: jest.fn((timeline) => (timeline ? { players: [{ name: "Alice", type: "Mage", measure: "dps", fights: 2, dipPct: 10, avgDps: 1, avgHps: 0 }] } : null)),
 }));
 const mockV2Config = { clientId: "", clientSecret: "" };
-jest.mock("../../../src/web/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
+jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
 jest.mock("../../../src/classes/warcraftlogsV2.js", () => jest.fn().mockImplementation((opts) => ({ opts, isConfigured: () => !!(opts && opts.clientId) })));
 jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
     analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
@@ -74,7 +74,7 @@ jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
 jest.mock("../../../src/utils/logcheck/common.js", () => ({ selectPlayers: jest.fn(() => []) }));
 const mockSaveReport = jest.fn();
 const mockGetReport = jest.fn();
-jest.mock("../../../src/web/reportStore.js", () => ({
+jest.mock("../../../src/stores/reportStore.js", () => ({
     saveReport: (...args) => mockSaveReport(...args),
     getReport: (...args) => mockGetReport(...args),
 }));

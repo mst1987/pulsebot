@@ -6,7 +6,7 @@
 const { ChannelType, SlashCommandBuilder } = require("discord.js");
 const discord = require("../../web/discord");
 const discordChannels = require("../../web/discordChannels");
-const archiveStore = require("../../web/channelArchiveStore");
+const archiveStore = require("../../stores/channelArchiveStore");
 const channelNaming = require("../../web/channelNaming");
 const { normalizeChannelName, renderChannelName, parseDay } = require("../../utils/channelNames");
 const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/discord/botLookup");

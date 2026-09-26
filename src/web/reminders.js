@@ -30,12 +30,12 @@
 //             like a reminder (kind "autoSuggest"), so it runs once.
 const guildRoles = require("./guildRoles");
 const discord = require("./discord");
-const reminderStore = require("./reminderStore");
-const eventStore = require("./eventStore");
+const reminderStore = require("../stores/reminderStore");
+const eventStore = require("../stores/eventStore");
 const { proposeSetup } = require("./setupInput");
 const { deliverUserPing } = require("./pingDelivery");
 const { loadEventGroups } = require("./raidEventGroups");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../utils/attendance");
 
 const HOUR_MS = 60 * 60 * 1000;

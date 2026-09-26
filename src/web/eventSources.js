@@ -7,10 +7,10 @@
 // Raid-Helper events stay fully in use wherever one exists, also in a category
 // whose new events are created in the EventHelper (`categorySignupSource`):
 // nothing is imported, nothing expires, and one event has exactly one source.
-const { listEvents, getEvent, isOwnEventId } = require("./eventStore");
-const { listSignups } = require("./signupStore");
-const { listRaidEvents, getRaidEvent } = require("./raidEventStore");
-const { getConfig } = require("./settingsStore");
+const { listEvents, getEvent, isOwnEventId } = require("../stores/eventStore");
+const { listSignups } = require("../stores/signupStore");
+const { listRaidEvents, getRaidEvent } = require("../stores/raidEventStore");
+const { getConfig } = require("../stores/settingsStore");
 const { ALIASES } = require("../config/classlist");
 
 const SOURCES = ["raidhelper", "eventhelper"];

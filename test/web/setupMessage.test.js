@@ -3,7 +3,7 @@
 // abgesagte Events.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -20,12 +20,12 @@ jest.mock("../../src/web/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const discord = require("../../src/web/discord");
-const eventStore = require("../../src/web/eventStore");
+const eventStore = require("../../src/stores/eventStore");
 const appEmojis = require("../../src/web/appEmojis");
 const sm = require("../../src/web/setupMessage");
 const { event: baseEvent } = require("../factories/events");

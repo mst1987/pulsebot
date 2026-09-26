@@ -59,7 +59,7 @@ the admin's changes in `data/settings/raidplan-catalog.json` (`mobs`, `spells`: 
   files in the repo), picked by the kind of creature; the catalog marks them "Platzhalter-Icon" and an admin
   can override any of them (an override is not marked). The script requests every candidate (HTTP 200 and an
   image), takes the first that exists and writes the check of each icon into the JSON — nothing is entered
-  blind; `test/web/raidplanCatalog.test.js` fails when a default mob has no icon or an icon that was not
+  blind; `test/stores/raidplanCatalogStore.test.js` fails when a default mob has no icon or an icon that was not
   checked. Mapping kind -> icon: infernal spell_shadow_summoninfernal; doomguard spell_shadow_summonfelguard;
   demon spell_shadow_summonvoidwalker; fel spell_fire_felflamestrike; undead spell_shadow_animatedead;
   necromancer spell_shadow_deathcoil; caster spell_frost_frostbolt02; priest spell_holy_holybolt; rogue

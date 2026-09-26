@@ -27,9 +27,9 @@ const { embedAccentColor, publicBaseUrl } = require("../config/variables");
 const discord = require("./discord");
 const guildRoles = require("./guildRoles");
 const { loadEventGroups } = require("./raidEventGroups");
-const { getConfig } = require("./settingsStore");
-const { onSignupsChanged } = require("./signupStore");
-const { getOverviewState, setOverviewState } = require("./talkOverviewStore");
+const { getConfig } = require("../stores/settingsStore");
+const { onSignupsChanged } = require("../stores/signupStore");
+const { getOverviewState, setOverviewState } = require("../stores/talkOverviewStore");
 const { signupStatus } = require("../utils/attendance");
 const { appEmojiMap, emojiText, uiEmojiName } = require("./appEmojis");
 

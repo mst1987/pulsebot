@@ -1,5 +1,5 @@
 const { MessageFlags } = require("discord.js");
-const profiles = require("../../web/raiderProfileStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { ALL_BUTTON_ID } = require("../../web/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");

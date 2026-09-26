@@ -17,8 +17,8 @@
 //
 // A series event (#289) is announced like a hand-made one: it goes through
 // eventCreate.createEvent(), so there is one switch and no special path.
-const eventStore = require("./eventStore");
-const { getConfig } = require("./settingsStore");
+const eventStore = require("../stores/eventStore");
+const { getConfig } = require("../stores/settingsStore");
 const { normalizePingTarget, deliverAnnouncement } = require("./pingDelivery");
 
 /**

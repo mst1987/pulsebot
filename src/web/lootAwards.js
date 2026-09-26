@@ -5,9 +5,9 @@
 // awards) and the Historie-&-Loot tab of the same name (all awards, filterable
 // and paged). Both therefore show identical rows — the tab is the card's full
 // version, not a second implementation of it.
-const { listAll: listAllLoot, charLootPreview } = require("./lootStore");
-const { characterMap } = require("./characterStore");
-const { getConfig } = require("./settingsStore");
+const { listAll: listAllLoot, charLootPreview } = require("../stores/lootStore");
+const { characterMap } = require("../stores/characterStore");
+const { getConfig } = require("../stores/settingsStore");
 const { classLook } = require("./lootClassLook");
 const { CONTENTS } = require("../config/tbcContent");
 const { reasonCatalog } = require("../utils/loot/lootReasons");

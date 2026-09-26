@@ -5,7 +5,7 @@
 jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     listNotify: jest.fn(() => [{ id: "n1" }]),
     listRaidsheets: jest.fn(() => [{ id: "sheet-kara", name: "Karazhan", keywords: ["kara"] }]),
@@ -18,18 +18,18 @@ jest.mock("../../src/web/discord", () => ({
     getGuild: jest.fn(() => null),
 }));
 jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
-jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(() => null) }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/web/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
-jest.mock("../../src/web/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
-jest.mock("../../src/web/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../src/web/eventLootSystemStore", () => ({ lootSystemOf: jest.fn(() => "softres") }));
-jest.mock("../../src/web/lootStore", () => ({ listByEvent: jest.fn(() => []), listAll: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventLootSystemStore", () => ({ lootSystemOf: jest.fn(() => "softres") }));
+jest.mock("../../src/stores/lootStore", () => ({ listByEvent: jest.fn(() => []), listAll: jest.fn(() => []) }));
 jest.mock("../../src/web/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../src/web/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
-jest.mock("../../src/web/logStore", () => ({
-    ...jest.requireActual("../../src/web/logStore"),
+jest.mock("../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/logStore", () => ({
+    ...jest.requireActual("../../src/stores/logStore"),
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
 }));
@@ -37,15 +37,15 @@ jest.mock("../../src/web/logChannel", () => ({ backfillLogTitles: jest.fn(async 
 jest.mock("../../src/web/pingDelivery", () => ({ ...jest.requireActual("../../src/web/pingDelivery"), pingTargetInfo: jest.fn(() => ({ talk: false })) }));
 
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
-const settingsStore = require("../../src/web/settingsStore");
+const settingsStore = require("../../src/stores/settingsStore");
 const discord = require("../../src/web/discord");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelper/client");
-const { getRaidEvent } = require("../../src/web/raidEventStore");
-const { getEvent } = require("../../src/web/eventStore");
-const { listSignups } = require("../../src/web/signupStore");
-const raidplanStore = require("../../src/web/raidplanStore");
-const { getEventSoftres } = require("../../src/web/eventSoftresStore");
-const logStore = require("../../src/web/logStore");
+const { getRaidEvent } = require("../../src/stores/raidEventStore");
+const { getEvent } = require("../../src/stores/eventStore");
+const { listSignups } = require("../../src/stores/signupStore");
+const raidplanStore = require("../../src/stores/raidplanStore");
+const { getEventSoftres } = require("../../src/stores/eventSoftresStore");
+const logStore = require("../../src/stores/logStore");
 const { backfillLogTitles } = require("../../src/web/logChannel");
 const { buildRaidDetail, _internal } = require("../../src/web/raidDetailView");
 const { getRaidDetail } = require("../../src/web/apiRoutes/raidDetail");

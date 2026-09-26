@@ -14,8 +14,8 @@
 // permission: every save goes through signupService.submitSignup.
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
-const { getSignup, lastSignupOf } = require("../../web/signupStore");
-const profiles = require("../../web/raiderProfileStore");
+const { getSignup, lastSignupOf } = require("../../stores/signupStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../../web/signupService");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { emojiOption, specEmojiName } = require("../../web/appEmojis");

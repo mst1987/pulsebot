@@ -13,8 +13,8 @@
 // Everything else (class/spec, colours, icons) is read from the caches the loot
 // history already fills, so this never hits an external API.
 const { annotatedCharacters } = require("./characterInfo");
-const { listAllAssignments } = require("./raiderCharactersStore");
-const { characterMap } = require("./characterStore");
+const { listAllAssignments } = require("../stores/raiderCharactersStore");
+const { characterMap } = require("../stores/characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
 const { splitPlayer, characterKeyOf } = require("../utils/loot/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setup/setupView");

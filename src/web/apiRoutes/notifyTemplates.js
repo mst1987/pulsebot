@@ -4,7 +4,7 @@
 // GET/POST /admin/raids/templates(/delete) routes in server.js.
 const { ok, error } = require("../apiResponse");
 const { withUser } = require("../apiHandler");
-const { listNotify, saveNotify, deleteNotify } = require("../settingsStore");
+const { listNotify, saveNotify, deleteNotify } = require("../../stores/settingsStore");
 
 /** GET /api/notify-templates — all Anmelde-Aufruf templates. */
 const getNotifyTemplates = withUser({}, async ({ res }) => {

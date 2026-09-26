@@ -5,7 +5,7 @@
 //   beforeEach(() => fs.__store.clear());
 //
 // `fs.__store` is a Map path -> text. It covers what the stores and their base
-// (src/web/jsonStore.js) call: the atomic write goes through a temporary file
+// (src/stores/jsonStore.js) call: the atomic write goes through a temporary file
 // and renameSync, and the mtime cache asks statSync - every write, including a
 // direct `fs.__store.set(...)` in a test, gives the file a new mtime.
 // Each function is a jest.fn, so a suite can count calls or make one fail.

@@ -9,9 +9,9 @@ const { instanceById } = require("../config/gameVersions");
 const { listStoredEvents } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
 const { autoLinkLogs } = require("./logAutoLink");
-const { listByEvent: listLootByEvent } = require("./lootStore");
-const { getEventSoftres } = require("./eventSoftresStore");
-const { listLogs } = require("./logStore");
+const { listByEvent: listLootByEvent } = require("../stores/lootStore");
+const { getEventSoftres } = require("../stores/eventSoftresStore");
+const { listLogs } = require("../stores/logStore");
 const { logPostedAt } = require("./reportList");
 const { buildRecentEvents, pendingLogsForEvent } = require("./recentEvents");
 

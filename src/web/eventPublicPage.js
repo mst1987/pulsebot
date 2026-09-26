@@ -20,8 +20,8 @@
 // never disagree about who stands where.
 const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("./eventMessage");
 const { approvedSetupOf } = require("./setupCore");
-const { getEvent } = require("./eventStore");
-const { listSignups } = require("./signupStore");
+const { getEvent } = require("../stores/eventStore");
+const { listSignups } = require("../stores/signupStore");
 const { instance } = require("../config/gameVersions");
 const { clampDuration, eventEndTime } = require("../utils/time");
 const { wowIconUrl } = require("../config/menu");

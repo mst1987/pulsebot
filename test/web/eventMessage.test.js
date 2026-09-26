@@ -1,8 +1,8 @@
 // Die Anmelder-Nachricht im Event-Kanal (#254, neu gebaut in #287): Kopf, Rollen-Summen,
 // Tank-Block, Klassen-Blöcke mit Nummern, weitere Status, Links, Grenzen, Dropdown; Aussehen wie Raid-Helper (#303).
-jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
+jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
 const mockListeners = [];
-jest.mock("../../src/web/signupStore", () => ({
+jest.mock("../../src/stores/signupStore", () => ({
     listSignups: jest.fn(() => []),
     onSignupsChanged: jest.fn((fn) => {
         mockListeners.push(fn);
@@ -12,8 +12,8 @@ jest.mock("../../src/web/signupStore", () => ({
 jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
-const { getEvent, setEventMessage, listEvents } = require("../../src/web/eventStore");
-const { listSignups } = require("../../src/web/signupStore");
+const { getEvent, setEventMessage, listEvents } = require("../../src/stores/eventStore");
+const { listSignups } = require("../../src/stores/signupStore");
 const discord = require("../../src/web/discord");
 const appEmojis = require("../../src/web/appEmojis");
 const { event: baseEvent } = require("../factories/events");

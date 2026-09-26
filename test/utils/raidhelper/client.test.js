@@ -1,5 +1,5 @@
 const mockGetConfig = jest.fn();
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: mockGetConfig }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: mockGetConfig }));
 
 const MockRaidhelper = jest.fn().mockImplementation((opts) => ({ opts }));
 jest.mock("../../../src/classes/raidhelper", () => MockRaidhelper);

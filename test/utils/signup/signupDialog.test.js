@@ -1,12 +1,12 @@
 // Der Anmelde-Dialog in Discord (#258): Aufbau der Nachricht, Zustand in den
 // customIds, Längenbegrenzung.
 
-jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/web/raiderProfileStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
 const dialog = require("../../../src/utils/signup/signupDialog");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

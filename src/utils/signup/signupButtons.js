@@ -32,9 +32,9 @@
 // and every save goes through signupService.submitSignup (deadline, closed,
 // cancelled, raider role, profile rules). A customId is a hint, never a permission.
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
-const { getSignup, lastSignupOf } = require("../../web/signupStore");
+const { getSignup, lastSignupOf } = require("../../stores/signupStore");
 const { migrateSignup, MAX_CHARACTERS } = require("../../web/signupCharacters");
-const profiles = require("../../web/raiderProfileStore");
+const profiles = require("../../stores/raiderProfileStore");
 const { allowedStatuses, signupWindow } = require("../../web/signupService");
 const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../web/appEmojis");
 const { BUTTON_PREFIX } = require("../../web/eventMessage");

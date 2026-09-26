@@ -1,7 +1,7 @@
 // #291: with Raid-Helper switched off nothing asks raid-helper.xyz any more —
 // the scan stops, the readers fall back to the stored history, which stays readable.
 const mockConfig = { guildId: "g1", raidhelperRetirement: { disabled: true, at: 1, byName: "Orga" } };
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => mockConfig) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => mockConfig) }));
 
 const mockReads = {
     fetchEvents: jest.fn(), getAllEvents: jest.fn(), getPastEvents: jest.fn(), getSetup: jest.fn(),
@@ -14,17 +14,17 @@ jest.mock("../../src/web/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Gilde" }]),
 }));
 const mockPast = { id: "555", guildId: "g1", title: "Kara alt", channelId: "gone", channelName: "kara-alt", categoryId: "c1", categoryName: "Mittwoch", startTime: Math.floor(Date.now() / 1000) - 3 * 86400, signUps: [{ userId: "u1", specName: "Shadow", status: "signed" }], setup: [] };
-jest.mock("../../src/web/raidEventStore", () => ({
+jest.mock("../../src/stores/raidEventStore", () => ({
     listRaidEvents: jest.fn(() => [mockPast]),
     getRaidEvent: jest.fn(() => mockPast),
     saveRaidEvents: jest.fn(() => 0),
 }));
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 
-const { saveRaidEvents } = require("../../src/web/raidEventStore");
+const { saveRaidEvents } = require("../../src/stores/raidEventStore");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../src/utils/raidhelper/client");
 const { scanRaidEvents } = require("../../src/web/raidEventScan");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");

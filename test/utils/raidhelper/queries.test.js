@@ -15,7 +15,7 @@ jest.mock("../../../src/utils/discord/reply", () => ({
 }));
 
 const mockOwnEvents = new Map();
-jest.mock("../../../src/web/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
 
 const {
     getAllSignUps,

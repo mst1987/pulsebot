@@ -19,18 +19,18 @@ jest.mock("../../../src/web/armoryGear", () => ({
     primeArmoryGear: jest.fn(async () => ({ answered: false, configured: true })),
     clearArmoryFor: jest.fn(),
 }));
-jest.mock("../../../src/web/logGearStore", () => ({
+jest.mock("../../../src/stores/logGearStore", () => ({
     loadLogGear: jest.fn(),
     clearLogGear: jest.fn(() => true),
     recentLogs: jest.fn(() => [{ id: "rep1" }]),
 }));
 jest.mock("../../../src/config/tbcContent", () => ({ sourceForItem: jest.fn(() => null) }));
-jest.mock("../../../src/web/simStore", () => ({
+jest.mock("../../../src/stores/simStore", () => ({
     startCouncilSim: jest.fn(() => ({ started: true, status: "running" })),
     getJob: jest.fn(() => null),
 }));
 jest.mock("../../../src/config/wowsims", () => ({ searchItems: jest.fn(() => []) }));
-jest.mock("../../../src/web/councilStore", () => ({
+jest.mock("../../../src/stores/councilStore", () => ({
     listExcluded: jest.fn(() => ({})),
     include: jest.fn(() => true),
     exclude: jest.fn((character, meta) => ({ character, ...meta, at: 5 })),
@@ -40,7 +40,7 @@ jest.mock("../../../src/web/charGear", () => ({
     gearFor: jest.fn(() => null),
     charKey: jest.fn((name) => String(name).toLowerCase()),
 }));
-jest.mock("../../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 jest.mock("../../../src/config/casterSpecs", () => ({
     ...jest.requireActual("../../../src/config/casterSpecs"),
     specFor: jest.fn(() => null),
@@ -51,7 +51,7 @@ jest.mock("../../../src/utils/wowsims/engine", () => ({
     buildIndividualExport: jest.fn(() => ({ supported: true, warnings: [], data: { gear: [] } })),
 }));
 jest.mock("../../../src/web/discord", () => ({ listCategories: jest.fn(() => []) }));
-jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 let mockUser = null;
 let mockBody = {};
@@ -59,17 +59,17 @@ let mockBody = {};
 const lc = require("../../../src/web/lootCouncil");
 const { bisLists } = require("../../../src/web/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../src/web/armoryGear");
-const { loadLogGear, clearLogGear } = require("../../../src/web/logGearStore");
+const { loadLogGear, clearLogGear } = require("../../../src/stores/logGearStore");
 const { sourceForItem } = require("../../../src/config/tbcContent");
-const { startCouncilSim, getJob } = require("../../../src/web/simStore");
+const { startCouncilSim, getJob } = require("../../../src/stores/simStore");
 const { searchItems } = require("../../../src/config/wowsims");
-const councilStore = require("../../../src/web/councilStore");
+const councilStore = require("../../../src/stores/councilStore");
 const { gearFor } = require("../../../src/web/charGear");
-const { characterMap } = require("../../../src/web/characterStore");
+const { characterMap } = require("../../../src/stores/characterStore");
 const { specFor } = require("../../../src/config/casterSpecs");
 const engine = require("../../../src/utils/wowsims/engine");
 const discord = require("../../../src/web/discord");
-const { getConfig } = require("../../../src/web/settingsStore");
+const { getConfig } = require("../../../src/stores/settingsStore");
 const routesModule = require("../../../src/web/apiRoutes/lootCouncil");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,

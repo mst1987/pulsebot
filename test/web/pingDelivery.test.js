@@ -8,7 +8,7 @@ jest.mock("../../src/web/discord", () => ({
     listMembersWithRoles: jest.fn(),
     sendDirectMessage: jest.fn(),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../src/web/discord");
 const ping = require("../../src/web/pingDelivery");

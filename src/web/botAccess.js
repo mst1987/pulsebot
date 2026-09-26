@@ -11,7 +11,7 @@
 // Roles are always resolved against the *event* guild, whichever server the
 // interaction came from — members are on both.
 const { MessageFlags } = require("discord.js");
-const { getConfig } = require("./settingsStore");
+const { getConfig } = require("../stores/settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../config/variables");
 const { eventGuildId } = require("./guildRoles");

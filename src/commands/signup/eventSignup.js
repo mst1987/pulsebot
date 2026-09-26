@@ -1,5 +1,5 @@
 const { MessageFlags } = require("discord.js");
-const { getEvent } = require("../../web/eventStore");
+const { getEvent } = require("../../stores/eventStore");
 const { SIGNUP_BUTTON_PREFIX } = require("../../web/eventMessage");
 const { checkRaiderRole } = require("../../web/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");

@@ -1,20 +1,20 @@
 // #291: the Raid-Helper signups as spec history — mapping, idempotence, dry run.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
-jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../src/web/eventStore", () => ({
+jest.mock("../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 const mockGetPastEvents = jest.fn();
 const mockClient = { getPastEvents: (...a) => mockGetPastEvents(...a) };
 jest.mock("../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(() => mockClient) }));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn(() => ({})) }));
 
 const fs = require("fs");
-const { listRaidEvents } = require("../../src/web/raidEventStore");
+const { listRaidEvents } = require("../../src/stores/raidEventStore");
 const { createRaidhelperClient } = require("../../src/utils/raidhelper/client");
 const discord = require("../../src/web/discord");
-const specHistory = require("../../src/web/specHistoryStore");
+const specHistory = require("../../src/stores/specHistoryStore");
 const { planImport, runImport, perCategoryOf } = require("../../src/web/raidhelperHistoryImport");
 
 const NOW = 2000000000 * 1000;

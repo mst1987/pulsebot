@@ -5,7 +5,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 jest.mock("../../src/web/discord.js", () => ({}));
 
 const fs = require("fs");
-const logStore = require("../../src/web/logStore.js");
+const logStore = require("../../src/stores/logStore.js");
 const { linkLogByUrl } = require("../../src/web/manualLog.js");
 
 const EVENT = { id: "e1", title: "SSC/TK", startTime: 1750000000 }; // seconds

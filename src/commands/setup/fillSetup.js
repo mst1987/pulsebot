@@ -3,7 +3,7 @@ const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { botEditReply } = require("../../utils/discord/reply");
-const { isOwnEventId, getEvent } = require("../../web/eventStore");
+const { isOwnEventId, getEvent } = require("../../stores/eventStore");
 const { ownEventInChannel } = require("../../web/eventSources");
 const { raidHelperSlots } = require("../../web/setupEditor");
 

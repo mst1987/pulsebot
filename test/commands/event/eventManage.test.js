@@ -28,7 +28,7 @@ jest.mock("../../../src/web/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})), listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(() => null),
 }));
 jest.mock("../../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
@@ -44,9 +44,9 @@ const channelNaming = require("../../../src/web/channelNaming");
 const { sendDms, deliverUserPing } = require("../../../src/web/pingDelivery");
 const { updateEvent } = require("../../../src/web/eventCreate");
 const { pingMissingRaiders } = require("../../../src/web/missingPing");
-const eventStore = require("../../../src/web/eventStore");
-const signupStore = require("../../../src/web/signupStore");
-const profiles = require("../../../src/web/raiderProfileStore");
+const eventStore = require("../../../src/stores/eventStore");
+const signupStore = require("../../../src/stores/signupStore");
+const profiles = require("../../../src/stores/raiderProfileStore");
 const bot = require("../../../src/web/eventManageBot");
 const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventManageStep");

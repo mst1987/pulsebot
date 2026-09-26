@@ -1,6 +1,6 @@
 const { ok, error } = require("../apiResponse");
 const { withUser } = require("../apiHandler");
-const { listRecruitmentPosts, getConfig } = require("../settingsStore");
+const { listRecruitmentPosts, getConfig } = require("../../stores/settingsStore");
 const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
 const {

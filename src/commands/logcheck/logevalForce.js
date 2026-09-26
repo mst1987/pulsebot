@@ -3,7 +3,7 @@ const {
 } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
-const logStore = require("../../web/logStore");
+const logStore = require("../../stores/logStore");
 const discord = require("../../web/discord");
 
 // "Trotzdem auswerten" — the deliberate way past the guard that refuses to

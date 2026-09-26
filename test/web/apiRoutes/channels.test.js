@@ -12,7 +12,7 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -42,12 +42,12 @@ jest.mock("../../../src/web/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventStore", () => ({
+jest.mock("../../../src/stores/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../src/web/logStore", () => ({
+jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -82,7 +82,7 @@ jest.mock("../../../src/web/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../src/web/lootStore", () => ({
+jest.mock("../../../src/stores/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -159,12 +159,12 @@ jest.mock("../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/stores/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
@@ -185,8 +185,8 @@ jest.mock("../../../src/web/channelOps", () => {
     const actual = jest.requireActual("../../../src/web/channelOps");
     return { ...actual, runSerial: (ids, fn) => actual.runSerial(ids, fn, { pauseMs: 0 }) };
 });
-jest.mock("../../../src/web/channelArchiveStore", () => {
-    const actual = jest.requireActual("../../../src/web/channelArchiveStore");
+jest.mock("../../../src/stores/channelArchiveStore", () => {
+    const actual = jest.requireActual("../../../src/stores/channelArchiveStore");
     return {
         ...actual,
         getChannelConfig: jest.fn(() => ({ archiveCategoryId: "arch", schemas: {}, archiveDeleteHintDays: 14 })),
@@ -225,15 +225,15 @@ jest.mock("../../../src/web/apiBody", () => {
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/activeGuild");
 const discord = require("../../../src/web/discord");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/channels"));
 const { requireAdmin, requireCsrf } = require("../../../src/web/apiMiddleware");
 const { readJsonBody } = require("../../../src/web/apiBody");
 const dc = require("../../../src/web/discordChannels");
-const archiveStore = require("../../../src/web/channelArchiveStore");
-const { listRaidEvents } = require("../../../src/web/raidEventStore");
+const archiveStore = require("../../../src/stores/channelArchiveStore");
+const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("../../../src/web/raidEventGroups");
 const routes = require("../../../src/web/apiRoutes/channels");
 const realMiddleware = jest.requireActual("../../../src/web/apiMiddleware");
@@ -617,7 +617,7 @@ describe("web/apiRoutes/channels", () => {
             });
 
             describe("gleich Event anlegen", () => {
-                const { getConfig } = require("../../../src/web/settingsStore");
+                const { getConfig } = require("../../../src/stores/settingsStore");
                 const eventCreate = require("../../../src/web/eventCreate");
                 const input = { categoryId: "cat1", schema: "{tag}-{dd}-{mm}-{raid}", raid: "kara", from: "2026-09-23", count: 3, interval: "weekly", withEvent: true, time: "1930", saveSchema: true };
 

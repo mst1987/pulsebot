@@ -22,7 +22,7 @@
 //                       kept while a changed draft waits for the next approval
 //   changedSinceApproval  a draft that differs from an earlier approval
 //   explanation         { text, model, at, version } from Claude (explainText.js)
-const eventStore = require("./eventStore");
+const eventStore = require("../stores/eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
 const { specNameFor } = require("./eventSources");
 const { evaluateSetup } = require("../utils/setup/proposal");

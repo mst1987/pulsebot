@@ -12,12 +12,12 @@ jest.mock("../../src/web/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../src/web/ingestTokenStore", () => ({
+jest.mock("../../src/stores/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../src/web/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../src/stores/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../src/web/lootInboxStore", () => ({
+jest.mock("../../src/stores/lootInboxStore", () => ({
     upsertPending: jest.fn(),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -27,7 +27,7 @@ jest.mock("../../src/web/lootInboxStore", () => ({
     noteAppended: jest.fn(),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../src/web/lootStore", () => ({
+jest.mock("../../src/stores/lootStore", () => ({
     addImport: jest.fn(),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -55,9 +55,9 @@ jest.mock("../../src/utils/loot/wowhead", () => ({
     searchItems: jest.fn(async () => []),
 }));
 
-const { verifyToken, touchToken } = require("../../src/web/ingestTokenStore");
-const { resolutionFor, listPending } = require("../../src/web/lootInboxStore");
-const { eventsWithLoot } = require("../../src/web/lootStore");
+const { verifyToken, touchToken } = require("../../src/stores/ingestTokenStore");
+const { resolutionFor, listPending } = require("../../src/stores/lootInboxStore");
+const { eventsWithLoot } = require("../../src/stores/lootStore");
 const { event: baseEvent } = require("../factories/events");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const { handle } = require("../../src/web/apiRouter");

@@ -9,7 +9,7 @@ jest.mock("../../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../src/web/settingsStore", () => ({
+jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -62,7 +62,7 @@ jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock")
     editLink: jest.fn(),
 }));
 const auth = require("../../../src/web/auth");
-const settingsStore = require("../../../src/web/settingsStore");
+const settingsStore = require("../../../src/stores/settingsStore");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/notifyTemplates"));
 
 describe("web/apiRoutes/notifyTemplates", () => {

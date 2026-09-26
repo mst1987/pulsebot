@@ -6,7 +6,7 @@
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("./discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
-const { listRaidEvents } = require("./raidEventStore");
+const { listRaidEvents } = require("../stores/raidEventStore");
 const { ownMatchableEvents } = require("./eventSources");
 
 // The live channel join, or {} when Discord cannot give one right now.
