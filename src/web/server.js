@@ -1,221 +1,39 @@
+// The web server: plain HTTP, nothing else (#424). Which path answers what is
+// the business of pageRoutes.js (the pages the server owns) and routeTable.js
+// (/api/*); the background jobs start in jobs.js.
 const http = require("http");
-const crypto = require("crypto");
 const { webPort } = require("../config/variables");
-const { getReport, deleteReport } = require("./reportStore");
-const { startRaidEventScan } = require("./raidEventScan");
-const { startLogAutoLink } = require("./logAutoLink");
-const { startEventMessageSync } = require("./eventMessage");
-const { startReminders } = require("./reminders");
-const { startRoleSync } = require("./roleSync");
-const { startTalkOverview } = require("./talkOverview");
-const { startEventSeries } = require("./eventSeries");
-const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
-const { renderEventPage } = require("./eventPublicPage");
-const { renderDocsPage } = require("./docsPage");
-const { buildIcs, icsFileName } = require("./icsFeed");
-const calendarFeed = require("./calendarFeed");
-const raidplanStore = require("./raidplanStore");
-const { getEvent } = require("./eventStore");
-const { startSheetCleanup } = require("../utils/sheetCleanup");
-const { versionInfo } = require("./version");
+const { renderNotFound } = require("./render");
 const discord = require("./discord");
-const auth = require("./auth");
-const apiRouter = require("./apiRouter");
 const staticClient = require("./staticClient");
-const { serveAsset } = require("./report/assets");
+const { findPageRoute, send } = require("./pageRoutes");
 
-function send(res, status, html, headers = {}) {
-    res.writeHead(status, {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-cache",
-        ...headers,
-    });
-    res.end(html);
-}
-
-function redirect(res, location, headers = {}) {
-    res.writeHead(302, { Location: location, ...headers });
-    res.end();
-}
-
-// pending OAuth states (csrf) -> expiry
-const states = new Map();
-
+/**
+ * One request: the first entry of pageRoutes.js that fits method and path
+ * answers. Nothing fits: any method but GET is a 405; a GET is the client —
+ * "/" and every page path below it. Who may see what is decided in the client
+ * and, for real, by /api/* (apiAccess.js); an unknown path lands on the
+ * client's own "not found" page.
+ */
 async function handle(req, res) {
     const url = new URL(req.url, "http://localhost");
     let pathname = "/";
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
 
-    // --- React client (see src/web-client/), served from the root below ---
-    if (pathname.startsWith("/api/")) {
-        await apiRouter.handle(pathname, req, res, url);
-        return;
-    }
-    // The menu used to sit under /admin (and before that /admin2). It serves
-    // members looking up loot as much as officers, so it moved to the root —
-    // both old mounts redirect there, which keeps every bookmark and every link
-    // already posted in Discord working, one hop later.
-    for (const legacy of ["/admin2", "/admin"]) {
-        if (pathname === legacy || pathname.startsWith(`${legacy}/`)) {
-            const rest = pathname.slice(legacy.length);
-            return redirect(res, `${rest || "/"}${url.search || ""}`);
-        }
-    }
-
-    // --- auth routes ---
-    if (pathname === "/auth/login" && req.method === "GET") {
-        if (!auth.configured()) return send(res, 503, renderNotFound());
-        const state = crypto.randomBytes(12).toString("hex");
-        // "?next=/p/<token>": after the login back to that plan page (only such a path, nothing else)
-        const next = /^\/p\/[A-Za-z0-9_-]{8,80}$/.test(url.searchParams.get("next") || "") ? url.searchParams.get("next") : "";
-        states.set(state, { expires: Date.now() + 600000, next });
-        return redirect(res, auth.loginUrl(state));
-    }
-    if (pathname === "/auth/callback" && req.method === "GET") {
-        const code = url.searchParams.get("code");
-        const state = url.searchParams.get("state");
-        const err = url.searchParams.get("error");
-        if (err) return send(res, 400, renderError("Login abgebrochen", `Discord meldete: ${err}`));
-        if (!code) return send(res, 400, renderError("Login fehlgeschlagen", "Kein Autorisierungscode von Discord erhalten."));
-        // state is CSRF protection; if it's unknown (e.g. the bot restarted) just warn and proceed
-        if (state && !states.has(state)) console.warn("OAuth state not found (process restart?) — proceeding anyway");
-        const pending = state ? states.get(state) : null;
-        if (state) states.delete(state);
-        try {
-            const sid = await auth.completeLogin(code);
-            return redirect(res, pending && pending.next ? pending.next : "/", { "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` });
-        } catch (e) {
-            const detail = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
-            console.error("OAuth callback failed:", detail);
-            return send(res, 500, renderError("Login fehlgeschlagen", `Token-Austausch mit Discord fehlgeschlagen: ${detail}`));
-        }
-    }
-    if (pathname === "/auth/logout" && req.method === "GET") {
-        auth.destroy(auth.parseCookies(req).sid);
-        return redirect(res, "/", { "Set-Cookie": "sid=; HttpOnly; Path=/; Max-Age=0" });
-    }
-
-    // --- delete (admins only) ---
-    const dm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/?$/);
-    if (dm && req.method === "DELETE") {
-        const user = auth.getUser(req);
-        if (!user || !user.isAdmin) { res.writeHead(403); return res.end("forbidden"); }
-        const ok = deleteReport(dm[1]);
-        res.writeHead(ok ? 200 : 404);
-        return res.end(ok ? "ok" : "not found");
-    }
-
+    const hit = findPageRoute(req.method, pathname);
+    if (hit) return hit.route.handler({ req, res, url, pathname, params: hit.params, rest: hit.rest });
     if (req.method !== "GET") return send(res, 405, renderNotFound());
-
-    // Reachable without a login, and deliberately so — a health check runs
-    // before anyone could log in. It therefore carries nothing confidential:
-    // which commit is running, when it was committed, its subject and when the
-    // process came up (#314). No path, no config, no token.
-    if (pathname === "/health") {
-        const version = versionInfo();
-        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-        return res.end(JSON.stringify({
-            status: "ok",
-            commit: version.commit,
-            committedAt: version.committedAt,
-            subject: version.subject,
-            startedAt: version.startedAt,
-        }));
-    }
-    // The public report pages keep their own paths and are matched before the
-    // SPA — they are server-rendered and reachable without a login.
-    // The calendar file of an event (#308): /r/cal/<eventId>.ics. Matched before
-    // the report pages, whose id pattern would otherwise not reach it anyway.
-    // The id pattern allows nothing but [A-Za-z0-9_-], so no path can traverse.
-    //
-    // The raider's calendar subscription (#312) goes first: /r/cal/user/<token>.ics.
-    // The token is the whole authentication — calendarFeed verifies it before it
-    // reads anything, and an unknown *or* revoked one gets the same plain 404 as
-    // a path that never existed, never a hint that it once was a token.
-    const userCal = pathname.match(/^\/r\/cal\/user\/([a-zA-Z0-9_-]+)\.ics$/);
-    if (userCal) {
-        const feed = calendarFeed.feedFor(userCal[1]);
-        if (!feed) return send(res, 404, renderNotFound());
-        res.writeHead(200, {
-            "Content-Type": "text/calendar; charset=utf-8",
-            // Private: the file belongs to one raider, so no shared cache may
-            // hold it. The five minutes match the server's own cache.
-            "Cache-Control": "private, max-age=300",
-            "Content-Disposition": "inline; filename=\"meine-raids.ics\"",
-        });
-        return res.end(feed.body);
-    }
-    const cal = pathname.match(/^\/r\/cal\/([a-zA-Z0-9_-]+)\.ics$/);
-    if (cal) {
-        const event = getEvent(cal[1]);
-        if (!event) return send(res, 404, renderNotFound());
-        const body = buildIcs(event);
-        if (!body) return send(res, 404, renderNotFound());
-        res.writeHead(200, {
-            "Content-Type": "text/calendar; charset=utf-8",
-            "Cache-Control": "no-cache",
-            "Content-Disposition": `attachment; filename="${icsFileName(event.id)}"`,
-        });
-        return res.end(body);
-    }
-    // The public event page (#308): /e/<eventId>, no login, nothing personal —
-    // see eventPublicPage.js.
-    const ep = pathname.match(/^\/e\/([a-zA-Z0-9_-]+)\/?$/);
-    if (ep) {
-        const html = renderEventPage(ep[1]);
-        return send(res, html ? 200 : 404, html || renderNotFound());
-    }
-    // Room maps of the raid plan (docs/raidplan.md): /rp-map/<instance>[/<boss>], no
-    // login — the public plan page shows them too, and a map is a picture the orga
-    // uploaded, nothing personal. The key is checked against the known instances
-    // and bosses before any file is touched; the url carries ?v=<mtime>, so the
-    // long cache never hides a new upload.
-    const rpMap = pathname.match(/^\/rp-map\/((?:[te]\/[a-z0-9-]{3,40}\/)?[a-z0-9]+(?:\/[a-z0-9-]+)?)$/);
-    if (rpMap) {
-        const map = raidplanStore.readMap(rpMap[1]);
-        if (!map) return send(res, 404, renderNotFound());
-        res.writeHead(200, {
-            "Content-Type": map.mime,
-            "Cache-Control": "public, max-age=86400",
-            "X-Content-Type-Options": "nosniff",
-        });
-        return res.end(map.buffer);
-    }
-    // The report pages' stylesheet and client script (#423): /r-assets/<file>, no
-    // login, a fixed list of files — see report/assets.js.
-    if (pathname.startsWith("/r-assets/")) {
-        if (serveAsset(pathname, url, res)) return;
-        return send(res, 404, renderNotFound());
-    }
-    // The in-app documentation (#349): /docs, no login needed — the "Dokumentation"
-    // icon in the web menu's topbar (Shell.tsx) points here too. See docsPage.js.
-    if (pathname === "/docs" || pathname === "/docs/") {
-        return send(res, 200, renderDocsPage(auth.getUser(req)));
-    }
-    // per-raider detail page: /r/<id>/p/<idx>
-    const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);
-    if (pm) {
-        const report = getReport(pm[1]);
-        if (report) return send(res, 200, renderPlayerPage(report, Number(pm[2]), auth.getUser(req)));
-        return send(res, 404, renderNotFound());
-    }
-    const m = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/?$/);
-    if (m) {
-        const report = getReport(m[1]);
-        if (report) return send(res, 200, renderReportPage(report, auth.getUser(req)));
-        return send(res, 404, renderNotFound());
-    }
-    // Everything else is the client: "/" and every page path below it. Who may
-    // see what is decided in the client and, for real, by /api/* (apiAccess.js);
-    // an unknown path lands on the client's own "not found" page.
-    if (await staticClient.serve(req, res, pathname)) return;
+    if (await staticClient.serve(req, res, pathname)) return undefined;
     // Only reached when dist/ was never built — see docs/web-admin.md.
     return send(res, 404, renderNotFound());
 }
 
 let server = null;
 
-/** Start the report web server (idempotent). Pass the bot client for role lookups. */
+/**
+ * Start the web server (idempotent). Pass the bot client for role lookups.
+ * Only HTTP: the background jobs start in jobs.js (#424).
+ */
 function startWebServer(client) {
     if (client) discord.setClient(client);
     if (server) return server;
@@ -244,26 +62,6 @@ function startWebServer(client) {
     server.listen(webPort, () => {
         console.log(`Logcheck web server listening on port ${webPort}`);
     });
-    // Sweep due raid-sheet copies (deleted a few days after each raid).
-    startSheetCleanup();
-    // Periodically snapshot finished Raid-Helper events into raidEventStore (see
-    // loadRecentEvents), so a raid shows up on the dashboard even if nobody opens
-    // it right after the raid ends.
-    startRaidEventScan();
-    // Assign detected Warcraft-Logs to their raid in the background, so a log the
-    // listener could not place at detection time (Raid-Helper unreachable, event
-    // not yet known) still ends up linked without an admin clicking anything.
-    startLogAutoLink();
-    // Keep the bot's event messages of EventHelper events current as signups change.
-    startEventMessageSync();
-    // Automatic reminders per raid category and the role sync between the event
-    // and the talk server (#264). Both do nothing until configured.
-    startReminders();
-    startRoleSync();
-    // The raid overview on the talk server (#257); does nothing until configured.
-    startTalkOverview();
-    // Recurring events per category (#289): creates each date's event in time; nothing until a series exists.
-    startEventSeries();
     return server;
 }
 

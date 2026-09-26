@@ -11,7 +11,7 @@ const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 const { ensureAppEmojis } = require("./web/appEmojiSync.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
-const applicationState = require("./utils/applicationState.js");
+const { startJobs } = require("./web/jobs.js");
 const logger = require("./logger.js").child("bot");
 
 const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
@@ -183,7 +183,7 @@ function start() {
     require("./web/settingsMigration").migrateSettings();
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
-    applicationState.start();
+    startJobs(client);
 
     const token = process.env.DISCORDJS_BOT_TOKEN;
     if (!token) {
