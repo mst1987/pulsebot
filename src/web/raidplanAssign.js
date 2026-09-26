@@ -46,7 +46,7 @@ function inRoleGroup(role, playerRole) {
 // a mob of the catalog (d:.. / c:..) or the boss of the section (b:<boss key>)
 const MOB_REF = /^[dcb]:[\w\-/']{1,70}$/;
 const SPELL_ID = /^[dc]:[\w-]{1,40}$/;
-const ICON = /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/;
+const ICON = /^([a-z0-9_'-]{2,64}|(?:boss|mob):\d{1,6})$/;
 const SLOT_REF = /^slot:(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 // a class as who does it / at whom: "class:Hunter:1" = the 1st free Hunter (n counts per class and kind of task); an optional last part limits the role.
 // "class:Any:<n>:<role>" = any raider of that SPEC role ("Beliebiger Tank"); it always names the role (no class, no role = no guess).

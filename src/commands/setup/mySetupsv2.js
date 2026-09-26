@@ -12,7 +12,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("show-mysetups")
     .setDescription("Show the events where I am in the setup"),
-  async execute(interaction, client) {
+  async execute(interaction) {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       if (!interaction.channel.parent) {

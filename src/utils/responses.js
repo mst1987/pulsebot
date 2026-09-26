@@ -28,7 +28,7 @@ function setupResponse(interaction, event) {
 function mySetupResponse(interaction, events) {
   // Filter Setups, sort it and only get User data
   const setupData = events
-    .filter((event, index) => {
+    .filter((event) => {
       return event.setup.some((user) => user.userid === interaction.user.id);
     })
     .sort((eventA, eventB) => eventA.startTime - eventB.startTime)

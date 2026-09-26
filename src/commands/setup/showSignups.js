@@ -11,7 +11,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("show-signups")
         .setDescription("Show all signups for the current category"),
-    async execute(interaction, client) {
+    async execute(interaction) {
         try {
             await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             if (!interaction.channel.parent) {

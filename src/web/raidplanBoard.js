@@ -85,7 +85,7 @@ function cleanFactor(v) {
 }
 // an icon is the encounter's boss icon (boss:<WCL encounter id>), a mob's portrait (mob:<NPC id>), a spell / ability icon of the icon CDN (wow:<icon name>) or one of the two built in symbols
 const MOB_ID = /^[dcb]:[\w\-/']{1,70}$/;
-const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'\-]{2,64}|enemy|bosspos)$/;
+const ICON_KEY = /^((?:boss|mob):\d{1,6}|wow:[a-z0-9_'-]{2,64}|enemy|bosspos)$/;
 /** The saved default view of a board: zoom above 100 % (at most 400 %) and the board point in the middle of the frame; null for the whole picture. */
 function cleanView(v) {
     const o = v && typeof v === "object" ? v : {};
@@ -415,7 +415,7 @@ function cleanMobs(raw, ctx) {
         const id = str(o.id);
         if (!/^[dcb]:[\w\-/']{1,70}$/.test(id) || !str(o.name) || mobs.some((x) => x.id === id)) { ctx.dropped += 1; continue; }
         if (mobs.length >= LIMITS.mobsPerBoss) break;
-        mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'\-]{2,64}|(?:boss|mob):\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
+        mobs.push({ id, name: str(o.name).slice(0, LIMITS.label), icon: /^([a-z0-9_'-]{2,64}|(?:boss|mob):\d{1,6})$/.test(str(o.icon)) ? str(o.icon) : "" });
     }
     return mobs;
 }

@@ -141,7 +141,6 @@ function listReports() {
     const seen = new Set();
     const out = [];
     for (const f of files) {
-        const full = path.join(REPORTS_DIR, f);
         try {
             seen.add(f);
             out.push(cachedSlice(f, metaCache, metaOf));
