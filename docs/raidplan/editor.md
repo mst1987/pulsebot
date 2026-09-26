@@ -46,7 +46,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
   entry shows a tally `placed/total` and is greyed out when all are placed (`slotTally`). Existing boards are
   repaired when opened (`repairSlots`, part of `ensureBesetzung`): duplicate slots of a role above the count
   are merged into the free ones or removed, references stay valid. Regression tests in
-  `test/web-client/raidplan.test.js`.
+  `test/web-client/raidplan.slots.test.js`.
 - **Chips of the Besetzung are draggable** (`dropChip`, pure): an unplaced chip dragged onto the map places
   the slot exactly there (ghost at the pointer, Esc cancels, a drop outside the map does nothing); a placed
   chip dragged onto the bar leaves the map, dragged onto the map moves; a plain click on a chip opens its

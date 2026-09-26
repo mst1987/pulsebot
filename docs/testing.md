@@ -1,6 +1,23 @@
 # Tests: Helfer, Fabriken und Mock-Konvention
 
-Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter `test/` und spiegeln `src/`. Diese Datei sagt, was es schon gibt, damit kein Test eine eigene Kopie davon anlegt. Die Grundregeln (jedes Feature mit Tests, kein echtes Netzwerk, Stores über `tempStoreFile`) stehen im Abschnitt „Testing“ in CLAUDE.md.
+Die Suite ist Jest (`npm test`, `npm run test:coverage`); die Tests liegen unter `test/`, wo genau, sagt der nächste Abschnitt. Diese Datei sagt, was es schon gibt, damit kein Test eine eigene Kopie davon anlegt. Die Grundregeln (jedes Feature mit Tests, kein echtes Netzwerk, Stores über `tempStoreFile`) stehen im Abschnitt „Testing“ in CLAUDE.md.
+
+## Wo ein Test hingehört
+
+Die Regel (#434), kurz auch in CLAUDE.md:
+
+| Quelle | Test |
+|---|---|
+| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/web/*Store.js`) und die übrigen Module unter `src/web/` | gespiegelt: `src/utils/date.js` → `test/utils/date.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
+| ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
+| der Dispatcher `src/web/apiRouter.js` | `test/web/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
+| eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/lootCouncil.gear.test.js`, `test/web-client/raidplan.slots.test.js` |
+
+Eine Route-Suite fährt ihre Anfragen durch den echten Router (`routerClient` aus `http.js`, siehe unten) und bindet ihn an ihr Route-Modul: ein Pfad, den ein anderes Route-Modul registriert, lässt den Test sofort scheitern, statt still die falsche Datei zu testen. Sie mockt nur, was ihre Route erreicht. Wer einen Handler lieber direkt aufruft (Validierung, Randfälle), tut das in derselben Datei, wie in `apiRoutes/settings.test.js` und `apiRoutes/channels.test.js` („handlers called directly“).
+
+**Jedes Backend-Modul wird von mindestens einem Test geladen.** `test/docs/testMirror.test.js` liest alle Dateien unter `test/` und sucht für jedes `src/**/*.js` (ohne `src/web-client/` und `src/bot.js`) ein `require(...)` oder `jest.requireActual(...)` mit festem relativem Pfad; ein `jest.mock(...)`-Pfad zählt nicht. Ausnahmen stehen dort in `ALLOWED`, jede mit Grund: reine Datentabellen (`config/profanity.js`, `config/softresInstances.js`, …), die ein Test des lesenden Moduls schon abdeckt, und Dateien, die ein Test über einen berechneten Pfad lädt (`web/static/report.js`). Ein Eintrag, der nicht mehr nötig ist, lässt den Test ebenfalls scheitern. Ein neues Modul bekommt also seinen Test gleich mit, sonst ist die Suite rot.
+
+Die Generator-Skripte unter `scripts/` exportieren ihre Parse-Funktionen und starten `main()` nur bei `require.main === module`; getestet werden sie unter `test/scripts/` mit kleinen Fixtures (`test/fixtures/scripts/`).
 
 ## Was jede Suite automatisch bekommt (`test/setup/`)
 
@@ -19,9 +36,10 @@ Eingebunden über `jest.config.js`, ohne dass ein Test etwas tun muss:
 | `mockInteraction.js` | `mockInteraction(opts)` — eine Discord-Interaction mit `reply`/`editReply`/`followUp`/`showModal` als `jest.fn`; `makeCollection(entries)` — Map mit `find`/`filter` wie eine discord.js-Collection. Für alles unter `src/commands/`. |
 | `discordClient.js` | `makeClient({ guilds, channels, members, user, ready, missing })`, `makeGuild(...)`, `makeChannel(...)`, `makeMember(...)`, `discordError(kind)` — ein Bot-Client aus Collections. `fetch(id)` liefert den Cache-Eintrag, ein Fehlgriff wirft wie Discord (Code 10003/10004/10007/10008) oder liefert mit `missing: "null"` null. Sonderformen (Scheduled Events, fehlschlagendes `messages.fetch`) kommen über `...over`. |
 | `discordMock.js` | `withClientHelpers(mock)` — für Suites, die `src/web/discord.js` mocken: `isOnline()` und `fetchTextChannel()` lesen dann den Client, den der gemockte `getClient()` liefert. |
-| `http.js` | `mockRes()`, `status(res)`, `json(res)` (ganzer Umschlag), `body(res)` (`data` des Umschlags, sonst der Umschlag), `jsonRequest(method, path, payload, headers)` (EventEmitter mit JSON-Body), `apiMiddlewareMock({ user, fullAdmin, csrf })` und `apiBodyMock({ body, raw })` als fertige Factory-Mocks. Für alle Route-Handler `(req, res, url)`. |
+| `http.js` | `mockRes()`, `status(res)`, `json(res)` (ganzer Umschlag), `body(res)` (`data` des Umschlags, sonst der Umschlag), `jsonRequest(method, path, payload, headers)` (EventEmitter mit JSON-Body), `apiMiddlewareMock({ user, fullAdmin, csrf })` und `apiBodyMock({ body, raw })` als fertige Factory-Mocks, `routerClient(routeModule)` (liefert `get`/`post`/`patch`/`request`/`urlFor`/`handle`, fährt die Anfrage durch `apiRouter.handle` samt Area-Gate und CSRF-Header und lässt einen Pfad eines fremden Route-Moduls scheitern). Für alle Route-Handler `(req, res, url)`. |
 | `tempStore.js` | `tempStoreFile(name)` — eine Datei in einem eigenen `mkdtemp`-Verzeichnis für `store.useFile(...)`; das Aufräumen registriert der Helfer selbst. |
 | `memoryFs.js` | `memoryFs()` — ein `fs` im Speicher für Store-Suites (`jest.mock("fs", () => require("../helpers/memoryFs").memoryFs())`, Inhalt in `fs.__store`). |
+| `lootCouncil.js` | `DAY`, `now`, `lootRow`, `gearOf`, `item` — die Loot- und Gear-Zeilen, die sich die `test/web/lootCouncil.<thema>.test.js`-Suiten teilen (die `jest.mock`-Aufrufe stehen weiter in jeder Suite). |
 | `signupMocks.js` | In-Memory-`eventStore`/`signupStore`/`discord`/`settingsStore` für den Anmelde-Dialog; `signupService` läuft echt darauf. |
 | `botCommandAccess.js` | `memberMayRun(command, config)` — prüft die echten Zugriffsregeln (`web/botAccess.js`) für einen Befehl. |
 | `tempRepo.js` | Ein Wegwerf-Git-Repo mit verknüpftem Worktree, nur für die Hook-Tests unter `test/claude-hooks/`. |
