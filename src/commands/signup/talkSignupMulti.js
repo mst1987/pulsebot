@@ -1,5 +1,5 @@
 const { MessageFlags } = require("discord.js");
-const { publicBaseUrl } = require("../../config/variables");
+const { publicBaseUrl } = require("../../utils/publicUrl");
 const profiles = require("../../web/raiderProfileStore");
 const { MULTI_BUTTON_ID } = require("../../web/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../web/appEmojis");
@@ -9,7 +9,6 @@ const { createSession, getSession, signableRaids, buildRaidPicker } = require(".
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
 // step 1, only for the member — the coming raids (all preselected), the status
 // for all of them and "Weiter: Charaktere" (commands/signup/signupMulti.js).
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 
 /** Without a profile character there is nothing to pick — the reply says where to add one. */
 function noCharacterReply() {
@@ -17,8 +16,8 @@ function noCharacterReply() {
         content: "To sign up for several raids you need characters with a spec in your profile.",
         flags: MessageFlags.Ephemeral,
     };
-    if (/^https?:\/\//.test(baseUrl())) {
-        payload.components = [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${baseUrl()}/profile` }] }];
+    if (/^https?:\/\//.test(publicBaseUrl())) {
+        payload.components = [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${publicBaseUrl()}/profile` }] }];
     }
     return payload;
 }

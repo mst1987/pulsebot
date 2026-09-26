@@ -16,6 +16,7 @@ const { userCanAny } = require("../../config/permissions");
 const { parseClockTime } = require("../../utils/date");
 const channelNaming = require("../channelNaming");
 const { DEFAULT_SCHEMA, PLACEHOLDERS, planChannels, placementFor, renderChannelName } = require("../../utils/channelNames");
+const { TIMEZONE } = require("../../config/timezone");
 
 /** The word a bulk delete must be confirmed with (a single delete wants the channel's name). */
 const BULK_DELETE_WORD = "LÖSCHEN";
@@ -271,7 +272,7 @@ async function deleteChannels(req, res) {
 
 /** A day in the guild's time zone ("2026-09-23") for an event start in seconds. */
 function dayOf(startTime) {
-    return startTime ? DateTime.fromSeconds(Number(startTime), { zone: "Europe/Berlin" }).toISODate() : "";
+    return startTime ? DateTime.fromSeconds(Number(startTime), { zone: TIMEZONE }).toISODate() : "";
 }
 
 /** The part of a naming result the page shows: the badge and its tooltip (#285). */

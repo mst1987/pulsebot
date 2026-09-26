@@ -18,6 +18,25 @@ export default defineConfig(() => ({
     // serve the app from the site root, so the base is the same either way.
     base: "/",
     plugins: [react()],
+    build: {
+        rollupOptions: {
+            output: {
+                // The libraries change far less often than our own code: in
+                // chunks of their own they stay cached across deploys (#436).
+                // The pages are split by the lazy imports in App.tsx.
+                manualChunks(id: string) {
+                    // A language other than German is loaded only when chosen
+                    // (i18n/index.ts) — as one chunk, not one per namespace.
+                    const lang = id.match(/[\\/]i18n[\\/]locales[\\/](\w+)[\\/]/);
+                    if (lang && lang[1] !== "de") return `i18n-${lang[1]}`;
+                    if (!id.includes("node_modules")) return undefined;
+                    if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return "vendor-icons";
+                    if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|@remix-run)[\\/]/.test(id)) return "vendor-react";
+                    return undefined;
+                },
+            },
+        },
+    },
     server: {
         port: Number(process.env.WEB_CLIENT_PORT) || 4015,
         // src/config/menu.json lives outside the client's own folder — the menu

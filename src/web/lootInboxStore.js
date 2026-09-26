@@ -21,7 +21,7 @@
 // none of this can double-count an award.
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
+const { newId } = require("../utils/ids");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const INBOX_FILE = path.join(SETTINGS_DIR, "loot-inbox.json");
@@ -48,10 +48,6 @@ function writeState(state) {
         pending: state.pending,
         resolved: state.resolved.slice(-MAX_RESOLVED),
     }, null, 2));
-}
-
-function newId() {
-    return crypto.randomBytes(6).toString("hex");
 }
 
 const itemKey = (it) => `${it.source}::${it.rawId}`;

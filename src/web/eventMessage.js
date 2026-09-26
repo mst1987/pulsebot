@@ -60,7 +60,7 @@
 // Nothing personal goes in beyond the character names the raiders signed up
 // with — the names the channel would see in Raid-Helper, too.
 const crypto = require("crypto");
-const { publicBaseUrl } = require("../config/variables");
+const { publicBaseUrl } = require("../utils/publicUrl");
 // Colour and picture of the embed (#307): the event's own, else the rule set of
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
@@ -79,6 +79,7 @@ const { migrateSignup } = require("./signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
+const { clip } = require("../utils/text");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
@@ -136,11 +137,6 @@ function pickSelectId(eventId) {
     return `${PICK_PREFIX}:${eventId}`;
 }
 
-const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
-const clip = (text, max) => {
-    const s = String(text || "");
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 /** A name as plain text — no bold, links or mentions sneaking in through markdown. */
 const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$1").replace(/@/g, "@\u200b");
 
@@ -529,7 +525,7 @@ function buildEventMessage(event, signups, {
     // it and added height on top of an already tall embed (#352). The Setup
     // link below still points at it.
     const setupText = approvedSetupText(event);
-    const base = baseUrl();
+    const base = publicBaseUrl();
     const id = encodeURIComponent(event.id);
     const links = [];
     // The public event page first (#308): it is the link everyone in the channel
@@ -577,14 +573,6 @@ function payloadHash(payload) {
     return crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
 }
 
-async function textChannel(channelId) {
-    const client = discord.getClient();
-    if (!client) throw new Error("Bot nicht verbunden.");
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
-    return channel;
-}
-
 /** The payload with the application emojis (read once per process; labels without them). */
 async function payloadFor(event) {
     await loadAppEmojis(discord.getClient());
@@ -605,7 +593,7 @@ async function payloadFor(event) {
 }
 
 async function postPayload(event, payload) {
-    const channel = await textChannel(event.channelId);
+    const channel = await discord.fetchTextChannel(event.channelId);
     const posted = await channel.send(payload);
     const where = { channelId: channel.id, messageId: posted.id };
     setEventMessage(event.id, { ...where, hash: payloadHash(payload) });
@@ -638,7 +626,7 @@ async function refreshEventMessage(eventId) {
             return { channelId: event.message.channelId, messageId: event.message.messageId, reposted: false, unchanged: true };
         }
         try {
-            const channel = await textChannel(event.message.channelId);
+            const channel = await discord.fetchTextChannel(event.message.channelId);
             const message = await channel.messages.fetch(event.message.messageId);
             await message.edit(payload);
             setEventMessage(event.id, { channelId: event.message.channelId, messageId: event.message.messageId, hash });

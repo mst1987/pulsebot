@@ -19,16 +19,10 @@
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-// Paths that live in the primary checkout on purpose and never mean "an agent
-// wrote here". Anchored on both ends and matched against the path git reports
-// (relative to the repository root, forward slashes), so they cannot swallow a
-// real finding: `.env.dev` passes, `src/.env.js` and `nodemon.json` do not.
-const ALLOWED = [
-    /^\.env(\.[A-Za-z0-9_.-]+)?$/, // .env, .env.dev, .env.dev.bak - local only, never on origin
-    /^data(\/|$)/, // the bot's own data directory (git-ignored, listed here for a `-uall` run)
-    /^nodemon$/, // a stray file from a mistyped `npm run dev`
-    /^tbc-guild-simulator-backend@0\.1\.0$/, // a stray file from a mistyped `npm install`
-];
+// What lives in the primary checkout on purpose (.env, .env.dev, data/, ...)
+// is git-ignored, and git status leaves an ignored file out on its own. There
+// is no list of excused names here: a stray file is a finding until
+// .gitignore says otherwise (#416).
 
 const LABELS = {
     M: "modified",
@@ -51,12 +45,6 @@ function tryGit(gitFn, args, cwd, opts) {
     } catch {
         return null;
     }
-}
-
-/** True when git's path is one of the known-good names. */
-function isAllowed(file) {
-    const clean = String(file || "").replace(/\/+$/, "");
-    return ALLOWED.some((re) => re.test(clean));
 }
 
 /**
@@ -110,12 +98,11 @@ function findings(opts = {}) {
     if (!main) return { main: "", entries: [] }; // not a git repository: nothing to guard
 
     // -uall lists every untracked file by name; the default would collapse a new
-    // directory into "test/" and say nothing about what is in it.
-    const raw = tryGit(gitFn, ["-C", main, "status", "--porcelain", "-z", "-uall"], cwd, { trim: false });
+    // directory into "test/" and say nothing about what is in it. --ignored=no
+    // spells out that a git-ignored file is never a finding.
+    const raw = tryGit(gitFn, ["-C", main, "status", "--porcelain", "-z", "-uall", "--ignored=no"], cwd, { trim: false });
     if (raw === null) return { main, entries: [] };
-    const entries = parseStatus(raw)
-        .filter((e) => !isAllowed(e.file))
-        .map((e) => ({ ...e, label: label(e.code) }));
+    const entries = parseStatus(raw).map((e) => ({ ...e, label: label(e.code) }));
     return { main, entries };
 }
 
@@ -144,4 +131,4 @@ if (require.main === module) {
     process.exit(main({ cwd: process.argv[2] }));
 }
 
-module.exports = { findings, format, main, isAllowed, mainWorktree, parseStatus, label, ALLOWED };
+module.exports = { findings, format, main, mainWorktree, parseStatus, label };

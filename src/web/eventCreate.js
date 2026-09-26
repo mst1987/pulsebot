@@ -30,12 +30,12 @@ const { emojiStyleOf } = require("./appEmojis");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 const SOURCES = ["raidhelper", "eventhelper"];
 
 /** Unix seconds of a "dd-MM-yyyy" date and "HH:mm" time in Berlin time, or 0. */
 function startTimeOf(date, time) {
-    const dt = DateTime.fromFormat(`${date} ${String(time || "").trim()}`, "dd-MM-yyyy H:mm", { zone: ZONE });
+    const dt = DateTime.fromFormat(`${date} ${String(time || "").trim()}`, "dd-MM-yyyy H:mm", { zone: TIMEZONE });
     return dt.isValid ? Math.floor(dt.toSeconds()) : 0;
 }
 
@@ -470,7 +470,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     if (body.date !== undefined || body.time !== undefined) {
-        const cur = DateTime.fromSeconds(current.startTime, { zone: ZONE });
+        const cur = DateTime.fromSeconds(current.startTime, { zone: TIMEZONE });
         const date = body.date !== undefined ? toRaidHelperDate(body.date) : cur.toFormat("dd-MM-yyyy");
         if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
         const startTime = startTimeOf(date, body.time !== undefined ? body.time : cur.toFormat("HH:mm"));

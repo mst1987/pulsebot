@@ -178,18 +178,16 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
  * was picked up live. Returns the number of new logs found.
  */
 async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
-    const client = discord.getClient();
-    if (!client) return 0;
+    if (!discord.isOnline()) return 0;
     const ids = getConfig().logChannelIds || [];
     let count = 0;
     for (const channelId of ids) {
         let channel;
         try {
-            channel = await client.channels.fetch(channelId);
+            channel = await discord.fetchTextChannel(channelId);
         } catch {
             continue;
         }
-        if (!channel || !channel.isTextBased()) continue;
         if (guildId && channel.guildId !== guildId) continue;
         let messages;
         try {

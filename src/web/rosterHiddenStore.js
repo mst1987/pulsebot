@@ -16,12 +16,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
-
-/** Keyed like lootStore/councilStore: lower case, without the realm suffix. */
-function characterKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
+const { characterKeyOf } = require("../utils/lootImport");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const HIDDEN_FILE = path.join(SETTINGS_DIR, "roster-hidden.json");
@@ -47,7 +42,7 @@ function listHidden() {
 
 /** Whether this character is hidden right now. */
 function isHidden(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     return !!(key && readAll()[key]);
 }
 
@@ -61,7 +56,7 @@ function hiddenKeys() {
  * name. Hiding someone twice refreshes the note instead of failing.
  */
 function hide(character, { reason = "", by = "" } = {}) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     const all = readAll();
     all[key] = {
@@ -76,7 +71,7 @@ function hide(character, { reason = "", by = "" } = {}) {
 
 /** Put them back. True when something was actually removed. */
 function unhide(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return false;
     const all = readAll();
     if (!all[key]) return false;
@@ -94,4 +89,4 @@ function reset() {
     }
 }
 
-module.exports = { listHidden, isHidden, hiddenKeys, hide, unhide, reset, characterKey, HIDDEN_FILE };
+module.exports = { listHidden, isHidden, hiddenKeys, hide, unhide, reset, characterKey: characterKeyOf, HIDDEN_FILE };

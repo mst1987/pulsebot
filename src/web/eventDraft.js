@@ -41,19 +41,19 @@ const { instanceById } = require("../config/gameVersions");
 const { WEEKDAYS } = require("../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../utils/date");
 const { webUrl, clip } = require("../utils/botLookup");
+const { isSnowflake } = require("../utils/ids");
 
 const STEP_PREFIX = "event-new";
 const FORM_PREFIX = "event-form";
 const CUSTOM_ID_MAX = 100;
 const MAX_OPTIONS = 25;
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 
 const MODES = ["n", "d", "e"]; // new by schema · duplicate · existing channel
 const MODE_LABELS = { n: "Neu nach Schema", d: "Kanal eines Events duplizieren", e: "Bestehender Kanal" };
 const SOURCES = { e: "eventhelper", r: "raidhelper" };
 const SOURCE_LABELS = { e: "EventHelper", r: "Raid-Helper" };
 
-const SNOWFLAKE = /^\d{5,25}$/;
 // Template ids are 12 hex characters or "rh-<id>"; a longer one is not offered,
 // so the state always fits a customId.
 const TEMPLATE_ID = /^[A-Za-z0-9_-]{1,24}$/;
@@ -69,7 +69,7 @@ const COLOR_ERR = 0xe5534b;
 function cleanState(raw = {}) {
     const s = String;
     return {
-        cat: SNOWFLAKE.test(s(raw.cat || "")) ? s(raw.cat) : "",
+        cat: isSnowflake(s(raw.cat || "")) ? s(raw.cat) : "",
         tpl: TEMPLATE_ID.test(s(raw.tpl || "")) ? s(raw.tpl) : "",
         mode: MODES.includes(raw.mode) ? raw.mode : "n",
         src: SOURCES[raw.src] ? raw.src : "",
@@ -120,7 +120,7 @@ function eventCategories(guildId) {
     const all = discord.listCategories(guildId) || [];
     const ids = (getConfig().categoryIds || []).map(String);
     const list = ids.length ? all.filter((c) => ids.includes(c.id)) : all;
-    return list.filter((c) => SNOWFLAKE.test(c.id)).slice(0, MAX_OPTIONS);
+    return list.filter((c) => isSnowflake(c.id)).slice(0, MAX_OPTIONS);
 }
 
 /** Templates that make sense for a source: a size for EventHelper, a Raid-Helper link for Raid-Helper. */
@@ -198,7 +198,7 @@ async function duplicateCandidates(guildId, cat) {
 
 const dayLabel = (seconds) => {
     if (!seconds) return "";
-    const dt = DateTime.fromSeconds(Number(seconds), { zone: ZONE });
+    const dt = DateTime.fromSeconds(Number(seconds), { zone: TIMEZONE });
     const wd = WEEKDAYS[dt.weekday % 7];
     return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${dt.toFormat("dd.MM.")}`;
 };
@@ -306,7 +306,7 @@ async function stepMessage(guildId, rawState) {
     } else if (state.mode === "e") {
         components.push(row({
             type: 8, custom_id: stepId("r", state), placeholder: "Kanal wählen", channel_types: [0],
-            ...(state.ref && SNOWFLAKE.test(state.ref) ? { default_values: [{ id: state.ref, type: "channel" }] } : {}),
+            ...(state.ref && isSnowflake(state.ref) ? { default_values: [{ id: state.ref, type: "channel" }] } : {}),
         }));
     }
     const ready = !!state.cat && (state.mode === "n" || !!state.ref) && (state.src === "e" || !!state.tpl);
@@ -336,7 +336,7 @@ async function stepMessage(guildId, rawState) {
 function applyStep(state, field, value = "") {
     const v = String(value || "");
     switch (field) {
-    case "c": return withCategory(state, SNOWFLAKE.test(v) ? v : "");
+    case "c": return withCategory(state, isSnowflake(v) ? v : "");
     case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "" };
     case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
     case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
@@ -476,7 +476,7 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
     const time = parseClockTime(values.time);
     if (!time) return fail(`„${clip(values.time, 20)}“ ist keine Uhrzeit (z. B. 19:30).`);
     // Berlin time, the same reading eventCreate.startTimeOf() gives the stored event.
-    const start = DateTime.fromISO(`${date}T${time}`, { zone: ZONE });
+    const start = DateTime.fromISO(`${date}T${time}`, { zone: TIMEZONE });
     if (!start.isValid) return fail("Datum oder Uhrzeit ergeben keinen Zeitpunkt.");
     const startTime = Math.floor(start.toSeconds());
     if (startTime * 1000 <= now) return fail(`${dayLabel(startTime)} ${time} liegt in der Vergangenheit.`);

@@ -15,9 +15,10 @@
 // profiles.
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { isMapKey } = require("./raidplanStore");
 const stepsOf = require("./raidplanSteps");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
 
 const DEFAULT_FILE = path.join(__dirname, "..", "..", "data", "settings", "raidplan-profiles.json");
 
@@ -30,7 +31,6 @@ function useFile(file) {
     profileFile = file || DEFAULT_FILE;
 }
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
 function readAll() {
     try {
@@ -128,7 +128,7 @@ function createProfile(input, { now = Date.now() } = {}) {
     if (checked.error) return checked;
     const all = readAll();
     if (all.length >= LIMITS.profiles) return { code: "invalid", error: `Höchstens ${LIMITS.profiles} Profile.` };
-    const profile = normalize({ ...checked.value, id: crypto.randomBytes(6).toString("hex"), updatedAt: now });
+    const profile = normalize({ ...checked.value, id: newId(), updatedAt: now });
     all.push(profile);
     writeAll(all);
     return { profile };

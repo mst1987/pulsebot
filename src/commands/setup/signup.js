@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
-const { publicBaseUrl } = require("../../config/variables");
+const { publicBaseUrl } = require("../../utils/publicUrl");
 const { botReply, formatSpecs, formatSignUps } = require("../../utils/helper");
 const { ownEventInChannel } = require("../../web/eventSources");
 
@@ -22,7 +22,7 @@ module.exports = {
     async execute(interaction, client) {
         const own = ownEventInChannel(interaction.channel && interaction.channel.id);
         if (own) {
-            const base = String(publicBaseUrl || "").replace(/\/+$/, "");
+            const base = publicBaseUrl();
             const link = base ? `\n[Im Web anmelden](${base}/signups?event=${encodeURIComponent(own.id)})` : "";
             return botReply(
                 interaction,

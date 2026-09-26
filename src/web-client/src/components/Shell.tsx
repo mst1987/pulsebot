@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
@@ -6,9 +6,10 @@ import GuildSwitcher from "./GuildSwitcher";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
 import { CrestIcon, BurgerIcon, LogoutIcon, BookIcon } from "./icons";
 import WowIcon from "./ui/WowIcon";
+import RaidLoader from "./ui/RaidLoader";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
-import { MENU, type MenuEntry } from "../lib/menu";
+import { MENU, firstAllowedTab, type MenuEntry } from "../lib/menu";
 import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild } from "../api";
 import { deployLine, type DeployVersion } from "../lib/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../i18n";
@@ -23,10 +24,6 @@ export type ShellContext = { user: SessionUser; csrfToken: string | null };
 type Tab = MenuEntry;
 export const TABS: Tab[] = MENU;
 
-/** The first tab the user may open — where a limited user lands instead of "/". */
-export function firstAllowedTab(user: SessionUser): Tab | null {
-    return TABS.find((t) => canAccessAny(user, t.areas)) || null;
-}
 
 // Matches a tab's own path or one of its sub-routes (e.g. "/raids/new" under "/raids").
 function matchesTab(tabHref: string, pathname: string): boolean {
@@ -203,7 +200,11 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                 <div className="content" key={lang}>
                     {/* While an admin looks at the menu as a role: which one, and the way back. */}
                     <ViewAsBanner user={user} csrfToken={csrfToken} />
-                    <Outlet context={{ user, csrfToken } satisfies ShellContext} />
+                    {/* Every page is its own chunk (App.tsx, #436): while one loads,
+                        the menu stays and only the page body shows the loader. */}
+                    <Suspense fallback={<RaidLoader />}>
+                        <Outlet context={{ user, csrfToken } satisfies ShellContext} />
+                    </Suspense>
                 </div>
             </div>
             <TipLayer />

@@ -3,7 +3,7 @@ const wowhead = require("../../src/utils/wowhead");
 const {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
     buildManualItem, detectImportDate, enrichItemNames,
-    splitPlayer, characterKey, itemLink, LootParseError, EH_FORMAT, EH_VERSION,
+    splitPlayer, characterKey, characterKeyOf, itemLink, LootParseError, EH_FORMAT, EH_VERSION,
 } = require("../../src/utils/lootImport");
 
 // Real rows taken (trimmed) from the actual exports on the server.
@@ -44,6 +44,18 @@ describe("utils/lootImport", () => {
     describe("characterKey", () => {
         it("lowercases for case-insensitive grouping", () => {
             expect(characterKey("Naphfß")).toBe(characterKey("naphfß"));
+        });
+    });
+
+    describe("characterKeyOf", () => {
+        it("drops the realm suffix, then keys like characterKey", () => {
+            expect(characterKeyOf("Keslight-Thunderstrike")).toBe("keslight");
+            expect(characterKeyOf(" Keslight ")).toBe("keslight");
+            expect(characterKeyOf("keslight")).toBe(characterKey("Keslight"));
+        });
+        it("is empty for a missing name", () => {
+            expect(characterKeyOf(null)).toBe("");
+            expect(characterKeyOf("")).toBe("");
         });
     });
 

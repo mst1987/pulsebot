@@ -7,6 +7,9 @@
 // and the primary action can never disagree, and so the rules are covered by
 // plain Jest tests instead of living untested in TSX.
 
+const { plural } = require("../utils/text");
+const { TIMEZONE } = require("../config/timezone");
+
 const LOOT_TOOL_LABELS = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
 const SECTION_LABELS = { cla: "CLA", rpb: "RPB" };
 const SECTIONS = ["cla", "rpb"];
@@ -14,7 +17,7 @@ const SECTIONS = ["cla", "rpb"];
 /** "17.09." in the display time zone the rest of the menu uses. */
 function shortDate(ms) {
     if (!ms) return "";
-    return new Date(ms).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" });
+    return new Date(ms).toLocaleDateString("de-DE", { timeZone: TIMEZONE, day: "2-digit", month: "2-digit" });
 }
 
 /**
@@ -324,13 +327,9 @@ const ATTENDING = ["signed", "late"];
 function whenLabel(seconds) {
     if (!seconds) return "";
     const d = new Date(seconds * 1000);
-    const day = d.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", weekday: "short", day: "2-digit", month: "2-digit" });
-    const time = d.toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
+    const day = d.toLocaleDateString("de-DE", { timeZone: TIMEZONE, weekday: "short", day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleTimeString("de-DE", { timeZone: TIMEZONE, hour: "2-digit", minute: "2-digit" });
     return `${day} · ${time} Uhr`;
-}
-
-function plural(n, one, many) {
-    return `${n} ${n === 1 ? one : many}`;
 }
 
 /** Eine Tat: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */

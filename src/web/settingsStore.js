@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const {
     officerRoleId, applicationChannelId,
     highestBidsChannelId, highestBidsMessageId, categoryIds,
@@ -13,6 +12,7 @@ const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require
 const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("./lootSystem");
 const { normalizeCategoryMessageLook } = require("./embedLook");
+const { isSnowflake, newId } = require("../utils/ids");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -199,10 +199,6 @@ function readJson(file, fallback) {
 function writeJson(file, data) {
     ensureDir();
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-
-function newId() {
-    return crypto.randomBytes(6).toString("hex");
 }
 
 /** All recruitment templates, newest-edited first. */
@@ -572,7 +568,7 @@ function normalizeRoleSync(raw) {
         if (!entry || typeof entry !== "object") continue;
         const eventRoleId = String(entry.eventRoleId || "").trim();
         const talkRoleId = String(entry.talkRoleId || "").trim();
-        if (!SNOWFLAKE.test(eventRoleId) || !SNOWFLAKE.test(talkRoleId)) continue;
+        if (!isSnowflake(eventRoleId) || !isSnowflake(talkRoleId)) continue;
         const key = `${eventRoleId}:${talkRoleId}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -615,7 +611,7 @@ function normalizeCategoryReminders(raw) {
     const out = {};
     for (const [catId, rule] of Object.entries(raw)) {
         const key = String(catId).trim();
-        if (!SNOWFLAKE.test(key) || !rule || typeof rule !== "object") continue;
+        if (!isSnowflake(key) || !rule || typeof rule !== "object") continue;
         const missingHours = reminderHours(rule.missingHours);
         const signedHours = reminderHours(rule.signedHours);
         if (!missingHours && !signedHours) continue;
@@ -645,9 +641,6 @@ function categoryRaidTemplateOf(stored) {
     return Object.fromEntries(categories.map((id) => [String(id), template.id]));
 }
 
-// A Discord snowflake: digits only. Anything else (a pasted link, a name) is
-// dropped rather than stored as an id no lookup can ever resolve.
-const SNOWFLAKE = /^\d{5,25}$/;
 const DISCORD_SERVER_KEYS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId"];
 // A sanity bound, not a real product constraint.
 const MAX_EVENT_GUILDS = 10;
@@ -664,10 +657,10 @@ const EVENT_GUILD_LABEL_MAX = 60;
 function normalizeEventGuildEntry(raw) {
     if (!raw || typeof raw !== "object") return null;
     const guildId = String(raw.guildId || "").trim();
-    if (!SNOWFLAKE.test(guildId)) return null;
+    if (!isSnowflake(guildId)) return null;
     const overviewGuildId = String(raw.overviewGuildId || "").trim();
     const overviewChannelId = String(raw.overviewChannelId || "").trim();
-    const hasTarget = SNOWFLAKE.test(overviewGuildId) && SNOWFLAKE.test(overviewChannelId);
+    const hasTarget = isSnowflake(overviewGuildId) && isSnowflake(overviewChannelId);
     return {
         guildId,
         label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX),
@@ -684,7 +677,7 @@ function normalizeEventGuildEntry(raw) {
  */
 function migrateLegacyEventGuilds(raw) {
     const guildId = String(raw.eventGuildId || "").trim();
-    if (!SNOWFLAKE.test(guildId)) return [];
+    if (!isSnowflake(guildId)) return [];
     return [{
         guildId,
         label: "",
@@ -726,7 +719,7 @@ function normalizeDiscordServers(raw) {
     const out = {};
     for (const key of DISCORD_SERVER_KEYS) {
         const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
-        out[key] = SNOWFLAKE.test(value) ? value : "";
+        out[key] = isSnowflake(value) ? value : "";
     }
     out.eventGuilds = normalizeEventGuilds(src.eventGuilds, src);
     if (out.talkGuildId && out.eventGuilds.some((e) => e.guildId === out.talkGuildId)) out.talkGuildId = "";
@@ -783,7 +776,7 @@ function normalizeCategoryVoiceChannel(raw) {
     for (const [catId, channelId] of Object.entries(raw)) {
         const key = String(catId).trim();
         const value = String(channelId === null || channelId === undefined ? "" : channelId).trim();
-        if (key && /^\d{5,25}$/.test(value)) out[key] = value;
+        if (key && isSnowflake(value)) out[key] = value;
     }
     return out;
 }

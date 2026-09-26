@@ -8,7 +8,7 @@
 // realm's Europe/Berlin — and says so.
 const { DateTime } = require("luxon");
 
-const SERVER_ZONE = "Europe/Berlin";
+const { TIMEZONE: SERVER_ZONE } = require("../config/timezone");
 // t 19:30 · T 19:30:00 · d 17/09/2026 · D 17 September 2026 · f D + t · F weekday + f · R "in 2 days"
 const STYLES = ["t", "T", "d", "D", "f", "F", "R"];
 

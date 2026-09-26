@@ -45,10 +45,11 @@
 // switched back on). Colour and opacity are separate fields.
 //
 // Coordinates are relative to the board (0..1). A save is cleaned, never trusted.
-const crypto = require("crypto");
 const assign = require("./raidplanAssign");
 const steps = require("./raidplanSteps");
 const besetzung = require("./raidplanBesetzung");
+const { str } = require("../utils/text");
+const { newId } = require("../utils/ids");
 
 // cleanBoard's llowedUserIds value that keeps every well-formed player id
 const ANY_PLAYER = "*";
@@ -141,10 +142,8 @@ const LINE_KINDS = ["arrow", "line"];
 const DEFAULT_LINE_COLOR = "#f8fafc";
 const DEFAULT_TEXT_COLOR = "#f8fafc";
 
-const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 const clamp01 = (n) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 const round4 = (n) => Math.round(n * 10000) / 10000;
-const newId = () => crypto.randomBytes(5).toString("hex");
 
 /** 0.1..1 in steps of 0.01; `fallback` for anything that is no number. */
 function cleanOpacity(v, fallback) {
@@ -177,7 +176,7 @@ const cleanColor = (v, fallback) => (/^#[0-9a-fA-F]{6}$/.test(str(v)) ? str(v).t
 /** A usable id: what the client sent when it is clean and not yet used, else a new one. */
 function cleanId(raw, seen) {
     let id = str(raw).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
-    if (!id || seen.has(id)) id = newId();
+    if (!id || seen.has(id)) id = newId(5);
     seen.add(id);
     return id;
 }
@@ -478,7 +477,7 @@ function boardHasContent(b) {
 
 /** The same board with every object under a new id — a template copied into a plan. */
 function reidBoard(board) {
-    const fresh = (o) => ({ ...o, id: newId() });
+    const fresh = (o) => ({ ...o, id: newId(5) });
     // the icons get new ids: a row that means one of them (a mob target's `oid`) follows it
     const icons = (board.icons || []).map(fresh);
     const iconIds = new Map((board.icons || []).map((ic, i) => [ic.id, icons[i].id]));

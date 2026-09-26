@@ -53,6 +53,9 @@ const googleSpreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || "";
 const googleSheetName = process.env.GOOGLE_SHEET_NAME || "Setup";
 const googleSheetGid = Number(process.env.GOOGLE_SHEET_GID) || 34139428;
 
+// The server time zone (source: config/timezone.js).
+const { TIMEZONE } = require("./timezone");
+
 // Logcheck web server (serves the generated report pages)
 const webPort = Number(process.env.WEB_PORT) || 3005;
 const publicBaseUrl =
@@ -83,6 +86,7 @@ const adminRoleIds = (process.env.ADMIN_ROLE_IDS || "")
     .filter(Boolean);
 
 module.exports = {
+    TIMEZONE,
     adminUserId,
     guildId,
     raidhelperServerId,

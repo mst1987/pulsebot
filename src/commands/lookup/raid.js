@@ -5,11 +5,12 @@ const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../web/eventLookup");
 const { eventGuildId } = require("../../web/guildRoles");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/botLookup");
+const { TIMEZONE } = require("../../config/timezone");
 
 /** "Mi 24.09. 20:00" in the guild's time zone — autocomplete names cannot carry Discord timestamps. */
 function shortDate(startTime) {
     if (!startTime) return "";
-    return DateTime.fromSeconds(Number(startTime), { zone: "Europe/Berlin" }).setLocale("de").toFormat("ccc dd.MM. HH:mm");
+    return DateTime.fromSeconds(Number(startTime), { zone: TIMEZONE }).setLocale("de").toFormat("ccc dd.MM. HH:mm");
 }
 
 /** Upcoming raids first (soonest on top), then the past ones (newest on top). */

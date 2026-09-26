@@ -5,6 +5,7 @@
 // their share from a per-player table.
 const rpbData = require("../../../config/rpbData");
 const { EXCLUDE_KALECGOS, trashFights } = require("./common");
+const logger = require("../../../logger.js").child("rpb/damage");
 
 // The RPB shows the 15 highest-damage tracked abilities.
 const MAX_ABILITIES = 15;
@@ -102,13 +103,19 @@ async function analyzeDamage(wcl, reportId, fights, players) {
     });
     const abilities = topAvoidableAbilities(byAbility);
 
-    // raid-wide extra tables (one call each)
+    // raid-wide extra tables (one call each). Best-effort: a failing table only
+    // drops its part of the RPB rather than the whole report, so failures are
+    // swallowed to `null` here but still logged (#430).
+    const onTableError = (label) => (error) => {
+        logger.debug(`${label} failed:`, error.message);
+        return null;
+    };
     const [reflected, hostile, deathsAll, deathsTrash] = await Promise.all([
-        wcl.getDamageTaken(reportId, 0, end, { filter: reflectFilter() }).catch(() => null),
-        wcl.getDamageDone(reportId, 0, end, { targetclass: "player", by: "source", filter: EXCLUDE_KALECGOS }).catch(() => null),
-        wcl.getDeaths(reportId, 0, end, { filter: EXCLUDE_KALECGOS }).catch(() => null),
+        wcl.getDamageTaken(reportId, 0, end, { filter: reflectFilter() }).catch(onTableError("reflected damage")),
+        wcl.getDamageDone(reportId, 0, end, { targetclass: "player", by: "source", filter: EXCLUDE_KALECGOS }).catch(onTableError("hostile/friendly-fire damage")),
+        wcl.getDeaths(reportId, 0, end, { filter: EXCLUDE_KALECGOS }).catch(onTableError("deaths (all fights)")),
         trashFights(fights).length
-            ? wcl.getDeaths(reportId, 0, end, { encounter: 0, filter: EXCLUDE_KALECGOS }).catch(() => null)
+            ? wcl.getDeaths(reportId, 0, end, { encounter: 0, filter: EXCLUDE_KALECGOS }).catch(onTableError("deaths (trash)"))
             : Promise.resolve(null),
     ]);
 
