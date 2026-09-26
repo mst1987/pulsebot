@@ -15,6 +15,7 @@
 const axios = require("axios");
 const httpsAgent = require("./httpAgent");
 const { INSTANCES } = require("../config/softresInstances");
+const logger = require("../logger.js").child("softres");
 
 const SOFTRES_BASE = "https://softres.it";
 const VALID_FACTIONS = ["Alliance", "Horde"];
@@ -291,7 +292,8 @@ function parseCreatedLocation(location) {
     let url;
     try {
         url = new URL(location, SOFTRES_BASE);
-    } catch {
+    } catch (error) {
+        logger.debug(`could not parse created-raid location "${location}":`, error.message);
         return null;
     }
     const m = /^\/raid\/([A-Za-z0-9]+)\/?$/.exec(url.pathname);

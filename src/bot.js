@@ -9,6 +9,8 @@ const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 const { ensureAppEmojis } = require("./web/appEmojiSync.js");
+const applicationState = require("./utils/applicationState.js");
+const logger = require("./logger.js").child("bot");
 
 const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -24,7 +26,11 @@ const client = new Client({
         // "Server Members Intent" to be enabled in the Discord Developer Portal.
         GatewayIntentBits.GuildMembers,
     ],
-    partials: ["MESSAGE", "REACTION"],
+    // No listener reads a partial MESSAGE/REACTION (no messageReactionAdd
+    // handler, no `.partial` check anywhere) — the v13 string form here was a
+    // no-op, so it is dropped instead of migrated to Partials.Message /
+    // Partials.Reaction (#430). Re-add with the v14 enum if such a handler
+    // is introduced later.
 });
 
 client.commands = new Collection();
@@ -46,7 +52,7 @@ client.on(Events.ClientReady, () => {
     console.log(messages.common.pulseBotReady);
     // The spec/class/role icons of the event message (#287): create the missing ones, then
     // read them; text icons until then.
-    ensureAppEmojis(client).catch(() => {});
+    ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
@@ -127,14 +133,14 @@ async function handleInteraction(interaction) {
     if (!command) {
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({
-                content: "Command not found",
+                content: messages.common.commandNotFound,
                 flags: MessageFlags.Ephemeral,
             });
         }
         return;
     }
 
-    console.log(`Command: ${command.name}`);
+    logger.debug(`Command: ${command.name}`);
 
     try {
         // Who may run it is decided here, once, for every command, button and modal (web/botAccess.js).
@@ -144,7 +150,7 @@ async function handleInteraction(interaction) {
         console.error(`Error executing ${command.name}:`, error);
 
         try {
-            const errorMessage = "There was an error executing this command!";
+            const errorMessage = messages.common.commandExecutionError;
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
             } else if (interaction.deferred) {
@@ -169,6 +175,7 @@ function start() {
     console.log(`PulseBot starting on Node ${process.version} (${process.env.NODE_ENV || "development"})`);
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
+    applicationState.start();
 
     const token = process.env.DISCORDJS_BOT_TOKEN;
     if (!token) {
