@@ -1,4 +1,4 @@
-// „Anmeldungen“ über die API (src/web/apiRoutes/signups.js, src/web/signupView.js):
+// „Anmeldungen“ über die API (src/web/apiRoutes/signups.js, src/web/signups/signupView.js):
 // nur die eigene Anmeldung, Raid-Helper-Events mit Discord-Link statt Anmeldung,
 // Kategorien nach Raider-Rollen, und die Orga-Liste mit Kommentar und „kann auch“.
 
@@ -43,7 +43,7 @@ jest.mock("../../../src/stores/signupStore", () => {
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const route = require("../../../src/web/apiRoutes/signups");
-const { categoryVisible } = require("../../../src/web/signupView");
+const { categoryVisible } = require("../../../src/web/signups/signupView");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, json } = require("../../helpers/http");
 const { ownEvent: ownEventFixture } = require("../../factories/events");

@@ -6,10 +6,10 @@
 //
 // Only own events: their setup is ours (setupEditor.js); a Raid-Helper event's
 // raid plan lives at Raid-Helper.
-const eventStore = require("../stores/eventStore");
-const discord = require("../services/discord/discord");
+const eventStore = require("../../stores/eventStore");
+const discord = require("../discord/discord");
 const { approvedSetupOf, PING_TEXT_MAX, pingTextOf } = require("./setupCore");
-const { fail } = require("./http/apiResult");
+const { fail } = require("../../web/http/apiResult");
 
 /** `event.setupPingText`, "" (clear) accepted, trimmed to the same length the store enforces. */
 function saveSetupPingText(eventId, text) {

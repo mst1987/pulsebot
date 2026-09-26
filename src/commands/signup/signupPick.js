@@ -1,7 +1,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
-const { defaultCanAlso } = require("../../web/signupService");
+const { defaultCanAlso } = require("../../services/signups/signupService");
 const { ROLES } = require("../../config/gameVersions/classes");
 const {
     PICK_PREFIX, parsePickId, resolveState, classesFor, buildSignupDialog, plainUpdate,

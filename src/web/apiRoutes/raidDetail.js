@@ -28,8 +28,8 @@ const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/time");
 const discord = require("../../services/discord/discord");
 const { getEvent } = require("../../stores/eventStore");
-const { raidHelperSlots } = require("../setupEditor");
-const { invitePlan, callInvite } = require("../inviteCall");
+const { raidHelperSlots } = require("../../services/setup/setupEditor");
+const { invitePlan, callInvite } = require("../../services/setup/inviteCall");
 const {
     normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../../services/discord/pingDelivery");

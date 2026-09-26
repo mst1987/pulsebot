@@ -248,8 +248,8 @@ jest.mock("../../../src/utils/setup/fillSetup", () => ({
     fillSetupSheet: (...args) => mockFillSetupSheet(...args),
 }));
 const mockRaidHelperSlots = jest.fn(() => []);
-jest.mock("../../../src/web/setupEditor", () => ({
-    ...jest.requireActual("../../../src/web/setupEditor"),
+jest.mock("../../../src/services/setup/setupEditor", () => ({
+    ...jest.requireActual("../../../src/services/setup/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../src/web/http/auth");

@@ -22,14 +22,14 @@
 //                       kept while a changed draft waits for the next approval
 //   changedSinceApproval  a draft that differs from an earlier approval
 //   explanation         { text, model, at, version } from Claude (explainText.js)
-const eventStore = require("../stores/eventStore");
+const eventStore = require("../../stores/eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
-const { specNameFor } = require("../services/events/eventSources");
-const { evaluateSetup } = require("../utils/setup/proposal");
-const { validatePlacement, placeSlots } = require("../utils/setup/manual");
-const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../utils/setup/score");
-const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
-const { str } = require("../utils/text");
+const { specNameFor } = require("../events/eventSources");
+const { evaluateSetup } = require("../../utils/setup/proposal");
+const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
+const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
+const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 

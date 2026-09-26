@@ -1,10 +1,10 @@
-// Die Anmelde-Regeln (src/web/signupService.js), die Web und Discord (#258) teilen:
+// Die Anmelde-Regeln (src/services/signups/signupService.js), die Web und Discord (#258) teilen:
 // Spec passt zum Charakter aus dem Profil, Anmeldeschluss, Statuswechsel,
 // „kann auch“ aus dem Profil, Raid-Helper-Events nicht anmeldbar.
 
 const mockEvents = new Map();
 const mockLog = jest.fn();
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventState: (id, patch) => {
@@ -18,8 +18,8 @@ jest.mock("../../src/stores/eventStore", () => ({
 }));
 const mockSignups = new Map();
 const mockChanged = jest.fn();
-jest.mock("../../src/stores/signupStore", () => {
-    const actual = jest.requireActual("../../src/stores/signupStore");
+jest.mock("../../../src/stores/signupStore", () => {
+    const actual = jest.requireActual("../../../src/stores/signupStore");
     return {
         normalizeSignup: actual.normalizeSignup,
         getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
@@ -35,15 +35,15 @@ jest.mock("../../src/stores/signupStore", () => {
     };
 });
 let mockConfig = {};
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
+jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
 
-const profiles = require("../../src/stores/raiderProfileStore");
-const discord = require("../../src/services/discord/discord");
-const service = require("../../src/web/signupService");
-const { tempStoreFile } = require("../helpers/tempStore");
-const { ownEvent, sec, DAY } = require("../factories/events");
+const profiles = require("../../../src/stores/raiderProfileStore");
+const discord = require("../../../src/services/discord/discord");
+const service = require("../../../src/services/signups/signupService");
+const { tempStoreFile } = require("../../helpers/tempStore");
+const { ownEvent, sec, DAY } = require("../../factories/events");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
@@ -241,7 +241,7 @@ describe("Status je Charakter (Anmelde-Buttons)", () => {
         // „Abgemeldet“ gibt es nur für die ganze Anmeldung: je Charakter gilt dann der Status der Anmeldung
         const odd = await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "absence" }], status: "tentative" }, { now: NOW });
         expect(odd.signup.characters.map((c) => c.status)).toEqual(["tentative"]);
-        expect(require("../../src/stores/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
+        expect(require("../../../src/stores/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
     });
 
     it("behält die Status der Charaktere, solange der Status der Anmeldung gleich bleibt", async () => {
@@ -279,7 +279,7 @@ describe("Status je Charakter (Anmelde-Buttons)", () => {
     });
 
     it("liest eine gespeicherte Anmeldung ohne Status je Charakter mit dem Status der Anmeldung", () => {
-        const { migrateSignup } = require("../../src/web/signupCharacters");
+        const { migrateSignup } = require("../../../src/services/signups/signupCharacters");
         const old = { userId: ANNA, status: "bench", character: "Nerasol", spec: "Priest-Holy", role: "healer", characters: [{ character: "Nerasol", spec: "Priest-Holy", role: "healer" }, { character: "Nerathil", spec: "Mage-Fire", role: "ranged" }] };
         expect(migrateSignup(old).characters.map((c) => c.status)).toEqual(["bench", "bench"]);
         // die Felder oben spiegeln den ersten – auch seinen Status

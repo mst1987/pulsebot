@@ -17,9 +17,9 @@ const discord = require("../../services/discord/discord");
 const profiles = require("../../stores/raiderProfileStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
-const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../signupService");
-const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signupView");
-const { noteMode, isNoteStatus, MIN_NOTE } = require("../signupNotes");
+const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../services/signups/signupService");
+const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signups/signupView");
+const { noteMode, isNoteStatus, MIN_NOTE } = require("../../services/signups/signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 

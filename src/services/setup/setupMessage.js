@@ -30,18 +30,18 @@
 //
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
-const { publicBaseUrl } = require("../utils/publicUrl");
-const { embedColor } = require("../services/events/embedLook");
-const eventStore = require("../stores/eventStore");
-const { getConfig } = require("../stores/settingsStore");
-const discord = require("../services/discord/discord");
-const { buildClasses, ROLE_LABELS_EN } = require("../config/gameVersions/classes");
-const { toEnglish } = require("../utils/signup/botEnglish");
+const { publicBaseUrl } = require("../../utils/publicUrl");
+const { embedColor } = require("../events/embedLook");
+const eventStore = require("../../stores/eventStore");
+const { getConfig } = require("../../stores/settingsStore");
+const discord = require("../discord/discord");
+const { buildClasses, ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
+const { toEnglish } = require("../../utils/signup/botEnglish");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
     roleEmojiName, emojiStyleOf,
-} = require("../services/discord/appEmojis");
-const { str, clip } = require("../utils/text");
+} = require("../discord/appEmojis");
+const { str, clip } = require("../../utils/text");
 const { approvedSetupOf, confirmationsFor, confirmButtonRow, inviteButtonRow, pingButtonRow } = require("./setupCore");
 const { callSetupPing } = require("./setupPing");
 

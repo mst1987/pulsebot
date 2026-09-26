@@ -1,6 +1,6 @@
 // A setup written by hand (or by an older version) may lack checks, options, weights ...
 // The editor's view fills neutral defaults so the page never meets an undefined.
-const { editorView, _internal: { withSetupDefaults } } = require("../../src/web/setupEditor");
+const { editorView, _internal: { withSetupDefaults } } = require("../../../src/services/setup/setupEditor");
 
 describe("editorView with a setup that lacks checks / options", () => {
     it("answers a complete setup", () => {

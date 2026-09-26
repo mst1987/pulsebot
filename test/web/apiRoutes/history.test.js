@@ -262,8 +262,8 @@ jest.mock("../../../src/utils/loot/wowhead", () => {
     };
 });
 const mockRaidHelperSlots = jest.fn(() => []);
-jest.mock("../../../src/web/setupEditor", () => ({
-    ...jest.requireActual("../../../src/web/setupEditor"),
+jest.mock("../../../src/services/setup/setupEditor", () => ({
+    ...jest.requireActual("../../../src/services/setup/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../src/web/http/auth");

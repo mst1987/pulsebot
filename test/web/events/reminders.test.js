@@ -10,11 +10,11 @@ jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
-jest.mock("../../../src/web/setupInput", () => ({ proposeSetup: jest.fn() }));
+jest.mock("../../../src/services/setup/setupInput", () => ({ proposeSetup: jest.fn() }));
 
 const discord = require("../../../src/services/discord/discord");
 const eventStore = require("../../../src/stores/eventStore");
-const { proposeSetup } = require("../../../src/web/setupInput");
+const { proposeSetup } = require("../../../src/services/setup/setupInput");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { deliverUserPing } = require("../../../src/services/discord/pingDelivery");
 const reminderStore = require("../../../src/stores/reminderStore");

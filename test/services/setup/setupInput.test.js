@@ -1,18 +1,18 @@
-jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
-jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn() }));
-jest.mock("../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
-jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
-jest.mock("../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn() }));
+jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
+jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
+jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
 
-const eventStore = require("../../src/stores/eventStore");
-const signupStore = require("../../src/stores/signupStore");
-const profileStore = require("../../src/stores/raiderProfileStore");
-const settingsStore = require("../../src/stores/settingsStore");
-const attendance = require("../../src/web/rosterAttendance");
-const { listStoredEvents } = require("../../src/services/events/eventSources");
-const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup } = require("../../src/web/setupInput");
-const { ownEvent } = require("../factories/events");
+const eventStore = require("../../../src/stores/eventStore");
+const signupStore = require("../../../src/stores/signupStore");
+const profileStore = require("../../../src/stores/raiderProfileStore");
+const settingsStore = require("../../../src/stores/settingsStore");
+const attendance = require("../../../src/web/rosterAttendance");
+const { listStoredEvents } = require("../../../src/services/events/eventSources");
+const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup } = require("../../../src/services/setup/setupInput");
+const { ownEvent } = require("../../factories/events");
 
 const event = (over = {}) => ownEvent({
     id: "eh-new", guildId: "g1", categoryId: "cat", title: "SSC", startTime: 1000,

@@ -9,7 +9,7 @@
 // Access is `/event`'s (accessOf in the command file): the orga, checked by the
 // router on every click. Everyone else sees the button and gets told no.
 const { MessageFlags } = require("discord.js");
-const eventStore = require("../stores/eventStore");
+const eventStore = require("../../stores/eventStore");
 const { invitePlan, callInvite, INVITE_GROUPS } = require("./inviteCall");
 const { INVITE_PREFIX, inviteId } = require("./setupCore");
 

@@ -102,7 +102,7 @@ describe("utils/raidhelper/queries", () => {
 
     // #263: an own event's setup reaches the bot only once it is approved.
     describe("own EventHelper events", () => {
-        const editor = jest.requireActual("../../../src/web/setupEditor");
+        const editor = jest.requireActual("../../../src/services/setup/setupEditor");
         const draftOnly = {
             id: "eh-1", source: "eventhelper",
             setup: { status: "draft", groups: [{ index: 1, slots: [{ userId: "123", character: "Anna", spec: "Mage-Fire", role: "ranged" }] }], bench: [], approved: null },

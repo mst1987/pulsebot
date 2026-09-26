@@ -15,7 +15,7 @@
 //   event-btn:<eventId>:absence       Absagen: a modal with the message
 //
 // The message of "Absagen" and "Vielleicht" is required, optional or not asked
-// for, per the event's category (web/signupNotes.js' noteMode); the service
+// for, per the event's category (services/signups/signupNotes.js' noteMode); the service
 // posts it to the orga's channel.
 //
 // Steps (the status rides along as the dialog's code s/t/l/b):
@@ -33,14 +33,14 @@
 // cancelled, raider role, profile rules). A customId is a hint, never a permission.
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { getSignup, lastSignupOf } = require("../../stores/signupStore");
-const { migrateSignup, MAX_CHARACTERS } = require("../../web/signupCharacters");
+const { migrateSignup, MAX_CHARACTERS } = require("../../services/signups/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
-const { allowedStatuses, signupWindow } = require("../../web/signupService");
+const { allowedStatuses, signupWindow } = require("../../services/signups/signupService");
 const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
 const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
-const { MIN_NOTE } = require("../../web/signupNotes");
+const { MIN_NOTE } = require("../../services/signups/signupNotes");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;

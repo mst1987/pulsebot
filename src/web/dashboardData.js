@@ -32,7 +32,7 @@ const {
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
 const { getEvent } = require("../stores/eventStore");
-const { raidHelperSlots } = require("./setupEditor");
+const { raidHelperSlots } = require("../services/setup/setupEditor");
 
 const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
 

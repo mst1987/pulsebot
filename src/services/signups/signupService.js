@@ -28,16 +28,16 @@
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
-const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("../stores/eventStore");
-const signupStore = require("../stores/signupStore");
+const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("../../stores/eventStore");
+const signupStore = require("../../stores/signupStore");
 const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
-const profiles = require("../stores/raiderProfileStore");
-const settingsStore = require("../stores/settingsStore");
-const discord = require("../services/discord/discord");
+const profiles = require("../../stores/raiderProfileStore");
+const settingsStore = require("../../stores/settingsStore");
+const discord = require("../discord/discord");
 const signupNotes = require("./signupNotes");
-const { SIGNUP_STATUSES } = require("../utils/attendance");
-const { ROLES } = require("../config/gameVersions/classes");
-const { spec: specOf } = require("../config/gameVersions");
+const { SIGNUP_STATUSES } = require("../../utils/attendance");
+const { ROLES } = require("../../config/gameVersions/classes");
+const { spec: specOf } = require("../../config/gameVersions");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];

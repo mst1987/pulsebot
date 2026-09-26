@@ -1,9 +1,9 @@
-// The setup editor's rules (src/web/setupEditor.js, #263): a proposal is a
+// The setup editor's rules (src/services/setup/setupEditor.js, #263): a proposal is a
 // draft, locked places survive a new proposal, a manual lineup is validated,
 // only an approval makes the setup visible — and a change after the approval
 // is a draft again while raiders keep seeing the approved lineup.
 const mockEvents = new Map();
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [...mockEvents.values()],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -14,19 +14,19 @@ jest.mock("../../src/stores/eventStore", () => ({
     },
 }));
 let mockSignups = [];
-jest.mock("../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../src/services/events/eventSources", () => ({
+jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
-    specNameFor: jest.requireActual("../../src/services/events/eventSources").specNameFor,
+    specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,
 }));
 
-const editor = require("../../src/web/setupEditor");
-const { approvedSetupOf } = require("../../src/web/setupCore");
-const { _internal: { buildEventMessage } } = require("../../src/services/events/eventMessage");
-const { su } = require("../utils/setup/fixtures");
+const editor = require("../../../src/services/setup/setupEditor");
+const { approvedSetupOf } = require("../../../src/services/setup/setupCore");
+const { _internal: { buildEventMessage } } = require("../../../src/services/events/eventMessage");
+const { su } = require("../../utils/setup/fixtures");
 
 const ID = "eh-kara";
 

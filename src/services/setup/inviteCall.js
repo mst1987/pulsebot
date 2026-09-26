@@ -8,11 +8,11 @@
 // Only own events: their setup is ours (setupEditor.js); a Raid-Helper event's
 // raid plan lives at Raid-Helper. Groups 6–8 and the bench are not pinged — the
 // invite goes out to the raid, the rest waits.
-const eventStore = require("../stores/eventStore");
-const signupStore = require("../stores/signupStore");
-const discord = require("../services/discord/discord");
+const eventStore = require("../../stores/eventStore");
+const signupStore = require("../../stores/signupStore");
+const discord = require("../discord/discord");
 const { approvedSetupOf } = require("./setupCore");
-const { fail } = require("./http/apiResult");
+const { fail } = require("../../web/http/apiResult");
 
 /** Groups 1 to this one are called to the invite. */
 const INVITE_GROUPS = 5;

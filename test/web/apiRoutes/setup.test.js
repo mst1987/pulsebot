@@ -31,7 +31,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/web/setupMessage", () => ({
+jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
     publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
 }));
@@ -40,7 +40,7 @@ jest.mock("../../../src/utils/setup/explainText", () => ({ explainSetup: (...arg
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { refreshEventMessage } = require("../../../src/services/events/eventMessage");
-const setupMessage = require("../../../src/web/setupMessage");
+const setupMessage = require("../../../src/services/setup/setupMessage");
 const route = require("../../../src/web/apiRoutes/setup");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 const { su } = require("../../utils/setup/fixtures");

@@ -2,19 +2,19 @@
 // groups 1–5 of the approved setup are pinged in the event channel with
 // "/w <Charakter> inv", the character being the caller's own. Stores and
 // Discord are mocks; the approved setup is read by the real setupCore.
-jest.mock("../../src/stores/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
-jest.mock("../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
-jest.mock("../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
+jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
+jest.mock("../../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
+jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
-jest.mock("../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
+jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
-const eventStore = require("../../src/stores/eventStore");
-const signupStore = require("../../src/stores/signupStore");
-const discord = require("../../src/services/discord/discord");
-const { invitePlan, callInvite, inviteCharacterOf } = require("../../src/web/inviteCall");
-const bot = require("../../src/web/inviteCallBot");
-const { inviteButtonRow } = require("../../src/web/setupCore");
-const command = require("../../src/commands/event/inviteCallButton");
+const eventStore = require("../../../src/stores/eventStore");
+const signupStore = require("../../../src/stores/signupStore");
+const discord = require("../../../src/services/discord/discord");
+const { invitePlan, callInvite, inviteCharacterOf } = require("../../../src/services/setup/inviteCall");
+const bot = require("../../../src/services/setup/inviteCallBot");
+const { inviteButtonRow } = require("../../../src/services/setup/setupCore");
+const command = require("../../../src/commands/event/inviteCallButton");
 
 const slot = (userId, character) => ({ userId, character, classId: "priest", spec: "Priest-Holy", role: "healer" });
 

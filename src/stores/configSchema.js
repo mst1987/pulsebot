@@ -48,7 +48,7 @@ const CONFIG_DEFAULTS = {
     // on another server (the talk server or another event server), plus one
     // talk server for pings and sign-up-per-bot. All empty = no server
     // configured yet. `signupNoteChannelId` is where the messages of
-    // "Vielleicht" / "Absagen" land (src/web/signupNotes.js) — a channel on
+    // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
     // any server.
     discordServers: { eventGuilds: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
@@ -124,7 +124,7 @@ const CONFIG_DEFAULTS = {
     // A message with "Vielleicht" / "Absagen" per Discord category:
     // { [categoryId]: "required" | "none" }. A category without an entry is
     // "optional" (the modal asks, the raider may leave it empty). The message is
-    // posted to discordServers.signupNoteChannelId — see src/web/signupNotes.js.
+    // posted to discordServers.signupNoteChannelId — see src/services/signups/signupNotes.js.
     categorySignupNotes: {},
     // Where a category's messages go instead (#335): { [categoryId]: channelId }.
     // Missing = discordServers.signupNoteChannelId, the default for every category.

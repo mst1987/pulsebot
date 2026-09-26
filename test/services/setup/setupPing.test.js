@@ -3,7 +3,7 @@
 // orga's own text (else a default), the bench never. Stores and Discord are
 // mocks; the approved setup is read by the real setupCore.
 const mockEvents = new Map();
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
     appendEventLog: jest.fn(),
     setEventSetupPingText: jest.fn((id, text) => {
@@ -13,16 +13,16 @@ jest.mock("../../src/stores/eventStore", () => ({
         return e;
     }),
 }));
-jest.mock("../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
+jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
-jest.mock("../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
+jest.mock("../../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
-const eventStore = require("../../src/stores/eventStore");
-const discord = require("../../src/services/discord/discord");
-const { setupPingPlan, callSetupPing, saveSetupPingText } = require("../../src/web/setupPing");
-const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../src/web/setupCore");
-const bot = require("../../src/web/setupPingBot");
-const command = require("../../src/commands/event/setupPingButton");
+const eventStore = require("../../../src/stores/eventStore");
+const discord = require("../../../src/services/discord/discord");
+const { setupPingPlan, callSetupPing, saveSetupPingText } = require("../../../src/services/setup/setupPing");
+const { pingTextOf, PING_TEXT, pingButtonRow } = require("../../../src/services/setup/setupCore");
+const bot = require("../../../src/services/setup/setupPingBot");
+const command = require("../../../src/commands/event/setupPingButton");
 
 const slot = (userId, character) => ({ userId, character, classId: "priest", spec: "Priest-Holy", role: "healer" });
 

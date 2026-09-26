@@ -1,11 +1,11 @@
 // Die Nachricht zu „Vielleicht“ / „Absagen“: Modus je Kategorie, wann gepostet
 // wird, wie der Post aussieht und dass ein Fehlschlag nie wirft.
-jest.mock("../../src/services/discord/discord", () => ({ postNotice: jest.fn(async () => ({ messageId: "m" })), channelVisible: jest.fn(() => true) }));
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/services/discord/discord", () => ({ postNotice: jest.fn(async () => ({ messageId: "m" })), channelVisible: jest.fn(() => true) }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
 
-const discord = require("../../src/services/discord/discord");
-const notes = require("../../src/web/signupNotes");
-const { signup: baseSignup } = require("../factories/events");
+const discord = require("../../../src/services/discord/discord");
+const notes = require("../../../src/services/signups/signupNotes");
+const { signup: baseSignup } = require("../../factories/events");
 
 const EVENT = { id: "eh-1", title: "SSC + TK", categoryId: "cat-1", startTime: 1760000000, guildId: "10000", channelId: "20000", message: { messageId: "30000" } };
 const CHANNEL = { discordServers: { signupNoteChannelId: "777777" } };
@@ -14,7 +14,7 @@ const notePayload = (text) => expect.objectContaining({ embeds: [expect.objectCo
 
 beforeEach(() => discord.postNotice.mockClear());
 
-describe("web/signupNotes", () => {
+describe("services/signups/signupNotes", () => {
     it("reads the category's mode, optional by default", () => {
         const config = { categorySignupNotes: { a: "required", b: "none", c: "odd" } };
         expect(notes.noteMode("a", config)).toBe("required");
@@ -76,7 +76,7 @@ describe("web/signupNotes", () => {
     });
 });
 
-describe("web/signupNotes — Kanal je Kategorie (#335)", () => {
+describe("services/signups/signupNotes — Kanal je Kategorie (#335)", () => {
     const OWN = { ...CHANNEL, categorySignupNoteChannel: { "cat-1": "888888" } };
 
     beforeEach(() => discord.channelVisible.mockReset().mockReturnValue(true));

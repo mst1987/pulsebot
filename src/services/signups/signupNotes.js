@@ -15,13 +15,13 @@
 // The post happens in signupService.submitSignup(), so the web signup and every
 // Discord path share it. It never blocks or fails a signup: posting is
 // fire-and-forget and a refused post is only logged.
-const discord = require("../services/discord/discord");
-const { getConfig } = require("../stores/settingsStore");
-const profiles = require("../stores/raiderProfileStore");
-const { appEmojiMap, emojiText, statusEmojiName } = require("../services/discord/appEmojis");
-const { messageUrl } = require("../services/events/eventAnnounce");
-const { embedAccentColor } = require("../config/variables");
-const { isSnowflake } = require("../utils/ids");
+const discord = require("../discord/discord");
+const { getConfig } = require("../../stores/settingsStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmojis");
+const { messageUrl } = require("../events/eventAnnounce");
+const { embedAccentColor } = require("../../config/variables");
+const { isSnowflake } = require("../../utils/ids");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];

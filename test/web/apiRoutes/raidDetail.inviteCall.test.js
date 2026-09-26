@@ -1,6 +1,6 @@
 // POST /api/raids/invite-call — the raid detail's "Invite callen": a dry run for
 // the dialog's preview, then the post. The caller is the logged-in user (their
-// Discord id picks the character); the service itself is test/web/inviteCall.test.js.
+// Discord id picks the character); the service itself is test/services/setup/inviteCall.test.js.
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({
     user: { id: "u-lead", name: "Nerathil", isAdmin: true },
     fullAdmin: { id: "u-lead", isAdmin: true },
@@ -8,12 +8,12 @@ jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/ht
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/eventStore", () => ({ ...jest.requireActual("../../../src/stores/eventStore"), getEvent: jest.fn() }));
-jest.mock("../../../src/web/inviteCall", () => ({ invitePlan: jest.fn(), callInvite: jest.fn() }));
+jest.mock("../../../src/services/setup/inviteCall", () => ({ invitePlan: jest.fn(), callInvite: jest.fn() }));
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const { requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const { getEvent } = require("../../../src/stores/eventStore");
-const { invitePlan, callInvite } = require("../../../src/web/inviteCall");
+const { invitePlan, callInvite } = require("../../../src/services/setup/inviteCall");
 const { postInviteCall } = require("../../../src/web/apiRoutes/raidDetail");
 
 const { mockRes, status, json } = require("../../helpers/http");

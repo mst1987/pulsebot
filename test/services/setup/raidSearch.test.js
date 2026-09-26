@@ -2,16 +2,16 @@
 // for it, and posting it into the event channel.
 const mockEvents = new Map();
 const mockLog = [];
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     appendEventLog: (id, entry) => mockLog.push({ id, ...entry }),
 }));
 const mockPost = jest.fn();
-jest.mock("../../src/services/discord/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
+jest.mock("../../../src/services/discord/discord", () => ({ postNotice: (...a) => mockPost(...a) }));
 
-const { suggestSearch, textForNeeds, postSearch } = require("../../src/web/raidSearch");
-const { event: baseEvent } = require("../factories/events");
+const { suggestSearch, textForNeeds, postSearch } = require("../../../src/services/setup/raidSearch");
+const { event: baseEvent } = require("../../factories/events");
 
 const slots = (n) => Array.from({ length: n }, (_, i) => ({ userId: `u${i}` }));
 function event(over = {}) {
@@ -206,7 +206,7 @@ describe("postSearch", () => {
 });
 
 describe("the message with the spec icons", () => {
-    const appEmojis = require("../../src/services/discord/appEmojis");
+    const appEmojis = require("../../../src/services/discord/appEmojis");
     afterEach(() => appEmojis.resetAppEmojis());
 
     it("puts the app emoji of a spec, of a whole class and of the role in front, and nothing while they are not uploaded", () => {

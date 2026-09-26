@@ -166,7 +166,7 @@ describe("SignupDialog", () => {
         expect(picksView).toContain("movePick(picks, i, 1)");
         expect(picksView).toContain("t(\"signups.picks.hint\")");
         expect(de("signups.picks.hint")).toContain("Die Orga stellt dich mit genau einem auf.");
-        expect(picksLib.MAX_CHARACTERS).toBe(require("../../src/web/signupCharacters").MAX_CHARACTERS);
+        expect(picksLib.MAX_CHARACTERS).toBe(require("../../src/services/signups/signupCharacters").MAX_CHARACTERS);
     });
 
     it("prefills \"Ich kann auch\" from the profile and never offers the own role", () => {
@@ -339,7 +339,7 @@ describe("a status per character in the dialog (lib/signupPicks.ts, #320)", () =
         expect(css).toContain(".an-pick-status");
         // the absence is not a character's business (the server's CHARACTER_STATUSES)
         expect(lib).toMatch(/CHARACTER_STATUS_ORDER: SignupStatus\[\] = \["signed", "tentative", "late", "bench"\]/);
-        expect(require("../../src/web/signupCharacters").CHARACTER_STATUSES).toEqual(["signed", "tentative", "late", "bench"]);
+        expect(require("../../src/services/signups/signupCharacters").CHARACTER_STATUSES).toEqual(["signed", "tentative", "late", "bench"]);
         // the dialog's segment stays the one that sets them all
         expect(dialog).toContain("statuses allowedStatuses={row.allowedStatuses}");
         expect(dialog).toContain("if (s !== \"absence\") setPicks((list) => setAllStatuses(list, s));");

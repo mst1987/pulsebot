@@ -30,7 +30,7 @@ const profiles = require("../../stores/raiderProfileStore");
 const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
 const {
     roleCounts, signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,
-} = require("../../web/signupService");
+} = require("../../services/signups/signupService");
 
 const PICK_PREFIX = "signup-pick";
 const STATUS_PREFIX = "signup-status";

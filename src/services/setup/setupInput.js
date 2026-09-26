@@ -18,13 +18,13 @@
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
 
-const eventStore = require("../stores/eventStore");
-const signupStore = require("../stores/signupStore");
-const profileStore = require("../stores/raiderProfileStore");
-const settingsStore = require("../stores/settingsStore");
-const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
-const { listStoredEvents } = require("../services/events/eventSources");
-const { buildSetupProposal } = require("../utils/setup/proposal");
+const eventStore = require("../../stores/eventStore");
+const signupStore = require("../../stores/signupStore");
+const profileStore = require("../../stores/raiderProfileStore");
+const settingsStore = require("../../stores/settingsStore");
+const { buildAttendanceContext, attendanceFor } = require("../../web/rosterAttendance");
+const { listStoredEvents } = require("../events/eventSources");
+const { buildSetupProposal } = require("../../utils/setup/proposal");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;

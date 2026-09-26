@@ -21,7 +21,7 @@ const { SIGNUP_STATUSES } = require("../utils/attendance");
 const SIGNUPS_FILE = settingsPath("signups.json");
 
 const MAX_COMMENT = 300;
-const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("../web/signupCharacters");
+const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("../services/signups/signupCharacters");
 const { lastImportedSpecOf } = require("./specHistoryStore");
 
 // Whoever wants to know that a roster changed (the bot's event message).

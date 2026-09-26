@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 
 const SRC = path.join(__dirname, "..", "..", "src");
-const WEB = path.join(SRC, "web");
+const SETUP = path.join(SRC, "services", "setup");
 const SKIP = new Set(["web-client", "node_modules"]);
 
 function srcFiles(dir) {
@@ -88,7 +88,7 @@ describe("src require graph", () => {
     it("reads the modules and their requires", () => {
         expect(files.length).toBeGreaterThan(300);
         expect(files.some((f) => f.includes(`${path.sep}web-client${path.sep}`))).toBe(false);
-        expect(graph.get(path.join(WEB, "setupMessage.js"))).toContain(path.join(WEB, "setupCore.js"));
+        expect(graph.get(path.join(SETUP, "setupMessage.js"))).toContain(path.join(SETUP, "setupCore.js"));
         // across the layers too: utils -> stores
         expect(graph.get(path.join(SRC, "utils", "raidhelper", "queries.js"))).toContain(path.join(SRC, "stores", "eventStore.js"));
     });

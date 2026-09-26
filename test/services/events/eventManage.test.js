@@ -24,8 +24,8 @@ jest.mock("../../../src/services/discord/pingDelivery", () => ({
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
-jest.mock("../../../src/web/setupMessage", () => ({ refreshSetupMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/setup/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
+jest.mock("../../../src/services/setup/setupMessage", () => ({ refreshSetupMessage: jest.fn(async () => null) }));
 // #305: the Discord event rides along — mocked here, so the calls can be asserted.
 jest.mock("../../../src/services/discord/discordEvent", () => ({
     syncForEvent: jest.fn(async () => ({ skipped: "disabled" })),
@@ -40,7 +40,7 @@ const fs = require("fs");
 const discordChannels = require("../../../src/services/discord/discordChannels");
 const channelNaming = require("../../../src/services/discord/channelNaming");
 const { refreshEventMessage } = require("../../../src/services/events/eventMessage");
-const { refreshSetupMessage } = require("../../../src/web/setupMessage");
+const { refreshSetupMessage } = require("../../../src/services/setup/setupMessage");
 const { scheduleOverviewSync } = require("../../../src/web/talkOverview");
 const { deliverUserPing, sendDms } = require("../../../src/services/discord/pingDelivery");
 const discord = require("../../../src/services/discord/discord");
@@ -50,7 +50,7 @@ const signupStore = require("../../../src/stores/signupStore");
 const profiles = require("../../../src/stores/raiderProfileStore");
 const reminderStore = require("../../../src/stores/reminderStore");
 const archiveStore = require("../../../src/stores/channelArchiveStore");
-const signupService = require("../../../src/web/signupService");
+const signupService = require("../../../src/services/signups/signupService");
 const discordEvent = require("../../../src/services/discord/discordEvent");
 const manage = require("../../../src/services/events/eventManage");
 const { makeClient, makeChannel } = require("../../helpers/discordClient");

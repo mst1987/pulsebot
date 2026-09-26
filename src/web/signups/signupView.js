@@ -3,16 +3,16 @@
 // groups of eventSources/raidEventGroups, the profiles, resolved Discord names)
 // plus local store reads, so the rules — who sees which category, what a row carries — can be tested
 // without Discord or Raid-Helper.
-const profiles = require("../stores/raiderProfileStore");
-const { getEvent } = require("../stores/eventStore");
+const profiles = require("../../stores/raiderProfileStore");
+const { getEvent } = require("../../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
-const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("./signupService");
-const { upcomingRows } = require("../services/events/raidListing");
-const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
-const { signupStatus } = require("../utils/attendance");
-const { approvedPlacementFor } = require("./setupEditor");
-const { migrateSignup } = require("./signupCharacters");
-const { noteMode } = require("./signupNotes");
+const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
+const { upcomingRows } = require("../../services/events/raidListing");
+const { instanceById, rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { signupStatus } = require("../../utils/attendance");
+const { approvedPlacementFor } = require("../../services/setup/setupEditor");
+const { migrateSignup } = require("../../services/signups/signupCharacters");
+const { noteMode } = require("../../services/signups/signupNotes");
 
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 

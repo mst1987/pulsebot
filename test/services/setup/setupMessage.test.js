@@ -3,7 +3,7 @@
 // abgesagte Events.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -20,16 +20,16 @@ jest.mock("../../src/stores/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
-jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
+jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
-const discord = require("../../src/services/discord/discord");
-const eventStore = require("../../src/stores/eventStore");
-const appEmojis = require("../../src/services/discord/appEmojis");
-const sm = require("../../src/web/setupMessage");
-const { event: baseEvent } = require("../factories/events");
-const { makeClient, makeChannel } = require("../helpers/discordClient");
+const discord = require("../../../src/services/discord/discord");
+const eventStore = require("../../../src/stores/eventStore");
+const appEmojis = require("../../../src/services/discord/appEmojis");
+const sm = require("../../../src/services/setup/setupMessage");
+const { event: baseEvent } = require("../../factories/events");
+const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
 const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name, { id: String(1000 + i), name: e.name, animated: false }]));
 const p = (userId, character, spec, role) => ({ userId, character, classId: spec.split("-")[0], spec, role });
@@ -360,7 +360,7 @@ describe("DMs", () => {
     });
 
     it("pings everyone placed on the first post, never on a later edit (#354's follow-up)", async () => {
-        const { PING_TEXT } = require("../../src/web/setupCore");
+        const { PING_TEXT } = require("../../../src/services/setup/setupCore");
         seed();
         fakeChannel();
         await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });
@@ -373,7 +373,7 @@ describe("DMs", () => {
     });
 
     it("uses the event's own ping text once one is set", async () => {
-        const { saveSetupPingText } = require("../../src/web/setupPing");
+        const { saveSetupPingText } = require("../../../src/services/setup/setupPing");
         seed();
         fakeChannel();
         saveSetupPingText("eh-1", "Los geht's!");

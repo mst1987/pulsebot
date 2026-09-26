@@ -202,7 +202,7 @@ function main() {
     const meId = arg("me") || logcheckAdminIds[0] || "dev";
     const eventStore = require("../src/stores/eventStore");
     const signupStore = require("../src/stores/signupStore");
-    const editor = require("../src/web/setupEditor");
+    const editor = require("../src/services/setup/setupEditor");
     const { spec } = require("../src/config/gameVersions");
 
     const wanted = arg("event");

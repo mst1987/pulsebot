@@ -2,7 +2,7 @@ const { createRaidhelperClient } = require("./client");
 const { getCategoryEvents } = require("./channelEvents");
 const { getCharacterIcon } = require("../discord/reply");
 const { getEvent } = require("../../stores/eventStore");
-const { raidHelperSlots } = require("../../web/setupEditor");
+const { raidHelperSlots } = require("../../services/setup/setupEditor");
 
 /**
  * The setup of an own EventHelper event in Raid-Helper's `{ setup: slots }`

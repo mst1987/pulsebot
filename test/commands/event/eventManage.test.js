@@ -31,7 +31,7 @@ jest.mock("../../../src/services/discord/pingDelivery", () => ({
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})), listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(() => null),
 }));
-jest.mock("../../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
+jest.mock("../../../src/services/setup/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
 jest.mock("../../../src/services/events/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));

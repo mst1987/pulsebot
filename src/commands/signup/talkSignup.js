@@ -4,7 +4,7 @@ const { getStoredEvent } = require("../../services/events/eventSources");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { SELECT_ID } = require("../../web/talkOverview");
 const guildRoles = require("../../services/discord/guildRoles");
-const { checkRaiderRole } = require("../../web/signupService");
+const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
 const { toEnglish } = require("../../utils/signup/botEnglish");
 

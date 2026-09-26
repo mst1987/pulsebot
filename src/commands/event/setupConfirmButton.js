@@ -1,7 +1,7 @@
-// "Confirm" / "Cancel" under the setup message — see web/setupConfirmBot.js
+// "Confirm" / "Cancel" under the setup message — see services/setup/setupConfirmBot.js
 // for the customIds. Raider-facing: anyone may click, only their own
 // placement is touched.
-const { CONFIRM_PREFIX, handleConfirmComponent } = require("../../web/setupConfirmBot");
+const { CONFIRM_PREFIX, handleConfirmComponent } = require("../../services/setup/setupConfirmBot");
 const { componentRoute } = require("../componentRoute");
 
 module.exports = componentRoute({
