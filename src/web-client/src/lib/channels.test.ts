@@ -67,7 +67,7 @@ describe("the purposes the server defines", () => {
     it("carry WoW icons, not line icons", () => {
         const { PURPOSES } = requireBackend("web/channelPurposes");
         expect(PURPOSES.map((p: { icon: string }) => p.icon)).toEqual([
-            "inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "inv_misc_coin_01", "achievement_boss_illidan",
+            "inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "achievement_boss_illidan",
         ]);
     });
 });
