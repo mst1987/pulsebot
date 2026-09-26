@@ -205,6 +205,17 @@ describe("web/logChannel — scanLogChannels", () => {
         expect(count).toBe(1);
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan", postedAt: 222000 }));
     });
+
+    it("skips a channel that is gone or holds no messages", async () => {
+        const voice = { isTextBased: () => false, guildId: "g1", messages: { fetch: jest.fn() } };
+        const fetch = jest.fn().mockRejectedValueOnce(Object.assign(new Error("Unknown Channel"), { code: 10003 })).mockResolvedValue(voice);
+        getConfig.mockReturnValue({ logChannelIds: ["gone", "voice"] });
+        discord.getClient.mockReturnValue({ ...CLIENT, channels: { fetch } });
+
+        expect(await scanLogChannels("g1")).toBe(0);
+        expect(fetch).toHaveBeenCalledTimes(2);
+        expect(voice.messages.fetch).not.toHaveBeenCalled();
+    });
 });
 
 describe("web/logChannel — backfillLogTitles", () => {
