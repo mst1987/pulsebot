@@ -873,7 +873,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* ===== Hover panels: a count that opens its detail list on hover =====
    Used by the Charaktere tab's Items column and the Roster's Loot/Gear-Issues
    columns. The panel is portalled to <body> and positioned from JS (see
-   components/HoverPanel.tsx's popoverStyle) — .dash-card's notched clip-path
+   lib/popoverPosition.ts' panelPosition) — .dash-card's notched clip-path
    would otherwise slice it off at the card edge, which no overflow/z-index
    can undo. */
 .loot-pop-wrap { display: inline-block; outline: none; }

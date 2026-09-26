@@ -1207,15 +1207,6 @@ export function applyMenuAction(board: RaidplanBoard, id: string, kind: ObjectKi
     return { board, sel };
 }
 
-/** Where a menu of a size opens so it stays inside the viewport (opens up / left when there is no room). */
-export function clampMenuPosition(x: number, y: number, w: number, h: number, vw: number, vh: number): { x: number; y: number } {
-    const margin = 8;
-    return {
-        x: Math.max(margin, x + w + margin > vw ? Math.max(margin, vw - w - margin) : x),
-        y: Math.max(margin, y + h + margin > vh ? Math.max(margin, vh - h - margin) : y),
-    };
-}
-
 // ---- undo / redo ---------------------------------------------------------------------------
 
 export function historyInit<T>(present: T): History<T> {

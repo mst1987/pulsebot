@@ -262,7 +262,7 @@ describe("loot council — icons, buttons, tooltips", () => {
         const tip = fn(parts, "RichTip");
         expect(tip).toMatch(/className="tip on lc-rtip"/);
         // Inside an open dialog, or it would sit behind the backdrop.
-        expect(tip).toMatch(/closest\("dialog"\)/);
+        expect(tip).toMatch(/host="dialog"/);
     });
 
     it("keeps the worn-item marks in their corners, each explained by a tooltip", () => {

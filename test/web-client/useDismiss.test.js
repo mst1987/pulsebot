@@ -84,16 +84,22 @@ describe("no hand-written click-outside listener is left", () => {
     };
     walk(CLIENT);
 
-    // the former users of the pattern, all on the hook now
+    // the former users of the pattern, all on the hook now — directly, or through ui/Popover (which calls it)
     const USERS = [
-        "components/LootFilters.tsx", "pages/ClaPage.tsx", "pages/lootcouncil/FilterBar.tsx", "pages/raid-detail/manage/ManageMenu.tsx",
+        "components/LootFilters.tsx", "pages/ClaPage.tsx", "pages/lootcouncil/FilterBar.tsx",
         "components/EmojiPicker.tsx", "components/ItemSearchPicker.tsx", "components/ManualLootForm.tsx", "components/raidplan/Flyout.tsx",
-        "components/RolePermissions.tsx", "components/SpecPicker.tsx", "pages/raid-detail/raidplan/ContextMenu.tsx",
+        "components/RolePermissions.tsx", "components/SpecPicker.tsx",
         "pages/raid-detail/raidplan/ViewControls.tsx", "components/ui/Button.tsx",
     ];
+    const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "pages/raid-detail/raidplan/ContextMenu.tsx"];
 
     test.each(USERS)("%s uses useDismiss", (rel) => {
         expect(read(rel)).toMatch(/useDismiss\(/);
+    });
+
+    test.each(VIA_POPOVER)("%s is dismissed by its Popover", (rel) => {
+        expect(read(rel)).toMatch(/<Popover[\s\S]*onClose=/);
+        expect(read("components/ui/Popover.tsx")).toMatch(/useDismiss\(/);
     });
 
     test("no component registers a document mousedown/click listener with a contains() check of its own", () => {

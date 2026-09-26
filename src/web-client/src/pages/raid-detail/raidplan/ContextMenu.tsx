@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
-import { clampMenuPosition, type MenuItem } from "../../../lib/raidplan";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import type { MenuItem } from "../../../lib/raidplan";
+import { pointPlacement } from "../../../lib/popoverPosition";
+import Popover from "../../../components/ui/Popover";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import type { RaidplanMarkName } from "../../../api";
-import { useDismiss } from "../../../hooks/useDismiss";
 
 /**
  * The board's own right-click (or long-press) menu. It replaces the browser's
@@ -23,29 +23,17 @@ export default function ContextMenu({ x, y, title, items, labelFor, onPick, onCl
     onClose: () => void;
 }) {
     const ref = useRef<HTMLDivElement>(null);
-    const [pos, setPos] = useState({ x, y });
     const [active, setActive] = useState(0);
     const enabled = items.map((i, n) => (i.disabled ? -1 : n)).filter((n) => n >= 0);
 
-    // measured once it is drawn: back into the viewport
-    useLayoutEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        setPos(clampMenuPosition(x, y, el.offsetWidth, el.offsetHeight, window.innerWidth, window.innerHeight));
-    }, [x, y, items.length]);
-
-    // Esc is the menu's own key (it keeps the board's handlers from seeing it).
-    useDismiss(ref, true, onClose, { event: "pointerdown", capture: true, escape: false });
-
+    // Placed by the Popover (drawn at the pointer, measured, moved back into the viewport); a click anywhere
+    // else, a scroll or a resize closes it there. Esc is the menu's own key (it keeps the board's handlers
+    // from seeing it), so the Popover does not listen for it.
     useEffect(() => {
         const before = document.activeElement as HTMLElement | null;
         const close = () => onClose();
-        window.addEventListener("resize", close);
-        window.addEventListener("scroll", close, true);
         window.addEventListener("blur", close);
         return () => {
-            window.removeEventListener("resize", close);
-            window.removeEventListener("scroll", close, true);
             window.removeEventListener("blur", close);
             if (before && before.focus) before.focus();
         };
@@ -67,8 +55,11 @@ export default function ContextMenu({ x, y, title, items, labelFor, onPick, onCl
     };
 
     let last = "";
-    return createPortal(
-        <div ref={ref} className="rp-menu" role="menu" aria-label={title} style={{ left: pos.x, top: pos.y }} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}>
+    return (
+        <Popover
+            anchor={null} boxRef={ref} place={pointPlacement(x, y)} onClose={onClose} dismiss={{ event: "pointerdown", capture: true, escape: false }}
+            className="rp-menu" role="menu" aria-label={title} style={{ left: x, top: y }} onKeyDown={onKey} onContextMenu={(e) => e.preventDefault()}
+        >
             <div className="rp-menu-title" aria-hidden="true">{title}</div>
             {items.map((item, n) => {
                 const sep = last && last !== item.section;
@@ -89,7 +80,6 @@ export default function ContextMenu({ x, y, title, items, labelFor, onPick, onCl
                     </div>
                 );
             })}
-        </div>,
-        document.body,
+        </Popover>
     );
 }

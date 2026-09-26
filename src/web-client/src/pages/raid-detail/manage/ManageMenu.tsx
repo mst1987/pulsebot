@@ -6,41 +6,20 @@
 //
 // The menu is portalled into <body> and placed under the button: the head is a
 // clipped panel, and a popover inside it would be cut off after three entries.
-import { useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState } from "react";
 import { manageMenu, type ManageAction, type ManageMenuEntry, type ManageState } from "../../../lib/eventManage";
 import { Button } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/icons";
 import { useT } from "../../../i18n";
-import { useDismiss } from "../../../hooks/useDismiss";
-
-type Place = { top: number; right: number };
+import Popover from "../../../components/ui/Popover";
+import { belowEndPlacement } from "../../../lib/popoverPosition";
 
 /** `entries` replaces the own event's menu (a Raid-Helper event has only its raid plan switch); `tipSub` the button's second line. */
 export default function ManageMenu({ state, entries: given, tipSub, onAction }: { state?: ManageState; entries?: ManageMenuEntry[]; tipSub?: string; onAction: (action: ManageAction) => void }) {
     const t = useT();
     const [open, setOpen] = useState(false);
-    const [place, setPlace] = useState<Place | null>(null);
     const anchor = useRef<HTMLDivElement>(null);
-    const pop = useRef<HTMLDivElement>(null);
-
-    useLayoutEffect(() => {
-        if (!open || !anchor.current) return undefined;
-        const measure = () => {
-            const r = anchor.current!.getBoundingClientRect();
-            setPlace({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
-        };
-        measure();
-        window.addEventListener("resize", measure);
-        window.addEventListener("scroll", measure, true);
-        return () => {
-            window.removeEventListener("resize", measure);
-            window.removeEventListener("scroll", measure, true);
-        };
-    }, [open]);
-
-    useDismiss([anchor, pop], open, () => setOpen(false));
 
     const entries = given || (state ? manageMenu(state) : []);
     return (
@@ -54,8 +33,8 @@ export default function ManageMenu({ state, entries: given, tipSub, onAction }: 
             >
                 {t("raidDetail.manage.button")}<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>
             </Button>
-            {open && place && createPortal(
-                <div className="em-pop" role="menu" ref={pop} style={{ top: place.top, right: place.right }}>
+            {open && (
+                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="em-pop" role="menu">
                     {entries.map((entry, i) => entry === "sep"
                         ? <div key={`sep-${i}`} className="em-sep" role="separator" />
                         : (
@@ -70,8 +49,7 @@ export default function ManageMenu({ state, entries: given, tipSub, onAction }: 
                                 </span>
                             </button>
                         ))}
-                </div>,
-                document.body,
+                </Popover>
             )}
         </div>
     );

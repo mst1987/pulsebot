@@ -501,15 +501,7 @@ describe("the context menu", () => {
         expect(lib.applyMenuAction(b, "duplicate", "", "", null).board).toBe(b);
     });
 
-    it("keeps a menu inside the viewport", () => {
-        expect(lib.clampMenuPosition(100, 100, 200, 300, 1600, 900)).toEqual({ x: 100, y: 100 });
-        expect(lib.clampMenuPosition(1500, 100, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 100 });
-        expect(lib.clampMenuPosition(100, 800, 200, 300, 1600, 900)).toEqual({ x: 100, y: 592 });
-        expect(lib.clampMenuPosition(1590, 890, 200, 300, 1600, 900)).toEqual({ x: 1392, y: 592 });
-        // taller than the viewport: at the top edge, never above it
-        expect(lib.clampMenuPosition(10, 500, 200, 2000, 1600, 900)).toEqual({ x: 10, y: 8 });
-        expect(lib.clampMenuPosition(-50, -50, 200, 300, 1600, 900)).toEqual({ x: 8, y: 8 });
-    });
+    // keeping the menu inside the viewport: lib/popoverPosition.ts clampToViewport, tested in popover.test.js
 });
 
 describe("undo and redo", () => {
@@ -698,8 +690,9 @@ describe("the pages", () => {
         expect(menu).toContain("role=\"menuitem\"");
         expect(menu).toContain("role=\"separator\"");
         for (const key of ["ArrowDown", "ArrowUp", "Home", "End", "Escape"]) expect(menu).toContain(`"${key}"`);
-        expect(menu).toContain("clampMenuPosition");
-        expect(menu).toContain("createPortal");
+        // portalled and moved back into the viewport by the shared Popover
+        expect(menu).toContain("pointPlacement(x, y)");
+        expect(menu).toContain("<Popover");
     });
 
     it("undoes with Ctrl+Z / Ctrl+Y and offers the buttons", () => {
