@@ -79,10 +79,10 @@ describe("server: a role is the spec's role (heal / tank rows)", () => {
         expect(assign.expandClassRefs([r("tank", ["class:Paladin:1"])], [], setup, {})[0].assignees).toEqual(["user:prot"]);
         expect(assign.expandClassRefs([r("heal", ["class:Paladin:1"])], [], setup.filter((p) => p.userId !== "holy"), {})[0].assignees).toEqual(["class:Paladin:1"]);
         expect(assign.expandClassRefs([r("kick", ["class:Shaman:1"])], [], setup, {})[0].assignees).toEqual(["user:enh"]);
-        expect(assign.impliedRole("trashtank")).toBe("tank");
+        expect(assign._internal.impliedRole("trashtank")).toBe("tank");
     });
     it("a suggestion never adds other classes unless the row allows it", () => {
-        expect(assign.classesFor("heal", ["Paladin"], false)).toEqual(["Paladin"]);
-        expect(assign.classesFor("kick", ["Mage"], false)).toEqual(["Mage"]);
+        expect(assign._internal.classesFor("heal", ["Paladin"], false)).toEqual(["Paladin"]);
+        expect(assign._internal.classesFor("kick", ["Mage"], false)).toEqual(["Mage"]);
     });
 });

@@ -1,7 +1,7 @@
 // "Invite callen" (inviteCall.js + the Discord button in inviteCallBot.js):
 // groups 1–5 of the approved setup are pinged in the event channel with
 // "/w <Charakter> inv", the character being the caller's own. Stores and
-// Discord are mocks; the approved setup is read by the real setupEditor.
+// Discord are mocks; the approved setup is read by the real setupCore.
 jest.mock("../../src/web/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
 jest.mock("../../src/web/signupStore", () => ({ getSignup: jest.fn(() => null) }));
 jest.mock("../../src/web/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
@@ -13,6 +13,7 @@ const signupStore = require("../../src/web/signupStore");
 const discord = require("../../src/web/discord");
 const { invitePlan, callInvite, inviteCharacterOf } = require("../../src/web/inviteCall");
 const bot = require("../../src/web/inviteCallBot");
+const { inviteButtonRow } = require("../../src/web/setupCore");
 const command = require("../../src/commands/event/inviteCallButton");
 
 const slot = (userId, character) => ({ userId, character, classId: "priest", spec: "Priest-Holy", role: "healer" });
@@ -146,6 +147,6 @@ describe("the Discord button (inviteCallBot)", () => {
 
     it("ignores ids that are no own event", () => {
         expect(bot.parseInviteId("invite-call:p:../../x")).toEqual({ field: "p", eventId: "" });
-        expect(bot.inviteButtonRow("eh-abc123").components[0].custom_id).toBe("invite-call:p:eh-abc123");
+        expect(inviteButtonRow("eh-abc123").components[0].custom_id).toBe("invite-call:p:eh-abc123");
     });
 });

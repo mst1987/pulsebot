@@ -1,6 +1,4 @@
-const {
-    raidSteps, roleSummary, firstOpenAnalysis, eventSteps, STEP_IDS, STEP_STATES,
-} = require("../../src/web/raidDetailSteps");
+const { raidSteps, eventSteps, STEP_IDS, STEP_STATES, _internal: { roleSummary, firstOpenAnalysis } } = require("../../src/web/raidDetailSteps");
 
 function base(overrides = {}) {
     return {

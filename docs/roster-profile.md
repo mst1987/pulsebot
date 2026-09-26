@@ -1,5 +1,7 @@
 # Roster und Raider-Profil
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#mein-profil](guide-web-admin.md#mein-profil), [guide-web-admin.md#roster](guide-web-admin.md#roster).
+
 ## Roster (`roster` area)
 
 Every known character of the guild, grouped by raid category (design #218). Three things about the list itself:

@@ -423,7 +423,10 @@ function startTalkOverview({ intervalMs = SWEEP_MS, debounceMs = DEBOUNCE_MS, fi
 }
 
 module.exports = {
-    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, MAX_OPTIONS, RAIDHELPER_CREATE_DELAY_MS,
-    overviewLinks, channelUrl, eventUrl, formatStart, raidLine, upcomingGroups, buildOverviewMessage, payloadHash,
-    overviewEntries, currentPayload, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview,
+    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, channelUrl, currentPayload, syncOverview, overviewStatus,
+    scheduleOverviewSync, startTalkOverview,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        overviewLinks, formatStart, buildOverviewMessage, payloadHash,
+    },
 };

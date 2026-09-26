@@ -24,7 +24,8 @@ jest.mock("../../src/web/eventSources", () => ({
 }));
 
 const editor = require("../../src/web/setupEditor");
-const { buildEventMessage } = require("../../src/web/eventMessage");
+const { approvedSetupOf } = require("../../src/web/setupCore");
+const { _internal: { buildEventMessage } } = require("../../src/web/eventMessage");
 const { su } = require("../utils/setup/fixtures");
 
 const ID = "eh-kara";
@@ -264,7 +265,7 @@ describe("what raiders see", () => {
         editor.proposeEventSetup(ID);
         const event = mockEvents.get(ID);
         const someone = event.setup.groups[0].slots[0].userId;
-        expect(editor.approvedSetupOf(event)).toBeNull();
+        expect(approvedSetupOf(event)).toBeNull();
         expect(editor.approvedPlacementFor(event, someone)).toBeNull();
         expect(editor.raidHelperSlots(event)).toEqual([]);
         const reader = editor.editorView(event, { canWrite: false });
@@ -386,7 +387,7 @@ describe("addUnplacedSignups", () => {
             { userId: "c", character: "C", spec: "Priest-Holy", role: "healer", status: "late" },
             { userId: "d", character: "D", spec: "Priest-Holy", role: "healer", status: "absence" },
         ];
-        const out = editor.addUnplacedSignups(decorated, signups, table, { c: "Zibbo" });
+        const out = editor._internal.addUnplacedSignups(decorated, signups, table, { c: "Zibbo" });
         expect(out.bench.map((b) => b.userId)).toEqual(["b", "c"]);
         expect(out.bench[1]).toMatchObject({
             character: "C", spec: "Priest-Holy", role: "healer", status: "late", locked: false, name: "Zibbo", classColor: "#ffffff",
@@ -394,8 +395,8 @@ describe("addUnplacedSignups", () => {
     });
 
     it("changes nothing without a lineup, or once the bench already has everyone", () => {
-        expect(editor.addUnplacedSignups(null, [], table, {})).toBeNull();
+        expect(editor._internal.addUnplacedSignups(null, [], table, {})).toBeNull();
         const decorated = { groups: [], bench: [{ userId: "x" }] };
-        expect(editor.addUnplacedSignups(decorated, [{ userId: "x", spec: "Priest-Holy" }], table, {})).toBe(decorated);
+        expect(editor._internal.addUnplacedSignups(decorated, [{ userId: "x", spec: "Priest-Holy" }], table, {})).toBe(decorated);
     });
 });

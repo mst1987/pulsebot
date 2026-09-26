@@ -1,6 +1,5 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData");
@@ -68,9 +67,7 @@ function lootOnlyHistoryData(guildId) {
 }
 
 /** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
-async function getHistoryData(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getHistoryData = withUser({}, async ({ user, req, res }) => {
     const guildId = activeGuildFor(req);
     // Someone who only holds "Loot-Ansichten" gets exactly what those four tabs
     // read and nothing else — the raid lists, the logs and the character table
@@ -101,7 +98,7 @@ async function getHistoryData(req, res) {
         activeGuildId: guildId,
         chars: annotatedCharacters().map(withClassLook),
     });
-}
+});
 
 /**
  * GET /api/history/loot-stats — the two cross-raid overviews: loot per raider
@@ -109,9 +106,7 @@ async function getHistoryData(req, res) {
  * Own endpoint rather than part of /api/history: it carries every loot row that
  * was ever imported, which the five older tabs have no use for.
  */
-async function getLootStats(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootStats = withUser({}, async ({ res }) => {
     // Same one-time backfill the event/character pages do — an item without a
     // name is unusable in a table that is sorted and filtered by name.
     await repairLootItemNames();
@@ -121,7 +116,7 @@ async function getLootStats(req, res) {
         characters: stats.characters.map(withClassLook),
         items: stats.items.map((it) => ({ ...it, awards: it.awards.map(withClassLook) })),
     });
-}
+});
 
 /**
  * GET /api/history/loot-awards — one page of the "Latest Loot" tab: awards
@@ -133,9 +128,7 @@ async function getLootStats(req, res) {
  * Paged on the server rather than in the browser: the loot store holds every row
  * ever imported, and the tab only ever shows one page of it.
  */
-async function getLootAwards(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootAwards = withUser({}, async ({ res, url }) => {
     // Same one-time backfill as the other loot views — a row without a name is
     // unusable in a list that is searched by name.
     await repairLootItemNames();
@@ -148,17 +141,13 @@ async function getLootAwards(req, res, url) {
         reason: q.get("reason") || "",
         page: Number(q.get("page")) || 1,
     }));
-}
+});
 
 /** POST /api/history/log-delete — body: { logId }. */
-async function deleteHistoryLog(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     deleteLog(String(body.logId || "").trim());
     ok(res, { id: body.logId });
-}
+});
 
 /**
  * A raid category picked by hand (import form / loot list), checked against the
@@ -248,12 +237,7 @@ async function resolveImportTarget(req, { event, manualLabel, items }) {
  * no event supplied one (manual import / no match) — an event's own Discord
  * category always wins over a hand-picked one.
  */
-async function importLoot(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-
+const importLoot = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const data = String(body.data || "").trim();
     if (!data) return error(res, 400, "no_data", "Kein Loot-Text eingefügt.");
     const tool = (body.tool || "auto").trim();
@@ -287,7 +271,7 @@ async function importLoot(req, res) {
         saveConfig({ categoryLootTool: { [categoryId]: tool } });
     }
     ok(res, { eventId, eventLabel, categoryId, added, skipped }, 201);
-}
+});
 
 /**
  * POST /api/history/import-preview — body: { data, tool, event }. What the
@@ -297,11 +281,7 @@ async function importLoot(req, res) {
  * events are loaded with the same lookback the import's own date match uses, so
  * the suggestion is the event the import would pick.
  */
-async function previewLootImport(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const previewLootImport = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
     const result = previewImport({
         data: body.data,
@@ -313,7 +293,7 @@ async function previewLootImport(req, res) {
     const preview = { ...result };
     delete preview.ok;
     ok(res, preview);
-}
+});
 
 /**
  * GET /api/history/loot-picker?event=<id> — everything the "Item nachtragen"
@@ -324,9 +304,7 @@ async function previewLootImport(req, res) {
  * over in full: a raid is 30-200 items, and having them client-side is what
  * lets the picker filter as you type without a round trip per keystroke.
  */
-async function getLootPicker(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootPicker = withUser({}, async ({ res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
     const title = (url.searchParams.get("title") || "").trim();
     const items = eventId ? listLootByEvent(eventId) : [];
@@ -348,7 +326,7 @@ async function getLootPicker(req, res, url) {
             iconUrl: c.iconUrl || "",
         })),
     });
-}
+});
 
 /**
  * POST /api/history/loot-add — body:
@@ -358,12 +336,7 @@ async function getLootPicker(req, res, url) {
  * re-derived server-side: the event's label/category from Raid-Helper, the
  * item's name/icon from the drop table, the raid from the item id.
  */
-async function addLootItem(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-
+const addLootItem = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const eventId = String(body.event || "").trim();
     if (!eventId) return error(res, 400, "no_event", "Kein Event angegeben.");
     const item = buildManualItem({
@@ -397,7 +370,7 @@ async function addLootItem(req, res) {
         return error(res, 409, "duplicate", `„${item.itemName || `Item ${item.itemId}`}" ist für ${item.character} in diesem Raid bereits eingetragen.`);
     }
     ok(res, { eventId: target.eventId, eventLabel: target.eventLabel, added, skipped, item: decorateLootItem(item) }, 201);
-}
+});
 
 /**
  * POST /api/history/loot-category — body: { event, categoryId }.
@@ -406,18 +379,14 @@ async function addLootItem(req, res) {
  * category at all and is therefore missing from every category-grouped overview
  * ("Charaktere", "Loot-Gründe") — this assigns one after the fact.
  */
-async function setLootCategory(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const setLootCategory = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const eventId = String(body.event || "").trim();
     if (!eventId) return error(res, 400, "no_event", "Kein Event angegeben.");
     const picked = pickedCategory(req, body.categoryId);
     if (picked.error) return error(res, 400, "bad_category", picked.error);
     const updated = setLootEventCategory(eventId, picked.id);
     ok(res, { eventId, categoryId: picked.id, updated });
-}
+});
 
 /**
  * POST /api/history/loot-delete — body: { id } or { ids: [...] }.
@@ -425,11 +394,7 @@ async function setLootCategory(req, res) {
  * detail, event history, character history) — the fine-grained counterpart to
  * /api/history/clear, which throws away a whole import.
  */
-async function deleteLootItems(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const deleteLootItems = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const ids = Array.isArray(body.ids) ? body.ids : [body.id];
     const wanted = ids.map((id) => String(id || "").trim()).filter(Boolean);
     if (!wanted.length) return error(res, 400, "no_id", "Kein Loot-Eintrag angegeben.");
@@ -438,17 +403,13 @@ async function deleteLootItems(req, res) {
     // the import was cleared) — say so instead of reporting a silent success.
     if (!removed) return error(res, 404, "not_found", "Loot-Eintrag nicht gefunden — die Ansicht ist veraltet.");
     ok(res, { removed });
-}
+});
 
 /** POST /api/history/clear — body: { event }. Deletes all loot stored for one event. */
-async function clearHistoryEvent(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const removed = clearLootEvent(String(body.event || "").trim());
     ok(res, { removed });
-}
+});
 
 // ---- addon inbox: sessions uploaded by the loot-sync tool, awaiting a decision ----
 
@@ -457,9 +418,7 @@ async function clearHistoryEvent(req, res) {
  * has filed yet, each with the event it was matched to (a suggestion only) and
  * its loot, so the admin can see what they are accepting before they accept it.
  */
-async function getLootInbox(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getLootInbox = withUser({}, async ({ res }) => {
     // Decorated like stored loot (reason badge, raid, tier) even though it isn't
     // stored yet — the preview should look like the history it is about to be.
     const sessions = listPendingSessions().map((s) => {
@@ -477,7 +436,7 @@ async function getLootInbox(req, res) {
     // Accepted sessions that keep appending by themselves — the quiet list under
     // the cards, so nobody wonders where last night's second half went.
     ok(res, { sessions, linked: listLinkedSessions() });
-}
+});
 
 /**
  * POST /api/history/inbox-accept — body: { id, event, manualLabel, categoryId }.
@@ -485,11 +444,7 @@ async function getLootInbox(req, res) {
  * `event` defaults to the suggested match; the admin can override it with any
  * event id, "__auto__" or "__manual__" (same vocabulary as the paste import).
  */
-async function acceptLootInbox(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const entry = getPendingSession(String(body.id || "").trim());
     if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
 
@@ -521,27 +476,21 @@ async function acceptLootInbox(req, res) {
         contentLabel: sessionContentLabel(entry).label,
     });
     ok(res, { eventId: target.eventId, eventLabel: target.eventLabel, categoryId, added, skipped }, 201);
-}
+});
 
 /**
  * POST /api/history/inbox-dismiss — body: { id }. Throws a session away without
  * importing it. The decision sticks: the sync tool re-uploads the same session
  * as long as it is in the addon's SavedVariables, and it must not come back.
  */
-async function dismissLootInbox(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const removed = resolvePendingSession(String(body.id || "").trim(), "dismissed");
     if (!removed) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
     ok(res, { id: removed.id, sessionId: removed.sessionId });
-}
+});
 
 /** GET /api/history/event?event=<id> — the loot imported for one event. */
-async function getHistoryEvent(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getHistoryEvent = withUser({}, async ({ res, url }) => {
     const eventId = url.searchParams.get("event") || "";
     // Backfill names/icons on rows imported before enrichment existed, so old
     // records stop showing as "Item <id>" (persisted — a one-time repair).
@@ -549,17 +498,14 @@ async function getHistoryEvent(req, res, url) {
     const items = withLootClassLook(listLootByEvent(eventId));
     const label = (items[0] && items[0].eventLabel) || eventId;
     ok(res, { eventId, label, items });
-}
+});
 
 /**
  * POST /api/history/characters-resolve — fill in the class/spec that is still
  * missing for the loot characters: from the export, from an already evaluated
  * CLA report, else from the Warcraft-Logs report of the raid.
  */
-async function resolveCharacters(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
+const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
     const r = await resolveMissing();
     if (r.error) return error(res, 502, "wcl_unavailable", r.error);
     const filled = r.fromExport + r.fromReports + r.fromWcl;
@@ -570,15 +516,13 @@ async function resolveCharacters(req, res) {
     if (r.unlinked.length) parts.push(`${r.unlinked.length} ohne zugeordnetes Log (Log im CLA-Menü dem Event zuordnen)`);
     if (r.missing.length) parts.push(`${r.missing.length} weiterhin ohne Klasse`);
     ok(res, { ...r, message: `${parts.join(", ")}.` });
-}
+});
 
 /**
  * GET /api/history/char?name=<name> — loot history plus live Blizzard gear
  * (paperdoll) and diagnostics for one character.
  */
-async function getHistoryChar(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getHistoryChar = withUser({}, async ({ res, url }) => {
     const name = url.searchParams.get("name") || "";
     await repairLootItemNames(); // see getHistoryEvent
     const items = withLootClassLook(listLootByCharacter(name));
@@ -624,7 +568,7 @@ async function getHistoryChar(req, res, url) {
         // detail behind the roster overview's issue count.
         gearIssues: issuesForCharacter(name),
     });
-}
+});
 
 // Add the same color/icon fields the "Charaktere" tab gets, so the char-detail
 // header can render the class/spec suffix without duplicating CLASS_COLORS.
@@ -637,9 +581,31 @@ function enrichCharInfo(info) {
     };
 }
 
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/history", handler: getHistoryData, area: ["history", "loot"] },
+    { method: "GET", path: "/api/history/loot-stats", handler: getLootStats, area: ["history", "loot"] },
+    { method: "GET", path: "/api/history/loot-awards", handler: getLootAwards, area: ["history", "loot"] },
+    { method: "POST", path: "/api/history/log-delete", handler: deleteHistoryLog, area: "history" },
+    { method: "POST", path: "/api/history/import", handler: importLoot, area: "history" },
+    { method: "POST", path: "/api/history/import-preview", handler: previewLootImport, area: "history" },
+    { method: "GET", path: "/api/history/inbox", handler: getLootInbox, area: "history" },
+    { method: "POST", path: "/api/history/inbox-accept", handler: acceptLootInbox, area: "history" },
+    { method: "POST", path: "/api/history/inbox-dismiss", handler: dismissLootInbox, area: "history" },
+    { method: "POST", path: "/api/history/loot-category", handler: setLootCategory, area: "history" },
+    { method: "POST", path: "/api/history/loot-delete", handler: deleteLootItems, area: "history" },
+    { method: "GET", path: "/api/history/loot-picker", handler: getLootPicker, area: "history" },
+    { method: "POST", path: "/api/history/loot-add", handler: addLootItem, area: "history" },
+    { method: "POST", path: "/api/history/clear", handler: clearHistoryEvent, area: "history" },
+    { method: "GET", path: "/api/history/event", handler: getHistoryEvent, area: ["history", "loot"] },
+    { method: "POST", path: "/api/history/characters-resolve", handler: resolveCharacters, area: "history" },
+    { method: "GET", path: "/api/history/char", handler: getHistoryChar, area: ["history", "loot"] },
+];
+
 module.exports = {
     getLootInbox, acceptLootInbox, dismissLootInbox,
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
     getLootPicker, addLootItem, previewLootImport,
     resolveCharacters, getHistoryChar,
+    routes,
 };

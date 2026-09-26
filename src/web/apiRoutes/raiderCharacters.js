@@ -2,8 +2,7 @@
 // raiderCharactersStore.js) consumed by apiRoutes/raidDetail.js's attendance
 // enrichment.
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
-const { readJsonBody } = require("../apiBody");
+const { withUser } = require("../apiHandler");
 const { activeGuildFor } = require("../activeGuild");
 const { getConfig } = require("../settingsStore");
 const { getCategoryAssignments, setCategoryAssignments } = require("../raiderCharactersStore");
@@ -16,9 +15,7 @@ const discord = require("../discord");
  * detail page's "missing" list), their current assignments, and the known
  * character names for autocomplete.
  */
-async function getRaiderCharacters(req, res, url) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
+const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
     const guildId = activeGuildFor(req);
     const categoryId = (url.searchParams.get("category") || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
@@ -37,24 +34,26 @@ async function getRaiderCharacters(req, res, url) {
         assignments: getCategoryAssignments(categoryId),
         knownCharacters: listCharacters().map((c) => c.character),
     });
-}
+});
 
 /**
  * POST /api/raider-characters — replace a category's whole raider->character
  * map in one call. Body: { categoryId, assignments: { [userId]: characterName } }.
  * A blank characterName removes that raider's assignment.
  */
-async function saveRaiderCharacters(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
+const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, res }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
     if (!body.assignments || typeof body.assignments !== "object") {
         return error(res, 400, "invalid", "Zuordnungen fehlen.");
     }
     ok(res, { assignments: setCategoryAssignments(categoryId, body.assignments) });
-}
+});
 
-module.exports = { getRaiderCharacters, saveRaiderCharacters };
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/raider-characters", handler: getRaiderCharacters, area: "settings" },
+    { method: "POST", path: "/api/raider-characters", handler: saveRaiderCharacters, area: "settings" },
+];
+
+module.exports = { getRaiderCharacters, saveRaiderCharacters, routes };

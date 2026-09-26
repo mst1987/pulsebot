@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { tipPosition } from "../../lib/popoverPosition";
 
 // Tooltips: the page's own box, never the browser's `title`. The native box
 // appears after a second, cannot be styled and does not exist on touch.
@@ -80,14 +81,13 @@ export function TipLayer() {
         let navAt = 0;
         box.setAttribute("popover", "manual");
 
+        // The same placement as every other tooltip (lib/popoverPosition.ts, ui/Popover): the one box is
+        // driven by the DOM here rather than rendered per anchor, so it only borrows the placement.
         const place = (t: Element) => {
-            const r = t.getBoundingClientRect();
             const b = box.getBoundingClientRect();
-            const x = r.left + r.width / 2 - b.width / 2;
-            let y = r.top - b.height - 9;
-            if (y < 8) y = r.bottom + 9;
-            box.style.left = `${Math.max(8, Math.min(x, window.innerWidth - b.width - 8))}px`;
-            box.style.top = `${y}px`;
+            const p = tipPosition(t.getBoundingClientRect(), { width: b.width, height: b.height }, { width: window.innerWidth, height: window.innerHeight });
+            box.style.left = `${p.left}px`;
+            box.style.top = `${p.top}px`;
         };
         const show = (t: Element) => {
             if (cur === t) return;

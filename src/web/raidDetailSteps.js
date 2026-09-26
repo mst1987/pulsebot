@@ -298,7 +298,13 @@ function raidSteps(d) {
     return { steps, next: nextStep ? nextStep.key : "", primary: primaryFor(nextStep, d) };
 }
 
-module.exports = { raidSteps, roleSummary, firstOpenAnalysis, wantsSoftres };
+module.exports = {
+    raidSteps,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        roleSummary, firstOpenAnalysis,
+    },
+};
 
 // ---------------------------------------------------------------------------
 // Das Raid-Cockpit (#319): dieselbe Frage in fünf Schritten

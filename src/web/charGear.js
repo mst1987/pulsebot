@@ -339,6 +339,51 @@ function fillSituational(snapshot, want, entry, report, wanted) {
  *          items, profile, skippedReports, roleMismatch}>}
  */
 function gearByCharacter({ roleFor } = {}) {
+    // The evaluations, newest first (walkReports); the fallbacks for raiders
+    // with no fitting set anywhere; a log loaded by hand; the armory.
+    const { out, rejected } = walkReports(roleFor);
+    addRejectedFallbacks(out, rejected, roleFor);
+    applyLoadedLogs(out, roleFor);
+    applyArmoryAndDrop(out, roleFor);
+    return out;
+}
+
+/** The set one evaluation's roster row shows, as a gear snapshot of the log. */
+function logSnapshot(key, entry, report, meta, items) {
+    return {
+        key,
+        character: entry.name,
+        className: entry.type || "",
+        seenAt: Number(report.generatedAt) || 0,
+        reportId: report.id || meta.id,
+        reportTitle: report.title || "",
+        items,
+        profile: gearProfile({ items }),
+        skippedReports: 0,
+        roleMismatch: false,
+        // True only on the fallback: every recent log showed an arena
+        // set, so this one is used and the page says so.
+        pvpGear: false,
+        // Boss-specific pieces nothing could answer, taken out of the
+        // set at the end of the walk (dropSituational).
+        dropped: [],
+        // Where this set comes from: the evaluation, or the armory when
+        // somebody asked for it (useArmorySet).
+        source: "log",
+        armoryAt: 0,
+        unverifiedEnchants: 0,
+        // Why the armory's answer was not taken although it exists:
+        // "pvp" (an arena set) or "role" (a healing set for a caster).
+        armoryRejected: "",
+    };
+}
+
+/**
+ * The walk over the newest evaluations: per raider the newest set that fits
+ * their role and is no PvP set (`out`), and the newest one that did not
+ * (`rejected`, with how many were passed over).
+ */
+function walkReports(roleFor) {
     const out = new Map();
     // Sets rejected for the wrong role, kept as a fallback: a raider who has
     // *only* ever been logged healing must still get gear, or the page would
@@ -368,33 +413,7 @@ function gearByCharacter({ roleFor } = {}) {
             // in no gear at all.
             if (!items.length) continue;
 
-            const snapshot = {
-                key,
-                character: entry.name,
-                className: entry.type || "",
-                seenAt: Number(report.generatedAt) || 0,
-                reportId: report.id || meta.id,
-                reportTitle: report.title || "",
-                items,
-                profile: gearProfile({ items }),
-                skippedReports: 0,
-                roleMismatch: false,
-                // True only on the fallback: every recent log showed an arena
-                // set, so this one is used and the page says so.
-                pvpGear: false,
-                // Boss-specific pieces nothing could answer, taken out of the
-                // set at the end of the walk (dropSituational).
-                dropped: [],
-                // Where this set comes from: the evaluation, or the armory when
-                // somebody asked for it (useArmorySet).
-                source: "log",
-                armoryAt: 0,
-                unverifiedEnchants: 0,
-                // Why the armory's answer was not taken although it exists:
-                // "pvp" (an arena set) or "role" (a healing set for a caster).
-                armoryRejected: "",
-            };
-
+            const snapshot = logSnapshot(key, entry, report, meta, items);
             const wanted = roleFor ? roleFor(key) : "";
             if ((wanted && !fitsRole(snapshot.profile, wanted)) || isPvpSet(snapshot)) {
                 // Wrong role, or PvP gear — remember the newest such set as a
@@ -409,8 +428,14 @@ function gearByCharacter({ roleFor } = {}) {
             if (situational.length) pending.set(key, new Map(situational.map((it) => [it.slot, it])));
         }
     }
-    // Nothing fitting anywhere: fall back to the newest set, marked, so the page
-    // can say "das ist Heilgear" instead of showing nothing at all.
+    return { out, rejected };
+}
+
+/**
+ * Nothing fitting anywhere: fall back to the newest set, marked, so the page
+ * can say "das ist Heilgear" instead of showing nothing at all.
+ */
+function addRejectedFallbacks(out, rejected, roleFor) {
     for (const [key, snapshot] of rejected) {
         if (out.has(key)) continue;
         const wanted = roleFor ? roleFor(key) : "";
@@ -421,14 +446,19 @@ function gearByCharacter({ roleFor } = {}) {
             skippedReports: 0,
         });
     }
-    // A log somebody loaded by hand (logGearStore.js): the explicit answer to
-    // "das Set von Donnerstag, bitte". It replaces the evaluation's set — the
-    // request is newer than any evaluation it was made against — and stops
-    // winning the moment an evaluation newer than the request lands, which is
-    // the natural end of "that set". A raider no evaluation knows at all gets
-    // gear this way too. The same role and PvP rules as for the armory apply;
-    // a refused set stays on the snapshot as `logRejected` so the page can say
-    // why the button changed nothing.
+}
+
+/**
+ * A log somebody loaded by hand (logGearStore.js): the explicit answer to
+ * "das Set von Donnerstag, bitte". It replaces the evaluation's set — the
+ * request is newer than any evaluation it was made against — and stops
+ * winning the moment an evaluation newer than the request lands, which is
+ * the natural end of "that set". A raider no evaluation knows at all gets
+ * gear this way too. The same role and PvP rules as for the armory apply;
+ * a refused set stays on the snapshot as `logRejected` so the page can say
+ * why the button changed nothing.
+ */
+function applyLoadedLogs(out, roleFor) {
     for (const snap of listLogGear()) {
         const key = snap && snap.key;
         if (!key) continue;
@@ -467,14 +497,21 @@ function gearByCharacter({ roleFor } = {}) {
         loaded.pvpGear = pvp;
         out.set(key, loaded);
     }
+}
+
+/**
+ * The armory wins where somebody asked for it: it is the only source that
+ * knows what a raider has on *now*, and between two raid nights the logs go
+ * stale with every drop. Only when it is raid gear of the right role, though:
+ * an arena set is refused outright (PvP gear makes no sense against a boss),
+ * and a shaman currently in healing gear is judged on their caster set, same
+ * rule as everywhere here. Either way the last raid's set stays, and the
+ * snapshot says why. Last, whatever no source could answer leaves the set: a
+ * piece worth zero in every comparison must not sit in a raider's gear
+ * pretending otherwise.
+ */
+function applyArmoryAndDrop(out, roleFor) {
     for (const snapshot of out.values()) {
-        // The armory wins where somebody asked for it: it is the only source
-        // that knows what a raider has on *now*, and between two raid nights the
-        // logs go stale with every drop. Only when it is raid gear of the right
-        // role, though: an arena set is refused outright (PvP gear makes no
-        // sense against a boss), and a shaman currently in healing gear is
-        // judged on their caster set, same rule as everywhere here. Either way
-        // the last raid's set stays, and the snapshot says why.
         const set = armorySetFor(snapshot.character);
         if (set) {
             const rows = set.rows.map(trimItem);
@@ -486,12 +523,8 @@ function gearByCharacter({ roleFor } = {}) {
                 useArmorySet(snapshot, set);
             }
         }
-        // Last: whatever no source could answer leaves the set. A piece worth
-        // zero in every comparison must not sit in a raider's gear pretending
-        // otherwise.
         dropSituational(snapshot);
     }
-    return out;
 }
 
 /** The gear snapshot for one character, or null when no report shows them. */

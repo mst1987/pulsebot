@@ -32,8 +32,7 @@ describe("web/render — send box", () => {
         expect(html).toMatch(/<button type="button" class="btn btn-sm" data-send="all"><img class="hicon"[^>]*>Freigegebenes per DM senden<\/button>/);
         expect(html).toContain("data-send=\"status\"");
         expect(html).toMatch(/class="btn btn-run btn-sm" data-phrase="all"/);
-        expect(html).toContain("window.__ehSend");
-        expect(html).toContain("/api/cla/recommendations/send");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
     });
 
     it("disables the button while nothing is approved", () => {
@@ -47,6 +46,6 @@ describe("web/render — send box", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }, {}), { id: "u3", isAdmin: false, access: { cla: { read: true } } });
         expect(html).not.toContain("class=\"rec-send\"");
         expect(html).not.toContain("dlg-rs-send");
-        expect(html).not.toContain("window.__ehSend");
+        expect(html).not.toContain("data-send=");
     });
 });

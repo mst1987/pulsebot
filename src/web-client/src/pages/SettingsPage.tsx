@@ -22,7 +22,9 @@ import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
 import ConnectionsSection from "../components/SettingsConnections";
 import DiscordServersSection from "../components/SettingsDiscordServers";
-import { ChannelPicker, FieldLabel, InfoTip, PenIcon, RolePicker } from "../components/settingsUi";
+import { ChannelPicker, PenIcon, RolePicker } from "../components/settingsUi";
+import Field, { FieldLabel, InfoTip } from "../components/ui/Field";
+import Chip from "../components/ui/Chip";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
 } from "../lib/settingsSections";
@@ -157,10 +159,12 @@ function ChannelListField({ ids, channels, onChange }: {
             {ids.length > 0 && (
                 <div className="chip-row">
                     {ids.map((id) => (
-                        <span key={id} className="badge chip accent" data-tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} data-tip-sub={`ID ${id}`}>
+                        <Chip
+                            key={id} tone="accent" tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} tipSub={`ID ${id}`}
+                            onRemove={() => onChange(ids.filter((x) => x !== id))} removeLabel="Kanal entfernen"
+                        >
                             {byId.get(id) ? `#${byId.get(id)!.name}` : <span className="mono">{id}</span>}
-                            <button type="button" className="chip-x" aria-label="Kanal entfernen" onClick={() => onChange(ids.filter((x) => x !== id))}><XIcon /></button>
-                        </span>
+                        </Chip>
                     ))}
                 </div>
             )}
@@ -209,16 +213,15 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
 
     return (
         <form className="sheetcard set-form" onSubmit={submit}>
-            <div className="set-field"><FieldLabel htmlFor="rs-name">Name (Content)</FieldLabel><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Tier 6 / SWP" required /></div>
-            <div className="set-field"><FieldLabel htmlFor="rs-id" tip="Spreadsheet-ID" tipSub="Der lange Teil der Sheet-URL zwischen /d/ und /edit.">Spreadsheet-ID</FieldLabel><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></div>
+            <Field className="set-field" htmlFor="rs-name" label="Name (Content)"><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Tier 6 / SWP" required /></Field>
+            <Field className="set-field" htmlFor="rs-id" label="Spreadsheet-ID" tip="Spreadsheet-ID" tipSub="Der lange Teil der Sheet-URL zwischen /d/ und /edit."><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></Field>
             <div className="set-grid">
-                <div className="set-field"><FieldLabel htmlFor="rs-tab">Tab-Name</FieldLabel><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></div>
-                <div className="set-field"><FieldLabel htmlFor="rs-gid" tip="Tab-GID" tipSub="Die Zahl hinter #gid= in der URL des Tabs.">Tab-GID</FieldLabel><input id="rs-gid" type="text" className="mono" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></div>
+                <Field className="set-field" htmlFor="rs-tab" label="Tab-Name"><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></Field>
+                <Field className="set-field" htmlFor="rs-gid" label="Tab-GID" tip="Tab-GID" tipSub="Die Zahl hinter #gid= in der URL des Tabs."><input id="rs-gid" type="text" className="mono" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></Field>
             </div>
-            <div className="set-field">
-                <FieldLabel htmlFor="rs-kw" tip="Keywords" tipSub="Kommagetrennt. Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.">Keywords</FieldLabel>
+            <Field className="set-field" htmlFor="rs-kw" label="Keywords" tip="Keywords" tipSub="Kommagetrennt. Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.">
                 <input id="rs-kw" type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="kara, gruul, maggi" />
-            </div>
+            </Field>
             <div className="row-actions">
                 <Button type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</Button>
                 <Button variant="ghost" disabled={busy} onClick={onCancel}>Abbrechen</Button>

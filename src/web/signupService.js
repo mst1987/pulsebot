@@ -43,8 +43,6 @@ const { spec: specOf } = require("../config/gameVersions");
 const AFTER_DEADLINE = ["absence", "late"];
 // Who takes a seat in the raid (the fill bar and the role counts).
 const ATTENDING = ["signed", "late"];
-// What a full raid does with a new "Dabei" (#306): the waiting list, or nothing.
-const OVERFLOW_MODES = ["bench", "off"];
 
 /**
  * How many are coming per role, and how many said otherwise.
@@ -574,10 +572,10 @@ function httpStatusFor(code) {
 }
 
 module.exports = {
-    AFTER_DEADLINE, ATTENDING, RAIDER_ROLE_ERROR, OVERFLOW_MODES,
-    categoryRoleAllowed, categoryVisible, checkRaiderRole, isCancelled, isSignupClosed, WHEN_CLOSED,
-    overflowOf, holdsSeat, seatsTaken, applyOverflow, lockIfFull,
-    rosterCounts, roleCounts, signupWindow, allowedStatuses,
-    findCharacter, profileRoles, defaultCanAlso, wishPartnersSignedUp,
-    validateSignup, submitSignup, submitSignups, fitCharactersToEvent, httpStatusFor, MAX_CHARACTERS,
+    categoryVisible, checkRaiderRole, rosterCounts, roleCounts, signupWindow, allowedStatuses, findCharacter, profileRoles, defaultCanAlso,
+    wishPartnersSignedUp, submitSignup, submitSignups, httpStatusFor, MAX_CHARACTERS,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        categoryRoleAllowed, validateSignup,
+    },
 };

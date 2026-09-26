@@ -45,9 +45,6 @@
 .hl-pop select { width: 100%; }
 .hl-active { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .hl-active .kicker { margin-right: 4px; }
-.hl-x { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; opacity: .7; cursor: pointer; }
-.hl-x svg { width: 10px; height: 10px; }
-.hl-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
 .hl-reset { margin-left: auto; font-size: 12.5px; }
 
 /* ---- grid tables (the loot rows are blocks, not table cells) ---- */

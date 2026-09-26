@@ -5,7 +5,7 @@ import {
 } from "../api";
 import { DIRECTION_LABEL, DIRECTION_TEXT, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../lib/settingsLogic";
 import { useToast } from "./Jobs";
-import { TrashIcon } from "./icons";
+import { PlusIcon, TrashIcon } from "./icons";
 import { Modal, useConfirm } from "./ui/Modal";
 import { Button, IconButton } from "./ui/Button";
 import Badge from "./ui/Badge";
@@ -13,7 +13,8 @@ import Expand from "./ui/Expand";
 import PartHead from "./ui/PartHead";
 import RaidLoader from "./ui/RaidLoader";
 import Segment from "./ui/Segment";
-import { AdminOnlyBadge, FieldLabel, PenIcon, PlusIcon, RolePicker, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, PenIcon, RolePicker, WarnIcon } from "./settingsUi";
+import { FieldLabel } from "./ui/Field";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Rollen-Abgleich" (#264).
 // One line per role pair; add and edit in a dialog. The sync only ever adds a

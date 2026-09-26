@@ -23,9 +23,6 @@ let mockConfig = {};
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })) }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
-jest.mock("../../src/web/setupEditor", () => ({
-    approvedSetupOf: (e) => (e && e.setup && e.setup.approved && Array.isArray(e.setup.approved.groups) ? e.setup.approved : null),
-}));
 
 const discord = require("../../src/web/discord");
 const eventStore = require("../../src/web/eventStore");
@@ -364,7 +361,7 @@ describe("DMs", () => {
     });
 
     it("pings everyone placed on the first post, never on a later edit (#354's follow-up)", async () => {
-        const { PING_TEXT } = require("../../src/web/setupPing");
+        const { PING_TEXT } = require("../../src/web/setupCore");
         seed();
         fakeChannel();
         await sm.publishSetup("eh-1", { config: {}, delayMs: 0, userId: "orga-x" });

@@ -29,7 +29,7 @@ const logger = require("../logger.js").child("raidhelper");
 // triggered it hangs until the reverse proxy answers 504 — that is what made
 // "fehlende Raider pingen" appear to do nothing at all. A timeout is not
 // retried for the same reason; a 5xx or a dropped connection is (GET only).
-const REQUEST_TIMEOUT_MS = 20000;
+const { RAIDHELPER_REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS } = require("../config/constants.js");
 
 // the body is judged here, not by axios: keep it as the text Raid-Helper sent
 const RAW = { responseType: "text", transformResponse: [(data) => data] };

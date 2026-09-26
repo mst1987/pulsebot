@@ -31,6 +31,7 @@ const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
 const { TIMEZONE } = require("../config/timezone");
+const { fail } = require("./apiResult");
 const SOURCES = ["raidhelper", "eventhelper"];
 
 /** Unix seconds of a "dd-MM-yyyy" date and "HH:mm" time in Berlin time, or 0. */
@@ -186,7 +187,6 @@ function isoDateOf(value) {
     return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
 }
 
-const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
 const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit", "color", "image", "emojiStyle"];
 // Colour and picture (#307) are the two planning fields whose *empty* value
@@ -252,6 +252,192 @@ function planFor(body, categoryId, title, startTime) {
     };
 }
 
+// ---- createEvent and its steps ----------------------------------------------------
+//
+// createEvent() validates (channelRequest, resolveChannelSource, ownEventPlan),
+// normalises the category (categoryOf), makes the channel (makeChannel), then
+// persists — at Raid-Helper (createAtRaidHelper) or in the own store
+// (createOwnEvent) — and runs the own event's Discord side effects
+// (publishOwnEvent). Nothing touches Discord before everything was checked.
+
+/**
+ * Which channel the body asks for: an existing one, a clone of an own/Raid-Helper
+ * event's channel, or a new one. A channel made for this event ("neu nach Schema"
+ * in the Discord modal and the web dialog) is like a clone only created once
+ * everything else has been checked; a name left empty is filled from the
+ * category's schema later.
+ */
+function channelRequest(body) {
+    const channelId = String(body.channelId || "").trim();
+    const sourceEventId = String(body.sourceEventId || "").trim();
+    const newChannel = !channelId && !sourceEventId && body.newChannel && typeof body.newChannel === "object"
+        ? {
+            name: normalizeChannelName(body.newChannel.name),
+            categoryId: String(body.newChannel.categoryId || "").trim(),
+            templateChannelId: String(body.newChannel.templateChannelId || "").trim(),
+        }
+        : null;
+    return { channelId, sourceEventId, newChannel };
+}
+
+/**
+ * The channel a clone copies (`{ sourceChannel }`), none for an existing or a
+ * new channel, or `{ error }` when the request names no usable channel.
+ */
+async function resolveChannelSource(rh, guildId, { channelId, sourceEventId, newChannel }) {
+    if (newChannel && !newChannel.name && !newChannel.categoryId) return fail(400, "no_channel", "Der neue Kanal braucht einen Namen.");
+    if (sourceEventId) {
+        const sourceChannel = await sourceChannelFor(rh, guildId, sourceEventId);
+        if (!sourceChannel.channelId) return fail(400, sourceChannel.code, sourceChannel.message);
+        return { sourceChannel };
+    }
+    if (!channelId && !newChannel) return fail(400, "no_channel", "Kein Channel gewählt.");
+    return { sourceChannel: null };
+}
+
+/**
+ * The category the event lands in — it decides the source. A clone lands next to
+ * its original, a new channel in the category it was asked for.
+ * @returns {{ meta: object, categoryId: string }}
+ */
+function categoryOf(guildId, catMap, { channelId, newChannel }, sourceChannel) {
+    const lookupChannel = sourceChannel ? sourceChannel.channelId : channelId;
+    const meta = catMap[lookupChannel]
+        || (newChannel ? { categoryId: newChannel.categoryId, categoryName: (catMap[newChannel.categoryId] || {}).name || categoryNameOf(guildId, newChannel.categoryId) } : {});
+    const categoryId = meta.categoryId || (sourceChannel && sourceChannel.categoryId) || "";
+    return { meta, categoryId };
+}
+
+/**
+ * An own event's title, start and plan. Everything the own store would refuse is
+ * checked here, before a channel is cloned, so a rejected event never leaves an
+ * orphan channel behind.
+ * @returns {{ plan: object, startTime: number } | { error: object }}
+ */
+function ownEventPlan(body, date, categoryId, title) {
+    if (!title) return fail(400, "invalid_title", "Das Event braucht einen Titel.");
+    const startTime = startTimeOf(date, body.time);
+    if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
+    const planned = planFor(body, categoryId, title, startTime);
+    if (planned.error) return planned.error;
+    return { plan: planned.plan, startTime };
+}
+
+/**
+ * The Discord side of the channel: clones the source event's channel or creates
+ * the new one, both named and designed like the category's previous event
+ * channel (#285) — the plain schema only when that cannot be worked out at all.
+ * An existing channel is taken as it is.
+ * @returns {Promise<{ channelId: string, channelName: string, naming: object|null } | { error: object }>}
+ */
+async function makeChannel({ guildId, categoryId, body, request, sourceChannel, instanceIds }) {
+    const { sourceEventId, newChannel } = request;
+    const isoDate = isoDateOf(body.date);
+    const derive = async (extra) => {
+        try {
+            return await channelNaming.deriveChannelName({ guildId, categoryId, date: isoDate, instanceIds, ...extra });
+        } catch {
+            return null;
+        }
+    };
+    const bySchema = () => schemaChannelName(guildId, categoryId, isoDate, instanceIds);
+    try {
+        if (sourceChannel) {
+            const naming = await derive({ fromEventId: sourceEventId });
+            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim() || (naming && naming.name) || bySchema());
+            if (naming && naming.placement) await discordChannels.placeChannel(cloned.id, naming.placement);
+            return { channelId: cloned.id, channelName: cloned.name || "", naming };
+        }
+        if (newChannel) {
+            const naming = await derive({});
+            const name = newChannel.name || (naming && naming.name) || bySchema();
+            const templateChannelId = newChannel.templateChannelId || (naming ? naming.templateChannelId : storedSchema(guildId, categoryId).templateChannelId) || "";
+            const created = await discordChannels.createFromTemplate(guildId, {
+                name, parentId: newChannel.categoryId, templateChannelId, ...((naming && naming.placement) || {}),
+            });
+            return { channelId: created.id, channelName: created.name || name, naming };
+        }
+    } catch (e) {
+        if (newChannel) return fail(400, "create_failed", `Kanal konnte nicht angelegt werden: ${discordChannels.discordErrorText(e)}`);
+        return fail(400, "create_failed", e.message || "Channel konnte nicht dupliziert werden.");
+    }
+    return { channelId: request.channelId, channelName: "", naming: null };
+}
+
+/** The event at Raid-Helper; a raid template that links a Raid-Helper template stands in for a missing id. */
+async function createAtRaidHelper(rh, { body, date, title, channel }) {
+    const linked = !String(body.templateId || "").trim() && body.raidTemplateId ? getRaidTemplate(String(body.raidTemplateId)) : null;
+    try {
+        const result = await rh.createEvent({
+            channelId: channel.channelId,
+            leaderId: String(body.leaderId || "").trim(),
+            templateId: String(body.templateId || "").trim() || (linked && linked.raidhelperTemplateId) || "",
+            date,
+            time: String(body.time || "").trim(),
+            title,
+            description: body.description || "",
+        });
+        if (result && result.status === "failed") {
+            return fail(400, "create_failed", result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.");
+        }
+        // The talk server's overview lists it once Raid-Helper's cached list has it.
+        scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
+        // channelId: where it landed — a cloned or new channel is unknown to the caller otherwise.
+        return {
+            status: 201,
+            body: result && typeof result === "object" ? { ...result, channelId: channel.channelId, ...namingBody(channel.naming, channel.channelName) } : result,
+        };
+    } catch (e) {
+        return fail(400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
+    }
+}
+
+/** The own event in the store: `{ event }` or `{ error }` (the store's refusal). */
+function createOwnEvent({ guildId, user, body, plan, startTime, title, meta, categoryId, channel }) {
+    const created = eventStore.createEvent({
+        ...plan,
+        guildId,
+        channelId: channel.channelId,
+        channelName: channel.channelName || meta.name || "",
+        categoryId,
+        categoryName: meta.categoryName || "",
+        title,
+        description: body.description || "",
+        leaderId: String(body.leaderId || "").trim() || (user && user.id) || "",
+        startTime,
+        createdBy: (user && user.id) || "",
+    });
+    return created.error ? fail(400, "create_failed", created.error) : { event: created.event };
+}
+
+/**
+ * The Discord side effects of a new own event, in this order: the signup
+ * message, the Discord event, the talk overview, the announcement. None of them
+ * fails the create — each problem comes back as a warning.
+ */
+async function publishOwnEvent(eventId, body) {
+    // The event exists either way; a message that could not be posted (bot
+    // offline, missing rights) is reported, and the next roster change retries.
+    let messageError = null;
+    try {
+        await postEventMessage(eventId);
+    } catch (e) {
+        messageError = e.message || "Die Event-Nachricht konnte nicht gepostet werden.";
+    }
+    // The Discord event (#305) comes after the message, so its description can
+    // link it. Switched off for the category, or refused by Discord, it is a
+    // warning — never a failed create.
+    const discordEventError = warningOf(await discordEvent.createForEvent(eventId).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
+    scheduleOverviewSync();
+    // "Beim Anlegen ankündigen" (#306): the category's switch unless the body
+    // names its own. It runs after the signup message so the ping can link it,
+    // and it never fails the create — a refused post comes back as announceError.
+    const announced = await announceEvent(eventId, {
+        want: body.announce === undefined ? undefined : body.announce === true,
+    });
+    return { messageError, discordEventError, announced };
+}
+
 /**
  * Create an event from the create dialog's body.
  *
@@ -271,157 +457,44 @@ function planFor(body, categoryId, title, startTime) {
  * @returns {Promise<{ status: number, body: object } | { error: { status: number, code: string, message: string } }>}
  */
 async function createEvent({ guildId, user, body = {} }) {
+    // validation
     const date = toRaidHelperDate(body.date);
     if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
     const rh = createRaidhelperClient();
     const catMap = categoryMap(guildId);
+    const request = channelRequest(body);
+    const resolved = await resolveChannelSource(rh, guildId, request);
+    if (resolved.error) return resolved;
+    const { sourceChannel } = resolved;
 
-    let channelId = String(body.channelId || "").trim();
-    const sourceEventId = String(body.sourceEventId || "").trim();
-    let sourceChannel = null;
-    // A channel made for this event ("neu nach Schema" in the Discord modal and
-    // the web dialog): like a clone it is only created once everything else has
-    // been checked. A name left empty is filled from the category's schema below.
-    const newChannel = !channelId && !sourceEventId && body.newChannel && typeof body.newChannel === "object"
-        ? {
-            name: normalizeChannelName(body.newChannel.name),
-            categoryId: String(body.newChannel.categoryId || "").trim(),
-            templateChannelId: String(body.newChannel.templateChannelId || "").trim(),
-        }
-        : null;
-    if (newChannel && !newChannel.name && !newChannel.categoryId) return fail(400, "no_channel", "Der neue Kanal braucht einen Namen.");
-    if (sourceEventId) {
-        sourceChannel = await sourceChannelFor(rh, guildId, sourceEventId);
-        if (!sourceChannel.channelId) return fail(400, sourceChannel.code, sourceChannel.message);
-    } else if (!channelId && !newChannel) {
-        return fail(400, "no_channel", "Kein Channel gewählt.");
-    }
-
-    // The category decides the source. A clone lands next to its original, a new
-    // channel in the category it was asked for.
-    const lookupChannel = sourceChannel ? sourceChannel.channelId : channelId;
-    const meta = catMap[lookupChannel]
-        || (newChannel ? { categoryId: newChannel.categoryId, categoryName: (catMap[newChannel.categoryId] || {}).name || categoryNameOf(guildId, newChannel.categoryId) } : {});
-    const categoryId = meta.categoryId || (sourceChannel && sourceChannel.categoryId) || "";
-    // The caller may pick the other source for one event; the category only proposes it.
+    // normalisation: the category decides the source; the caller may pick the other one for one event
+    const { meta, categoryId } = categoryOf(guildId, catMap, request, sourceChannel);
     const source = SOURCES.includes(body.signupSource) ? body.signupSource : signupSourceFor(categoryId);
-
     const title = String(body.title || "").trim();
     let plan = null;
     let startTime = 0;
     if (source === "eventhelper") {
-        // Everything the own store would refuse is checked before a channel is
-        // cloned, so a rejected event never leaves an orphan channel behind.
-        if (!title) return fail(400, "invalid_title", "Das Event braucht einen Titel.");
-        startTime = startTimeOf(date, body.time);
-        if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
-        const planned = planFor(body, categoryId, title, startTime);
-        if (planned.error) return planned.error;
-        plan = planned.plan;
+        const own = ownEventPlan(body, date, categoryId, title);
+        if (own.error) return own;
+        ({ plan, startTime } = own);
     }
 
-    let channelName = "";
-    let naming = null;
-    try {
-        const isoDate = isoDateOf(body.date);
-        const instanceIds = plan ? plan.instanceIds : body.instanceIds;
-        // Named and designed like the category's previous event channel (#285);
-        // the plain schema only when that cannot be worked out at all.
-        const derive = async (extra) => {
-            try {
-                return await channelNaming.deriveChannelName({ guildId, categoryId, date: isoDate, instanceIds, ...extra });
-            } catch {
-                return null;
-            }
-        };
-        const bySchema = () => schemaChannelName(guildId, categoryId, isoDate, instanceIds);
-        if (sourceChannel) {
-            naming = await derive({ fromEventId: sourceEventId });
-            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim() || (naming && naming.name) || bySchema());
-            channelId = cloned.id;
-            channelName = cloned.name || "";
-            if (naming && naming.placement) await discordChannels.placeChannel(cloned.id, naming.placement);
-        } else if (newChannel) {
-            naming = await derive({});
-            const name = newChannel.name || (naming && naming.name) || bySchema();
-            const templateChannelId = newChannel.templateChannelId || (naming ? naming.templateChannelId : storedSchema(guildId, categoryId).templateChannelId) || "";
-            const created = await discordChannels.createFromTemplate(guildId, {
-                name, parentId: newChannel.categoryId, templateChannelId, ...((naming && naming.placement) || {}),
-            });
-            channelId = created.id;
-            channelName = created.name || name;
-        }
-    } catch (e) {
-        if (newChannel) return fail(400, "create_failed", `Kanal konnte nicht angelegt werden: ${discordChannels.discordErrorText(e)}`);
-        return fail(400, "create_failed", e.message || "Channel konnte nicht dupliziert werden.");
-    }
+    // Discord: the channel, only now that everything was checked
+    const channel = await makeChannel({ guildId, categoryId, body, request, sourceChannel, instanceIds: plan ? plan.instanceIds : body.instanceIds });
+    if (channel.error) return channel;
 
-    if (source === "raidhelper") {
-        // A raid template that links a Raid-Helper template stands in for a missing id.
-        const linked = !String(body.templateId || "").trim() && body.raidTemplateId ? getRaidTemplate(String(body.raidTemplateId)) : null;
-        try {
-            const result = await rh.createEvent({
-                channelId,
-                leaderId: String(body.leaderId || "").trim(),
-                templateId: String(body.templateId || "").trim() || (linked && linked.raidhelperTemplateId) || "",
-                date,
-                time: String(body.time || "").trim(),
-                title,
-                description: body.description || "",
-            });
-            if (result && result.status === "failed") {
-                return fail(400, "create_failed", result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.");
-            }
-            // The talk server's overview lists it once Raid-Helper's cached list has it.
-            scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
-            // channelId: where it landed — a cloned or new channel is unknown to the caller otherwise.
-            return { status: 201, body: result && typeof result === "object" ? { ...result, channelId, ...namingBody(naming, channelName) } : result };
-        } catch (e) {
-            return fail(400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
-        }
-    }
-
-    const created = eventStore.createEvent({
-        ...plan,
-        guildId,
-        channelId,
-        channelName: channelName || meta.name || "",
-        categoryId,
-        categoryName: meta.categoryName || "",
-        title,
-        description: body.description || "",
-        leaderId: String(body.leaderId || "").trim() || (user && user.id) || "",
-        startTime,
-        createdBy: (user && user.id) || "",
-    });
-    if (created.error) return fail(400, "create_failed", created.error);
-
-    // The event exists either way; a message that could not be posted (bot
-    // offline, missing rights) is reported, and the next roster change retries.
-    let messageError = null;
-    try {
-        await postEventMessage(created.event.id);
-    } catch (e) {
-        messageError = e.message || "Die Event-Nachricht konnte nicht gepostet werden.";
-    }
-    // The Discord event (#305) comes after the message, so its description can
-    // link it. Switched off for the category, or refused by Discord, it is a
-    // warning — never a failed create.
-    const discordEventError = warningOf(await discordEvent.createForEvent(created.event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
-    scheduleOverviewSync();
-    // "Beim Anlegen ankündigen" (#306): the category's switch unless the body
-    // names its own. It runs after the signup message so the ping can link it,
-    // and it never fails the create — a refused post comes back as announceError.
-    const announced = await announceEvent(created.event.id, {
-        want: body.announce === undefined ? undefined : body.announce === true,
-    });
+    // persistence and the Discord side effects
+    if (source === "raidhelper") return createAtRaidHelper(rh, { body, date, title, channel });
+    const created = createOwnEvent({ guildId, user, body, plan, startTime, title, meta, categoryId, channel });
+    if (created.error) return created;
+    const published = await publishOwnEvent(created.event.id, body);
     const event = eventStore.getEvent(created.event.id) || created.event;
     return {
         status: 201,
         body: {
-            id: event.id, source: "eventhelper", event, messageError, discordEventError,
-            announced: announced.announced, announceError: announced.error || null,
-            ...namingBody(naming, channelName),
+            id: event.id, source: "eventhelper", event, messageError: published.messageError, discordEventError: published.discordEventError,
+            announced: published.announced.announced, announceError: published.announced.error || null,
+            ...namingBody(channel.naming, channel.channelName),
         },
     };
 }

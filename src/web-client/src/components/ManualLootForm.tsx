@@ -19,6 +19,7 @@ import { classColorProps } from "./ClassSpec";
 import { useToast } from "./Jobs";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
+import { useDismiss } from "../hooks/useDismiss";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
@@ -52,13 +53,7 @@ function ItemPicker({ items, value, onPick }: {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
-    }, []);
+    useDismiss(rootRef, open, () => setOpen(false), { event: "click", escape: false });
 
     // An empty query lists the raid's drops from the top rather than nothing:
     // the list is the point of the picker, and scrolling it is how somebody who
@@ -113,13 +108,7 @@ function RaiderPicker({ characters, roster, value, onChange }: {
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
-    }, []);
+    useDismiss(rootRef, open, () => setOpen(false), { event: "click", escape: false });
 
     // The raid's own roster first: the raider being credited was almost always
     // in the raid, and having them at the top is the difference between picking

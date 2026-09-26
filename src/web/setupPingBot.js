@@ -15,26 +15,19 @@ const {
     MessageFlags, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const eventStore = require("./eventStore");
-const { setupPingPlan, callSetupPing, saveSetupPingText, pingTextOf, PING_TEXT_MAX } = require("./setupPing");
+const { setupPingPlan, callSetupPing, saveSetupPingText } = require("./setupPing");
+const { PING_PREFIX, PING_TEXT_MAX, pingTextOf, pingId } = require("./setupCore");
 
-const PING_PREFIX = "setup-ping";
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;
 const FIELD_ID = "text";
 
 const COLOR_OK = 0x57a55a;
 const COLOR_ERR = 0xe5534b;
 
-const pingId = (eventId) => `${PING_PREFIX}:${eventId}`;
-
 /** `{ eventId }`; "" when the customId names no own event. */
 function parsePingId(customId) {
     const [, eventId = ""] = String(customId || "").split(":");
     return { eventId: EVENT_ID.test(eventId) ? eventId : "" };
-}
-
-/** The button row under the setup message, beside "Call invites". */
-function pingButtonRow(eventId) {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: pingId(eventId), label: "Ping everyone" }] };
 }
 
 /** The modal: one field, the ping text, pre-filled with the event's own or the default. */
@@ -75,4 +68,4 @@ async function handlePingComponent(interaction, guildId) {
     });
 }
 
-module.exports = { PING_PREFIX, pingId, parsePingId, pingButtonRow, pingModal, handlePingComponent };
+module.exports = { PING_PREFIX, parsePingId, pingModal, handlePingComponent };

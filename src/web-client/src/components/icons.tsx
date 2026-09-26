@@ -438,3 +438,41 @@ export function UnlockIcon() {
         </svg>
     );
 }
+
+/** Add an entry (a role, a server, a mapping); the composition editor draws it (and its minus) a little bolder. */
+export function PlusIcon({ strokeWidth = 2.2 }: { strokeWidth?: number }) {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    );
+}
+
+/** Take one away (the counterpart of PlusIcon). */
+export function MinusIcon({ strokeWidth = 2.2 }: { strokeWidth?: number }) {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" aria-hidden="true">
+            <path d="M5 12h14" />
+        </svg>
+    );
+}
+
+/** A circled "i": an explanation sits in the tooltip (the loot filters, the addon inbox). */
+export function InfoIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" />
+            <path d="M12 7.5h.01" />
+        </svg>
+    );
+}
+
+/** The bare "i" of the round info button (.info), whose circle is drawn by CSS. */
+export function InfoMarkIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+            <path d="M12 11v6" /><path d="M12 7h.01" />
+        </svg>
+    );
+}
