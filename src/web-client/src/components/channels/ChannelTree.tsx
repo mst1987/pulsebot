@@ -3,8 +3,9 @@ import type { Channel, ChannelsData } from "../../api";
 import { Badge, IconButton } from "../ui";
 import { ChevronDownIcon, CopyIcon, SearchIcon, SettingsIcon, TrashIcon } from "../icons";
 import { ChannelTypeIcon, PencilIcon } from "./channelBits";
-import { channelTip, eventDateLabel, groupByCategory, ownSchemaOf } from "../../lib/channels";
+import { channelTip, eventDateLabel, groupByCategory, groupName, ownSchemaOf, purposeLabel } from "../../lib/channels";
 import { normalizeForType } from "../../lib/channelNames";
+import { useT } from "../../i18n";
 
 // The Discord sidebar of the Kanäle page (issue #259): categories that fold,
 // channels as one line each — a check box, the type, the name large, the status
@@ -44,11 +45,13 @@ function TriCheck({ checked, partial, onChange, label, disabled }: {
 
 /** The status badges of a channel row: Event / vergangen. Nothing else sits in the row. */
 export function ChannelStatusBadges({ channel, data }: { channel: Channel; data: ChannelsData }) {
+    const t = useT();
     const ev = data.events?.[channel.id];
     if (!ev) return null;
+    const params = { title: ev.title, date: eventDateLabel(ev.startTime) };
     return ev.status === "past"
-        ? <Badge tone="mid" tip="Vergangenes Event" tipSub={`${ev.title} · ${eventDateLabel(ev.startTime)}. Archivieren räumt den Kanal aus der Liste — gelöscht wird nichts.`}>vergangen</Badge>
-        : <Badge tone="ok" tip="Event" tipSub={`${ev.title} · ${eventDateLabel(ev.startTime)}.`}>Event</Badge>;
+        ? <Badge tone="mid" tip={t("channels.tree.pastTip")} tipSub={t("channels.tree.pastSub", params)}>{t("channels.tree.past")}</Badge>
+        : <Badge tone="ok" tip={t("channels.tree.event")} tipSub={t("channels.tree.eventSub", params)}>{t("channels.tree.event")}</Badge>;
 }
 
 function InlineName({ channel, onSave, onCancel }: {
@@ -56,6 +59,7 @@ function InlineName({ channel, onSave, onCancel }: {
     onSave: (name: string) => void;
     onCancel: () => void;
 }) {
+    const t = useT();
     const [draft, setDraft] = useState(channel.name);
     const ref = useRef<HTMLInputElement>(null);
     useEffect(() => {
@@ -80,12 +84,12 @@ function InlineName({ channel, onSave, onCancel }: {
                 ref={ref}
                 className="kn-inline"
                 value={draft}
-                aria-label={`Neuer Name für #${channel.name}`}
+                aria-label={t("channels.tree.newName", { name: channel.name })}
                 onChange={(e) => setDraft(normalizeForType(e.target.value, channel.type, false))}
                 onKeyDown={onKey}
                 onBlur={onCancel}
             />
-            <span className="kn-kicker">Enter speichert · Esc verwirft</span>
+            <span className="kn-kicker">{t("channels.tree.inlineHelp")}</span>
         </span>
     );
 }
@@ -104,6 +108,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
     /** Open the naming schema of this category. */
     onSchema: (categoryId: string) => void;
 }) {
+    const t = useT();
     const [query, setQuery] = useState("");
     const [closed, setClosed] = useState<Record<string, boolean>>({});
     const [closedThreads, setClosedThreads] = useState<Record<string, boolean>>({});
@@ -127,7 +132,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                 visible: !q || g.name.toLowerCase().includes(q)
                     ? g.channels
                     : g.channels
-                        .map((c) => ({ ...c, threads: c.threads.filter((t) => t.name.toLowerCase().includes(q)) }))
+                        .map((c) => ({ ...c, threads: c.threads.filter((th) => th.name.toLowerCase().includes(q)) }))
                         .filter((c) => c.name.toLowerCase().includes(q) || c.threads.length),
             }))
             .filter((g) => !q || g.visible.length);
@@ -149,7 +154,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                         type="checkbox"
                         className="kn-cb"
                         checked={isSelected}
-                        aria-label={`#${c.name} wählen`}
+                        aria-label={t("channels.selectOne", { name: c.name })}
                         onChange={(e) => onSelect([c.id], e.target.checked)}
                     />
                 )}
@@ -159,7 +164,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                             type="button"
                             className={`kn-fold-sm${threadsOpen ? " open" : ""}`}
                             aria-expanded={threadsOpen}
-                            aria-label={`Threads von #${c.name} ${threadsOpen ? "zuklappen" : "aufklappen"}`}
+                            aria-label={t(threadsOpen ? "channels.tree.threadsCollapse" : "channels.tree.threadsExpand", { name: c.name })}
                             onClick={onToggleThreads}
                         >
                             <ChevronDownIcon />
@@ -193,15 +198,15 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                         </span>
                     )}
                 {threadCount > 0 && (
-                    <Badge count tip="Threads" tipSub={`${threadCount} ${threadCount === 1 ? "Thread" : "Threads"} in diesem Kanal.`}>{threadCount}</Badge>
+                    <Badge count tip={t("channels.tree.threadsTip")} tipSub={t("channels.tree.threadsSub", { count: threadCount })}>{threadCount}</Badge>
                 )}
                 <ChannelStatusBadges channel={c} data={data} />
                 {canWrite && editing !== c.id && (
                     <span className="kn-row-icons">
-                        <IconButton size="sm" icon={<PencilIcon />} tip="Umbenennen" tipSub="Oder Doppelklick auf den Namen. Enter speichert, Esc verwirft." onClick={() => setEditing(c.id)} />
-                        {!nested && <IconButton size="sm" icon={<SettingsIcon />} tip="Bearbeiten" tipSub="Name, Thema, Kategorie, Slowmode, Rechte, archivieren." onClick={() => onEdit(c)} />}
-                        {!nested && <IconButton size="sm" icon={<CopyIcon />} tip="Duplizieren" tipSub="Klon mit Rechten, Thema und Slowmode in derselben Kategorie." onClick={() => onDuplicate(c)} />}
-                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" tipSub="Endgültig aus Discord löschen — mit Namen bestätigen. Zum Aufheben lieber archivieren." onClick={() => onDelete(c)} />
+                        <IconButton size="sm" icon={<PencilIcon />} tip={t("channels.tree.rename")} tipSub={t("channels.tree.renameSub")} onClick={() => setEditing(c.id)} />
+                        {!nested && <IconButton size="sm" icon={<SettingsIcon />} tip={t("common.edit")} tipSub={t("channels.tree.editSub")} onClick={() => onEdit(c)} />}
+                        {!nested && <IconButton size="sm" icon={<CopyIcon />} tip={t("channels.tree.duplicate")} tipSub={t("channels.tree.duplicateSub")} onClick={() => onDuplicate(c)} />}
+                        <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("common.delete")} tipSub={t("channels.tree.deleteSub")} onClick={() => onDelete(c)} />
                     </span>
                 )}
             </div>
@@ -213,16 +218,17 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
             <div className="kn-tree-tools">
                 <label className="kn-search">
                     <SearchIcon />
-                    <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Kanal suchen…" aria-label="Kanal suchen" />
+                    <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("channels.tree.search")} aria-label={t("channels.tree.searchLabel")} />
                 </label>
-                {canWrite && <span className="kn-kicker">Doppelklick auf den Namen bearbeitet</span>}
+                {canWrite && <span className="kn-kicker">{t("channels.tree.doubleClick")}</span>}
             </div>
-            {!groups.length && <div className="kn-empty">{q ? "Kein Kanal passt zur Suche." : "Keine Kanäle gefunden — ist der Bot verbunden?"}</div>}
+            {!groups.length && <div className="kn-empty">{q ? t("channels.tree.noMatch") : t("channels.tree.noChannels")}</div>}
             {groups.map((g) => {
                 const open = q ? true : !closed[g.id];
-                const ids = g.visible.flatMap((c) => [c.id, ...c.threads.map((t) => t.id)]);
+                const ids = g.visible.flatMap((c) => [c.id, ...c.threads.map((th) => th.id)]);
                 const picked = ids.filter((id) => selected.has(id)).length;
-                const categoryPurposes = data.purposes.filter((p) => p.kind === "category" && g.id && p.ids.includes(g.id)).map((p) => p.label);
+                const categoryPurposes = data.purposes.filter((p) => p.kind === "category" && g.id && p.ids.includes(g.id)).map(purposeLabel);
+                const name = groupName(g);
                 return (
                     <div key={g.id || "loose"} className="kn-cat" data-category={g.id}>
                         <div className="kn-cat-row">
@@ -231,7 +237,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                                     checked={ids.length > 0 && picked === ids.length}
                                     partial={picked > 0}
                                     disabled={!ids.length}
-                                    label={`Alle in ${g.name} wählen`}
+                                    label={t("channels.tree.selectAll", { name })}
                                     onChange={(on) => onSelect(ids, on)}
                                 />
                             )}
@@ -239,30 +245,30 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                                 type="button"
                                 className={`kn-fold${open ? " open" : ""}`}
                                 aria-expanded={open}
-                                aria-label={`${g.name} ${open ? "zuklappen" : "aufklappen"}`}
+                                aria-label={t(open ? "channels.tree.collapse" : "channels.tree.expand", { name })}
                                 onClick={() => setClosed((c) => ({ ...c, [g.id]: open }))}
                             >
                                 <ChevronDownIcon />
                                 <span
                                     className="kn-cat-title"
-                                    data-tip={g.name}
-                                    data-tip-sub={categoryPurposes.length ? `Zweck: ${categoryPurposes.join(", ")}.` : `${g.channels.length} ${g.channels.length === 1 ? "Kanal" : "Kanäle"}.`}
+                                    data-tip={name}
+                                    data-tip-sub={categoryPurposes.length ? t("channels.tree.catPurpose", { purposes: categoryPurposes.join(", ") }) : t("channels.tree.catCount", { count: g.channels.length })}
                                 >
-                                    {g.name}
+                                    {name}
                                 </span>
                             </button>
                             <Badge count>{g.channels.length}</Badge>
-                            {categoryPurposes.length > 0 && <Badge className="area">Event-Kategorie</Badge>}
+                            {categoryPurposes.length > 0 && <Badge className="area">{t("channels.tree.eventCategory")}</Badge>}
                             {g.id && ownSchemaOf(data, g.id) && (
-                                <Badge tip="Eigenes Namensschema" tipSub={`${ownSchemaOf(data, g.id)} — gilt für jeden neuen Event-Kanal dieser Kategorie.`}>Schema</Badge>
+                                <Badge tip={t("channels.tree.ownSchemaTip")} tipSub={t("channels.tree.ownSchemaSub", { schema: ownSchemaOf(data, g.id) })}>{t("channels.schema")}</Badge>
                             )}
                             {canWrite && g.id && (
                                 <span className="kn-row-icons">
                                     <IconButton
                                         size="sm"
                                         icon={<PencilIcon />}
-                                        tip="Namensschema"
-                                        tipSub={ownSchemaOf(data, g.id) ? `Neue Event-Kanäle heißen nach ${ownSchemaOf(data, g.id)}.` : "Neue Event-Kanäle heißen wie der letzte Event-Kanal. Hier ein eigenes Schema festlegen."}
+                                        tip={t("channels.namingSchema")}
+                                        tipSub={ownSchemaOf(data, g.id) ? t("channels.tree.schemaOwn", { schema: ownSchemaOf(data, g.id) }) : t("channels.tree.schemaNone")}
                                         onClick={() => onSchema(g.id)}
                                     />
                                 </span>
@@ -277,7 +283,7 @@ export function ChannelTree({ data, selected, onSelect, canWrite, onRename, onEd
                                         threadsOpen,
                                         onToggleThreads: () => setClosedThreads((s) => ({ ...s, [c.id]: threadsOpen })),
                                     })}
-                                    {threadsOpen && c.threads.map((t) => renderRow(t, { nested: true }))}
+                                    {threadsOpen && c.threads.map((th) => renderRow(th, { nested: true }))}
                                 </Fragment>
                             );
                         })}

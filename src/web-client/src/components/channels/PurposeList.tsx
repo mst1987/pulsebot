@@ -3,6 +3,8 @@ import type { ChannelPurpose, ChannelsData } from "../../api";
 import { Badge, IconButton, IconTile, Modal } from "../ui";
 import { CheckIcon } from "../icons";
 import { ChannelChip, PencilIcon, StatusBadge } from "./channelBits";
+import { purposeHint, purposeLabel } from "../../lib/channels";
+import { useT } from "../../i18n";
 
 // What the bot uses which channel for (design issue #216). Since the tree
 // (#259) the purposes stand in each channel's tooltip; the full table opens as
@@ -13,19 +15,20 @@ export function PurposeList({ data, canEdit, onEdit }: {
     canEdit: boolean;
     onEdit: (purpose: ChannelPurpose) => void;
 }) {
+    const t = useT();
     return (
-        <div className="kn-table" role="table" aria-label="Zwecke">
+        <div className="kn-table" role="table" aria-label={t("channels.purposeList.label")}>
             <div className="kn-purpose kn-th" role="row">
-                <span role="columnheader" data-tip="Zweck" data-tip-sub="Wofür der Bot die Kanäle benutzt. Hover über den Namen erklärt, was er dort tut.">Zweck</span>
-                <span role="columnheader">Kanal</span>
-                <span role="columnheader" data-tip="Status" data-tip-sub="Ob der Zweck gesetzt ist, der Kanal noch existiert und der Bot dort darf, was er muss.">Status</span>
+                <span role="columnheader" data-tip={t("channels.purposeList.purpose")} data-tip-sub={t("channels.purposeList.purposeSub")}>{t("channels.purposeList.purpose")}</span>
+                <span role="columnheader">{t("channels.purposeList.channel")}</span>
+                <span role="columnheader" data-tip={t("channels.purposeList.status")} data-tip-sub={t("channels.purposeList.statusSub")}>{t("channels.purposeList.status")}</span>
                 <span role="columnheader" />
             </div>
             {data.purposes.map((p) => (
                 <div key={p.id} className="kn-purpose" role="row" data-purpose={p.id}>
                     <div className="kn-purpose-name">
                         <IconTile icon={p.icon} tone={p.ids.length ? "channels" : "bad"} />
-                        <span className="tipped" tabIndex={0} data-tip={p.label} data-tip-sub={p.hint}>{p.label}</span>
+                        <span className="tipped" tabIndex={0} data-tip={purposeLabel(p)} data-tip-sub={purposeHint(p)}>{purposeLabel(p)}</span>
                     </div>
                     <div className="kn-chips">
                         {p.items.length
@@ -39,19 +42,19 @@ export function PurposeList({ data, canEdit, onEdit }: {
                                     tipSub={i.found ? undefined : i.status.tip}
                                 />
                             ))
-                            : <span className="kn-muted">nicht gesetzt</span>}
+                            : <span className="kn-muted">{t("channels.purposeList.notSet")}</span>}
                     </div>
                     <div><StatusBadge status={p.status} /></div>
                     <div className="kn-actions">
                         {canEdit
-                            ? <IconButton size="sm" icon={<PencilIcon />} tip={`${p.label} zuordnen`} tipSub={p.multiple ? "Mehrere möglich." : undefined} onClick={() => onEdit(p)} />
+                            ? <IconButton size="sm" icon={<PencilIcon />} tip={t("channels.purposeList.assign", { label: purposeLabel(p) })} tipSub={p.multiple ? t("channels.purposeList.multiple") : undefined} onClick={() => onEdit(p)} />
                             : (
                                 <Link
                                     className="ibtn sm"
                                     to={`/settings?section=${encodeURIComponent(p.section)}`}
-                                    aria-label="In Einstellungen öffnen"
-                                    data-tip="In Einstellungen öffnen"
-                                    data-tip-sub="Zwecke sind Einstellungen — ändern braucht Schreibrecht auf Einstellungen."
+                                    aria-label={t("channels.purposeList.openSettings")}
+                                    data-tip={t("channels.purposeList.openSettings")}
+                                    data-tip-sub={t("channels.purposeList.openSettingsSub")}
                                 >
                                     <PencilIcon />
                                 </Link>
@@ -65,12 +68,13 @@ export function PurposeList({ data, canEdit, onEdit }: {
 
 /** The summary badges of the purposes ("5 gesetzt · 1 fehlt"). */
 export function PurposeSummaryBadges({ data }: { data: ChannelsData }) {
+    const t = useT();
     const { set, missing, warnings } = data.purposeSummary;
     return (
         <>
-            <Badge tone="ok" icon={<CheckIcon />}>{set} gesetzt</Badge>
-            {missing > 0 && <Badge tone="bad">{missing} fehlt</Badge>}
-            {warnings > 0 && <Badge tone="mid" tip="Gesetzt, wirkt aber nicht" tipSub="Kanal fehlt oder der Bot darf dort nicht lesen/schreiben — Details am Status.">{warnings} {warnings === 1 ? "Warnung" : "Warnungen"}</Badge>}
+            <Badge tone="ok" icon={<CheckIcon />}>{t("channels.purposeList.set", { count: set })}</Badge>
+            {missing > 0 && <Badge tone="bad">{t("channels.purposeList.missing", { count: missing })}</Badge>}
+            {warnings > 0 && <Badge tone="mid" tip={t("channels.purposeList.warningsTip")} tipSub={t("channels.purposeList.warningsSub")}>{t("channels.purposeList.warnings", { count: warnings })}</Badge>}
         </>
     );
 }
@@ -81,14 +85,15 @@ export function PurposesDialog({ data, canEdit, onEdit, onClose }: {
     onEdit: (purpose: ChannelPurpose) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     return (
         <Modal
             open
             onClose={onClose}
             icon="inv_misc_note_02"
             tone="channels"
-            kicker="Kanäle › Zwecke"
-            title="Wofür der Bot welche Kanäle nutzt"
+            kicker={t("channels.purposeList.dialogKicker")}
+            title={t("channels.purposeList.dialogTitle")}
             width={920}
             hint={<span className="kn-chips"><PurposeSummaryBadges data={data} /></span>}
         >

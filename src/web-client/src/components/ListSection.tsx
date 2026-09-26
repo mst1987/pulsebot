@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { CollectionEditor } from "../lib/collectionEditor";
+import { useT } from "../i18n";
 
 // The two halves of a "list of things you can edit" section, so all of them
 // look and behave the same: a heading row carrying the section's title and its
@@ -33,17 +34,19 @@ export function ListHeader({ title, note, newLabel, onNew }: {
 }
 
 /** The editor view: a back link to the list, the editor's own title, then the form. */
-export function EditorPanel({ title, backLabel = "Zurück zur Liste", onClose, children }: {
+export function EditorPanel({ title, backLabel, onClose, children }: {
     title: string;
+    /** Defaults to "Zurück zur Liste" in the page's language. */
     backLabel?: string;
     onClose: () => void;
     children: ReactNode;
 }) {
+    const t = useT();
     return (
         <>
             <div className="list-head">
                 <div className="list-head-text"><h2>{title}</h2></div>
-                <button className="btn btn-ghost" type="button" onClick={onClose}>← {backLabel}</button>
+                <button className="btn btn-ghost" type="button" onClick={onClose}>← {backLabel ?? t("list.back")}</button>
             </div>
             {children}
         </>

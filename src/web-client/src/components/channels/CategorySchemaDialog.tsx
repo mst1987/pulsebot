@@ -8,6 +8,7 @@ import { ChannelsIcon } from "../icons";
 import { useToast } from "../Jobs";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike, ownSchemaOf } from "../../lib/channels";
+import { useT } from "../../i18n";
 
 // A category's naming schema on its own place (the pencil on the category head
 // of the Kanäle page) — before, it could only be stored as a side effect of
@@ -29,6 +30,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
     onSaved: () => void;
 }) {
     const toast = useToast();
+    const t = useT();
     const stored = data.schemas?.[categoryId];
     // The default schema stored by an old quick-create is no schema of the category's own.
     const [schema, setSchema] = useState(ownSchemaOf(data, categoryId));
@@ -38,7 +40,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
     const [naming, setNaming] = useState<ChannelNaming | null>(null);
     const [planError, setPlanError] = useState("");
     const [saving, setSaving] = useState(false);
-    const categoryName = data.categories.find((c) => c.id === categoryId)?.name || "Kategorie";
+    const categoryName = data.categories.find((c) => c.id === categoryId)?.name || t("channels.category");
     const archiveId = data.archive?.categoryId || "";
     const templates = data.channels.filter((c) => isTextLike(c) && c.parentId !== archiveId);
 
@@ -61,7 +63,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
         setSaving(true);
         try {
             await saveChannelSchema({ categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId });
-            toast(schema.trim() ? `${categoryName}: Namensschema gespeichert.` : `${categoryName}: Namen wieder wie der letzte Event-Kanal.`);
+            toast(t(schema.trim() ? "channels.schemaDialog.saved" : "channels.schemaDialog.reset", { name: categoryName }));
             onSaved();
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -76,13 +78,13 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
             icon="inv_letter_15"
             tone="channels"
             kicker={categoryName}
-            title="Namensschema"
+            title={t("channels.namingSchema")}
             width={560}
             initialFocus="#kn-cs-schema"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon="inv_letter_15" disabled={saving || !!planError} onClick={save}>Speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon="inv_letter_15" disabled={saving || !!planError} onClick={save}>{t("common.save")}</Button>
                 </>
             )}
         >
@@ -92,20 +94,20 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
                         <span
                             className="tipped"
                             tabIndex={0}
-                            data-tip="Namensschema"
-                            data-tip-sub="Gilt für jeden neuen Event-Kanal dieser Kategorie – Event anlegen im Web und im Bot, Schnell anlegen, /kanal anlegen. Leer: wie der letzte Event-Kanal, nur Datum, Wochentag und Raid werden ersetzt."
+                            data-tip={t("channels.namingSchema")}
+                            data-tip-sub={t("channels.schemaDialog.schemaSub")}
                         >
-                            Schema
+                            {t("channels.schema")}
                         </span>
                     </label>
                     <div className="kn-input">
-                        <input id="kn-cs-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder="leer = wie der letzte Event-Kanal" />
+                        <input id="kn-cs-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} />
                     </div>
                 </div>
                 <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />
                 {planError && <Badge tone="bad">{planError}</Badge>}
                 {naming && !planError && <div className="kn-naming"><NamingBadge naming={naming} /></div>}
-                <div className="kn-preview" aria-live="polite" aria-label="Die nächsten Namen">
+                <div className="kn-preview" aria-live="polite" aria-label={t("channels.schemaDialog.nextNames")}>
                     {plan.map((p, i) => (
                         <div key={`${p.date}-${i}`} className="kn-preview-row">
                             <span className="kn-type"><ChannelsIcon /></span>
@@ -114,22 +116,22 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
                     ))}
                 </div>
                 <details className="kn-details">
-                    <summary className="kn-kicker">Raid &amp; Vorlage</summary>
+                    <summary className="kn-kicker">{t("channels.schemaDialog.raidTemplate")}</summary>
                     <div className="kn-grid2">
                         <div className="kn-field">
                             <label htmlFor="kn-cs-raid">
-                                <span className="tipped" tabIndex={0} data-tip="Raid" data-tip-sub="Für {raid}, wenn das Event selbst keinen Raid mitbringt (Schnell anlegen).">Raid</span>
-                                <span className="kn-opt">optional</span>
+                                <span className="tipped" tabIndex={0} data-tip={t("channels.raid")} data-tip-sub={t("channels.schemaDialog.raidSub")}>{t("channels.raid")}</span>
+                                <span className="kn-opt">{t("channels.optional")}</span>
                             </label>
-                            <div className="kn-input"><input id="kn-cs-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder="z.B. ssc-tk" /></div>
+                            <div className="kn-input"><input id="kn-cs-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
                         </div>
                         <div className="kn-field">
                             <label htmlFor="kn-cs-tpl">
-                                <span className="tipped" tabIndex={0} data-tip="Vorlage-Kanal" data-tip-sub="Neue Kanäle übernehmen Rechte, Thema und Slowmode dieses Kanals. Ohne Auswahl sind sie eine Kopie des letzten Event-Kanals der Kategorie.">Vorlage-Kanal</span>
-                                <span className="kn-opt">optional</span>
+                                <span className="tipped" tabIndex={0} data-tip={t("channels.templateChannel")} data-tip-sub={t("channels.schemaDialog.templateSub")}>{t("channels.templateChannel")}</span>
+                                <span className="kn-opt">{t("channels.optional")}</span>
                             </label>
                             <select id="kn-cs-tpl" className="kn-select" value={templateChannelId} onChange={(e) => setTemplate(e.target.value)}>
-                                <option value="">— wie der letzte Event-Kanal —</option>
+                                <option value="">{t("channels.likeLastEventChannel")}</option>
                                 {templates.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` (${c.category})` : ""}</option>)}
                             </select>
                         </div>

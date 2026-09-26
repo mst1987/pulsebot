@@ -119,7 +119,9 @@ describe("list sections", () => {
     it("puts the way back in every editor", () => {
         // EditorPanel carries it for all of them, so a section can't ship an
         // editor with no way out but the browser's back button.
-        expect(sectionSrc).toContain("backLabel = \"Zurück zur Liste\"");
+        // (the default label comes from the dictionary, in the page's language)
+        expect(sectionSrc).toContain("{backLabel ?? t(\"list.back\")}");
+        expect(shared.dictionary("de")["list.back"]).toBe("Zurück zur Liste");
         expect(sectionSrc).toMatch(/<EditorPanel title=\{editorTitle\(entry\)\} onClose=\{editor\.close\}>/);
     });
 });
