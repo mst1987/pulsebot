@@ -2,7 +2,8 @@
 // version of its own, so they are taken from its title and shown here to be checked - instance chips, size, version. The line-up itself
 // comes from Raid-Helper and stays read only; the dialog says so, and warns when Raid-Helper does not name the groups.
 import { useEffect, useState } from "react";
-import { getRaidplanLink, setRaidplanLink, type ApiError, type RaidplanLinkView } from "../../../api";
+import { getRaidplanLink, setRaidplanLink, type ApiError } from "../../../api";
+import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
@@ -14,24 +15,19 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
     const t = useT();
     const { data, eventId } = ctx;
     const toast = useToast();
-    const [view, setView] = useState<RaidplanLinkView | null>(null);
     const [chosen, setChosen] = useState<string[]>([]);
     const [size, setSize] = useState(0);
     const [busy, setBusy] = useState(false);
 
-    useEffect(() => {
-        if (!open) return;
-        setView(null);
-        getRaidplanLink(eventId)
-            .then((v) => {
-                setView(v);
-                const start = linkStart(v.link, v.suggestion);
-                setChosen(start.instanceIds);
-                setSize(start.size);
-            })
-            .catch((err: ApiError) => toast(err.message, "err"));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, eventId]);
+    // Asked each time the dialog opens (nothing to pick from while it loads); a failed load is a toast, the dialog stays.
+    const linkData = useApi(() => getRaidplanLink(eventId).then((v) => {
+        const start = linkStart(v.link, v.suggestion);
+        setChosen(start.instanceIds);
+        setSize(start.size);
+        return v;
+    }), [eventId], { enabled: open });
+    const view = linkData.loading ? null : linkData.data;
+    useEffect(() => { if (linkData.error) toast(linkData.error.message, "err"); }, [linkData.error, toast]);
 
     const sizes = view ? linkSizes(view.instances, chosen) : [];
     const toggle = (id: string) => {

@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import {
     getClaData, createReport, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
     deleteReport,
-    type ApiError, type ClaData, type ClaFilter, type ClaRow, type ClaRaid, type LogSection, type MatchCandidate } from "../api";
+    type ApiError, type ClaFilter, type ClaRow, type ClaRaid, type LogSection, type MatchCandidate } from "../api";
+import { useApi } from "../hooks/useApi";
 import { formatEventTime } from "../lib/format";
 import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
@@ -608,13 +609,8 @@ export default function ClaPage() {
     // The page number is deliberately not remembered: the list grows at the top.
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
-    const [data, setData] = useState<ClaData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-
-    const load = () => {
-        getClaData(filter, sort, dir, page).then((d) => { setData(d); setError(null); }).catch((err: ApiError) => setError(err));
-    };
-    useEffect(load, [filter, sort, dir, page]);
+    const cla = useApi(() => getClaData(filter, sort, dir, page), [filter, sort, dir, page]);
+    const { data } = cla;
 
     const switchFilter = (f: ClaFilter) => setFilter(f, (p) => { p.delete("page"); });
 
@@ -640,7 +636,7 @@ export default function ClaPage() {
             jobs.notify((err as ApiError).message, "err");
         } finally {
             if (setBusy) setBusy(false);
-            load();
+            cla.reload();
         }
     };
 
@@ -665,7 +661,7 @@ export default function ClaPage() {
             }),
         }, () => withIncompleteConfirm(ask, (force) => evalLog(row.logId, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
-            load();
+            cla.reload();
         });
     };
 
@@ -688,7 +684,7 @@ export default function ClaPage() {
             return evalLog(row.logId, "rpb", { force });
         }).then(() => {
             setRunning((r) => r.filter((k) => !keys.includes(k)));
-            load();
+            cla.reload();
         });
     };
 
@@ -734,7 +730,7 @@ export default function ClaPage() {
         />
     );
 
-    if (error && !data) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
+    if (cla.error && !data) return <>{head}<div className="empty">Fehler beim Laden: {cla.error.message}</div></>;
     if (!data) return <>{head}<RaidLoader text="Logs werden geladen" /></>;
 
     const list = data.page;
@@ -809,7 +805,7 @@ export default function ClaPage() {
                     </>
                 )
                 : <div className="empty">{FILTER_META[data.filter].empty}</div>}
-            <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={load} />
+            <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
         </>
     );

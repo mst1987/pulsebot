@@ -8,12 +8,13 @@
 // findings) and /api/roster/char (role, categories, attendance, the drop source
 // and BiS specs of the worn items). The second is best-effort — without it the
 // page loses those parts, never the rest.
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryChar, getRosterChar, deleteLootItems, canAccess,
-    type ApiError, type CharGearReport, type GearIssue, type GearItem, type HistoryCharData, type LootItem, type RosterCharData,
-} from "../api";
+    type ApiError, type CharGearReport, type GearIssue, type GearItem, type HistoryCharData, type LootItem, type RosterCharData } from "../api";
+import { useApi } from "../hooks/useApi";
+import AsyncView from "../components/ui/AsyncView";
 import { fmtMs } from "../lib/format";
 import { itemQualityColor, itemQualityProps, qualityName } from "../lib/itemQuality";
 import { usePersistedSearchParam } from "../lib/persistedState";
@@ -493,93 +494,83 @@ export default function HistoryCharPage() {
         setSearchParams(params);
     };
 
-    const [data, setData] = useState<HistoryCharData | null>(null);
-    const [roster, setRoster] = useState<RosterCharData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-    const [loading, setLoading] = useState(false);
+    const character = useApi(() => getHistoryChar(name), [name]);
     const toast = useToast();
-
-    const load = () => {
-        setLoading(true);
-        getHistoryChar(name)
-            .then((d) => {
-                setData(d);
-                const ids = (d.gear || []).map((g) => g.itemId).filter((id): id is number => !!id);
-                // Best-effort: the page stands without role, attendance and BiS facts.
-                return getRosterChar(name, ids).then(setRoster).catch(() => setRoster(null));
-            })
-            .catch((err: ApiError) => setError(err))
-            .finally(() => setLoading(false));
-    };
+    // The second answer follows the first (it needs the worn items) and is
+    // best-effort: the page stands without role, attendance and BiS facts.
+    const itemIds = useMemo(() => (character.data?.gear || []).map((g) => g.itemId).filter((id): id is number => !!id), [character.data]);
+    const rosterData = useApi(() => getRosterChar(name, itemIds), [name, itemIds], { enabled: !!character.data });
+    const roster = rosterData.error ? null : rosterData.data;
 
     // A wrongly assigned award usually shows up here — on the raider who did not
     // get it. Drop the row locally instead of refetching the whole character.
     const removeItem = async (it: LootItem) => {
         try {
             await deleteLootItems([it.id]);
-            setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
+            character.setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
             toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
     };
 
-    useEffect(load, [name]);
-
     // Attach Wowhead tooltips to the freshly rendered item links (loot table).
-    useEffect(() => { refreshWowheadLinks(); }, [data, tab]);
-
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <RaidLoader text="Charakter wird geladen" />;
-
-    const issueCount = data.gearIssues?.issueCount || 0;
-    const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";
-    const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
-
-    const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
-        { id: "gear", label: "Ausrüstung", icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
-        { id: "loot", label: "Loot-Historie", icon: "inv_misc_bag_10", count: data.items.length || null },
-        { id: "attendance", label: "Anwesenheit", icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
-    ];
+    useEffect(() => { refreshWowheadLinks(); }, [character.data, tab]);
 
     return (
-        <>
-            <CharHero data={data} roster={roster} loading={loading} onReload={load} />
+        <AsyncView state={character} loading={<RaidLoader text="Charakter wird geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+            {(data) => {
+                const issueCount = data.gearIssues?.issueCount || 0;
+                const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";
+                const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
 
-            <div className="ros-secs" role="tablist" aria-label="Bereich">
-                {sections.map((s) => (
-                    <button
-                        key={s.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={tab === s.id}
-                        className={`ros-sec${tab === s.id ? " is-active" : ""}`}
-                        onClick={() => switchTab(s.id)}
-                    >
-                        <WowIcon name={s.icon} size={20} />
-                        {s.label}
-                        {s.count !== null && <span className={`ros-sec-n${s.tone ? ` ${s.tone}` : ""}`}>{s.count}</span>}
-                    </button>
-                ))}
-            </div>
+                const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
+                    { id: "gear", label: "Ausrüstung", icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
+                    { id: "loot", label: "Loot-Historie", icon: "inv_misc_bag_10", count: data.items.length || null },
+                    { id: "attendance", label: "Anwesenheit", icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
+                ];
 
-            {tab === "gear" && <GearSection data={data} onOpen={setItemSlot} />}
-            {tab === "loot" && (
-                <div className="dash-card ros-part">
-                    <PartHead
-                        icon="inv_misc_bag_10"
-                        tone="roster"
-                        title="Loot-Historie"
-                        crumb={`${data.items.length} Item${data.items.length === 1 ? "" : "s"} aus den Loot-Importen`}
-                    />
-                    {data.items.length
-                        ? <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
-                        : <p className="sub ros-empty">Kein Loot für diesen Charakter gespeichert.</p>}
-                </div>
-            )}
-            {tab === "attendance" && <AttendanceSection roster={roster} />}
+                return (
+                    <>
+                        <CharHero data={data} roster={roster} loading={character.loading} onReload={character.reload} />
 
-            {!!itemSlot && <ItemDetailModal slot={itemSlot} data={data} roster={roster} onClose={() => setItemSlot("")} />}
-        </>
+                        <div className="ros-secs" role="tablist" aria-label="Bereich">
+                            {sections.map((s) => (
+                                <button
+                                    key={s.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={tab === s.id}
+                                    className={`ros-sec${tab === s.id ? " is-active" : ""}`}
+                                    onClick={() => switchTab(s.id)}
+                                >
+                                    <WowIcon name={s.icon} size={20} />
+                                    {s.label}
+                                    {s.count !== null && <span className={`ros-sec-n${s.tone ? ` ${s.tone}` : ""}`}>{s.count}</span>}
+                                </button>
+                            ))}
+                        </div>
+
+                        {tab === "gear" && <GearSection data={data} onOpen={setItemSlot} />}
+                        {tab === "loot" && (
+                            <div className="dash-card ros-part">
+                                <PartHead
+                                    icon="inv_misc_bag_10"
+                                    tone="roster"
+                                    title="Loot-Historie"
+                                    crumb={`${data.items.length} Item${data.items.length === 1 ? "" : "s"} aus den Loot-Importen`}
+                                />
+                                {data.items.length
+                                    ? <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
+                                    : <p className="sub ros-empty">Kein Loot für diesen Charakter gespeichert.</p>}
+                            </div>
+                        )}
+                        {tab === "attendance" && <AttendanceSection roster={roster} />}
+
+                        {!!itemSlot && <ItemDetailModal slot={itemSlot} data={data} roster={roster} onClose={() => setItemSlot("")} />}
+                    </>
+                );
+            }}
+        </AsyncView>
     );
 }

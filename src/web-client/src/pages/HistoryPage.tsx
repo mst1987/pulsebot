@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryData, getLootStats, setLootCategory, deleteHistoryLog, resolveCharacters,
     getLootInbox, getSession, canAccess,
-    type ApiError, type HistoryData, type LootEventSummary, type LootLog, type AnnotatedCharacter,
-    type Category, type LootStats,
-} from "../api";
+    type ApiError, type LootEventSummary, type LootLog, type AnnotatedCharacter,
+    type Category } from "../api";
+import { useApi } from "../hooks/useApi";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState, usePersistedSearchParam } from "../lib/persistedState";
 import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
@@ -537,60 +537,41 @@ export default function HistoryPage() {
     const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", DEFAULT_TAB, allowedTabs);
     const legacyTab = searchParams.get("tab");
 
-    const [data, setData] = useState<HistoryData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const history = useApi(() => getHistoryData(), []);
+    const { data, error } = history;
     const toast = useToast();
-    const [stats, setStats] = useState<LootStats | null>(null);
-    const [statsError, setStatsError] = useState<ApiError | null>(null);
     // Loaded with the page: the head's count is the only hint that a raid is
     // waiting to be filed, so it has to be there before anyone thinks to look.
-    const [inboxCount, setInboxCount] = useState(0);
+    // Skipped without "history": the inbox is not open to that caller, and the
+    // call would only earn a 403. A failed load counts as "nothing waiting".
+    const inbox = useApi(() => getLootInbox().then((r) => r.sessions.length), [], { enabled: fullHistory });
+    const inboxCount = inbox.error ? 0 : inbox.data || 0;
     const [importOpen, setImportOpen] = useState(legacyTab === LEGACY_IMPORT && canWrite);
-    const [guildName, setGuildName] = useState("");
+    // The kicker names the guild whose history this is (blank until known, or when it cannot be).
+    const session = useApi(() => getSession(), []);
+    const guildName = session.data ? session.data.guilds.find((g) => g.id === session.data?.activeGuildId)?.name || "" : "";
     // The Raids view shows one list at a time, and it opens on the past raids:
     // what already happened is what this page is for — the coming ones are
     // planned on the Raid-Events page, not looked up here.
     const [raidWhen, setRaidWhen] = usePersistedState<RaidWhen>("history-raids-when", "past");
 
-    // Whether the overviews were ever asked for. A ref, not the state above:
-    // after a failed load there is nothing in `stats`, and retrying on every
-    // render would hammer the endpoint.
-    const statsRequested = useRef(false);
-
-    const loadStats = () => {
-        statsRequested.current = true;
-        getLootStats().then((s) => { setStats(s); setStatsError(null); }).catch((err: ApiError) => setStatsError(err));
-    };
-
-    const load = () => {
-        getHistoryData().then(setData).catch((err: ApiError) => setError(err));
-        // Skipped without "history": the inbox is not open to that caller, and
-        // the call would only earn a 403.
-        if (fullHistory) {
-            getLootInbox().then((r) => setInboxCount(r.sessions.length)).catch(() => setInboxCount(0));
-        }
-        // Only refresh the overviews once they have been opened — before that
-        // there is nothing on screen that could go stale after an import.
-        if (statsRequested.current) loadStats();
-    };
-
-    useEffect(load, []);
-
-    // The kicker names the guild whose history this is.
+    // The overviews are fetched on the first visit to one of their views, then
+    // kept — and refreshed after an import only once they were opened, since
+    // before that there is nothing on screen that could go stale. Switched on
+    // once and never off: after a failed load there is nothing in `stats`, and
+    // asking again on every render would hammer the endpoint.
+    const [statsWanted, setStatsWanted] = useState(false);
     useEffect(() => {
-        getSession()
-            .then((s) => setGuildName(s.guilds.find((g) => g.id === s.activeGuildId)?.name || ""))
-            .catch(() => setGuildName(""));
-    }, []);
-
-    // Fetched on the first visit to one of the overview views, then kept.
-    useEffect(() => {
-        if (STATS_TABS.includes(tab) && !statsRequested.current) loadStats();
+        if (STATS_TABS.includes(tab)) setStatsWanted(true);
     }, [tab]);
+    const statsData = useApi(() => getLootStats(), [], { enabled: statsWanted });
+    const { data: stats, error: statsError } = statsData;
 
     const afterChange = (msg: string) => {
         toast(msg);
-        load();
+        history.reload();
+        if (fullHistory) inbox.reload();
+        if (statsWanted) statsData.reload();
     };
 
     // ?tab=inbox from before the inbox became a page.

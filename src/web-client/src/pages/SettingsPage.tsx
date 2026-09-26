@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet, searchSettingsItems, getIngestTokens,
-    type ApiError, type SettingsData, type AdminConfig, type Raidsheet,
-    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel, type EventSource } from "../api";
+    type ApiError, type AdminConfig, type Raidsheet,
+    type RolePermissions, type Access, type TopItem, type TextChannel, type EventSource } from "../api";
+import { useApi } from "../hooks/useApi";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
@@ -309,10 +310,11 @@ type PermView = "areas" | "bot";
 const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
 
 export default function SettingsPage() {
-    const [data, setData] = useState<SettingsData | null>(null);
+    // The draft is cut from the answer as it lands — not from `data`: the parts
+    // that save themselves update `data` without touching an unsaved draft.
     const [draft, setDraft] = useState<Draft | null>(null);
-    const [tokens, setTokens] = useState<IngestToken[] | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const settingsData = useApi(() => getSettings().then((d) => { setDraft(toDraft(d.config)); return d; }), []);
+    const { data, setData } = settingsData;
     const [saving, setSaving] = useState(false);
     const toast = useToast();
     // In the url as well as remembered, so a hint elsewhere in the menu can link
@@ -324,26 +326,15 @@ export default function SettingsPage() {
     // Berechtigungen has two views: the menu's areas and the bot commands.
     const [permView, setPermView] = usePersistedSearchParam<PermView>("settings-perm-view", "perm", "areas", PERM_VIEWS);
 
-    const load = () => {
-        getSettings()
-            .then((d) => {
-                setData(d);
-                setDraft(toDraft(d.config));
-            })
-            .catch((err: ApiError) => setError(err));
-    };
-    const loadTokens = () => {
-        getIngestTokens().then((r) => setTokens(r.tokens)).catch(() => setTokens(null));
-    };
-
-    // load() only ever runs once.
-    useEffect(load, []);
+    const load = settingsData.reload;
     // The token list is full-admin-only; it feeds the Loot-Sync card and the
-    // "Verbindungen" badge.
+    // "Verbindungen" badge. A failed load counts as "no tokens", as before.
     const canManage = !!data?.canManageAccess;
-    useEffect(() => { if (canManage) loadTokens(); }, [canManage]);
+    const tokensData = useApi(() => getIngestTokens().then((r) => r.tokens), [], { enabled: canManage });
+    const tokens = tokensData.error ? null : tokensData.data;
+    const loadTokens = tokensData.reload;
 
-    if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
+    if (settingsData.error) return <div className="empty">Fehler beim Laden der Einstellungen: {settingsData.error.message}</div>;
     if (!data || !draft) return <RaidLoader text="Einstellungen werden geladen" />;
 
     // A user who only holds write on "Einstellungen" never sees the access

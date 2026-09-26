@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
@@ -11,7 +11,8 @@ import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
 import { MENU, firstAllowedTab, type MenuEntry } from "../lib/menu";
 import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild } from "../api";
-import { deployLine, type DeployVersion } from "../lib/deployVersion";
+import { useApi } from "../hooks/useApi";
+import { deployLine } from "../lib/deployVersion";
 import { t as tr, tOr, useLang, useT } from "../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -108,14 +109,8 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
  * Any failure leaves the line out entirely rather than showing an error.
  */
 function DeployLine({ user }: { user: SessionUser }) {
-    const [version, setVersion] = useState<DeployVersion | null>(null);
     const maySee = canAccess(user, "settings");
-    useEffect(() => {
-        if (!maySee) return;
-        let alive = true;
-        getVersion().then((v) => { if (alive) setVersion(v); }).catch(() => {});
-        return () => { alive = false; };
-    }, [maySee]);
+    const version = useApi(() => getVersion(), [], { enabled: maySee }).data;
     if (!version) return null;
     const line = deployLine(version);
     if (!line.text) return null;

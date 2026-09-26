@@ -8,6 +8,7 @@ import {
     type ProfileCharacter, type ProfileData, type ProfilePatch,
     type ProfileSpec, type RaiderProfile, type RaiderRef,
 } from "../api";
+import { useApi } from "../hooks/useApi";
 import { Badge, Button, Expand, IconButton, PageHead, PartHead, RaidLoader, Segment, WowIcon, useConfirm } from "../components/ui";
 import { classColorProps } from "../components/ClassSpec";
 import { useToast } from "../components/Jobs";
@@ -34,26 +35,23 @@ export default function ProfilePage() {
     const toast = useToast();
     const ask = useConfirm();
     const t = useT();
-    const [data, setData] = useState<ProfileData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const profileData = useApi(() => getProfile(), []);
+    const { data, setData } = profileData;
     const [params, setParams] = useSearchParams();
     const [fold, setFold] = useState<Fold>("days");
     const [adding, setAdding] = useState<AddWay | null>(null);
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
-    // what it was.
-    const [cal, setCal] = useState<CalendarTokens | null>(null);
-
-    useEffect(() => {
-        getProfile().then(setData).catch(setError);
-        getCalendarTokens().then(setCal).catch(() => setCal(null));
-    }, []);
+    // what it was; a failed load leaves the fold at "loading", as before.
+    const calendar = useApi(() => getCalendarTokens(), []);
+    const cal = calendar.error ? null : calendar.data;
+    const setCal = calendar.setData;
 
     const profile = data?.profile || null;
     const selectedKey = params.get("char") || profile?.characters.find((c) => c.main)?.key || profile?.characters[0]?.key || "";
     const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
     const classOf = (id: string) => data?.classes.find((c) => c.id === id);
 
-    if (error) return <div className="empty">{t("profile.loadError", { message: error.message })}</div>;
+    if (profileData.error) return <div className="empty">{t("profile.loadError", { message: profileData.error.message })}</div>;
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));

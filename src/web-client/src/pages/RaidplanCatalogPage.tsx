@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     canAccess, deleteCatalogEntry, getRaidplanCatalog, resetCatalogEntry, saveCatalogEntry,
-    type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell,
-} from "../api";
+    type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell } from "../api";
+import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -33,21 +33,19 @@ export default function RaidplanCatalogPage() {
     const ask = useConfirm();
     const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "raids", "write");
-    const [data, setData] = useState<CatalogAdmin | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const catalog = useApi(() => getRaidplanCatalog(), []);
+    const { data, setData } = catalog;
     const [which, setWhich] = useState<Tab>("mobs");
     const [q, setQ] = useState("");
     const [draft, setDraft] = useState<Draft | null>(null);
 
-    useEffect(() => { getRaidplanCatalog().then(setData).catch((e: ApiError) => setError(e)); }, []);
-
     const needle = q.trim().toLowerCase();
     const instanceName = (id: string) => (data ? data.instances.find((i) => i.id === id) : undefined)?.name || t("catalog.noInstance");
-    const bossName = (key: string) => {
+    const bossName = useCallback((key: string) => {
         if (!data || !key) return "";
         for (const i of data.instances) { const b = i.bosses.find((x) => x.key === key); if (b) return b.name; }
         return "";
-    };
+    }, [data]);
     const mobGroups = useMemo(() => {
         const groups = new Map<string, CatalogMob[]>();
         for (const m of data ? data.mobs : []) {
@@ -55,8 +53,7 @@ export default function RaidplanCatalogPage() {
             groups.set(m.instanceId, [...(groups.get(m.instanceId) || []), m]);
         }
         return [...groups.entries()];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data, needle]);
+    }, [data, needle, bossName]);
     const spellGroups = useMemo(() => {
         const groups = new Map<string, CatalogSpell[]>();
         for (const s of data ? data.spells : []) {
@@ -66,7 +63,7 @@ export default function RaidplanCatalogPage() {
         return [...groups.entries()];
     }, [data, needle]);
 
-    if (error) return <div className="empty">{t("catalog.loadError", { message: error.message })}</div>;
+    if (catalog.error) return <div className="empty">{t("catalog.loadError", { message: catalog.error.message })}</div>;
     if (!data) return <RaidLoader text={t("catalog.loading")} />;
 
     const run = async (job: () => Promise<CatalogAdmin>, message: string) => {

@@ -5,7 +5,8 @@
 // its signups are its attendance. Afterwards the page leads back to the raid list.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { deleteRaid, getManageInfo, type ApiError, type ManageInfo } from "../../../api";
+import { deleteRaid, getManageInfo, type ApiError } from "../../../api";
+import { useApi } from "../../../hooks/useApi";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { SwitchRow } from "../../../components/RaidPlanFields";
@@ -17,7 +18,6 @@ import type { RaidCtx } from "../meta";
 export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
     const { data, eventId } = ctx;
-    const [info, setInfo] = useState<ManageInfo | null>(null);
     const [notify, setNotify] = useState(false);
     const [archive, setArchive] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
@@ -25,14 +25,16 @@ export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const toast = useToast();
     const navigate = useNavigate();
 
+    // Asked each time the dialog opens; a failed load is a toast, the dialog stays.
+    const infoData = useApi(() => getManageInfo(eventId), [eventId], { enabled: open });
+    const info = infoData.data;
+    useEffect(() => { if (infoData.error) toast(infoData.error.message, "err"); }, [infoData.error, toast]);
     useEffect(() => {
         if (!open) return;
         setNotify(false);
         setArchive(false);
         setConfirmed(false);
-        getManageInfo(eventId).then(setInfo).catch((err: ApiError) => toast(err.message, "err"));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, eventId]);
+    }, [open]);
 
     const d = info ? info.deletion : null;
     const lines = d ? deleteLines(d) : { gone: [], stays: [] };

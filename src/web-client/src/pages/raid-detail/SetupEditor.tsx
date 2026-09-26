@@ -10,12 +10,12 @@
 // (swap — inside one group that reorders it; every group always shows its five
 // places). Without a mouse: activate a raider (click, Enter), then the target.
 // Every move is saved at once and comes back valued by the server.
-import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
     approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, postRaidSearch, previewRaidSearch, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, updateRaidSize,
-    type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
-} from "../../api";
+    type ApiError, type SetupAttendance, type SetupEditorData, type SetupSearch, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup } from "../../api";
+import { useApi } from "../../hooks/useApi";
 import {
     applyLocal, benchChunks, dpsCheck, moveRaider, peopleOf, placeGrid, pingTextToSave, publishHint, resizeLineup, roleTarget, addRole, groupSearchBuffs, removeBuffs, respecRaider, searchNeedsFrom, stepRole, suggestGroup, toggleSpec, tipReasons, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE,
     type SearchNeeds, type SetupTarget,
@@ -969,8 +969,6 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const jobs = useJobs();
     const ask = useConfirm();
-    const [data, setData] = useState<SetupEditorData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const [busy, setBusy] = useState(false);
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
@@ -985,10 +983,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     });
     const saving = useRef(0);
 
-    const load = useCallback(() => {
-        getRaidSetup(ctx.eventId).then((d) => { setData(d.setup ? { ...d, setup: withSetupDefaults(d.setup) } : d); setError(null); }).catch((e: ApiError) => setError(e));
-    }, [ctx.eventId]);
-    useEffect(load, [load]);
+    const setupData = useApi(() => getRaidSetup(ctx.eventId).then((d) => (d.setup ? { ...d, setup: withSetupDefaults(d.setup) } : d)), [ctx.eventId]);
+    const { data, setData } = setupData;
+    const load = setupData.reload;
 
     useEffect(() => {
         if (!selected) return undefined;
@@ -1010,7 +1007,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 .catch(() => undefined);
         }, 3000);
         return () => clearInterval(timer);
-    }, [dmsRunning, ctx.eventId]);
+    }, [dmsRunning, ctx.eventId, setData]);
 
     // Moves come faster than answers. Every save waits for the one before it and
     // carries the version the server last confirmed, and the next move builds on
@@ -1207,7 +1204,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
-    if (error) return <div className="empty">{t("setup.editor.loadFailed", { message: error.message })}</div>;
+    if (setupData.error) return <div className="empty">{t("setup.editor.loadFailed", { message: setupData.error.message })}</div>;
     if (!data) return <RaidLoader text={t("setup.editor.loading")} compact />;
     if (!data.canWrite) return <ReadOnly data={data} />;
 

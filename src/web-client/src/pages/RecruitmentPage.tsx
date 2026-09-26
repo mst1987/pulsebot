@@ -3,6 +3,8 @@ import {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate,
     postRecruitmentTemplate, updateRecruitmentPost, deleteRecruitmentPost, scanRecruitmentPosts,
     type ApiError, type Application, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost, type TextChannel } from "../api";
+import { useApi } from "../hooks/useApi";
+import AsyncView from "../components/ui/AsyncView";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import { useCollectionEditor, type CollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
@@ -799,22 +801,13 @@ export default function RecruitmentPage() {
     const view: View = templateEditor.open ? "templates" : postEditor.editId ? "posts" : storedView;
     const [presetTemplateId, setPresetTemplateId] = useState("");
 
-    const [data, setData] = useState<RecruitmentData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const toast = useToast();
 
-    const load = () => {
-        // The lists carry every template and post in full, so the editors take
-        // their entry from there; the server is asked for none.
-        getRecruitmentData({ view })
-            .then(setData)
-            .catch((err: ApiError) => setError(err));
-    };
-
-    // Closing an editor reloads too: coming back from a save has to show the
-    // changed list, and that is the same transition.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    useEffect(load, [view, templateEditor.open === "", postEditor.open === ""]);
+    // The lists carry every template and post in full, so the editors take
+    // their entry from there; the server is asked for none. Closing an editor
+    // reloads too: coming back from a save has to show the changed list, and
+    // that is the same transition.
+    const recruitment = useApi(() => getRecruitmentData({ view }), [view, templateEditor.open === "", postEditor.open === ""]);
 
     // Switching the tab always leaves whichever editor was open — otherwise it
     // would keep forcing its own tab back on.
@@ -824,7 +817,7 @@ export default function RecruitmentPage() {
         toast(msg);
         if (templateEditor.open) templateEditor.close();
         else if (postEditor.open) postEditor.close();
-        else load();
+        else recruitment.reload();
     };
 
     const openPostDialog = (templateId = "") => {
@@ -832,46 +825,49 @@ export default function RecruitmentPage() {
         postEditor.startNew();
     };
 
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <RaidLoader text="Recruitment wird geladen" />;
-
-    // An id that no longer exists (deleted in another tab, stale link) falls
-    // back to the new-editor resp. the posting dialog rather than to nothing.
-    const editingTemplate = templateEditor.editId ? data.templates.find((t) => t.id === templateEditor.editId) || null : null;
-    const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
-
     return (
-        <div className="rc-page">
-            <PageHead
-                icon={ICONS.page} tone="recruitment" kicker={data.guildName || "Discord-Server"} title="Recruitment"
-                action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>Nachricht posten</Button>}
-            />
-            <SubNav view={view} data={data} onChange={switchView} />
-            {view === "applications" && <ApplicationsTab data={data} />}
-            {view === "templates" && (
-                <TemplatesTab data={data} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
-            )}
-            {view === "posts" && (
-                <PostsTab data={data} editor={postEditor} onChanged={afterChange} reload={load} />
-            )}
+        <AsyncView state={recruitment} loading={<RaidLoader text="Recruitment wird geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+            {(data) => {
+                // An id that no longer exists (deleted in another tab, stale link) falls
+                // back to the new-editor resp. the posting dialog rather than to nothing.
+                const editingTemplate = templateEditor.editId ? data.templates.find((t) => t.id === templateEditor.editId) || null : null;
+                const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
 
-            {templateEditor.open && (
-                <TemplateEditor
-                    key={editingTemplate?.id ?? "new"} data={data} template={editingTemplate}
-                    postedIn={editingTemplate ? data.posts.filter((p) => p.templateId === editingTemplate.id).length : 0}
-                    onSaved={afterChange} onClose={templateEditor.close}
-                />
-            )}
-            {postEditor.open && editingPost && (
-                <PostEditor
-                    key={editingPost.id} data={data} post={editingPost}
-                    templateName={data.templates.find((t) => t.id === editingPost.templateId)?.name || ""}
-                    onSaved={afterChange} onClose={postEditor.close}
-                />
-            )}
-            {postEditor.open && !editingPost && (
-                <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
-            )}
-        </div>
+                return (
+                    <div className="rc-page">
+                        <PageHead
+                            icon={ICONS.page} tone="recruitment" kicker={data.guildName || "Discord-Server"} title="Recruitment"
+                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>Nachricht posten</Button>}
+                        />
+                        <SubNav view={view} data={data} onChange={switchView} />
+                        {view === "applications" && <ApplicationsTab data={data} />}
+                        {view === "templates" && (
+                            <TemplatesTab data={data} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
+                        )}
+                        {view === "posts" && (
+                            <PostsTab data={data} editor={postEditor} onChanged={afterChange} reload={recruitment.reload} />
+                        )}
+
+                        {templateEditor.open && (
+                            <TemplateEditor
+                                key={editingTemplate?.id ?? "new"} data={data} template={editingTemplate}
+                                postedIn={editingTemplate ? data.posts.filter((p) => p.templateId === editingTemplate.id).length : 0}
+                                onSaved={afterChange} onClose={templateEditor.close}
+                            />
+                        )}
+                        {postEditor.open && editingPost && (
+                            <PostEditor
+                                key={editingPost.id} data={data} post={editingPost}
+                                templateName={data.templates.find((t) => t.id === editingPost.templateId)?.name || ""}
+                                onSaved={afterChange} onClose={postEditor.close}
+                            />
+                        )}
+                        {postEditor.open && !editingPost && (
+                            <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
+                        )}
+                    </div>
+                );
+            }}
+        </AsyncView>
     );
 }

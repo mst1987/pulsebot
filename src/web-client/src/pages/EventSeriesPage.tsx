@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import {
     deleteEventSeries, getEventSeries, previewEventSeries, runEventSeries, saveEventSeries,
     type ApiError, type EventSeriesData, type EventSeriesInput, type SeriesCategory, type SeriesDate, type SeriesPreview } from "../api";
+import { useApi } from "../hooks/useApi";
+import AsyncView from "../components/ui/AsyncView";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
     WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday } from "../lib/eventSeries";
@@ -270,70 +272,67 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
 export default function EventSeriesPage() {
     const editor = useCollectionEditor("edit");
     const toast = useToast();
-    const [data, setData] = useState<EventSeriesData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const series = useApi(() => getEventSeries(), []);
     const [running, setRunning] = useState(false);
 
-    const load = () => {
-        getEventSeries().then((d) => { setData(d); setError(null); }).catch((err: ApiError) => setError(err));
-    };
-    useEffect(load, []);
-
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <RaidLoader text="Serien werden geladen" />;
-
-    const canWrite = data.canWrite;
-    const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;
-
-    const runNow = async () => {
-        setRunning(true);
-        try {
-            const r = await runEventSeries();
-            toast(r.message, r.failed ? "err" : undefined);
-            load();
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setRunning(false);
-        }
-    };
-
     return (
-        <div className="sr-page">
-            <PageHead
-                icon={ICON}
-                tone="raids"
-                kicker="Raid-Events"
-                title="Serien"
-                action={canWrite ? (
-                    <IconButton icon={<RefreshIcon />} tip="Jetzt prüfen" tipSub="Legt alle fälligen Termine sofort an, statt auf den nächsten Durchlauf zu warten (alle 5 Minuten)." disabled={running} onClick={runNow} />
-                ) : undefined}
-            />
+        <AsyncView state={series} loading={<RaidLoader text="Serien werden geladen" />} error={(err) => <div className="empty">Fehler beim Laden: {err.message}</div>}>
+            {(data) => {
+                const canWrite = data.canWrite;
+                const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;
 
-            {data.categories.length === 0
-                ? <div className="empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
-                : (
-                    <ul className="sr-list">
-                        {data.categories.map((c) => (
-                            <SeriesRow key={c.id} c={c} canWrite={canWrite} onOpen={() => editor.startEdit(c.id)} />
-                        ))}
-                    </ul>
-                )}
+                const runNow = async () => {
+                    setRunning(true);
+                    try {
+                        const r = await runEventSeries();
+                        toast(r.message, r.failed ? "err" : undefined);
+                        series.reload();
+                    } catch (err) {
+                        toast((err as ApiError).message, "err");
+                    } finally {
+                        setRunning(false);
+                    }
+                };
 
-            {editing && (
-                <SeriesModal
-                    key={editing.id}
-                    category={editing}
-                    data={data}
-                    canWrite={canWrite}
-                    onClose={editor.close}
-                    onChanged={(msg, close) => {
-                        toast(msg);
-                        if (close) editor.close();
-                        load();
-                    }}
-                />
-            )}
-        </div>
+                return (
+                    <div className="sr-page">
+                        <PageHead
+                            icon={ICON}
+                            tone="raids"
+                            kicker="Raid-Events"
+                            title="Serien"
+                            action={canWrite ? (
+                                <IconButton icon={<RefreshIcon />} tip="Jetzt prüfen" tipSub="Legt alle fälligen Termine sofort an, statt auf den nächsten Durchlauf zu warten (alle 5 Minuten)." disabled={running} onClick={runNow} />
+                            ) : undefined}
+                        />
+
+                        {data.categories.length === 0
+                            ? <div className="empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
+                            : (
+                                <ul className="sr-list">
+                                    {data.categories.map((c) => (
+                                        <SeriesRow key={c.id} c={c} canWrite={canWrite} onOpen={() => editor.startEdit(c.id)} />
+                                    ))}
+                                </ul>
+                            )}
+
+                        {editing && (
+                            <SeriesModal
+                                key={editing.id}
+                                category={editing}
+                                data={data}
+                                canWrite={canWrite}
+                                onClose={editor.close}
+                                onChanged={(msg, close) => {
+                                    toast(msg);
+                                    if (close) editor.close();
+                                    series.reload();
+                                }}
+                            />
+                        )}
+                    </div>
+                );
+            }}
+        </AsyncView>
     );
 }

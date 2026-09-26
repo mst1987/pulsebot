@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, LayoutTemplate, RotateCw, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
-    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
-} from "../../api";
+    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
+import { useApi } from "../../hooks/useApi";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
@@ -45,8 +45,6 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const ask = useConfirm();
     const { eventId } = ctx;
 
-    const [view, setView] = useState<RaidplanView | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const { draft, edit: histEdit, editAll: histEditAll, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
     const [selected, setSelected] = useState("");
     const [saving, setSaving] = useState(false);
@@ -57,20 +55,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const selectedRef = useRef("");
     selectedRef.current = selected;
 
-    const load = useCallback(() => {
-        setError(null);
-        getRaidplan(eventId)
-            .then((v) => {
-                setView(v);
-                reset(v.plan.bosses);
-                setProfiles(v.profiles);
-                setConflict(false);
-                // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
-                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
-            })
-            .catch((err: ApiError) => setError(err));
-    }, [eventId, reset]);
-    useEffect(load, [load]);
+    const plan = useApi(() => getRaidplan(eventId).then((v) => {
+        reset(v.plan.bosses);
+        setProfiles(v.profiles);
+        setConflict(false);
+        // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
+        setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
+        return v;
+    }), [eventId, reset]);
+    const { data: view, setData: setView } = plan;
 
     /** Only the maps (uploads/removals) changed: refresh them without losing the unsaved draft. */
     const reloadMaps = () => {
@@ -198,7 +191,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
 
-    if (error) return <div className="empty">{t("raidDetail.page.loadError", { message: error.message })}</div>;
+    if (plan.error) return <div className="empty">{t("raidDetail.page.loadError", { message: plan.error.message })}</div>;
     if (!view) return <RaidLoader text={t("raidDetail.page.loading")} />;
     if (view.bosses.length === 0) {
         return (
@@ -223,7 +216,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             {conflict && (
                 <div className="flash flash-err rp-conflict">
                     <span>{t("raidBoard.conflict.text")}</span>
-                    <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={load} />
+                    <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={plan.reload} />
                 </div>
             )}
             {view.rosterSource && <RhSource src={view.rosterSource} busy={reloading} onReload={reloadRoster} />}

@@ -6,8 +6,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     addRaiderToRaid, getRaiderCandidates, removeRaiderFromRaid,
-    type ApiError, type ManageCandidates, type ManageRaider, type SignupStatus,
-} from "../../../api";
+    type ApiError, type ManageRaider, type SignupStatus } from "../../../api";
+import { useApi } from "../../../hooks/useApi";
 import { Modal, useConfirm } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
@@ -25,7 +25,6 @@ const NEW = "__new";
 export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
     const { data, eventId, onChanged } = ctx;
-    const [candidates, setCandidates] = useState<ManageCandidates | null>(null);
     const [query, setQuery] = useState("");
     const [userId, setUserId] = useState("");
     const [charKey, setCharKey] = useState("");
@@ -37,15 +36,16 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const toast = useToast();
     const ask = useConfirm();
 
+    // Asked each time the dialog opens (nothing to pick from while it loads); a failed load is a toast, the dialog stays.
+    const candidatesData = useApi(() => getRaiderCandidates(eventId), [eventId], { enabled: open });
+    const candidates = candidatesData.loading ? null : candidatesData.data;
+    useEffect(() => { if (candidatesData.error) toast(candidatesData.error.message, "err"); }, [candidatesData.error, toast]);
     useEffect(() => {
         if (!open) return;
         setQuery("");
         setUserId("");
         setStatus("signed");
-        setCandidates(null);
-        getRaiderCandidates(eventId).then(setCandidates).catch((err: ApiError) => toast(err.message, "err"));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, eventId]);
+    }, [open]);
 
     const raider: ManageRaider | undefined = candidates?.raiders.find((r) => r.userId === userId);
     const shown = useMemo(() => filterRaiders(candidates?.raiders || [], query).slice(0, 40), [candidates, query]);

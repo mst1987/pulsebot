@@ -2,16 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
     archiveChannels, canAccess, deleteChannels, getChannels, patchChannels, quickCreateChannels, saveChannelConfig,
-    type ApiError, type Channel, type ChannelChanges, type ChannelPurpose, type ChannelResult, type ChannelsData,
-    type QuickCreateInput, type RenamePreviewRow,
-} from "../api";
+    type Channel, type ChannelChanges, type ChannelPurpose, type ChannelResult,
+    type QuickCreateInput, type RenamePreviewRow } from "../api";
+import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
 import { Badge, IconButton, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
 import { useJobs } from "../components/Jobs";
 import { TagIcon } from "../components/channels/channelBits";
 import {
-    AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog,
-} from "../components/channels/ChannelDialogs";
+    AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog } from "../components/channels/ChannelDialogs";
 import { ChannelTree } from "../components/channels/ChannelTree";
 import { BulkBar, BulkEditDialog, RenameSchemaDialog } from "../components/channels/ChannelBulk";
 import { ChannelEditDialog } from "../components/channels/ChannelEditDialog";
@@ -71,8 +70,8 @@ function Figure({ label, value, tone, tip, tipSub, onClick }: {
 
 export default function ChannelsPage() {
     const { user } = useOutletContext<ShellContext>();
-    const [data, setData] = useState<ChannelsData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const channels = useApi(() => getChannels(), []);
+    const { data, setData } = channels;
     const [dialog, setDialog] = useState<Dialog>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [params, setParams] = useSearchParams();
@@ -80,16 +79,10 @@ export default function ChannelsPage() {
     const { run } = useJobs();
     const ask = useConfirm();
 
-    const load = () => {
-        getChannels().then((d) => {
-            setData(d);
-            setError(null);
-            // Forget selected channels that no longer exist.
-            setSelected((s) => new Set([...s].filter((id) => d.channels.some((c) => c.id === id))));
-        }).catch((err: ApiError) => setError(err));
-    };
-
-    useEffect(load, []);
+    // Forget selected channels that no longer exist.
+    useEffect(() => {
+        if (data) setSelected((s) => new Set([...s].filter((id) => data.channels.some((c) => c.id === id))));
+    }, [data]);
 
     // The purposes are settings: changing them takes write access to Einstellungen.
     const canEditPurposes = canAccess(user, "settings", "write");
@@ -117,7 +110,7 @@ export default function ChannelsPage() {
 
     const done = () => {
         setDialog(null);
-        load();
+        channels.reload();
     };
 
     /** A change over several channels as one job: channel by channel, progress in the toast. */
@@ -132,7 +125,7 @@ export default function ChannelsPage() {
             return message;
         });
         setSelected(new Set());
-        load();
+        channels.reload();
     };
 
     const applyChanges = (ids: string[], changes: ChannelChanges, label = "Kanäle ändern") => stepJob(
@@ -174,7 +167,7 @@ export default function ChannelsPage() {
             return result.message;
         });
         setSelected(new Set());
-        load();
+        channels.reload();
     };
 
     const quickCreate = async (input: QuickCreateInput, count: number) => {
@@ -186,7 +179,7 @@ export default function ChannelsPage() {
             if (result.failed) throw new Error(result.message || "Anlegen fehlgeschlagen.");
             return result.message || "Kanäle angelegt.";
         });
-        load();
+        channels.reload();
     };
 
     const saveArchiveSettings = async (input: ArchiveSettingsInput, then?: string[]) => {
@@ -202,7 +195,7 @@ export default function ChannelsPage() {
         }
     };
 
-    if (error) return <div className="empty">Fehler beim Laden der Kanäle: {error.message}</div>;
+    if (channels.error) return <div className="empty">Fehler beim Laden der Kanäle: {channels.error.message}</div>;
     if (!data) return <RaidLoader text="Kanäle werden geladen" />;
 
     if (!data.activeGuildId) {

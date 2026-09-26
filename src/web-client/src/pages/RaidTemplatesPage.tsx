@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
     getRaidTemplates, getGameVersions, saveRaidTemplate, deleteRaidTemplate, importRaidTemplates, canAccess,
-    type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput, type RaidTemplatesData,
-} from "../api";
+    type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput } from "../api";
+import { useApi } from "../hooks/useApi";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { usePersistedState } from "../lib/persistedState";
 import {
-    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft,
-} from "../lib/raidTemplates";
+    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft } from "../lib/raidTemplates";
 import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -209,20 +208,13 @@ export default function RaidTemplatesPage() {
     const editor = useCollectionEditor("edit");
     const toast = useToast();
     const canWrite = canAccess(user, "raids", "write");
-    const [data, setData] = useState<RaidTemplatesData | null>(null);
-    const [versions, setVersions] = useState<GameVersion[] | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const loaded = useApi(() => Promise.all([getRaidTemplates(), getGameVersions()]).then(([templates, v]) => ({ templates, versions: v.versions })), []);
+    const data = loaded.data?.templates ?? null;
+    const versions = loaded.data?.versions ?? null;
     const [versionFilter, setVersionFilter] = usePersistedState("raid-templates-version", "");
     const [importing, setImporting] = useState(false);
 
-    const load = () => {
-        Promise.all([getRaidTemplates(), getGameVersions()])
-            .then(([t, v]) => { setData(t); setVersions(v.versions); })
-            .catch((err: ApiError) => setError(err));
-    };
-    useEffect(load, []);
-
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
+    if (loaded.error) return <div className="empty">Fehler beim Laden: {loaded.error.message}</div>;
     if (!data || !versions) return <RaidLoader text="Raid-Vorlagen werden geladen" />;
 
     const shortOf = (id: string) => versions.find((v) => v.id === id)?.short || id;
@@ -234,7 +226,7 @@ export default function RaidTemplatesPage() {
     const afterChange = (msg: string) => {
         toast(msg);
         editor.close();
-        load();
+        loaded.reload();
     };
 
     const importFromRaidHelper = async () => {
@@ -242,7 +234,7 @@ export default function RaidTemplatesPage() {
         try {
             const r = await importRaidTemplates();
             toast(`${r.added} neu, ${r.updated} schon vorhanden.`);
-            load();
+            loaded.reload();
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {

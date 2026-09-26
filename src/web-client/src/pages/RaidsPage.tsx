@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaids, getPastRaids, canAccess,
-    type ApiError, type PastRaidsData, type RaidsData, type PastRaid, type UpcomingRaid,
-} from "../api";
+    type PastRaidsData, type RaidsData, type PastRaid, type UpcomingRaid } from "../api";
+import { useApi } from "../hooks/useApi";
 import { usePersistedSearchParam, usePersistedState } from "../lib/persistedState";
 import { knownContents, raidIconName } from "../lib/raidIcons";
 import type { ShellContext } from "../components/Shell";
@@ -80,16 +79,11 @@ export default function RaidsPage() {
     // the scheduled events, so a position would point at another raid next week.
     const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
 
-    const [upcoming, setUpcoming] = useState<RaidsData | null>(lastLoaded.upcoming);
-    const [past, setPast] = useState<PastRaidsData | null>(lastLoaded.past);
-    const [error, setError] = useState<ApiError | null>(null);
-    const [pastError, setPastError] = useState<ApiError | null>(null);
-
-    const load = useCallback(() => {
-        getRaids().then((d) => { lastLoaded.upcoming = d; setUpcoming(d); }).catch((err: ApiError) => setError(err));
-        getPastRaids().then((d) => { lastLoaded.past = d; setPast(d); }).catch((err: ApiError) => setPastError(err));
-    }, []);
-    useEffect(load, [load]);
+    const upcomingData = useApi(() => getRaids().then((d) => { lastLoaded.upcoming = d; return d; }), [], { initial: lastLoaded.upcoming });
+    const pastData = useApi(() => getPastRaids().then((d) => { lastLoaded.past = d; return d; }), [], { initial: lastLoaded.past });
+    const { data: upcoming, error } = upcomingData;
+    const { data: past, error: pastError } = pastData;
+    const load = () => { upcomingData.reload(); pastData.reload(); };
 
     const creating = location.pathname.replace(/\/+$/, "") === "/raids/new";
     const closeCreate = () => navigate(view === "past" ? "/raids?view=past" : "/raids");

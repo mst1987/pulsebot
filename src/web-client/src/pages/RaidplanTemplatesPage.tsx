@@ -6,6 +6,7 @@ import {
     updateRaidplanTemplate,
     type ApiError, type GameVersion, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplate, type SessionGuild,
 } from "../api";
+import { useApi } from "../hooks/useApi";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
     boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, sameBosses, startSection, toSave,
@@ -57,24 +58,21 @@ export default function RaidplanTemplatesPage() {
     const { user } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
     const canWrite = canAccess(user, "raids", "write");
-    const [templates, setTemplates] = useState<RaidplanTemplate[] | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const [version, setVersion] = useState<GameVersion | null>(null);
     const [guilds, setGuilds] = useState<SessionGuild[]>([]);
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
+    // One round trip for the page: the templates are its data, the rest is read along with them.
+    const loaded = useApi(() => Promise.all([getRaidplanTemplates(), getGameVersions(), getRaidplanProfiles(), getSession()])
+        .then(([tpls, versions, profs, session]) => {
+            setVersion(versions.versions.find((v) => v.id === versions.defaultVersion) || versions.versions[0] || null);
+            setProfiles(profs.profiles);
+            setGuilds(session.guilds);
+            return tpls.templates;
+        }), []);
+    const templates = loaded.data;
+    const setTemplates = loaded.setData;
 
-    useEffect(() => {
-        Promise.all([getRaidplanTemplates(), getGameVersions(), getRaidplanProfiles(), getSession()])
-            .then(([tpls, versions, profs, session]) => {
-                setTemplates(tpls.templates);
-                setVersion(versions.versions.find((v) => v.id === versions.defaultVersion) || versions.versions[0] || null);
-                setProfiles(profs.profiles);
-                setGuilds(session.guilds);
-            })
-            .catch((err: ApiError) => setError(err));
-    }, []);
-
-    if (error) return <div className="empty">{t("planTemplates.loadError", { message: error.message })}</div>;
+    if (loaded.error) return <div className="empty">{t("planTemplates.loadError", { message: loaded.error.message })}</div>;
     if (!templates) return <RaidLoader text={t("planTemplates.loading")} />;
 
     const current = editor.editId ? templates.find((x) => x.id === editor.editId) || null : null;

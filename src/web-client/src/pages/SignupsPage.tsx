@@ -1,10 +1,10 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import {
     getSignups,
-    type ApiError, type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow, type SignupsData,
-} from "../api";
+    type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow } from "../api";
+import { useApi } from "../hooks/useApi";
 import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
 import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/SignupDialog";
@@ -27,8 +27,8 @@ import "../styles/anmeldung.css";
 export default function SignupsPage() {
     const t = useT();
     const { user } = useOutletContext<ShellContext>();
-    const [data, setData] = useState<SignupsData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const signups = useApi(() => getSignups(), []);
+    const { data, setData } = signups;
     const [params, setParams] = useSearchParams();
     // Several raids at once (#293): the picked own raids, and the raids the open bulk
     // dialog works on — kept apart, so clearing the selection after saving does not
@@ -36,11 +36,7 @@ export default function SignupsPage() {
     const [selected, setSelected] = useState<string[]>([]);
     const [bulkRows, setBulkRows] = useState<OwnSignupRow[]>([]);
 
-    useEffect(() => {
-        getSignups().then(setData).catch(setError);
-    }, []);
-
-    if (error) return <div className="empty">{t("signups.page.loadError", { message: error.message })}</div>;
+    if (signups.error) return <div className="empty">{t("signups.page.loadError", { message: signups.error.message })}</div>;
     if (!data) return <RaidLoader text={t("signups.page.loading")} />;
 
     // The open dialog is in the url, so the Discord button can link straight to it.
