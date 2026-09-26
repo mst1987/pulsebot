@@ -26,10 +26,9 @@ function RoleBadge({ role }: { role?: GuildRole }) {
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),
 // but via fetch() instead of a form POST + redirect, so switching guilds
 // doesn't navigate away from the current page.
-export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
+export default function GuildSwitcher({ guilds, activeGuildId }: {
     guilds: SessionGuild[];
     activeGuildId: string;
-    csrfToken: string | null;
 }) {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
@@ -57,7 +56,7 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
         const guildId = e.target.value;
         setBusy(true);
         try {
-            await switchGuild(csrfToken, guildId);
+            await switchGuild(guildId);
             // No success toast: the reload below wipes the page anyway, and the
             // switcher then simply shows the server that was picked.
             window.location.reload();

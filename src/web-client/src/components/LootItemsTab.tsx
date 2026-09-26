@@ -69,7 +69,7 @@ function recipients(awards: LootAward[]): LootAward[] {
     return out;
 }
 
-export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount, canEdit, csrfToken, onChanged }: {
+export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount, canEdit, onChanged }: {
     items: LootCatalogItem[];
     contents: LootContent[];
     tiers: LootTier[];
@@ -77,7 +77,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     categories: Category[];
     unknownContentCount: number;
     canEdit: boolean;
-    csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
     const [view, setView] = usePersistedState<View>("history-items-view", VIEW_DEFAULT);
@@ -329,7 +328,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                 tiers={tiers}
                 reasons={reasons}
                 canEdit={canEdit}
-                csrfToken={csrfToken}
                 onClose={() => setOpenItemId(0)}
                 onChanged={onChanged}
             />

@@ -8,7 +8,7 @@ import { t } from "../../i18n";
 import { EVAL_SECONDS } from "./meta";
 
 /** Starts one analysis as a background job; shared with the page head's primary action. */
-export default function useEvaluate(ctx: { csrfToken: string | null; onChanged: (msg: string) => void }) {
+export default function useEvaluate(ctx: { onChanged: (msg: string) => void }) {
     const ask = useConfirm();
     const jobs = useJobs();
     const [running, setRunning] = useState<string[]>([]);
@@ -26,7 +26,7 @@ export default function useEvaluate(ctx: { csrfToken: string | null; onChanged: 
                 message: r.alreadyEvaluated ? t("raidDetail.evaluate.already", { label }) : t("raidDetail.evaluate.created", { label }),
                 link: r.url ? { href: r.url, label: t("raidDetail.evaluate.viewReport"), external: true } : undefined,
             }),
-        }, () => withIncompleteConfirm(ask, (force) => evalLog(ctx.csrfToken, log.id, section, { force }))).then(() => {
+        }, () => withIncompleteConfirm(ask, (force) => evalLog(log.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
             ctx.onChanged("");
         });

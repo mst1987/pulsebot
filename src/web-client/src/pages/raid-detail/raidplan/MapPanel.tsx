@@ -15,8 +15,7 @@ export type MapRow = { key: string; label: string; has: boolean; override: boole
  * override's "remove" reads "Auf Standard zurücksetzen". The server checks the
  * file's real type and size again. Lives on the "Hintergrund" tab, always in view.
  */
-export default function MapPanel({ csrfToken, rows, canWrite, onChanged }: {
-    csrfToken: string | null;
+export default function MapPanel({ rows, canWrite, onChanged }: {
     rows: MapRow[];
     canWrite: boolean;
     onChanged: () => void;
@@ -34,7 +33,7 @@ export default function MapPanel({ csrfToken, rows, canWrite, onChanged }: {
         try {
             // a big picture is shrunk here first instead of being turned away
             const prepared = await prepareMapFile(file);
-            await uploadRaidplanMap(csrfToken, key, prepared.file);
+            await uploadRaidplanMap(key, prepared.file);
             toast(prepared.note ? `${t("raidBoard.board.mapUploaded")} ${prepared.note}` : t("raidBoard.board.mapUploaded"));
             onChanged();
         } catch (err) {
@@ -51,7 +50,7 @@ export default function MapPanel({ csrfToken, rows, canWrite, onChanged }: {
         if (!(await ask({ ...question, tone: "danger" }))) return;
         setBusy(true);
         try {
-            await deleteRaidplanMap(csrfToken, row.key);
+            await deleteRaidplanMap(row.key);
             toast(row.override ? t("raidBoard.board.mapWasReset") : t("raidBoard.board.mapRemoved"));
             onChanged();
         } catch (err) {

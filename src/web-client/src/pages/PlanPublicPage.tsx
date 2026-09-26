@@ -8,7 +8,8 @@ import MiniMap from "../components/raidplan/MiniMap";
 import { useViewPrefs } from "../lib/useViewPrefs";
 import { shownFor } from "../lib/viewRules";
 import { SheetViewMenu } from "./raid-detail/raidplan/ViewControls";
-import { getRaidplanPublic, type ApiError, type RaidplanBoard, type RaidplanPublic, type RaidplanPublicBoss } from "../api";
+import { getRaidplanPublic, type RaidplanBoard, type RaidplanPublicBoss } from "../api";
+import { useApi } from "../hooks/useApi";
 import { autoPlaces, deriveAuto } from "../lib/autoPlace";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
@@ -37,9 +38,13 @@ import "../styles/raidplan.css";
  */
 export default function PlanPublicPage({ token }: { token: string }) {
     const t = useT();
-    const [data, setData] = useState<RaidplanPublic | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const [selected, setSelected] = useState("");
+    const plan = useApi(() => getRaidplanPublic(token).then((d) => {
+        // a deep link (?section=<key>) first, else "Allgemein", else the first section (left-out ones are not sent at all)
+        setSelected(startSection(d.bosses, new URLSearchParams(window.location.search).get("section") || "", "", []));
+        return d;
+    }), [token]);
+    const { data, error } = plan;
     const [mapOnly, setMapOnly] = useState(false);
     const [focusGroup, setFocusGroup] = useState(0);
     const [onlyMine, setOnlyMine] = useState(false);
@@ -50,12 +55,6 @@ export default function PlanPublicPage({ token }: { token: string }) {
     useEffect(() => { const b = data ? data.bosses.find((x) => x.key === selected) || data.bosses[0] : null; bv.set(viewFromSaved(b ? b.view : null)); }, [selected, data]); // eslint-disable-line react-hooks/exhaustive-deps
     const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 
-    useEffect(() => {
-        getRaidplanPublic(token)
-            // a deep link (?section=<key>) first, else "Allgemein", else the first section (left-out ones are not sent at all)
-            .then((d) => { setData(d); setSelected(startSection(d.bosses, new URLSearchParams(window.location.search).get("section") || "", "", [])); })
-            .catch((err: ApiError) => setError(err));
-    }, [token]);
     useEffect(() => {
         const size = () => setWin({ w: window.innerWidth, h: window.innerHeight });
         window.addEventListener("resize", size);

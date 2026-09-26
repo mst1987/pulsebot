@@ -726,7 +726,7 @@ function CompareTab({ roster, view, patch, contents }: {
 }
 
 export default function LootCouncilPage() {
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     // Setting a raider aside is an action on the server, so it takes write.
     const canWrite = canAccess(user, "lootcouncil", "write");
     const navigate = useNavigate();
@@ -744,7 +744,7 @@ export default function LootCouncilPage() {
     const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
-    const { sim, setSim, simRunning, runSim } = useCouncilSim(csrfToken);
+    const { sim, setSim, simRunning, runSim } = useCouncilSim();
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
     // Which per-raider actions are in flight, as "action:character" — two
@@ -864,7 +864,7 @@ export default function LootCouncilPage() {
     const setRole = (character: string, role: "" | "caster" | "healer") => runFor(
         `role:${character}`,
         async () => {
-            await setCouncilRole(csrfToken, character, role);
+            await setCouncilRole(character, role);
             await reloadAll();
             toast(role
                 ? `${character} wird als ${ROLE_LABEL[role] || role} eingeplant.`
@@ -880,7 +880,7 @@ export default function LootCouncilPage() {
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
         const result = await jobs.run(
             { label: "Armory wird geladen", detail: characters.length === 1 ? characters[0] : `${characters.length} Raider`, quiet: true },
-            () => refreshCouncilArmory(csrfToken, characters),
+            () => refreshCouncilArmory(characters),
         );
         // A failure is already on the toast.
         if (!result) return;
@@ -910,7 +910,7 @@ export default function LootCouncilPage() {
     const loadLogGear = async (character: string, pick: { reportId?: string; link?: string }) => !!(await runFor(`loggear:${character}`, async () => {
         const result = await jobs.run(
             { label: "Log wird geladen", detail: character, quiet: true },
-            () => loadCouncilLogGear(csrfToken, { character, ...pick }),
+            () => loadCouncilLogGear({ character, ...pick }),
         );
         // A failure ("steht nicht in diesem Log") is already on the toast.
         if (!result) return false;
@@ -932,7 +932,7 @@ export default function LootCouncilPage() {
 
     /** Zurück zum Set aus der Auswertung: geladenes Log und Armory-Antwort vergessen. */
     const useEvaluation = (character: string) => runFor(`loggear:${character}`, async () => {
-        await loadCouncilLogGear(csrfToken, { character, clear: true });
+        await loadCouncilLogGear({ character, clear: true });
         await reloadAll();
         toast(`${character} wird wieder nach der letzten Auswertung bewertet.`);
     });
@@ -949,7 +949,7 @@ export default function LootCouncilPage() {
     const setExcluded = (character: string, excluded: boolean) => runFor(
         `exclude:${character}`,
         async () => {
-            await setCouncilExcluded(csrfToken, character, excluded);
+            await setCouncilExcluded(character, excluded);
             await reloadAll();
             toast(excluded ? `${character} wird nicht mehr eingeplant.` : `${character} wird wieder eingeplant.`);
         },

@@ -8,6 +8,7 @@ import {
     type ProfileCharacter, type ProfileData, type ProfilePatch,
     type ProfileSpec, type RaiderProfile, type RaiderRef,
 } from "../api";
+import { useApi } from "../hooks/useApi";
 import { Badge, Button, Expand, IconButton, PageHead, PartHead, RaidLoader, Segment, WowIcon, useConfirm } from "../components/ui";
 import { classColorProps } from "../components/ClassSpec";
 import { useToast } from "../components/Jobs";
@@ -30,30 +31,27 @@ type Fold = "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "";
 const LOG_TONE: Record<ProfileSpec["logs"]["status"], "ok" | "mid" | undefined> = { seen: "ok", other: "mid", unknown: undefined };
 
 export default function ProfilePage() {
-    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const toast = useToast();
     const ask = useConfirm();
     const t = useT();
-    const [data, setData] = useState<ProfileData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const profileData = useApi(() => getProfile(), []);
+    const { data, setData } = profileData;
     const [params, setParams] = useSearchParams();
     const [fold, setFold] = useState<Fold>("days");
     const [adding, setAdding] = useState<AddWay | null>(null);
     // Kalender-Abo (#312) — its own small payload, so the profile request stays
-    // what it was.
-    const [cal, setCal] = useState<CalendarTokens | null>(null);
-
-    useEffect(() => {
-        getProfile().then(setData).catch(setError);
-        getCalendarTokens().then(setCal).catch(() => setCal(null));
-    }, []);
+    // what it was; a failed load leaves the fold at "loading", as before.
+    const calendar = useApi(() => getCalendarTokens(), []);
+    const cal = calendar.error ? null : calendar.data;
+    const setCal = calendar.setData;
 
     const profile = data?.profile || null;
     const selectedKey = params.get("char") || profile?.characters.find((c) => c.main)?.key || profile?.characters[0]?.key || "";
     const selected = profile?.characters.find((c) => c.key === selectedKey) || profile?.characters[0] || null;
     const classOf = (id: string) => data?.classes.find((c) => c.id === id);
 
-    if (error) return <div className="empty">{t("profile.loadError", { message: error.message })}</div>;
+    if (profileData.error) return <div className="empty">{t("profile.loadError", { message: profileData.error.message })}</div>;
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));
@@ -64,7 +62,7 @@ export default function ProfilePage() {
         const before = profile;
         if (optimistic) setProfile({ ...profile, ...optimistic });
         try {
-            const res = await saveProfile(csrfToken, change);
+            const res = await saveProfile(change);
             setProfile(res.profile);
         } catch (e) {
             setProfile(before);
@@ -81,7 +79,7 @@ export default function ProfilePage() {
     const removeChar = async (c: ProfileCharacter) => {
         if (!(await ask({ title: t("profile.remove.title", { name: c.name }), text: t("profile.remove.text"), action: t("profile.remove.action") }))) return;
         try {
-            const res = await removeProfileCharacter(csrfToken, c.key);
+            const res = await removeProfileCharacter(c.key);
             setProfile(res.profile);
         } catch (e) {
             toast((e as ApiError).message, "err");
@@ -221,7 +219,7 @@ export default function ProfilePage() {
                                 id="calendar" open={fold} onOpen={setFold} title={t("profile.fold.calendar")}
                                 summary={!cal ? t("profile.fold.calendarLoading") : cal.tokens.length === 0 ? t("profile.fold.calendarNone") : t("profile.fold.calendarActive", { count: cal.tokens.length })}
                             >
-                                <CalendarPart data={cal} onChange={setCal} csrfToken={csrfToken} />
+                                <CalendarPart data={cal} onChange={setCal} />
                             </FoldPart>
                         </div>
                     </div>
@@ -233,7 +231,6 @@ export default function ProfilePage() {
                 onClose={() => setAdding(null)}
                 classes={data.classes}
                 suggestion={specSuggestion(data.specHistory)}
-                csrfToken={csrfToken}
                 onAdded={(next, key) => {
                     setProfile(next);
                     selectChar(key);
@@ -488,10 +485,9 @@ function FoldPart({ id, open, onOpen, title, summary, badge, children }: {
  * with the warning that it is secret, and whoever loses it revokes that row and
  * makes a new one. Nothing is looked up, nothing is shown a second time.
  */
-function CalendarPart({ data, onChange, csrfToken }: {
+function CalendarPart({ data, onChange }: {
     data: CalendarTokens | null;
     onChange: (next: CalendarTokens) => void;
-    csrfToken: string | null;
 }) {
     const toast = useToast();
     const ask = useConfirm();
@@ -505,7 +501,7 @@ function CalendarPart({ data, onChange, csrfToken }: {
     const create = async () => {
         setBusy(true);
         try {
-            const res = await createCalendarToken(csrfToken);
+            const res = await createCalendarToken();
             onChange(res);
             setFresh(res.url);
             setCopied(false);
@@ -523,7 +519,7 @@ function CalendarPart({ data, onChange, csrfToken }: {
             action: t("profile.cal.revoke"),
         }))) return;
         try {
-            const res = await revokeCalendarToken(csrfToken, token.id);
+            const res = await revokeCalendarToken(token.id);
             onChange(res);
             setFresh("");
             toast(t("profile.cal.revoked"));

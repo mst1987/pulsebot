@@ -9,9 +9,11 @@
 //
 // The modal "Raid-Details" (components/RaidDetailsModal.tsx) loads its own data
 // when it opens.
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { getDashboard, type ApiError, type DashboardData, type DashboardRaid, type DashboardTask } from "../api";
+import { getDashboard, type DashboardData, type DashboardRaid, type DashboardTask } from "../api";
+import { useApi } from "../hooks/useApi";
+import AsyncView from "../components/ui/AsyncView";
 import PageHead from "../components/ui/PageHead";
 import { PartHead } from "../components/ui/PartHead";
 import { Button, buttonClass } from "../components/ui/Button";
@@ -316,56 +318,48 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
 
 export default function DashboardPage() {
     const t = useT();
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const dashboard = useApi(() => getDashboard(), []);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
-    useEffect(() => {
-        getDashboard()
-            .then(setData)
-            .catch((err: ApiError) => setError(err));
-    }, []);
-
-    if (error) {
-        return <div className="empty">{t("dashboard.page.loadError", { message: error.message })}</div>;
-    }
-    if (!data) {
-        return <RaidLoader text={t("dashboard.page.loading")} />;
-    }
-
-    const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");
-
     return (
-        <div className="ov-page">
-            <PageHead
-                icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
-                action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
-            />
+        <AsyncView state={dashboard} loading={<RaidLoader text={t("dashboard.page.loading")} />} error={(err) => <div className="empty">{t("dashboard.page.loadError", { message: err.message })}</div>}>
+            {(data) => {
+                const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");
 
-            <div className="ov-grid ov-grid-top">
-                <NextRaidCard
-                    raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
-                    guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
-                />
-                <TaskList tasks={data.tasks} />
-            </div>
+                return (
+                    <div className="ov-page">
+                        <PageHead
+                            icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
+                            action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
+                        />
 
-            <AreaTiles areas={data.areas} />
+                        <div className="ov-grid ov-grid-top">
+                            <NextRaidCard
+                                raid={data.nextRaid} following={data.followingRaid} error={data.nextRaidError}
+                                guildId={data.activeGuildId} onDetails={() => setDetailsOpen(true)}
+                            />
+                            <TaskList tasks={data.tasks} />
+                        </div>
 
-            <div className="ov-grid ov-grid-bottom">
-                <LootCard topLoot={data.topLoot} />
-                <RecentRaidList recent={data.recentEvents} />
-            </div>
+                        <AreaTiles areas={data.areas} />
 
-            {data.nextRaid && (
-                <RaidDetailsModal
-                    eventId={detailsOpen ? data.nextRaid.id : ""}
-                    guildId={data.activeGuildId}
-                    title={data.nextRaid.title}
-                    icon={data.nextRaid.icon}
-                    onClose={() => setDetailsOpen(false)}
-                />
-            )}
-        </div>
+                        <div className="ov-grid ov-grid-bottom">
+                            <LootCard topLoot={data.topLoot} />
+                            <RecentRaidList recent={data.recentEvents} />
+                        </div>
+
+                        {data.nextRaid && (
+                            <RaidDetailsModal
+                                eventId={detailsOpen ? data.nextRaid.id : ""}
+                                guildId={data.activeGuildId}
+                                title={data.nextRaid.title}
+                                icon={data.nextRaid.icon}
+                                onClose={() => setDetailsOpen(false)}
+                            />
+                        )}
+                    </div>
+                );
+            }}
+        </AsyncView>
     );
 }

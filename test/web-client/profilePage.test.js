@@ -16,7 +16,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 const page = read("pages", "ProfilePage.tsx");
 const dialog = read("components", "profile", "AddCharacterDialog.tsx");
 const app = read("App.tsx");
-const api = read("api.ts");
+const api = read("api", "profile.ts");
 const roster = read("pages", "RosterPage.tsx");
 const css = read("styles", "profil.css");
 
@@ -126,8 +126,8 @@ describe("ProfilePage", () => {
         // may create and revoke, and must never ask for one back.
         it("creates and revokes through the one profile endpoint", () => {
             expect(page).toContain("getCalendarTokens()");
-            expect(page).toContain("createCalendarToken(csrfToken)");
-            expect(page).toContain("revokeCalendarToken(csrfToken, token.id)");
+            expect(page).toContain("createCalendarToken()");
+            expect(page).toContain("revokeCalendarToken(token.id)");
             expect(api).toContain("/api/profile/calendar");
             expect(api).toMatch(/send\("POST", "\/api\/profile\/calendar"/);
         });

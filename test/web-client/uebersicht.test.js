@@ -94,7 +94,7 @@ describe("Raid-Details modal", () => {
         expect(modal).toContain("<Modal");
         expect(modal).toContain("getNextRaidDetails(eventId)");
         expect(modal).toMatch(/if \(!eventId\) return;/);
-        expect(read("api.ts")).toContain("/api/dashboard/next-raid?event=");
+        expect(read("api", "dashboard.ts")).toContain("/api/dashboard/next-raid?event=");
     });
 
     it("shows signups, preparation and who has not signed up, with a way to the raid", () => {

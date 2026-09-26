@@ -11,7 +11,6 @@ import { roleLabel, rolePluralLabel } from "../../lib/wowNames";
 export type RaidCtx = {
     data: RaidDetailData;
     eventId: string;
-    csrfToken: string | null;
     /** Toast the message (if any) and reload the page's data. */
     onChanged: (msg: string) => void;
     openModal: (modal: RaidDetailModal) => void;

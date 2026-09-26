@@ -120,7 +120,7 @@ describe("the page", () => {
     const page = read("pages", "EventSeriesPage.tsx");
 
     it("is one line per category, with the summary and the next date, and a modal for the rest", () => {
-        expect(page).toContain("data.categories.map((c) => (\n                            <SeriesRow");
+        expect(page).toMatch(/data\.categories\.map\(\(c\) => \(\s*<SeriesRow/);
         expect(page).toContain("{c.summary}");
         expect(page).toContain("Nächster Termin");
         expect(page).toContain("dateLine(next)");
@@ -147,6 +147,6 @@ describe("the page", () => {
         expect(read("App.tsx")).toContain("<Route path=\"raids/series\"");
         expect(read("components", "Shell.tsx")).toContain("if (pathname === \"/raids/series\") return tr(\"shell.crumb.series\");");
         expect(read("pages", "RaidsPage.tsx")).toContain("to=\"/raids/series\"");
-        expect(read("api.ts")).toContain("\"/api/raids/series\"");
+        expect(read("api", "eventSeries.ts")).toContain("\"/api/raids/series\"");
     });
 });

@@ -122,10 +122,9 @@ export function BulkEditDialog({ channels, data, focus, onClose, onApply }: {
     );
 }
 
-export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply }: {
+export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
     channels: Channel[];
     data: ChannelsData;
-    csrfToken: string | null;
     onClose: () => void;
     onApply: (rows: RenamePreviewRow[]) => void;
 }) {
@@ -144,7 +143,7 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
     useEffect(() => {
         let alive = true;
         const timer = setTimeout(() => {
-            renamePreview(csrfToken, { ids, schema, raid })
+            renamePreview({ ids, schema, raid })
                 .then((r) => { if (alive) { setRows(r.rows); setPreviewError(""); } })
                 .catch((err: ApiError) => { if (alive) setPreviewError(err.message); });
         }, 250);
@@ -152,7 +151,7 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
             alive = false;
             clearTimeout(timer);
         };
-    }, [csrfToken, ids, schema, raid]);
+    }, [ids, schema, raid]);
 
     const todo = (rows || []).filter((r) => r.to && r.to !== r.from && !r.conflict);
 

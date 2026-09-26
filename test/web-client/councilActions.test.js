@@ -33,8 +33,8 @@ describe("loot council — busy state", () => {
     });
 
     it("keeps the spinner until the reloaded list is on screen", () => {
-        expect(main).toMatch(/await setCouncilExcluded\(csrfToken, character, excluded\);\s*await reloadAll\(\);/);
-        expect(main).toMatch(/\(\) => refreshCouncilArmory\(csrfToken, characters\),[\s\S]{0,200}const fresh = await reloadAll\(\);/);
+        expect(main).toMatch(/await setCouncilExcluded\(character, excluded\);\s*await reloadAll\(\);/);
+        expect(main).toMatch(/\(\) => refreshCouncilArmory\(characters\),[\s\S]{0,200}const fresh = await reloadAll\(\);/);
         expect(main).toMatch(/const fetchData = \(\) => getLootCouncil\(/);
         expect(main).toMatch(/return request\s*\.then/);
     });
@@ -113,9 +113,9 @@ describe("loot council — waits are toasts", () => {
         expect(main).toMatch(/armoryRejected === "pvp"/);
         expect(main).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid/);
         expect(main).toMatch(/const fresh = await reloadAll\(\);[\s\S]{0,400}logRejected === "pvp"/);
-        expect(main).toMatch(/loadCouncilLogGear\(csrfToken, \{ character, \.\.\.pick \}\)/);
-        expect(main).toMatch(/loadCouncilLogGear\(csrfToken, \{ character, clear: true \}\)/);
-        expect(api).toMatch(/send\("POST", "\/api\/lootcouncil\/loggear", csrfToken, body\)/);
+        expect(main).toMatch(/loadCouncilLogGear\(\{ character, \.\.\.pick \}\)/);
+        expect(main).toMatch(/loadCouncilLogGear\(\{ character, clear: true \}\)/);
+        expect(api).toMatch(/send\("POST", "\/api\/lootcouncil\/loggear", body\)/);
     });
 
     it("offers the bot's newest logs, the newest one with the raider, and a link", () => {
