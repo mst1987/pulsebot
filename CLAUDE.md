@@ -1,9 +1,7 @@
 # EventHelper Discord Bot
 
 A Discord bot for managing community events. Built with Node.js and Discord.js v14. The bot handles:
-- Legendary item auctions (bidding, tracking, winner announcement)
-- GDKP raid signups and setup tracking via the Raidhelper API
-- Gold-spending history per player
+- Raid signups and setup tracking via the Raidhelper API
 - Overview dashboards with interactive buttons
 
 ## Commands
@@ -22,7 +20,6 @@ npm run register:clear   # Remove all guild slash commands
 npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve = self-refreshing page, --watch, --html, --json, --all)
 node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them (the bot also does this on start)
 node scripts/render-ui-emojis.js           # redraw the flat UI icons (assets/emojis/eh_ui_*.png, checked in)
-node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
 
 ## Development Workflow
@@ -104,29 +101,20 @@ The web server boots **independently of the Discord gateway** (`src/bot.js` `sta
 src/
   bot.js                    # Entry point. Loads commands, handles interactionCreate
   commands/
-    auction/                # Auction commands: createAuction, bid, bid-5k, bid-10k,
-                            #   bidCustom, auctionStatus, deleteAuction, endAuction, updateAuction
-    gdkp/                   # GDKP spend commands: currentspent, lastspent, totalspent
     setup/                  # Event setup commands: signup, saveraid, showSignups,
                             #   showAllSetups, show-mysetups, createoverview, update-events
   classes/
     raidhelper.js           # Raw HTTPS client for raid-helper.xyz API
-    gdkp.js                 # Axios client for pulse-gdkp.de GDKP data
-    legendary.js            # Axios client for pulse-gdkp.de legendary auction data
   config/
     classlist.js            # WoW class/spec lookup map (spec name -> icon/class/spec)
     messages.js             # Shared user-facing text strings
-    variables.js            # Constants: Discord IDs, API URLs, auction limits
+    variables.js            # Constants: Discord IDs, API URLs
   utils/
     helper.js               # Core utilities: botReply, botEditReply, formatters
-    auction.js              # Auction UI helpers: modals, buttons, bidForLegendary()
     date.js                 # Date utilities using Luxon (CET timezone)
-    responses.js            # Message formatters: setupResponse, getAuctionMessage, etc.
+    responses.js            # Message formatters: setupResponse, mySetupResponse
     raidhelper.js           # Signup/setup query logic on top of classes/raidhelper.js
-    legendary.js            # getTargetMessage(), updateHighestBids()
     httpAgent.js            # Shared https.Agent for Axios clients (SSL handling)
-  discordcommands/
-    raidhelper.js           # Legacy one-off script to register slash commands
 scripts/
   register-commands.js      # Preferred command registration script (supports --global, --clear)
 ```
@@ -165,7 +153,6 @@ All required variables must be in `.env` at the project root. See `.env.example`
 DISCORDJS_BOT_TOKEN=    # Bot token from Discord Developer Portal
 CLIENT_ID=              # Discord Application ID
 GUILD_ID=               # Discord server (guild) ID
-API_BASE_URL=           # Backend API base (default: https://pulse-gdkp.de:3001/api)
 NODE_ENV=               # Set to "production" to enable SSL cert verification
 RAIDHELPER_API_KEY=     # API key for raid-helper.xyz
 RAIDHELPER_SERVER_ID=   # Discord server ID on raid-helper.xyz

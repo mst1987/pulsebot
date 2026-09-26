@@ -7,9 +7,9 @@
 // nav icon of the area it describes — no separate palette to keep in sync.
 const { layout, esc, themeToggleBtn, authBar } = require("./render");
 
-// Category -> the CSS custom property carrying its color. Three (auction,
-// gdkp, auto) have no admin-area equivalent — see DOCS_STYLE below, where
-// they get their own small token pair instead of reusing --area-*.
+// Category -> the CSS custom property carrying its color. One (auto) has no
+// admin-area equivalent — see DOCS_STYLE below, where it gets its own small
+// token pair instead of reusing --area-*.
 const CAT = {
     raids: { varName: "--area-raids", label: "Raids" },
     signup: { varName: "--area-signups", label: "Anmeldung" },
@@ -22,8 +22,6 @@ const CAT = {
     settings: { varName: "--area-settings", label: "Einstellungen" },
     home: { varName: "--area-home", label: "Übersicht" },
     recruitment: { varName: "--area-recruitment", label: "Recruitment" },
-    auction: { varName: "--doc-auction", label: "Auktion" },
-    gdkp: { varName: "--doc-gdkp", label: "GDKP-Gold" },
     auto: { varName: "--doc-auto", label: "Automatik" },
 };
 
@@ -41,16 +39,6 @@ const DISCORD_GROUPS = [
         "<strong>„Invite callen“</strong> an der Setup-Nachricht: nur Orga, pingt die eigene Gruppe.",
         "<code>/show-mysetups</code> — eigene freigegebene Setups über mehrere Raids.",
         "<code>/show-allsetups</code> — alle aktuell freigegebenen Setups.",
-    ] },
-    { cat: "auction", title: "Auktion / Bidding", badge: "Legendaries", items: [
-        "<code>/bid</code> · <code>/bid-5k</code> · <code>/bid-10k</code> · <code>/bidCustom</code> — bieten (braucht die Legendary-Rolle).",
-        "<code>/auctionStatus</code> — Höchstbieter und Stand ansehen.",
-        "<code>/createauction</code> · <code>/updateauction</code> · <code>/endauction</code> · <code>/deleteauction</code> — nur Orga.",
-    ] },
-    { cat: "gdkp", title: "GDKP-Gold", items: [
-        "<code>/currentspent</code> — eigene Ausgaben der laufenden Session.",
-        "<code>/lastspent</code> — Ausgaben der letzten Session.",
-        "<code>/totalspent</code> — Gesamtausgaben über alle Sessions.",
     ] },
     { cat: "home", title: "Übersicht & Nachschlagen", badge: "privat", items: [
         "<code>/raids</code> — kommende Raids. <code>/raid &lt;Event&gt;</code> — Details zu einem Raid.",
@@ -138,11 +126,11 @@ const WEB_GROUPS = [
 ];
 
 const DOCS_STYLE = `
-  :root { --doc-auction:#dc2626; --doc-gdkp:#b45309; --doc-auto:#7c3aed; }
+  :root { --doc-auto:#7c3aed; }
   @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) { --doc-auction:#cf3b37; --doc-gdkp:#9a6c12; --doc-auto:#6a4fe0; }
+    :root:not([data-theme="dark"]) { --doc-auto:#6a4fe0; }
   }
-  :root[data-theme="light"] { --doc-auction:#cf3b37; --doc-gdkp:#9a6c12; --doc-auto:#6a4fe0; }
+  :root[data-theme="light"] { --doc-auto:#6a4fe0; }
   .doc-head { padding:22px 0 4px; }
   .doc-brand { font-weight:800; font-size:24px; letter-spacing:-.3px; }
   .doc-sub { color:var(--muted); margin:4px 0 18px; font-size:14px; }
