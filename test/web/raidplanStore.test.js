@@ -24,8 +24,10 @@ describe("bosses of an event", () => {
         expect(list[list.length - 1]).toMatchObject({ key: "bt/trash", trash: true });
         expect(list.map((b) => b.key)).toContain("bt/illidan-stormrage");
         expect(list.find((b) => b.key === BOSS).iconUrl).toBe("/bosses/602.jpg");
+        // the rule set's "Reliquary of the Lost" is WCL's "Reliquary of Souls" (606): its own picture, not the instance icon
+        expect(list.find((b) => b.key === "bt/reliquary-of-the-lost").iconUrl).toBe("/bosses/606.jpg");
         // an encounter WCL does not list falls back to the instance icon
-        expect(list.find((b) => b.key === "bt/reliquary-of-the-lost").iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com/);
+        expect(store.bossesForInstances(["kara"]).find((b) => b.key === "kara/chess-event").iconUrl).toMatch(/^https:\/\/wow\.zamimg\.com/);
     });
 
     it("knows nothing for unknown or missing instances and never repeats a boss", () => {

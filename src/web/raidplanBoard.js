@@ -114,6 +114,8 @@ const ZONE_TYPES = ["danger", "healthy", "neutral", "custom", "role"];
 const ZONE_SHAPES = ["rect", "ellipse"];
 // Preset colours per zone type: what a new zone starts with, free to be overridden.
 const ZONE_COLORS = { danger: "#ef4444", healthy: "#22c55e", neutral: "#60a5fa", custom: "#a78bfa", role: "#f97316" };
+// where a role group's label stands: inside it, or outside on one side
+const ROLE_LABEL_POS = ["in", "top", "bottom", "left", "right"];
 // a role group placeholder: which role and its colour (the role colours of the board: melee orange, ranged violet ...)
 const ZONE_ROLES = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_COLORS = { melee: "#f97316", ranged: "#a78bfa", healer: "#35d6c4", tank: "#60a5fa", dps: "#f5c542" };
@@ -290,7 +292,11 @@ function cleanBoard(raw, { allowedUserIds = [], profileIds = [], allowTokens = t
             label: str(o.label).slice(0, LIMITS.label),
             color: cleanColor(o.color, type === "role" ? ROLE_COLORS[role] : ZONE_COLORS[type]),
             // a role group: which role, an optional count badge (0 = none), whether the event shows the setup's players of that role
-            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation) } : {}),
+            ...(type === "role" ? { role, count: Math.max(0, Math.min(40, Math.floor(Number(o.count)) || 0)), showNames: o.showNames === true, rotation: normAngle(o.rotation),
+                // its symbol's own scale on top of the automatic size (0.25 .. 3, 1 = automatic) and where its label stands: inside, or outside
+                // above / below / left / right of the zone (upright also when the zone is turned) - docs/raidplan.md, "Role groups"
+                iconScale: Number.isFinite(Number(o.iconScale)) && Number(o.iconScale) > 0 ? Math.max(0.25, Math.min(3, Math.round(Number(o.iconScale) * 100) / 100)) : 1,
+                labelPos: ROLE_LABEL_POS.includes(o.labelPos) ? o.labelPos : "in" } : {}),
             ...common(o, 0.3),
             w: round4(w), h: round4(h),
             x: round4(Math.min(clamp01(Number(o.x)), 1 - w)),

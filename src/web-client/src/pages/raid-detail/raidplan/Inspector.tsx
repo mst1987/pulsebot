@@ -5,7 +5,7 @@ import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, Rai
 import { IconButton } from "../../../components/ui";
 import {
     ARROW_COLOR, ARROW_MAX, ARROW_MIN, ROLE_GROUPS, ROLE_GROUP_COLORS, arrowOf, patchArrow, COMPASS, COMPASS_NAMES, SCALE_MAX, SCALE_MIN, ZONE_COLORS, ZONE_TYPES, assignSlot, canFace, clampOpacity, iconKeyType, duplicateObject, lookOf, normAngle, objectName, patchLook, removeObject, reorderObject, setMapOpacity,
-    setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, chipWidthOf, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
+    setObjectScale, sizeOf, objectPercent, setObjectPercent, groupScales, setGroupScale, chipWidthOf, LABEL_POS, setAllGroupScale, scaleObject, SIZE_STEPS, slotTitle, updateIcon, updateLine, updateSlot, updateText, updateZone, type ObjectKind, type Selection,
 } from "../../../lib/raidplan";
 import { PlayerName, TokenIcon, ZONE_GLYPHS } from "../../../components/raidplan/PlanBoard";
 import Flyout from "../../../components/raidplan/Flyout";
@@ -192,6 +192,16 @@ export default function Inspector({ board, selection, multi = [], boardPx, playe
                     </label>
                     <label className="rp-check"><input type="checkbox" checked={!!zone.showNames} disabled={dis} onChange={(e) => edit((b) => updateZone(b, id, { showNames: e.target.checked }))} /> {t("raidBoard.roleGroupUi.showNames")}</label>
                     <SizeField label={t("raidBoard.roleGroupUi.rotation")} value={zone.rotation || 0} min={0} max={359} step={1} unit="°" onChange={(v) => !dis && edit((b) => updateZone(b, id, { rotation: normAngle(v) }), true)} />
+                    {(zone.rotation || 0) !== 0 && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { rotation: 0 }))}>{t("raidBoard.roleGroupUi.rotationReset")}</button>}
+                    <span className="rp-muted">{t("raidBoard.roleGroupUi.rotationHint")}</span>
+                    <SliderField label={t("raidBoard.roleGroupUi.iconScale")} value={Math.round((zone.iconScale || 1) * 100)} min={25} max={300} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => updateZone(b, id, { iconScale: v / 100 }), true)} />
+                    {(zone.iconScale || 1) !== 1 && <button type="button" className="rp-link" disabled={dis} onClick={() => edit((b) => updateZone(b, id, { iconScale: 1 }))}>{t("raidBoard.roleGroupUi.iconAuto")}</button>}
+                    <div className="rp-field">
+                        <span className="rp-kicker">{t("raidBoard.roleGroupUi.labelPos")}</span>
+                        <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.roleGroupUi.labelPos")}>
+                            {LABEL_POS.map((p) => <button key={p} type="button" role="radio" aria-checked={(zone.labelPos || "in") === p} className={(zone.labelPos || "in") === p ? "is-on" : ""} disabled={dis} onClick={() => edit((b) => updateZone(b, id, { labelPos: p as RaidplanZone["labelPos"] }))}>{t(`raidBoard.roleGroupUi.pos.${p}`)}</button>)}
+                        </span>
+                    </div>
                     <div className="rp-field-row">
                         <label className="rp-field">
                             <span className="rp-kicker">{t("raidBoard.zone.color")}</span>

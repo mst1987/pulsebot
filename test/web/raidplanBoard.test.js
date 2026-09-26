@@ -421,3 +421,20 @@ describe("a group chip's width (feature/raidplan-15)", () => {
         expect(clean({ slots: [{ id: "t", kind: "tank", n: 1, x: 0.5, y: 0.5, chipWidth: 150 }] }).board.slots[0].chipWidth).toBe(0);
     });
 });
+describe("a role group's symbol size and label place (feature/raidplan-16)", () => {
+    const zone = (extra) => clean({ zones: [{ id: "z", shape: "rect", type: "role", role: "melee", x: 0.1, y: 0.1, w: 0.1, h: 0.4, ...extra }] }).board.zones[0];
+    it("are kept (0.25 .. 3, the five places), defaults otherwise; the angle too", () => {
+        expect(zone({ iconScale: 1.5, labelPos: "left", rotation: 405 })).toMatchObject({ iconScale: 1.5, labelPos: "left", rotation: 45 });
+        expect(zone({ iconScale: 9, labelPos: "nowhere" })).toMatchObject({ iconScale: 3, labelPos: "in" });
+        expect(zone({ iconScale: 0.1 }).iconScale).toBe(0.25);
+        expect(zone({})).toMatchObject({ iconScale: 1, labelPos: "in", rotation: 0 });
+        // another kind of zone has none of it
+        expect(clean({ zones: [{ id: "d", shape: "rect", type: "danger", x: 0.1, y: 0.1, w: 0.1, h: 0.1, iconScale: 2 }] }).board.zones[0].iconScale).toBeUndefined();
+    });
+    it("a template applied keeps them (the zone is copied with a new id)", () => {
+        const b = clean({ zones: [{ id: "z", shape: "rect", type: "role", role: "melee", x: 0.1, y: 0.1, w: 0.1, h: 0.4, iconScale: 2, labelPos: "top", rotation: 30 }] }).board;
+        const copy = board.reidBoard(b);
+        expect(copy.zones[0]).toMatchObject({ iconScale: 2, labelPos: "top", rotation: 30 });
+        expect(copy.zones[0].id).not.toBe("z");
+    });
+});

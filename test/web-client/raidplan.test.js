@@ -1474,8 +1474,119 @@ describe("role groups and group chips scale with themselves (feature/raidplan-15
         // no zone draws double / parallel lines any more (the double ring of a RANGED TOKEN is its role mark, not a zone)
         expect(css).not.toMatch(/\.rp-zone[^{]*\{[^}]*double/);
         expect(css).not.toMatch(/\.rp-rg-ico[^{]*\{[^}]*double/);
-        expect(css).toContain(".rp-zone-role .rp-rg-names > * { white-space: nowrap; }");
+        expect(css).toMatch(/\.rp-rg-names > \* \{ white-space: nowrap;/);
         expect(css).toContain(".rp-canvas .rp-groupchip-names > * { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }");
         expect(css).toContain(".rp-canvas .rp-groupchip { width: max-content; max-width: 220px; }");
+    });
+});
+describe("role groups turned, their names inside (feature/raidplan-16)", () => {
+    const lib5 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("the upright box of a turned zone: a rectangle, and an ellipse (smaller)", () => {
+        expect(lib5.turnedBox(100, 20, 0)).toEqual({ w: 100, h: 20 });
+        const r = lib5.turnedBox(100, 20, 90);
+        expect(r.w).toBeCloseTo(20, 6);
+        expect(r.h).toBeCloseTo(100, 6);
+        const d = lib5.turnedBox(100, 20, 45);
+        expect(d.w).toBeCloseTo(120 / Math.SQRT2, 6);
+        const e = lib5.turnedBox(100, 20, 45, "ellipse");
+        expect(e.w).toBeLessThan(d.w);
+        expect(lib5.turnedBox(100, 100, 45, "ellipse").w).toBeCloseTo(100, 6);
+    });
+    it("the area for the content stays upright: swapped on its side, a square when turned diagonally, inside an ellipse", () => {
+        expect(lib5.uprightInner(40, 200, 0)).toEqual({ w: 40, h: 200 });
+        expect(lib5.uprightInner(40, 200, 90)).toEqual({ w: 200, h: 40 });
+        expect(lib5.uprightInner(40, 200, 180)).toEqual({ w: 40, h: 200 });
+        expect(lib5.uprightInner(40, 200, 45).w).toBeCloseTo(40 * 0.78, 6);
+        expect(lib5.uprightInner(100, 100, 0, "ellipse").w).toBeCloseTo(70, 6);
+    });
+    it("names inside: as many as fit, the rest one '+N' chip; the font scales with the area, at most 11.4", () => {
+        const names = ["Schleich", "Meuchler", "Schatten", "Berserker", "Richter", "Donnerfaust", "Klingentanz", "Katzenauge"];
+        const big = lib5.roleNamesLayout(300, 300, names, 1);
+        expect(big.shown).toBe(8);
+        expect(big.more).toBe(0);
+        expect(big.font).toBe(11.4);
+        const small = lib5.roleNamesLayout(60, 45, names, 1);
+        expect(small.shown).toBeLessThan(8);
+        expect(small.shown + small.more).toBe(8);
+        expect(small.font).toBeLessThan(big.font);
+        // no room at all: nothing shown, all counted
+        expect(lib5.roleNamesLayout(10, 10, names, 1)).toMatchObject({ shown: 0, more: 8 });
+        // the symbol's own scale on top of the automatic size
+        expect(lib5.roleNamesLayout(300, 300, names, 2).icon).toBeCloseTo(lib5.roleNamesLayout(300, 300, names, 1).icon * 2, 5);
+    });
+    it("a turned zone resized at an edge grip: along its own axis, the opposite side stays", () => {
+        const start = { x: 0.4, y: 0.1, w: 0.1, h: 0.5 };
+        const W = 1000;
+        const H = 625;
+        // not turned: like resizeRect
+        const flat = lib5.resizeTurned(start, "s", 0, 50, 0, W, H);
+        expect(flat.h).toBeCloseTo(0.5 + 50 / H, 6);
+        expect(flat.y).toBeCloseTo(0.1, 6);
+        // turned 90 degrees: "s" (its own bottom) points to the left of the board - a move left makes it longer
+        const t = lib5.resizeTurned(start, "s", -50, 0, 90, W, H);
+        expect(t.h * H).toBeCloseTo(0.5 * H + 50, 4);
+        // the far end (its top, on the board: the right end) stays where it was
+        const farBefore = { x: (0.45) * W + (0.25 * H) * 1, y: 0.35 * H };
+        const cx = (t.x + t.w / 2) * W;
+        const farAfter = { x: cx + (t.h * H) / 2, y: (t.y + t.h / 2) * H };
+        expect(farAfter.x).toBeCloseTo(farBefore.x, 3);
+        expect(farAfter.y).toBeCloseTo(farBefore.y, 3);
+    });
+    it("the board: content upright over the outline, the zone's grip turns (not moves), a selected zone lies above the tokens", () => {
+        const fs = require("fs");
+        const p = require("path");
+        const board = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/components/raidplan/PlanBoard.tsx"), "utf8");
+        expect(board).toContain("{size.w > 0 && zones.filter((z) => !z.hidden && z.type === \"role\").map((z) => roleBody(z))}");
+        expect(board).toContain("{rest.length > 0 && <span className=\"rp-rg-more\"");
+        const ws = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.tsx"), "utf8");
+        expect(ws).toContain("if (cr && (cur || handle === \"rot\")) {");
+        expect(ws).toContain("resizeTurned(d.rect0, d.handle as ZoneGrip, dx * bp.w, dy * bp.h, turned, bp.w, bp.h)");
+        const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-canvas .rp-zone.is-selected.is-editable { z-index: 6; }");
+        expect(css).toContain(".rp-rg-label.is-left {");
+    });
+});
+describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
+    const fs = require("fs");
+    const p = require("path");
+    const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+    it("a read-only card's columns are as wide as their longest chip (up to 320 px), a card at least 240 px", () => {
+        expect(css).toContain(".rp-alist.rp-linelist.is-ro.rp-read-lines { grid-template-columns: 26px fit-content(320px) 18px fit-content(320px); }");
+        expect(css).toContain(".rp-rgrid > .rp-rsec { min-width: min(100%, 240px); }");
+    });
+    it("a name in a table is never broken; on a phone the tank and group heal tables become blocks (no sideways scrolling)", () => {
+        expect(css).toContain(".rp-rtable .rp-who .class-colored, .rp-rtable .rp-who > strong, .rp-rtable .rp-who-open { white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }");
+        expect(css).toMatch(/@media \(max-width: 560px\) \{[\s\S]*\.rp-gheal \.rp-rtable thead \{ display: none; \}[\s\S]*\.rp-tanktable thead \{ display: none; \}/);
+        const read = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/ReadTables.tsx"), "utf8");
+        expect(read).toContain("<td data-label={t(\"raidBoard.read.colHealedBy\")}>");
+        expect(read).toContain("<table className=\"rp-rtable rp-tanktable\">");
+    });
+    it("the sheet's chips carry the full name in their tooltip", () => {
+        const line = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/AssignLine.tsx"), "utf8");
+        expect(line).toContain(": readOnly ? playerLabel(r.player) : undefined}");
+    });
+});
+describe("the section bar names every section (feature/raidplan-16)", () => {
+    const lib6 = loadTs("lib/raidplan.ts", { t: makeT("de") });
+    it("a boss by its name, Allgemein, and a trash section by its instance when the plan has several", () => {
+        expect(lib6.sectionLabel({ name: "Supremus" }, true)).toBe("Supremus");
+        expect(lib6.sectionLabel({ name: "x", general: true }, true)).toBe("Allgemein");
+        expect(lib6.sectionLabel({ name: "Trash", trash: true, instanceName: "Der Schwarze Tempel" }, true)).toBe("Trash · Der Schwarze Tempel");
+        expect(lib6.sectionLabel({ name: "Trash", trash: true, instanceName: "Der Schwarze Tempel" }, false)).toBe("Trash");
+        expect(lib6.severalInstances([{ key: "general", general: true }, { key: "bt/supremus" }, { key: "bt/trash" }])).toBe(false);
+        expect(lib6.severalInstances([{ key: "hyjal/archimonde" }, { key: "bt/supremus" }])).toBe(true);
+        expect(lib6.severalInstances([{ instanceId: "gruul" }, { instanceId: "bt" }])).toBe(true);
+    });
+    it("editor and sheet show the name on every chip, the bar wraps instead of scrolling", () => {
+        const fs = require("fs");
+        const p = require("path");
+        const nav = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/raid-detail/raidplan/BossNav.tsx"), "utf8");
+        expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        expect(nav).not.toContain("rp-bosschip-no");
+        const sheet = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
+        expect(sheet).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
+        const css = fs.readFileSync(p.join(__dirname, "../../src/web-client/src/styles/raidplan.css"), "utf8");
+        expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");
     });
 });

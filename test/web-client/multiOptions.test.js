@@ -88,3 +88,20 @@ describe("the editor opens a board as the sheet does", () => {
         expect(read("pages/raid-detail/raidplan/ViewControls.tsx")).toContain("{offSheet && <button");
     });
 });
+
+describe("role groups in a multi-selection (feature/raidplan-16)", () => {
+    const role = (id, extra) => ({ id, shape: "rect", type: "role", label: "", color: "#f97316", x: 0.1, y: 0.1, w: 0.1, h: 0.4, role: "melee", count: 0, showNames: false, rotation: 0, opacity: 0.3, lock: false, hidden: false, ...extra });
+    it("angle, symbol size and label place for all of them; mixed shows null; anything else in the selection = not offered", () => {
+        const b = board({ zones: [role("a", { rotation: 30 }), role("b", { rotation: 60, iconScale: 2 })] });
+        expect(ms.roleZoneSummary(b, sel("zone:a", "zone:b"))).toEqual({ rotation: null, iconScale: null, labelPos: "in" });
+        const c = ms.setRoleZoneSelection(b, sel("zone:a", "zone:b"), { rotation: 90, iconScale: 1.5, labelPos: "top" });
+        expect(c.zones.map((z) => [z.rotation, z.iconScale, z.labelPos])).toEqual([[90, 1.5, "top"], [90, 1.5, "top"]]);
+        expect(ms.roleZonesOf(b, sel("zone:a", "mark:k1"))).toEqual([]);
+    });
+    it("a turned zone's box for the rubber band is its upright box", () => {
+        const b = board({ zones: [role("a", { rotation: 90, x: 0.4, y: 0.1, w: 0.1, h: 0.5 })] });
+        const box = ms.objectBox(b, { kind: "zone", id: "a" }, { w: 1000, h: 625 });
+        expect((box.x1 - box.x0) * 1000).toBeCloseTo(0.5 * 625, 3);
+        expect((box.y1 - box.y0) * 625).toBeCloseTo(0.1 * 1000, 3);
+    });
+});

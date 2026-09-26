@@ -150,14 +150,14 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
             {tanks.length > 0 && (
                 <section className="rp-rsec" aria-label={t("raidBoard.assign.type.tank")}>
                     <h3><TypeBadge type="tank" /></h3>
-                    <table className="rp-rtable">
+                    <table className="rp-rtable rp-tanktable">
                         <thead><tr><th>{t("raidBoard.read.colTank")}</th><th>{t("raidBoard.read.colTarget")}</th><th>{t("raidBoard.read.colHealers")}</th></tr></thead>
                         <tbody>
                             {tanks.map((r) => (
                                 <tr key={r.key} className={r.own ? "is-own" : rowCls(r.rowId)}>
                                     <td><Who r={r.tank} mine={isMe(r.tank, me)} names={names} /></td>
-                                    <td>{r.target ? <Who r={r.target} mine={isMe(r.target, me)} names={names} /> : <span className="rp-muted">–</span>}</td>
-                                    <td><WhoList list={r.healers} me={me} names={names} /></td>
+                                    <td className="rp-tank-at">{r.target ? <Who r={r.target} mine={isMe(r.target, me)} names={names} /> : <span className="rp-muted">–</span>}</td>
+                                    <td data-label={t("raidBoard.read.colHealers")}><WhoList list={r.healers} me={me} names={names} /></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -209,7 +209,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                                                 {g.members.length === 0 && <span className="rp-muted">{"\u2013"}</span>}
                                             </span>
                                         </td>
-                                        <td>{g.healers.length > 0 ? <WhoList list={g.healers} me={me} names={names} ctx={ctx} /> : <span className="rp-nobody">{t("raidBoard.read.nobody")}</span>}</td>
+                                        <td data-label={t("raidBoard.read.colHealedBy")}>{g.healers.length > 0 ? <WhoList list={g.healers} me={me} names={names} ctx={ctx} /> : <span className="rp-nobody">{t("raidBoard.read.nobody")}</span>}</td>
                                     </tr>
                                 );
                             })}
