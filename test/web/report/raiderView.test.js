@@ -149,6 +149,22 @@ describe("web/report/raiderView", () => {
             expect(sec(bob, "prep").html).toContain("<div class=\"kv mute\"><span class=\"k\"><span>Keine Ausrüstung im Log.</span></span></div>");
         });
 
+        it("renders a paperdoll slot without an enchant entry as neutral, not a throw (#483)", () => {
+            const report = {
+                id: "x",
+                roster: [{
+                    name: "A",
+                    type: "Mage",
+                    issues: [],
+                    armory: [{ slot: 0, itemId: 1, itemName: "Mystery Item", icon: "inv_misc_questionmark.jpg", quality: 1, itemLevel: 100, gems: [], emptySockets: 0 }],
+                }],
+            };
+            const { dialogs } = sectionsOf(reportContext(report, null), "A");
+            expect(dialogs).toContain("Mystery Item");
+            expect(dialogs).not.toContain("slot-ench");
+            expect(dialogs).not.toContain("slot-badge");
+        });
+
         it("marks a raider without any analysis as prepared and leaves out the other sections", () => {
             const ctx = reportContext({ id: "x", roster: [{ name: "A", type: "Mage", issues: [] }] }, null);
             const { secs } = sectionsOf(ctx, "A");

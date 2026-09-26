@@ -290,6 +290,7 @@ describe("web/apiRoutes/roster", () => {
         it("answers 400 without a character", async () => {
             const res = await post("/api/roster/hide", { character: "  " });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(json(res).error).toEqual({ code: "bad_request", message: "Kein Charakter angegeben." });
             expect(rosterHidden.listHidden()).toEqual({});
         });
 
