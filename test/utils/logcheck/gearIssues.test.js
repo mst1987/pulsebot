@@ -218,3 +218,80 @@ describe("gearIssues buildArmory", () => {
         expect(armory).toEqual([]);
     });
 });
+
+describe("gearIssues analyzePlayerGear — gem quality ladder (characterisation, #431)", () => {
+    // Pinned before analyzePlayerGear was split into checks: which gem gets
+    // which label at which gemsToConsider, one quality flag per item, and an
+    // uncut gem flagged on its own.
+    function gemmed() {
+        const gear = fullGear();
+        gear.find((g) => g.slot === 0).gems = [{ id: "23112", itemLevel: 60 }, { id: "1", itemLevel: 40 }];
+        gear.find((g) => g.slot === 2).gems = [{ id: "1", itemLevel: 60 }, { id: "38549", itemLevel: 60 }];
+        gear.find((g) => g.slot === 4).gems = [{ id: "2", itemLevel: 70 }, { id: "3", itemLevel: 40 }];
+        gear.find((g) => g.slot === 6).gems = [{ id: "38549", itemLevel: 70 }, { id: "4" }];
+        return gear;
+    }
+    const labels = (issues) => issues.map((i) => [i.slot, i.kind, i.label]);
+
+    test.each([
+        [1, [[0, "uncutGem", "ungeschliffener Edelstein"]]],
+        [2, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "gewöhnlicher Edelstein"], [4, "badGem", "gewöhnlicher Edelstein"]]],
+        [3, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "grüner Edelstein"], [2, "badGem", "grüner Edelstein"], [4, "badGem", "gewöhnlicher Edelstein"]]],
+        [4, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "grüner Edelstein"], [2, "badGem", "grüner Edelstein"], [4, "badGem", "blauer Edelstein"]]],
+    ])("gemsToConsider %i", (gemsToConsider, expected) => {
+        expect(labels(analyzePlayerGear(playerWith(gemmed()), { gemsToConsider }))).toEqual(expected);
+    });
+
+    test("a shield with a misc icon needs no enchant, a missing item in the gear list is skipped", () => {
+        const gear = fullGear();
+        gear.push({ id: "2016", slot: 16, name: "Buckler", icon: "inv_misc_book_01" }, null, { id: 0, slot: 3 });
+        expect(analyzePlayerGear(playerWith(gear))).toEqual([]);
+    });
+});
+
+describe("gearIssues metaGemActive — every meta gem (#431)", () => {
+    // [id, just enough (red, yellow, blue), one short]
+    test.each([
+        [25896, [0, 0, 3], [0, 0, 2]],
+        [25897, [2, 0, 1], [1, 0, 1]],
+        [32409, [2, 2, 2], [2, 1, 2]], [25899, [2, 2, 2], [2, 2, 1]], [25901, [2, 2, 2], [1, 2, 2]], [25890, [2, 2, 2], [2, 1, 2]], [32410, [2, 2, 2], [2, 2, 1]],
+        [25898, [0, 0, 5], [0, 0, 4]],
+        [25893, [0, 1, 2], [0, 2, 2]], [32640, [0, 0, 1], [0, 1, 1]],
+        [34220, [0, 0, 2], [0, 0, 1]],
+        [25895, [2, 1, 0], [1, 1, 0]],
+        [25894, [1, 2, 0], [0, 2, 0]], [28556, [1, 2, 0], [1, 1, 0]], [28557, [1, 2, 0], [0, 2, 0]],
+        [32641, [0, 3, 0], [0, 2, 0]],
+        [35503, [3, 0, 0], [2, 0, 0]],
+        [35501, [0, 1, 2], [0, 0, 2]],
+    ])("%i", (id, enough, short) => {
+        expect(metaGemActive(id, ...enough)).toBe(true);
+        expect(metaGemActive(String(id), ...short)).toBe(false);
+    });
+});
+
+describe("gearIssues analyzePlayerGear — edge cases (#431)", () => {
+    test("a player without a gear list lacks every required slot", () => {
+        expect(analyzePlayerGear({ name: "X", type: "Mage" }).map((i) => i.slot)).toEqual(REQUIRED_SLOTS);
+    });
+
+    test("items without an enchant and excluded gear are never checked", () => {
+        const gear = fullGear();
+        const gloves = gear.find((g) => g.slot === 9);
+        gloves.id = "21471";
+        delete gloves.permanentEnchant;
+        const boots = gear.find((g) => g.slot === 7);
+        boots.id = "19970";
+        delete boots.permanentEnchant;
+        expect(analyzePlayerGear(playerWith(gear))).toEqual([]);
+    });
+
+    test("an inactive meta gem without an icon names no icon", () => {
+        const gear = fullGear();
+        const head = gear.find((g) => g.slot === 0);
+        delete head.icon;
+        head.gems = [{ id: "25896", itemLevel: 70 }, { id: "28466", itemLevel: 70 }, { id: "28463", itemLevel: 70 }];
+        expect(analyzePlayerGear(playerWith(gear))).toEqual([
+            { kind: "metaInactive", itemId: "2000", itemName: "Item0", icon: null, slot: 0, label: "Meta-Gem inaktiv", severity: "medium" },
+        ]);
+    });
+});

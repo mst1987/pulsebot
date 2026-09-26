@@ -2,20 +2,11 @@
 // menu, and the buttons/selects/modals of the ephemeral message. The service
 // (web/eventManage.js) runs for real on in-memory stores; Discord writes, the
 // message, the talk overview and every DM/ping are mocks.
-jest.mock("fs", () => {
-    const store = new Map();
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => store.set(p, String(data))),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw new Error("ENOENT");
-            return store.get(p);
-        }),
-        readdirSync: jest.requireActual("fs").readdirSync,
-        existsSync: jest.fn(() => false),
-    };
-});
+jest.mock("fs", () => ({
+    ...require("../../helpers/memoryFs").memoryFs(),
+    readdirSync: jest.requireActual("fs").readdirSync,
+    existsSync: jest.fn(() => false),
+}));
 jest.mock("../../../src/web/discord", () => require("../../helpers/discordMock").withClientHelpers({
     listAllChannels: jest.fn(() => [{ id: "200000000000000001", name: "mi-24-09-ssc-tk", parentId: "100000000000000001" }]),
     listCategories: jest.fn(() => []),

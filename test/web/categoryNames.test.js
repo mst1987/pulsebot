@@ -1,25 +1,7 @@
 // What matters here is that a category id never loses its name: the live
 // Discord list is only one of three sources, and the two others exist precisely
 // for the states in which the live one is empty.
-jest.mock("fs", () => {
-    const store = new Map();
-    const enoent = (p) => {
-        const e = new Error(`ENOENT: no such file '${p}'`);
-        e.code = "ENOENT";
-        return e;
-    };
-    return {
-        __store: store,
-        mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => {
-            store.set(p, String(data));
-        }),
-        readFileSync: jest.fn((p) => {
-            if (!store.has(p)) throw enoent(p);
-            return store.get(p);
-        }),
-    };
-});
+jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const mockListCategories = jest.fn(() => []);
 jest.mock("../../src/web/discord", () => ({

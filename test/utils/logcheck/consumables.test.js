@@ -1,6 +1,6 @@
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables");
 
-// GUIDs taken from src/config/claData.js CONSUMABLES.
+// GUIDs taken from src/config/generated/claData.json CONSUMABLES.
 const FLASK = "28518";
 const BATTLE = "28501";
 const GUARDIAN = "28509";

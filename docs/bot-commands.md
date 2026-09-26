@@ -2,7 +2,7 @@
 
 ## How the Command System Works
 
-`bot.js` uses `client.on("ready")` to call `loadCommands("./commands")`, which reads every `.js` file from every subfolder of `src/commands/`. Each file must export:
+`bot.js` `start()` calls `loadCommands()`, which reads every `.js` file from every subfolder of `src/commands/` through the shared loader `src/commands/loader.js` (`loadCommandModules()`). Files directly in `src/commands/` (the loader, `componentRoute.js`) and folders starting with `_` are not modules. **A name used twice throws** at start — before #413 the second file silently replaced the first. Each file must export:
 
 ```javascript
 module.exports = {
@@ -10,15 +10,20 @@ module.exports = {
     description: "...",        // German, shown in Einstellungen → Berechtigungen → Bot-Befehle
     group: "raids",            // a group id from src/config/botCommands.js
     defaultAccess: "admins",   // "everyone" | "admins" | { roles: [roleId, …] }
+    data: new SlashCommandBuilder()   // only a slash command / context menu: what Discord registers
+        .setName("commandname")
+        .setDescription("..."),
     async execute(interaction, client) {
         // ...
     },
 };
 ```
 
-A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access.
+A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access. A component that only hands the interaction to its logic in `src/web/` is built with `componentRoute({ name, description, accessOf, handler })` from `src/commands/componentRoute.js` (checks the event server via `guildFor` first; `guild: false` skips that, `onGuildError: "update"` answers by replacing the message).
 
-**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in `scripts/register-commands.js`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
+**Commands and components:** a module with `data` is a **command** (slash command or context menu), one without is a **component** — `kindOf()` in `loader.js`. Both sit in `client.commands`, keyed by name resp. customId prefix; the router lets a slash command, context menu or autocomplete reach only a command, a button/select/modal reaches either (the overview buttons call `update-events` etc.). A few components carry their own `group` because they are the entry point of a flow (`apply`, `event-btn`, `event-join`, `event-signup`, `talk-signup`); `test/commands/loader.test.js` keeps that list explicit.
+
+**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in the modules' `data`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
 
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
@@ -36,7 +41,8 @@ The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, mod
 
 When adding a new command:
 1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
-2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see docs/discord-servers.md), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
+2. Give it `data` (a `SlashCommandBuilder`, or a `ContextMenuCommandBuilder` for a context menu — no magic option numbers) and re-run `npm run register`. The definition lives **only in the module**: `scripts/register-commands.js` collects the `data` of every module with the same loader the bot uses (`commandDefinitions()`), prints the names it registers and puts them on **every configured server** (event + talk, see docs/discord-servers.md); `--guild <id>` for exactly one, `--global` globally, `--clear` removes them, `--dev` reads `.env.dev`. Requiring the script does nothing; only running it talks to Discord.
+3. `test/commands/loader.test.js` checks that every command is collected exactly once, that every `accessOf` points at a module with `group`, and that every backticked `/befehl` in [guide-discord.md](guide-discord.md) exists.
 
 ### Lookups with a link into the web menu (issue #265) and `/kanal` (#259)
 
@@ -66,12 +72,9 @@ Standard way to send a Discord reply. Sends an embed with `title` and `descripti
 ### `botEditReply(interaction, title, message, ...)`
 Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
 
-### `getRaidInfosFromChannel(interaction)`
-Returns `{ raidData, setupData }` for the event in the current channel.
-
 ## API Clients
 
-**`classes/raidhelper.js` (Raidhelper):** Uses raw `https` module. API key and server ID come from `process.env.RAIDHELPER_API_KEY` and `process.env.RAIDHELPER_SERVER_ID` via the constructor. Key methods: `getAllEvents()`, `getUserSignUps(userid)`, `getEvent(eventid)`, `getSetup(raidid)`, `signUpToRaid(raidid, signUps, userid)`, `saveRaid(data)`.
+**`classes/raidhelper.js` (Raidhelper):** Uses raw `https` module. API key and server ID come from `process.env.RAIDHELPER_API_KEY` and `process.env.RAIDHELPER_SERVER_ID` via the constructor. Key methods: `getAllEvents()`, `getUserSignUps(userid)`, `getEvent(eventid)`, `getSetup(raidid)`, `signUpToRaid(raidid, signUps, userid)`.
 
 The Axios clients (`classes/warcraftlogs*.js`, `utils/softres.js`, `utils/wowhead.js`, `web/deployStatus.js`) use the shared `utils/httpAgent.js` which enables SSL cert verification only in `NODE_ENV=production`.
 
@@ -95,8 +98,3 @@ if (!interaction.channel.parent) {
 const categoryId = interaction.channel.parent.id;
 ```
 
-### Fetching Raidhelper data for the current channel
-```javascript
-const raidInfos = await getRaidInfosFromChannel(interaction);
-// raidInfos.raidData, raidInfos.setupData
-```

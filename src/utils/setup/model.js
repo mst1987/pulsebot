@@ -172,25 +172,29 @@ function specForRole(classInfo, role, profileChar) {
     return ranked[0] || null;
 }
 
-/**
- * Build the model. `warnings` collects what the input asked for but a hard rule
- * refuses (a fixed slot for a raider who signed off, …) — never an exception.
- */
-function buildModel(input = {}, weights) {
-    const versionId = str(input.versionId) || DEFAULT_VERSION;
-    const rules = rulesFor(versionId) || rulesFor(DEFAULT_VERSION);
-    const warnings = [];
-    const events = normalizeEvents(input);
-    const eventByid = new Map(events.map((e) => [e.id, e]));
-    const profiles = profileMap(input.profiles);
+// ---------------------------------------------------------------------------
+// buildModel in phases (#431): lookup tables → signups per raider → candidates
+// with their options → the orga's fixed places → role maxima → wish/avoid
+// pairs → option indexes. Each phase reads what the earlier ones produced;
+// `ctx` carries the shared lookups, `warnings` collects what a hard rule refuses.
+// ---------------------------------------------------------------------------
+
+/** Class and spec lookups of the rule set. */
+function specTables(rules) {
     const specInfo = new Map();
     const classInfo = new Map();
     for (const c of rules.classes) {
         classInfo.set(c.id, c);
         for (const s of c.specs) specInfo.set(s.key, s);
     }
+    return { specInfo, classInfo };
+}
 
-    // buff tables
+/**
+ * Party and raid buffs as indexed tables. Also resolves every event's required
+ * buffs into `requiredParty` / `requiredRaid` indexes.
+ */
+function buffTables(rules, specInfo, events, warnings) {
     const specCount = specInfo.size;
     // `universal`: everybody wants it (Blood Pact), so it says nothing about *which* group.
     const partyBuffs = rules.partyBuffs.map((b, i) => ({
@@ -208,27 +212,36 @@ function buildModel(input = {}, weights) {
             else warnings.push(`Pflicht-Buff „${key}“ gibt es in ${rules.label} nicht.`);
         }
     }
+    return { partyBuffs, raidBuffs };
+}
 
-    const specCache = new Map();
-    function specData(key) {
-        if (specCache.has(key)) return specCache.get(key);
+/** Per spec (cached): the buffs it brings and the party buffs it profits from. */
+function specDataCache(partyBuffs, raidBuffs) {
+    const cache = new Map();
+    return function specData(key) {
+        if (cache.has(key)) return cache.get(key);
         const d = {
             party: partyBuffs.filter((b) => !b.slot && b.providerSet.has(key)).map((b) => b.idx),
             slotted: partyBuffs.filter((b) => b.slot && b.providerSet.has(key)).map((b) => b.idx),
             raid: raidBuffs.filter((b) => b.providerSet.has(key)).map((b) => b.idx),
             benefits: Uint8Array.from(partyBuffs.map((b) => (b.beneficiarySet.has(key) ? 1 : 0))),
         };
-        specCache.set(key, d);
+        cache.set(key, d);
         return d;
-    }
+    };
+}
 
-    // signups by user, in the order they came in
+/**
+ * Signups by user, in the order they came in, each tied to its event. A raider
+ * the orga fixed without a signup gets an empty list.
+ */
+function signupsByUser(input, events, eventById) {
     const rawSignups = Array.isArray(input.signups) ? input.signups : [];
     const byUser = new Map();
     for (const s of rawSignups) {
         if (!s || !str(s.userId)) continue;
         const eventId = str(s.eventId) || (events.length === 1 ? events[0].id : "");
-        const event = eventByid.get(eventId);
+        const event = eventById.get(eventId);
         if (!event) continue;
         const userId = str(s.userId);
         if (!byUser.has(userId)) byUser.set(userId, []);
@@ -238,157 +251,206 @@ function buildModel(input = {}, weights) {
     for (const f of fixedList) {
         if (!byUser.has(str(f.userId))) byUser.set(str(f.userId), []);
     }
+    return { byUser, fixedList };
+}
 
-    const fairness = fairnessMap(input.history, new Set(events.map((e) => e.id)));
+/** Raiders by their earliest signup, then by user id. */
+function candidateOrder(byUser) {
+    const at = (u) => Math.min(Infinity, ...byUser.get(u).map((s) => Number(s.at) || Infinity));
+    return [...byUser.keys()].sort((a, b) => at(a) - at(b) || a.localeCompare(b));
+}
+
+/**
+ * One signup per event, in event order — the input order must not matter.
+ * Sorts `list` in place on purpose: the fixed-place phase later looks up a
+ * raider's signup for an event in this same list and must find the latest one.
+ */
+function latestSignupPerEvent(list) {
+    return list
+        .sort((a, b) => a.eventIdx - b.eventIdx || (Number(b.updatedAt || b.at) || 0) - (Number(a.updatedAt || a.at) || 0))
+        .filter((s, i, sorted) => i === 0 || sorted[i - 1].eventIdx !== s.eventIdx);
+}
+
+function newCandidate(idx, userId, profile, fairness, attendance) {
+    return {
+        idx,
+        userId,
+        name: str(profile && profile.name),
+        options: [],
+        absentIn: new Set(),
+        signedIn: new Set(),
+        fairness: fairness || { priority: 0, last: "", benchCount: 0, nights: 0 },
+        attendance,
+        wishes: profile && Array.isArray(profile.wishes) ? profile.wishes.map(str) : [],
+        // "Nicht mit X raiden" — only while the raider has it switched on
+        avoid: profile && profile.avoidEnabled === true && Array.isArray(profile.avoid) ? profile.avoid.map(str) : [],
+        fixed: null,
+        noGear: [],
+        // eventIdx → the first choice of a raider who named alternates
+        // (#293), with its own status (#320)
+        preferred: new Map(),
+    };
+}
+
+/** Off-spec roles ("kann auch", can offtank/heal) of the preferred character. */
+function addOffSpecOptions(cand, s, base, main, cls, pChar, profile) {
+    const extra = new Set((Array.isArray(s.canAlso) ? s.canAlso : []).map(str));
+    // only a stated word — this character's switch, else the old profile-wide one
+    const said = characterFlags(profile, pChar);
+    if (said.canOfftank === true) extra.add("tank");
+    if (said.canHeal === true) extra.add("healer");
+    for (const role of ROLES) {
+        if (!extra.has(role) || role === main.role) continue;
+        const pick = specForRole(cls, role, pChar);
+        if (!pick) continue;
+        cand.options.push({ ...base, spec: pick.s.key, role, main: false, gear: pick.gear });
+    }
+}
+
+/** The options one character of a signup gives (its main spec, and off specs for the first). */
+function addCharacterOptions(cand, s, entry, priority, entryCount, profile, ctx) {
+    const main = ctx.specInfo.get(str(entry.spec));
+    if (!main) return;
+    const cls = ctx.classInfo.get(main.classId);
+    const pChar = profileCharacter(profile, entry.character, main.classId);
+    const character = str(entry.character) || (pChar && pChar.name) || cand.name || cand.userId;
+    // This character's own status (#320), not the signup's: a first
+    // character on "Spät" beside a second on "Dabei" makes the second
+    // the better option — and only the option actually placed carries
+    // "Kommt später" into its reason.
+    const base = { eventIdx: s.eventIdx, status: characterStatus(entry, s.status), character, comment: str(s.comment), priority };
+    if (priority === 0 && entryCount > 1) cand.preferred.set(s.eventIdx, { character, role: main.role, status: base.status });
+    const mainGear = gearOf(pChar, main.key);
+    if (mainGear === "none") cand.noGear.push(main.key);
+    else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
+    if (priority > 0) return;
+    addOffSpecOptions(cand, s, base, main, cls, pChar, profile);
+}
+
+function addSignupOptions(cand, s, profile, ctx) {
+    cand.signedIn.add(s.eventIdx);
+    if (s.status === "absence") {
+        cand.absentIn.add(s.eventIdx);
+        return;
+    }
+    if (!(s.status in STATUS_FACTOR)) return;
+    // Several own characters (#293): every one is an option, in priority
+    // order; the first is the preferred one. Off-spec roles ("kann auch")
+    // belong to the preferred character only.
+    const entries = signupCharacters(s);
+    entries.forEach((entry, priority) => addCharacterOptions(cand, s, entry, priority, entries.length, profile, ctx));
+}
+
+/** One candidate per raider, with every option they can be placed as. */
+function buildCandidates(input, ctx) {
+    const fairness = fairnessMap(input.history, new Set(ctx.events.map((e) => e.id)));
     const cands = [];
-    const users = [...byUser.keys()].sort((a, b) => {
-        const at = (u) => Math.min(Infinity, ...byUser.get(u).map((s) => Number(s.at) || Infinity));
-        return at(a) - at(b) || a.localeCompare(b);
-    });
-    for (const userId of users) {
-        // one signup per event, in event order — the input order must not matter
-        const signups = byUser.get(userId)
-            .sort((a, b) => a.eventIdx - b.eventIdx || (Number(b.updatedAt || b.at) || 0) - (Number(a.updatedAt || a.at) || 0))
-            .filter((s, i, list) => i === 0 || list[i - 1].eventIdx !== s.eventIdx);
-        const profile = profiles.get(userId) || null;
-        const cand = {
-            idx: cands.length,
-            userId,
-            name: str(profile && profile.name),
-            options: [],
-            absentIn: new Set(),
-            signedIn: new Set(),
-            fairness: fairness.get(userId) || { priority: 0, last: "", benchCount: 0, nights: 0 },
-            attendance: attendanceOf(input.attendance, userId),
-            wishes: profile && Array.isArray(profile.wishes) ? profile.wishes.map(str) : [],
-            // "Nicht mit X raiden" — only while the raider has it switched on
-            avoid: profile && profile.avoidEnabled === true && Array.isArray(profile.avoid) ? profile.avoid.map(str) : [],
-            fixed: null,
-            noGear: [],
-            // eventIdx → the first choice of a raider who named alternates
-            // (#293), with its own status (#320)
-            preferred: new Map(),
-        };
-        for (const s of signups) {
-            cand.signedIn.add(s.eventIdx);
-            if (s.status === "absence") {
-                cand.absentIn.add(s.eventIdx);
-                continue;
-            }
-            if (!(s.status in STATUS_FACTOR)) continue;
-            // Several own characters (#293): every one is an option, in priority
-            // order; the first is the preferred one. Off-spec roles ("kann auch")
-            // belong to the preferred character only.
-            const entries = signupCharacters(s);
-            entries.forEach((entry, priority) => {
-                const main = specInfo.get(str(entry.spec));
-                if (!main) return;
-                const cls = classInfo.get(main.classId);
-                const pChar = profileCharacter(profile, entry.character, main.classId);
-                const character = str(entry.character) || (pChar && pChar.name) || cand.name || userId;
-                // This character's own status (#320), not the signup's: a first
-                // character on "Spät" beside a second on "Dabei" makes the second
-                // the better option — and only the option actually placed carries
-                // "Kommt später" into its reason.
-                const base = { eventIdx: s.eventIdx, status: characterStatus(entry, s.status), character, comment: str(s.comment), priority };
-                if (priority === 0 && entries.length > 1) cand.preferred.set(s.eventIdx, { character, role: main.role, status: base.status });
-                const mainGear = gearOf(pChar, main.key);
-                if (mainGear === "none") cand.noGear.push(main.key);
-                else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
-                if (priority > 0) return;
-                const extra = new Set((Array.isArray(s.canAlso) ? s.canAlso : []).map(str));
-                // only a stated word — this character's switch, else the old profile-wide one
-                const said = characterFlags(profile, pChar);
-                if (said.canOfftank === true) extra.add("tank");
-                if (said.canHeal === true) extra.add("healer");
-                for (const role of ROLES) {
-                    if (!extra.has(role) || role === main.role) continue;
-                    const pick = specForRole(cls, role, pChar);
-                    if (!pick) continue;
-                    cand.options.push({ ...base, spec: pick.s.key, role, main: false, gear: pick.gear });
-                }
-            });
-        }
+    for (const userId of candidateOrder(ctx.byUser)) {
+        const signups = latestSignupPerEvent(ctx.byUser.get(userId));
+        const profile = ctx.profiles.get(userId) || null;
+        const cand = newCandidate(cands.length, userId, profile, fairness.get(userId), attendanceOf(input.attendance, userId));
+        for (const s of signups) addSignupOptions(cand, s, profile, ctx);
         cands.push(cand);
     }
+    return cands;
+}
 
-    // fixed slots of the orga
-    const candByUser = new Map(cands.map((c) => [c.userId, c]));
-    const lockedPerGroup = new Map();
-    const lockedPerEvent = new Map();
+/**
+ * The option the orga fixed somebody on, when the signup has no such option:
+ * a spec without a signup for it, or one the profile calls ungeared — the orga
+ * knows, the check says so. Returns its index, or -1.
+ */
+function addFixedSpecOption(f, cand, event, ctx, warnings) {
+    const wanted = str(f.spec);
+    const info = ctx.specInfo.get(wanted);
+    const signup = ctx.byUser.get(cand.userId).find((s) => s.eventIdx === event.idx);
+    // the named character of that class (#293), else the signup's own
+    const entry = signup && signupCharacters(signup).find((c) => (ctx.specInfo.get(str(c.spec)) || {}).classId === info.classId);
+    const pChar = profileCharacter(ctx.profiles.get(cand.userId), (entry && entry.character) || (signup && signup.character), info.classId);
+    const gear = gearOf(pChar, wanted);
+    if (gear === "none") warnings.push(`${cand.name || cand.userId}: ${info.label} laut Profil ohne brauchbares Gear, aber fixiert.`);
+    cand.options.push({
+        eventIdx: event.idx,
+        // the named character's own status (#320), else the signup's
+        status: signup ? characterStatus(entry, signup.status) : "signed",
+        character: str(f.character) || (entry && str(entry.character)) || (signup && str(signup.character)) || (pChar && pChar.name) || cand.name || cand.userId,
+        comment: "",
+        spec: wanted,
+        role: f.role && ROLES.includes(f.role) ? f.role : info.role,
+        main: !!(signup && signupCharacters(signup).some((c) => c.spec === wanted)),
+        priority: entry && signup ? Math.max(0, signupCharacters(signup).indexOf(entry)) : 0,
+        gear,
+        fromFixed: true,
+    });
+    return cand.options.length - 1;
+}
+
+/** Index of the option a fixed place means — the named character first, then any; -1 when none. */
+function fixedOption(f, cand, event, ctx, warnings) {
+    const wanted = str(f.spec);
+    const wantedChar = characterKeyOf(f.character);
+    const fits = (o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role);
+    let optIdx = cand.options.findIndex((o) => fits(o) && (!wantedChar || characterKeyOf(o.character) === wantedChar));
+    if (optIdx < 0 && wantedChar) optIdx = cand.options.findIndex(fits);
+    if (optIdx < 0 && wanted && ctx.specInfo.get(wanted)) optIdx = addFixedSpecOption(f, cand, event, ctx, warnings);
+    return optIdx;
+}
+
+/** The 0-based group of a fixed place, -1 to let the search pick one. */
+function fixedGroup(f, event, lockedPerGroup, warnings) {
+    let group = Number(f.group) > 0 ? Math.floor(Number(f.group)) - 1 : -1;
+    if (group >= event.groupCount) group = -1;
+    if (group < 0) return group;
+    const key = `${event.idx}:${group}`;
+    if ((lockedPerGroup.get(key) || 0) >= GROUP_SIZE) {
+        warnings.push(`Gruppe ${group + 1} hat mehr als ${GROUP_SIZE} fixierte Plätze.`);
+        return -1;
+    }
+    lockedPerGroup.set(key, (lockedPerGroup.get(key) || 0) + 1);
+    return group;
+}
+
+/** A candidate's `fixed` state for one fixed place, or null when a hard rule refuses it. */
+function fixedPlace(f, cand, ctx, locked, warnings) {
+    if (f.bench === true) return { bench: true };
+    const events = ctx.events;
+    const event = f.eventId ? ctx.eventById.get(str(f.eventId)) : (events.length === 1 ? events[0] : null);
+    if (!event) {
+        warnings.push(`Fixierung für ${cand.userId}: unbekanntes Event.`);
+        return null;
+    }
+    if (cand.absentIn.has(event.idx)) {
+        warnings.push(`${cand.name || cand.userId} ist abgemeldet – die Fixierung wird ignoriert.`);
+        return null;
+    }
+    const optIdx = fixedOption(f, cand, event, ctx, warnings);
+    if (optIdx < 0) {
+        warnings.push(`Fixierung für ${cand.name || cand.userId}: keine Anmeldung und keine Spec angegeben.`);
+        return null;
+    }
+    const evCount = locked.perEvent.get(event.idx) || 0;
+    if (evCount >= event.size) {
+        warnings.push(`Mehr fixierte Plätze als der Raid ${event.title || event.id} fasst.`);
+        return null;
+    }
+    const group = fixedGroup(f, event, locked.perGroup, warnings);
+    locked.perEvent.set(event.idx, evCount + 1);
+    return { bench: false, option: optIdx, group };
+}
+
+/** The orga's fixed slots; the first fixation of a raider wins. */
+function applyFixed(fixedList, candByUser, ctx, warnings) {
+    const locked = { perGroup: new Map(), perEvent: new Map() };
     for (const f of fixedList) {
         const cand = candByUser.get(str(f.userId));
         if (!cand || cand.fixed) continue;
-        if (f.bench === true) {
-            cand.fixed = { bench: true };
-            continue;
-        }
-        const event = f.eventId ? eventByid.get(str(f.eventId)) : (events.length === 1 ? events[0] : null);
-        if (!event) {
-            warnings.push(`Fixierung für ${cand.userId}: unbekanntes Event.`);
-            continue;
-        }
-        if (cand.absentIn.has(event.idx)) {
-            warnings.push(`${cand.name || cand.userId} ist abgemeldet – die Fixierung wird ignoriert.`);
-            continue;
-        }
-        const wanted = str(f.spec);
-        const wantedChar = characterKeyOf(f.character);
-        const sameChar = (o) => !wantedChar || characterKeyOf(o.character) === wantedChar;
-        let optIdx = cand.options.findIndex((o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role) && sameChar(o));
-        if (optIdx < 0 && wantedChar) {
-            optIdx = cand.options.findIndex((o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role));
-        }
-        if (optIdx < 0 && wanted && specInfo.get(wanted)) {
-            // The orga places somebody on a spec without a signup for it, or on
-            // one the profile calls ungeared: the orga knows, the check says so.
-            const info = specInfo.get(wanted);
-            const signup = byUser.get(cand.userId).find((s) => s.eventIdx === event.idx);
-            // the named character of that class (#293), else the signup's own
-            const entry = signup && signupCharacters(signup).find((c) => (specInfo.get(str(c.spec)) || {}).classId === info.classId);
-            const pChar = profileCharacter(profiles.get(cand.userId), (entry && entry.character) || (signup && signup.character), info.classId);
-            const gear = gearOf(pChar, wanted);
-            if (gear === "none") warnings.push(`${cand.name || cand.userId}: ${info.label} laut Profil ohne brauchbares Gear, aber fixiert.`);
-            cand.options.push({
-                eventIdx: event.idx,
-                // the named character's own status (#320), else the signup's
-                status: signup ? characterStatus(entry, signup.status) : "signed",
-                character: str(f.character) || (entry && str(entry.character)) || (signup && str(signup.character)) || (pChar && pChar.name) || cand.name || cand.userId,
-                comment: "",
-                spec: wanted,
-                role: f.role && ROLES.includes(f.role) ? f.role : info.role,
-                main: !!(signup && signupCharacters(signup).some((c) => c.spec === wanted)),
-                priority: entry && signup ? Math.max(0, signupCharacters(signup).indexOf(entry)) : 0,
-                gear,
-                fromFixed: true,
-            });
-            optIdx = cand.options.length - 1;
-        }
-        if (optIdx < 0) {
-            warnings.push(`Fixierung für ${cand.name || cand.userId}: keine Anmeldung und keine Spec angegeben.`);
-            continue;
-        }
-        const evCount = lockedPerEvent.get(event.idx) || 0;
-        if (evCount >= event.size) {
-            warnings.push(`Mehr fixierte Plätze als der Raid ${event.title || event.id} fasst.`);
-            continue;
-        }
-        let group = Number(f.group) > 0 ? Math.floor(Number(f.group)) - 1 : -1;
-        if (group >= event.groupCount) group = -1;
-        if (group >= 0) {
-            const key = `${event.idx}:${group}`;
-            if ((lockedPerGroup.get(key) || 0) >= GROUP_SIZE) {
-                warnings.push(`Gruppe ${group + 1} hat mehr als ${GROUP_SIZE} fixierte Plätze.`);
-                group = -1;
-            } else {
-                lockedPerGroup.set(key, (lockedPerGroup.get(key) || 0) + 1);
-            }
-        }
-        lockedPerEvent.set(event.idx, evCount + 1);
-        cand.fixed = { bench: false, option: optIdx, group };
+        const fixed = fixedPlace(f, cand, ctx, locked, warnings);
+        if (fixed) cand.fixed = fixed;
     }
+}
 
-    // Fixed raiders beyond a role's maximum widen it: the orga decided, the check turns red.
+/** Fixed raiders beyond a role's maximum widen it: the orga decided, the check turns red. */
+function widenHardMax(events, cands) {
     for (const e of events) {
         const counts = Object.fromEntries(ROLES.map((r) => [r, 0]));
         for (const c of cands) {
@@ -400,32 +462,27 @@ function buildModel(input = {}, weights) {
             e.hardMax[r] = max === null ? Infinity : Math.max(max, counts[r]);
         }
     }
+}
 
-    // wishes: unordered pairs of raiders who both signed up, mutual or not
+/**
+ * Unordered pairs of raiders who both signed up and one named the other in
+ * `field` ("wishes" / "avoid") — one entry even when both named each other.
+ */
+function namedPairs(cands, candByUser, field) {
     const pairs = [];
-    const wishOn = events.some((e) => e.wishes);
     for (const a of cands) {
-        for (const bId of a.wishes) {
+        for (const bId of a[field]) {
             const b = candByUser.get(bId);
             if (!b || b === a) continue;
-            const mutual = b.wishes.includes(a.userId);
+            const mutual = b[field].includes(a.userId);
             if (mutual && b.idx < a.idx) continue;
-            pairs.push({ a: a.idx, b: b.idx, mutual, factor: mutual ? 1 : 0.5 });
+            pairs.push({ a: a.idx, b: b.idx, mutual });
         }
     }
+    return pairs;
+}
 
-    // "nicht zusammen": unordered pairs, one entry even when both named each other
-    const avoidPairs = [];
-    for (const a of cands) {
-        for (const bId of a.avoid) {
-            const b = candByUser.get(bId);
-            if (!b || b === a) continue;
-            const mutual = b.avoid.includes(a.userId);
-            if (mutual && b.idx < a.idx) continue;
-            avoidPairs.push({ a: a.idx, b: b.idx, mutual });
-        }
-    }
-
+function indexOptions(cands, specInfo, specData) {
     for (const c of cands) {
         c.options.forEach((o, i) => {
             o.idx = i;
@@ -434,6 +491,31 @@ function buildModel(input = {}, weights) {
             o.classId = (specInfo.get(o.spec) || {}).classId || "";
         });
     }
+}
+
+/**
+ * Build the model. `warnings` collects what the input asked for but a hard rule
+ * refuses (a fixed slot for a raider who signed off, …) — never an exception.
+ */
+function buildModel(input = {}, weights) {
+    const versionId = str(input.versionId) || DEFAULT_VERSION;
+    const rules = rulesFor(versionId) || rulesFor(DEFAULT_VERSION);
+    const warnings = [];
+    const events = normalizeEvents(input);
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    const { specInfo, classInfo } = specTables(rules);
+    const { partyBuffs, raidBuffs } = buffTables(rules, specInfo, events, warnings);
+    const { byUser, fixedList } = signupsByUser(input, events, eventById);
+    const ctx = { events, eventById, profiles: profileMap(input.profiles), specInfo, classInfo, byUser };
+
+    const cands = buildCandidates(input, ctx);
+    const candByUser = new Map(cands.map((c) => [c.userId, c]));
+    applyFixed(fixedList, candByUser, ctx, warnings);
+    widenHardMax(events, cands);
+    // wishes: mutual or not, a one-sided wish counts half
+    const pairs = namedPairs(cands, candByUser, "wishes").map((p) => ({ ...p, factor: p.mutual ? 1 : 0.5 }));
+    const avoidPairs = namedPairs(cands, candByUser, "avoid");
+    indexOptions(cands, specInfo, specDataCache(partyBuffs, raidBuffs));
 
     return {
         versionId: rules.id,
@@ -441,7 +523,7 @@ function buildModel(input = {}, weights) {
         events,
         cands,
         pairs,
-        wishOn,
+        wishOn: events.some((e) => e.wishes),
         avoidPairs,
         partyBuffs,
         raidBuffs,

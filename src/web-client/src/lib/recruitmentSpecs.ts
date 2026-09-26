@@ -7,7 +7,7 @@
 
 import type { Emoji } from "../api";
 
-export type SpecCatalogEntry ={ key: string; name: string; icon: string; sodclazz: string };
+export type SpecCatalogEntry ={ key: string; name: string; icon: string; role: string };
 
 export type SpecEntry = {
     index: number;

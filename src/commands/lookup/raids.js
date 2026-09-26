@@ -1,4 +1,5 @@
 // /raids — the next raids and where the asking user stands in each (issue #265).
+const { SlashCommandBuilder } = require("discord.js");
 const { listEvents, statusOf, STATUS_LABELS, STATUS_ICONS } = require("../../web/eventLookup");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/botLookup");
 
@@ -18,6 +19,9 @@ module.exports = {
     description: "Deine nächsten Raids und ob du angemeldet bist.",
     group: "raids",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("raids")
+        .setDescription("Deine nächsten Raids und dein Anmeldestatus"),
     MAX_RAIDS,
     async execute(interaction) {
         await deferLookup(interaction);
