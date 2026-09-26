@@ -232,10 +232,10 @@ function startCouncilSim(id, subjects, itemIds = []) {
     return { status: "running", alreadyRunning: false };
 }
 
-/** Drop everything — tests only. */
+/** Drop everything — tests only. The next call reads the cache file again, like a fresh start. */
 function reset() {
     jobs.clear();
-    cache = {};
+    cache = null;
 }
 
 module.exports = {

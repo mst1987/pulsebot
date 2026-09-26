@@ -102,6 +102,32 @@ describe("web/simStore", () => {
             expect(mockSimulate).toHaveBeenCalledTimes(2);
         });
 
+        it("answers from the cache file a previous process left behind", async () => {
+            const args = { specKey: "Priest-Shadow", gear: gear([item(0, 31064)]) };
+            const key = simStore.cacheKey(args);
+            fs.readFileSync.mockImplementation((p) => {
+                if (p !== simStore.CACHE_FILE) throw new Error("ENOENT");
+                return JSON.stringify({ [key]: { dps: 2345, stdev: 5, available: true, supported: true, at: Date.now() } });
+            });
+            expect(await simStore.simulateCached(args)).toMatchObject({ dps: 2345, cached: true });
+            expect(mockSimulate).not.toHaveBeenCalled();
+        });
+
+        it("keeps the number when the cache file cannot be written - a slow page, not a broken one", async () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            fs.writeFileSync.mockImplementationOnce(() => {
+                throw new Error("EACCES");
+            });
+            try {
+                const args = { specKey: "Priest-Shadow", gear: gear([item(0, 31064)]) };
+                expect(await simStore.simulateCached(args)).toMatchObject({ dps: 1800, cached: false });
+                expect(warn).toHaveBeenCalledWith("sim cache write failed:", "EACCES");
+                expect(await simStore.simulateCached(args)).toMatchObject({ dps: 1800, cached: true });
+            } finally {
+                warn.mockRestore();
+            }
+        });
+
         it("refuses an unknown spec rather than simulating nonsense", async () => {
             const res = await simStore.simulateCached({ specKey: "Warrior-Fury", gear: gear([]) });
             expect(res).toMatchObject({ supported: false, dps: null });
