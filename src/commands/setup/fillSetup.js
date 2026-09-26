@@ -28,7 +28,7 @@ module.exports = {
         .setDescription("Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan")
         .addStringOption((o) => o.setName("setup_id").setDescription("Raidhelper Setup-ID oder EventHelper-Event (eh-…); leer = Event dieses Kanals").setRequired(false))
         .addStringOption((o) => o.setName("tank3").setDescription("3. Tank (Charaktername fuer B13, optional)").setRequired(false)),
-    async execute(interaction, client) {
+    async execute(interaction) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const setupId = String(interaction.options.getString("setup_id") || "").trim();

@@ -32,7 +32,7 @@ const FIRST_ROWS = 5;
 const DISPLAY_TZ = "Europe/Berlin";
 
 /** "11.09. 22:48" — the year is in the event name already. */
-export function shortWhen(ms: number): string {
+function shortWhen(ms: number): string {
     if (!ms) return "";
     return new Date(ms).toLocaleString("de-DE", { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }

@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 const envDev = path.join(__dirname, "../.env.dev");
 const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env");

@@ -1,4 +1,4 @@
-﻿const { DateTime } = require("luxon");
+const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../config/timezone");
 
 module.exports = {

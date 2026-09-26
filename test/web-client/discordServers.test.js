@@ -19,7 +19,7 @@ const api = read("api.ts");
 
 describe("Discord-Server section", () => {
     it("loads from the endpoint the router serves and the access table lists", () => {
-        expect(api).toContain('get<DiscordServersData>("/api/settings/discord-servers")');
+        expect(api).toContain("get<DiscordServersData>(\"/api/settings/discord-servers\")");
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/discord-servers"]).toBe("settings");
         expect(section).toContain("getDiscordServers()");
@@ -36,7 +36,7 @@ describe("Discord-Server section", () => {
         // …and says it once: no second "Bot-Rechte" row repeating the head badge.
         expect(section).not.toContain("<dt>Bot-Rechte</dt>");
         expect(section).not.toMatch(/perms\.map\(\(p\) => <li/);
-        expect(section).not.toContain('className="hint"');
+        expect(section).not.toContain("className=\"hint\"");
     });
 
     it("keeps role sync and reminders in their own parts below the cards", () => {
@@ -48,7 +48,7 @@ describe("Discord-Server section", () => {
 
     it("renders one card per configured event server, keyed by its guild id", () => {
         expect(section).toContain("{data.events.map((card, i) => {");
-        expect(section).toContain('<ServerCard key={card.id} card={card} role="event" label={card.label}');
+        expect(section).toContain("<ServerCard key={card.id} card={card} role=\"event\" label={card.label}");
     });
 
     it("names the Vielleicht/Absage channel once (first card), not once per event server", () => {
@@ -56,7 +56,7 @@ describe("Discord-Server section", () => {
     });
 
     it("shows the empty state only when no event server is configured yet", () => {
-        expect(section).toContain('{data.events.length === 0 && <ServerCard card={null} role="event"');
+        expect(section).toContain("{data.events.length === 0 && <ServerCard card={null} role=\"event\"");
     });
 
     it("offers to add another event server once at least one exists", () => {
@@ -76,7 +76,7 @@ describe("Discord-Server section", () => {
     });
 
     it("clears the talk server's channels (only) when another talk server is picked", () => {
-        expect(section).toContain('talkGuildId: e.target.value, talkPingChannelId: ""');
+        expect(section).toContain("talkGuildId: e.target.value, talkPingChannelId: \"\"");
     });
 
     it("generalizes the note-channel picker to every configured event server", () => {
@@ -87,7 +87,7 @@ describe("Discord-Server section", () => {
 describe("Discord-Server edit dialog: event-server rows (#361)", () => {
     it("renders one row per entry with a guild picker, a label and its own overview target", () => {
         expect(section).toContain("function EventGuildRow(");
-        expect(section).toContain('placeholder="PvE, PvP, Allianz …"');
+        expect(section).toContain("placeholder=\"PvE, PvP, Allianz …\"");
         expect(section).toContain("targetChannels = guilds.find((g) => g.id === entry.overviewGuildId)?.channels || []");
         expect(section).toContain("guildSelectOptions(guilds, entry.overviewGuildId, new Set())");
     });
@@ -105,7 +105,7 @@ describe("Discord-Server edit dialog: event-server rows (#361)", () => {
     });
 
     it("no longer offers a single fixed event-server field or a talkOverviewChannelId", () => {
-        expect(section).not.toContain('guildField("eventGuildId"');
+        expect(section).not.toContain("guildField(\"eventGuildId\"");
         expect(section).not.toContain("talkOverviewChannelId");
     });
 });
@@ -122,8 +122,8 @@ describe("raid overview row (#257, #361)", () => {
     const row = read("components", "SettingsTalkOverview.tsx");
 
     it("talks to the endpoint the router serves and re-posts with the CSRF token and guild id", () => {
-        expect(api).toContain('get<{ statuses: TalkOverviewStatus[] }>("/api/settings/talk-overview?preview=0")');
-        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true, guildId });');
+        expect(api).toContain("get<{ statuses: TalkOverviewStatus[] }>(\"/api/settings/talk-overview?preview=0\")");
+        expect(api).toContain("send(\"POST\", \"/api/settings/talk-overview\", csrfToken, { repost: true, guildId });");
         const { AREA_BY_PATH } = require("../../src/web/apiAccess");
         expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
         expect(row).toContain("repostTalkOverview(csrfToken, guildId)");

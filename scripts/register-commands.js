@@ -1,4 +1,4 @@
-﻿// Registers the slash commands with Discord. The definitions are not kept here:
+// Registers the slash commands with Discord. The definitions are not kept here:
 // every module under src/commands/ carries its own (`data`, #413), and this
 // script collects them with the loader the bot routes with.
 //

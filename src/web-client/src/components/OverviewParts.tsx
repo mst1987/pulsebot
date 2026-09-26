@@ -9,7 +9,7 @@ import { roleLabel } from "../lib/wowNames";
  * How full a role is, as a bar tone: full is ok, one short in a big role is
  * the accent (normal a few days out), more than that is mid, less than half bad.
  */
-export function roleTone(role: Pick<DashboardRole, "filled" | "target">): "ok" | "mid" | "bad" | undefined {
+function roleTone(role: Pick<DashboardRole, "filled" | "target">): "ok" | "mid" | "bad" | undefined {
     if (!role.target || role.filled >= role.target) return "ok";
     const share = role.filled / role.target;
     if (share < 0.5) return "bad";

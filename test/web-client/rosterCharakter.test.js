@@ -27,8 +27,8 @@ describe("roster & character page: shared rules", () => {
     });
 
     it("keeps its styles in its own stylesheet, imported by both pages", () => {
-        expect(roster).toContain('import "../styles/roster-charakter.css";');
-        expect(charPage).toContain('import "../styles/roster-charakter.css";');
+        expect(roster).toContain("import \"../styles/roster-charakter.css\";");
+        expect(charPage).toContain("import \"../styles/roster-charakter.css\";");
         // the replaced hero band, gear-issue cards and gear rows are gone from index.css
         for (const cls of [".stat-hero", ".stat-tile", ".gi-row", ".gear-row", ".char-hero"]) {
             expect(indexCss).not.toContain(cls);
@@ -47,19 +47,19 @@ describe("roster & character page: shared rules", () => {
 
 describe("roster page", () => {
     it("dropped the explanatory paragraph, the category and class selects and the reset button", () => {
-        expect(roster).not.toContain('className="note"');
+        expect(roster).not.toContain("className=\"note\"");
         expect(roster).not.toContain("<select");
         expect(roster).not.toContain("Filter zurücksetzen");
-        expect(roster).not.toContain('type="checkbox"');
+        expect(roster).not.toContain("type=\"checkbox\"");
     });
 
     it("persists a view without category/classSpec, with role, spec and list, and validates what it reads", () => {
         expect(roster).toMatch(/type View = \{ search: string; role: RoleFilter; className: string; spec: string; onlyIssues: boolean; tab: Tab; open: string\[\] \| null \};/);
-        expect(roster).toContain('usePersistedState<View>("roster-view", VIEW_DEFAULT)');
-        expect(roster).toContain('ROLE_FILTERS.includes(stored.role) ? stored.role : "all"');
-        expect(roster).toContain('stored.tab === "hidden" ? "hidden" : "active"');
+        expect(roster).toContain("usePersistedState<View>(\"roster-view\", VIEW_DEFAULT)");
+        expect(roster).toContain("ROLE_FILTERS.includes(stored.role) ? stored.role : \"all\"");
+        expect(roster).toContain("stored.tab === \"hidden\" ? \"hidden\" : \"active\"");
         // the sort lives in its own store, like every other table's
-        expect(roster).toContain('useTableSort<SortKey>("roster-sort", SORT_DEFAULTS, "name")');
+        expect(roster).toContain("useTableSort<SortKey>(\"roster-sort\", SORT_DEFAULTS, \"name\")");
     });
 
     // Sorting, the spec filter and hiding someone (Sept 2026).
@@ -70,7 +70,7 @@ describe("roster page", () => {
     });
 
     it("filters by spec with pills under the class chips, and only for the chosen class", () => {
-        expect(roster).toContain('className={`ros-spec${on ? " is-on" : ""}`}');
+        expect(roster).toContain("className={`ros-spec${on ? \" is-on\" : \"\"}`}");
         expect(roster).toContain("{!!view.className && specCounts.length > 1 && (");
         // a stored spec the current class does not have filters nothing
         expect(roster).toContain("const activeSpec = specCounts.some(([spec]) => spec === view.spec) ? view.spec : \"\";");
@@ -83,7 +83,7 @@ describe("roster page", () => {
         expect(roster).toContain("<EyeIcon />");
         // behind a confirm, and only with write access
         expect(roster).toMatch(/await ask\(\{\s*\n\s*title: "Charakter ausblenden\?"/);
-        expect(roster).toContain('const canWrite = canAccess(user, "roster", "write");');
+        expect(roster).toContain("const canWrite = canAccess(user, \"roster\", \"write\");");
         expect(roster).toContain("onHide={canWrite ? toggleHidden : undefined}");
     });
 
@@ -94,8 +94,8 @@ describe("roster page", () => {
 
     it("shows WCL and Armory as icon links with a tooltip instead of text buttons", () => {
         expect(roster).not.toMatch(/WCL ↗|Armory ↗/);
-        expect(roster).toContain('icon="inv_misc_pocketwatch_01" tip="Warcraft Logs"');
-        expect(roster).toContain('icon="inv_shirt_guildtabard_01" tip="Armory"');
+        expect(roster).toContain("icon=\"inv_misc_pocketwatch_01\" tip=\"Warcraft Logs\"");
+        expect(roster).toContain("icon=\"inv_shirt_guildtabard_01\" tip=\"Armory\"");
         expect(common).toMatch(/aria-label=\{tip\}\s*data-tip=\{tip\}/);
     });
 
@@ -112,20 +112,20 @@ describe("roster page", () => {
 
 describe("character page", () => {
     it("has the three sections behind a remembered switch", () => {
-        expect(charPage).toContain('usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", CHAR_TABS)');
-        expect(charPage).toContain('const CHAR_TABS: CharTab[] = ["gear", "loot", "attendance"];');
-        expect(charPage).not.toContain('className="tabs"');
+        expect(charPage).toContain("usePersistedSearchParam<CharTab>(\"history-char-tab\", \"tab\", \"gear\", CHAR_TABS)");
+        expect(charPage).toContain("const CHAR_TABS: CharTab[] = [\"gear\", \"loot\", \"attendance\"];");
+        expect(charPage).not.toContain("className=\"tabs\"");
     });
 
     it("puts findings on the slot rows instead of a separate card, and leaves out shirt and tabard", () => {
         expect(charPage).not.toContain("GearIssuesCard");
-        expect(charPage).toContain('const NO_RAID_VALUE = new Set(["SHIRT", "TABARD"]);');
+        expect(charPage).toContain("const NO_RAID_VALUE = new Set([\"SHIRT\", \"TABARD\"]);");
         expect(charPage).not.toMatch(/const GEAR_LEFT = \[[^\]]*"SHIRT"/);
         expect(charPage).toContain("findingsForSlot(issues, slot, bySlot.get(slot))");
     });
 
     it("opens item details in a modal addressed by the url", () => {
-        expect(charPage).toContain('const itemSlot = searchParams.get("item") || "";');
+        expect(charPage).toContain("const itemSlot = searchParams.get(\"item\") || \"\";");
         expect(charPage).toContain("<ItemDetailModal");
     });
 
@@ -136,7 +136,7 @@ describe("character page", () => {
     });
 
     it("keeps the loot history deletable only with write access (the table asks first)", () => {
-        expect(charPage).toContain('const canEdit = canAccess(user, "history", "write");');
+        expect(charPage).toContain("const canEdit = canAccess(user, \"history\", \"write\");");
         expect(charPage).toContain("onDelete={canEdit ? removeItem : undefined}");
     });
 
@@ -160,10 +160,10 @@ describe("rosterView helpers (mirrored logic)", () => {
         const src = view.match(/export function nightLabel[\s\S]*?\n}\n/)[0]
             .replace(/^export function nightLabel\(ms: number\): string \{/, "function nightLabel(ms) {")
             .replace(/\(type: string\) =>/, "(type) =>");
-        // eslint-disable-next-line no-new-func
+         
         const nightLabel = new Function(`${src}\nreturn nightLabel;`)();
         const seconds = Math.floor(Date.UTC(2026, 5, 15, 20, 0, 0) / 1000);
-        expect(nightLabel(seconds)).toMatch(/^..\ 2[01]\.01\.$/);
+        expect(nightLabel(seconds)).toMatch(/^.. 2[01]\.01\.$/);
         expect(nightLabel(seconds * 1000)).toBe("Mo 15.06.");
     });
 });

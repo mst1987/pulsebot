@@ -145,7 +145,7 @@ describe("Dockerfile", () => {
 
     it("copies what the bot reads at runtime", () => {
         for (const dir of ["src", "assets", "scripts"]) {
-            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \./${dir}/$`, "m"));
+            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \\./${dir}/$`, "m"));
         }
         // The client imports the shared menu list from outside its folder.
         expect(docker).toMatch(/COPY src\/config\/menu\.json/);
@@ -210,9 +210,9 @@ describe("CI workflow (#414)", () => {
     });
 
     it("never lets the client's warning budget grow", () => {
-        // A ratchet from the 30 warnings at the time of #414: lower it, never raise it.
+        // A ratchet (30 warnings at #414, 18 after #415): lower it, never raise it.
         const budget = Number(job("web-client").match(/--max-warnings=(\d+)/)[1]);
-        expect(budget).toBeLessThanOrEqual(30);
+        expect(budget).toBeLessThanOrEqual(18);
     });
 
     it("deploys only after lint, tests and the web client passed", () => {

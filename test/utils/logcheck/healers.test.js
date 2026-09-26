@@ -1,4 +1,4 @@
-﻿const {
+const {
     analyzeHealers, healersForFight, healingOf, manaOf, manaCurve, dispelsForFight, tankOf, shieldsForFight, summarize,
     STEP_MS, LOW_MANA_PCT, EMPTY_MANA_PCT, POTION_WORTH_MS, POTION_WORTH_PCT,
 } = require("../../../src/utils/logcheck/healers");
