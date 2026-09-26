@@ -3,6 +3,7 @@
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { esc } = require("./layout");
 const { expBtn, badge, LINE, ibtn, hicon } = require("./widgets");
+const { formatGermanDateTime } = require("../../utils/date");
 
 // ---- Empfehlungen: what each raider and the raid should do differently (report.recommendations) ----
 //
@@ -92,7 +93,7 @@ function renderSendBox(report) {
     const sentNames = approved.filter((p) => sent[p.name]);
     const phrase = report.recommendationPhrase;
     const phraseBadge = phrase
-        ? `<span class="badge accent rec-phrase-meta" data-tip="${esc(`KI-Formulierung vom ${new Date(phrase.at).toLocaleString("de-DE")}`)}" data-tip-sub="${esc(`${phrase.model}: ${phrase.phrased} Texte für ${phrase.players} Raider${(phrase.errors || []).length ? `, ${phrase.errors.length} Fehler` : ""}`)}">${hicon("inv_scroll_03", "")}${esc(phrase.phrased)} KI-Texte</span>`
+        ? `<span class="badge accent rec-phrase-meta" data-tip="${esc(`KI-Formulierung vom ${formatGermanDateTime(phrase.at)}`)}" data-tip-sub="${esc(`${phrase.model}: ${phrase.phrased} Texte für ${phrase.players} Raider${(phrase.errors || []).length ? `, ${phrase.errors.length} Fehler` : ""}`)}">${hicon("inv_scroll_03", "")}${esc(phrase.phrased)} KI-Texte</span>`
         : "";
     return `<div class="rec-send" data-report="${esc(report.id)}">
       <div class="badges rec-send-meta">${badge(`${approved.length} Raider mit freigegebenen Punkten`, approved.length ? "ok" : "", "inv_misc_note_01")}${badge(`${sentNames.length} bereits angeschrieben`, "", "inv_letter_15")}${phraseBadge}</div>

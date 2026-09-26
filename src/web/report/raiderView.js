@@ -15,6 +15,7 @@ const { IMPACT_LABEL, IMPACT_TONE, recItem } = require("./recommendations");
 const { abilityIcon } = require("./panels/damage");
 const { RPB_ACTIVITY_HOW, spellTiles } = require("./panels/rpb");
 const { ROLE_LABEL } = require("./context");
+const { formatGermanDateTime } = require("../../utils/date");
 
 // ---- Sicht Raider: one card per raider ------------------------------------------
 
@@ -267,7 +268,7 @@ function sendDialog(ctx, p, i, items) {
       <div class="send-grid">
         <div class="send-items">${blocks || "<div class=\"rec-empty\">Noch nichts freigegeben.</div>"}</div>
         <div class="send-preview"><div class="kicker">So kommt es an</div><div class="dm"><div class="dm-head"><span class="crest">${ICONS.crest}</span><b>EventHelper</b>${badge("BOT", "accent")}</div><b>${esc(report.title || "Raid")} · Deine Auswertung</b><span class="mute">${approved.length} Punkt${approved.length === 1 ? "" : "e"} von der Raidleitung geprüft</span><div class="dm-items">${preview}</div><a href="${link}" target="_blank" rel="noopener">Report ansehen${LINE.external}</a></div>
-        <div class="badges"><span class="badge map-badge">Zuordnung wird geprüft …</span>${sent ? badge(`gesendet ${new Date(sent.at).toLocaleString("de-DE")}`, "") : badge("noch nie gesendet", "")}</div></div>
+        <div class="badges"><span class="badge map-badge">Zuordnung wird geprüft …</span>${sent ? badge(`gesendet ${formatGermanDateTime(sent.at)}`, "") : badge("noch nie gesendet", "")}</div></div>
       </div>
       <div class="dlg-foot"><span class="note send-out">Ein unveränderter Satz wird nie zweimal geschickt.</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Per Bot senden</button></div></div>
     </dialog>`;
@@ -364,7 +365,7 @@ function raiderCard(ctx, p, i, opts = {}) {
     let sendDlg = "";
     if (reviewer && recP) {
         const sent = ctx.sent[name];
-        foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(new Date(sent.at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
+        foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(formatGermanDateTime(sent.at)) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
         sendDlg = sendDialog(ctx, p, i, items);
     }
     const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];

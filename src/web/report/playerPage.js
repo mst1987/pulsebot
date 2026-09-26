@@ -10,6 +10,7 @@ const { renderFightSection } = require("./fight");
 const { tryPills, playerFights } = require("./bossView");
 const { ROLE_LABEL, reportContext } = require("./context");
 const { sendDialog, raiderSections } = require("./raiderView");
+const { formatGermanDateTime } = require("../../utils/date");
 
 /**
  * The player page: the same raider card as in Sicht Raider, opened, with the
@@ -169,7 +170,7 @@ function renderPlayerPage(report, idx, user) {
     const kicker = [report.title, report.date].filter(Boolean).map(esc).join(" · ");
 
     const recs = secs.find((s) => s.key === "recs");
-    const points = `<section class="gcard" id="p-points">${groupHead("inv_misc_note_01", open ? "mid" : "", reviewer ? "Punkte für den nächsten Raid" : "Deine Punkte für den nächsten Raid", `${name} › Empfehlungen · ${reviewer ? `${approved} freigegeben · ${open} offen` : "von der Raidleitung geprüft"}`, badge(String(items.length), "", "", true))}${recs ? recs.html : "<div class=\"rlist\"><div class=\"rec-empty\">Noch keine freigegebenen Punkte.</div></div>"}${reviewer && recP ? `<div class="raider-foot" data-report="${esc(report.id)}" data-name="${esc(name)}"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${ctx.sent[name] ? esc(new Date(ctx.sent[name].at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button></div></div>` : ""}</section>`;
+    const points = `<section class="gcard" id="p-points">${groupHead("inv_misc_note_01", open ? "mid" : "", reviewer ? "Punkte für den nächsten Raid" : "Deine Punkte für den nächsten Raid", `${name} › Empfehlungen · ${reviewer ? `${approved} freigegeben · ${open} offen` : "von der Raidleitung geprüft"}`, badge(String(items.length), "", "", true))}${recs ? recs.html : "<div class=\"rlist\"><div class=\"rec-empty\">Noch keine freigegebenen Punkte.</div></div>"}${reviewer && recP ? `<div class="raider-foot" data-report="${esc(report.id)}" data-name="${esc(name)}"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${ctx.sent[name] ? esc(formatGermanDateTime(ctx.sent[name].at)) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button></div></div>` : ""}</section>`;
     const fightTable = playerFightTable(ctx, p);
     const detail = secs.filter((s) => s.key !== "recs").map((s) => {
         const tone = s.tone === "bad" ? "bad" : s.tone === "mid" ? "mid" : "";
