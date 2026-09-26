@@ -143,7 +143,7 @@ function runRequest(request) {
         }
         const started = Date.now();
         execFile(bin, ["sim", "--infile", infile, "--outfile", outfile], { timeout: TIMEOUT_MS }, (err) => {
-            let result = null;
+            let result;
             try {
                 result = JSON.parse(fs.readFileSync(outfile, "utf8"));
             } catch {

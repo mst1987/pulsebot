@@ -420,7 +420,7 @@ function formModal(state, { values = null } = {}) {
 function readForm(interaction) {
     const out = {};
     for (const id of FIELDS) {
-        let value = "";
+        let value;
         try {
             value = interaction.fields.getTextInputValue(id);
         } catch {

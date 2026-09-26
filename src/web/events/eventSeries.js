@@ -347,7 +347,7 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
 async function seriesOverview({ guildId, config = getConfig(), now = Date.now(), count = 4 } = {}) {
     const stored = store.listSeries();
     const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(stored)])];
-    let names = {};
+    let names;
     try {
         names = Object.fromEntries((discord.listCategories(guildId) || []).map((c) => [c.id, c.name]));
     } catch {

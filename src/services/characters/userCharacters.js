@@ -9,7 +9,7 @@ const profiles = require("../../stores/raiderProfileStore");
 function myCharacters(userId) {
     const out = charactersForUser(userId);
     const seen = new Set(out.map((c) => c.character.toLowerCase()));
-    let profile = null;
+    let profile;
     try {
         profile = profiles.getProfile(userId);
     } catch {

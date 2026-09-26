@@ -105,7 +105,7 @@ function interruptedSpellsOf(table) {
  */
 async function analyzeInterrupts(wcl, reportId, fights) {
     const end = fights.end || 999999999999;
-    let table = null;
+    let table;
     try {
         table = await wcl.getInterrupts(reportId, 0, end, { filter: EXCLUDE_KALECGOS });
     } catch {

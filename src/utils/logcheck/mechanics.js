@@ -172,8 +172,8 @@ async function analyzeMechanics(wcl, reportId, fights, idToPlayer, timeline) {
         const f = byId.get(row.id);
         if (!f) continue;
         judgeDeaths(row.deaths, row);
-        let damage = [];
-        let debuffs = [];
+        let damage;
+        let debuffs;
         try {
             damage = await wcl.getAllEvents(reportId, "damage-taken", f.start_time, f.end_time, { filter: idFilter(DAMAGE_IDS) }, { maxPages: 100 });
             debuffs = await wcl.getAllEvents(reportId, "debuffs", f.start_time, f.end_time, { filter: idFilter(DEBUFF_IDS) }, { maxPages: 50 });

@@ -61,7 +61,7 @@ async function talkMemberIds(guildId) {
         const members = await discord.fetchGuildMembersCached(guildId, guild);
         return new Set(members.map((m) => String(m.id)));
     } catch (e) {
-        throw new Error(`Mitglieder des Kommunikations-Discords nicht lesbar: ${(e && e.message) || "GuildMembers-Intent aktiv?"}`);
+        throw new Error(`Mitglieder des Kommunikations-Discords nicht lesbar: ${(e && e.message) || "GuildMembers-Intent aktiv?"}`, { cause: e });
     }
 }
 

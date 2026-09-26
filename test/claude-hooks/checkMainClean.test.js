@@ -133,7 +133,7 @@ describe("scripts/check-main-clean", () => {
     it("runs as a process: exit 1 with the report on stdout", () => {
         write("stray.js");
         let status = 0;
-        let stdout = "";
+        let stdout;
         try {
             stdout = execFileSync(process.execPath, [SCRIPT, repo.main], { encoding: "utf8" });
         } catch (err) {
