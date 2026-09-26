@@ -1,6 +1,7 @@
 import { get, send } from "./client";
 import type { ApiError } from "./client";
 import type { ItemSearchResult } from "./settings";
+import { t } from "../i18n";
 
 // ── Loot-Council ─────────────────────────────────────────────────────────────
 // The caster council view (src/web/apiRoutes/lootCouncil.js). Two speeds: the
@@ -460,10 +461,10 @@ export async function runCouncilSim(
         const job = await getCouncilSim(id);
         if (onProgress) onProgress(job);
         if (job.status === "done") return job.result || {};
-        if (job.status === "error") throw { code: "sim_failed", message: job.error || "Simulation fehlgeschlagen." } as ApiError;
-        if (job.status === "unknown") throw { code: "sim_lost", message: "Die Simulation wurde unterbrochen. Bitte erneut starten." } as ApiError;
+        if (job.status === "error") throw { code: "sim_failed", message: job.error || t("lootcouncil.sim.failed") } as ApiError;
+        if (job.status === "unknown") throw { code: "sim_lost", message: t("lootcouncil.sim.lost") } as ApiError;
         if (Date.now() - startedAt > TIMEOUT_MS) {
-            throw { code: "sim_timeout", message: "Die Simulation dauert ungewöhnlich lange. Bitte später erneut versuchen." } as ApiError;
+            throw { code: "sim_timeout", message: t("lootcouncil.sim.timeout") } as ApiError;
         }
     }
 }

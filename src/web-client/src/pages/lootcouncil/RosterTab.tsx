@@ -2,6 +2,7 @@ import type { CouncilRaider, LootCouncilData, SimResult } from "../../api";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/tableSort";
 import { Button, PartHead } from "../../components/ui";
+import { useT } from "../../i18n";
 import type { RosterSortKey, useCouncilSim } from "./council";
 import { FoldRow } from "./ItemBits";
 import RosterList from "./RosterList";
@@ -30,14 +31,15 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
     busy: Set<string>;
     setExcluded: (character: string, excluded: boolean) => void;
 }) {
+    const t = useT();
     return (
         <>
             <PartHead
                 icon="achievement_guildperk_everybodysfriend"
-                crumb="Loot-Council › Raider"
-                title="Wer ist dran?"
-                tip="Wer ist dran?"
-                tipSub="Wer am längsten nichts bekommen hat, steht oben. Die Details eines Raiders zeigen Gear, BiS-Lücken und Loot."
+                crumb={t("lootcouncil.roster.crumb")}
+                title={t("lootcouncil.roster.title")}
+                tip={t("lootcouncil.roster.title")}
+                tipSub={t("lootcouncil.roster.tipSub")}
                 action={data.sim.available ? (
                     <Button
                         variant="run"
@@ -47,7 +49,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                         disabled={!simulatable.length}
                         onClick={() => runSim([], simulatable)}
                     >
-                        DPS berechnen
+                        {t("lootcouncil.roster.simulate")}
                     </Button>
                 ) : undefined}
             />
@@ -61,14 +63,13 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                 />
             ) : (
                 <div className="lc-panel empty">
-                    Keine passenden Raider. Der Loot-Council liest Klasse und Spec aus den Loot-Importen und den
-                    CLA-Auswertungen — ohne die bleibt die Liste leer.
+                    {t("lootcouncil.roster.empty")}
                 </div>
             )}
             {data.excluded.length ? (
                 <FoldRow
                     icon="ability_rogue_feigndeath"
-                    title="Nicht eingeplant"
+                    title={t("lootcouncil.roster.excludedTitle")}
                     count={data.excluded.length}
                     names={data.excluded.map((e) => e.character).join(", ")}
                     open={excludedOpen}
@@ -78,7 +79,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                         {data.excluded.map((e) => (
                             <div key={e.key} className="lc-dlist-row">
                                 <b>{e.character}</b>
-                                <span className="lc-muted">seit {fmtMs(e.at, false)}{e.by ? ` · ${e.by}` : ""}</span>
+                                <span className="lc-muted">{t("lootcouncil.roster.since", { date: fmtMs(e.at, false) })}{e.by ? ` · ${e.by}` : ""}</span>
                                 {canWrite ? (
                                     <Button
                                         variant="ghost"
@@ -88,7 +89,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                                         disabled={busy.has(`exclude:${e.character}`)}
                                         onClick={() => setExcluded(e.character, false)}
                                     >
-                                        Wieder einplanen
+                                        {t("lootcouncil.roster.includeAgain")}
                                     </Button>
                                 ) : null}
                             </div>

@@ -10,6 +10,7 @@ import type { BisSpec, CouncilLootItem } from "../../api";
 import { Badge, Expand, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
 import { ReasonBadge } from "../../components/loot/LootBadges";
+import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { WOWHEAD } from "./council";
@@ -110,6 +111,7 @@ export function ItemHead({ id, name, iconUrl, quality, meta }: {
  * contested item would show nine badges carrying five claims.
  */
 export function BisSpecs({ specs }: { specs: BisSpec[] }) {
+    const t = useT();
     if (!specs.length) return null;
     return (
         <span className="lc-bisspecs">
@@ -119,9 +121,9 @@ export function BisSpecs({ specs }: { specs: BisSpec[] }) {
                     <Badge
                         key={s.specKey}
                         icon={s.iconUrl ? <img className="wi" src={s.iconUrl} alt="" loading="lazy" /> : undefined}
-                        tip={`BiS für ${s.label}`}
+                        tip={t("lootcouncil.items.bisForTip", { spec: s.label })}
                         tipSub={s.alsoFor.length
-                            ? `Dieselbe Liste gilt auch für ${s.alsoFor.join(" und ")} — WoWSims führt für die keine eigene.`
+                            ? t("lootcouncil.items.alsoFor", { specs: s.alsoFor.join(` ${t("lootcouncil.word.and")} `) })
                             : undefined}
                     >
                         <span className={colored.className} style={colored.style}>{s.label}</span>
@@ -142,15 +144,16 @@ const TIP_ITEMS = 6;
  * real count; off-spec rolls, shards and bank items are named, never counted.
  */
 export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[]; total: number; other?: number }) {
+    const t = useT();
     if (!total) {
         return other
-            ? <span className="lc-num lc-muted" data-tip="Kein erhaltener Loot" data-tip-sub={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—</span>
+            ? <span className="lc-num lc-muted" data-tip={t("lootcouncil.items.noLootTip")} data-tip-sub={t("lootcouncil.items.otherTipSub", { count: other })}>—</span>
             : <span className="lc-num lc-muted">—</span>;
     }
     const shown = items.slice(0, TIP_ITEMS);
     return (
-        <RichTip width={440} label={`${total} Items`} trigger={<span className="lc-num">{total}</span>}>
-            <b>Zuletzt bekommen</b>
+        <RichTip width={440} label={t("lootcouncil.word.itemCount", { count: total })} trigger={<span className="lc-num">{total}</span>}>
+            <b>{t("lootcouncil.items.recent")}</b>
             <span className="lc-loot-list">
                 {shown.map((item, i) => (
                     <span key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
@@ -161,8 +164,8 @@ export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[
                     </span>
                 ))}
             </span>
-            {total > shown.length ? <i>… und {total - shown.length} weitere — die volle Liste steht in den Details.</i> : null}
-            {other ? <i>Dazu {other} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.</i> : null}
+            {total > shown.length ? <i>{t("lootcouncil.items.more", { count: total - shown.length })}</i> : null}
+            {other ? <i>{t("lootcouncil.items.otherNote", { count: other })}</i> : null}
         </RichTip>
     );
 }

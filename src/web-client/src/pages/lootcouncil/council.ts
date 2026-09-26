@@ -5,6 +5,7 @@
 import { useCallback, useRef, useState } from "react";
 import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/Jobs";
+import { t, tOr } from "../../i18n";
 import type { Dir } from "../../lib/tableSort";
 import { wowheadItemUrl } from "../../lib/wowheadItems";
 
@@ -22,8 +23,9 @@ export const VIEW_KEY = "lootcouncil.view";
 
 export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents: [], category: "", bisTier: "" };
 
-// Wie die Rollen am Raider heißen, und ihr Icon im Segment.
-export const ROLE_LABEL: Record<string, string> = { caster: "Caster", healer: "Heiler" };
+// Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
+// Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.
+export const roleLabel = (id: string, fallback?: string) => tOr(`lootcouncil.role.${id}`, fallback || id);
 export const ROLE_ICON: Record<string, string> = { caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit" };
 
 export const WOWHEAD = (id: number) => wowheadItemUrl(id);
@@ -81,7 +83,7 @@ export function deltaFor(sim: SimResult | null, candidate: CouncilCandidate, ite
 export function simErrorFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): string | undefined {
     const entry = sim && sim[candidate.key];
     const item = entry && entry.items[String(itemId)];
-    return item && item.dps === null ? (item.error || "Simulation fehlgeschlagen.") : undefined;
+    return item && item.dps === null ? (item.error || t("lootcouncil.sim.failed")) : undefined;
 }
 
 /**
@@ -124,7 +126,7 @@ export function pickVerdict(candidates: CouncilCandidate[], sim: SimResult | nul
 
 /** "Letztes Item vor 34 Tagen" — the tooltip of every Tage/Zuletzt cell. */
 export function waitedTip(daysSinceLoot: number | null): string {
-    return daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${daysSinceLoot} Tagen`;
+    return daysSinceLoot === null ? t("lootcouncil.waited.never") : t("lootcouncil.waited.days", { count: daysSinceLoot });
 }
 
 /**
@@ -164,20 +166,22 @@ export function useCouncilSim() {
         setSimRunning(true);
         const id = `council-${Date.now()}`;
         const total = subjects.length * (1 + items.length);
-        const detail = what || `${subjects.length} Raider${items.length ? ` × ${items.length} Item(s)` : ""}`;
+        const detail = what || (items.length
+            ? t("lootcouncil.sim.subjectsItems", { count: subjects.length, items: items.length })
+            : t("lootcouncil.sim.subjects", { count: subjects.length }));
         const result = await jobs.run<SimResult>(
             {
-                label: "Simulation",
+                label: t("lootcouncil.sim.label"),
                 detail,
                 describe: (r) => ({
                     message: items.length
-                        ? `Simulation fertig: ${Object.keys(r).length} Raider, ${items.length} Item(s). Die DPS stehen jetzt in den Tabellen.`
-                        : `DPS berechnet für ${Object.keys(r).length} Raider.`,
+                        ? t("lootcouncil.sim.doneItems", { count: Object.keys(r).length, items: items.length })
+                        : t("lootcouncil.sim.doneBaseline", { count: Object.keys(r).length }),
                 }),
             },
             (update) => runCouncilSim(id, subjects, items, (job) => update({
                 progress: job.total ? (job.progress ?? 0) / job.total : undefined,
-                detail: `${detail} · ${job.progress ?? 0} von ${job.total ?? total}`,
+                detail: t("lootcouncil.sim.progress", { detail, done: job.progress ?? 0, total: job.total ?? total }),
             })),
         );
         simBusy.current = false;
@@ -211,23 +215,23 @@ export function categoryNote(data: LootCouncilData): { head: string; sub: string
     if (!categoryId && !skipped.excluded) return null;
     const nothingFound = !!src && !src.reports && !src.loot && !src.assigned;
     const parts: string[] = [];
-    if (skipped.category) parts.push(`${skipped.category} Raider gehören nicht zu dieser Raid-Kategorie.`);
-    if (skipped.excluded) parts.push(`${skipped.excluded} sind als „nicht einplanen“ abgelegt.`);
+    if (skipped.category) parts.push(t("lootcouncil.category.skipped", { count: skipped.category }));
+    if (skipped.excluded) parts.push(t("lootcouncil.category.excluded", { count: skipped.excluded }));
     if (src && !nothingFound) {
         const from = [
-            src.reports ? `${src.reports} aus Logs` : "",
-            src.loot ? `${src.loot} über Loot` : "",
-            src.assigned ? `${src.assigned} aus der Zuordnung` : "",
+            src.reports ? t("lootcouncil.category.fromReports", { count: src.reports }) : "",
+            src.loot ? t("lootcouncil.category.fromLoot", { count: src.loot }) : "",
+            src.assigned ? t("lootcouncil.category.fromAssigned", { count: src.assigned }) : "",
         ].filter(Boolean).join(", ");
-        parts.push(`Zugeordnet über: ${from}.`);
-        if (!src.assigned) parts.push("Ohne gepflegte Zuordnung (Einstellungen → Kategorien) fehlt, wer hier weder geloggt wurde noch etwas gewonnen hat.");
+        parts.push(t("lootcouncil.category.via", { from }));
+        if (!src.assigned) parts.push(t("lootcouncil.category.noAssignment"));
     }
     if (nothingFound) {
-        parts.push("Für diese Kategorie ist niemand zuzuordnen: keine ausgewerteten Logs, kein Loot mit dieser Kategorie und keine Raider-Zuordnung. Am schnellsten behoben in Einstellungen → Kategorien (Raider ↔ Charakter), oder indem ein Log dieses Raids ausgewertet und dem Event zugeordnet wird.");
+        parts.push(t("lootcouncil.category.nothingFound"));
     }
     const hidden = skipped.category + skipped.excluded;
     return {
-        head: nothingFound ? "Niemand in dieser Kategorie" : `${hidden} nicht in der Liste`,
+        head: nothingFound ? t("lootcouncil.category.headEmpty") : t("lootcouncil.category.headHidden", { count: hidden }),
         sub: parts.join(" "),
         empty: nothingFound,
     };

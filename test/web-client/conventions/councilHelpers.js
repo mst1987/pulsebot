@@ -4,6 +4,19 @@
 // source: structure, classes, and the invariants that would rot silently.
 const fs = require("fs");
 const path = require("path");
+const { dictionary } = require("../clientSource");
+
+/**
+ * The page's German texts (#440): the source names a key
+ * (`t("lootcouncil.page.dropCheck")`), the words themselves live in
+ * locales/de/lootcouncil.json. `text("page.dropCheck")` reads one of them.
+ */
+const DE = dictionary("de");
+function text(key) {
+    const value = DE[`lootcouncil.${key}`];
+    if (value === undefined) throw new Error(`text lootcouncil.${key} not found`);
+    return typeof value === "string" ? value : value.other;
+}
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 // Line endings normalised: a Windows checkout has CRLF.
@@ -47,4 +60,4 @@ function rule(css, selector) {
     return m[1];
 }
 
-module.exports = { files, fn, rule, read, PAGE_FILES, PART_FILES };
+module.exports = { files, fn, rule, read, text, PAGE_FILES, PART_FILES };

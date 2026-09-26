@@ -19,7 +19,7 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 // the page with its tabs (the comparison is CompareTab.tsx, the view view.ts; #438)
-const { files, fn: fnIn } = require("./councilHelpers");
+const { files, fn: fnIn, text } = require("./councilHelpers");
 
 const page = files.page;
 const css = read("index.css");
@@ -101,7 +101,9 @@ describe("loot council — the comparison tab", () => {
     it("says why an empty cell matters instead of leaving it blank", () => {
         const cell = fn("CompareCell");
         expect(cell).toMatch(/raider\.bis\.items\.find\(\(b\) => b\.id === row\.itemId\)/);
-        expect(cell).toMatch(/entry\.owned \? "trägt es" : "BiS offen"/);
+        expect(cell).toMatch(/entry\.owned \? t\("lootcouncil\.compare\.worn"\) : t\("lootcouncil\.compare\.open"\)/);
+        expect(text("compare.worn")).toBe("trägt es");
+        expect(text("compare.open")).toBe("BiS offen");
         // A received item is tinted, an open one outlined — the row reads as a
         // pattern before anyone reads a date.
         expect(cell).toMatch(/className="lc-blcell lc-cmpcell got"/);

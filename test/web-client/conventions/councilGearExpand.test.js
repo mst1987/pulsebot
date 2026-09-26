@@ -9,7 +9,7 @@
 //     the BiS-gap table (which wires none of the callbacks) is unchanged;
 //   * GearBadges moved out of the raider dialog into the shared parts module,
 //     so the dialog and the drop check draw the same badges from the same code.
-const { files, fn } = require("./councilHelpers");
+const { files, fn, text } = require("./councilHelpers");
 
 const { council, parts, dialog, drop } = files;
 
@@ -17,12 +17,13 @@ describe("loot council — Fehler vs. nicht simuliert", () => {
     it("adds a simErrorFor reader beside deltaFor, telling a failed run apart from an unattempted one", () => {
         const helper = fn(council, "simErrorFor");
         expect(helper).toMatch(/item\.dps === null/);
-        expect(helper).toMatch(/item\.error \|\| "Simulation fehlgeschlagen\."/);
+        expect(helper).toMatch(/item\.error \|\| t\("lootcouncil\.sim\.failed"\)/);
+        expect(text("sim.failed")).toBe("Simulation fehlgeschlagen.");
     });
 
     it("GainCell shows Fehler for a real failure and nicht simuliert otherwise, both with a retry button", () => {
         const cell = fn(parts, "GainCell");
-        expect(cell).toMatch(/simError \? "Fehler" : "nicht simuliert"/);
+        expect(cell).toMatch(/simError \? t\("common\.error"\) : t\("lootcouncil\.sim\.notSimulated"\)/);
         expect(cell).toMatch(/onRetry \? \(/);
         expect(cell).toMatch(/icon=\{<RefreshIcon \/>\}/);
     });
@@ -53,14 +54,17 @@ describe("loot council — candidate gear expand", () => {
         expect(panelFn).toMatch(/<GearBadges gear=\{g\}/);
         expect(panelFn).toMatch(/g\.items\.map\(\(item\) => <WornIcon key=/);
         expect(panelFn).toMatch(/g && g\.pvpGear \? \(/);
-        expect(panelFn).toMatch(/kein Boss-Set bekannt/);
+        expect(panelFn).toMatch(/t\("lootcouncil\.gear\.pvpHintHead"\)/);
+        expect(text("gear.pvpHintHead")).toMatch(/kein Boss-Set bekannt/);
     });
 
     it("Log/Armory reload buttons only appear when the caller wired them", () => {
         const panelFn = fn(parts, "CandidateGearPanel");
-        expect(panelFn).toMatch(/onLoadLog \? <Button[\s\S]*?Log laden<\/Button> : null/);
+        expect(panelFn).toMatch(/onLoadLog \? <Button[\s\S]*?\{t\("lootcouncil\.gear\.loadLog"\)\}<\/Button> : null/);
         expect(panelFn).toMatch(/onLoadArmory \? \(/);
-        expect(panelFn).toMatch(/Gear jetzt aus Armory holen/);
+        expect(panelFn).toMatch(/t\("lootcouncil\.gear\.armoryFetchNow"\)/);
+        expect(text("gear.loadLog")).toBe("Log laden");
+        expect(text("gear.armoryFetchNow")).toBe("Gear jetzt aus Armory holen");
     });
 
     it("the drop check wires expandable and the reload actions; the BiS-gap table does not", () => {
@@ -75,7 +79,10 @@ describe("loot council — candidate gear expand", () => {
         expect(drop).toMatch(/loadCouncilLogGear\(\{ character \}\)/);
         expect(drop).toMatch(/armoryRejected === "pvp"/);
         expect(drop).toMatch(/logRejected === "pvp"/);
-        expect(drop).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid\./);
+        // Same wording as the page: both toast the one text under the same key.
+        expect(drop).toMatch(/t\("lootcouncil\.page\.armoryPvp", \{ names: character \}\)/);
+        expect(files.page).toMatch(/t\("lootcouncil\.page\.armoryPvp", /);
+        expect(text("page.armoryPvp")).toMatch(/die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid\./);
     });
 });
 

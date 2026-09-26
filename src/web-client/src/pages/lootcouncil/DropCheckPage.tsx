@@ -16,6 +16,7 @@ import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import PageLoader from "../../components/PageLoader";
 import { Badge, Button, PartHead } from "../../components/ui";
 import { ChevronLeftIcon } from "../../components/icons";
+import { t as translate, useT } from "../../i18n";
 import { usePersistedState } from "../../lib/persistedState";
 import { useTableSort } from "../../lib/tableSort";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
@@ -32,6 +33,7 @@ import "../../styles/loot-council.css";
 export default function DropCheckPage() {
     const { itemId: param } = useParams();
     const itemId = Number(param) || 0;
+    const t = useT();
     const navigate = useNavigate();
     const jobs = useJobs();
     const toast = useToast();
@@ -53,7 +55,7 @@ export default function DropCheckPage() {
         const subjects = f.candidates
             .filter((c) => c.simSupported && c.hasGear)
             .map((c) => ({ key: c.key, specKey: c.specKey }));
-        runSim([f.item.id], subjects, `Drop prüfen: ${f.item.name || `Item ${f.item.id}`}`);
+        runSim([f.item.id], subjects, t("lootcouncil.drop.simDetail", { item: f.item.name || `Item ${f.item.id}` }));
     };
     /** Just one candidate — the ↻ button next to "nicht simuliert"/"Fehler". */
     const simulateOne = (f: CouncilFocus, candidate: CouncilCandidate) => {
@@ -73,10 +75,10 @@ export default function DropCheckPage() {
         if (!itemId) { setFocus(null); return undefined; }
         let alive = true;
         setLoading(true);
-        jobs.run({ label: "Drop wird geprüft", quiet: true }, fetchFocus)
+        jobs.run({ label: translate("lootcouncil.drop.loading"), quiet: true }, fetchFocus)
             .then((d) => {
                 if (!alive) return;
-                if (!d) { setError({ code: "load", message: "Der Drop konnte nicht geladen werden." } as ApiError); return; }
+                if (!d) { setError({ code: "load", message: translate("lootcouncil.drop.loadFailed") } as ApiError); return; }
                 setError(null);
                 setFocus(d.focus);
                 setSimAvailable(d.sim.available);
@@ -91,7 +93,7 @@ export default function DropCheckPage() {
 
     /** Re-reads the focus after a gear reload — quiet, no page-level spinner. */
     const reloadFocus = async (): Promise<CouncilFocus | null> => {
-        const d = await jobs.run({ label: "Wird aktualisiert", quiet: true }, fetchFocus);
+        const d = await jobs.run({ label: t("lootcouncil.drop.refreshing"), quiet: true }, fetchFocus);
         if (!d) return null;
         setFocus(d.focus);
         setSimAvailable(d.sim.available);
@@ -107,20 +109,20 @@ export default function DropCheckPage() {
         if (gearBusyChar) return;
         setGearBusyChar(character);
         const result = await jobs.run(
-            { label: "Armory wird geladen", detail: character, quiet: true },
+            { label: t("lootcouncil.page.armoryLoading"), detail: character, quiet: true },
             () => refreshCouncilArmory([character]),
         );
         if (result) {
             const fresh = await reloadFocus();
             const row = fresh?.candidates.find((c) => c.character.toLowerCase() === character.toLowerCase());
             if (!result.answered) {
-                toast(`Die Armory kennt ${character} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`, "err");
+                toast(t("lootcouncil.page.armoryUnknownOne", { character }), "err");
             } else if (row?.gear?.armoryRejected === "pvp") {
-                toast(`${character}: die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid.`, "err");
+                toast(t("lootcouncil.page.armoryPvp", { names: character }), "err");
             } else if (row?.gear?.armoryRejected === "role") {
-                toast(`${character}: die Armory zeigt ein Set der anderen Rolle — es bleibt beim Set aus dem letzten Raid.`, "err");
+                toast(t("lootcouncil.page.armoryRole", { names: character }), "err");
             } else if (row?.gear?.source === "armory") {
-                toast(`Armory geladen: ${character} hat jetzt aktuelles Gear.`);
+                toast(t("lootcouncil.page.armoryLoadedOne", { character }));
             }
         }
         setGearBusyChar(null);
@@ -131,19 +133,19 @@ export default function DropCheckPage() {
         if (gearBusyChar) return;
         setGearBusyChar(character);
         const result = await jobs.run(
-            { label: "Log wird geladen", detail: character, quiet: true },
+            { label: t("lootcouncil.page.logLoading"), detail: character, quiet: true },
             () => loadCouncilLogGear({ character }),
         );
         if (result) {
             const fresh = await reloadFocus();
             const row = fresh?.candidates.find((c) => c.character.toLowerCase() === character.toLowerCase());
-            const from = `„${result.reportTitle || result.reportId}“`;
+            const from = t("common.quoted", { text: result.reportTitle || result.reportId });
             if (row?.gear?.logRejected === "pvp") {
-                toast(`${character} trägt in ${from} PvP-Gear — es bleibt beim Set aus der Auswertung.`, "err");
+                toast(t("lootcouncil.page.logPvp", { character, from }), "err");
             } else if (row?.gear?.logRejected === "role") {
-                toast(`${character} trägt in ${from} ein Set der anderen Rolle — es bleibt beim Set aus der Auswertung.`, "err");
+                toast(t("lootcouncil.page.logRole", { character, from }), "err");
             } else {
-                toast(`Gear von ${character} aus ${from} geladen: ${result.items ?? 0} Teile.`);
+                toast(t("lootcouncil.page.logLoaded", { character, from, count: result.items ?? 0 }));
             }
         }
         setGearBusyChar(null);
@@ -158,31 +160,30 @@ export default function DropCheckPage() {
     return (
         <>
             <div className="page-head lc-drophead">
-                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>Raider</Button>
+                <Button variant="ghost" size="sm" icon={<ChevronLeftIcon />} onClick={() => navigate("/lootcouncil")}>{t("lootcouncil.drop.back")}</Button>
                 <div className="ph-text">
-                    <div className="kicker">Loot-Council › Drop prüfen</div>
-                    <h1>Wer bekommt den Drop?</h1>
+                    <div className="kicker">{t("lootcouncil.drop.kicker")}</div>
+                    <h1>{t("lootcouncil.drop.title")}</h1>
                 </div>
                 <div className="ph-act lc-dropsearch">
                     <ItemSearchPicker
                         search={searchCouncilItems}
                         onPick={(item: ItemSearchResult) => navigate(dropHref(item.id))}
-                        placeholder={itemId ? "Anderes Item suchen …" : "Item-Namen tippen, z. B. Zhar'doom …"}
+                        placeholder={itemId ? t("lootcouncil.drop.searchOther") : t("lootcouncil.drop.searchFirst")}
                     />
                 </div>
             </div>
 
             {!itemId ? (
                 <div className="lc-panel empty">
-                    Noch kein Item gewählt — oben rechts suchen. Gesucht wird in der Item-Tabelle des Bots; wer das Teil
-                    nicht anlegen kann, steht nicht unter den Kandidaten.
+                    {t("lootcouncil.drop.noItem")}
                 </div>
             ) : loading && !focus ? (
-                <PageLoader show text="Drop wird geprüft" />
+                <PageLoader show text={t("lootcouncil.drop.loading")} />
             ) : error ? (
                 <div className="empty">{error.message}</div>
             ) : !focus ? (
-                <div className="lc-panel empty">Dieses Item kennt die Item-Tabelle des Bots nicht.</div>
+                <div className="lc-panel empty">{t("lootcouncil.drop.unknownItem")}</div>
             ) : (
                 <>
                     <div className="lc-panel lc-dropitem2">
@@ -199,25 +200,25 @@ export default function DropCheckPage() {
                             </div>
                         </div>
                         <div className="lc-dropitem2-bis">
-                            <span className="lc-th">BiS für</span>
+                            <span className="lc-th">{t("lootcouncil.word.bisFor")}</span>
                             {focus.item.bisSpecs.length
                                 ? <BisSpecs specs={focus.item.bisSpecs} />
-                                : <Badge tip="Auf keiner BiS-Liste" tipSub="Steht auf keiner BiS-Liste der gewählten Tier-Stufe — kann trotzdem ein Upgrade sein.">keine Liste</Badge>}
+                                : <Badge tip={t("lootcouncil.drop.noListTip")} tipSub={t("lootcouncil.drop.noListTipSub")}>{t("lootcouncil.word.noList")}</Badge>}
                         </div>
                     </div>
 
                     <div className="lc-panel lc-verdictpanel">
                         <PartHead
                             icon="inv_misc_coin_02"
-                            crumb="Drop prüfen › Empfehlung"
-                            title={verdict?.basis === "sim" ? "Größter simulierter Zugewinn"
-                                : verdict?.basis === "need" ? "Höchster Bedarf"
-                                    : verdict?.basis === "pending" ? "Noch nicht simuliert" : "Kein Kandidat"}
-                            tip={verdict?.basis === "need" ? "Keine Simulation für diese Specs" : undefined}
-                            tipSub={verdict?.basis === "need" ? "WoWSims-TBC rechnet keine Heilung. Der Vorschlag folgt dem Bedarf — was das Teil bringt, sagt die Seite nicht, weil sie es nicht messen kann." : undefined}
+                            crumb={t("lootcouncil.drop.verdictCrumb")}
+                            title={verdict?.basis === "sim" ? t("lootcouncil.drop.titleSim")
+                                : verdict?.basis === "need" ? t("lootcouncil.sim.highestNeedTip")
+                                    : verdict?.basis === "pending" ? t("lootcouncil.sim.notSimulatedTip") : t("lootcouncil.gaps.noneTip")}
+                            tip={verdict?.basis === "need" ? t("lootcouncil.drop.needTip") : undefined}
+                            tipSub={verdict?.basis === "need" ? t("lootcouncil.drop.needTipSub") : undefined}
                             action={canSim ? (
                                 <Button variant="run" size="sm" icon="inv_gizmo_02" running={simRunning} onClick={() => simulateDrop(focus)}>
-                                    {verdict?.basis === "sim" ? "Erneut simulieren" : "DPS-Gewinn simulieren"}
+                                    {verdict?.basis === "sim" ? t("lootcouncil.sim.rerun") : t("lootcouncil.drop.simulateGain")}
                                 </Button>
                             ) : undefined}
                         />
@@ -233,28 +234,28 @@ export default function DropCheckPage() {
                                     to={raiderHref(best.character)}
                                 />
                                 {verdict.basis === "sim" ? (
-                                    <Badge tone="ok" className="lc-bigbadge" tip="Simulierte DPS-Differenz" tipSub="WoWSims, gleicher Seed für alle Kandidaten.">
+                                    <Badge tone="ok" className="lc-bigbadge" tip={t("lootcouncil.sim.diffTip")} tipSub={t("lootcouncil.sim.diffTipSub")}>
                                         {verdict.delta > 0 ? "+" : ""}{Math.round(verdict.delta)} DPS
                                     </Badge>
                                 ) : (
-                                    <Badge tone="accent" className="lc-bigbadge" tip="Höchster Bedarf" tipSub="Geschätzt wird kein Zugewinn.">höchster Bedarf</Badge>
+                                    <Badge tone="accent" className="lc-bigbadge" tip={t("lootcouncil.sim.highestNeedTip")} tipSub={t("lootcouncil.drop.needBadgeTipSub")}>{t("lootcouncil.sim.highestNeed")}</Badge>
                                 )}
                                 <ListBadge candidate={best} />
                                 <span className="lc-vsep" />
-                                <span className="lc-vstat2"><span className="lc-th">Bedarf</span><NeedBar subject={best} width={140} /></span>
-                                <span className="lc-vstat2"><span className="lc-th">Zuletzt</span><span className="lc-num" data-tip={waitedTip(best.daysSinceLoot)}>{best.daysSinceLoot === null ? "nie" : `${best.daysSinceLoot} Tage`}</span></span>
-                                <span className="lc-vstat2"><span className="lc-th">Items</span><LootCount items={best.recentItems} total={best.lootCount} other={best.otherCount} /></span>
-                                <span className="lc-vstat2 lc-vstat2-end"><span className="lc-th">Ersetzt</span><SlotOptions candidate={best} /></span>
+                                <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.need")}</span><NeedBar subject={best} width={140} /></span>
+                                <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.last")}</span><span className="lc-num" data-tip={waitedTip(best.daysSinceLoot)}>{best.daysSinceLoot === null ? t("lootcouncil.word.never") : t("lootcouncil.word.daysCount", { count: best.daysSinceLoot })}</span></span>
+                                <span className="lc-vstat2"><span className="lc-th">{t("lootcouncil.word.items")}</span><LootCount items={best.recentItems} total={best.lootCount} other={best.otherCount} /></span>
+                                <span className="lc-vstat2 lc-vstat2-end"><span className="lc-th">{t("lootcouncil.word.replaces")}</span><SlotOptions candidate={best} /></span>
                             </div>
                         ) : (
                             <div className="lc-verdictrow lc-muted">
                                 {verdict?.basis === "pending"
                                     ? simRunning
-                                        ? "Simulation läuft — der Fortschritt steht unten in der Mitte. Die Empfehlung erscheint, sobald sie durch ist."
-                                        : "Noch nicht simuliert. Ohne Simulation gibt es keine Empfehlung — geschätzt wird nichts."
+                                        ? t("lootcouncil.drop.pendingRunning")
+                                        : t("lootcouncil.drop.pendingIdle")
                                     : simAvailable
-                                        ? "Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter auf der Raider-Seite prüfen."
-                                        : "Keine Simulation verfügbar. Ohne sie gibt es keinen Zugewinn und keine Empfehlung — geschätzt wird nichts."}
+                                        ? t("lootcouncil.drop.noSlot")
+                                        : t("lootcouncil.drop.noSimAvailable")}
                             </div>
                         )}
                     </div>
@@ -263,10 +264,10 @@ export default function DropCheckPage() {
                         <>
                             <PartHead
                                 icon="inv_misc_grouplooking"
-                                crumb="Drop prüfen › Kandidaten"
-                                title="Alle, die ihn tragen können"
-                                tip="Zugewinn und Bedarf getrennt"
-                                tipSub="Was das Item bringt (nur simuliert), und was dem Raider zusteht — die Abwägung trifft der Council."
+                                crumb={t("lootcouncil.drop.candidatesCrumb")}
+                                title={t("lootcouncil.drop.candidatesTitle")}
+                                tip={t("lootcouncil.drop.candidatesTip")}
+                                tipSub={t("lootcouncil.drop.candidatesTipSub")}
                                 action={<Badge count>{focus.candidates.length}</Badge>}
                             />
                             <div className="lc-panel lc-tablepanel">
@@ -291,7 +292,7 @@ export default function DropCheckPage() {
                     {focus.unwearable.length ? (
                         <FoldRow
                             icon="ability_creature_cursed_02"
-                            title="Können es nicht tragen"
+                            title={t("lootcouncil.drop.unwearable")}
                             count={focus.unwearable.length}
                             names={focus.unwearable.map((u) => u.character).join(", ")}
                             open={unwearableOpen}
