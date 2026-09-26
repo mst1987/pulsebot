@@ -1,7 +1,7 @@
 ﻿const { MessageFlags } = require("discord.js");
 const { DateTime } = require("luxon");
 const { createRaidhelperClient } = require("./raidhelperClient");
-const extendedClassList = require("../config/classlist.js");
+const { entryFor } = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const { TIMEZONE } = require("../config/timezone");
 const {
@@ -12,7 +12,7 @@ const {
 
 function getCharacterIcon(interaction, spec) {
     return `${interaction.guild.emojis.cache.find(
-        (emoji) => emoji.name === extendedClassList[spec]?.icon
+        (emoji) => emoji.name === entryFor(spec)?.icon
     )}`;
 }
 
@@ -107,16 +107,19 @@ function formatSpecs(specs, templateId) {
     if (specs) {
         specs = specs.split(",").slice(0, 10);
         specs.forEach((spec) => {
-            if (extendedClassList[spec]) {
+            const entry = entryFor(spec);
+            if (entry) {
+                // Raid-Helper template 40 (Season of Discovery) sorts by role
+                // instead of class; every other template wants its class name.
                 if (templateId === "40") {
-                    clazz = extendedClassList[spec].sodclazz;
+                    clazz = entry.role || undefined;
                 } else {
-                    clazz = extendedClassList[spec].clazz;
+                    clazz = entry.raidhelperClass;
                 }
 
                 formatted.push({
                     className: clazz,
-                    specName: extendedClassList[spec].spec,
+                    specName: entry.spec,
                 });
             }
         });

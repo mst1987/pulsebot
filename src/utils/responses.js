@@ -1,6 +1,6 @@
 ﻿const { getCharacterIcon, findServerEmoji } = require("./helper.js");
 const { formatTimestampToDateString } = require("./date.js");
-const extendedClassList = require("../config/classlist.js");
+const { entryFor } = require("../config/classlist.js");
 
 function setupResponse(interaction, event) {
   let notInSetup = "Setup not done yet";
@@ -21,7 +21,7 @@ function setupResponse(interaction, event) {
       ? getCharacterIcon(interaction, spec)
       : findServerEmoji(interaction, emoji)
   } **${
-    spec ? extendedClassList[spec].name : notInSetup
+    spec ? entryFor(spec).name : notInSetup
   }**\n${formatTimestampToDateString(event.startTime * 1000)} Uhr\n`;
 }
 
@@ -45,7 +45,7 @@ function mySetupResponse(interaction, events) {
           interaction,
           channel.setup[0].spec
         )} ${
-          extendedClassList[channel.setup[0].spec].name
+          entryFor(channel.setup[0].spec).name
         }\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr\n`
     )
     .join("\n");

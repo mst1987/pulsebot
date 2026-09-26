@@ -1,70 +1,92 @@
-const extendedClassList = require("../../src/config/classlist");
+const classlist = require("../../src/config/classlist");
+const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES } = require("../../src/config/gameVersions/classes");
+
+const ALL_CLASSES = [...CLASSES, ...RAID_HELPER_ONLY_CLASSES];
 
 describe("config/classlist", () => {
-    it("exports a non-empty object", () => {
-        expect(typeof extendedClassList).toBe("object");
-        expect(extendedClassList).not.toBeNull();
-        expect(Object.keys(extendedClassList).length).toBeGreaterThan(0);
-    });
-
-    it("gives every entry the required string fields icon/name/clazz/spec", () => {
-        for (const [key, entry] of Object.entries(extendedClassList)) {
-            expect(typeof entry).toBe("object");
-            expect(typeof entry.icon).toBe("string");
-            expect(entry.icon.length).toBeGreaterThan(0);
-            expect(typeof entry.name).toBe("string");
-            expect(entry.name.length).toBeGreaterThan(0);
-            expect(typeof entry.clazz).toBe("string");
-            expect(entry.clazz.length).toBeGreaterThan(0);
-            expect(typeof entry.spec).toBe("string");
-            expect(entry.spec.length).toBeGreaterThan(0);
-            // sodclazz is optional, but when present it must be a non-empty string
-            if (Object.prototype.hasOwnProperty.call(entry, "sodclazz")) {
-                expect(typeof entry.sodclazz).toBe("string");
-                expect(entry.sodclazz.length).toBeGreaterThan(0);
-            }
-            // guard against typos in the key/spec pairing being wildly off
-            expect(key.length).toBeGreaterThan(0);
+    it("is an alias table onto rule-set keys", () => {
+        expect(Object.keys(classlist.ALIASES)).toHaveLength(66);
+        for (const [alias, key] of Object.entries(classlist.ALIASES)) {
+            const [classId, specId] = key.split("-");
+            const cls = ALL_CLASSES.find((c) => c.id === classId);
+            expect({ alias, cls: !!cls }).toEqual({ alias, cls: true });
+            if (specId) expect(cls.specs.some((s) => s.id === specId)).toBe(true);
+            expect(RAID_HELPER_NAMES[key]).toBeDefined();
         }
     });
 
-    it("maps Holy1 to a Holy Paladin healer", () => {
-        expect(extendedClassList.Holy1).toEqual({
+    it("names every spec of the rule set", () => {
+        const targets = new Set(Object.values(classlist.ALIASES));
+        for (const cls of CLASSES) {
+            for (const spec of cls.specs) expect(targets.has(`${cls.id}-${spec.id}`)).toBe(true);
+        }
+    });
+
+    it("resolves an alias to class, role and Raid-Helper's names", () => {
+        expect(classlist.entryFor("Holy1")).toEqual({
+            key: "Paladin-Holy",
+            clazz: "Paladin",
+            role: "healer",
+            spec: "Holy1",
             icon: "holypala",
             name: "Holy Paladin",
-            clazz: "Paladin",
-            sodclazz: "Healer",
-            spec: "Holy1",
+            raidhelperClass: "Paladin",
+        });
+        expect(classlist.entryFor("HolyPala")).toEqual(classlist.entryFor("Holy1"));
+        expect(classlist.entryFor("Destro")).toMatchObject({ key: "Warlock-Destruction", role: "ranged", spec: "Destruction" });
+    });
+
+    it("takes class and role from gameVersions/classes.js", () => {
+        for (const entry of Object.values(classlist.ENTRIES)) {
+            const [classId, specId] = entry.key.split("-");
+            expect(entry.clazz).toBe(classId);
+            if (!specId) {
+                expect(entry.role).toBe("");
+                continue;
+            }
+            expect(ROLES).toContain(entry.role);
+        }
+        expect(classlist.entryFor("Survival").role).toBe("ranged");
+        expect(classlist.entryFor("Guardian").role).toBe("tank");
+    });
+
+    it("keeps the Season-of-Discovery tank runes as tanks", () => {
+        for (const alias of Object.keys(classlist.ROLE_OVERRIDES)) expect(classlist.entryFor(alias).role).toBe("tank");
+        expect(classlist.entryFor("TankRogue")).toMatchObject({ key: "Rogue-Combat", clazz: "Rogue" });
+        expect(classlist.entryFor("Combat").role).toBe("melee");
+    });
+
+    it("keeps Raid-Helper's own \"Tank\" class for the API", () => {
+        expect(classlist.entryFor("ProtPala")).toMatchObject({ clazz: "Paladin", raidhelperClass: "Tank" });
+        expect(classlist.entryFor("Protection")).toMatchObject({ clazz: "Warrior", raidhelperClass: "Warrior", role: "tank" });
+        expect(classlist.entryFor("Guardian").raidhelperClass).toBe("Druid");
+    });
+
+    it("resolves class-only names", () => {
+        expect(classlist.entryFor("PALADIN")).toMatchObject({ key: "Paladin", clazz: "Paladin", role: "", spec: "paladin" });
+        expect(classlist.entryFor("HUNTER")).toMatchObject({ key: "Hunter-Survival", spec: "Survival" });
+        expect(classlist.entryFor("DEATHKNIGHT")).toMatchObject({ key: "DK", clazz: "DK" });
+    });
+
+    describe("entryFor / entryForSpec", () => {
+        it("returns null for unknown or inherited names", () => {
+            for (const name of ["", "Unknown", "toString", "constructor", null, undefined]) {
+                expect(classlist.entryFor(name)).toBeNull();
+                expect(classlist.entryForSpec(name)).toBeNull();
+            }
+        });
+
+        it("takes only aliases in entryFor, also Raid-Helper's spec names in entryForSpec", () => {
+            expect(classlist.entryFor("Destruction")).toBeNull();
+            expect(classlist.entryForSpec("Destruction")).toBe(classlist.entryFor("Destro"));
+            expect(classlist.entryForSpec("Unholy_DPS")).toBe(classlist.entryFor("Unholy_DPS"));
+            expect(classlist.entryForSpec("paladin")).toBe(classlist.entryFor("PALADIN"));
+            // An alias wins over a spec name: "Combat" is the melee rogue, not the tank rune.
+            expect(classlist.entryForSpec("Combat")).toBe(classlist.entryFor("Combat"));
         });
     });
 
-    it("keeps alias keys consistent with their canonical entry", () => {
-        expect(extendedClassList.HolyPala).toEqual(extendedClassList.Holy1);
-        expect(extendedClassList.Retri).toEqual(extendedClassList.Retribution);
-        expect(extendedClassList.Disc).toEqual(extendedClassList.Discipline);
-        expect(extendedClassList.MM).toEqual(extendedClassList.Marksman);
-    });
-
-    it("maps representative specs to the expected class", () => {
-        expect(extendedClassList.Fury.clazz).toBe("Warrior");
-        expect(extendedClassList.Fury.sodclazz).toBe("melee");
-        expect(extendedClassList.Shadow.clazz).toBe("Priest");
-        expect(extendedClassList.Shadow.sodclazz).toBe("ranged");
-        expect(extendedClassList.Restoration.clazz).toBe("Druid");
-        expect(extendedClassList.Restoration.sodclazz).toBe("Healer");
-        expect(extendedClassList.Fire.clazz).toBe("Mage");
-    });
-
-    it("models tank specs with a tank sodclazz", () => {
-        expect(extendedClassList.Guardian.sodclazz).toBe("tank");
-        expect(extendedClassList.Protection.sodclazz).toBe("tank");
-        expect(extendedClassList.Blood_Tank.clazz).toBe("Tank");
-    });
-
-    it("includes an uppercase generic key for each base class", () => {
-        for (const generic of ["PALADIN", "WARRIOR", "ROGUE", "PRIEST", "HUNTER", "WARLOCK", "MAGE", "DRUID", "DEATHKNIGHT", "SHAMAN"]) {
-            expect(extendedClassList[generic]).toBeDefined();
-            expect(typeof extendedClassList[generic].name).toBe("string");
-        }
+    it("freezes its entries", () => {
+        expect(Object.isFrozen(classlist.entryFor("Fury"))).toBe(true);
     });
 });
