@@ -7,7 +7,7 @@ jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/ht
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockGroups = [];
-jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;

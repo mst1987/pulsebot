@@ -11,13 +11,13 @@
 // series) wait for it themselves with a delayed first run.
 const discord = require("../../services/discord/discord");
 const sheetCleanup = require("../../utils/setup/sheetCleanup");
-const raidEventScan = require("../raidEventScan");
+const raidEventScan = require("../../services/events/raidEventScan");
 const logAutoLink = require("../logAutoLink");
-const eventMessage = require("../eventMessage");
-const reminders = require("../reminders");
+const eventMessage = require("../../services/events/eventMessage");
+const reminders = require("../events/reminders");
 const roleSync = require("../../services/discord/roleSync");
 const talkOverview = require("../talkOverview");
-const eventSeries = require("../eventSeries");
+const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 
 const JOBS = [

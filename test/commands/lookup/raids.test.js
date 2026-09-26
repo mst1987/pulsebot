@@ -1,10 +1,10 @@
-jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 
 const { MessageFlags } = require("discord.js");
 const raids = require("../../../src/commands/lookup/raids");
 const raid = require("../../../src/commands/lookup/raid");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/discord/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");

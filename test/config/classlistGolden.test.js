@@ -11,7 +11,7 @@ const reply = require("../../src/utils/discord/reply");
 const format = require("../../src/utils/format");
 const recruitment = require("../../src/utils/recruitment/recruitmentSpecs");
 const fillSetup = require("../../src/utils/setup/fillSetup");
-const { specKeyFromRaidHelper } = require("../../src/web/eventSources");
+const { specKeyFromRaidHelper } = require("../../src/services/events/eventSources");
 
 const EMOJIS = ["holypala", "protpala", "retribution", "paladin", "fury", "arms", "protection", "warrior", "assassination",
     "sublety", "combat", "rogue", "discipline", "shadow", "holypriest", "priest", "survival", "marksman", "beastmaster",

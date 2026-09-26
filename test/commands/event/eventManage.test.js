@@ -1,6 +1,6 @@
 // "Event verwalten" in Discord (#288): /event verwalten, the message context
 // menu, and the buttons/selects/modals of the ephemeral message. The service
-// (web/eventManage.js) runs for real on in-memory stores; Discord writes, the
+// (services/events/eventManage.js) runs for real on in-memory stores; Discord writes, the
 // message, the talk overview and every DM/ping are mocks.
 jest.mock("fs", () => ({
     ...require("../../helpers/memoryFs").memoryFs(),
@@ -22,7 +22,7 @@ jest.mock("../../../src/services/discord/discordChannels", () => ({
     discordErrorText: (e) => e.message,
 }));
 jest.mock("../../../src/services/discord/channelNaming", () => ({ deriveChannelName: jest.fn(), namingLine: jest.fn(() => "") }));
-jest.mock("../../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
@@ -32,22 +32,22 @@ jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})), listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(() => null),
 }));
 jest.mock("../../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
-jest.mock("../../../src/web/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
-jest.mock("../../../src/web/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
+jest.mock("../../../src/services/events/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
+jest.mock("../../../src/services/events/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
-jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const { DateTime } = require("luxon");
 const fs = require("fs");
 const channelNaming = require("../../../src/services/discord/channelNaming");
 const { sendDms, deliverUserPing } = require("../../../src/services/discord/pingDelivery");
-const { updateEvent } = require("../../../src/web/eventCreate");
-const { pingMissingRaiders } = require("../../../src/web/missingPing");
+const { updateEvent } = require("../../../src/services/events/eventCreate");
+const { pingMissingRaiders } = require("../../../src/services/events/missingPing");
 const eventStore = require("../../../src/stores/eventStore");
 const signupStore = require("../../../src/stores/signupStore");
 const profiles = require("../../../src/stores/raiderProfileStore");
-const bot = require("../../../src/web/eventManageBot");
+const bot = require("../../../src/services/events/eventManageBot");
 const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventManageStep");
 const formCommand = require("../../../src/commands/event/eventManageForm");

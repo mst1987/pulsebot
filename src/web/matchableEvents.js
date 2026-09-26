@@ -5,9 +5,9 @@
 // way (never trust a client-supplied event label — always look it up here).
 const { createRaidhelperClient } = require("../utils/raidhelper/client");
 const discord = require("../services/discord/discord");
-const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
+const { EVENT_LOOKBACK_DAYS } = require("../services/events/raidEventGroups");
 const { listRaidEvents } = require("../stores/raidEventStore");
-const { ownMatchableEvents } = require("./eventSources");
+const { ownMatchableEvents } = require("../services/events/eventSources");
 
 // The live channel join, or {} when Discord cannot give one right now.
 function safeCategoryMap(guildId) {

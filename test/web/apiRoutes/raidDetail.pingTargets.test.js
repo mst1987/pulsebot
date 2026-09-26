@@ -3,7 +3,7 @@
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1", isAdmin: true } }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "100000") }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(),
     eventLookbackSince: jest.fn(() => 0),
 }));
@@ -28,7 +28,7 @@ jest.mock("../../../src/services/discord/pingDelivery", () => {
 });
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const pingDelivery = require("../../../src/services/discord/pingDelivery");

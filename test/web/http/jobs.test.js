@@ -9,13 +9,13 @@ function mockJob(startName, stopName) {
 }
 jest.mock("../../../src/services/discord/discord", () => ({ setClient: jest.fn() }));
 jest.mock("../../../src/utils/setup/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
-jest.mock("../../../src/web/raidEventScan", () => mockJob("startRaidEventScan", "stopRaidEventScan"));
+jest.mock("../../../src/services/events/raidEventScan", () => mockJob("startRaidEventScan", "stopRaidEventScan"));
 jest.mock("../../../src/web/logAutoLink", () => mockJob("startLogAutoLink", "stopLogAutoLink"));
-jest.mock("../../../src/web/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));
-jest.mock("../../../src/web/reminders", () => mockJob("startReminders", "stopReminders"));
+jest.mock("../../../src/services/events/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));
+jest.mock("../../../src/web/events/reminders", () => mockJob("startReminders", "stopReminders"));
 jest.mock("../../../src/services/discord/roleSync", () => mockJob("startRoleSync", "stopRoleSync"));
 jest.mock("../../../src/web/talkOverview", () => mockJob("startTalkOverview", "stopTalkOverview"));
-jest.mock("../../../src/web/eventSeries", () => mockJob("startEventSeries", "stopEventSeries"));
+jest.mock("../../../src/web/events/eventSeries", () => mockJob("startEventSeries", "stopEventSeries"));
 jest.mock("../../../src/utils/recruitment/applicationState", () => mockJob("start", "stop"));
 
 const discord = require("../../../src/services/discord/discord");

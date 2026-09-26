@@ -12,7 +12,7 @@
 const { ok, error } = require("../http/apiResponse");
 const { readJsonBody } = require("../http/apiBody");
 const { activeGuildFor } = require("../http/activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/loot/lootImport");

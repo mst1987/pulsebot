@@ -4,7 +4,7 @@ const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../stores/eventStore");
-const { ownEventInChannel } = require("../../web/eventSources");
+const { ownEventInChannel } = require("../../services/events/eventSources");
 const { raidHelperSlots } = require("../../web/setupEditor");
 
 /**

@@ -1,12 +1,12 @@
 // Das Raid-Cockpit (#319) im Client: die reinen Texte von
 // src/web-client/src/lib/raidSteps.ts wirklich ausgeführt, gegen die Server-Regel
-// (src/web/raidDetailSteps.js) gehalten, und der Seitenaufbau an der Quelle
+// (src/web/events/raidDetailSteps.js) gehalten, und der Seitenaufbau an der Quelle
 // geprüft — eine Leiste nur für eigene Events, ein auffälliger Knopf, keine
 // zweite Haupt-Tat im Kopf, auf dem Handy eine Zeile statt waagerechtem Scrollen.
 const fs = require("fs");
 const path = require("path");
 const { loadTs, makeT, makeTOr } = require("./i18nHelper");
-const { eventSteps, STEP_IDS, STEP_STATES } = require("../../src/web/raidDetailSteps");
+const { eventSteps, STEP_IDS, STEP_STATES } = require("../../src/web/events/raidDetailSteps");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
@@ -153,7 +153,7 @@ describe("the step bar in the page", () => {
 // The step names and deed labels come from the server in German next to a
 // fixed id; the client shows them in the menu language by that id (#i18n).
 describe("the cockpit in the menu language", () => {
-    const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "raidDetailSteps.js"), "utf8");
+    const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "events", "raidDetailSteps.js"), "utf8");
     const deedIds = [...server.matchAll(/deed\("(\w+)"/g)].map((m) => m[1]).filter((id) => id !== "evaluate");
     const de = makeT("de");
     const en = makeT("en");

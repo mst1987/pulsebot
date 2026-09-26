@@ -15,7 +15,7 @@ jest.mock("../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => ({ url: "https://discord.example/m1" })) }));
 // Which server counts as the event server is /event's rule, tested with it (test/commands/event).
-jest.mock("../../src/web/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
+jest.mock("../../src/services/events/eventDraft", () => ({ guildFor: (interaction) => ({ guildId: interaction.guild.id }) }));
 
 const eventStore = require("../../src/stores/eventStore");
 const discord = require("../../src/services/discord/discord");

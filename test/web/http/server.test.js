@@ -35,7 +35,7 @@ jest.mock("../../../src/web/pages/eventPublicPage", () => ({ renderEventPage: je
 // The in-app documentation (#349) — again only the routing; its content lives
 // in docsPage.test.js.
 jest.mock("../../../src/web/pages/docsPage", () => ({ renderDocsPage: jest.fn(() => "DOCS_PAGE") }));
-jest.mock("../../../src/web/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFileName: jest.fn((id) => `raid-${id}.ics`) }));
+jest.mock("../../../src/services/events/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFileName: jest.fn((id) => `raid-${id}.ics`) }));
 // The raider's subscription (#312) — again only the routing; the token check
 // and the content live in calendarFeed.test.js.
 jest.mock("../../../src/web/pages/calendarFeed", () => ({ feedFor: jest.fn(() => null) }));
@@ -49,7 +49,7 @@ const store = require("../../../src/stores/reportStore");
 const render = require("../../../src/web/report/render");
 const eventPublicPage = require("../../../src/web/pages/eventPublicPage");
 const docsPage = require("../../../src/web/pages/docsPage");
-const icsFeed = require("../../../src/web/icsFeed");
+const icsFeed = require("../../../src/services/events/icsFeed");
 const calendarFeed = require("../../../src/web/pages/calendarFeed");
 const eventStore = require("../../../src/stores/eventStore");
 const raidplanStore = require("../../../src/stores/raidplanStore");

@@ -13,7 +13,7 @@ const { logIndex, logSuggestions } = require("../profileLogs");
 const { profileView, lookupArmory } = require("../profileView");
 const calendarTokens = require("../../stores/calendarTokenStore");
 const calendarFeed = require("../pages/calendarFeed");
-const { userIcsUrl } = require("../icsFeed");
+const { userIcsUrl } = require("../../services/events/icsFeed");
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 

@@ -4,8 +4,8 @@
 // that channel). Its `data` is a message command (no description), which
 // `npm run register` collects; the router finds it by its command name.
 const { MessageFlags, ContextMenuCommandBuilder, ApplicationCommandType } = require("discord.js");
-const { openPayload } = require("../../web/eventManageBot");
-const { guildFor } = require("../../web/eventDraft");
+const { openPayload } = require("../../services/events/eventManageBot");
+const { guildFor } = require("../../services/events/eventDraft");
 
 const CONTEXT_MENU_NAME = "Event verwalten";
 

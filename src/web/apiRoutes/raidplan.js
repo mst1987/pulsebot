@@ -42,7 +42,7 @@ const catalog = require("../../stores/raidplanCatalogStore");
 const rosterSource = require("../raidplanRosterSource");
 const { instancesFromTitle } = require("../raidplanTitle");
 const { activeGuildFor } = require("../http/activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { rulesFor } = require("../../config/gameVersions");
 const { raidhelperDisabled } = require("../../utils/raidhelper/client");
 

@@ -23,7 +23,7 @@
 const { listEvents } = require("../../stores/eventStore");
 const { signupsOfUser } = require("../../stores/signupStore");
 const { verifyToken, touchToken } = require("../../stores/calendarTokenStore");
-const { buildUserCalendar } = require("../icsFeed");
+const { buildUserCalendar } = require("../../services/events/icsFeed");
 
 const DAY = 86400;
 // Far enough back that last week's raid is still in the calendar, short enough

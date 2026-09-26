@@ -7,7 +7,7 @@
 //
 // Each one redraws the message with the new state in every customId. "Weiter"
 // is not here: it has to open a modal, see eventCreateModal.js.
-const { STEP_PREFIX, parseCustomId, guildFor, applyStep, stepMessage } = require("../../web/eventDraft");
+const { STEP_PREFIX, parseCustomId, guildFor, applyStep, stepMessage } = require("../../services/events/eventDraft");
 
 module.exports = {
     name: STEP_PREFIX,

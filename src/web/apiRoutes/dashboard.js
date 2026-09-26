@@ -10,7 +10,7 @@ const {
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
 const { loadDrift } = require("../../services/discord/roleSync");
-const { seriesFailures } = require("../eventSeries");
+const { seriesFailures } = require("../events/eventSeries");
 const { deployStatus } = require("../http/deployStatus");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */

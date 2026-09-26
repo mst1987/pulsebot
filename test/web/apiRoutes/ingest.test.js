@@ -42,7 +42,7 @@ jest.mock("../../../src/web/characterInfo", () => ({
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [] })),
     eventLookbackSince: jest.fn(() => 0),
     EVENT_LOOKBACK_DAYS: 30,
@@ -57,7 +57,7 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
 const { addImport } = require("../../../src/stores/lootStore");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
 

@@ -21,7 +21,7 @@
 // answers "does this exist in Discord right now".
 const fs = require("fs");
 const discord = require("./discord");
-const { listStoredEvents } = require("../../web/eventSources");
+const { listStoredEvents } = require("../events/eventSources");
 
 const { SETTINGS_DIR, settingsPath } = require("../../config/paths");
 const CATEGORY_NAMES_FILE = settingsPath("category-names.json");

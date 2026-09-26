@@ -131,15 +131,15 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../src/web/raidListing", () => ({
-    ...jest.requireActual("../../../src/web/raidListing"),
+jest.mock("../../../src/services/events/raidListing", () => ({
+    ...jest.requireActual("../../../src/services/events/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
@@ -181,9 +181,9 @@ const auth = require("../../../src/web/http/auth");
 const settingsStore = require("../../../src/stores/settingsStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
-const raidEventGroups = require("../../../src/web/raidEventGroups");
+const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const raidEventStore = require("../../../src/stores/raidEventStore");
-const raidListing = require("../../../src/web/raidListing");
+const raidListing = require("../../../src/services/events/raidListing");
 const eventSoftresStore = require("../../../src/stores/eventSoftresStore");
 const { post, handle } = routerClient(require("../../../src/web/apiRoutes/raids"));
 

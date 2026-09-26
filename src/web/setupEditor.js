@@ -24,7 +24,7 @@
 //   explanation         { text, model, at, version } from Claude (explainText.js)
 const eventStore = require("../stores/eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
-const { specNameFor } = require("./eventSources");
+const { specNameFor } = require("../services/events/eventSources");
 const { evaluateSetup } = require("../utils/setup/proposal");
 const { validatePlacement, placeSlots } = require("../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../utils/setup/score");

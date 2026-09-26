@@ -55,7 +55,7 @@ jest.mock("../../../src/web/http/staticClient", () => ({
 }));
 jest.mock("../../../src/web/pages/eventPublicPage", () => ({ renderEventPage: jest.fn((id) => (id === "eh-1" ? `EVENT:${id}` : null)) }));
 jest.mock("../../../src/web/pages/docsPage", () => ({ renderDocsPage: jest.fn((user) => `DOCS:${user ? user.id : "-"}`) }));
-jest.mock("../../../src/web/icsFeed", () => ({
+jest.mock("../../../src/services/events/icsFeed", () => ({
     buildIcs: jest.fn((event) => (event.id === "eh-leer" ? "" : `ICS:${event.id}`)),
     icsFileName: jest.fn((id) => `raid-${id}.ics`),
 }));

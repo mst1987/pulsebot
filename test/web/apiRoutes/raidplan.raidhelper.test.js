@@ -12,7 +12,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "111111111111111111") }));
 const mockGroups = { list: [] };
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [{ categoryId: "c", categoryName: "Raids", events: mockGroups.list }], error: null, stale: false })),
     eventLookbackSince: jest.fn(() => 0),
 }));

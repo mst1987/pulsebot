@@ -4,11 +4,11 @@
 // subfolder, so the loaders do not take it for a command.
 //
 // With `guild` (the default) the interaction must come from the event server
-// (web/eventDraft.js `guildFor`); the handler then gets `(interaction, guildId)`,
+// (services/events/eventDraft.js `guildFor`); the handler then gets `(interaction, guildId)`,
 // otherwise the error is answered — as an ephemeral reply, or with
 // `onGuildError: "update"` by replacing the message the component sits on.
 const { MessageFlags } = require("discord.js");
-const { guildFor } = require("../web/eventDraft");
+const { guildFor } = require("../services/events/eventDraft");
 
 function componentRoute({ name, description, accessOf, handler, guild = true, onGuildError = "reply" }) {
     return {

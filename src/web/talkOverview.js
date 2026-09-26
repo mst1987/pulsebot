@@ -26,7 +26,7 @@ const {
 const { embedAccentColor, publicBaseUrl } = require("../config/variables");
 const discord = require("../services/discord/discord");
 const guildRoles = require("../services/discord/guildRoles");
-const { loadEventGroups } = require("./raidEventGroups");
+const { loadEventGroups } = require("../services/events/raidEventGroups");
 const { getConfig } = require("../stores/settingsStore");
 const { onSignupsChanged } = require("../stores/signupStore");
 const { getOverviewState, setOverviewState } = require("../stores/talkOverviewStore");

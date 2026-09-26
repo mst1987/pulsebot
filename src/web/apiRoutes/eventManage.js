@@ -18,7 +18,7 @@ const { withUser } = require("../http/apiHandler");
 const { sendResult } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
-const manage = require("../eventManage");
+const manage = require("../../services/events/eventManage");
 
 /** A read that prepares an action: menu user with `raids` write. */
 const reader = (fn) => withUser({ write: "raids" }, fn);

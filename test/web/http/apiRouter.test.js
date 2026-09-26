@@ -56,7 +56,7 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     postLink: jest.fn(),
     editLink: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
@@ -65,7 +65,7 @@ const auth = require("../../../src/web/http/auth");
 const reportStore = require("../../../src/stores/reportStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const discord = require("../../../src/services/discord/discord");
-const raidEventGroups = require("../../../src/web/raidEventGroups");
+const raidEventGroups = require("../../../src/services/events/raidEventGroups");
 const logStore = require("../../../src/stores/logStore");
 const { AppError } = require("../../../src/web/http/apiResult");
 const { emptyAccess } = require("../../../src/config/permissions");

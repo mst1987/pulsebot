@@ -11,7 +11,7 @@
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
-const { loadEventGroups } = require("../raidEventGroups");
+const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
 const profiles = require("../../stores/raiderProfileStore");

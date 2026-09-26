@@ -3,14 +3,14 @@
 // the result always says so.
 jest.mock("../../../src/services/discord/discord", () => ({ listAllChannels: jest.fn(() => []) }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
-jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/web/raidListing", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
+jest.mock("../../../src/services/events/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /hyjal/i.test(title || "") ? ["hyjal", "bt"] : /ssc/i.test(title || "") ? ["ssc", "tk"] : [] }),
 }));
 
 const discord = require("../../../src/services/discord/discord");
 const archiveStore = require("../../../src/stores/channelArchiveStore");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const naming = require("../../../src/services/discord/channelNaming");
 
 const CAT = "cat-mi";

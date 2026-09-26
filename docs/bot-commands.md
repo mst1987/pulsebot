@@ -53,7 +53,7 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 | Command | Default | Reads | Links to |
 |---|---|---|---|
 | `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `web/userCharacters.js` | `/history/char?name=`, `/history?tab=items` |
-| `/raids` | everyone | `web/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
+| `/raids` | everyone | `services/events/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
 | `/raid <Event>` | everyone | same, with the lookback window | `/raids/detail?event=`, the Discord channel |
 | `/anwesenheit` | everyone | `web/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
 | `/anwesenheit-raider <Name>` | admins | same, any character | `/roster/char?name=` |

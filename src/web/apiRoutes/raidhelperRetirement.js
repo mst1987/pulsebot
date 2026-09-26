@@ -4,8 +4,8 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
-const retirement = require("../raidhelperRetirement");
-const historyImport = require("../raidhelperHistoryImport");
+const retirement = require("../events/raidhelperRetirement");
+const historyImport = require("../events/raidhelperHistoryImport");
 const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 

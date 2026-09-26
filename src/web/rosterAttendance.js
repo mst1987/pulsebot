@@ -27,7 +27,7 @@
 // Role (the second open question): what the character last played in a log —
 // a hybrid's spec in the loot export says little about whether they healed
 // last Thursday — and the spec only when no log knows them.
-const { listStoredEvents } = require("./eventSources");
+const { listStoredEvents } = require("../services/events/eventSources");
 const { listLogs } = require("../stores/logStore");
 const { listReports, getReport } = require("../stores/reportStore");
 const { characterKeyOf } = require("../utils/loot/lootImport");

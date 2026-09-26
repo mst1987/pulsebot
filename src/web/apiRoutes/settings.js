@@ -13,7 +13,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const roleSync = require("../../services/discord/roleSync");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../lootSystem");
-const { lastReminderRun } = require("../reminders");
+const { lastReminderRun } = require("../events/reminders");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const wowhead = require("../../utils/loot/wowhead");
 const {

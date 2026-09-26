@@ -23,7 +23,7 @@ const signupStore = require("../stores/signupStore");
 const profileStore = require("../stores/raiderProfileStore");
 const settingsStore = require("../stores/settingsStore");
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
-const { listStoredEvents } = require("./eventSources");
+const { listStoredEvents } = require("../services/events/eventSources");
 const { buildSetupProposal } = require("../utils/setup/proposal");
 
 // How many earlier nights per category go into the fairness history.

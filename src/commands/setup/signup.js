@@ -4,7 +4,7 @@ const messages = require("../../config/messages");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { botReply } = require("../../utils/discord/reply");
 const { formatSpecs, formatSignUps } = require("../../utils/format");
-const { ownEventInChannel } = require("../../web/eventSources");
+const { ownEventInChannel } = require("../../services/events/eventSources");
 const { RAIDHELPER_BOT_ID } = require("../../config/constants");
 
 // Legacy: signs up at the Raid-Helper event of this channel with Raid-Helper

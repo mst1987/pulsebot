@@ -21,8 +21,8 @@
 const { DateTime } = require("luxon");
 const discord = require("./discord");
 const archiveStore = require("../../stores/channelArchiveStore");
-const { loadEventGroups, eventLookbackSince } = require("../../web/raidEventGroups");
-const { raidContentIds } = require("../../web/raidListing");
+const { loadEventGroups, eventLookbackSince } = require("../events/raidEventGroups");
+const { raidContentIds } = require("../events/raidListing");
 const { instanceById } = require("../../config/gameVersions");
 const {
     DEFAULT_SCHEMA, normalizeChannelName, renderChannelName, derivePatternFromName, applyPattern, patternParts,

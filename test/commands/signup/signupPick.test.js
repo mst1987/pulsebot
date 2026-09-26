@@ -4,7 +4,7 @@
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/web/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
+jest.mock("../../../src/services/events/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn() }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));

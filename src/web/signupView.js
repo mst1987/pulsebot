@@ -7,7 +7,7 @@ const profiles = require("../stores/raiderProfileStore");
 const { getEvent } = require("../stores/eventStore");
 // categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
 const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("./signupService");
-const { upcomingRows } = require("./raidListing");
+const { upcomingRows } = require("../services/events/raidListing");
 const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { signupStatus } = require("../utils/attendance");
 const { approvedPlacementFor } = require("./setupEditor");

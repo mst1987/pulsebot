@@ -11,7 +11,7 @@ const profileStore = require("../stores/raiderProfileStore");
 const characterStore = require("../stores/characterStore");
 const { getCategoryAssignments } = require("../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("./rosterAttendance");
-const { raidContentIds, raidSize } = require("./raidListing");
+const { raidContentIds, raidSize } = require("../services/events/raidListing");
 const { benchHistory } = require("./setupInput");
 
 /** "Druid-Feral" -> "Druid". */

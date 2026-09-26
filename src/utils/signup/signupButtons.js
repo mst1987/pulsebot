@@ -1,4 +1,4 @@
-// The signup buttons under an EventHelper event message (web/eventMessage.js):
+// The signup buttons under an EventHelper event message (services/events/eventMessage.js):
 // what the member sees after a click — short ephemeral messages, one select at
 // a time. The handler is commands/signup/eventButton.js; this file holds the
 // customIds, the builders and the pure rules, so both can be tested apart.
@@ -37,7 +37,7 @@ const { migrateSignup, MAX_CHARACTERS } = require("../../web/signupCharacters");
 const profiles = require("../../stores/raiderProfileStore");
 const { allowedStatuses, signupWindow } = require("../../web/signupService");
 const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../../services/discord/appEmojis");
-const { BUTTON_PREFIX } = require("../../web/eventMessage");
+const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
 const { MIN_NOTE } = require("../../web/signupNotes");

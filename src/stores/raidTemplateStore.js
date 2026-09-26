@@ -6,7 +6,7 @@
 // not on every read.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("../web/raidTemplates");
+const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("../services/events/raidTemplates");
 const { newId } = require("../utils/ids");
 
 const store = createJsonStore({ file: settingsPath("raid-templates.json"), defaults: { templates: [] } });

@@ -18,7 +18,7 @@
 // The roster grouping is the signup message's (eventMessage.rosterEntries /
 // classesOf / rosterCounts / messagePhase), so the page and the channel can
 // never disagree about who stands where.
-const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("../eventMessage");
+const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("../../services/events/eventMessage");
 const { approvedSetupOf } = require("../setupCore");
 const { getEvent } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");

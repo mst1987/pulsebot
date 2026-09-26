@@ -11,7 +11,7 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { normalizeCategoryLootSystem } = require("../web/lootSystem");
-const { normalizeCategoryMessageLook } = require("../web/embedLook");
+const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,

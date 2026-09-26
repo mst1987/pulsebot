@@ -11,7 +11,7 @@ const {
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../web/lootSystem");
-const { normalizeCategoryMessageLook } = require("../web/embedLook");
+const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { isSnowflake } = require("../utils/ids");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
@@ -158,7 +158,7 @@ const CONFIG_DEFAULTS = {
     // Automatic reminders per raid category (#264): { [categoryId]:
     // { missingHours, signedHours, target } } — hours before the sign-up
     // deadline (else the raid start) to the members still missing, hours before
-    // the raid to the signed-up ones; 0 = off. See src/web/reminders.js.
+    // the raid to the signed-up ones; 0 = off. See src/web/events/reminders.js.
     categoryReminders: {},
 };
 

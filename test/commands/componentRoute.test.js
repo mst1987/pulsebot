@@ -1,7 +1,7 @@
 // src/commands/componentRoute.js (#413): the thin component modules are built
 // from name, description, accessOf and a handler.
 const mockGuildFor = jest.fn();
-jest.mock("../../src/web/eventDraft", () => ({ guildFor: (...args) => mockGuildFor(...args) }));
+jest.mock("../../src/services/events/eventDraft", () => ({ guildFor: (...args) => mockGuildFor(...args) }));
 
 const { componentRoute } = require("../../src/commands/componentRoute");
 

@@ -3,7 +3,7 @@ const { withUser } = require("../http/apiHandler");
 const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
 } = require("../../stores/settingsStore");
-const { decorateTemplate } = require("../raidTemplates");
+const { decorateTemplate } = require("../../services/events/raidTemplates");
 const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");

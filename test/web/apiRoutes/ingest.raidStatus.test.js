@@ -44,7 +44,7 @@ jest.mock("../../../src/web/characterInfo", () => ({
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [] })),
     eventLookbackSince: jest.fn(() => 0),
     EVENT_LOOKBACK_DAYS: 60,
@@ -59,7 +59,7 @@ const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStor
 const { resolutionFor, listPending } = require("../../../src/stores/lootInboxStore");
 const { eventsWithLoot } = require("../../../src/stores/lootStore");
 const { event: baseEvent } = require("../../factories/events");
-const { loadEventGroups } = require("../../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { computeRaidStatus } = require("../../../src/web/apiRoutes/ingest");
 

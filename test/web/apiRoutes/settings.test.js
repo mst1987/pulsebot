@@ -122,7 +122,7 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     botPermissionsIn: jest.fn(() => null),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
-jest.mock("../../../src/web/raidEventGroups", () => ({
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
     fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),

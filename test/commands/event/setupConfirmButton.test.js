@@ -4,12 +4,12 @@ jest.mock("../../../src/web/setupConfirmBot", () => ({
     CONFIRM_PREFIX: "setupconfirm",
     handleConfirmComponent: jest.fn(async () => "handled"),
 }));
-jest.mock("../../../src/web/eventDraft", () => ({
+jest.mock("../../../src/services/events/eventDraft", () => ({
     guildFor: jest.fn(() => ({ error: "Nur auf dem Event-Server." })),
 }));
 
 const { handleConfirmComponent } = require("../../../src/web/setupConfirmBot");
-const { guildFor } = require("../../../src/web/eventDraft");
+const { guildFor } = require("../../../src/services/events/eventDraft");
 const button = require("../../../src/commands/event/setupConfirmButton");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 

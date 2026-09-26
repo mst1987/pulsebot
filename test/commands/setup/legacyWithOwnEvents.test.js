@@ -13,7 +13,7 @@ jest.mock("../../../src/utils/setup/fillSetup.js", () => ({
 jest.mock("../../../src/utils/raidhelper/queries.js");
 jest.mock("../../../src/utils/setup/response.js");
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/web/eventSources", () => ({
+jest.mock("../../../src/services/events/eventSources", () => ({
     ownEventInChannel: jest.fn(() => null),
     ownSignedUpEvents: jest.fn(() => []),
 }));
@@ -27,7 +27,7 @@ const Raidhelper = require("../../../src/classes/raidhelper.js");
 const reply = require("../../../src/utils/discord/reply.js");
 const { fillSetupSheet } = require("../../../src/utils/setup/fillSetup.js");
 const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
-const eventSources = require("../../../src/web/eventSources");
+const eventSources = require("../../../src/services/events/eventSources");
 const eventStore = require("../../../src/stores/eventStore");
 const { raidHelperSlots } = require("../../../src/web/setupEditor");
 const signup = require("../../../src/commands/setup/signup.js");

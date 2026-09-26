@@ -1,6 +1,6 @@
 jest.mock("../../src/services/discord/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
+jest.mock("../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
 jest.mock("../../src/stores/signupStore", () => ({
     onSignupsChanged: jest.fn((fn) => {
@@ -23,7 +23,7 @@ const stateOf = (guildId = "111") => mockStates[guildId] || {};
 
 const discord = require("../../src/services/discord/discord");
 const { getConfig } = require("../../src/stores/settingsStore");
-const { loadEventGroups } = require("../../src/web/raidEventGroups");
+const { loadEventGroups } = require("../../src/services/events/raidEventGroups");
 const {
     channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
     _internal: {

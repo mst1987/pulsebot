@@ -3,18 +3,18 @@ jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").a
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "active-guild") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
-jest.mock("../../../src/web/raidhelperRetirement", () => ({
+jest.mock("../../../src/web/events/raidhelperRetirement", () => ({
     loadChecklist: jest.fn(async () => ({ ready: true, items: [] })),
     setRaidhelperDisabled: jest.fn(async () => ({ checklist: { disabled: true } })),
 }));
-jest.mock("../../../src/web/raidhelperHistoryImport", () => ({
+jest.mock("../../../src/web/events/raidhelperHistoryImport", () => ({
     runImport: jest.fn(async (opts) => ({ dryRun: opts.dryRun, summary: { events: 0 } })),
 }));
 
 const { requireFullAdmin, requireCsrf } = require("../../../src/web/http/apiMiddleware");
 const { readJsonBody } = require("../../../src/web/http/apiBody");
-const retirement = require("../../../src/web/raidhelperRetirement");
-const historyImport = require("../../../src/web/raidhelperHistoryImport");
+const retirement = require("../../../src/web/events/raidhelperRetirement");
+const historyImport = require("../../../src/web/events/raidhelperHistoryImport");
 const { getRetirement, postRetirement, postHistoryImport } = require("../../../src/web/apiRoutes/raidhelperRetirement");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
 

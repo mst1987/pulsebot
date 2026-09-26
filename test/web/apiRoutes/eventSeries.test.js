@@ -13,7 +13,7 @@ jest.mock("../../../src/stores/eventSeriesStore", () => ({
     getRuns: jest.fn(() => ({})),
     clearRun: jest.fn(),
 }));
-jest.mock("../../../src/web/eventSeries", () => ({
+jest.mock("../../../src/web/events/eventSeries", () => ({
     MIN_DAYS_BEFORE: 1,
     MAX_DAYS_BEFORE: 28,
     STALE_CREATING_MS: 15 * 60 * 1000,
@@ -25,7 +25,7 @@ jest.mock("../../../src/web/eventSeries", () => ({
 
 const { readJsonBody } = require("../../../src/web/http/apiBody");
 const store = require("../../../src/stores/eventSeriesStore");
-const service = require("../../../src/web/eventSeries");
+const service = require("../../../src/web/events/eventSeries");
 const route = require("../../../src/web/apiRoutes/eventSeries");
 const { checkAccess } = require("../../../src/web/http/apiAccess");
 const apiRouter = require("../../../src/web/http/apiRouter");

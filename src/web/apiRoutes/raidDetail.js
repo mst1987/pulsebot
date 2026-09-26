@@ -10,10 +10,10 @@ const { withUser } = require("../http/apiHandler");
 const { AppError, sendResult } = require("../http/apiResult");
 const { q } = require("../http/apiParams");
 const { activeGuildFor } = require("../http/activeGuild");
-const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
+const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { getNotify, getRaidsheet, resolveEventSheetLink } = require("../../stores/settingsStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../stores/eventSheetStore");
-const { sourceOfEventId } = require("../eventSources");
+const { sourceOfEventId } = require("../../services/events/eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../../stores/eventSoftresStore");
@@ -33,8 +33,8 @@ const { invitePlan, callInvite } = require("../inviteCall");
 const {
     normalizePingTarget, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../../services/discord/pingDelivery");
-const { pingMissingRaiders } = require("../missingPing");
-const { buildRaidDetail } = require("../raidDetailView");
+const { pingMissingRaiders } = require("../../services/events/missingPing");
+const { buildRaidDetail } = require("../events/raidDetailView");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in

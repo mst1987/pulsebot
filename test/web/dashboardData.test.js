@@ -15,7 +15,7 @@ jest.mock("../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     resolveEventSheetLink: jest.fn((own) => (own && own.url ? { url: own.url } : null)),
 }));
-jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
+jest.mock("../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })) }));
 jest.mock("../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 jest.mock("../../src/stores/lootInboxStore", () => ({ listPending: jest.fn(() => []) }));
 jest.mock("../../src/web/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
@@ -26,11 +26,11 @@ jest.mock("../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
 jest.mock("../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../src/web/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
+jest.mock("../../src/services/events/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
 jest.mock("../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
 jest.mock("../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
 jest.mock("../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../src/web/recentEvents", () => ({
+jest.mock("../../src/services/events/recentEvents", () => ({
     buildRecentEvents: jest.fn(() => []),
     matchLogsForEvent: jest.fn(() => []),
     pendingLogsForEvent: jest.fn(() => []),
@@ -49,7 +49,7 @@ const settingsStore = require("../../src/stores/settingsStore");
 const charStore = require("../../src/stores/characterStore");
 const eventSheetStore = require("../../src/stores/eventSheetStore");
 const eventSoftresStore = require("../../src/stores/eventSoftresStore");
-const raidEventGroups = require("../../src/web/raidEventGroups");
+const raidEventGroups = require("../../src/services/events/raidEventGroups");
 const reportStore = require("../../src/stores/reportStore");
 const lootInboxStore = require("../../src/stores/lootInboxStore");
 const { buildRoster } = require("../../src/web/roster");

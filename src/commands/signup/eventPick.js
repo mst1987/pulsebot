@@ -1,5 +1,5 @@
 const { getEvent } = require("../../stores/eventStore");
-const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../web/eventMessage");
+const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../services/events/eventMessage");
 const { onJoin, onClass, reply, emojisFor } = require("./eventButton");
 
 // The public signup select under an EventHelper event message (#303):

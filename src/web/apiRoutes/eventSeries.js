@@ -14,7 +14,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { userCan } = require("../../config/permissions");
 const { listRaidTemplates } = require("../../stores/settingsStore");
 const store = require("../../stores/eventSeriesStore");
-const series = require("../eventSeries");
+const series = require("../events/eventSeries");
 
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
 const list = (value) => value.split(",").map((s) => s.trim()).filter(Boolean);

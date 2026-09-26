@@ -18,14 +18,14 @@ jest.mock("../../src/stores/signupStore", () => ({ listSignups: () => mockSignup
 jest.mock("../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../src/web/eventSources", () => ({
+jest.mock("../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
-    specNameFor: jest.requireActual("../../src/web/eventSources").specNameFor,
+    specNameFor: jest.requireActual("../../src/services/events/eventSources").specNameFor,
 }));
 
 const editor = require("../../src/web/setupEditor");
 const { approvedSetupOf } = require("../../src/web/setupCore");
-const { _internal: { buildEventMessage } } = require("../../src/web/eventMessage");
+const { _internal: { buildEventMessage } } = require("../../src/services/events/eventMessage");
 const { su } = require("../utils/setup/fixtures");
 
 const ID = "eh-kara";
