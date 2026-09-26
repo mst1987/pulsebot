@@ -1,4 +1,4 @@
-﻿const { getAllSignUps } = require("../../utils/raidhelper");
+const { getAllSignUps } = require("../../utils/raidhelper");
 const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const messages = require("../../config/messages");

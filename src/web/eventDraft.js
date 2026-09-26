@@ -336,13 +336,13 @@ async function stepMessage(guildId, rawState) {
 function applyStep(state, field, value = "") {
     const v = String(value || "");
     switch (field) {
-    case "c": return withCategory(state, isSnowflake(v) ? v : "");
-    case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "" };
-    case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
-    case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
-    case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e" });
-    case "a": return { ...state, ann: announceFor(state).enabled ? "0" : "1" };
-    default: return state;
+        case "c": return withCategory(state, isSnowflake(v) ? v : "");
+        case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "" };
+        case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
+        case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
+        case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e" });
+        case "a": return { ...state, ann: announceFor(state).enabled ? "0" : "1" };
+        default: return state;
     }
 }
 

@@ -1,4 +1,4 @@
-﻿module.exports = {
+module.exports = {
     // Raider-facing (signups, setups): English, like every event text in Discord.
     general: {
         missingSignups: "Missing/Absence SignUps: \n___replace___\n\n",

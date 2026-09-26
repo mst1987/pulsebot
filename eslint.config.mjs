@@ -17,6 +17,9 @@ const sharedRules = {
     // git stores LF blobs, so a fixed "windows" rule fails the Linux CI while a
     // "unix" rule fails local Windows checkouts. So linebreak-style stays off.
     "linebreak-style": "off",
+    // Core formatting rules (indent/quotes/semi) are deprecated in favour of
+    // @stylistic but still ship until ESLint 11 — one move for all three later.
+    indent: ["error", 4, { SwitchCase: 1 }],
     quotes: ["error", "double"],
     semi: ["error", "always"],
 };
@@ -56,6 +59,8 @@ export default [
             "no-unused-vars": ["warn", { argsIgnorePattern: "^_", caughtErrors: "none" }],
             "prefer-const": "warn",
             "no-var": "warn",
+            // utils/raidhelper.js is still indented with two spaces.
+            indent: "off",
         },
     },
     {

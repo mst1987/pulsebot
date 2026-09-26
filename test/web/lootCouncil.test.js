@@ -433,7 +433,7 @@ describe("web/lootCouncil", () => {
             expect(gaps[0].best).toBeTruthy();
         });
 
-it("works for a healer too, off Wowhead's list", () => {
+        it("works for a healer too, off Wowhead's list", () => {
             // WoWSims ships no healing set, so this list comes from Wowhead.
             // A healer with nothing on is missing their whole set, and the
             // council should be told that rather than shown an empty tab.

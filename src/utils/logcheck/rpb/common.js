@@ -53,30 +53,30 @@ function roleForClass(playerClass, counts) {
     const spec = counts.dpsSpec || "";
 
     switch (playerClass) {
-    case "Hunter":
-    case "Rogue":
-        return "Physical";
-    case "Mage":
-    case "Warlock":
-        return "Caster";
-    case "Priest":
-        return dps >= tank && dps >= healer ? "Caster" : "Healer";
-    case "Warrior":
-        return dps >= tank && dps >= healer ? "Physical" : "Tank";
-    case "Paladin":
-        if (healer >= tank && healer >= dps) return "Healer";
-        if (tank >= dps && tank >= healer) return "Tank";
-        return "Physical";
-    case "Druid":
-        if (healer >= tank && healer >= dps) return "Healer";
-        if (tank >= dps && tank >= healer) return "Tank";
-        return spec === "Balance" ? "Caster" : "Physical";
-    case "Shaman":
-        if (healer >= tank && healer >= dps) return "Healer";
-        if (tank >= dps && tank >= healer) return "Tank";
-        return spec === "Elemental" ? "Caster" : "Physical";
-    default:
-        return "Physical";
+        case "Hunter":
+        case "Rogue":
+            return "Physical";
+        case "Mage":
+        case "Warlock":
+            return "Caster";
+        case "Priest":
+            return dps >= tank && dps >= healer ? "Caster" : "Healer";
+        case "Warrior":
+            return dps >= tank && dps >= healer ? "Physical" : "Tank";
+        case "Paladin":
+            if (healer >= tank && healer >= dps) return "Healer";
+            if (tank >= dps && tank >= healer) return "Tank";
+            return "Physical";
+        case "Druid":
+            if (healer >= tank && healer >= dps) return "Healer";
+            if (tank >= dps && tank >= healer) return "Tank";
+            return spec === "Balance" ? "Caster" : "Physical";
+        case "Shaman":
+            if (healer >= tank && healer >= dps) return "Healer";
+            if (tank >= dps && tank >= healer) return "Tank";
+            return spec === "Elemental" ? "Caster" : "Physical";
+        default:
+            return "Physical";
     }
 }
 
