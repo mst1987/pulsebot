@@ -1,0 +1,5312 @@
+[
+ {
+  "name": "case01-report",
+  "from": "renderReportCards.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Montagsraid Gruul",
+    "zone": "Gruul's Lair",
+    "date": "7.9.2026",
+    "players": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ]
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {
+       "destruction": 0,
+       "haste": 1,
+       "mana": 0
+      },
+      "armory": [
+       {
+        "slot": 0,
+        "itemId": 5,
+        "itemName": "Helm",
+        "icon": "inv_helmet_98",
+        "quality": 4,
+        "itemLevel": 141,
+        "enchant": {
+         "status": "ok"
+        },
+        "gems": [],
+        "emptySockets": 0
+       }
+      ]
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ],
+      "potions": {
+       "destruction": 0,
+       "haste": 0,
+       "mana": 3
+      },
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1
+      },
+      "armory": []
+     }
+    ],
+    "icons": {},
+    "consumables": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 100,
+       "weaponOiled": true
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 50,
+       "weaponOiled": false
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "flask": 67,
+       "elixir": 0,
+       "buffed": 67,
+       "food": 100,
+       "weaponOiled": true
+      }
+     ],
+     "icons": {}
+    },
+    "potions": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1,
+       "total": 2,
+       "byType": {
+        "destruction": 1,
+        "superMana": 1
+       }
+      }
+     ],
+     "types": [
+      {
+       "key": "superMana",
+       "group": "mana",
+       "label": "Super-Manatrank",
+       "icon": "inv_potion_137",
+       "itemId": 22832
+      }
+     ],
+     "icons": {}
+    },
+    "mechanics": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "hits": 3,
+       "amount": 9000,
+       "deaths": 1,
+       "avoidableDeaths": 1,
+       "earlyDeaths": 0,
+       "byMechanic": {
+        "damage:Whirlwind": {
+         "label": "Wirbelwind",
+         "icon": "ability_whirlwind",
+         "kind": "damage",
+         "hits": 3,
+         "amount": 9000
+        }
+       },
+       "topMechanic": {
+        "key": "damage:Whirlwind",
+        "label": "Wirbelwind",
+        "icon": "ability_whirlwind",
+        "hits": 3
+       }
+      }
+     ],
+     "mechanics": [
+      {
+       "key": "damage:Whirlwind",
+       "label": "Wirbelwind",
+       "icon": "ability_whirlwind",
+       "kind": "damage",
+       "hits": 3,
+       "amount": 9000,
+       "fights": 2
+      }
+     ],
+     "deaths": {
+      "total": 4,
+      "avoidable": 2,
+      "early": 1,
+      "nearEnd": 0,
+      "repeat": 0
+     }
+    },
+    "healers": {
+     "players": [
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "fights": 2,
+       "healingTotal": 300000,
+       "overhealPct": 21,
+       "topOverheal": {
+        "name": "Greater Heal",
+        "icon": "spell_holy_greaterheal",
+        "overhealPct": 42
+       },
+       "manaMinAvg": 7,
+       "manaLowFights": 2,
+       "potions": 2,
+       "potionPcts": [
+        50,
+        8
+       ],
+       "potionMissingFights": 0,
+       "dispels": 3,
+       "avgReactionMs": 900,
+       "shields": []
+      }
+     ],
+     "raid": {
+      "dispelsMissed": 2,
+      "missedByAbility": [
+       {
+        "ability": "Stille",
+        "icon": "spell_holy_silence",
+        "count": 2
+       }
+      ],
+      "tanks": [
+       "Brokk"
+      ]
+     }
+    },
+    "activity": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "fights": 2,
+       "activeAvg": 94,
+       "gaps": 2,
+       "gapMs": 8000,
+       "unexplainedMs": 8000,
+       "mechanicMs": 0,
+       "longestGap": 5000
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "activeAvg": 86,
+       "gaps": 4,
+       "gapMs": 20000,
+       "unexplainedMs": 12000,
+       "mechanicMs": 8000,
+       "longestGap": 9000
+      }
+     ]
+    },
+    "cooldowns": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "uses": 3,
+       "possible": 4,
+       "missed": 1,
+       "usedPct": 75,
+       "avgFirstAtMs": 6000,
+       "stacked": 2,
+       "unstacked": 1
+      }
+     ]
+    },
+    "totems": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "wfFights": 2,
+       "wfUptimeAvg": 87,
+       "twistingFights": 1,
+       "downtimeMs": 12000,
+       "gapCount": 4,
+       "slotDowntimeMs": {
+        "air": 12000
+       }
+      }
+     ]
+    },
+    "raidBuffs": {
+     "fights": 2,
+     "paladins": 1,
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "role": "tank",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 1,
+         "late": 0,
+         "partial": 0,
+         "none": 1,
+         "present": 1,
+         "wrong": 0,
+         "pct": 50
+        }
+       },
+       "missing": 1,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "role": "healer",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 2,
+         "late": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 2,
+         "wrong": 0,
+         "pct": 100
+        }
+       },
+       "missing": 0,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 0,
+         "late": 0,
+         "partial": 0,
+         "none": 2,
+         "present": 0,
+         "wrong": 0,
+         "pct": 0
+        }
+       },
+       "missing": 2,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      }
+     ],
+     "rows": [
+      {
+       "key": "kings",
+       "label": "Segen der Könige",
+       "icon": "spell_magic_greaterblessingofkings",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": true,
+       "fights": 2,
+       "slots": 6,
+       "full": 3,
+       "late": 0,
+       "partial": 0,
+       "none": 3,
+       "present": 3,
+       "wrong": 0,
+       "coveragePct": 50,
+       "missingPlayers": 2,
+       "seenPlayers": 2
+      }
+     ]
+    },
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": false,
+       "fightPercentage": 32,
+       "startTime": 0,
+       "endTime": 120000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 40000,
+         "name": "Brokk",
+         "type": "Warrior",
+         "ability": "Whirlwind",
+         "avoidable": true
+        }
+       ],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           5000,
+           120000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 96,
+         "gapCount": 1,
+         "longestGap": 5000,
+         "firstAt": 5000
+        },
+        {
+         "key": "misery",
+         "label": "Misery",
+         "icon": "spell_shadow_misery",
+         "expected": true,
+         "missing": true,
+         "bands": [],
+         "uptimePct": 0
+        }
+       ],
+       "cooldowns": {
+        "windows": [
+         {
+          "label": "Bloodlust",
+          "from": 3000,
+          "to": 43000
+         }
+        ],
+        "lust": {
+         "casts": 2,
+         "firstAt": 3000,
+         "spreadMs": 12000
+        },
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "rows": [
+           {
+            "label": "Bloodlust",
+            "icon": "spell_nature_bloodlust",
+            "markers": [
+             {
+              "at": 3000
+             }
+            ],
+            "possibleUses": 1,
+            "missed": 0
+           }
+          ]
+         }
+        ]
+       },
+       "activity": [
+        {
+         "name": "Brokk",
+         "type": "Warrior",
+         "bands": [
+          [
+           0,
+           100000
+          ]
+         ],
+         "gaps": [
+          {
+           "from": 100000,
+           "to": 120000
+          }
+         ],
+         "activePct": 83
+        },
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "bands": [
+          [
+           0,
+           120000
+          ]
+         ],
+         "gaps": [],
+         "activePct": 100
+        }
+       ],
+       "healers": {
+        "healers": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "id": 1,
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "healing": {
+           "total": 100000,
+           "overheal": 25000,
+           "absorbs": 0,
+           "overhealPct": 20,
+           "spells": []
+          },
+          "mana": {
+           "available": false
+          },
+          "potions": 0,
+          "potionMissing": false,
+          "dispels": {
+           "count": 0,
+           "avgReactionMs": null,
+           "list": []
+          }
+         }
+        ],
+        "tank": {
+         "id": 2,
+         "name": "Brokk",
+         "type": "Warrior",
+         "judgedUntil": 40000
+        },
+        "shields": [],
+        "dispels": {
+         "total": 0,
+         "missed": [
+          {
+           "at": 50000,
+           "ability": "Stille",
+           "icon": "spell_holy_silence",
+           "target": "Dorn",
+           "targetType": "Shaman",
+           "durationMs": 8000
+          }
+         ],
+         "others": []
+        }
+       },
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings"
+        ],
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "role": "melee",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "none",
+            "uptimePct": 0,
+            "expected": true,
+            "wrong": false,
+            "bands": []
+           }
+          ],
+          "missing": [
+           "kings"
+          ],
+          "late": [],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": []
+       },
+       "series": {
+        "step": 60000,
+        "dps": [
+         12000,
+         13000,
+         12200
+        ],
+        "hps": [
+         3000,
+         3200,
+         3100
+        ],
+        "bossHp": [
+         100,
+         60,
+         32
+        ]
+       }
+      },
+      {
+       "id": 3,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 200000,
+       "endTime": 404000,
+       "duration": 204000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           2000,
+           204000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 99
+        }
+       ],
+       "series": {
+        "step": 60000,
+        "dps": [
+         11000,
+         12000,
+         12500,
+         12300
+        ],
+        "hps": [
+         3000,
+         3000,
+         3100,
+         3000
+        ],
+        "bossHp": [
+         100,
+         70,
+         35,
+         0
+        ]
+       }
+      }
+     ]
+    },
+    "recommendations": {
+     "generatedAt": 1,
+     "raid": [
+      {
+       "key": "raid.debuff.misery",
+       "impact": "high",
+       "title": "Misery: Ø 0 %, fehlte in 1 Kampf",
+       "text": "Wer Misery liefert, hält es dauerhaft auf dem Boss.",
+       "evidence": [
+        {
+         "label": "Boss",
+         "value": "High King Maulgar"
+        }
+       ]
+      },
+      {
+       "key": "raid.avoidableDeaths",
+       "impact": "high",
+       "title": "2 vermeidbare Tode",
+       "text": "Mechaniken vor dem Pull noch einmal ansagen.",
+       "evidence": []
+      }
+     ],
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "items": []
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "items": [
+        {
+         "key": "healers.mana",
+         "impact": "high",
+         "title": "In 2 Kämpfen unter 10 % Mana",
+         "text": "Manatrank früher nehmen.",
+         "ai": "Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.",
+         "evidence": [
+          {
+           "label": "Kämpfe unter 10 %",
+           "value": "2"
+          }
+         ]
+        },
+        {
+         "key": "healers.overheal",
+         "impact": "medium",
+         "title": "21 % Overheal",
+         "text": "Greater Heal später ansetzen.",
+         "evidence": []
+        },
+        {
+         "key": "gear",
+         "impact": "low",
+         "title": "Kopf ohne Verzauberung",
+         "text": "Hood verzaubern.",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "items": [
+        {
+         "key": "totems.twisting",
+         "impact": "medium",
+         "title": "Twisting nur in 1 von 2 Kämpfen",
+         "text": "Windfury durchgehend twisten.",
+         "evidence": []
+        }
+       ]
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Elun": {
+       "healers.mana": {
+        "approved": true
+       },
+       "gear": {
+        "approved": true,
+        "text": "Bitte die Glyphe auf die Kapuze."
+       }
+      }
+     }
+    },
+    "recommendationSent": {
+     "Elun": {
+      "at": 1757600000000,
+      "by": "Lead",
+      "keys": [
+       "healers.mana"
+      ],
+      "signature": "x"
+     }
+    }
+   },
+   {
+    "id": "u1",
+    "name": "Lead",
+    "isAdmin": true
+   }
+  ]
+ },
+ {
+  "name": "case02-report",
+  "from": "render.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "zone": "Karazhan",
+    "date": "2026-07-24",
+    "reportUrl": "https://www.warcraftlogs.com/reports/xyz",
+    "players": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": [
+       {
+        "itemName": "Broken Ring",
+        "itemId": 1234,
+        "icon": "inv_ring.jpg",
+        "severity": "high",
+        "label": "kaputt"
+       }
+      ]
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": [
+       {
+        "itemName": "Broken Ring",
+        "itemId": 1234,
+        "icon": "inv_ring.jpg",
+        "severity": "high",
+        "label": "kaputt"
+       }
+      ],
+      "potions": {
+       "destruction": 1,
+       "haste": 2,
+       "mana": 0
+      },
+      "armory": [
+       {
+        "slot": 0,
+        "itemId": 9001,
+        "itemName": "Fancy Helm",
+        "icon": "inv_helm.jpg",
+        "quality": 4,
+        "itemLevel": 120,
+        "enchant": {
+         "status": "ok"
+        },
+        "gems": [
+         {
+          "id": 7,
+          "icon": "gem.jpg",
+          "bad": false
+         }
+        ],
+        "emptySockets": 1
+       },
+       {
+        "slot": 5,
+        "itemId": 9002,
+        "itemName": "Plain Chest",
+        "icon": "inv_chest.jpg",
+        "quality": 2,
+        "itemLevel": 100,
+        "enchant": {
+         "status": "missing"
+        },
+        "gems": [],
+        "emptySockets": 0
+       },
+       {
+        "slot": 9,
+        "itemId": 9003,
+        "itemName": "Bad Boots",
+        "icon": "inv_boots.jpg",
+        "quality": 3,
+        "itemLevel": 110,
+        "enchant": {
+         "status": "bad",
+         "reason": "falsche Verzauberung"
+        },
+        "gems": [
+         {
+          "id": 8,
+          "icon": "gem2.jpg",
+          "bad": true
+         }
+        ],
+        "emptySockets": 0
+       }
+      ]
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "icons": {
+     "destruction": "spell_destruction",
+     "haste": "spell_haste",
+     "mana": "spell_mana",
+     "flask": "flask_icon",
+     "battle": "battle_icon",
+     "food": "food_icon"
+    },
+    "consumables": {
+     "players": [
+      {
+       "name": "Alice",
+       "type": "Mage",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 50,
+       "food": 100,
+       "weaponOiled": true
+      }
+     ],
+     "icons": {
+      "flask": "flask_icon",
+      "battle": "battle_icon",
+      "food": "food_icon"
+     }
+    },
+    "potions": {
+     "players": [
+      {
+       "name": "Alice",
+       "type": "Mage",
+       "destruction": 1,
+       "haste": 2,
+       "mana": 7,
+       "total": 10,
+       "byType": {
+        "destruction": 1,
+        "haste": 2,
+        "superMana": 5,
+        "darkRune": 2
+       }
+      }
+     ],
+     "types": [
+      {
+       "key": "destruction",
+       "group": "destruction",
+       "label": "Zerstörungstrank",
+       "icon": "inv_potion_107",
+       "itemId": 22839,
+       "spellId": null
+      },
+      {
+       "key": "superMana",
+       "group": "mana",
+       "label": "Super-Manatrank",
+       "icon": "inv_potion_137",
+       "itemId": 22832,
+       "spellId": null
+      },
+      {
+       "key": "darkRune",
+       "group": "mana",
+       "label": "Dunkle Rune",
+       "icon": "inv_misc_rune_04",
+       "itemId": 20520,
+       "spellId": null
+      }
+     ],
+     "icons": {
+      "destruction": "spell_destruction",
+      "haste": "spell_haste",
+      "mana": "spell_mana"
+     }
+    },
+    "drums": {
+     "players": [
+      {
+       "name": "Bob",
+       "type": "Warrior",
+       "total": 5,
+       "byType": {
+        "Battle": 3,
+        "Restoration": 2
+       }
+      }
+     ],
+     "icon": "drum_icon"
+    },
+    "sunder": [
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "total": 20,
+      "below5": 2
+     }
+    ],
+    "bossUptimes": {
+     "metrics": [
+      {
+       "key": "sunder",
+       "label": "Sunder"
+      }
+     ],
+     "rows": [
+      {
+       "boss": "Attumen",
+       "kill": true,
+       "sunder": 98
+      },
+      {
+       "boss": "Nightbane",
+       "kill": false,
+       "sunder": 40
+      }
+     ]
+    },
+    "shadowResi": {
+     "note": "SR note text",
+     "players": [
+      {
+       "name": "Alice",
+       "type": "Mage",
+       "sr": 60,
+       "items": [
+        {
+         "itemId": 55,
+         "itemName": "Shadow Cloak",
+         "sr": 20
+        }
+       ]
+      }
+     ]
+    },
+    "rpb": {
+     "roles": {
+      "Alice": "Caster",
+      "Bob": "Tank"
+     },
+     "byRole": {
+      "Tank": [
+       {
+        "name": "Bob",
+        "type": "Warrior",
+        "trinkets": []
+       }
+      ],
+      "Healer": [],
+      "Caster": [],
+      "Physical": []
+     },
+     "raidSeconds": 300,
+     "bossSeconds": 200,
+     "damage": {
+      "heading": "Vermeidbarer erhaltener Schaden",
+      "abilities": [
+       {
+        "label": "Feuerregen",
+        "name": "Rain of Fire",
+        "sources": [
+         "Boss"
+        ],
+        "total": 5000,
+        "icon": "spell_shadow_rainoffire.jpg",
+        "spellId": 42223
+       }
+      ],
+      "players": [
+       {
+        "name": "Alice",
+        "type": "Mage",
+        "perAbility": {
+         "0": 1200
+        },
+        "avoidableTotal": 1200,
+        "reflected": 30,
+        "hostile": 0,
+        "deaths": 1
+       },
+       {
+        "name": "Bob",
+        "type": "Warrior",
+        "perAbility": {
+         "0": 800
+        },
+        "avoidableTotal": 800,
+        "reflected": 0,
+        "hostile": 12,
+        "deaths": 0
+       }
+      ]
+     },
+     "activity": {
+      "raidSeconds": 300,
+      "headings": {},
+      "players": [
+       {
+        "name": "Alice",
+        "type": "Mage",
+        "gearSpellHaste": 60,
+        "hasteSecondsSubtracted": 18,
+        "hasteBuffsUsed": {},
+        "secondsActive": 240,
+        "secondsActiveST": 200,
+        "secondsActiveAoe": 40,
+        "relativeST": 66,
+        "relativeAoe": 13,
+        "relativeTotal": 80,
+        "singleTargetCasts": [
+         {
+          "label": "Feuerball",
+          "name": "Fireball",
+          "amount": 42,
+          "icon": "spell_fire_flamebolt.jpg",
+          "spellId": 38692,
+          "lowerRankCasts": 30,
+          "lowerRankPercent": 71,
+          "mostlyLowerRank": true
+         },
+         {
+          "label": "Frostblitz",
+          "name": "Frostbolt",
+          "amount": 10,
+          "icon": "spell_frost_frostbolt02.jpg",
+          "spellId": 27072
+         }
+        ],
+        "aoeCasts": [
+         {
+          "label": "Blizzard",
+          "name": "Blizzard",
+          "amount": 5,
+          "icon": "spell_frost_icestorm.jpg",
+          "spellId": 27085
+         }
+        ]
+       }
+      ]
+     },
+     "interrupts": {
+      "heading": "Unterbrochene Zauber",
+      "players": [
+       {
+        "name": "Bob",
+        "type": "Warrior",
+        "count": 4,
+        "spells": [
+         {
+          "name": "Heilung",
+          "count": 4,
+          "icon": "spell_holy_heal.jpg",
+          "spellId": 25314
+         }
+        ],
+        "kicks": [
+         {
+          "name": "Schildhieb",
+          "count": 4
+         }
+        ]
+       }
+      ]
+     },
+     "validation": {
+      "zones": [
+       "SSC"
+      ],
+      "bossesKilled": 3,
+      "bossesTotal": 4,
+      "requirements": [
+       {
+        "zone": "SSC",
+        "label": "Tiefensumpfkoloss",
+        "name": "Underbog Colossus",
+        "minimum": 6,
+        "killed": 6,
+        "ok": true
+       },
+       {
+        "zone": "SSC",
+        "label": "Tiefenhexe",
+        "name": "Coilfang Fathom-Witch",
+        "minimum": 6,
+        "killed": 2,
+        "ok": false
+       }
+      ],
+      "valid": false
+     },
+     "usage": [
+      {
+       "name": "Alice",
+       "type": "Mage",
+       "classCooldowns": [
+        {
+         "label": "Eisige Adern",
+         "name": "Icy Veins",
+         "total": 3,
+         "trash": 1,
+         "bosses": 2,
+         "cooldown": 180,
+         "possibleUses": 4,
+         "icon": "spell_frost_coldhearted.jpg",
+         "spellId": 12472
+        }
+       ],
+       "trinketsAndRacials": [
+        {
+         "label": "Schädel",
+         "name": "Nicht in der Config",
+         "total": 2,
+         "trash": 0,
+         "bosses": 2,
+         "spellId": 40396
+        }
+       ],
+       "consumables": [],
+       "engineering": [],
+       "absorbs": []
+      }
+     ],
+     "headings": {}
+    }
+   }
+  ]
+ },
+ {
+  "name": "case03-player",
+  "from": "renderPlayerSeries.test.js",
+  "fn": "renderPlayerPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "zone": "Gruul's Lair",
+    "date": "2026-09-10",
+    "players": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": []
+     },
+     {
+      "name": "Heal",
+      "type": "Priest",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Heal",
+      "type": "Priest",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "timeline": {
+     "fights": [
+      {
+       "id": 3,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 100000,
+       "endTime": 120000,
+       "duration": 20000,
+       "deaths": [
+        {
+         "at": 10000,
+         "name": "Alice",
+         "type": "Mage",
+         "ability": "Cave In"
+        },
+        {
+         "at": 15000,
+         "name": "Bob",
+         "type": "Warlock"
+        }
+       ],
+       "debuffs": null,
+       "totems": null,
+       "activity": null,
+       "buffs": null,
+       "cooldowns": {
+        "windows": [
+         {
+          "label": "Bloodlust",
+          "from": 5000,
+          "to": 45000
+         }
+        ],
+        "players": []
+       },
+       "healers": {
+        "healers": [
+         {
+          "name": "Heal",
+          "type": "Priest",
+          "heal": {
+           "total": 1,
+           "overhealPct": 0,
+           "spells": []
+          },
+          "mana": {
+           "available": false
+          },
+          "dispels": null
+         }
+        ],
+        "shields": [],
+        "tank": null
+       },
+       "series": {
+        "step": 5000,
+        "dps": [
+         1000,
+         1000,
+         1000,
+         1000,
+         1000
+        ],
+        "hps": [
+         400,
+         400,
+         400,
+         400,
+         400
+        ],
+        "bossHp": [
+         100,
+         80,
+         60,
+         40,
+         0
+        ],
+        "players": [
+         {
+          "name": "Alice",
+          "type": "Mage",
+          "dps": [
+           300,
+           60,
+           0,
+           0,
+           0
+          ]
+         },
+         {
+          "name": "Bob",
+          "type": "Warlock",
+          "dps": [
+           200,
+           200,
+           200,
+           200,
+           200
+          ]
+         },
+         {
+          "name": "Cid",
+          "type": "Rogue",
+          "dps": [
+           200,
+           200,
+           200,
+           200,
+           200
+          ]
+         },
+         {
+          "name": "Dee",
+          "type": "Hunter",
+          "dps": [
+           200,
+           200,
+           200,
+           200,
+           200
+          ]
+         },
+         {
+          "name": "Eve",
+          "type": "Warrior",
+          "dps": [
+           100,
+           100,
+           100,
+           100,
+           100
+          ]
+         },
+         {
+          "name": "Heal",
+          "type": "Priest",
+          "dps": [
+           20,
+           20,
+           20,
+           20,
+           20
+          ],
+          "hps": [
+           400,
+           400,
+           400,
+           400,
+           400
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   },
+   0
+  ]
+ },
+ {
+  "name": "case04-report",
+  "from": "renderRaidBuffs.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "zone": "Gruul's Lair",
+    "date": "2026-09-10",
+    "players": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 100000,
+       "endTime": 220000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 60000,
+         "name": "Dorn",
+         "type": "Shaman"
+        }
+       ],
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings",
+         "fortitude"
+        ],
+        "players": [
+         {
+          "name": "Brokk",
+          "type": "Warrior",
+          "role": "tank",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              120000
+             ]
+            ]
+           },
+           {
+            "key": "fortitude",
+            "label": "Machtwort: Seelenstärke",
+            "icon": "spell_holy_wordfortitude",
+            "status": "partial",
+            "uptimePct": 50,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              60000
+             ]
+            ]
+           },
+           {
+            "key": "wisdom",
+            "label": "Segen der Weisheit",
+            "icon": "spell_holy_sealofwisdom",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": false,
+            "wrong": true,
+            "bands": [
+             [
+              0,
+              120000
+             ]
+            ]
+           }
+          ],
+          "missing": [],
+          "partial": [
+           "fortitude"
+          ],
+          "wrong": [
+           "wisdom"
+          ]
+         },
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "role": "healer",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              120000
+             ]
+            ]
+           },
+           {
+            "key": "fortitude",
+            "label": "Machtwort: Seelenstärke",
+            "icon": "spell_holy_wordfortitude",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              120000
+             ]
+            ]
+           }
+          ],
+          "missing": [],
+          "partial": [],
+          "wrong": []
+         },
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "role": "melee",
+          "judgedUntil": 60000,
+          "diedAt": 60000,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "none",
+            "uptimePct": 0,
+            "expected": true,
+            "wrong": false,
+            "bands": []
+           },
+           {
+            "key": "fortitude",
+            "label": "Machtwort: Seelenstärke",
+            "icon": "spell_holy_wordfortitude",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              60000
+             ]
+            ]
+           },
+           {
+            "key": "waterShield",
+            "label": "Wasserschild",
+            "icon": "ability_shaman_watershield",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": false,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              60000
+             ]
+            ]
+           }
+          ],
+          "missing": [
+           "kings"
+          ],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": [
+         {
+          "key": "kings",
+          "expected": 3,
+          "full": 2,
+          "partial": 0,
+          "none": 1,
+          "present": 2,
+          "wrong": 0
+         },
+         {
+          "key": "fortitude",
+          "expected": 3,
+          "full": 2,
+          "partial": 1,
+          "none": 0,
+          "present": 3,
+          "wrong": 0
+         }
+        ]
+       }
+      },
+      {
+       "id": 4,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 500000,
+       "endTime": 700000,
+       "duration": 200000,
+       "deaths": [],
+       "buffs": null
+      },
+      {
+       "id": 6,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "contentId": "gruul",
+       "kill": false,
+       "fightPercentage": 40,
+       "startTime": 800000,
+       "endTime": 900000,
+       "duration": 100000,
+       "deaths": [],
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings"
+        ],
+        "players": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "role": "healer",
+          "judgedUntil": 100000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "full",
+            "uptimePct": 100,
+            "expected": true,
+            "wrong": false,
+            "bands": [
+             [
+              0,
+              100000
+             ]
+            ]
+           }
+          ],
+          "missing": [],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": [
+         {
+          "key": "kings",
+          "expected": 1,
+          "full": 1,
+          "partial": 0,
+          "none": 0,
+          "present": 1,
+          "wrong": 0
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "raidBuffs": {
+     "fights": 3,
+     "paladins": 1,
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "role": "tank",
+       "fights": 3,
+       "missing": 0,
+       "partial": 3,
+       "wrong": 3,
+       "buffs": {
+        "kings": {
+         "expected": 3,
+         "full": 3,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 100
+        },
+        "fortitude": {
+         "expected": 3,
+         "full": 0,
+         "partial": 3,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 0
+        },
+        "wisdom": {
+         "expected": 0,
+         "full": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 3,
+         "pct": 100
+        }
+       }
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "role": "healer",
+       "fights": 3,
+       "missing": 0,
+       "partial": 0,
+       "wrong": 0,
+       "buffs": {
+        "kings": {
+         "expected": 3,
+         "full": 3,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 100
+        },
+        "fortitude": {
+         "expected": 3,
+         "full": 3,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 100
+        }
+       }
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 3,
+       "missing": 2,
+       "partial": 0,
+       "wrong": 0,
+       "buffs": {
+        "kings": {
+         "expected": 3,
+         "full": 1,
+         "partial": 0,
+         "none": 2,
+         "present": 1,
+         "wrong": 0,
+         "pct": 33
+        },
+        "fortitude": {
+         "expected": 3,
+         "full": 3,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 100
+        },
+        "waterShield": {
+         "expected": 0,
+         "full": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 3,
+         "wrong": 0,
+         "pct": 100
+        }
+       }
+      }
+     ],
+     "rows": [
+      {
+       "key": "kings",
+       "label": "Segen der Könige",
+       "icon": "spell_magic_greaterblessingofkings",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": true,
+       "fights": 3,
+       "slots": 9,
+       "full": 7,
+       "partial": 0,
+       "none": 2,
+       "present": 7,
+       "wrong": 0,
+       "coveragePct": 78,
+       "missingPlayers": 1,
+       "seenPlayers": 3
+      },
+      {
+       "key": "wisdom",
+       "label": "Segen der Weisheit",
+       "icon": "spell_holy_sealofwisdom",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": false,
+       "fights": 0,
+       "slots": 0,
+       "full": 0,
+       "partial": 0,
+       "none": 0,
+       "present": 3,
+       "wrong": 3,
+       "coveragePct": null,
+       "missingPlayers": 0,
+       "seenPlayers": 1
+      },
+      {
+       "key": "fortitude",
+       "label": "Machtwort: Seelenstärke",
+       "icon": "spell_holy_wordfortitude",
+       "provider": "Priest",
+       "group": "stats",
+       "expect": "class",
+       "expected": true,
+       "fights": 3,
+       "slots": 9,
+       "full": 6,
+       "partial": 3,
+       "none": 0,
+       "present": 9,
+       "wrong": 0,
+       "coveragePct": 67,
+       "missingPlayers": 1,
+       "seenPlayers": 3
+      },
+      {
+       "key": "waterShield",
+       "label": "Wasserschild",
+       "icon": "ability_shaman_watershield",
+       "provider": "Shaman",
+       "group": "shield",
+       "expect": "never",
+       "expected": false,
+       "fights": 0,
+       "slots": 0,
+       "full": 0,
+       "partial": 0,
+       "none": 0,
+       "present": 3,
+       "wrong": 0,
+       "coveragePct": null,
+       "missingPlayers": 0,
+       "seenPlayers": 1
+      },
+      {
+       "key": "thorns",
+       "label": "Dornen",
+       "icon": "spell_nature_thorns",
+       "provider": "Druid",
+       "group": "protection",
+       "expect": "majority",
+       "expected": false,
+       "fights": 0,
+       "slots": 0,
+       "full": 0,
+       "partial": 0,
+       "none": 0,
+       "present": 0,
+       "wrong": 0,
+       "coveragePct": null,
+       "missingPlayers": 0,
+       "seenPlayers": 0
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "case05-player",
+  "from": "renderReportCards.test.js",
+  "fn": "renderPlayerPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Montagsraid Gruul",
+    "zone": "Gruul's Lair",
+    "date": "7.9.2026",
+    "players": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ]
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {
+       "destruction": 0,
+       "haste": 1,
+       "mana": 0
+      },
+      "armory": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ],
+      "potions": {
+       "destruction": 0,
+       "haste": 0,
+       "mana": 3
+      },
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1
+      },
+      "armory": []
+     }
+    ],
+    "icons": {},
+    "consumables": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 100,
+       "weaponOiled": true
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 50,
+       "weaponOiled": false
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "flask": 67,
+       "elixir": 0,
+       "buffed": 67,
+       "food": 100,
+       "weaponOiled": true
+      }
+     ],
+     "icons": {}
+    },
+    "potions": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1,
+       "total": 2,
+       "byType": {
+        "destruction": 1,
+        "superMana": 1
+       }
+      }
+     ],
+     "types": [
+      {
+       "key": "superMana",
+       "group": "mana",
+       "label": "Super-Manatrank",
+       "icon": "inv_potion_137",
+       "itemId": 22832
+      }
+     ],
+     "icons": {}
+    },
+    "mechanics": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "hits": 3,
+       "amount": 9000,
+       "deaths": 1,
+       "avoidableDeaths": 1,
+       "earlyDeaths": 0,
+       "byMechanic": {
+        "damage:Whirlwind": {
+         "label": "Wirbelwind",
+         "icon": "ability_whirlwind",
+         "kind": "damage",
+         "hits": 3,
+         "amount": 9000
+        }
+       },
+       "topMechanic": {
+        "key": "damage:Whirlwind",
+        "label": "Wirbelwind",
+        "icon": "ability_whirlwind",
+        "hits": 3
+       }
+      }
+     ],
+     "mechanics": [
+      {
+       "key": "damage:Whirlwind",
+       "label": "Wirbelwind",
+       "icon": "ability_whirlwind",
+       "kind": "damage",
+       "hits": 3,
+       "amount": 9000,
+       "fights": 2
+      }
+     ],
+     "deaths": {
+      "total": 4,
+      "avoidable": 2,
+      "early": 1,
+      "nearEnd": 0,
+      "repeat": 0
+     }
+    },
+    "healers": {
+     "players": [
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "fights": 2,
+       "healingTotal": 300000,
+       "overhealPct": 21,
+       "topOverheal": {
+        "name": "Greater Heal",
+        "icon": "spell_holy_greaterheal",
+        "overhealPct": 42
+       },
+       "manaMinAvg": 7,
+       "manaLowFights": 2,
+       "potions": 2,
+       "potionPcts": [
+        50,
+        8
+       ],
+       "potionMissingFights": 0,
+       "dispels": 3,
+       "avgReactionMs": 900,
+       "shields": []
+      }
+     ],
+     "raid": {
+      "dispelsMissed": 2,
+      "missedByAbility": [
+       {
+        "ability": "Stille",
+        "icon": "spell_holy_silence",
+        "count": 2
+       }
+      ],
+      "tanks": [
+       "Brokk"
+      ]
+     }
+    },
+    "activity": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "fights": 2,
+       "activeAvg": 94,
+       "gaps": 2,
+       "gapMs": 8000,
+       "unexplainedMs": 8000,
+       "mechanicMs": 0,
+       "longestGap": 5000
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "activeAvg": 86,
+       "gaps": 4,
+       "gapMs": 20000,
+       "unexplainedMs": 12000,
+       "mechanicMs": 8000,
+       "longestGap": 9000
+      }
+     ]
+    },
+    "cooldowns": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "uses": 3,
+       "possible": 4,
+       "missed": 1,
+       "usedPct": 75,
+       "avgFirstAtMs": 6000,
+       "stacked": 2,
+       "unstacked": 1
+      }
+     ]
+    },
+    "totems": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "wfFights": 2,
+       "wfUptimeAvg": 87,
+       "twistingFights": 1,
+       "downtimeMs": 12000,
+       "gapCount": 4,
+       "slotDowntimeMs": {
+        "air": 12000
+       }
+      }
+     ]
+    },
+    "raidBuffs": {
+     "fights": 2,
+     "paladins": 1,
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "role": "tank",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 1,
+         "late": 0,
+         "partial": 0,
+         "none": 1,
+         "present": 1,
+         "wrong": 0,
+         "pct": 50
+        }
+       },
+       "missing": 1,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "role": "healer",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 2,
+         "late": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 2,
+         "wrong": 0,
+         "pct": 100
+        }
+       },
+       "missing": 0,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 0,
+         "late": 0,
+         "partial": 0,
+         "none": 2,
+         "present": 0,
+         "wrong": 0,
+         "pct": 0
+        }
+       },
+       "missing": 2,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      }
+     ],
+     "rows": [
+      {
+       "key": "kings",
+       "label": "Segen der Könige",
+       "icon": "spell_magic_greaterblessingofkings",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": true,
+       "fights": 2,
+       "slots": 6,
+       "full": 3,
+       "late": 0,
+       "partial": 0,
+       "none": 3,
+       "present": 3,
+       "wrong": 0,
+       "coveragePct": 50,
+       "missingPlayers": 2,
+       "seenPlayers": 2
+      }
+     ]
+    },
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": false,
+       "fightPercentage": 32,
+       "startTime": 0,
+       "endTime": 120000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 40000,
+         "name": "Brokk",
+         "type": "Warrior",
+         "ability": "Whirlwind",
+         "avoidable": true
+        }
+       ],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           5000,
+           120000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 96,
+         "gapCount": 1,
+         "longestGap": 5000,
+         "firstAt": 5000
+        },
+        {
+         "key": "misery",
+         "label": "Misery",
+         "icon": "spell_shadow_misery",
+         "expected": true,
+         "missing": true,
+         "bands": [],
+         "uptimePct": 0
+        }
+       ],
+       "cooldowns": {
+        "windows": [
+         {
+          "label": "Bloodlust",
+          "from": 3000,
+          "to": 43000
+         }
+        ],
+        "lust": {
+         "casts": 2,
+         "firstAt": 3000,
+         "spreadMs": 12000
+        },
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "rows": [
+           {
+            "label": "Bloodlust",
+            "icon": "spell_nature_bloodlust",
+            "markers": [
+             {
+              "at": 3000
+             }
+            ],
+            "possibleUses": 1,
+            "missed": 0
+           }
+          ]
+         }
+        ]
+       },
+       "activity": [
+        {
+         "name": "Brokk",
+         "type": "Warrior",
+         "bands": [
+          [
+           0,
+           100000
+          ]
+         ],
+         "gaps": [
+          {
+           "from": 100000,
+           "to": 120000
+          }
+         ],
+         "activePct": 83
+        },
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "bands": [
+          [
+           0,
+           120000
+          ]
+         ],
+         "gaps": [],
+         "activePct": 100
+        }
+       ],
+       "healers": {
+        "healers": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "id": 1,
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "healing": {
+           "total": 100000,
+           "overheal": 25000,
+           "absorbs": 0,
+           "overhealPct": 20,
+           "spells": []
+          },
+          "mana": {
+           "available": false
+          },
+          "potions": 0,
+          "potionMissing": false,
+          "dispels": {
+           "count": 0,
+           "avgReactionMs": null,
+           "list": []
+          }
+         }
+        ],
+        "tank": {
+         "id": 2,
+         "name": "Brokk",
+         "type": "Warrior",
+         "judgedUntil": 40000
+        },
+        "shields": [],
+        "dispels": {
+         "total": 0,
+         "missed": [
+          {
+           "at": 50000,
+           "ability": "Stille",
+           "icon": "spell_holy_silence",
+           "target": "Dorn",
+           "targetType": "Shaman",
+           "durationMs": 8000
+          }
+         ],
+         "others": []
+        }
+       },
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings"
+        ],
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "role": "melee",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "none",
+            "uptimePct": 0,
+            "expected": true,
+            "wrong": false,
+            "bands": []
+           }
+          ],
+          "missing": [
+           "kings"
+          ],
+          "late": [],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": []
+       },
+       "series": {
+        "step": 60000,
+        "dps": [
+         12000,
+         13000,
+         12200
+        ],
+        "hps": [
+         3000,
+         3200,
+         3100
+        ],
+        "bossHp": [
+         100,
+         60,
+         32
+        ]
+       }
+      },
+      {
+       "id": 3,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 200000,
+       "endTime": 404000,
+       "duration": 204000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           2000,
+           204000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 99
+        }
+       ],
+       "series": {
+        "step": 60000,
+        "dps": [
+         11000,
+         12000,
+         12500,
+         12300
+        ],
+        "hps": [
+         3000,
+         3000,
+         3100,
+         3000
+        ],
+        "bossHp": [
+         100,
+         70,
+         35,
+         0
+        ]
+       }
+      }
+     ]
+    },
+    "recommendations": {
+     "generatedAt": 1,
+     "raid": [
+      {
+       "key": "raid.debuff.misery",
+       "impact": "high",
+       "title": "Misery: Ø 0 %, fehlte in 1 Kampf",
+       "text": "Wer Misery liefert, hält es dauerhaft auf dem Boss.",
+       "evidence": [
+        {
+         "label": "Boss",
+         "value": "High King Maulgar"
+        }
+       ]
+      },
+      {
+       "key": "raid.avoidableDeaths",
+       "impact": "high",
+       "title": "2 vermeidbare Tode",
+       "text": "Mechaniken vor dem Pull noch einmal ansagen.",
+       "evidence": []
+      }
+     ],
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "items": []
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "items": [
+        {
+         "key": "healers.mana",
+         "impact": "high",
+         "title": "In 2 Kämpfen unter 10 % Mana",
+         "text": "Manatrank früher nehmen.",
+         "ai": "Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.",
+         "evidence": [
+          {
+           "label": "Kämpfe unter 10 %",
+           "value": "2"
+          }
+         ]
+        },
+        {
+         "key": "healers.overheal",
+         "impact": "medium",
+         "title": "21 % Overheal",
+         "text": "Greater Heal später ansetzen.",
+         "evidence": []
+        },
+        {
+         "key": "gear",
+         "impact": "low",
+         "title": "Kopf ohne Verzauberung",
+         "text": "Hood verzaubern.",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "items": [
+        {
+         "key": "totems.twisting",
+         "impact": "medium",
+         "title": "Twisting nur in 1 von 2 Kämpfen",
+         "text": "Windfury durchgehend twisten.",
+         "evidence": []
+        }
+       ]
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Elun": {
+       "healers.mana": {
+        "approved": true
+       },
+       "gear": {
+        "approved": true,
+        "text": "Bitte die Glyphe auf die Kapuze."
+       }
+      }
+     }
+    },
+    "recommendationSent": {
+     "Elun": {
+      "at": 1757600000000,
+      "by": "Lead",
+      "keys": [
+       "healers.mana"
+      ],
+      "signature": "x"
+     }
+    }
+   },
+   1,
+   {
+    "id": "u3",
+    "name": "Member",
+    "isAdmin": false,
+    "access": {
+     "cla": {
+      "read": true
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "case06-report",
+  "from": "renderHealers.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "zone": "Gruul's Lair",
+    "date": "2026-09-10",
+    "players": [
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     },
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 100000,
+       "endTime": 220000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 90000,
+         "name": "Dorn",
+         "type": "Shaman"
+        }
+       ],
+       "healers": {
+        "healers": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "id": 1,
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "healing": {
+           "total": 155000,
+           "overheal": 45000,
+           "absorbs": 20000,
+           "overhealPct": 23,
+           "spells": [
+            {
+             "guid": 25314,
+             "name": "Greater Heal",
+             "icon": "spell_holy_greaterheal",
+             "total": 60000,
+             "overheal": 40000,
+             "overhealPct": 40,
+             "share": 50,
+             "casts": 30
+            },
+            {
+             "guid": 25235,
+             "name": "Flash Heal",
+             "icon": "spell_holy_flashheal",
+             "total": 95000,
+             "overheal": 5000,
+             "overhealPct": 5,
+             "share": 50,
+             "casts": 80
+            }
+           ]
+          },
+          "mana": {
+           "available": true,
+           "step": 5000,
+           "values": [
+            100,
+            96,
+            92,
+            88,
+            84,
+            80,
+            76,
+            72,
+            68,
+            64,
+            60,
+            56,
+            52,
+            48,
+            44,
+            40,
+            36,
+            32,
+            28,
+            24,
+            20,
+            16,
+            12,
+            8,
+            5
+           ],
+           "min": 5,
+           "minAt": 118000,
+           "lowMs": 12000,
+           "empty": true,
+           "regen": [
+            {
+             "at": 60000,
+             "key": "superMana",
+             "label": "Super-Manatrank",
+             "icon": "inv_potion_137",
+             "kind": "potion",
+             "amount": 3000,
+             "pct": 52
+            }
+           ]
+          },
+          "potions": 1,
+          "potionMissing": false,
+          "dispels": {
+           "count": 2,
+           "avgReactionMs": 1200,
+           "list": []
+          }
+         },
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "id": 5,
+          "judgedUntil": 90000,
+          "diedAt": 90000,
+          "healing": {
+           "total": 80000,
+           "overheal": 60000,
+           "absorbs": 0,
+           "overhealPct": 43,
+           "spells": [
+            {
+             "guid": 25423,
+             "name": "Chain Heal",
+             "icon": "spell_nature_healingwavegreater",
+             "total": 80000,
+             "overheal": 60000,
+             "overhealPct": 43,
+             "share": 100,
+             "casts": 40
+            }
+           ]
+          },
+          "mana": {
+           "available": false,
+           "step": 5000,
+           "values": [],
+           "min": null,
+           "minAt": null,
+           "lowMs": 0,
+           "empty": false,
+           "regen": []
+          },
+          "potions": 0,
+          "potionMissing": true,
+          "dispels": {
+           "count": 0,
+           "avgReactionMs": null,
+           "list": []
+          }
+         }
+        ],
+        "tank": {
+         "id": 3,
+         "name": "Brokk",
+         "type": "Warrior",
+         "judgedUntil": 120000
+        },
+        "shields": [
+         {
+          "key": "earthShield",
+          "label": "Erdschild",
+          "name": "Earth Shield",
+          "icon": "spell_nature_skinofearth",
+          "source": "Dorn",
+          "sourceType": "Shaman",
+          "bands": [
+           [
+            2000,
+            62000
+           ],
+           [
+            70000,
+            120000
+           ]
+          ],
+          "maxStacks": 0,
+          "uptimePct": 92,
+          "gapCount": 2,
+          "longestGap": 8000,
+          "firstAt": 2000,
+          "fullStacksPct": null
+         },
+         {
+          "key": "renew",
+          "label": "Erneuerung",
+          "name": "Renew",
+          "icon": "spell_holy_renew",
+          "source": "Elun",
+          "sourceType": "Priest",
+          "bands": [
+           [
+            0,
+            30000
+           ]
+          ],
+          "maxStacks": 0,
+          "uptimePct": 25,
+          "gapCount": 1,
+          "longestGap": 90000,
+          "firstAt": 0,
+          "fullStacksPct": null
+         }
+        ],
+        "dispels": {
+         "total": 2,
+         "missed": [
+          {
+           "at": 50000,
+           "ability": "Stille",
+           "icon": "spell_holy_silence",
+           "guid": "30225",
+           "target": "Brokk",
+           "targetType": "Warrior",
+           "durationMs": 8000
+          }
+         ],
+         "others": []
+        }
+       }
+      },
+      {
+       "id": 4,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 500000,
+       "endTime": 700000,
+       "duration": 200000,
+       "deaths": [],
+       "healers": null
+      }
+     ]
+    },
+    "healers": {
+     "players": [
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "fights": 3,
+       "healingTotal": 450000,
+       "overhealTotal": 130000,
+       "absorbs": 60000,
+       "overhealPct": 22,
+       "topOverheal": {
+        "name": "Greater Heal",
+        "icon": "spell_holy_greaterheal",
+        "overheal": 120000,
+        "total": 180000,
+        "overhealPct": 40,
+        "overhealShare": 92
+       },
+       "manaFights": 3,
+       "manaMinAvg": 9,
+       "manaLowFights": 2,
+       "lowMs": 30000,
+       "potions": 3,
+       "potionPcts": [
+        52,
+        8,
+        12
+       ],
+       "potionMissingFights": 0,
+       "dispels": 6,
+       "avgReactionMs": 1200,
+       "shields": [
+        {
+         "key": "renew",
+         "label": "Erneuerung",
+         "icon": "spell_holy_renew",
+         "fights": 3,
+         "uptimeAvg": 25
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 3,
+       "healingTotal": 240000,
+       "overhealTotal": 180000,
+       "absorbs": 0,
+       "overhealPct": 43,
+       "topOverheal": {
+        "name": "Chain Heal",
+        "icon": "spell_nature_healingwavegreater",
+        "overheal": 180000,
+        "total": 240000,
+        "overhealPct": 43,
+        "overhealShare": 100
+       },
+       "manaFights": 0,
+       "manaMinAvg": null,
+       "manaLowFights": 0,
+       "lowMs": 0,
+       "potions": 0,
+       "potionPcts": [],
+       "potionMissingFights": 2,
+       "dispels": 0,
+       "avgReactionMs": null,
+       "shields": [
+        {
+         "key": "earthShield",
+         "label": "Erdschild",
+         "icon": "spell_nature_skinofearth",
+         "fights": 3,
+         "uptimeAvg": 92
+        }
+       ]
+      }
+     ],
+     "raid": {
+      "dispelsMissed": 3,
+      "missedByAbility": [
+       {
+        "ability": "Stille",
+        "icon": "spell_holy_silence",
+        "count": 3
+       }
+      ],
+      "tanks": [
+       "Brokk"
+      ]
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "case07-report",
+  "from": "renderRecommendations.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "players": [
+     {
+      "name": "Farin",
+      "type": "Warlock",
+      "issues": []
+     },
+     {
+      "name": "Clean",
+      "type": "Mage",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Farin",
+      "type": "Warlock",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Clean",
+      "type": "Mage",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "recommendations": {
+     "generatedAt": 1,
+     "raid": [
+      {
+       "key": "raid.earlyDeaths",
+       "impact": "high",
+       "title": "2 Tode in den ersten 30 Sekunden",
+       "text": "Pull sauberer.",
+       "evidence": [
+        {
+         "label": "Frühe Tode",
+         "value": "2"
+        }
+       ]
+      }
+     ],
+     "players": [
+      {
+       "name": "Farin",
+       "type": "Warlock",
+       "items": [
+        {
+         "key": "gear",
+         "impact": "high",
+         "title": "2 Gear-Probleme",
+         "text": "Gear fertig machen.",
+         "evidence": [
+          {
+           "label": "Hood",
+           "value": "keine Verzauberung"
+          }
+         ]
+        },
+        {
+         "key": "consumables.food",
+         "impact": "low",
+         "title": "Essen 80 %",
+         "text": "Essen erneuern.",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Clean",
+       "type": "Mage",
+       "items": []
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Farin": {
+       "gear": {
+        "approved": true,
+        "text": "Bitte vor dem Raid verzaubern."
+       },
+       "consumables.food": {
+        "approved": false
+       }
+      }
+     }
+    }
+   },
+   {
+    "id": "u1",
+    "name": "Lead",
+    "isAdmin": true
+   }
+  ]
+ },
+ {
+  "name": "case08-report",
+  "from": "renderReportCards.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Montagsraid Gruul",
+    "zone": "Gruul's Lair",
+    "date": "7.9.2026",
+    "players": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ]
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {
+       "destruction": 0,
+       "haste": 1,
+       "mana": 0
+      },
+      "armory": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ],
+      "potions": {
+       "destruction": 0,
+       "haste": 0,
+       "mana": 3
+      },
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1
+      },
+      "armory": []
+     }
+    ],
+    "icons": {},
+    "consumables": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 100,
+       "weaponOiled": true
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 50,
+       "weaponOiled": false
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "flask": 67,
+       "elixir": 0,
+       "buffed": 67,
+       "food": 100,
+       "weaponOiled": true
+      }
+     ],
+     "icons": {}
+    },
+    "potions": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1,
+       "total": 2,
+       "byType": {
+        "destruction": 1,
+        "superMana": 1
+       }
+      }
+     ],
+     "types": [
+      {
+       "key": "superMana",
+       "group": "mana",
+       "label": "Super-Manatrank",
+       "icon": "inv_potion_137",
+       "itemId": 22832
+      }
+     ],
+     "icons": {}
+    },
+    "mechanics": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "hits": 3,
+       "amount": 9000,
+       "deaths": 1,
+       "avoidableDeaths": 1,
+       "earlyDeaths": 0,
+       "byMechanic": {
+        "damage:Whirlwind": {
+         "label": "Wirbelwind",
+         "icon": "ability_whirlwind",
+         "kind": "damage",
+         "hits": 3,
+         "amount": 9000
+        }
+       },
+       "topMechanic": {
+        "key": "damage:Whirlwind",
+        "label": "Wirbelwind",
+        "icon": "ability_whirlwind",
+        "hits": 3
+       }
+      }
+     ],
+     "mechanics": [
+      {
+       "key": "damage:Whirlwind",
+       "label": "Wirbelwind",
+       "icon": "ability_whirlwind",
+       "kind": "damage",
+       "hits": 3,
+       "amount": 9000,
+       "fights": 2
+      }
+     ],
+     "deaths": {
+      "total": 4,
+      "avoidable": 2,
+      "early": 1,
+      "nearEnd": 0,
+      "repeat": 0
+     }
+    },
+    "healers": {
+     "players": [
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "fights": 2,
+       "healingTotal": 300000,
+       "overhealPct": 21,
+       "topOverheal": {
+        "name": "Greater Heal",
+        "icon": "spell_holy_greaterheal",
+        "overhealPct": 42
+       },
+       "manaMinAvg": 7,
+       "manaLowFights": 2,
+       "potions": 2,
+       "potionPcts": [
+        50,
+        8
+       ],
+       "potionMissingFights": 0,
+       "dispels": 3,
+       "avgReactionMs": 900,
+       "shields": []
+      }
+     ],
+     "raid": {
+      "dispelsMissed": 2,
+      "missedByAbility": [
+       {
+        "ability": "Stille",
+        "icon": "spell_holy_silence",
+        "count": 2
+       }
+      ],
+      "tanks": [
+       "Brokk"
+      ]
+     }
+    },
+    "activity": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "fights": 2,
+       "activeAvg": 94,
+       "gaps": 2,
+       "gapMs": 8000,
+       "unexplainedMs": 8000,
+       "mechanicMs": 0,
+       "longestGap": 5000
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "activeAvg": 86,
+       "gaps": 4,
+       "gapMs": 20000,
+       "unexplainedMs": 12000,
+       "mechanicMs": 8000,
+       "longestGap": 9000
+      }
+     ]
+    },
+    "cooldowns": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "uses": 3,
+       "possible": 4,
+       "missed": 1,
+       "usedPct": 75,
+       "avgFirstAtMs": 6000,
+       "stacked": 2,
+       "unstacked": 1
+      }
+     ]
+    },
+    "totems": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "wfFights": 2,
+       "wfUptimeAvg": 87,
+       "twistingFights": 1,
+       "downtimeMs": 12000,
+       "gapCount": 4,
+       "slotDowntimeMs": {
+        "air": 12000
+       }
+      }
+     ]
+    },
+    "raidBuffs": {
+     "fights": 2,
+     "paladins": 1,
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "role": "tank",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 1,
+         "late": 0,
+         "partial": 0,
+         "none": 1,
+         "present": 1,
+         "wrong": 0,
+         "pct": 50
+        }
+       },
+       "missing": 1,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "role": "healer",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 2,
+         "late": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 2,
+         "wrong": 0,
+         "pct": 100
+        }
+       },
+       "missing": 0,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 0,
+         "late": 0,
+         "partial": 0,
+         "none": 2,
+         "present": 0,
+         "wrong": 0,
+         "pct": 0
+        }
+       },
+       "missing": 2,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      }
+     ],
+     "rows": [
+      {
+       "key": "kings",
+       "label": "Segen der Könige",
+       "icon": "spell_magic_greaterblessingofkings",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": true,
+       "fights": 2,
+       "slots": 6,
+       "full": 3,
+       "late": 0,
+       "partial": 0,
+       "none": 3,
+       "present": 3,
+       "wrong": 0,
+       "coveragePct": 50,
+       "missingPlayers": 2,
+       "seenPlayers": 2
+      }
+     ]
+    },
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": false,
+       "fightPercentage": 32,
+       "startTime": 0,
+       "endTime": 120000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 40000,
+         "name": "Brokk",
+         "type": "Warrior",
+         "ability": "Whirlwind",
+         "avoidable": true
+        }
+       ],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           5000,
+           120000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 96,
+         "gapCount": 1,
+         "longestGap": 5000,
+         "firstAt": 5000
+        },
+        {
+         "key": "misery",
+         "label": "Misery",
+         "icon": "spell_shadow_misery",
+         "expected": true,
+         "missing": true,
+         "bands": [],
+         "uptimePct": 0
+        }
+       ],
+       "cooldowns": {
+        "windows": [
+         {
+          "label": "Bloodlust",
+          "from": 3000,
+          "to": 43000
+         }
+        ],
+        "lust": {
+         "casts": 2,
+         "firstAt": 3000,
+         "spreadMs": 12000
+        },
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "rows": [
+           {
+            "label": "Bloodlust",
+            "icon": "spell_nature_bloodlust",
+            "markers": [
+             {
+              "at": 3000
+             }
+            ],
+            "possibleUses": 1,
+            "missed": 0
+           }
+          ]
+         }
+        ]
+       },
+       "activity": [
+        {
+         "name": "Brokk",
+         "type": "Warrior",
+         "bands": [
+          [
+           0,
+           100000
+          ]
+         ],
+         "gaps": [
+          {
+           "from": 100000,
+           "to": 120000
+          }
+         ],
+         "activePct": 83
+        },
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "bands": [
+          [
+           0,
+           120000
+          ]
+         ],
+         "gaps": [],
+         "activePct": 100
+        }
+       ],
+       "healers": {
+        "healers": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "id": 1,
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "healing": {
+           "total": 100000,
+           "overheal": 25000,
+           "absorbs": 0,
+           "overhealPct": 20,
+           "spells": []
+          },
+          "mana": {
+           "available": false
+          },
+          "potions": 0,
+          "potionMissing": false,
+          "dispels": {
+           "count": 0,
+           "avgReactionMs": null,
+           "list": []
+          }
+         }
+        ],
+        "tank": {
+         "id": 2,
+         "name": "Brokk",
+         "type": "Warrior",
+         "judgedUntil": 40000
+        },
+        "shields": [],
+        "dispels": {
+         "total": 0,
+         "missed": [
+          {
+           "at": 50000,
+           "ability": "Stille",
+           "icon": "spell_holy_silence",
+           "target": "Dorn",
+           "targetType": "Shaman",
+           "durationMs": 8000
+          }
+         ],
+         "others": []
+        }
+       },
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings"
+        ],
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "role": "melee",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "none",
+            "uptimePct": 0,
+            "expected": true,
+            "wrong": false,
+            "bands": []
+           }
+          ],
+          "missing": [
+           "kings"
+          ],
+          "late": [],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": []
+       },
+       "series": {
+        "step": 60000,
+        "dps": [
+         12000,
+         13000,
+         12200
+        ],
+        "hps": [
+         3000,
+         3200,
+         3100
+        ],
+        "bossHp": [
+         100,
+         60,
+         32
+        ]
+       },
+       "totems": [
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "twisting": {
+          "detected": true
+         },
+         "rows": [
+          {
+           "label": "Windfury-Totem",
+           "icon": "spell_nature_windfury",
+           "markers": [
+            {
+             "at": 3000
+            }
+           ],
+           "band": [
+            [
+             3000,
+             60000
+            ]
+           ],
+           "downtimes": [
+            [
+             60000,
+             120000
+            ]
+           ],
+           "uptimePct": 48
+          },
+          {
+           "label": "Manaquellentotem",
+           "icon": "spell_frost_summonwaterelemental",
+           "markers": [
+            {
+             "at": 10000
+            }
+           ],
+           "uptimePct": 90
+          }
+         ]
+        },
+        {
+         "name": "Thrall",
+         "type": "Shaman",
+         "twisting": {
+          "detected": false
+         },
+         "rows": [
+          {
+           "label": "Windfury-Totem",
+           "icon": "spell_nature_windfury",
+           "markers": [
+            {
+             "at": 3000
+            }
+           ],
+           "band": [
+            [
+             3000,
+             60000
+            ]
+           ],
+           "downtimes": [],
+           "uptimePct": 96
+          },
+          {
+           "label": "Manaquellentotem",
+           "icon": "spell_frost_summonwaterelemental",
+           "markers": [
+            {
+             "at": 10000
+            }
+           ],
+           "uptimePct": 90
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": 3,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 200000,
+       "endTime": 404000,
+       "duration": 204000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           2000,
+           204000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 99
+        }
+       ],
+       "series": {
+        "step": 60000,
+        "dps": [
+         11000,
+         12000,
+         12500,
+         12300
+        ],
+        "hps": [
+         3000,
+         3000,
+         3100,
+         3000
+        ],
+        "bossHp": [
+         100,
+         70,
+         35,
+         0
+        ]
+       }
+      }
+     ]
+    },
+    "recommendations": {
+     "generatedAt": 1,
+     "raid": [
+      {
+       "key": "raid.debuff.misery",
+       "impact": "high",
+       "title": "Misery: Ø 0 %, fehlte in 1 Kampf",
+       "text": "Wer Misery liefert, hält es dauerhaft auf dem Boss.",
+       "evidence": [
+        {
+         "label": "Boss",
+         "value": "High King Maulgar"
+        }
+       ]
+      },
+      {
+       "key": "raid.avoidableDeaths",
+       "impact": "high",
+       "title": "2 vermeidbare Tode",
+       "text": "Mechaniken vor dem Pull noch einmal ansagen.",
+       "evidence": []
+      }
+     ],
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "items": []
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "items": [
+        {
+         "key": "healers.mana",
+         "impact": "high",
+         "title": "In 2 Kämpfen unter 10 % Mana",
+         "text": "Manatrank früher nehmen.",
+         "ai": "Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.",
+         "evidence": [
+          {
+           "label": "Kämpfe unter 10 %",
+           "value": "2"
+          }
+         ]
+        },
+        {
+         "key": "healers.overheal",
+         "impact": "medium",
+         "title": "21 % Overheal",
+         "text": "Greater Heal später ansetzen.",
+         "evidence": []
+        },
+        {
+         "key": "gear",
+         "impact": "low",
+         "title": "Kopf ohne Verzauberung",
+         "text": "Hood verzaubern.",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "items": [
+        {
+         "key": "totems.twisting",
+         "impact": "medium",
+         "title": "Twisting nur in 1 von 2 Kämpfen",
+         "text": "Windfury durchgehend twisten.",
+         "evidence": []
+        }
+       ]
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Elun": {
+       "healers.mana": {
+        "approved": true
+       },
+       "gear": {
+        "approved": true,
+        "text": "Bitte die Glyphe auf die Kapuze."
+       }
+      }
+     }
+    },
+    "recommendationSent": {
+     "Elun": {
+      "at": 1757600000000,
+      "by": "Lead",
+      "keys": [
+       "healers.mana"
+      ],
+      "signature": "x"
+     }
+    }
+   },
+   {
+    "id": "u1",
+    "name": "Lead",
+    "isAdmin": true
+   }
+  ]
+ },
+ {
+  "name": "case09-report",
+  "from": "renderDebuffMatrix.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "zone": "Gruul's Lair",
+    "date": "2026-09-10",
+    "players": [
+     {
+      "name": "Alice",
+      "type": "Warlock",
+      "issues": []
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Alice",
+      "type": "Warlock",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "raidDebuffs": {
+     "expected": [
+      "coe",
+      "sunder",
+      "huntersMark"
+     ],
+     "rows": [
+      {
+       "key": "coe",
+       "label": "Fluch der Elemente",
+       "icon": "spell_shadow_chilltouch",
+       "group": "spell",
+       "provider": "Warlock",
+       "expected": true,
+       "fights": 3,
+       "missing": 0,
+       "maxStacks": 0,
+       "avgUptime": 83,
+       "avgBelowMax": null
+      },
+      {
+       "key": "sunder",
+       "label": "Rüstung zerreißen",
+       "icon": "ability_warrior_sunder",
+       "group": "armor",
+       "provider": "Warrior",
+       "expected": true,
+       "fights": 3,
+       "missing": 0,
+       "maxStacks": 5,
+       "avgUptime": 100,
+       "avgBelowMax": 7
+      },
+      {
+       "key": "huntersMark",
+       "label": "Mal des Jägers",
+       "icon": "ability_hunter_snipershot",
+       "group": "physical",
+       "provider": "Hunter",
+       "expected": true,
+       "fights": 3,
+       "missing": 3,
+       "maxStacks": 0,
+       "avgUptime": 0,
+       "avgBelowMax": null
+      },
+      {
+       "key": "misery",
+       "label": "Elend",
+       "icon": "spell_shadow_misery",
+       "group": "spell",
+       "provider": "Priest",
+       "expected": false,
+       "fights": 1,
+       "missing": 0,
+       "maxStacks": 0,
+       "avgUptime": 40,
+       "avgBelowMax": null
+      }
+     ]
+    },
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "contentId": "gruul",
+       "kill": false,
+       "fightPercentage": 32.5,
+       "startTime": 100000,
+       "endTime": 220000,
+       "duration": 120000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Rüstung zerreißen",
+         "icon": "ability_warrior_sunder",
+         "bands": [],
+         "stacks": [],
+         "maxStacks": 5,
+         "uptimePct": 100,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false,
+         "timeToMax": 8000,
+         "belowMaxPct": 7
+        },
+        {
+         "key": "coe",
+         "label": "Fluch der Elemente",
+         "icon": "spell_shadow_chilltouch",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 60,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false
+        },
+        {
+         "key": "huntersMark",
+         "label": "Mal des Jägers",
+         "icon": "ability_hunter_snipershot",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 0,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": null,
+         "expected": true,
+         "missing": true
+        },
+        {
+         "key": "misery",
+         "label": "Elend",
+         "icon": "spell_shadow_misery",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 40,
+         "gapCount": 1,
+         "longestGap": 5000,
+         "firstAt": 1000,
+         "expected": false,
+         "missing": false
+        }
+       ]
+      },
+      {
+       "id": 3,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 300000,
+       "endTime": 480000,
+       "duration": 180000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Rüstung zerreißen",
+         "icon": "ability_warrior_sunder",
+         "bands": [],
+         "stacks": [],
+         "maxStacks": 5,
+         "uptimePct": 100,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false,
+         "timeToMax": 12000,
+         "belowMaxPct": 7
+        },
+        {
+         "key": "coe",
+         "label": "Fluch der Elemente",
+         "icon": "spell_shadow_chilltouch",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 100,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false
+        },
+        {
+         "key": "huntersMark",
+         "label": "Mal des Jägers",
+         "icon": "ability_hunter_snipershot",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 0,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": null,
+         "expected": true,
+         "missing": true
+        }
+       ]
+      },
+      {
+       "id": 4,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "contentId": "gruul",
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 500000,
+       "endTime": 700000,
+       "duration": 200000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Rüstung zerreißen",
+         "icon": "ability_warrior_sunder",
+         "bands": [],
+         "stacks": [],
+         "maxStacks": 5,
+         "uptimePct": 100,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false,
+         "timeToMax": null,
+         "belowMaxPct": 7
+        },
+        {
+         "key": "coe",
+         "label": "Fluch der Elemente",
+         "icon": "spell_shadow_chilltouch",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 90,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": 0,
+         "expected": true,
+         "missing": false
+        },
+        {
+         "key": "huntersMark",
+         "label": "Mal des Jägers",
+         "icon": "ability_hunter_snipershot",
+         "bands": [],
+         "maxStacks": 0,
+         "uptimePct": 0,
+         "gapCount": 0,
+         "longestGap": 0,
+         "firstAt": null,
+         "expected": true,
+         "missing": true
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "case10-report",
+  "from": "renderMechanics.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "players": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": []
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Alice",
+      "type": "Mage",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Bob",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 100000,
+       "endTime": 220000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 20000,
+         "name": "Alice",
+         "type": "Mage",
+         "ability": "Whirlwind",
+         "abilityIcon": "ability_whirlwind",
+         "avoidable": true,
+         "early": true,
+         "nearEnd": false,
+         "repeat": false
+        },
+        {
+         "at": 115000,
+         "name": "Alice",
+         "type": "Mage",
+         "ability": "Arcane Explosion",
+         "avoidable": false,
+         "early": false,
+         "nearEnd": true,
+         "repeat": true
+        }
+       ],
+       "mechanics": {
+        "players": [
+         {
+          "name": "Alice",
+          "type": "Mage",
+          "hits": [
+           {
+            "at": 5000,
+            "key": "damage:Whirlwind",
+            "label": "Wirbelwind",
+            "icon": "ability_whirlwind",
+            "kind": "damage",
+            "amount": 3000
+           },
+           {
+            "at": 9000,
+            "key": "damage:Whirlwind",
+            "label": "Wirbelwind",
+            "icon": "ability_whirlwind",
+            "kind": "damage",
+            "amount": 2500
+           }
+          ],
+          "amount": 5500,
+          "byMechanic": {
+           "damage:Whirlwind": {
+            "label": "Wirbelwind",
+            "icon": "ability_whirlwind",
+            "kind": "damage",
+            "hits": 2,
+            "amount": 5500
+           }
+          }
+         },
+         {
+          "name": "Bob",
+          "type": "Warrior",
+          "hits": [
+           {
+            "at": 30000,
+            "key": "debuff:Silence",
+            "label": "Stille",
+            "icon": "spell_holy_silence",
+            "kind": "debuff",
+            "amount": 0
+           }
+          ],
+          "amount": 0,
+          "byMechanic": {
+           "debuff:Silence": {
+            "label": "Stille",
+            "icon": "spell_holy_silence",
+            "kind": "debuff",
+            "hits": 1,
+            "amount": 0
+           }
+          }
+         }
+        ],
+        "mechanics": [
+         {
+          "key": "damage:Whirlwind",
+          "label": "Wirbelwind",
+          "icon": "ability_whirlwind",
+          "kind": "damage",
+          "hits": 2,
+          "amount": 5500,
+          "players": 1
+         },
+         {
+          "key": "debuff:Silence",
+          "label": "Stille",
+          "icon": "spell_holy_silence",
+          "kind": "debuff",
+          "hits": 1,
+          "amount": 0,
+          "players": 1
+         }
+        ]
+       },
+       "debuffs": null,
+       "totems": null,
+       "cooldowns": null,
+       "activity": null,
+       "buffs": null
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "case11-player",
+  "from": "renderReportCards.test.js",
+  "fn": "renderPlayerPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Montagsraid Gruul",
+    "zone": "Gruul's Lair",
+    "date": "7.9.2026",
+    "players": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ]
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": []
+     }
+    ],
+    "roster": [
+     {
+      "name": "Brokk",
+      "type": "Warrior",
+      "issues": [],
+      "potions": {
+       "destruction": 0,
+       "haste": 1,
+       "mana": 0
+      },
+      "armory": []
+     },
+     {
+      "name": "Elun",
+      "type": "Priest",
+      "issues": [
+       {
+        "itemName": "Hood",
+        "itemId": 1,
+        "icon": "inv_helmet",
+        "severity": "medium",
+        "label": "keine Verzauberung"
+       }
+      ],
+      "potions": {
+       "destruction": 0,
+       "haste": 0,
+       "mana": 3
+      },
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1
+      },
+      "armory": []
+     }
+    ],
+    "icons": {},
+    "consumables": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 100,
+       "weaponOiled": true
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "flask": 100,
+       "elixir": 0,
+       "buffed": 100,
+       "food": 50,
+       "weaponOiled": false
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "flask": 67,
+       "elixir": 0,
+       "buffed": 67,
+       "food": 100,
+       "weaponOiled": true
+      }
+     ],
+     "icons": {}
+    },
+    "potions": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "destruction": 1,
+       "haste": 0,
+       "mana": 1,
+       "total": 2,
+       "byType": {
+        "destruction": 1,
+        "superMana": 1
+       }
+      }
+     ],
+     "types": [
+      {
+       "key": "superMana",
+       "group": "mana",
+       "label": "Super-Manatrank",
+       "icon": "inv_potion_137",
+       "itemId": 22832
+      }
+     ],
+     "icons": {}
+    },
+    "mechanics": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "hits": 3,
+       "amount": 9000,
+       "deaths": 1,
+       "avoidableDeaths": 1,
+       "earlyDeaths": 0,
+       "byMechanic": {
+        "damage:Whirlwind": {
+         "label": "Wirbelwind",
+         "icon": "ability_whirlwind",
+         "kind": "damage",
+         "hits": 3,
+         "amount": 9000
+        }
+       },
+       "topMechanic": {
+        "key": "damage:Whirlwind",
+        "label": "Wirbelwind",
+        "icon": "ability_whirlwind",
+        "hits": 3
+       }
+      }
+     ],
+     "mechanics": [
+      {
+       "key": "damage:Whirlwind",
+       "label": "Wirbelwind",
+       "icon": "ability_whirlwind",
+       "kind": "damage",
+       "hits": 3,
+       "amount": 9000,
+       "fights": 2
+      }
+     ],
+     "deaths": {
+      "total": 4,
+      "avoidable": 2,
+      "early": 1,
+      "nearEnd": 0,
+      "repeat": 0
+     }
+    },
+    "healers": {
+     "players": [
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "fights": 2,
+       "healingTotal": 300000,
+       "overhealPct": 21,
+       "topOverheal": {
+        "name": "Greater Heal",
+        "icon": "spell_holy_greaterheal",
+        "overhealPct": 42
+       },
+       "manaMinAvg": 7,
+       "manaLowFights": 2,
+       "potions": 2,
+       "potionPcts": [
+        50,
+        8
+       ],
+       "potionMissingFights": 0,
+       "dispels": 3,
+       "avgReactionMs": 900,
+       "shields": []
+      }
+     ],
+     "raid": {
+      "dispelsMissed": 2,
+      "missedByAbility": [
+       {
+        "ability": "Stille",
+        "icon": "spell_holy_silence",
+        "count": 2
+       }
+      ],
+      "tanks": [
+       "Brokk"
+      ]
+     }
+    },
+    "activity": {
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "fights": 2,
+       "activeAvg": 94,
+       "gaps": 2,
+       "gapMs": 8000,
+       "unexplainedMs": 8000,
+       "mechanicMs": 0,
+       "longestGap": 5000
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "activeAvg": 86,
+       "gaps": 4,
+       "gapMs": 20000,
+       "unexplainedMs": 12000,
+       "mechanicMs": 8000,
+       "longestGap": 9000
+      }
+     ]
+    },
+    "cooldowns": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "fights": 2,
+       "uses": 3,
+       "possible": 4,
+       "missed": 1,
+       "usedPct": 75,
+       "avgFirstAtMs": 6000,
+       "stacked": 2,
+       "unstacked": 1
+      }
+     ]
+    },
+    "totems": {
+     "players": [
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "wfFights": 2,
+       "wfUptimeAvg": 87,
+       "twistingFights": 1,
+       "downtimeMs": 12000,
+       "gapCount": 4,
+       "slotDowntimeMs": {
+        "air": 12000
+       }
+      }
+     ]
+    },
+    "raidBuffs": {
+     "fights": 2,
+     "paladins": 1,
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "role": "tank",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 1,
+         "late": 0,
+         "partial": 0,
+         "none": 1,
+         "present": 1,
+         "wrong": 0,
+         "pct": 50
+        }
+       },
+       "missing": 1,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "role": "healer",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 2,
+         "late": 0,
+         "partial": 0,
+         "none": 0,
+         "present": 2,
+         "wrong": 0,
+         "pct": 100
+        }
+       },
+       "missing": 0,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "role": "melee",
+       "fights": 2,
+       "buffs": {
+        "kings": {
+         "expected": 2,
+         "full": 0,
+         "late": 0,
+         "partial": 0,
+         "none": 2,
+         "present": 0,
+         "wrong": 0,
+         "pct": 0
+        }
+       },
+       "missing": 2,
+       "late": 0,
+       "partial": 0,
+       "wrong": 0
+      }
+     ],
+     "rows": [
+      {
+       "key": "kings",
+       "label": "Segen der Könige",
+       "icon": "spell_magic_greaterblessingofkings",
+       "provider": "Paladin",
+       "group": "blessing",
+       "expect": "blessing",
+       "expected": true,
+       "fights": 2,
+       "slots": 6,
+       "full": 3,
+       "late": 0,
+       "partial": 0,
+       "none": 3,
+       "present": 3,
+       "wrong": 0,
+       "coveragePct": 50,
+       "missingPlayers": 2,
+       "seenPlayers": 2
+      }
+     ]
+    },
+    "timeline": {
+     "fights": [
+      {
+       "id": 2,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": false,
+       "fightPercentage": 32,
+       "startTime": 0,
+       "endTime": 120000,
+       "duration": 120000,
+       "deaths": [
+        {
+         "at": 40000,
+         "name": "Brokk",
+         "type": "Warrior",
+         "ability": "Whirlwind",
+         "avoidable": true
+        }
+       ],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           5000,
+           120000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 96,
+         "gapCount": 1,
+         "longestGap": 5000,
+         "firstAt": 5000
+        },
+        {
+         "key": "misery",
+         "label": "Misery",
+         "icon": "spell_shadow_misery",
+         "expected": true,
+         "missing": true,
+         "bands": [],
+         "uptimePct": 0
+        }
+       ],
+       "cooldowns": {
+        "windows": [
+         {
+          "label": "Bloodlust",
+          "from": 3000,
+          "to": 43000
+         }
+        ],
+        "lust": {
+         "casts": 2,
+         "firstAt": 3000,
+         "spreadMs": 12000
+        },
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "rows": [
+           {
+            "label": "Bloodlust",
+            "icon": "spell_nature_bloodlust",
+            "markers": [
+             {
+              "at": 3000
+             }
+            ],
+            "possibleUses": 1,
+            "missed": 0
+           }
+          ]
+         }
+        ]
+       },
+       "activity": [
+        {
+         "name": "Brokk",
+         "type": "Warrior",
+         "bands": [
+          [
+           0,
+           100000
+          ]
+         ],
+         "gaps": [
+          {
+           "from": 100000,
+           "to": 120000
+          }
+         ],
+         "activePct": 83
+        },
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "bands": [
+          [
+           0,
+           120000
+          ]
+         ],
+         "gaps": [],
+         "activePct": 100
+        }
+       ],
+       "healers": {
+        "healers": [
+         {
+          "name": "Elun",
+          "type": "Priest",
+          "id": 1,
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "healing": {
+           "total": 100000,
+           "overheal": 25000,
+           "absorbs": 0,
+           "overhealPct": 20,
+           "spells": []
+          },
+          "mana": {
+           "available": false
+          },
+          "potions": 0,
+          "potionMissing": false,
+          "dispels": {
+           "count": 0,
+           "avgReactionMs": null,
+           "list": []
+          }
+         }
+        ],
+        "tank": {
+         "id": 2,
+         "name": "Brokk",
+         "type": "Warrior",
+         "judgedUntil": 40000
+        },
+        "shields": [],
+        "dispels": {
+         "total": 0,
+         "missed": [
+          {
+           "at": 50000,
+           "ability": "Stille",
+           "icon": "spell_holy_silence",
+           "target": "Dorn",
+           "targetType": "Shaman",
+           "durationMs": 8000
+          }
+         ],
+         "others": []
+        }
+       },
+       "buffs": {
+        "paladins": 1,
+        "expected": [
+         "kings"
+        ],
+        "players": [
+         {
+          "name": "Dorn",
+          "type": "Shaman",
+          "role": "melee",
+          "judgedUntil": 120000,
+          "diedAt": null,
+          "buffs": [
+           {
+            "key": "kings",
+            "label": "Segen der Könige",
+            "icon": "spell_magic_greaterblessingofkings",
+            "status": "none",
+            "uptimePct": 0,
+            "expected": true,
+            "wrong": false,
+            "bands": []
+           }
+          ],
+          "missing": [
+           "kings"
+          ],
+          "late": [],
+          "partial": [],
+          "wrong": []
+         }
+        ],
+        "coverage": []
+       },
+       "series": {
+        "step": 60000,
+        "dps": [
+         12000,
+         13000,
+         12200
+        ],
+        "hps": [
+         3000,
+         3200,
+         3100
+        ],
+        "bossHp": [
+         100,
+         60,
+         32
+        ]
+       }
+      },
+      {
+       "id": 3,
+       "boss": "High King Maulgar",
+       "encounterId": 649,
+       "kill": true,
+       "fightPercentage": 0,
+       "startTime": 200000,
+       "endTime": 404000,
+       "duration": 204000,
+       "deaths": [],
+       "debuffs": [
+        {
+         "key": "sunder",
+         "label": "Sunder Armor",
+         "icon": "ability_warrior_sunder",
+         "expected": true,
+         "bands": [
+          [
+           2000,
+           204000
+          ]
+         ],
+         "maxStacks": 5,
+         "uptimePct": 99
+        }
+       ],
+       "series": {
+        "step": 60000,
+        "dps": [
+         11000,
+         12000,
+         12500,
+         12300
+        ],
+        "hps": [
+         3000,
+         3000,
+         3100,
+         3000
+        ],
+        "bossHp": [
+         100,
+         70,
+         35,
+         0
+        ]
+       }
+      },
+      {
+       "id": 9,
+       "boss": "Gruul the Dragonkiller",
+       "encounterId": 650,
+       "kill": true,
+       "duration": 60000,
+       "deaths": [],
+       "activity": [
+        {
+         "name": "Dorn",
+         "type": "Shaman",
+         "bands": [
+          [
+           0,
+           60000
+          ]
+         ],
+         "gaps": [],
+         "activePct": 70
+        }
+       ]
+      }
+     ]
+    },
+    "recommendations": {
+     "generatedAt": 1,
+     "raid": [
+      {
+       "key": "raid.debuff.misery",
+       "impact": "high",
+       "title": "Misery: Ø 0 %, fehlte in 1 Kampf",
+       "text": "Wer Misery liefert, hält es dauerhaft auf dem Boss.",
+       "evidence": [
+        {
+         "label": "Boss",
+         "value": "High King Maulgar"
+        }
+       ]
+      },
+      {
+       "key": "raid.avoidableDeaths",
+       "impact": "high",
+       "title": "2 vermeidbare Tode",
+       "text": "Mechaniken vor dem Pull noch einmal ansagen.",
+       "evidence": []
+      }
+     ],
+     "players": [
+      {
+       "name": "Brokk",
+       "type": "Warrior",
+       "items": []
+      },
+      {
+       "name": "Elun",
+       "type": "Priest",
+       "items": [
+        {
+         "key": "healers.mana",
+         "impact": "high",
+         "title": "In 2 Kämpfen unter 10 % Mana",
+         "text": "Manatrank früher nehmen.",
+         "ai": "Dein Tiefstand lag im Schnitt bei 7 %. Nimm den ersten Manatrank schon bei 50 %.",
+         "evidence": [
+          {
+           "label": "Kämpfe unter 10 %",
+           "value": "2"
+          }
+         ]
+        },
+        {
+         "key": "healers.overheal",
+         "impact": "medium",
+         "title": "21 % Overheal",
+         "text": "Greater Heal später ansetzen.",
+         "evidence": []
+        },
+        {
+         "key": "gear",
+         "impact": "low",
+         "title": "Kopf ohne Verzauberung",
+         "text": "Hood verzaubern.",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "items": [
+        {
+         "key": "totems.twisting",
+         "impact": "medium",
+         "title": "Twisting nur in 1 von 2 Kämpfen",
+         "text": "Windfury durchgehend twisten.",
+         "evidence": []
+        }
+       ]
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Elun": {
+       "healers.mana": {
+        "approved": true
+       },
+       "gear": {
+        "approved": true,
+        "text": "Bitte die Glyphe auf die Kapuze."
+       }
+      }
+     }
+    },
+    "recommendationSent": {
+     "Elun": {
+      "at": 1757600000000,
+      "by": "Lead",
+      "keys": [
+       "healers.mana"
+      ],
+      "signature": "x"
+     }
+    }
+   },
+   2,
+   {
+    "id": "u1",
+    "name": "Lead",
+    "isAdmin": true
+   }
+  ]
+ },
+ {
+  "name": "case12-report",
+  "from": "renderRecCards.test.js",
+  "fn": "renderReportPage",
+  "args": [
+   {
+    "id": "abc123def456",
+    "title": "Test Raid",
+    "players": [],
+    "roster": [
+     {
+      "name": "Farin",
+      "type": "Warlock",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     },
+     {
+      "name": "Dorn",
+      "type": "Shaman",
+      "issues": [],
+      "potions": {},
+      "armory": []
+     }
+    ],
+    "recommendations": {
+     "raid": [],
+     "players": [
+      {
+       "name": "Farin",
+       "type": "Warlock",
+       "items": [
+        {
+         "key": "gear",
+         "impact": "high",
+         "title": "Gear",
+         "text": "…",
+         "evidence": []
+        },
+        {
+         "key": "food",
+         "impact": "low",
+         "title": "Essen",
+         "text": "…",
+         "evidence": []
+        }
+       ]
+      },
+      {
+       "name": "Dorn",
+       "type": "Shaman",
+       "items": []
+      }
+     ]
+    },
+    "recommendationReview": {
+     "raid": {},
+     "players": {
+      "Farin": {
+       "gear": {
+        "approved": true
+       }
+      }
+     }
+    }
+   },
+   {
+    "id": "u1",
+    "name": "Lead",
+    "isAdmin": true
+   }
+  ]
+ }
+]

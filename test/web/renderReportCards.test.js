@@ -104,10 +104,8 @@ describe("web/render — report page: head and views", () => {
         expect(html).toContain("<div id=\"view-raid\" class=\"view\" hidden>");
         expect(html).toContain("<div id=\"view-bosse\" class=\"view\">");
         expect(html).toContain("<div id=\"view-raider\" class=\"view\" hidden>");
-        expect(html).toContain("history.replaceState(null,\"\",\"#\"+id)");
-        expect(html).toContain("/^raider-(.+)$/");
-        expect(html.match(/window\.__ehShow=1/g)).toHaveLength(1);
-        expect(html.match(/window\.__ehDlg=1/g)).toHaveLength(1);
+        // the switch and the hash live in the linked client script (static/report.js), linked once
+        expect(html.match(/<script src="\/r-assets\/report\.js\?v=[0-9a-f]+"><\/script>/g)).toHaveLength(1);
     });
 
     it("groups the raid-wide parts into four areas with metric cards, each opening its table as a dialog", () => {
@@ -155,12 +153,16 @@ describe("web/render — report page: head and views", () => {
         expect(recs).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
     });
 
-    it("ships only inline scripts that parse", () => {
+    it("keeps the report logic out of the page: inline only small snippets that parse, the rest in report.js", () => {
         for (const html of [renderReportPage(report(), admin), renderReportPage(report(), reader), renderPlayerPage(report(), 1, admin)]) {
             const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-            expect(scripts.length).toBeGreaterThan(3);
+            // the theme before the first paint and Wowhead's options; the admin chrome adds its menu button
+            expect(scripts.length).toBeLessThanOrEqual(3);
             for (const src of scripts) expect(() => new Function(src)).not.toThrow();
+            expect(scripts.join("")).not.toMatch(/\/api\/cla|data-show|data-dialog/);
         }
+        const client = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "web", "static", "report.js"), "utf8");
+        expect(() => new Function(client)).not.toThrow();
     });
 
     it("renders no explanatory paragraphs and no text glyphs on the report pages", () => {
@@ -346,9 +348,7 @@ describe("web/render — raider cards", () => {
         expect(elun).toContain("<span class=\"badge map-badge\">Zuordnung wird geprüft …</span>");
         expect(elun).toContain("data-sendact=\"save\">Nur speichern</button>");
         expect(elun).toMatch(/data-sendact="send"><img class="hicon"[^>]*>Per Bot senden<\/button>/);
-        expect(html).toContain("window.__ehSendDlg");
-        expect(html).toContain("/api/cla/recommendations/send");
-        expect(html).toContain("players:[who]");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
         // a raider without approved points gets the button disabled
         const dorn = html.slice(html.indexOf("id=\"raider-Dorn\""), html.indexOf("id=\"raiderEmpty\""));
         expect(dorn).toContain("data-dialog=\"send-2\" disabled>");
@@ -364,7 +364,7 @@ describe("web/render — raider cards", () => {
         expect(html).toMatch(/data-rolefilter="healer"><img class="hicon"[^>]*spell_holy_flashheal\.jpg" alt="">Heiler<\/button>/);
         expect(html).toMatch(/data-rolefilter="dps"><img class="hicon"[^>]*ability_dualwield\.jpg" alt="">DPS<\/button>/);
         expect(html).toMatch(/data-rolefilter="open"><img class="hicon"[^>]*>Offen <span class="n mid">2<\/span><\/button>/);
-        expect(html).toContain("window.__ehFilter");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
         expect(html).toContain("<div class=\"raider-empty\" id=\"raiderEmpty\" hidden>");
     });
 
@@ -379,8 +379,8 @@ describe("web/render — raider cards", () => {
         expect(elun).not.toContain("class=\"raider-foot\"");
         expect(elun).not.toContain("<dialog class=\"dlg send\"");
         expect(html).toMatch(/data-rolefilter="open"><img class="hicon"[^>]*>Empfehlungen <span class="n mid">1<\/span><\/button>/);
-        expect(html).not.toContain("window.__ehReview");
-        expect(html).not.toContain("window.__ehSendDlg");
+        expect(html).not.toContain("data-review=");
+        expect(html).not.toContain("data-sendact=");
         expect(html).not.toContain("dlg-rs-send");
         // a raider with nothing approved gets no recommendations section at all
         const dorn = html.slice(html.indexOf("id=\"raider-Dorn\""), html.indexOf("id=\"raiderEmpty\""));
@@ -413,10 +413,10 @@ describe("web/render — player page", () => {
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-pf-0\">");
         expect(html).toContain("data-show=\"p-fp-2-healing\"");
         expect(html).toContain("<div class=\"part-chart\">");
-        // the send dialog is there for the reviewer, with the review script
+        // the send dialog is there for the reviewer, with the verdict buttons
         expect(html).toContain("<dialog class=\"dlg send\" id=\"send-1\"");
-        expect(html).toContain("window.__ehReview");
-        expect(html).toContain("window.__ehSendDlg");
+        expect(html).toContain("data-review=\"approve\"");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
     });
 
     it("shows a reader only the approved points, under their own words", () => {
@@ -435,7 +435,7 @@ describe("web/render — player page", () => {
         expect(html).toMatch(/<nav class="seg sm pf-seg"><button type="button" class="seg-btn active" data-pfilter="flag">Auffällige<span class="n mid">1<\/span><\/button><button type="button" class="seg-btn" data-pfilter="all">Alle 2<\/button><\/nav>/);
         expect(html).toContain("Dorn › Kampfverlauf · 1 von 2 Bossen gezeigt");
         expect(html).toContain("<tr data-flag=\"0\" hidden>");
-        expect(html).toContain("window.__ehPf");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
     });
 });
 
@@ -482,8 +482,8 @@ describe("web/render — totem timeline and the armory link", () => {
     });
 
     it("shows the timeline's scrollbar instead of hiding it, and gives the chart dialog room", () => {
-        const html = renderReportPage(report(), admin);
-        expect(html).toContain("overflow-x:scroll");
-        expect(html).toContain("dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }");
+        const css = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "web", "static", "report.css"), "utf8");
+        expect(css).toContain("overflow-x:scroll");
+        expect(css).toContain("dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }");
     });
 });

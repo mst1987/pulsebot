@@ -119,7 +119,7 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(html).toContain("Verlauf öffnen<svg");
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-debuffs\">");
         expect(html).toContain("High King Maulgar · Debuffs</div>");
-        expect(html).toContain("window.__ehDlg");
+        expect(html).toContain("<script src=\"/r-assets/report.js?v=");
         // the DPS/HPS strip is the Kampfverlauf topic of the try
         expect(html).toContain("data-show=\"fp-3-series\">");
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-series\">");
@@ -189,9 +189,9 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("includes the chart styles and the switch script once", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html.match(/\.fchart \.fc-band \{/g)).toHaveLength(1);
-        expect(html.match(/window\.__ehShow/g).length).toBeGreaterThanOrEqual(1);
-        expect(html.match(/<script>\(function\(\)\{if\(window\.__ehShow\)/g)).toHaveLength(1);
+        expect(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "web", "static", "report.css"), "utf8").match(/\.fchart \.fc-band \{/g)).toHaveLength(1);
+        expect(html).not.toContain(".fchart .fc-band {");
+        expect(html.match(/<script src="\/r-assets\/report\.js\?v=/g)).toHaveLength(1);
     });
 });
 
