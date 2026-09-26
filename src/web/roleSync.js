@@ -290,6 +290,7 @@ async function loadDrift(config = getConfig()) {
 }
 
 let timer = null;
+let firstTimer = null;
 
 /** Start the periodic full sync (idempotent, unref'd), every 10 minutes. */
 function startRoleSync({ intervalMs = 10 * 60 * 1000, firstRunMs = 60 * 1000 } = {}) {
@@ -297,17 +298,24 @@ function startRoleSync({ intervalMs = 10 * 60 * 1000, firstRunMs = 60 * 1000 } =
     const run = () => runRoleSync().catch((e) => console.error("[roleSync]", e.message));
     // Not at boot: the gateway is not ready yet, so both servers would read as
     // "bot not there". A minute later the member lists can be fetched.
-    const first = setTimeout(run, firstRunMs);
-    if (first.unref) first.unref();
+    firstTimer = setTimeout(run, firstRunMs);
+    if (firstTimer.unref) firstTimer.unref();
     timer = setInterval(run, intervalMs);
     if (timer.unref) timer.unref();
     return timer;
 }
 
+/** Stop the periodic sync, the first run included (idempotent). */
+function stopRoleSync() {
+    if (timer) clearInterval(timer);
+    if (firstTimer) clearTimeout(firstTimer);
+    timer = null;
+    firstTimer = null;
+}
+
 /** Test-only: forget timer and last run. */
 function _resetForTests() {
-    if (timer) clearInterval(timer);
-    timer = null;
+    stopRoleSync();
     lastRun = null;
     running = false;
 }
@@ -315,5 +323,5 @@ function _resetForTests() {
 module.exports = {
     flows, liteMember, planRoleSync, roleSyncDrift, canManageRoles, applyAdds,
     runRoleSync, syncMember, handleMemberUpdate, handleMemberAdd,
-    roleSyncView, loadDrift, startRoleSync, _resetForTests,
+    roleSyncView, loadDrift, startRoleSync, stopRoleSync, _resetForTests,
 };

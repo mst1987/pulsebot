@@ -733,9 +733,14 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
     return stop;
 }
 
+/** Stop the sync started above (idempotent). */
+function stopEventMessageSync() {
+    if (sync) sync.stop();
+}
+
 module.exports = {
     SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, messageComponents, rosterEntries,
-    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync,
+    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, stopEventMessageSync,
     // only for the tests (#424): not part of the module's API
     _internal: {
         LIMITS, signupButtonId, joinSelectId, buttonId, pickSelectId, signupNumbers, embedLength, blockValue, payloadHash,

@@ -422,9 +422,14 @@ function startTalkOverview({ intervalMs = SWEEP_MS, debounceMs = DEBOUNCE_MS, fi
     return stopFn;
 }
 
+/** Stop what startTalkOverview() set up (idempotent). */
+function stopTalkOverview() {
+    if (stopFn) stopFn();
+}
+
 module.exports = {
     SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, channelUrl, currentPayload, syncOverview, overviewStatus,
-    scheduleOverviewSync, startTalkOverview,
+    scheduleOverviewSync, startTalkOverview, stopTalkOverview,
     // only for the tests (#424): not part of the module's API
     _internal: {
         overviewLinks, formatStart, buildOverviewMessage, payloadHash,

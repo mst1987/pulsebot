@@ -6,6 +6,8 @@ const mockStartWebServer = jest.fn();
 const mockLogin = jest.fn(() => Promise.resolve("ok"));
 
 jest.mock("../src/web/server", () => ({ startWebServer: mockStartWebServer }));
+const mockStartJobs = jest.fn();
+jest.mock("../src/web/jobs", () => ({ startJobs: mockStartJobs }));
 jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
 const mockGuard = jest.fn(async () => true);
 jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
@@ -62,6 +64,19 @@ describe("bot start()", () => {
         // catchable rejection); let it run before asserting
         await new Promise((r) => setImmediate(r));
         expect(mockLogin).toHaveBeenCalledWith("tok");
+    });
+
+    // #424: the background jobs start next to the server, not inside it.
+    it("starts the background jobs right after the web server, with the client", () => {
+        const order = [];
+        mockStartWebServer.mockImplementation(() => order.push("server"));
+        mockStartJobs.mockImplementation(() => order.push("jobs"));
+        bot.start();
+        expect(mockStartJobs).toHaveBeenCalledTimes(1);
+        expect(mockStartJobs).toHaveBeenCalledWith(bot.client);
+        expect(order).toEqual(["server", "jobs"]);
+        mockStartWebServer.mockReset();
+        mockStartJobs.mockReset();
     });
 
     it("keeps the web server up when the Discord login fails (non-fatal)", async () => {

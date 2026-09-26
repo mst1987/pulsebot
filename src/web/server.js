@@ -2,13 +2,6 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport } = require("./reportStore");
-const { startRaidEventScan } = require("./raidEventScan");
-const { startLogAutoLink } = require("./logAutoLink");
-const { startEventMessageSync } = require("./eventMessage");
-const { startReminders } = require("./reminders");
-const { startRoleSync } = require("./roleSync");
-const { startTalkOverview } = require("./talkOverview");
-const { startEventSeries } = require("./eventSeries");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { renderEventPage } = require("./eventPublicPage");
 const { renderDocsPage } = require("./docsPage");
@@ -16,7 +9,6 @@ const { buildIcs, icsFileName } = require("./icsFeed");
 const calendarFeed = require("./calendarFeed");
 const raidplanStore = require("./raidplanStore");
 const { getEvent } = require("./eventStore");
-const { startSheetCleanup } = require("../utils/sheetCleanup");
 const { versionInfo } = require("./version");
 const discord = require("./discord");
 const auth = require("./auth");
@@ -215,7 +207,10 @@ async function handle(req, res) {
 
 let server = null;
 
-/** Start the report web server (idempotent). Pass the bot client for role lookups. */
+/**
+ * Start the web server (idempotent). Pass the bot client for role lookups.
+ * Only HTTP: the background jobs start in jobs.js (#424).
+ */
 function startWebServer(client) {
     if (client) discord.setClient(client);
     if (server) return server;
@@ -244,26 +239,6 @@ function startWebServer(client) {
     server.listen(webPort, () => {
         console.log(`Logcheck web server listening on port ${webPort}`);
     });
-    // Sweep due raid-sheet copies (deleted a few days after each raid).
-    startSheetCleanup();
-    // Periodically snapshot finished Raid-Helper events into raidEventStore (see
-    // loadRecentEvents), so a raid shows up on the dashboard even if nobody opens
-    // it right after the raid ends.
-    startRaidEventScan();
-    // Assign detected Warcraft-Logs to their raid in the background, so a log the
-    // listener could not place at detection time (Raid-Helper unreachable, event
-    // not yet known) still ends up linked without an admin clicking anything.
-    startLogAutoLink();
-    // Keep the bot's event messages of EventHelper events current as signups change.
-    startEventMessageSync();
-    // Automatic reminders per raid category and the role sync between the event
-    // and the talk server (#264). Both do nothing until configured.
-    startReminders();
-    startRoleSync();
-    // The raid overview on the talk server (#257); does nothing until configured.
-    startTalkOverview();
-    // Recurring events per category (#289): creates each date's event in time; nothing until a series exists.
-    startEventSeries();
     return server;
 }
 

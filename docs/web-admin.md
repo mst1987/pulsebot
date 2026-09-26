@@ -38,6 +38,10 @@ Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und a
 - **`cache: true`** merkt sich den normalisierten Wert und liest die Datei erst wieder, wenn sich `mtime`, Größe oder Inode ändern (auch eine Änderung von Hand zählt); jeder Aufruf bekommt eine Kopie, eine Änderung am Ergebnis landet also nie im Cache. Eingeschaltet für `config.json` (`getConfig()`, fast jeder Request) — die Normalisierung in `getConfig()` läuft weiterhin bei jedem Aufruf.
 - **Tests**: `store.useFile(tempStoreFile("x.json"))` richtet einen Store auf eine eigene Datei, `useFile(null)` zurück auf die Vorgabe — das ist der eine Hook (früher gab es daneben `_setFileForTests`). Wer gar nicht auf die Platte will, mockt `fs` mit `test/helpers/memoryFs.js` (`jest.mock("fs", () => require("../helpers/memoryFs").memoryFs())`); der kennt auch `renameSync` und `statSync`, die das atomare Schreiben und der Cache brauchen.
 
+## Hintergrundjobs (`src/web/jobs.js`, #424)
+
+`server.js` ist reines HTTP. Alles, was periodisch läuft oder eine Discord-Nachricht aktuell hält (Raidsheet-Aufräumen, Raid-Event-Scan, Log-Zuordnung, Event-Nachrichten, Erinnerungen, Rollen-Abgleich, Talk-Übersicht, Serien, verwaiste `/apply`-Bewerbungen), steht als Liste `JOBS = [{ name, start, stop }]` in `jobs.js`. `bot.js` ruft `startJobs(client)` direkt nach `startWebServer(client)`; das Log sagt einmal `Background jobs started: …`. `startJobs` ist idempotent, `stopJobs()` beendet alle in umgekehrter Reihenfolge (jedes Job-Modul hat dafür ein `stop…()`, das auch den verzögerten ersten Lauf abräumt). Ein neuer Job kommt in diese Liste, nicht nach `server.js`. Tests: `test/web/jobs.test.js` (Reihenfolge, genau einmal), `test/web/jobsTimers.test.js` (mit den echten Modulen: nach `stopJobs()` kein Timer mehr).
+
 ## Welcher Stand läuft (`src/web/version.js`, `src/web/deployStatus.js`, #314)
 
 Acht PRs (#292–#313) galten als fertig, während das Deployment bei jedem Merge still scheiterte (`missing server host`) — nichts im Menü hätte es verraten. Seitdem sagt der Bot selbst, auf welchem Commit er läuft.

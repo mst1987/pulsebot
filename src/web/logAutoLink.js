@@ -69,10 +69,15 @@ function startLogAutoLink({ intervalMs = 10 * 60 * 1000 } = {}) {
     return timer;
 }
 
-/** Test-only: forget the running timer so a suite can start a fresh one. */
-function _resetTimerForTests() {
+/** Stop the periodic sweep (idempotent); a later start begins afresh. */
+function stopLogAutoLink() {
     if (timer) clearInterval(timer);
     timer = null;
 }
 
-module.exports = { autoLinkLogs, autoLinkAllGuilds, startLogAutoLink, _resetTimerForTests };
+/** Test-only: forget the running timer so a suite can start a fresh one. */
+function _resetTimerForTests() {
+    stopLogAutoLink();
+}
+
+module.exports = { autoLinkLogs, autoLinkAllGuilds, startLogAutoLink, stopLogAutoLink, _resetTimerForTests };

@@ -108,4 +108,10 @@ function startRaidEventScan({ intervalMs = 5 * 60 * 1000 } = {}) {
     return timer;
 }
 
-module.exports = { scanRaidEvents, scanAllGuilds, startRaidEventScan };
+/** Stop the periodic scan (idempotent); a later start begins afresh. */
+function stopRaidEventScan() {
+    if (timer) clearInterval(timer);
+    timer = null;
+}
+
+module.exports = { scanRaidEvents, scanAllGuilds, startRaidEventScan, stopRaidEventScan };
