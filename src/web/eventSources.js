@@ -287,7 +287,7 @@ function listStoredEvents(guildId, { now = Date.now() } = {}) {
 
 /**
  * The own event a Discord channel belongs to, for the bot's channel-bound
- * commands (`/signup`, `/saveraid`, `/fillsetup` without an id, #291): the next
+ * commands (`/signup`, `/fillsetup` without an id, #291): the next
  * one that has not started, else the one that started last. A cancelled event
  * counts only when nothing else is there. Null without an own event.
  */
