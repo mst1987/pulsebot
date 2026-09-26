@@ -68,13 +68,6 @@ table.idx td.cell-act { text-align: right; white-space: nowrap; width: 1%; }
 table.idx td.cell-act > * + * { margin-left: 6px; }
 table.idx td.cell-act .ibtn { vertical-align: middle; }
 
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-.badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }
-button.badge.chip:hover { border-color: var(--accent); color: var(--text); }
-button.badge.chip.accent:hover { color: var(--accent); }
-.chip-x { appearance: none; border: 0; background: none; color: inherit; padding: 0; margin-left: 2px; display: inline-grid; place-items: center; cursor: pointer; opacity: .75; }
-.chip-x:hover { opacity: 1; }
-.chip-x svg { width: 12px; height: 12px; }
 .inline-add { display: flex; gap: 8px; max-width: 520px; }
 
 .topitem-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 520px; }

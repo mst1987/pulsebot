@@ -1621,6 +1621,19 @@ a.lc-worn { text-decoration: none; color: inherit; }
 .badge .wi { width: 14px; height: 14px; border-radius: 3px; }
 .badge svg { width: 12px; height: 12px; }
 .badge[data-tip] { cursor: default; }
+.badge.sm { font-size: 11px; padding: 0 6px; }
+/* the small x of a removable badge or chip (ui/Badge onRemove, ui/Chip) */
+.badge-x { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; padding: 0; border: 0; border-radius: 4px; background: none; color: inherit; opacity: .7; cursor: pointer; }
+.badge-x svg { width: 10px; height: 10px; }
+.badge-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent); }
+/* chips (ui/Chip): the larger, clickable badge; several sit in a .chip-row */
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.badge.chip { font-size: 12.5px; padding: 5px 10px; cursor: pointer; font-family: var(--font-mono); }
+button.badge.chip:hover { border-color: var(--accent); color: var(--text); }
+button.badge.chip.accent:hover { color: var(--accent); }
+.badge.chip .badge-x { width: auto; height: auto; border-radius: 0; opacity: .75; }
+.badge.chip .badge-x svg { width: 12px; height: 12px; }
+.badge.chip .badge-x:hover { background: none; }
 
 /* ---- icon tiles (.itile — .tile is the dashboard's stat tile) ---- */
 .itile { --tile-bg: var(--accent-soft); width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: var(--tile-bg); color: var(--accent); }

@@ -24,6 +24,7 @@ import ConnectionsSection from "../components/SettingsConnections";
 import DiscordServersSection from "../components/SettingsDiscordServers";
 import { ChannelPicker, PenIcon, RolePicker } from "../components/settingsUi";
 import Field, { FieldLabel, InfoTip } from "../components/ui/Field";
+import Chip from "../components/ui/Chip";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
 } from "../lib/settingsSections";
@@ -158,10 +159,12 @@ function ChannelListField({ ids, channels, onChange }: {
             {ids.length > 0 && (
                 <div className="chip-row">
                     {ids.map((id) => (
-                        <span key={id} className="badge chip accent" data-tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} data-tip-sub={`ID ${id}`}>
+                        <Chip
+                            key={id} tone="accent" tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} tipSub={`ID ${id}`}
+                            onRemove={() => onChange(ids.filter((x) => x !== id))} removeLabel="Kanal entfernen"
+                        >
                             {byId.get(id) ? `#${byId.get(id)!.name}` : <span className="mono">{id}</span>}
-                            <button type="button" className="chip-x" aria-label="Kanal entfernen" onClick={() => onChange(ids.filter((x) => x !== id))}><XIcon /></button>
-                        </span>
+                        </Chip>
                     ))}
                 </div>
             )}

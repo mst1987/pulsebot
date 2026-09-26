@@ -8,7 +8,7 @@ import type { LootContent } from "../api";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
-import { InfoIcon, SearchIcon, XIcon } from "./icons";
+import { InfoIcon, SearchIcon } from "./icons";
 import { contentIcon } from "./LootBadges";
 import { useDismiss } from "../hooks/useDismiss";
 
@@ -99,11 +99,8 @@ export function ActiveFilters({ filters, onReset }: { filters: ActiveFilter[]; o
         <div className="hl-active">
             <span className="kicker">aktiv</span>
             {filters.map((f) => (
-                <Badge key={f.key} tone={f.tone}>
+                <Badge key={f.key} tone={f.tone} onRemove={f.onRemove} removeLabel={`Filter „${f.label}" entfernen`} removeTip="Filter entfernen">
                     {f.label}
-                    <button type="button" className="hl-x" aria-label={`Filter „${f.label}" entfernen`} data-tip="Filter entfernen" onClick={f.onRemove}>
-                        <XIcon />
-                    </button>
                 </Badge>
             ))}
             {onReset && filters.length > 1 && (
