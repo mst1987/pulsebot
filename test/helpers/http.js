@@ -49,7 +49,7 @@ function jsonRequest(method = "GET", path = "/", payload, headers = {}) {
         if (name === "end" && !sent) {
             sent = true;
             Promise.resolve().then(() => {
-                if (payload !== undefined) req.emit("data", JSON.stringify(payload));
+                if (payload !== undefined) req.emit("data", Buffer.from(JSON.stringify(payload)));
                 req.emit("end");
             });
         }

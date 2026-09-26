@@ -39,12 +39,13 @@ function ownEvent(over = {}) {
     };
 }
 
-/** A signup to an own event: signed, with character and spec. */
+/** A signup to an own event: signed, with character, spec key and its role. */
 function signup(over = {}) {
     return {
         userId: "u1",
         character: "Brokk",
-        spec: "Protection",
+        spec: "Warrior-Protection",
+        role: "tank",
         status: "signed",
         at: 1,
         ...over,
