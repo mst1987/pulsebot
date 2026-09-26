@@ -1,6 +1,6 @@
 const {
     buildSetupWrite, fillSetupSheet, enrichPlayers, resolveOptionalColumns,
-} = require("../../src/utils/fillSetup.js");
+} = require("../../../src/utils/setup/fillSetup.js");
 
 // Find the values written to a given A1 range in the batch payload.
 function cell(writeData, range) {

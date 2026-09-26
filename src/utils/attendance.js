@@ -3,7 +3,7 @@
 // event's signUps at all — signing up OR off (Absence/Tentative/Bench all count).
 // Only members who have not reacted at all are considered "missing".
 
-const { specProfile, characterProfile } = require("./setupView");
+const { specProfile, characterProfile } = require("./setup/setupView");
 
 // specName values that mark a non-attendance reaction (signed off), not a real
 // class/spec — must not be looked up as one when building spec history.

@@ -3,8 +3,8 @@
 // we recorded in the event-sheets store — never a source raidsheet. A Drive
 // failure leaves the record in place so the next sweep retries.
 
-const Drive = require("../classes/drive");
-const { listEventSheets, deleteEventSheet } = require("../web/eventSheetStore");
+const Drive = require("../../classes/drive");
+const { listEventSheets, deleteEventSheet } = require("../../web/eventSheetStore");
 
 /**
  * Delete every tracked copy whose deleteAfter is due (<= now). Best-effort:

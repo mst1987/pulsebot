@@ -14,8 +14,8 @@ const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
 } = require("./settingsStore");
-const { matchRaidsheet } = require("../utils/raidsheets");
-const { buildSetupView, tankCandidates } = require("../utils/setupView");
+const { matchRaidsheet } = require("../utils/setup/raidsheets");
+const { buildSetupView, tankCandidates } = require("../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
     hasStarted, isRosterKnown,

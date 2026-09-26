@@ -2,14 +2,14 @@ const mockListEventSheets = jest.fn();
 const mockDeleteEventSheet = jest.fn();
 const mockDeleteFile = jest.fn().mockResolvedValue({});
 
-jest.mock("../../src/web/eventSheetStore", () => ({
+jest.mock("../../../src/web/eventSheetStore", () => ({
     listEventSheets: mockListEventSheets,
     deleteEventSheet: mockDeleteEventSheet,
 }));
-jest.mock("../../src/classes/drive", () =>
+jest.mock("../../../src/classes/drive", () =>
     jest.fn().mockImplementation(() => ({ deleteFile: mockDeleteFile })));
 
-const { sweepDueSheets, startSheetCleanup } = require("../../src/utils/sheetCleanup.js");
+const { sweepDueSheets, startSheetCleanup } = require("../../../src/utils/setup/sheetCleanup.js");
 
 describe("utils/sheetCleanup", () => {
     const NOW = 1_000_000_000_000;

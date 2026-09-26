@@ -1,5 +1,5 @@
 const { CLASSES } = require("../config/applyClasses");
-const { CLASS_COLORS } = require("../utils/setupView");
+const { CLASS_COLORS } = require("../utils/setup/setupView");
 
 // What the Bewerbungen tab shows per application beyond the parsed embed: class
 // and spec apart (the embed has them as one "Druid – Balance" string), the

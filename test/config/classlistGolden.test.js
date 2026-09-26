@@ -6,11 +6,11 @@
 // for the changes listed below — each one on purpose.
 const golden = require("../fixtures/golden/classlistConsumers.json");
 const classlist = require("../../src/config/classlist");
-const setupView = require("../../src/utils/setupView");
+const setupView = require("../../src/utils/setup/setupView");
 const reply = require("../../src/utils/discord/reply");
 const format = require("../../src/utils/format");
 const recruitment = require("../../src/utils/recruitment/recruitmentSpecs");
-const fillSetup = require("../../src/utils/fillSetup");
+const fillSetup = require("../../src/utils/setup/fillSetup");
 const { specKeyFromRaidHelper } = require("../../src/web/eventSources");
 
 const EMOJIS = ["holypala", "protpala", "retribution", "paladin", "fury", "arms", "protection", "warrior", "assassination",

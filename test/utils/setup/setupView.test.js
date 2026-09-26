@@ -1,7 +1,7 @@
 const {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
     enrichSlot, realClass, roleOf, classIconUrl, specProfile, classSpecIconUrl, characterProfile,
-} = require("../../src/utils/setupView.js");
+} = require("../../../src/utils/setup/setupView.js");
 
 describe("utils/setupView", () => {
     describe("enrichSlot", () => {

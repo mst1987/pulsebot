@@ -27,7 +27,7 @@ const {
 } = require("../lootInboxStore");
 const { sessionContentLabel } = require("../lootSessionContent");
 const { previewImport } = require("../lootImportPreview");
-const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
+const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");

@@ -1,4 +1,4 @@
-const { matchRaidsheet } = require("../../src/utils/raidsheets.js");
+const { matchRaidsheet } = require("../../../src/utils/setup/raidsheets.js");
 
 const SHEETS = [
     { id: "t45", name: "Tier 4/5", keywords: ["kara", "gruul", "maggi"] },

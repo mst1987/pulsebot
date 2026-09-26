@@ -5,7 +5,7 @@
 
 // A slot's spec resolves by Raid-Helper alias ("Destro") and by Raid-Helper's
 // own spec name ("Destruction").
-const { entryForSpec } = require("../config/classlist");
+const { entryForSpec } = require("../../config/classlist");
 
 // WoW class colors (RGB 0–1)
 const CLASS_COLORS = {

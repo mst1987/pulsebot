@@ -8,7 +8,7 @@ function mockJob(startName, stopName) {
     };
 }
 jest.mock("../../src/web/discord", () => ({ setClient: jest.fn() }));
-jest.mock("../../src/utils/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
+jest.mock("../../src/utils/setup/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
 jest.mock("../../src/web/raidEventScan", () => mockJob("startRaidEventScan", "stopRaidEventScan"));
 jest.mock("../../src/web/logAutoLink", () => mockJob("startLogAutoLink", "stopLogAutoLink"));
 jest.mock("../../src/web/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));

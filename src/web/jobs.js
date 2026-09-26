@@ -10,7 +10,7 @@
 // the jobs that need the Discord gateway (role sync, talk overview, event
 // series) wait for it themselves with a delayed first run.
 const discord = require("./discord");
-const sheetCleanup = require("../utils/sheetCleanup");
+const sheetCleanup = require("../utils/setup/sheetCleanup");
 const raidEventScan = require("./raidEventScan");
 const logAutoLink = require("./logAutoLink");
 const eventMessage = require("./eventMessage");
