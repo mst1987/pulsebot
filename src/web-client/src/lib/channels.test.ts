@@ -2,9 +2,13 @@
 // the bot's rights in the pickers, the step-by-step runner with its pause, and
 // the purposes the server defines.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rightsStatus, runInSteps, STEP_PAUSE_MS } from "./channels";
+import {
+    archivedLabel, channelTypeLabel, placeholderHint, purposeHint, purposeLabel, resultMessage, rightsStatus, runInSteps,
+    slowmodeLabel, STEP_PAUSE_MS,
+} from "./channels";
 import { requireBackend } from "../test/backend";
-import type { Channel } from "../api";
+import { inLang } from "../test/i18n";
+import type { Channel, ChannelArchiveRow } from "../api";
 
 const chan = (over: Partial<Channel> = {}): Channel => ({
     id: "c1", name: "anmeldung", type: 0, typeLabel: "Text", category: "", parentId: "", isThread: false, botCanView: true, botCanSend: true, ...over,
@@ -69,5 +73,44 @@ describe("the purposes the server defines", () => {
         expect(PURPOSES.map((p: { icon: string }) => p.icon)).toEqual([
             "inv_misc_note_02", "inv_misc_pocketwatch_01", "inv_misc_grouplooking", "achievement_boss_illidan",
         ]);
+    });
+});
+
+describe("in the page's language", () => {
+    const row: ChannelArchiveRow = { id: "c-arch", name: "alt-raid", at: Date.UTC(2026, 8, 3, 10), by: "Nerathil", fromCategory: "Raids", waitingDays: 3, overdue: false };
+
+    it("speaks German by default", () => {
+        expect(archivedLabel(row)).toBe("archiviert am 03.09.2026 von Nerathil · aus Raids");
+        expect(archivedLabel({ ...row, at: 0 })).toBe("von Hand ins Archiv verschoben");
+        expect(slowmodeLabel(0)).toBe("aus");
+        expect(resultMessage([{ id: "a", ok: true }, { id: "b", ok: false, error: "429" }], "geändert").message).toBe("1 Kanal geändert, 1 fehlgeschlagen: 429");
+    });
+
+    it("speaks English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(archivedLabel(row)).toMatch(/^archived on .+ by Nerathil · from Raids$/);
+            expect(archivedLabel({ ...row, at: 0 })).toBe("moved to the archive by hand");
+            expect(slowmodeLabel(0)).toBe("off");
+            expect(slowmodeLabel(300)).toBe("5 min");
+            expect(resultMessage([{ id: "a", ok: true }, { id: "b", ok: true }], "changed").message).toBe("2 channels changed");
+            expect(rightsStatus(chan({ botCanSend: false }), "send", true)).toEqual({
+                tone: "mid", label: "Bot may not post", tip: "The bot role lacks the “Send messages” permission in #anmeldung.",
+            });
+            expect(channelTypeLabel({ type: 5, typeLabel: "Ankündigung" })).toBe("Announcement");
+        });
+    });
+
+    it("knows every purpose and placeholder the server defines, with the server's German words", async () => {
+        const { PURPOSES } = requireBackend("web/channels/channelPurposes");
+        const { PLACEHOLDERS } = requireBackend("utils/channelNames");
+        for (const p of PURPOSES) {
+            expect({ id: p.id, label: purposeLabel(p), hint: purposeHint(p) }).toEqual({ id: p.id, label: p.label, hint: p.hint });
+        }
+        for (const p of PLACEHOLDERS) expect({ key: p.key, hint: placeholderHint(p) }).toEqual({ key: p.key, hint: p.hint });
+        await inLang("en", () => {
+            for (const p of PURPOSES) expect({ id: p.id, same: purposeLabel(p) === p.label }).toEqual({ id: p.id, same: false });
+            // an unknown purpose keeps the server's label
+            expect(purposeLabel({ id: "new", label: "Neu" })).toBe("Neu");
+        });
     });
 });

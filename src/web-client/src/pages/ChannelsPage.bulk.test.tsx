@@ -3,7 +3,7 @@
 // deleting — every change channel by channel, the progress in the job toast.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
@@ -11,6 +11,7 @@ import { requireBackend } from "../test/backend";
 import { BULK_DELETE_WORD } from "../lib/channels";
 import { channelsData, TALK } from "./ChannelsPage.fixture";
 import type { ChannelsData } from "../api";
+import { switchLang } from "../test/i18n";
 
 vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
@@ -264,5 +265,30 @@ describe("ChannelsPage — deleting from the channel list", () => {
 
     it("confirms with the same word the server checks", () => {
         expect(BULK_DELETE_WORD).toBe(requireBackend("web/apiRoutes/channels").BULK_DELETE_WORD);
+    });
+});
+
+describe("ChannelsPage — bulk bar and edit in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("offers the actions and the edit dialog in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        vi.mocked(api.getChannels).mockResolvedValue(channelsData());
+        renderPage(<ChannelsPage />, { route: "/channels", user: adminUser() });
+        await screen.findByRole("radiogroup", { name: "View" });
+        await user.click(screen.getByRole("checkbox", { name: "Select #regeln" }));
+        await user.click(screen.getByRole("checkbox", { name: "Select #raid-voice" }));
+        const toolbar = screen.getByRole("toolbar", { name: "Edit selection" });
+        const actions = within(toolbar).getAllByRole("button").map((b) => b.getAttribute("aria-label") || b.textContent);
+        expect(actions).toEqual(["Category …", "Topic …", "Rename by schema …", "Delete …", "Archive", "Clear selection"]);
+        expect(within(toolbar).getByText("2 selected")).toBeInTheDocument();
+
+        await user.click(within(toolbar).getByRole("button", { name: "Category …" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("Edit 2 channels")).toBeInTheDocument();
+        const slow = within(dialog).getByRole("combobox", { name: "Slowmode" });
+        expect(within(slow).getAllByRole("option").slice(0, 2).map((o) => o.textContent)).toEqual(["unchanged", "off"]);
+        expect(within(dialog).getByRole("button", { name: "Apply" })).toBeDisabled();
     });
 });

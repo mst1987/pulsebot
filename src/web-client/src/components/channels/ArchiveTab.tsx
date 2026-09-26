@@ -4,6 +4,7 @@ import { Badge, Button, IconButton, Modal } from "../ui";
 import { TrashIcon } from "../icons";
 import { ChannelTypeIcon } from "./channelBits";
 import { archivedLabel, BULK_DELETE_WORD } from "../../lib/channels";
+import { useT } from "../../i18n";
 
 // The archive (issue #259): channels nobody needs any more wait here until an
 // admin deletes them. Deleting happens only here, only with the name typed (or
@@ -18,6 +19,7 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
     onDelete: (ids: string[]) => void;
     onSettings: () => void;
 }) {
+    const t = useT();
     const { archive } = data;
     const category = data.categories.find((c) => c.id === archive.categoryId);
 
@@ -25,9 +27,9 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
         return (
             <div className="kn-tree kn-archive-empty">
                 <div className="kn-empty">
-                    Noch keine Archiv-Kategorie. Archivierte Kanäle wandern dorthin, niemand kann darin mehr schreiben — gelöscht wird erst, wenn ein Admin es hier tut.
+                    {t("channels.archive.empty")}
                 </div>
-                {canWrite && <Button onClick={onSettings}>Archiv festlegen</Button>}
+                {canWrite && <Button onClick={onSettings}>{t("channels.archive.setUp")}</Button>}
             </div>
         );
     }
@@ -40,31 +42,31 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
         <div className="kn-tree">
             <div className="kn-tree-tools">
                 {canWrite && ids.length > 0 && (
-                    <input type="checkbox" className="kn-cb" checked={all} aria-label="Alle im Archiv wählen" onChange={(e) => onSelect(ids, e.target.checked)} />
+                    <input type="checkbox" className="kn-cb" checked={all} aria-label={t("channels.archive.selectAll")} onChange={(e) => onSelect(ids, e.target.checked)} />
                 )}
-                <span className="kn-cat-title" data-tip={category?.name || "Archiv"} data-tip-sub={`Nach ${archive.hintDays} Tagen wird ein wartender Kanal gelb markiert. Gelöscht wird nie automatisch.`}>
-                    {category?.name || "Archiv (Kategorie fehlt)"}
+                <span className="kn-cat-title" data-tip={category?.name || t("channels.archive.title")} data-tip-sub={t("channels.archive.hintSub", { days: archive.hintDays })}>
+                    {category?.name || t("channels.archive.categoryMissing")}
                 </span>
                 <Badge count>{archive.count}</Badge>
-                {archive.overdue > 0 && <Badge tone="mid" tip="Wartet zu lange" tipSub={`Länger als ${archive.hintDays} Tage im Archiv.`}>{archive.overdue} über {archive.hintDays} Tage</Badge>}
-                {canWrite && <Button size="sm" variant="ghost" className="kn-push" onClick={onSettings}>Archiv-Einstellungen</Button>}
+                {archive.overdue > 0 && <Badge tone="mid" tip={t("channels.archive.overdueTip")} tipSub={t("channels.archive.overdueSub", { days: archive.hintDays })}>{t("channels.archive.overdue", { count: archive.overdue, days: archive.hintDays })}</Badge>}
+                {canWrite && <Button size="sm" variant="ghost" className="kn-push" onClick={onSettings}>{t("channels.archive.settings")}</Button>}
             </div>
-            {!archive.rows.length && <div className="kn-empty">Das Archiv ist leer.</div>}
+            {!archive.rows.length && <div className="kn-empty">{t("channels.archive.isEmpty")}</div>}
             {archive.rows.map((r) => (
                 <div key={r.id} className={`kn-row${selected.has(r.id) ? " sel" : ""}`} data-channel={r.id}>
                     {canWrite && (
-                        <input type="checkbox" className="kn-cb" checked={selected.has(r.id)} aria-label={`#${r.name} wählen`} onChange={(e) => onSelect([r.id], e.target.checked)} />
+                        <input type="checkbox" className="kn-cb" checked={selected.has(r.id)} aria-label={t("channels.selectOne", { name: r.name })} onChange={(e) => onSelect([r.id], e.target.checked)} />
                     )}
                     <span className="kn-type"><ChannelTypeIcon type={typeOf(r.id)} /></span>
                     <span className="kn-name" tabIndex={0} data-tip={`#${r.name}`} data-tip-sub={archivedLabel(r)}>{r.name}</span>
                     {r.waitingDays !== null && (
-                        <Badge tone={r.overdue ? "mid" : undefined} tip={r.overdue ? "Wartet auf Löschung" : "Im Archiv"} tipSub={archivedLabel(r)}>
-                            {r.waitingDays === 0 ? "heute" : `${r.waitingDays} ${r.waitingDays === 1 ? "Tag" : "Tage"}`}
+                        <Badge tone={r.overdue ? "mid" : undefined} tip={r.overdue ? t("channels.archive.waitingTip") : t("channels.archive.inArchive")} tipSub={archivedLabel(r)}>
+                            {r.waitingDays === 0 ? t("common.relDay.today") : t("channels.archive.days", { count: r.waitingDays })}
                         </Badge>
                     )}
                     {canWrite && (
                         <span className="kn-row-icons">
-                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" tipSub="Endgültig aus Discord löschen — mit Namen bestätigen." onClick={() => onDelete([r.id])} />
+                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("common.delete")} tipSub={t("channels.archive.deleteSub")} onClick={() => onDelete([r.id])} />
                         </span>
                     )}
                 </div>
@@ -73,7 +75,7 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
     );
 }
 
-export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker = "Archiv", warnings = [] }: {
+export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker, warnings = [] }: {
     names: string[];
     onClose: () => void;
     onConfirm: (confirm: string) => void;
@@ -82,6 +84,7 @@ export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker = "Arch
     /** Channels that still carry something (an upcoming event) — named before the name is typed. */
     warnings?: string[];
 }) {
+    const t = useT();
     const single = names.length === 1;
     const expected = single ? names[0] : BULK_DELETE_WORD;
     const [typed, setTyped] = useState("");
@@ -98,20 +101,20 @@ export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker = "Arch
             onClose={onClose}
             icon={<TrashIcon />}
             tone="bad"
-            kicker={kicker}
-            title={single ? `#${names[0]} löschen` : `${names.length} Kanäle löschen`}
+            kicker={kicker ?? t("channels.archive.title")}
+            title={single ? t("channels.deleteDialog.titleOne", { name: names[0] }) : t("channels.deleteDialog.titleMany", { count: names.length })}
             width={540}
             initialFocus="#kn-del-confirm"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="kn-del" variant="danger" icon={<TrashIcon />} disabled={!matches}>Endgültig löschen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="kn-del" variant="danger" icon={<TrashIcon />} disabled={!matches}>{t("channels.deleteDialog.submit")}</Button>
                 </>
             )}
         >
             <form id="kn-del" className="kn-dlg-stack" onSubmit={submit}>
                 <div className="kn-dlg-note">
-                    Der Kanal und alle Nachrichten darin sind danach weg — auch in Discord lässt sich das nicht rückgängig machen.
+                    {t("channels.deleteDialog.note")}
                 </div>
                 {warnings.length > 0 && (
                     <div className="kn-dlg-note kn-dlg-warn">
@@ -122,7 +125,7 @@ export function DeleteChannelsDialog({ names, onClose, onConfirm, kicker = "Arch
                     <div className="kn-chips">{names.slice(0, 10).map((n) => <Badge key={n}>#{n}</Badge>)}{names.length > 10 && <Badge count>+{names.length - 10}</Badge>}</div>
                 )}
                 <div className="kn-field">
-                    <label htmlFor="kn-del-confirm">Zum Bestätigen <b className="kn-mono">{expected}</b> eintippen</label>
+                    <label htmlFor="kn-del-confirm">{t("channels.deleteDialog.typeBefore")} <b className="kn-mono">{expected}</b> {t("channels.deleteDialog.typeAfter")}</label>
                     <div className="kn-input"><input id="kn-del-confirm" type="text" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} /></div>
                 </div>
             </form>
@@ -137,13 +140,14 @@ export function ArchiveSettingsDialog({ data, onClose, onSave }: {
     onClose: () => void;
     onSave: (input: { archiveCategoryId?: string; archiveDeleteHintDays: number; createArchiveCategory?: string }) => void;
 }) {
+    const t = useT();
     const [categoryId, setCategoryId] = useState(data.archive.categoryId || (data.categories.length ? "" : NEW_CATEGORY));
-    const [newName, setNewName] = useState("Archiv");
+    const [newName, setNewName] = useState(() => t("channels.archiveSettings.defaultName"));
     const [days, setDays] = useState(data.archive.hintDays || 14);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        if (categoryId === NEW_CATEGORY) onSave({ createArchiveCategory: newName.trim() || "Archiv", archiveDeleteHintDays: days });
+        if (categoryId === NEW_CATEGORY) onSave({ createArchiveCategory: newName.trim() || t("channels.archiveSettings.defaultName"), archiveDeleteHintDays: days });
         else onSave({ archiveCategoryId: categoryId, archiveDeleteHintDays: days });
     };
 
@@ -153,34 +157,34 @@ export function ArchiveSettingsDialog({ data, onClose, onSave }: {
             onClose={onClose}
             icon="inv_letter_15"
             tone="channels"
-            kicker="Kanäle › Archiv"
-            title="Archiv-Einstellungen"
+            kicker={t("channels.archiveSettings.kicker")}
+            title={t("channels.archiveSettings.title")}
             width={520}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="kn-arch" disabled={!categoryId}>Speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="kn-arch" disabled={!categoryId}>{t("common.save")}</Button>
                 </>
             )}
         >
             <form id="kn-arch" className="kn-dlg-stack" onSubmit={submit}>
                 <div className="kn-field">
-                    <label htmlFor="kn-arch-cat">Archiv-Kategorie</label>
+                    <label htmlFor="kn-arch-cat">{t("channels.archiveSettings.category")}</label>
                     <select id="kn-arch-cat" className="kn-select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                        <option value="" disabled>— wählen —</option>
+                        <option value="" disabled>{t("channels.archiveSettings.pick")}</option>
                         {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        <option value={NEW_CATEGORY}>+ neue Kategorie anlegen</option>
+                        <option value={NEW_CATEGORY}>{t("channels.archiveSettings.newCategory")}</option>
                     </select>
                 </div>
                 {categoryId === NEW_CATEGORY && (
                     <div className="kn-field">
-                        <label htmlFor="kn-arch-new">Name der neuen Kategorie</label>
+                        <label htmlFor="kn-arch-new">{t("channels.archiveSettings.newName")}</label>
                         <div className="kn-input"><input id="kn-arch-new" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
                     </div>
                 )}
                 <div className="kn-field">
                     <label htmlFor="kn-arch-days">
-                        <span className="tipped" tabIndex={0} data-tip="Hinweis nach" data-tip-sub="Ab dann steht ein archivierter Kanal gelb auf der Kanäle-Seite und in den offenen Aufgaben der Übersicht. Gelöscht wird nie automatisch.">Hinweis nach (Tagen)</span>
+                        <span className="tipped" tabIndex={0} data-tip={t("channels.archiveSettings.hintTip")} data-tip-sub={t("channels.archiveSettings.hintSub")}>{t("channels.archiveSettings.hintLabel")}</span>
                     </label>
                     <input id="kn-arch-days" className="kn-select" type="number" min={1} max={365} value={days} onChange={(e) => setDays(Number(e.target.value) || 14)} />
                 </div>

@@ -8,6 +8,7 @@ import { ChannelsIcon } from "../icons";
 import { SwitchRow } from "../RaidPlanFields";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike } from "../../lib/channels";
+import { useT } from "../../i18n";
 
 const SOURCE_LABELS = { raidhelper: "Raid-Helper", eventhelper: "EventHelper" } as const;
 const DEFAULT_EVENT_TIME = "19:30";
@@ -39,6 +40,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
     /** Runs the creation (as a job) with the final input. */
     onCreate: (input: QuickCreateInput, count: number) => void;
 }) {
+    const t = useT();
     const archiveId = data.archive?.categoryId || "";
     const categories = data.categories.filter((c) => c.id !== archiveId);
     const [categoryId, setCategoryId] = useState(initialCategoryId || categories[0]?.id || "");
@@ -92,7 +94,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
     }, [categoryId, schema, raid, from, count, mode, templateChannelId]);
 
     const todo = plan.filter((p) => !p.exists).length;
-    const categoryName = categories.find((c) => c.id === categoryId)?.name || "Ohne Kategorie";
+    const categoryName = categories.find((c) => c.id === categoryId)?.name || t("channels.noCategory");
     const templates = data.channels.filter((c) => isTextLike(c) && c.parentId !== archiveId);
 
     return (
@@ -101,41 +103,41 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
             onClose={onClose}
             icon="inv_letter_15"
             tone="channels"
-            kicker={`${categoryName} · nach Schema`}
-            title="Kanäle anlegen"
+            kicker={t("channels.quick.kicker", { category: categoryName })}
+            title={t("channels.quick.title")}
             width={620}
             initialFocus="#kn-qc-from"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{todo} anlegen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{t("channels.quick.submit", { count: todo })}</Button>
                 </>
             )}
         >
             <div className="kn-dlg-stack">
                 <div className="kn-qc-head">
-                    <select aria-label="Kategorie" className="kn-select" value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
-                        <option value="">— keine Kategorie —</option>
+                    <select aria-label={t("channels.category")} className="kn-select" value={categoryId} onChange={(e) => pickCategory(e.target.value)}>
+                        <option value="">{t("channels.noCategoryOption")}</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <Segment<"once" | "weekly">
-                        ariaLabel="Einzeln oder Serie"
+                        ariaLabel={t("channels.quick.mode")}
                         size="sm"
                         value={mode}
                         onChange={setMode}
-                        options={[{ value: "once", label: "Einzeln" }, { value: "weekly", label: "Serie" }]}
+                        options={[{ value: "once", label: t("channels.quick.once") }, { value: "weekly", label: t("channels.quick.weekly") }]}
                     />
                 </div>
                 <div className="kn-grid2">
                     <div className="kn-field">
-                        <label htmlFor="kn-qc-from">{mode === "weekly" ? "Ab" : "Am"}</label>
+                        <label htmlFor="kn-qc-from">{mode === "weekly" ? t("channels.quick.from") : t("channels.quick.on")}</label>
                         <input id="kn-qc-from" className="kn-select" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
                     </div>
                     {mode === "weekly" && (
                         <div className="kn-field">
-                            <label htmlFor="kn-qc-count">Wie oft</label>
+                            <label htmlFor="kn-qc-count">{t("channels.quick.howOften")}</label>
                             <select id="kn-qc-count" className="kn-select" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-                                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} × wöchentlich</option>)}
+                                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{t("channels.quick.times", { count: n })}</option>)}
                             </select>
                         </div>
                     )}
@@ -143,15 +145,15 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                 {eventsPossible && (
                     <div className="kn-qc-event">
                         <SwitchRow
-                            label="Gleich Event anlegen"
-                            tip="Jeder neue Kanal bekommt an seinem Tag ein Event – mit der Standard-Vorlage und der Anmeldung der Kategorie."
+                            label={t("channels.quick.withEvent")}
+                            tip={t("channels.quick.withEventTip")}
                             checked={withEvent}
                             onChange={setWithEvent}
                         />
                         {eventOn && (
                             <>
                                 <input
-                                    aria-label="Uhrzeit"
+                                    aria-label={t("channels.quick.time")}
                                     className="kn-select kn-qc-time"
                                     type="time"
                                     value={time}
@@ -159,12 +161,12 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                                 />
                                 <Badge
                                     tone={defaults?.templateId ? "accent" : "mid"}
-                                    tip={defaults?.templateId ? `Vorlage: ${defaults.templateName}` : "Ohne Vorlage"}
+                                    tip={defaults?.templateId ? t("channels.quick.templateTip", { name: defaults.templateName }) : t("channels.quick.noTemplateTip")}
                                     tipSub={defaults?.templateId
-                                        ? `Größe, Tanks/Heiler und Anmeldeschluss kommen aus der Standard-Vorlage der Kategorie. Anmeldung über ${SOURCE_LABELS[defaults.source]}. Ändern: Einstellungen → Kategorien.`
-                                        : `Die Kategorie hat keine Standard-Vorlage – das Event bekommt die Werte des Regelsatzes. Anmeldung über ${SOURCE_LABELS[defaults?.source || "raidhelper"]}. Festlegen: Einstellungen → Kategorien.`}
+                                        ? t("channels.quick.templateSub", { source: SOURCE_LABELS[defaults.source] })
+                                        : t("channels.quick.noTemplateSub", { source: SOURCE_LABELS[defaults?.source || "raidhelper"] })}
                                 >
-                                    {defaults?.templateName || "ohne Vorlage"} · {SOURCE_LABELS[defaults?.source || "raidhelper"]}
+                                    {defaults?.templateName || t("channels.quick.noTemplate")} · {SOURCE_LABELS[defaults?.source || "raidhelper"]}
                                 </Badge>
                             </>
                         )}
@@ -177,38 +179,38 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                         <div key={`${p.date}-${i}`} className="kn-preview-row">
                             <span className="kn-type"><ChannelsIcon /></span>
                             <span className="kn-preview-name">{p.name || "—"}</span>
-                            {p.exists && <Badge tone="mid" tip="Existiert schon" tipSub="Ein Kanal mit diesem Namen ist schon da (oder kommt in dieser Serie zweimal vor) — er wird übersprungen.">existiert</Badge>}
+                            {p.exists && <Badge tone="mid" tip={t("channels.quick.existsTip")} tipSub={t("channels.quick.existsSub")}>{t("channels.exists")}</Badge>}
                         </div>
                     ))}
                 </div>
                 <details className="kn-details">
-                    <summary className="kn-kicker">Schema &amp; Vorlage</summary>
+                    <summary className="kn-kicker">{t("channels.quick.schemaTemplate")}</summary>
                     <div className="kn-dlg-stack">
                         <div className="kn-grid2">
                             <div className="kn-field">
-                                <label htmlFor="kn-qc-schema">Namensschema</label>
-                                <div className="kn-input"><input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder="leer = wie der letzte Event-Kanal" /></div>
+                                <label htmlFor="kn-qc-schema">{t("channels.namingSchema")}</label>
+                                <div className="kn-input"><input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder={t("channels.schemaPlaceholder")} /></div>
                             </div>
                             <div className="kn-field">
-                                <label htmlFor="kn-qc-raid">Raid</label>
-                                <div className="kn-input"><input id="kn-qc-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder="z.B. ssc-tk" /></div>
+                                <label htmlFor="kn-qc-raid">{t("channels.raid")}</label>
+                                <div className="kn-input"><input id="kn-qc-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
                             </div>
                         </div>
                         <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />
                         <div className="kn-field">
                             <label htmlFor="kn-qc-tpl">
-                                <span className="tipped" tabIndex={0} data-tip="Vorlage-Kanal" data-tip-sub="Die neuen Kanäle übernehmen Rechte, Thema und Slowmode dieses Kanals. Ohne Auswahl sind sie eine Kopie des letzten Event-Kanals der Kategorie – nur eine Kategorie ohne Event-Kanal bekommt einfache Text-Kanäle.">Vorlage-Kanal</span>
-                                <span className="kn-opt">optional</span>
+                                <span className="tipped" tabIndex={0} data-tip={t("channels.templateChannel")} data-tip-sub={t("channels.quick.templateChannelSub")}>{t("channels.templateChannel")}</span>
+                                <span className="kn-opt">{t("channels.optional")}</span>
                             </label>
                             <select id="kn-qc-tpl" className="kn-select" value={templateChannelId} onChange={(e) => setTemplate(e.target.value)}>
-                                <option value="">{categoryId ? "— wie der letzte Event-Kanal —" : "— keine Vorlage —"}</option>
+                                <option value="">{categoryId ? t("channels.likeLastEventChannel") : t("channels.quick.noTemplateOption")}</option>
                                 {templates.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` (${c.category})` : ""}</option>)}
                             </select>
                         </div>
                         {categoryId && (
                             <label className="kn-check">
                                 <input type="checkbox" className="kn-cb" checked={saveSchema} onChange={(e) => setSaveSchema(e.target.checked)} />
-                                Schema, Raid und Vorlage für „{categoryName}“ merken
+                                {t("channels.quick.remember", { name: categoryName })}
                             </label>
                         )}
                     </div>

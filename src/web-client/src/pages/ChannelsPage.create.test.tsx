@@ -3,12 +3,13 @@
 // naming schema, duplicating a channel and assigning the purposes.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
 import { channelsData, purpose, RAIDS } from "./ChannelsPage.fixture";
 import type { ChannelNaming, ChannelsData, QuickCreateInput } from "../api";
+import { switchLang } from "../test/i18n";
 
 vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
@@ -299,5 +300,33 @@ describe("ChannelsPage — purposes", () => {
         await user.click(within(dialog).getByRole("checkbox", { name: /mi-17-09-ssc/ }));
         await user.click(within(dialog).getByRole("button", { name: "Zuordnung speichern" }));
         await waitFor(() => expect(api.saveChannelPurpose).toHaveBeenCalledWith(expect.objectContaining({ key: "logChannelIds" }), ["c-app", "999", "c-mi"]));
+    });
+});
+
+describe("ChannelsPage — creating in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("shows quick-create and the single-channel dialog in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        vi.mocked(api.getChannels).mockResolvedValue(channelsData());
+        renderPage(<ChannelsPage />, { route: "/channels", user: writer });
+        await screen.findByRole("radiogroup", { name: "View" });
+        await user.click(screen.getByRole("button", { name: "Create" }));
+        let dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("Create channels")).toBeInTheDocument();
+        expect(within(dialog).getByText("Raids · by schema")).toBeInTheDocument();
+        expect(await within(dialog).findByText("exists")).toHaveClass("mid");
+        const count = within(dialog).getByRole("combobox", { name: "How often" });
+        expect(within(count).getAllByRole("option")[0]).toHaveTextContent("2 × weekly");
+        expect(within(dialog).getByRole("button", { name: "Create 1" })).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        await user.click(screen.getByRole("button", { name: "More ways to create" }));
+        await user.click(screen.getByRole("menuitem", { name: "Create a single channel" }));
+        dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("Create channel", { selector: ".dlg-title" })).toBeInTheDocument();
+        expect(within(dialog).getByRole("radio", { name: "Announcement" })).toBeInTheDocument();
+        expect(within(dialog).getByRole("textbox", { name: "Name" })).toHaveAttribute("placeholder", "e.g. kara-signup");
     });
 });

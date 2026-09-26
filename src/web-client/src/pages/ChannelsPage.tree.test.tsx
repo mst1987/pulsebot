@@ -3,12 +3,13 @@
 // selection, folding and the threads nested under their channel.
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api";
 import ChannelsPage from "./ChannelsPage";
 import { adminUser, renderPage } from "../test/render";
 import { ThreadIcon } from "../components/channels/channelBits";
 import { channel, channelsData } from "./ChannelsPage.fixture";
+import { switchLang } from "../test/i18n";
 
 vi.mock("../api", async (orig) => ({
     ...(await orig<typeof import("../api")>()),
@@ -272,5 +273,29 @@ describe("ChannelsPage — threads nest under their channel (#361)", () => {
         const icon = row("Bewerbung Fatigatus").querySelector(".kn-type svg");
         expect(icon?.innerHTML).toBe(container.querySelector("svg")?.innerHTML);
         expect(row("bewerbungen").querySelector(".kn-type svg")?.innerHTML).not.toBe(icon?.innerHTML);
+    });
+});
+
+describe("ChannelsPage — in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("shows the tree, the side panel and the tooltips in English", async () => {
+        await switchLang("en");
+        vi.mocked(api.getChannels).mockResolvedValue(channelsData());
+        renderPage(<ChannelsPage />, { route: "/channels", user: writer });
+        await screen.findByRole("radiogroup", { name: "View" });
+        expect(screen.getByRole("heading", { level: 1, name: "Channels" })).toBeInTheDocument();
+        expect(screen.getByText("Discord server · Pulse")).toBeInTheDocument();
+        expect(screen.getByRole("radio", { name: "Channels · 7" })).toBeInTheDocument();
+        expect(screen.getByRole("radio", { name: "Archive · 1" })).toBeInTheDocument();
+        const side = screen.getByRole("complementary");
+        expect(within(side).getByText("Past events")).toBeInTheDocument();
+        expect(within(side).getByText("3 set")).toBeInTheDocument();
+        expect(within(side).getByRole("button", { name: "All purposes" })).toBeInTheDocument();
+        expect(screen.getByRole("searchbox", { name: "Search channel" })).toHaveAttribute("placeholder", "Search channel…");
+        const sub = screen.getByText("bewerbungen", { selector: ".kn-name" }).getAttribute("data-tip-sub");
+        expect(sub).toContain("Topic: Hier landen die Bewerbungen");
+        expect(sub).toContain("Permissions from the category.");
+        expect(screen.getByRole("checkbox", { name: "Select #regeln" })).toBeInTheDocument();
     });
 });

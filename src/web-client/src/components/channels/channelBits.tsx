@@ -2,8 +2,10 @@ import type { ChannelPurpose, PurposeStatus } from "../../api";
 import { Badge, WowIcon } from "../ui";
 import { ChannelsIcon } from "../icons";
 import {
+    purposeHint, purposeLabel,
     TYPE_ANNOUNCEMENT, TYPE_ANNOUNCEMENT_THREAD, TYPE_FORUM, TYPE_PRIVATE_THREAD, TYPE_PUBLIC_THREAD, TYPE_STAGE, TYPE_VOICE,
 } from "../../lib/channels";
+import { useLang } from "../../i18n";
 
 // Small pieces the Kanäle page and its dialogs share (design issue #216):
 // line icons for the channel types and the two row actions, the mono channel
@@ -112,10 +114,12 @@ export function StatusBadge({ status }: { status: PurposeStatus }) {
 }
 
 /** Badge "<icon> Raid-Anmeldung" on a channel row or a source card. */
-export function PurposeBadge({ purpose, label }: { purpose: Pick<ChannelPurpose, "icon" | "label" | "hint">; label?: string }) {
+export function PurposeBadge({ purpose, label }: { purpose: Pick<ChannelPurpose, "id" | "icon" | "label" | "hint">; label?: string }) {
+    useLang();
+    const name = purposeLabel(purpose);
     return (
-        <Badge className="area" icon={purpose.icon} tip={purpose.label} tipSub={purpose.hint}>
-            {label ?? purpose.label}
+        <Badge className="area" icon={purpose.icon} tip={name} tipSub={purposeHint(purpose)}>
+            {label ?? name}
         </Badge>
     );
 }
@@ -128,6 +132,7 @@ export function PurposeChip({ purpose, on, onToggle, disabled, tipSub }: {
     disabled?: boolean;
     tipSub?: string;
 }) {
+    useLang();
     return (
         <button
             type="button"
@@ -135,11 +140,11 @@ export function PurposeChip({ purpose, on, onToggle, disabled, tipSub }: {
             aria-pressed={on}
             disabled={disabled}
             onClick={onToggle}
-            data-tip={purpose.label}
-            data-tip-sub={tipSub ?? purpose.hint}
+            data-tip={purposeLabel(purpose)}
+            data-tip-sub={tipSub ?? purposeHint(purpose)}
         >
             <WowIcon name={purpose.icon} size={20} />
-            {purpose.label}
+            {purposeLabel(purpose)}
         </button>
     );
 }
