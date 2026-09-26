@@ -30,6 +30,14 @@ function read(...parts) {
     return fs.readFileSync(full, "utf8").replace(/\r\n/g, "\n");
 }
 
+/**
+ * The raid plan's working area as one source: BoardWorkspace.tsx and the hooks
+ * and parts it was split into (pages/raid-detail/raidplan/workspace/, #438).
+ */
+function readWorkspace() {
+    return [read("pages/raid-detail/raidplan/BoardWorkspace.tsx"), read("pages/raid-detail/raidplan/workspace")].join("\n");
+}
+
 /** Whether a path belongs to the tests rather than the app. */
 function isTestFile(file) {
     const rel = path.relative(CLIENT, file).split(path.sep).join("/");
@@ -127,4 +135,4 @@ function dictionary(lang) {
     return out;
 }
 
-module.exports = { CLIENT, LOCALES, SPLIT_FOLDERS, read, isTestFile, sourceFiles, clientSources, pageSources, stripComments, namespaces, dictionary };
+module.exports = { CLIENT, LOCALES, SPLIT_FOLDERS, read, readWorkspace, isTestFile, sourceFiles, clientSources, pageSources, stripComments, namespaces, dictionary };

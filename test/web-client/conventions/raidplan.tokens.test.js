@@ -3,7 +3,7 @@
 // (src/web-client/src/lib/raidplan.tokens.test.ts).
 const fs = require("fs");
 const path = require("path");
-const { read } = require("../clientSource");
+const { readWorkspace, read } = require("../clientSource");
 
 // the compass names as the lib declares them
 const COMPASS_NAMES = JSON.parse(read("lib/raidplan.ts").match(/^export const COMPASS_NAMES = (\[[^\]]*\]);/m)[1]);
@@ -12,7 +12,7 @@ describe("facing and board labels", () => {
     it("has the facing UI and its texts", () => {
         const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
         expect(insp).toContain("rp-compass");
-        const ws = read("pages/raid-detail/raidplan/BoardWorkspace.tsx");
+        const ws = readWorkspace();
         expect(ws).toContain("angleTo(");
         expect(ws).toContain("snapAngle(a, 15)");
         expect(read("components/raidplan/PlanBoard.tsx")).toContain("rp-h-rot");

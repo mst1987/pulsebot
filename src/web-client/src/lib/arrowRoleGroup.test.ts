@@ -62,7 +62,7 @@ describe("a role group placeholder", () => {
         expect(raidplan.insertObject(board(), { type: "zone", zoneType: "role", shape: "ellipse", role: "nope" }, null).board.zones[0].role).toBe("melee");
         const pal = read("pages/raid-detail/raidplan/Palette.tsx");
         expect(pal.indexOf("role: \"melee\"")).toBeLessThan(pal.indexOf("role: \"ranged\""));
-        expect(read("pages/raid-detail/raidplan/BoardWorkspace.tsx")).toContain("zoneType: \"role\", shape: \"ellipse\", role: \"melee\"");
+        expect(read("pages/raid-detail/raidplan/workspace/WorkspaceToolbar.tsx")).toContain("zoneType: \"role\", shape: \"ellipse\", role: \"melee\"");
     });
 
     it("moves and scales like any area (it is a zone), and is not a player: nobody is placed by it", () => {
