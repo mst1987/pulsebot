@@ -2,11 +2,7 @@
 // GET /api/raids/detail from one builder per part; apiRoutes/raidDetail.js only
 // sends it. The byte-for-byte comparison against the old handler was done on
 // the dev data before the move (see the PR); these tests pin each part.
-jest.mock("../../src/web/apiMiddleware", () => ({
-    requireAdmin: jest.fn(() => ({ id: "1", isAdmin: true })),
-    requireFullAdmin: jest.fn(() => ({ id: "1", isAdmin: true })),
-    requireCsrf: jest.fn(() => true),
-}));
+jest.mock("../../src/web/apiMiddleware", () => require("../helpers/http").apiMiddlewareMock());
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
 jest.mock("../../src/web/settingsStore", () => ({
@@ -53,6 +49,7 @@ const logStore = require("../../src/web/logStore");
 const { backfillLogTitles } = require("../../src/web/logChannel");
 const { buildRaidDetail, _internal } = require("../../src/web/raidDetailView");
 const { getRaidDetail } = require("../../src/web/apiRoutes/raidDetail");
+const { mockRes, status, json } = require("../helpers/http");
 
 const FUTURE = Math.floor(Date.now() / 1000) + 86400;
 const PAST = Math.floor(Date.now() / 1000) - 86400;
@@ -72,8 +69,7 @@ const ownEvent = (over = {}) => ({
 const groupsWith = (event, extra = {}) => ({ groups: [{ categoryId: "cat1", categoryName: "TBC", events: [event] }], error: null, stale: false, ...extra });
 const rhClient = (getSetup) => createRaidhelperClient.mockReturnValue({ getSetup });
 
-const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
-const sent = (r) => ({ status: r.writeHead.mock.calls[0][0], body: JSON.parse(r.end.mock.calls[0][0]) });
+const sent = (r) => ({ status: status(r), body: json(r) });
 
 beforeEach(() => {
     jest.spyOn(console, "error").mockImplementation(() => {});
@@ -238,7 +234,7 @@ describe("web/raidDetailView parts", () => {
 describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
     it("sends the payload as data", async () => {
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
-        const r = res();
+        const r = mockRes();
         await getRaidDetail({ headers: {} }, r, new URL("http://x/api/raids/detail?event=%20rh1%20"));
         const { status, body } = sent(r);
         expect(status).toBe(200);
@@ -248,7 +244,7 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
 
     it("sends the failure with its status", async () => {
         loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
-        const r = res();
+        const r = mockRes();
         await getRaidDetail({ headers: {} }, r, new URL("http://x/api/raids/detail"));
         expect(sent(r)).toEqual({ status: 404, body: { error: { code: "not_found", message: "Event nicht gefunden." } } });
     });

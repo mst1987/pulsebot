@@ -1,13 +1,8 @@
 // stopJobs() really ends the jobs (#424): with the real job modules and fake
 // timers, every interval and delayed first run they set up is gone after the
-// stop, and a new start sets them up again. The stores point at an empty
-// scratch directory and the bot has no Discord client, so the boot-time runs
-// find nothing to do.
-const path = require("path");
-const { tempStoreFile } = require("../helpers/tempStore");
-
-process.env.EVENTHELPER_DATA_DIR = path.dirname(tempStoreFile("jobs"));
-
+// stop, and a new start sets them up again. The stores read the suite's own
+// empty data directory (test/setup/environment.js) and the bot has no Discord
+// client, so the boot-time runs find nothing to do.
 jest.mock("../../src/utils/raidhelperClient", () => ({
     ...jest.requireActual("../../src/utils/raidhelperClient"),
     createRaidhelperClient: () => ({ fetchEvents: async () => [], getAllEvents: async () => [], getSetup: async () => undefined }),
@@ -23,9 +18,6 @@ afterEach(() => {
     stopJobs();
     jest.useRealTimers();
     console.log.mockRestore();
-});
-afterAll(() => {
-    delete process.env.EVENTHELPER_DATA_DIR;
 });
 
 describe("web/jobs with the real job modules", () => {
