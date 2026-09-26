@@ -4,10 +4,11 @@
 // lines, a blank line ends one). Inline: **bold**, __underline__, *italic* /
 // _italic_, ~~strike~~, `code`, custom emojis <:name:id> and mentions.
 //
-// The client renders with the twin in src/web-client/src/lib/discordMarkdown.ts
-// (TypeScript, which the Node tests cannot load); this module is the one the
-// tests exercise, and test/utils/discordMarkdown.test.js holds the two regex sets
-// in step.
+// TEST SUPPORT, not production code: the client renders with
+// src/web-client/src/lib/discordMarkdown.ts (TypeScript, which the Jest suite
+// cannot load). This JS twin is what test/web-client/discordMarkdown.test.js
+// exercises, and that test holds the two regex sets in step. The Vitest suite
+// of the client (#435) replaces both.
 
 const HEADING_RE = /^(#{1,3})\s+(.+)$/;
 const SUBTEXT_RE = /^-#\s+(.+)$/;

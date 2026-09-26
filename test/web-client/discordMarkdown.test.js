@@ -1,11 +1,13 @@
 const fs = require("fs");
 const path = require("path");
-const md = require("../../src/utils/discordMarkdown");
+// A JS twin of the TypeScript module, kept here as test support until the
+// client gets its own Vitest suite (#435) and tests the .ts file directly.
+const md = require("./support/discordMarkdown");
 
 const { parseInline, parseDiscordMarkdown } = md;
 const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "discordMarkdown.ts"), "utf8");
 
-describe("utils/discordMarkdown", () => {
+describe("web-client lib/discordMarkdown (JS twin)", () => {
     describe("parseInline", () => {
         it("keeps plain text as one token", () => {
             expect(parseInline("Raidtage: Mi + So")).toEqual([{ type: "text", text: "Raidtage: Mi + So" }]);
