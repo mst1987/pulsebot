@@ -793,3 +793,15 @@ describe("logcheck/raidBuffs — a kill and a wipe (characterisation, #431)", ()
         ]);
     });
 });
+
+describe("logcheck/raidBuffs — thin input (#431)", () => {
+    it("takes a missing death list as nobody died and an entry without bands as no buffs", () => {
+        const b = bands();
+        b.Leaf = {};
+        const r = buffsForFight({ fight, roster: roster(), bandsByName: b });
+        expect(r.players.map((p) => [p.name, p.judgedUntil, p.diedAt])).toEqual([
+            ["Brokk", 120000, null], ["Elun", 120000, null], ["Aldra", 120000, null], ["Dorn", 120000, null], ["Leaf", 120000, null], ["Uther", 120000, null],
+        ]);
+        expect(r.players.find((p) => p.name === "Leaf").missing).toEqual(["kings", "fortitude", "spirit", "motw", "intellect"]);
+    });
+});
