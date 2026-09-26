@@ -9,7 +9,7 @@ import { ROLE_ORDER } from "../../lib/rosterView";
 import { Badge, Expand, IconButton, IconTile } from "../../components/ui";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../../components/icons";
 import { formatDate } from "../../lib/format";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import type { SortKey } from "./RosterPage";
 
 /** Rows a long group shows before "n weitere zeigen". */
@@ -155,7 +155,7 @@ export function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sor
                 </div>
                 <Badge count tip={t("roster.group.count", { count: chars.length })}>{chars.length}</Badge>
                 {!!withIssues && (
-                    <Badge tone={high ? "bad" : "mid"} icon="inv_misc_gem_variety_02">{t("roster.group.withIssues", { count: withIssues })}</Badge>
+                    <Badge tone={high ? "bad" : "mid"} icon="inv_misc_gem_variety_02">{tParts("roster.group.withIssues", { count: withIssues })}</Badge>
                 )}
                 <Expand open={open} onToggle={onToggle} showLabel={!open} label={t("roster.group.details")} />
             </div>

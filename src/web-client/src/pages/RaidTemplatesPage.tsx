@@ -22,7 +22,7 @@ import CompositionEditor from "../components/CompositionEditor";
 import { RefreshIcon } from "../components/icons";
 import { WarnIcon } from "../components/settings/settingsUi";
 import "../styles/raid-templates.css";
-import { useT } from "../i18n";
+import { tParts, useT } from "../i18n";
 
 // Raid-Vorlagen (#266): what an evening looks like. One compact row per
 // template — instance icons, the name large, version and "Standard für …"
@@ -217,7 +217,7 @@ export default function RaidTemplatesPage() {
     const [versionFilter, setVersionFilter] = usePersistedState("raid-templates-version", "");
     const [importing, setImporting] = useState(false);
 
-    if (loaded.error) return <div className="empty">{t("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
+    if (loaded.error) return <div className="empty">{tParts("raidTemplates.page.loadError", { message: loaded.error.message })}</div>;
     if (!data || !versions) return <RaidLoader text={t("raidTemplates.page.loading")} />;
 
     const shortOf = (id: string) => versions.find((v) => v.id === id)?.short || id;

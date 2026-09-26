@@ -4,7 +4,7 @@ import { Badge, Button, IconButton, Modal } from "../ui";
 import { TrashIcon } from "../icons";
 import { ChannelTypeIcon } from "./channelBits";
 import { archivedLabel, BULK_DELETE_WORD } from "../../lib/channels";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // The archive (issue #259): channels nobody needs any more wait here until an
 // admin deletes them. Deleting happens only here, only with the name typed (or
@@ -48,7 +48,7 @@ export function ArchiveTab({ data, selected, onSelect, canWrite, onDelete, onSet
                     {category?.name || t("channels.archive.categoryMissing")}
                 </span>
                 <Badge count>{archive.count}</Badge>
-                {archive.overdue > 0 && <Badge tone="mid" tip={t("channels.archive.overdueTip")} tipSub={t("channels.archive.overdueSub", { days: archive.hintDays })}>{t("channels.archive.overdue", { count: archive.overdue, days: archive.hintDays })}</Badge>}
+                {archive.overdue > 0 && <Badge tone="mid" tip={t("channels.archive.overdueTip")} tipSub={t("channels.archive.overdueSub", { days: archive.hintDays })}>{tParts("channels.archive.overdue", { count: archive.overdue, days: archive.hintDays })}</Badge>}
                 {canWrite && <Button size="sm" variant="ghost" className="kn-push" onClick={onSettings}>{t("channels.archive.settings")}</Button>}
             </div>
             {!archive.rows.length && <div className="kn-empty">{t("channels.archive.isEmpty")}</div>}

@@ -6,7 +6,7 @@ import {
     lootSystemLabel, lootToolLabel, TITLE_SIZES,
     type CategoryRow, type RaiderCharSummary,
 } from "../../lib/settingsLogic";
-import { t as translate, useT } from "../../i18n";
+import { tParts, t as translate, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Chip from "../../components/ui/Chip";
@@ -189,7 +189,7 @@ export default function CategoryMatrix({
                         tip={t("settings.categories.stillRhTip", { count: stillRaidhelper.length })}
                         tipSub={t("settings.categories.stillRhSub", { names: stillRaidhelper.map((r) => r.name).join(", ") })}
                     >
-                        {t("settings.categories.stillRh", { count: stillRaidhelper.length })}
+                        {tParts("settings.categories.stillRh", { count: stillRaidhelper.length })}
                     </Badge>
                 </>
             ) : t("settings.crumb", { crumb })}
@@ -284,8 +284,8 @@ export default function CategoryMatrix({
                                 <div className="rch-summary">
                                     {summary && summary.members ? (
                                         <>
-                                            <span><b>{summary.assigned}</b> <span className="note">{t("settings.categories.charsOf", { members: summary.members })}</span></span>
-                                            {openCount > 0 ? <Badge tone="mid">{t("settings.raiderChars.open", { count: openCount })}</Badge> : <Badge tone="ok">{t("settings.raiderChars.allFixed")}</Badge>}
+                                            <span><b>{summary.assigned}</b> <span className="note">{tParts("settings.categories.charsOf", { members: summary.members })}</span></span>
+                                            {openCount > 0 ? <Badge tone="mid">{tParts("settings.raiderChars.open", { count: openCount })}</Badge> : <Badge tone="ok">{t("settings.raiderChars.allFixed")}</Badge>}
                                         </>
                                     ) : (
                                         <span className="note">{(savedCategoryRoles[cat.id] || []).length ? t("settings.categories.noRaiders") : t("settings.categories.saveRolesFirst")}</span>
@@ -336,7 +336,7 @@ export default function CategoryMatrix({
                                                     data-tip={t("settings.categories.noteChannelTip")} data-tip-sub={t("settings.categories.noteChannelSub")}
                                                     onChange={(e) => onSignupNoteChannel(cat.id, e.target.value)}>
                                                     <option value="">{pick.defaultLabel}</option>
-                                                    {pick.unreachable && <option value={own}>{t("settings.categories.unreachableOption", { id: own })}</option>}
+                                                    {pick.unreachable && <option value={own}>{tParts("settings.categories.unreachableOption", { id: own })}</option>}
                                                     {noteChannels.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                                 </select>
                                                 {pick.unreachable && <Badge tone="bad" tip={t("settings.categories.unreachableTip")} tipSub={t("settings.categories.unreachableSub")}>{t("settings.categories.unreachable")}</Badge>}

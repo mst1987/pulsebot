@@ -4,7 +4,7 @@ import {
     type AdminConfig, type ApiError, type RoleSyncData, type RoleSyncRule,
 } from "../../api";
 import { DIRECTION_LABEL, directionText, driftBadge, roleSyncPatch, withRoleRule, type RoleSyncDirection } from "../../lib/settingsLogic";
-import { t as translate, useT } from "../../i18n";
+import { tParts, t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/Jobs";
 import { PlusIcon, TrashIcon } from "../../components/icons";
 import { Modal, useConfirm } from "../../components/ui/Modal";
@@ -131,7 +131,7 @@ export default function RoleSyncPart({ onConfig }: {
                         <span className="grow">
                             {data.drift.map((g) => (
                                 <span key={g.ruleIndex} className="sync-drift-line">
-                                    <b>{g.members.length}</b> {t("settings.roleSync.driftHas", { count: g.members.length })} <b>@{g.roleName}</b> {t("settings.roleSync.driftOnlyOn", {
+                                    <b>{g.members.length}</b> {t("settings.roleSync.driftHas", { count: g.members.length })} <b>@{g.roleName}</b> {tParts("settings.roleSync.driftOnlyOn", {
                                         where: g.guildName || t(g.side === "talk" ? "settings.roleSync.driftTalk" : "settings.roleSync.driftEvent"),
                                     })}
                                 </span>

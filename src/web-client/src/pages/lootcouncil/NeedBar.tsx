@@ -1,5 +1,5 @@
 import { WowIcon } from "../../components/ui";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { RichTip } from "./RichTip";
 
 /** Everything the need bar needs, from a roster row or a candidate alike. */
@@ -39,7 +39,7 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
                 </span>
             }
         >
-            <b>{t("lootcouncil.need.score", { score })}</b>
+            <b>{tParts("lootcouncil.need.score", { score })}</b>
             <span className="lc-need-rows">
                 {parts.map((s) => (
                     <span key={s.cls} className="lc-need-row">

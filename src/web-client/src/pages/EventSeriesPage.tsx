@@ -8,7 +8,7 @@ import AsyncView from "../components/ui/AsyncView";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
     WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday, weekdayLong, weekdayShort } from "../lib/eventSeries";
-import { useT } from "../i18n";
+import { tParts, useT } from "../i18n";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
@@ -281,7 +281,7 @@ export default function EventSeriesPage() {
     const [running, setRunning] = useState(false);
 
     return (
-        <AsyncView state={series} loading={<RaidLoader text={t("series.page.loading")} />} error={(err) => <div className="empty">{t("series.page.loadError", { message: err.message })}</div>}>
+        <AsyncView state={series} loading={<RaidLoader text={t("series.page.loading")} />} error={(err) => <div className="empty">{tParts("series.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const canWrite = data.canWrite;
                 const editing = editor.editId ? data.categories.find((c) => c.id === editor.editId) || null : null;

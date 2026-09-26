@@ -4,7 +4,7 @@ import { Badge, IconButton, IconTile, Modal } from "../ui";
 import { CheckIcon } from "../icons";
 import { ChannelChip, PencilIcon, StatusBadge } from "./channelBits";
 import { purposeHint, purposeLabel } from "../../lib/channels";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // What the bot uses which channel for (design issue #216). Since the tree
 // (#259) the purposes stand in each channel's tooltip; the full table opens as
@@ -72,8 +72,8 @@ export function PurposeSummaryBadges({ data }: { data: ChannelsData }) {
     const { set, missing, warnings } = data.purposeSummary;
     return (
         <>
-            <Badge tone="ok" icon={<CheckIcon />}>{t("channels.purposeList.set", { count: set })}</Badge>
-            {missing > 0 && <Badge tone="bad">{t("channels.purposeList.missing", { count: missing })}</Badge>}
+            <Badge tone="ok" icon={<CheckIcon />}>{tParts("channels.purposeList.set", { count: set })}</Badge>
+            {missing > 0 && <Badge tone="bad">{tParts("channels.purposeList.missing", { count: missing })}</Badge>}
             {warnings > 0 && <Badge tone="mid" tip={t("channels.purposeList.warningsTip")} tipSub={t("channels.purposeList.warningsSub")}>{t("channels.purposeList.warnings", { count: warnings })}</Badge>}
         </>
     );

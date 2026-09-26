@@ -14,7 +14,7 @@ import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 export default function HistoryEventPage() {
     const t = useT();
@@ -58,7 +58,7 @@ export default function HistoryEventPage() {
     };
 
     return (
-        <AsyncView state={event} loading={<RaidLoader text={t("history.event.loading")} />} error={(err) => <div className="empty">{t("history.shared.loadError", { message: err.message })}</div>}>
+        <AsyncView state={event} loading={<RaidLoader text={t("history.event.loading")} />} error={(err) => <div className="empty">{tParts("history.shared.loadError", { message: err.message })}</div>}>
             {(data) => {
                 return (
                     <>
@@ -74,7 +74,7 @@ export default function HistoryEventPage() {
                                 icon="inv_misc_bag_10" tone="history" title={t("history.shared.loot")} crumb={t("history.event.crumb")}
                                 action={(
                                     <>
-                                        <Badge count>{t("history.shared.items", { count: data.items.length })}</Badge>
+                                        <Badge count>{tParts("history.shared.items", { count: data.items.length })}</Badge>
                                         {/* Reloads the event afterwards instead of appending the
                                             row: the new item has to land in the table's own sort
                                             order, and one round trip per nachgetragenem Item is

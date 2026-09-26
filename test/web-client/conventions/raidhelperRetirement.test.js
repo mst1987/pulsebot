@@ -41,7 +41,7 @@ describe("the card on the page", () => {
 
     it("shows the categories still on Raid-Helper in the category list's head", () => {
         const matrix = read("pages", "settings", "CategoryMatrix.tsx");
-        expect(matrix).toContain("t(\"settings.categories.stillRh\", { count: stillRaidhelper.length })");
+        expect(matrix).toContain("tParts(\"settings.categories.stillRh\", { count: stillRaidhelper.length })");
         expect(require("../clientSource").dictionary("de")["settings.categories.stillRh"]).toBe("{count} noch Raid-Helper");
         expect(matrix).toContain("categorySignupSource[cat.id] || signupSourceDefault");
         expect(matrix).not.toContain("categorySignupSource[cat.id] || \"raidhelper\"");

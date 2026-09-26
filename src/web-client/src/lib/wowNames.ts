@@ -3,7 +3,7 @@
 // ids ("Warrior", "BeastMastery", "healer"); the page shows the id's text from
 // the dictionaries (i18n/locales/<lang>/wow.json) and falls back to whatever
 // label the server sent for an id the dictionaries do not know.
-import { tOr } from "../i18n";
+import { getLang, tOr } from "../i18n";
 
 /** "Priest" -> "Priester" / "Priest". */
 export function classLabel(classId: string, fallback = ""): string {
@@ -24,6 +24,25 @@ export function roleLabel(role: string, fallback = ""): string {
 /** "healer" -> "Heiler" / "Healers" — a role as a group of people. */
 export function rolePluralLabel(role: string, fallback = ""): string {
     return tOr(`wow.rolePlural.${role}`, fallback || role);
+}
+
+/** A loot council spec key: "Warlock-Destruction" -> "Zerstörungs-Hexer" / "Destruction Warlock" (the server's label for an unknown key). */
+export function specClassLabel(specKey: string, fallback = ""): string {
+    return tOr(`wow.specClass.${specKey}`, fallback || specKey);
+}
+
+/** An equip slot by its WCL index: 0 -> "Kopf" / "Head" (the server's slot name for an unknown index). */
+export function slotLabel(slot: number, fallback = ""): string {
+    return tOr(`wow.slot.${slot}`, fallback || String(slot));
+}
+
+/**
+ * A loot content (src/config/tbcContent.js) by its id: in German the server's
+ * own label stays ("Festung der Stürme — Das Auge", which is longer than the
+ * instance name), in English the instance's name ("Tempest Keep").
+ */
+export function contentName(id: string, serverLabel: string): string {
+    return getLang() === "de" ? serverLabel : instanceName(id, serverLabel);
 }
 
 /** "bt" -> "Schwarzer Tempel" / "Black Temple"; an instance the dictionaries lack keeps the server's name. */

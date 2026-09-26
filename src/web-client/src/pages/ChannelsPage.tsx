@@ -21,7 +21,7 @@ import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/Pur
 import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
 import "../styles/channels.css";
 import RaidLoader from "../components/ui/RaidLoader";
-import { useT } from "../i18n";
+import { tParts, useT } from "../i18n";
 
 // Kanäle (design #216, reworked as the Discord overview in #259): one list —
 // the server's categories and channels like Discord's sidebar — with inline
@@ -199,7 +199,7 @@ export default function ChannelsPage() {
         }
     };
 
-    if (channels.error) return <div className="empty">{t("channels.page.loadError", { error: channels.error.message })}</div>;
+    if (channels.error) return <div className="empty">{tParts("channels.page.loadError", { error: channels.error.message })}</div>;
     if (!data) return <RaidLoader text={t("channels.page.loading")} />;
 
     if (!data.activeGuildId) {
@@ -251,7 +251,7 @@ export default function ChannelsPage() {
                 />
                 {data.archive.overdue > 0 && (
                     <Badge tone="mid" tip={t("channels.page.waitingTip")} tipSub={t("channels.page.waitingSub", { overdue: data.archive.overdue, days: data.archive.hintDays })}>
-                        {t("channels.page.waiting", { count: data.archive.count })}
+                        {tParts("channels.page.waiting", { count: data.archive.count })}
                     </Badge>
                 )}
             </div>

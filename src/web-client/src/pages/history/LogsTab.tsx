@@ -8,7 +8,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import { IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 type LogSortKey = "log" | "date" | "zone" | "event" | "status";
 
@@ -34,7 +34,7 @@ export function LogsTab({ logs, onChanged }: { logs: LootLog[]; onChanged: (msg:
         <PartHead
             icon="inv_misc_pocketwatch_01" tone="history" title={t("history.page.view.logs")} crumb={t("history.logs.crumb")}
             tip={t("history.page.view.logs")} tipSub={t("history.logs.tipSub")}
-            action={<Badge count>{t("history.logs.count", { count: logs.length })}</Badge>}
+            action={<Badge count>{tParts("history.logs.count", { count: logs.length })}</Badge>}
         />
     );
 

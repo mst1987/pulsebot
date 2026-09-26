@@ -19,7 +19,7 @@ import Pager from "../../components/Pager";
 import TopLootList from "../../components/loot/TopLootList";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
 const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", topOnly: true };
@@ -75,7 +75,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             <PartHead
                 icon="inv_misc_coin_02" tone="history" title={t("history.page.view.awards")} crumb={t("history.latest.crumb")}
                 tip={t("history.page.view.awards")} tipSub={t("history.latest.tipSub")}
-                action={data ? <Badge count>{t("history.shared.awards", { count: data.total })}</Badge> : undefined}
+                action={data ? <Badge count>{tParts("history.shared.awards", { count: data.total })}</Badge> : undefined}
             />
             <div className="filter-bar hl-filters">
                 <SearchBox id="awards-search" value={search} onChange={setSearch} placeholder={t("history.latest.searchPlaceholder")} />
@@ -110,7 +110,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             <ActiveFilters filters={active} />
 
             {error
-                ? <div className="empty">{t("history.latest.loadError", { error })}</div>
+                ? <div className="empty">{tParts("history.latest.loadError", { error })}</div>
                 : !data
                     ? <RaidLoader compact text={t("history.latest.loading")} />
                     : !data.items.length
@@ -128,7 +128,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
                         )}
             {data && data.totalPages > 1 && (
                 <div className="hl-foot">
-                    <span className="muted">{t("history.latest.foot", { shown: data.items.length, total: data.total })}</span>
+                    <span className="muted">{tParts("history.latest.foot", { shown: data.items.length, total: data.total })}</span>
                     <Pager page={data} onPage={setPage} />
                 </div>
             )}

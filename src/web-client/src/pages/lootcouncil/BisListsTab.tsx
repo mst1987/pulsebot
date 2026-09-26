@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { searchCouncilItems, getBisLists, type ApiError, type BisListsData, type CouncilItemHit } from "../../api";
 import { t as translate, tOr, useT } from "../../i18n";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { slotLabel, specClassLabel } from "../../lib/wowNames";
 import { classColorProps } from "../../components/ClassSpec";
 import { ContentBadge, ItemLink } from "./ItemBits";
 import type { View } from "./view";
@@ -125,9 +126,9 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                                     className="lc-bllink"
                                                     style={classColorProps(spec.classColor).style}
                                                     onClick={() => only(spec.specKey, hit.id)}
-                                                    data-tip={t("lootcouncil.bisLists.filterTip", { spec: spec.label })}
+                                                    data-tip={t("lootcouncil.bisLists.filterTip", { spec: specClassLabel(spec.specKey, spec.label) })}
                                                 >
-                                                    {spec.label}
+                                                    {specClassLabel(spec.specKey, spec.label)}
                                                 </button>
                                             ))}
                                         </div>
@@ -201,7 +202,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                             data-tip={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")} aria-label={spec.ownList ? t("lootcouncil.bisLists.ownList") : t("lootcouncil.bisLists.borrowsList")}
                         >
                             <img src={spec.iconUrl} alt="" loading="lazy" />
-                            <span className="class-colored">{spec.label}</span>
+                            <span className="class-colored">{specClassLabel(spec.key, spec.label)}</span>
                             <span className="lc-blmark" />
                         </button>
                     ))}
@@ -231,7 +232,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                         <th key={col.key} className="lc-blcol" style={classColorProps(col.classColor).style}>
                                             <span className="lc-blcolhead">
                                                 <img src={col.iconUrl} alt="" loading="lazy" />
-                                                <span className="lc-blcolname class-colored">{col.label}</span>
+                                                <span className="lc-blcolname class-colored">{specClassLabel(col.key, col.label)}</span>
                                             </span>
                                             {col.source === "wowhead" ? (
                                                 <span className="lc-blsource" data-tip={sourceNote(col.source)}>
@@ -247,7 +248,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                                                             ? t("lootcouncil.bisLists.userOwnTip")
                                                             : t("lootcouncil.bisLists.userBorrowTip")}
                                                     >
-                                                        {u.ownList ? t("lootcouncil.bisLists.ownListShort") : u.label}
+                                                        {u.ownList ? t("lootcouncil.bisLists.ownListShort") : specClassLabel(u.key, u.label)}
                                                     </span>
                                                 ))}
                                             </span>
@@ -258,7 +259,7 @@ export function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<Vi
                             <tbody>
                                 {data.rows.map((row) => (
                                     <tr key={row.slot}>
-                                        <th scope="row" className="lc-blslot">{row.slotName}</th>
+                                        <th scope="row" className="lc-blslot">{slotLabel(row.slot, row.slotName)}</th>
                                         {columns.map((col) => {
                                             const cell = row.cells.find((c) => c.column === col.key);
                                             return (

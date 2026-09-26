@@ -30,7 +30,7 @@ import WowIcon from "../../components/ui/WowIcon";
 import { InfoIcon, TrashIcon } from "../../components/icons";
 import { ItemIcon, contentIcon } from "../../components/loot/LootBadges";
 import { shortDay } from "./ItemAwardsDialog";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 
 /** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
@@ -150,7 +150,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                     <b>{title}</b>
                     <div>
                         {session.startedAt > 0 && <Badge>{sessionSpan(session)}</Badge>}
-                        <Badge count>{t("history.shared.items", { count: session.itemCount })}</Badge>
+                        <Badge count>{tParts("history.shared.items", { count: session.itemCount })}</Badge>
                         {/* Visible that the raid name was derived, not reported by
                             the addon — otherwise it reads like a fact nobody
                             questions any more. */}
@@ -274,7 +274,7 @@ export function LinkedSessions({ linked }: { linked: InboxLinkedSession[] }) {
                         : (l.eventLabel || "—")}</span>
                     {l.appended > 0
                         ? <Badge tone="ok" count tip={t("history.inboxCard.appendedTip")} tipSub={t("history.inboxCard.appendedSub")}>{t("history.inboxCard.appended", { count: l.appended })}</Badge>
-                        : <Badge count>{t("history.shared.items", { count: l.itemCount })}</Badge>}
+                        : <Badge count>{tParts("history.shared.items", { count: l.itemCount })}</Badge>}
                 </div>
             ))}
         </div>

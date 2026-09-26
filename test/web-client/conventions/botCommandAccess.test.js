@@ -34,7 +34,7 @@ describe("Bot-Befehle view", () => {
         expect(de["common.reset"]).toBe("Zurücksetzen");
         expect(view).toMatch(/\{t\("settings\.botCommands\.default"\)\}/);
         expect(de["settings.botCommands.default"]).toBe("Standard");
-        expect(view).toMatch(/t\("settings\.botCommands\.wholeGroup", \{ count: groupSize \}\)/);
+        expect(view).toMatch(/tParts\("settings\.botCommands\.wholeGroup", \{ count: groupSize \}\)/);
         expect(de["settings.botCommands.wholeGroup"]).toBe("für alle {count} Befehle der Gruppe übernehmen");
         expect(view).toMatch(/withGroupRule\(map, data\.commands, editCommand\.group, rule\)/);
     });

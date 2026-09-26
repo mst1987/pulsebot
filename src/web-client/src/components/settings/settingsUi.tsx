@@ -1,7 +1,7 @@
 import type { Role, TextChannel } from "../../api";
 import Badge from "../ui/Badge";
 import { LockIcon } from "../icons";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Small pieces the Einstellungen page shares between its sections: the
 // "Nur Voll-Admins" badge, the few line icons only this module draws (the
@@ -64,7 +64,7 @@ export function ChannelPicker({ id, value, channels, onChange, placeholder }: {
     return (
         <select id={id} value={value} onChange={(e) => onChange(e.target.value)} data-tip={value ? `ID ${value}` : undefined}>
             <option value="">{placeholder ?? t("settings.ui.noChannel")}</option>
-            {!known && <option value={value}>{t("settings.ui.unknown", { id: value })}</option>}
+            {!known && <option value={value}>{tParts("settings.ui.unknown", { id: value })}</option>}
             {channels.map((c) => (
                 <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>
             ))}
@@ -89,7 +89,7 @@ export function RolePicker({ id, value, roles, onChange, placeholder }: {
     return (
         <select id={id} value={value} onChange={(e) => onChange(e.target.value)} data-tip={value ? `ID ${value}` : undefined}>
             <option value="">{placeholder ?? t("settings.ui.noRole")}</option>
-            {!known && <option value={value}>{t("settings.ui.unknown", { id: value })}</option>}
+            {!known && <option value={value}>{tParts("settings.ui.unknown", { id: value })}</option>}
             {roles.map((r) => <option key={r.id} value={r.id}>@{r.name}</option>)}
         </select>
     );

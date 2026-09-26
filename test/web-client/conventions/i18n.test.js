@@ -80,7 +80,7 @@ function files() {
 function texts(src) {
     const code = stripComments(src.replace(/\r\n/g, "\n"))
         // translation keys are not texts
-        .replace(/\bt(Or)?\(\s*"[^"]*"/g, "t(");
+        .replace(/\bt(Or|Parts)?\(\s*"[^"]*"/g, "t(");
     const out = [];
     for (const m of code.matchAll(/"((?:[^"\\\n]|\\.)*)"|`([^`]*)`/g)) {
         out.push({ kind: "string", text: (m[1] !== undefined ? m[1] : m[2].replace(/\$\{[^}]*\}/g, " ")) });

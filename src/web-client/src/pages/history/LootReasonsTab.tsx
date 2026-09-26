@@ -17,7 +17,7 @@ import Bar from "../../components/ui/Bar";
 import { ReasonBadge, ReasonBadgeButton, RaiderBadge, StackBar } from "../../components/loot/LootBadges";
 import { ActiveFilters, SearchBox, type ActiveFilter } from "../../components/loot/LootFilters";
 import { RaiderReasonDialog } from "./ItemAwardsDialog";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // The reason column sorts by the raider's strongest reason (the chips are laid
 // out in that order anyway), so "wer nimmt nur Mainspec" is one click.
@@ -103,8 +103,8 @@ export function LootReasonsTab({ characters, reasons, categories, contents }: {
             tip={t("history.page.view.reasons")} tipSub={t("history.reasons.tipSub")}
             action={characters.length ? (
                 <>
-                    <Badge count>{t("history.reasons.raiders", { count: characters.length })}</Badge>
-                    <Badge tone="accent" count>{t("history.shared.items", { count: totalItems })}</Badge>
+                    <Badge count>{tParts("history.reasons.raiders", { count: characters.length })}</Badge>
+                    <Badge tone="accent" count>{tParts("history.shared.items", { count: totalItems })}</Badge>
                 </>
             ) : undefined}
         />

@@ -7,7 +7,7 @@ import type { CouncilRaider, SimResult } from "../../api";
 import { Badge, Bar, Button } from "../../components/ui";
 import { ChevronRightIcon } from "../../components/icons";
 import { SortLabel, ariaSort } from "../../components/SortTh";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import type { TableSort } from "../../lib/tableSort";
 import { gearCounts, raiderHref, waitedTip, type RosterSortKey } from "./council";
@@ -54,14 +54,14 @@ export function RaiderHints({ raider }: { raider: CouncilRaider }) {
         }
         const { noench } = gearCounts(g.items);
         if (noench) {
-            out.push(<Badge key="noench" tone="mid" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.list.noEnchTipSub", { count: noench })}>{t("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);
+            out.push(<Badge key="noench" tone="mid" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.list.noEnchTipSub", { count: noench })}>{tParts("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);
         }
         if (g.situational) {
-            out.push(<Badge key="sit" tone="mid" tip={t("lootcouncil.list.sitTip")} tipSub={t("lootcouncil.list.sitTipSub", { count: g.situational })}>{t("lootcouncil.gear.situationalCount", { count: g.situational })}</Badge>);
+            out.push(<Badge key="sit" tone="mid" tip={t("lootcouncil.list.sitTip")} tipSub={t("lootcouncil.list.sitTipSub", { count: g.situational })}>{tParts("lootcouncil.gear.situationalCount", { count: g.situational })}</Badge>);
         }
     }
     if (raider.bis.borrowedFrom) {
-        out.push(<Badge key="list" tip={t("lootcouncil.list.borrowedTip")} tipSub={t("lootcouncil.list.borrowedTipSub", { spec: raider.specLabel, from: raider.bis.borrowedFrom })}>{t("lootcouncil.list.borrowed", { from: raider.bis.borrowedFrom })}</Badge>);
+        out.push(<Badge key="list" tip={t("lootcouncil.list.borrowedTip")} tipSub={t("lootcouncil.list.borrowedTipSub", { spec: raider.specLabel, from: raider.bis.borrowedFrom })}>{tParts("lootcouncil.list.borrowed", { from: raider.bis.borrowedFrom })}</Badge>);
     }
     return <span className="lc-hints">{out}</span>;
 }

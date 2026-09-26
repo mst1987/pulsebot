@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { contentName } from "../../lib/wowNames";
 import { usePersistedState } from "../../lib/persistedState";
 import { sortRows, type Dir } from "../../lib/tableSort";
 import { SortLabel, ariaSort } from "../../components/SortTh";
@@ -23,7 +24,7 @@ import Pager from "../../components/Pager";
 import { ItemIcon, RaiderChip, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, UNKNOWN_CONTENT, type ActiveFilter } from "../../components/loot/LootFilters";
 import { ItemAwardsDialog } from "./ItemAwardsDialog";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // The recipient column sorts by the alphabetically first raider in it, which is
 // what "sort by that column" can mean for a cell full of names (how many are in
@@ -195,8 +196,8 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                 tip={t("history.page.view.items")} tipSub={t("history.items.tipSub")}
                 action={(
                     <>
-                        <Badge count>{t("history.shared.items", { count: sorted.length })}</Badge>
-                        <Badge tone="accent" count>{t("history.shared.awards", { count: awardCount })}</Badge>
+                        <Badge count>{tParts("history.shared.items", { count: sorted.length })}</Badge>
+                        <Badge tone="accent" count>{tParts("history.shared.awards", { count: awardCount })}</Badge>
                     </>
                 )}
             />
@@ -293,7 +294,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                             <span {...itemQualityProps(it.itemQuality, "hl-item-name")}>{name}</span>
                                             <span className="hl-item-sub">
                                                 <WowIcon name={contentIcon(it.contentId)} size={14} />
-                                                {[it.boss, content?.label || t("history.shared.raidUnknown")].filter(Boolean).join(" · ")}
+                                                {[it.boss, (content && contentName(content.id, content.label)) || t("history.shared.raidUnknown")].filter(Boolean).join(" · ")}
                                                 {!!it.tokenTier && <Badge tone="accent">Token</Badge>}
                                             </span>
                                         </div>
@@ -318,7 +319,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                             );
                         })}
                         <div className="hl-foot">
-                            <span className="muted">{t("history.items.foot", { shown: pageRows.length, total: sorted.length, sort: sortLabel })}</span>
+                            <span className="muted">{tParts("history.items.foot", { shown: pageRows.length, total: sorted.length, sort: sortLabel })}</span>
                             {totalPages > 1 && <Pager page={{ page, totalPages, total: sorted.length }} onPage={setPageNo} />}
                         </div>
                     </>

@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from "react";
 import type { CouncilLootItem, CouncilRaider } from "../../api";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { classColorProps, ClassSpecIcon } from "../../components/ClassSpec";
@@ -218,7 +218,7 @@ export function CompareTab({ roster, view, patch, contents }: {
                                                 <span className="lc-blcolname class-colored">{r.character}</span>
                                             </span>
                                             <span className="lc-cmpcolsub">
-                                                {t("lootcouncil.compare.colSub", { count: r.lootCount, owned: r.bis.owned, total: r.bis.total })}
+                                                {tParts("lootcouncil.compare.colSub", { count: r.lootCount, owned: r.bis.owned, total: r.bis.total })}
                                             </span>
                                         </th>
                                     ))}
@@ -231,7 +231,7 @@ export function CompareTab({ roster, view, patch, contents }: {
                                             <th scope="rowgroup" colSpan={active.length + 1}>
                                                 <ContentBadge contentId={group.contentId} tier={group.tier} />
                                                 <span>{group.label || t("lootcouncil.compare.noRaid")}</span>
-                                                <span className="lc-muted">{t("lootcouncil.word.itemCount", { count: group.rows.length })}</span>
+                                                <span className="lc-muted">{tParts("lootcouncil.word.itemCount", { count: group.rows.length })}</span>
                                             </th>
                                         </tr>
                                         {group.rows.map((row) => (

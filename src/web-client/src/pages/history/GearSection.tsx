@@ -7,7 +7,7 @@ import { SLOT_LABELS, findingLabel, findingsForSlot } from "../../lib/rosterView
 import { Badge, PartHead, WowIcon, buttonClass } from "../../components/ui";
 import { CheckIcon, XIcon } from "../../components/icons";
 import { GEAR_BOTTOM, GEAR_LEFT, GEAR_RIGHT, isEnchantable, NO_RAID_VALUE, SOCKET_DE, socketIconUrl } from "./charGear";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 function FindingBadge({ issue }: { issue: GearIssue }) {
     const t = useT();
@@ -144,7 +144,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
                 <div className="ros-note">
                     {data.gearConfigured
                         ? (data.gearError || t("history.gear.noLiveGear"))
-                        : <>{t("history.gear.bnetHintBefore")} <Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link> {t("history.gear.bnetHintAfter")}</>}
+                        : <>{`${t("history.gear.bnetHintBefore")} `}<Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>{` ${t("history.gear.bnetHintAfter")}`}</>}
                 </div>
                 {!!issues.length && (
                     <div className="ros-gear-grid is-single">
@@ -175,15 +175,15 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
                 tipSub={t("history.gear.tipSub")}
                 action={(
                     <>
-                        {!!high && <Badge tone="bad">{t("history.shared.high", { count: high })}</Badge>}
-                        {issues.length - high > 0 && <Badge tone="mid">{t("history.shared.low", { count: issues.length - high })}</Badge>}
+                        {!!high && <Badge tone="bad">{tParts("history.shared.high", { count: high })}</Badge>}
+                        {issues.length - high > 0 && <Badge tone="mid">{tParts("history.shared.low", { count: issues.length - high })}</Badge>}
                         <EvaluationLink gear={report} />
                     </>
                 )}
             />
             {wrongLevel && (
                 <div className="flash flash-err ros-flash">
-                    {t("history.gear.wrongLevel")} <strong>{t("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>.
+                    {t("history.gear.wrongLevel")} <strong>{tParts("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>.
                 </div>
             )}
             {body}

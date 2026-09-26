@@ -15,6 +15,7 @@ import {
     type ApiError, type CharReasonBucket, type CharReasonRow, type LootCatalogItem, type LootContent, type LootReason, type LootTier,
 } from "../../api";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { contentName } from "../../lib/wowNames";
 import { formatWith } from "../../lib/format";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
@@ -25,7 +26,7 @@ import { ExternalIcon, TrashIcon } from "../../components/icons";
 import { classColorProps } from "../../components/ClassSpec";
 import { ItemIcon, ReasonBadge, StackBar, contentIcon, tallyReasons } from "../../components/loot/LootBadges";
 import { useToast } from "../../components/Jobs";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Newest awards shown right away; the rest behind the expand control, so a
 // token handed out forty times does not push the foot off the screen.
@@ -88,7 +89,7 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onCl
             onClose={close}
             width={820}
             icon={item ? <ItemIcon url={item.itemIconUrl} quality={item.itemQuality} size="lg" /> : undefined}
-            kicker={item ? [item.boss, content?.label].filter(Boolean).join(" · ") || t("history.awards.kickerFallback") : ""}
+            kicker={item ? [item.boss, content && contentName(content.id, content.label)].filter(Boolean).join(" · ") || t("history.awards.kickerFallback") : ""}
             title={name}
             hint={t("history.awards.hint")}
             footer={item && (
@@ -107,7 +108,7 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onCl
                     <div className="hl-dlg-badges">
                         {item.boss && <Badge icon={contentIcon(item.contentId)}>{item.boss}</Badge>}
                         {content
-                            ? <Badge>{content.label}</Badge>
+                            ? <Badge>{contentName(content.id, content.label)}</Badge>
                             : <Badge tip={t("history.shared.raidUnknown")} tipSub={t("history.awards.unknownSub")}>{t("history.awards.unknownRaid")}</Badge>}
                         {(tier || item.tokenTier) && (
                             <Badge tone="accent">{[tier?.label, item.tokenTier ? "Token" : ""].filter(Boolean).join(" · ")}</Badge>
@@ -129,7 +130,7 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onCl
                                         tipSub={p.label !== p.reasonLabel ? t("history.awards.wordingSub", { reason: p.reasonLabel }) : undefined}
                                     />
                                 ))}
-                                {!!item.lastAwardedAt && <span className="last">{t("history.shared.last", { date: shortDay(item.lastAwardedAt) })}</span>}
+                                {!!item.lastAwardedAt && <span className="last">{tParts("history.shared.last", { date: shortDay(item.lastAwardedAt) })}</span>}
                             </div>
                         </div>
                     </div>
@@ -235,7 +236,7 @@ export function RaiderReasonDialog({ raider, bucket, contents, onClose }: {
                 <>
                     <div className="hl-dlg-badges">
                         <ReasonBadge label={bucket.label} tone={bucket.tone} count={bucket.count} />
-                        <Badge count>{t("history.awards.itemsTotal", { count: raider.count })}</Badge>
+                        <Badge count>{tParts("history.awards.itemsTotal", { count: raider.count })}</Badge>
                     </div>
                     <div className="hl-list">
                         <div className="hl-grid raider-items hl-th">

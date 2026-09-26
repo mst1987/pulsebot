@@ -11,7 +11,7 @@ import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
 import { PartHead } from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { ICONS, isUrl, openExternal, shortStamp } from "./shared";
 import { ClassTile, StatusBadge } from "./RecruitmentBits";
 
@@ -147,7 +147,7 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
                 action={data.applicationChannelId && data.activeGuildId
                     ? (
                         <a className={buttonClass("ghost", "sm", true)} href={channelUrl(data.activeGuildId, data.applicationChannelId)} target="_blank" rel="noopener noreferrer">
-                            <ExternalIcon />{t("recruitment.applications.openChannel", { name: channel ? channel.name : t("recruitment.applications.channelFallback") })}
+                            <ExternalIcon />{tParts("recruitment.applications.openChannel", { name: channel ? channel.name : t("recruitment.applications.channelFallback") })}
                         </a>
                     )
                     : undefined}

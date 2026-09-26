@@ -6,7 +6,7 @@ import { CheckIcon, ExternalIcon, TrashIcon } from "../../components/icons";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { ANALYSES, discordUrl, fmtEventDay, fmtPosted, formatMatchOffset } from "./shared";
 import { type MenuItem, RowMenu } from "./RowMenu";
 import { UndoIcon } from "./ClaIcons";
@@ -43,14 +43,14 @@ function EvalBadges({ row, running }: { row: ClaRow; running: LogSection[] }) {
     const anyDone = row.sections.length > 0;
     const badges = ANALYSES.flatMap((a) => {
         if (running.includes(a.key)) {
-            return [<Badge key={a.key} tone="accent" icon={<span className="btn-spin" aria-hidden="true" />} tip={t("cla.badges.running", { label: a.label })} tipSub={t("cla.badges.runningSub")}>{t("cla.badges.running", { label: a.label })}</Badge>];
+            return [<Badge key={a.key} tone="accent" icon={<span className="btn-spin" aria-hidden="true" />} tip={t("cla.badges.running", { label: a.label })} tipSub={t("cla.badges.runningSub")}>{tParts("cla.badges.running", { label: a.label })}</Badge>];
         }
         if (row.sections.includes(a.key)) {
             return [<Badge key={a.key} tone="ok" icon={<CheckIcon />} tip={t("cla.badges.done", { label: a.label })} tipSub={stats || a.sub}>{a.label}</Badge>];
         }
         // the missing half of a log that is half done; a link report cannot be completed
         if (anyDone && row.kind === "log") {
-            return [<Badge key={a.key} tip={t("cla.badges.open", { label: a.label })} tipSub={a.sub}>{t("cla.badges.open", { label: a.label })}</Badge>];
+            return [<Badge key={a.key} tip={t("cla.badges.open", { label: a.label })} tipSub={a.sub}>{tParts("cla.badges.open", { label: a.label })}</Badge>];
         }
         return [];
     });

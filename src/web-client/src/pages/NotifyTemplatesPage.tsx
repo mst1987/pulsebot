@@ -15,7 +15,7 @@ import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import "../styles/raid-events.css";
 import RaidLoader from "../components/ui/RaidLoader";
-import { t as tr, useT } from "../i18n";
+import { tParts, t as tr, useT } from "../i18n";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open
 // editor stays in the url (?edit=<id|new>), like every collection editor
@@ -77,7 +77,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
                 <span className="dc-avatar"><CrestIcon /></span>
                 <div>
                     <b>EventHelper</b> <span className="dc-app">{t("notifyTemplates.preview.app")}</span>
-                    <div className="dc-time">{t("notifyTemplates.preview.today", { time: now })}</div>
+                    <div className="dc-time">{tParts("notifyTemplates.preview.today", { time: now })}</div>
                 </div>
             </div>
             <div className="dc-pings"><span className="dc-ping">{t("notifyTemplates.preview.role")}</span></div>
@@ -192,7 +192,7 @@ export default function NotifyTemplatesPage() {
         }
     };
 
-    if (loaded.error) return <div className="empty">{t("notifyTemplates.page.loadError", { message: loaded.error.message })}</div>;
+    if (loaded.error) return <div className="empty">{tParts("notifyTemplates.page.loadError", { message: loaded.error.message })}</div>;
     if (!templates) return <RaidLoader text={t("notifyTemplates.page.loading")} />;
 
     const sorted = apply(templates, (tpl, key) => (key === "name" ? (tpl.name || "") : (tpl.title || "")).toLowerCase());

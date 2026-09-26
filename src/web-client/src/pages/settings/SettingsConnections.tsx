@@ -18,7 +18,7 @@ import { AdminOnlyBadge, CheckMark, PenIcon, WarnIcon } from "../../components/s
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import RaidLoader from "../../components/ui/RaidLoader";
 import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
-import { t as translate, useT } from "../../i18n";
+import { tParts, t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
 // form per system. The card answers "is it set up?" at a glance; what the
@@ -455,7 +455,7 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
                     <div className="conn-status mid">
                         <Badge tone="mid" icon={<WarnIcon />}>{t("settings.tokens.onceVisible")}</Badge>
                         <div className="fresh-token">
-                            <span>{t("settings.tokens.created", { name: fresh.name })}</span>
+                            <span>{tParts("settings.tokens.created", { name: fresh.name })}</span>
                             <div className="secret-row">
                                 <input type="text" readOnly className="mono" value={fresh.token} onFocus={(e) => e.target.select()} />
                                 <IconButton

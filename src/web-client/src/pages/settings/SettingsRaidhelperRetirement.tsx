@@ -16,7 +16,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { ChevronRightIcon } from "../../components/icons";
 import { AdminOnlyBadge, CheckMark, WarnIcon } from "../../components/settings/settingsUi";
 import { InfoTip } from "../../components/ui/Field";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen → "Umstieg von Raid-Helper" (#291). One compact
 // card: a line per checklist item (badge, label, value), everything else — why
@@ -135,8 +135,8 @@ function ImportModal({ open, onClose, onStored }: {
                                     <li key={c.categoryId || "none"}>
                                         <strong>{c.categoryName || c.categoryId || t("settings.retirement.noCategory")}</strong>
                                         <Badge>{t("settings.retirement.events", { count: c.events })}</Badge>
-                                        <Badge tone="accent">{t("settings.retirement.entries", { count: c.entries })}</Badge>
-                                        {c.skipped > 0 && <Badge tip={t("settings.retirement.skippedTip")} tipSub={t("settings.retirement.skippedSub")}>{t("settings.retirement.skipped", { count: c.skipped })}</Badge>}
+                                        <Badge tone="accent">{tParts("settings.retirement.entries", { count: c.entries })}</Badge>
+                                        {c.skipped > 0 && <Badge tip={t("settings.retirement.skippedTip")} tipSub={t("settings.retirement.skippedSub")}>{tParts("settings.retirement.skipped", { count: c.skipped })}</Badge>}
                                     </li>
                                 ))}
                             </ul>
@@ -207,7 +207,7 @@ export default function RaidhelperRetirementCard() {
                 {head && <Badge tone={head.tone || undefined} icon={head.tone === "ok" ? <CheckMark /> : undefined}>{head.label}</Badge>}
             </div>
             {!list ? (
-                error ? <div className="note rhr-pad">{t("settings.retirement.loadError", { message: error })}</div> : <RaidLoader compact text={t("settings.retirement.loading")} />
+                error ? <div className="note rhr-pad">{tParts("settings.retirement.loadError", { message: error })}</div> : <RaidLoader compact text={t("settings.retirement.loading")} />
             ) : (
                 <ul className="rhr-list">
                     {list.items.map((item) => <ItemLine key={item.id} item={item} onImport={() => setImporting(true)} />)}

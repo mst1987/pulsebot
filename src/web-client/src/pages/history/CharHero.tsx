@@ -6,7 +6,7 @@ import { classColorProps } from "../../components/ClassSpec";
 import { IconLink, RoleBadge } from "../../components/roster/RosterCommon";
 import { attendanceTone, combineAttendance, nightLabel } from "../../lib/rosterView";
 import { Badge, Button, WowIcon, buttonClass } from "../../components/ui";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 function averageItemLevel(data: HistoryCharData): number {
     if (data.charSummary?.itemLevel) return data.charSummary.itemLevel;
@@ -105,12 +105,12 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                     tip={gear ? t("history.hero.findings", { count: gear.issueCount }) : t("history.shared.notEvaluated")}
                     tipSub={evalSub}
                 >
-                    {gear ? <>{gear.issueCount}{!!high && <small>{t("history.shared.high", { count: high })}</small>}</> : "–"}
+                    {gear ? <>{gear.issueCount}{!!high && <small>{tParts("history.shared.high", { count: high })}</small>}</> : "–"}
                 </HeroStat>
                 <HeroStat label={t("history.hero.loot")} tip={t("history.hero.lootTip")} tipSub={t("history.hero.lootSub")}>
                     {data.items.length}<small>{t("history.hero.itemsUnit")}</small>
                 </HeroStat>
-                {!!summary?.lastLogin && <span className="ros-hero-seen">{t("history.hero.lastOnline", { date: nightLabel(summary.lastLogin) })}</span>}
+                {!!summary?.lastLogin && <span className="ros-hero-seen">{tParts("history.hero.lastOnline", { date: nightLabel(summary.lastLogin) })}</span>}
             </div>
         </header>
     );

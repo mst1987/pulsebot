@@ -9,7 +9,7 @@ import { useToast } from "../../components/Jobs";
 import { IconButton } from "../../components/ui/Button";
 import { PartHead } from "../../components/ui/PartHead";
 import Badge from "../../components/ui/Badge";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -60,7 +60,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
         <PartHead
             icon="inv_misc_bag_10" tone="history" title={t("history.page.view.loot")} crumb={t("history.event.crumb")}
             tip={t("history.page.view.loot")} tipSub={t("history.lootEvents.tipSub")}
-            action={<Badge count>{t("history.lootEvents.count", { count: lootEvents.length })}</Badge>}
+            action={<Badge count>{tParts("history.lootEvents.count", { count: lootEvents.length })}</Badge>}
         />
     );
 
@@ -111,7 +111,7 @@ export function LootEventsTab({ lootEvents, categories, onChanged, canEdit }: {
                                         {/* A category the bot can't see right now (channel gone / Discord offline)
                                             must stay selectable, else opening the tab silently reassigns it. */}
                                         {e.categoryId && !categories.some((c) => c.id === e.categoryId) && (
-                                            <option value={e.categoryId}>{t("history.lootEvents.unknownCategory", { id: e.categoryId })}</option>
+                                            <option value={e.categoryId}>{tParts("history.lootEvents.unknownCategory", { id: e.categoryId })}</option>
                                         )}
                                     </select>
                                 ) : (categoryNameById.get(e.categoryId || "") || e.categoryId || "—")}

@@ -1,7 +1,7 @@
 import type { CouncilGap, LootCouncilData, SimResult } from "../../api";
 import type { TableSort } from "../../lib/tableSort";
 import { Button, PartHead } from "../../components/ui";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import type { CandidateSortKey, useCouncilSim } from "./council";
 import { GapCard } from "./GapCard";
 
@@ -43,7 +43,7 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
                         data-tip-sub={t("lootcouncil.gaps.runAllTipSub")}
                         onClick={() => runSim(gaps.map((g) => g.id), simulatable)}
                     >
-                        {t("lootcouncil.gaps.runAll", { count: gaps.length })}
+                        {tParts("lootcouncil.gaps.runAll", { count: gaps.length })}
                     </Button>
                 ) : undefined}
             />

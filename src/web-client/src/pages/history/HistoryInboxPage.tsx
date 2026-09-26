@@ -16,7 +16,7 @@ import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/historie-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 export default function HistoryInboxPage() {
     const t = useT();
@@ -46,7 +46,7 @@ export default function HistoryInboxPage() {
                     <div className="kicker">{t("history.shared.kicker")}</div>
                     <h1>
                         {t("history.page.inbox")}
-                        {!!sessions?.length && <Badge tone="mid" count>{t("history.page.inboxOpen", { count: sessions.length })}</Badge>}
+                        {!!sessions?.length && <Badge tone="mid" count>{tParts("history.page.inboxOpen", { count: sessions.length })}</Badge>}
                     </h1>
                 </div>
                 <InfoTip
@@ -60,7 +60,7 @@ export default function HistoryInboxPage() {
                 </div>
             </div>
 
-            {loadError && <div className="empty">{t("history.inbox.loadError", { message: loadError.message })}</div>}
+            {loadError && <div className="empty">{tParts("history.inbox.loadError", { message: loadError.message })}</div>}
             {!loadError && !sessions && <RaidLoader text={t("history.inbox.loading")} />}
             {!loadError && sessions && !sessions.length && (
                 <div className="dash-card hl-card">

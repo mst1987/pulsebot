@@ -10,9 +10,10 @@ import type { BisSpec, CouncilLootItem } from "../../api";
 import { Badge, Expand, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/ClassSpec";
 import { ReasonBadge } from "../../components/loot/LootBadges";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
+import { specClassLabel } from "../../lib/wowNames";
 import { WOWHEAD } from "./council";
 import { RichTip } from "./RichTip";
 
@@ -121,12 +122,12 @@ export function BisSpecs({ specs }: { specs: BisSpec[] }) {
                     <Badge
                         key={s.specKey}
                         icon={s.iconUrl ? <img className="wi" src={s.iconUrl} alt="" loading="lazy" /> : undefined}
-                        tip={t("lootcouncil.items.bisForTip", { spec: s.label })}
+                        tip={t("lootcouncil.items.bisForTip", { spec: specClassLabel(s.specKey, s.label) })}
                         tipSub={s.alsoFor.length
                             ? t("lootcouncil.items.alsoFor", { specs: s.alsoFor.join(` ${t("lootcouncil.word.and")} `) })
                             : undefined}
                     >
-                        <span className={colored.className} style={colored.style}>{s.label}</span>
+                        <span className={colored.className} style={colored.style}>{specClassLabel(s.specKey, s.label)}</span>
                         {s.alsoFor.length ? <span className="lc-muted">+{s.alsoFor.length}</span> : null}
                     </Badge>
                 );
@@ -164,8 +165,8 @@ export function LootCount({ items, total, other = 0 }: { items: CouncilLootItem[
                     </span>
                 ))}
             </span>
-            {total > shown.length ? <i>{t("lootcouncil.items.more", { count: total - shown.length })}</i> : null}
-            {other ? <i>{t("lootcouncil.items.otherNote", { count: other })}</i> : null}
+            {total > shown.length ? <i>{tParts("lootcouncil.items.more", { count: total - shown.length })}</i> : null}
+            {other ? <i>{tParts("lootcouncil.items.otherNote", { count: other })}</i> : null}
         </RichTip>
     );
 }

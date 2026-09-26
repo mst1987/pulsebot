@@ -9,7 +9,7 @@ import { Badge, Button, Segment } from "../../components/ui";
 import { ChevronDownIcon } from "../../components/icons";
 import { ROLE_ICON, categoryNote, roleLabel, type FilterView } from "./council";
 import { useDismiss } from "../../hooks/useDismiss";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // The short name a tier wears on its badge.
 const TIER_SHORT: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
@@ -146,7 +146,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                     onChange={(e) => patch({ bisTier: e.target.value })}
                 >
                     <option value="">{derivedTier ? t("lootcouncil.filter.bisAuto", { tier: TIER_SHORT[derivedTier.id] || derivedTier.label }) : t("lootcouncil.filter.bisAutomatic")}</option>
-                    {o.bisTiers.map((b) => <option key={b.id} value={b.id}>{t("lootcouncil.filter.bisTier", { tier: TIER_SHORT[b.id] || b.label })}</option>)}
+                    {o.bisTiers.map((b) => <option key={b.id} value={b.id}>{tParts("lootcouncil.filter.bisTier", { tier: TIER_SHORT[b.id] || b.label })}</option>)}
                 </select>
             </span>
             <span className="lc-filterbar-badges">

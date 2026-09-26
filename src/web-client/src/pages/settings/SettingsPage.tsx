@@ -16,7 +16,7 @@ import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection } from "../../lib/settingsSections";
 import { areaLabel, draftChanges, missingConnections, serverIssues } from "../../lib/settingsLogic";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
@@ -61,7 +61,7 @@ export default function SettingsPage() {
     const tokens = tokensData.error ? null : tokensData.data;
     const loadTokens = tokensData.reload;
 
-    if (settingsData.error) return <div className="empty">{t("settings.page.loadError", { message: settingsData.error.message })}</div>;
+    if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
 
     // A user who only holds write on "Einstellungen" never sees the access

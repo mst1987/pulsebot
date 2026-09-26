@@ -20,7 +20,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { LootEventsTab } from "./LootEventsTab";
 import { LogsTab } from "./LogsTab";
 import { CharactersTab } from "./CharactersTab";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
 
@@ -150,7 +150,7 @@ export default function HistoryPage() {
                         {fullHistory && (
                             <Button variant="ghost" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
                                 {t("history.page.inbox")}
-                                {inboxCount > 0 && <Badge tone="mid" count>{t("history.page.inboxOpen", { count: inboxCount })}</Badge>}
+                                {inboxCount > 0 && <Badge tone="mid" count>{tParts("history.page.inboxOpen", { count: inboxCount })}</Badge>}
                             </Button>
                         )}
                         {canWrite && (
@@ -162,7 +162,7 @@ export default function HistoryPage() {
         </div>
     );
 
-    if (error) return <>{head}<div className="empty">{t("history.shared.loadError", { message: error.message })}</div></>;
+    if (error) return <>{head}<div className="empty">{tParts("history.shared.loadError", { message: error.message })}</div></>;
     if (!data) return <>{head}<RaidLoader text={t("history.page.loading")} /></>;
 
     return (
@@ -233,7 +233,7 @@ export default function HistoryPage() {
             {tab === "awards" && <LatestLootTab categories={data.categories} />}
             {STATS_TABS.includes(tab) && (
                 statsError
-                    ? <div className="empty">{t("history.shared.loadError", { message: statsError.message })}</div>
+                    ? <div className="empty">{tParts("history.shared.loadError", { message: statsError.message })}</div>
                     : !stats
                         ? <RaidLoader compact text={t("history.page.statsLoading")} />
                         : tab === "reasons"

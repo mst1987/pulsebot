@@ -7,7 +7,7 @@ import {
     commandLabel, commandsOfGroup, customizedCount, groupSummary, modeLabel, ruleOf, ruleValid, sameRule,
     withGroupRule, withRule, type AccessMap,
 } from "../../lib/botCommandAccess";
-import { t as translate, useT } from "../../i18n";
+import { tParts, t as translate, useT } from "../../i18n";
 import { useToast } from "../../components/Jobs";
 import { Button, IconButton } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
@@ -90,7 +90,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
         />
     );
 
-    if (error) return <>{head}<div className="empty">{t("settings.botCommands.loadError", { message: error })}</div></>;
+    if (error) return <>{head}<div className="empty">{tParts("settings.botCommands.loadError", { message: error })}</div></>;
     if (!data) return <>{head}<RaidLoader compact text={t("settings.botCommands.loading")} /></>;
 
     const map: AccessMap = {};
@@ -146,7 +146,7 @@ export default function BotCommandAccess({ viewSwitch, icon, crumb }: {
                                 </button>
                                 {changed > 0 && (
                                     <Badge tone="mid" tip={t("settings.botCommands.changedTip")} tipSub={t("settings.botCommands.changedSub", { changed, total: commands.length })}>
-                                        {t("settings.botCommands.changed", { count: changed })}
+                                        {tParts("settings.botCommands.changed", { count: changed })}
                                     </Badge>
                                 )}
                                 <Expand open={isOpen} onToggle={() => toggle(group.id)} />
@@ -281,7 +281,7 @@ function CommandModal({ command, groupLabel, groupIcon, groupSize, rule, roles, 
                 {groupSize > 1 && (
                     <label className="botc-check">
                         <input type="checkbox" checked={wholeGroup} onChange={(e) => setWholeGroup(e.target.checked)} />
-                        <span>{t("settings.botCommands.wholeGroup", { count: groupSize })}</span>
+                        <span>{tParts("settings.botCommands.wholeGroup", { count: groupSize })}</span>
                     </label>
                 )}
             </div>

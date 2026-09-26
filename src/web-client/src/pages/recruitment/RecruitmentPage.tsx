@@ -10,7 +10,7 @@ import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";
 import "../../styles/recruitment.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { ICONS } from "./shared";
 import { ApplicationsTab } from "./ApplicationsTab";
 import { TemplatesTab } from "./TemplatesTab";
@@ -91,7 +91,7 @@ export default function RecruitmentPage() {
     };
 
     return (
-        <AsyncView state={recruitment} loading={<RaidLoader text={t("recruitment.page.loading")} />} error={(err) => <div className="empty">{t("recruitment.page.loadError", { message: err.message })}</div>}>
+        <AsyncView state={recruitment} loading={<RaidLoader text={t("recruitment.page.loading")} />} error={(err) => <div className="empty">{tParts("recruitment.page.loadError", { message: err.message })}</div>}>
             {(data) => {
                 // An id that no longer exists (deleted in another tab, stale link) falls
                 // back to the new-editor resp. the posting dialog rather than to nothing.

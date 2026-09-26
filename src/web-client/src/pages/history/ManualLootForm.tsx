@@ -20,7 +20,7 @@ import { useToast } from "../../components/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
@@ -265,7 +265,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
                     </>
                 )}
             >
-                {loadError && <p className="note">{t("history.manual.loadError", { error: loadError })}</p>}
+                {loadError && <p className="note">{tParts("history.manual.loadError", { error: loadError })}</p>}
                 {!picker && !loadError && <p className="sub">{t("history.manual.loading")}</p>}
                 {picker && (
                     <form id={formId} className="card-form" onSubmit={submit}>

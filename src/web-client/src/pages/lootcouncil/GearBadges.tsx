@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { CouncilCandidate, WornItem } from "../../api";
 import { Badge, Button } from "../../components/ui";
 import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/icons";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { gearCounts, raiderHref, wornWowheadUrl } from "./council";
@@ -125,17 +125,17 @@ export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }
         out.push(<Badge key="hit" tone={g.spellHit >= g.hitCap ? "ok" : "mid"} tip={t("lootcouncil.gear.hitTip")} tipSub={t("lootcouncil.gear.hitTipSub")}>Hit {g.spellHit}/{g.hitCap}</Badge>);
     }
     if (bisTotal) out.push(<Badge key="bis" tone="ok" tip={t("lootcouncil.gear.bisTip")} tipSub={t("lootcouncil.gear.bisTipSub")}>BiS {bisOwned}/{bisTotal}</Badge>);
-    if (noench) out.push(<Badge key="noench" tone="bad" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.gear.noEnchTipSub")}>{t("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);
-    if (sockets) out.push(<Badge key="sock" tone="mid" tip={t("lootcouncil.gear.socketsTip")} tipSub={t("lootcouncil.gear.socketsTipSub")}>{t("lootcouncil.gear.socketsCount", { count: sockets })}</Badge>);
-    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip={t("lootcouncil.gear.unverifiedTip")} tipSub={t("lootcouncil.gear.unverifiedTipSub")}>{t("lootcouncil.gear.unverifiedCount", { count: g.unverifiedEnchants })}</Badge>);
+    if (noench) out.push(<Badge key="noench" tone="bad" tip={t("lootcouncil.gear.noEnchTip")} tipSub={t("lootcouncil.gear.noEnchTipSub")}>{tParts("lootcouncil.gear.noEnchCount", { count: noench })}</Badge>);
+    if (sockets) out.push(<Badge key="sock" tone="mid" tip={t("lootcouncil.gear.socketsTip")} tipSub={t("lootcouncil.gear.socketsTipSub")}>{tParts("lootcouncil.gear.socketsCount", { count: sockets })}</Badge>);
+    if (g.unverifiedEnchants) out.push(<Badge key="unv" tone="mid" tip={t("lootcouncil.gear.unverifiedTip")} tipSub={t("lootcouncil.gear.unverifiedTipSub")}>{tParts("lootcouncil.gear.unverifiedCount", { count: g.unverifiedEnchants })}</Badge>);
     if (g.pvpGear) out.push(<Badge key="pvp" tone="bad" tip={t("lootcouncil.gear.pvpGear")} tipSub={t("lootcouncil.gear.pvpTipSub")}>{t("lootcouncil.gear.pvpGear")}</Badge>);
     if (g.roleMismatch) out.push(<Badge key="role" tone="bad" icon="spell_nature_magicimmunity" tip={t("lootcouncil.gear.otherRoleTip")} tipSub={t("lootcouncil.gear.otherRoleTipSub", { title: g.reportTitle })}>{roleLabel || t("lootcouncil.gear.otherRole")}</Badge>);
     if (g.logRejected) out.push(<Badge key="logrej" tone={g.logRejected === "pvp" ? "bad" : "mid"} tip={g.logRejected === "pvp" ? t("lootcouncil.gear.logPvpTip") : t("lootcouncil.gear.logRoleTip")} tipSub={t("lootcouncil.gear.logRejectedTipSub")}>{t("lootcouncil.gear.logRejected")}</Badge>);
     if (g.armoryRejected) out.push(<Badge key="armrej" tone={g.armoryRejected === "pvp" ? "bad" : "mid"} tip={g.armoryRejected === "pvp" ? t("lootcouncil.gear.armoryPvpTip") : t("lootcouncil.gear.armoryRoleTip")} tipSub={t("lootcouncil.gear.armoryRejectedTipSub")}>{t("lootcouncil.gear.armoryRejected")}</Badge>);
-    if (g.situational) out.push(<Badge key="sit" tone="mid" tip={t("lootcouncil.gear.sitTip")} tipSub={t("lootcouncil.gear.sitTipSub", { count: g.situational })}>{t("lootcouncil.gear.situationalCount", { count: g.situational })}</Badge>);
-    if (g.substituted) out.push(<Badge key="sub" tip={t("lootcouncil.gear.subTip")} tipSub={t("lootcouncil.gear.subTipSub", { count: g.substituted })}>{t("lootcouncil.gear.subCount", { count: g.substituted })}</Badge>);
+    if (g.situational) out.push(<Badge key="sit" tone="mid" tip={t("lootcouncil.gear.sitTip")} tipSub={t("lootcouncil.gear.sitTipSub", { count: g.situational })}>{tParts("lootcouncil.gear.situationalCount", { count: g.situational })}</Badge>);
+    if (g.substituted) out.push(<Badge key="sub" tip={t("lootcouncil.gear.subTip")} tipSub={t("lootcouncil.gear.subTipSub", { count: g.substituted })}>{tParts("lootcouncil.gear.subCount", { count: g.substituted })}</Badge>);
     for (const d of g.dropped) {
-        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={t("lootcouncil.gear.slotEmpty", { slot: d.slotName })} tipSub={t("lootcouncil.gear.droppedTipSub", { item: d.itemName, note: d.note, character })}>{t("lootcouncil.gear.slotEmpty", { slot: d.slotName })}</Badge>);
+        out.push(<Badge key={`drop-${d.slot}`} tone="mid" tip={t("lootcouncil.gear.slotEmpty", { slot: d.slotName })} tipSub={t("lootcouncil.gear.droppedTipSub", { item: d.itemName, note: d.note, character })}>{tParts("lootcouncil.gear.slotEmpty", { slot: d.slotName })}</Badge>);
     }
     return <>{out}</>;
 }
@@ -161,7 +161,7 @@ export function CandidateGearPanel({ candidate, busy, onLoadLog, onLoadArmory }:
             {g && g.pvpGear ? (
                 <div className="lc-pvphint">
                     <AlertIcon />
-                    <span><b>{t("lootcouncil.gear.pvpHintHead")}</b> {t("lootcouncil.gear.pvpHint", { character: candidate.character })}</span>
+                    <span><b>{t("lootcouncil.gear.pvpHintHead")}</b> {tParts("lootcouncil.gear.pvpHint", { character: candidate.character })}</span>
                 </div>
             ) : null}
             <div className="lc-hints">

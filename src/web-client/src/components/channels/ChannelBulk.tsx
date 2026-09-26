@@ -7,7 +7,7 @@ import { XIcon } from "../icons";
 import { PencilIcon } from "./channelBits";
 import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
 // soon as something is selected, the "only what you change" edit dialog behind
@@ -31,7 +31,7 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
     return (
         <div className="kn-bulk" role="toolbar" aria-label={t("channels.bulk.toolbar")}>
             <span className="kn-bulk-sel">
-                <span className="kn-bulk-count">{t("channels.bulk.selected", { count })}</span>
+                <span className="kn-bulk-count">{tParts("channels.bulk.selected", { count })}</span>
                 {guildName && <span className="kn-kicker">{guildName}</span>}
             </span>
             {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>{t("channels.bulk.category")}</Button>}
@@ -173,7 +173,7 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button disabled={!todo.length} onClick={() => onApply(todo)}>{t("channels.bulk.renameSubmit", { count: todo.length })}</Button>
+                    <Button disabled={!todo.length} onClick={() => onApply(todo)}>{tParts("channels.bulk.renameSubmit", { count: todo.length })}</Button>
                 </>
             )}
         >

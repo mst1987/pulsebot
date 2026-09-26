@@ -8,7 +8,7 @@ import { ChannelsIcon } from "../icons";
 import { SwitchRow } from "../RaidPlanFields";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike } from "../../lib/channels";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 const SOURCE_LABELS = { raidhelper: "Raid-Helper", eventhelper: "EventHelper" } as const;
 const DEFAULT_EVENT_TIME = "19:30";
@@ -110,7 +110,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{t("channels.quick.submit", { count: todo })}</Button>
+                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{tParts("channels.quick.submit", { count: todo })}</Button>
                 </>
             )}
         >
@@ -137,7 +137,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                         <div className="kn-field">
                             <label htmlFor="kn-qc-count">{t("channels.quick.howOften")}</label>
                             <select id="kn-qc-count" className="kn-select" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-                                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{t("channels.quick.times", { count: n })}</option>)}
+                                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{tParts("channels.quick.times", { count: n })}</option>)}
                             </select>
                         </div>
                     )}
@@ -210,7 +210,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                         {categoryId && (
                             <label className="kn-check">
                                 <input type="checkbox" className="kn-cb" checked={saveSchema} onChange={(e) => setSaveSchema(e.target.checked)} />
-                                {t("channels.quick.remember", { name: categoryName })}
+                                {tParts("channels.quick.remember", { name: categoryName })}
                             </label>
                         )}
                     </div>

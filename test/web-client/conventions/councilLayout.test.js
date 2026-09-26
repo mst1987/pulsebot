@@ -61,7 +61,7 @@ describe("loot council — page structure", () => {
     });
 
     it("moves the full BiS run into the head of the open BiS items tab", () => {
-        expect(page).toMatch(/t\("lootcouncil\.gaps\.runAll", \{ count: gaps\.length \}\)/);
+        expect(page).toMatch(/tParts\("lootcouncil\.gaps\.runAll", \{ count: gaps\.length \}\)/);
         expect(text("gaps.runAll")).toBe("Alle BiS-Items durchrechnen ({count})");
         expect(page).toMatch(/onClick=\{\(\) => runSim\(gaps\.map\(\(g\) => g\.id\), simulatable\)\}/);
         // And each card links to the drop check.
@@ -137,7 +137,7 @@ describe("loot council — the raider dialog", () => {
         expect(d).toMatch(/<dialog\s+ref=\{ref\}\s+className="dlg lc-dlg"/);
         expect(d).toMatch(/dlg\.showModal\(\)/);
         expect(d).toMatch(/onCancel=\{\(e\) => \{ e\.preventDefault\(\); onClose\(\); \}\}/);
-        expect(d).toMatch(/t\("lootcouncil\.dialog\.kicker", \{ rank, total \}\)/);
+        expect(d).toMatch(/tParts\("lootcouncil\.dialog\.kicker", \{ rank, total \}\)/);
         expect(text("dialog.kicker")).toBe("Loot-Council › Raider · Rang {rank} von {total}");
         // No tooltip layer of its own and no focus trick any more: the shell's
         // box rises into the top layer and ignores the focus showModal() sets.
@@ -173,7 +173,7 @@ describe("loot council — the raider dialog", () => {
         expect(b).toContain("Hit {g.spellHit}/{g.hitCap}");
         const badges = { noEnchCount: "ohne VZ", socketsCount: "Sockel leer", pvpGear: "PvP-Gear", armoryPvpTip: "Armory: PvP-Gear", logPvpTip: "Log: PvP-Gear" };
         for (const [key, words] of Object.entries(badges)) {
-            expect(b).toContain(`t("lootcouncil.gear.${key}"`);
+            expect(b).toMatch(new RegExp(`\\bt(Parts)?\\("lootcouncil\\.gear\\.${key}"`));
             expect(text(`gear.${key}`)).toContain(words);
         }
         expect(b).toMatch(/g\.source === "wcl"/);

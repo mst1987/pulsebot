@@ -5,7 +5,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 // Raider → Charakter for exactly one category (see raiderCharactersStore.js):
 // which character a raider plays on that raid day. Overrides the automatic
@@ -71,7 +71,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
             {info && !info.roleIds.length && (
                 <div className="empty">{t("settings.raiderChars.noRoles")}</div>
             )}
-            {info && info.membersError && <div className="empty is-bad">{t("settings.raiderChars.membersError", { message: info.membersError })}</div>}
+            {info && info.membersError && <div className="empty is-bad">{tParts("settings.raiderChars.membersError", { message: info.membersError })}</div>}
             {info && !!info.roleIds.length && !info.membersError && (
                 !info.members.length ? <div className="empty">{t("settings.raiderChars.noMembers")}</div> : (
                     <div className="rch-list">

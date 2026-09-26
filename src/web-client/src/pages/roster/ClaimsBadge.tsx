@@ -1,6 +1,6 @@
 import type { CharacterClaim } from "../../api";
 import { Badge } from "../../components/ui";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 /**
  * Characters more than one account added to its profile. There is no
@@ -16,7 +16,7 @@ export function ClaimsBadge({ claims }: { claims: CharacterClaim[] }) {
             tip={t("roster.claims.tip", { count: claims.length })}
             tipSub={t("roster.claims.sub", { lines })}
         >
-            {t("roster.claims.badge", { count: claims.length })}
+            {tParts("roster.claims.badge", { count: claims.length })}
         </Badge>
     );
 }

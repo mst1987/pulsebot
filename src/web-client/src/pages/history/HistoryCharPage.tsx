@@ -26,7 +26,7 @@ import { CharHero } from "./CharHero";
 import { GearSection } from "./GearSection";
 import { AttendanceSection } from "./AttendanceSection";
 import { ItemDetailModal } from "./ItemDetailModal";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 
 type CharTab = "gear" | "loot" | "attendance";
 
@@ -73,7 +73,7 @@ export default function HistoryCharPage() {
     useEffect(() => { refreshWowheadLinks(); }, [character.data, tab]);
 
     return (
-        <AsyncView state={character} loading={<RaidLoader text={t("history.char.loading")} />} error={(err) => <div className="empty">{t("history.shared.loadError", { message: err.message })}</div>}>
+        <AsyncView state={character} loading={<RaidLoader text={t("history.char.loading")} />} error={(err) => <div className="empty">{tParts("history.shared.loadError", { message: err.message })}</div>}>
             {(data) => {
                 const issueCount = data.gearIssues?.issueCount || 0;
                 const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";

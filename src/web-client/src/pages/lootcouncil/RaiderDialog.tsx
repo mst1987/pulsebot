@@ -13,7 +13,7 @@ import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } fr
 import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
 import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/icons";
 import { ReasonBadge } from "../../components/loot/LootBadges";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/itemQuality";
 import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
@@ -86,7 +86,7 @@ function LogPanel({ raider, logs, loading, onLoad }: {
         <div className="lc-logpanel2" role="region" aria-label={t("lootcouncil.dialog.log.aria", { character: raider.character })}>
             <div className="lc-logrow2">
                 <span className="lc-logrow2-name">
-                    <b>{t("lootcouncil.dialog.log.newest", { character: raider.character })}</b>
+                    <b>{tParts("lootcouncil.dialog.log.newest", { character: raider.character })}</b>
                     <span className="lc-muted">{t("lootcouncil.dialog.log.newestSub")}</span>
                 </span>
                 <Button size="sm" variant="run" icon="inv_scroll_03" running={loading} disabled={!logs.length} onClick={() => onLoad({})}>{t("lootcouncil.dialog.log.load")}</Button>
@@ -244,7 +244,7 @@ export default function RaiderDialog({
                         className={r.className}
                         size={44}
                         big
-                        sub={<span className="kicker">{t("lootcouncil.dialog.kicker", { rank, total })}</span>}
+                        sub={<span className="kicker">{tParts("lootcouncil.dialog.kicker", { rank, total })}</span>}
                     />
                     <span className="lc-dlg-spec">{r.specLabel}{r.className ? ` ${r.className}` : ""}</span>
                     <span className="lc-grow" />
@@ -285,7 +285,7 @@ export default function RaiderDialog({
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th tipped" data-tip={t("lootcouncil.word.items")} data-tip-sub={t("lootcouncil.dialog.itemsTipSub")}>{t("lootcouncil.word.items")}</span>
-                            <span className="lc-stat2-v">{r.lootCount} <small>{t("lootcouncil.dialog.itemsSub", { total: r.lootTotal })}</small></span>
+                            <span className="lc-stat2-v">{r.lootCount} <small>{tParts("lootcouncil.dialog.itemsSub", { total: r.lootTotal })}</small></span>
                         </div>
                         <div className="lc-stat2">
                             <span className="lc-th">BiS</span>
@@ -372,7 +372,7 @@ export default function RaiderDialog({
                                     r.bis.borrowedFrom ? t("lootcouncil.dialog.listOf", { from: r.bis.borrowedFrom }) : "",
                                     r.bis.tier ? t(r.bis.exact ? "lootcouncil.dialog.tierExact" : "lootcouncil.dialog.tierOlder", { tier: r.bis.tier.toUpperCase() }) : "",
                                 ].filter(Boolean).join(" ")}
-                                action={r.bis.total ? <Badge tone="ok">{t("lootcouncil.dialog.bisWorn", { owned: r.bis.owned, total: r.bis.total })}</Badge> : undefined}
+                                action={r.bis.total ? <Badge tone="ok">{tParts("lootcouncil.dialog.bisWorn", { owned: r.bis.owned, total: r.bis.total })}</Badge> : undefined}
                             />
                             {!r.bis.total ? (
                                 <div className="empty lc-empty">{t("lootcouncil.dialog.noBisList")}</div>
@@ -420,7 +420,7 @@ export default function RaiderDialog({
                             ) : (
                                 <div className="empty lc-empty">{t("lootcouncil.dialog.noLoot")}</div>
                             )}
-                            {r.otherCount ? <div className="lc-muted lc-note">{t("lootcouncil.items.otherNote", { count: r.otherCount })}</div> : null}
+                            {r.otherCount ? <div className="lc-muted lc-note">{tParts("lootcouncil.items.otherNote", { count: r.otherCount })}</div> : null}
                         </>
                     ) : null}
                 </div>

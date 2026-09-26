@@ -16,7 +16,7 @@ import { useTableSort, type Dir } from "../../lib/tableSort";
 import { RosterKpis } from "./RosterHero";
 import { ROLE_ORDER, classIconName } from "../../lib/rosterView";
 import { classLabel, roleLabel } from "../../lib/wowNames";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { IconTile, Segment, WowIcon } from "../../components/ui";
 import { SearchIcon } from "../../components/icons";
 import type { ShellContext } from "../../components/Shell";
@@ -130,7 +130,7 @@ export default function RosterPage() {
         return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [chars]);
 
-    if (roster.error) return <div className="empty">{t("roster.page.loadError", { message: roster.error.message })}</div>;
+    if (roster.error) return <div className="empty">{tParts("roster.page.loadError", { message: roster.error.message })}</div>;
     if (!data) return <RaidLoader text={t("roster.page.loading")} />;
 
     // A stored view from an older build lacks fields or carries old ones

@@ -14,7 +14,7 @@ import PageHead from "../../components/ui/PageHead";
 import WowIcon from "../../components/ui/WowIcon";
 import "../../styles/log-auswertung.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { ANALYSES, EVAL_SECONDS, filterMeta, FILTERS } from "./shared";
 import { FilterSegment } from "./FilterSegment";
 import { ListRow } from "./ListRow";
@@ -193,7 +193,7 @@ export default function ClaPage() {
         />
     );
 
-    if (cla.error && !data) return <>{head}<div className="empty">{t("cla.page.loadError", { message: cla.error.message })}</div></>;
+    if (cla.error && !data) return <>{head}<div className="empty">{tParts("cla.page.loadError", { message: cla.error.message })}</div></>;
     if (!data) return <>{head}<RaidLoader text={t("cla.page.loading")} /></>;
 
     const list = data.page;

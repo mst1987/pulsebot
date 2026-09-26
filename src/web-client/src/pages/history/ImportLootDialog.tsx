@@ -22,7 +22,7 @@ import IconTile from "../../components/ui/IconTile";
 import { useToast } from "../../components/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";
-import { useT, type TFunction } from "../../i18n";
+import { tParts, useT, type TFunction } from "../../i18n";
 
 // Everything typed into the import form. Kept as a draft (see useDraftState), so
 // a pasted export survives closing the dialog and a detour to another page —
@@ -152,7 +152,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                     <div className="hl-drop-foot">
                         {preview && (
                             <>
-                                <Badge tone="ok" icon="inv_misc_bag_10">{t("history.import.recognized", { count: preview.count })}</Badge>
+                                <Badge tone="ok" icon="inv_misc_bag_10">{tParts("history.import.recognized", { count: preview.count })}</Badge>
                                 <Badge>{preview.formatLabel}</Badge>
                                 {preview.content.label && (
                                     <Badge tone="accent" icon={contentIcon(preview.content.contentIds[0])} tip={t("history.import.raidTip")} tipSub={t("history.import.raidSub", { matched: preview.content.matched, count: preview.count })}>
@@ -209,7 +209,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                     </div>
                 )}
                 {match?.ambiguous && eventId === "__auto__" && (
-                    <Badge tone="bad">{t("history.import.ambiguous", { count: candidates.length })}</Badge>
+                    <Badge tone="bad">{tParts("history.import.ambiguous", { count: candidates.length })}</Badge>
                 )}
                 {preview && !candidates.length && !manual && !inList && (
                     <Badge tone="mid" tip={t("history.import.noEventTip")} tipSub={t("history.import.noEventSub")}>{t("history.shared.noEvent")}</Badge>

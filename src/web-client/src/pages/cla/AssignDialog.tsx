@@ -7,7 +7,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
-import { useT } from "../../i18n";
+import { tParts, useT } from "../../i18n";
 import { fmtEventDay, fmtPosted, formatMatchOffset } from "./shared";
 import { QuestionIcon } from "./ClaIcons";
 
@@ -58,12 +58,12 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                             <Badge tone="accent" icon="inv_misc_note_02" className="plain">
                                 {row.eventLabel || row.eventId}{row.eventStartTime ? ` · ${fmtEventDay(row.eventStartTime)}` : ""}
                             </Badge>
-                            <span className="la-muted">{t("cla.assign.linked", { how: row.eventLinkSource === "auto" ? t("cla.assign.auto") : t("cla.assign.manual") })}</span>
+                            <span className="la-muted">{tParts("cla.assign.linked", { how: row.eventLinkSource === "auto" ? t("cla.assign.auto") : t("cla.assign.manual") })}</span>
                         </div>
                     )}
                     {row.matchAmbiguous && cands.length > 1 && (
                         <div className="la-assign-now">
-                            <Badge tone="mid" icon={<QuestionIcon />}>{t("cla.assign.fitting", { count: cands.length })}</Badge>
+                            <Badge tone="mid" icon={<QuestionIcon />}>{tParts("cla.assign.fitting", { count: cands.length })}</Badge>
                             <span className="la-muted">{t("cla.assign.sortedHint")}</span>
                         </div>
                     )}
