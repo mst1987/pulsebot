@@ -13,11 +13,8 @@
 //   * the raider switches persist in the view like the BiS-list switches,
 //   * the item column stays sticky and a cell says "BiS offen" rather than
 //     staying blank when the item is still open on that raider's list.
-const fs = require("fs");
-const path = require("path");
 
-const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
-const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
+const { read } = require("../clientSource"); // inlines the @imports of index.css (#441)
 // the page with its tabs (the comparison is CompareTab.tsx, the view view.ts; #438)
 const { files, fn: fnIn, text } = require("./councilHelpers");
 

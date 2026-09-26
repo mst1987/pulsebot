@@ -1,0 +1,501 @@
+/* Shared page pieces (#441): the pieces several pages use - assignment
+   matrix, signup status, page hero, toggle switch, list + editor sections, the
+   app shell (sidebar, topbar), stat tiles and card heads, loot reasons, filter
+   bar, class and item-quality colours, sort heads. They stay in the one bundle
+   every page loads, in the order they had in index.css. Loaded after base.css. */
+
+/* ===== category/role assignment matrix ===== */
+.rolegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--bg); }
+.rolegrid.rolegrid-flat { max-height: none; overflow-y: visible; }
+.rolebox { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--text); font-weight: 500; cursor: pointer; padding: 5px 7px; border-radius: 7px; border: 1px solid transparent; transition: background-color .12s, border-color .12s; }
+.rolebox input[type=checkbox] { margin-top: 1px; }
+.rolebox:hover { background: var(--panel2); }
+.rolebox:has(input:checked) { background: var(--accent-soft); border-color: var(--accent-soft); }
+
+/* ===== signup status (Anwesenheit → Reagiert) =====
+   The reaction is coded by a coloured icon, never by a tinted row: a raider's
+   row colour already belongs to their WoW class, and two colour systems on the
+   same chip cancel each other out. The list is grouped by status, so the icon
+   repeats the group's glyph per line and stays readable on its own. */
+.sig-ico { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; flex: 0 0 15px; color: var(--sig-fg, var(--muted)); }
+.sig-ico svg { width: 100%; height: 100%; }
+.rolebox > .sig-ico { margin-top: 2px; }
+.sig-signed { --sig-fg: var(--sig-signed); }
+.sig-tentative { --sig-fg: var(--sig-tentative); }
+.sig-late { --sig-fg: var(--sig-late); }
+.sig-bench { --sig-fg: var(--sig-bench); }
+.sig-absence { --sig-fg: var(--sig-absence); }
+.sig-group + .sig-group { margin-top: 12px; }
+.sig-group-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.sig-group-head b { color: var(--text); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ===== page hero header (raid detail, character detail) =====
+   The identity block above a detail page's tabs. Instead of one flat text
+   column it stacks three bands — identity (a badge/portrait + title + subline),
+   a labelled meta row, and a tinted footer with the KPIs — so the name, the
+   numbers and the links each read at their own type size. The bands are shared;
+   what goes into the leading badge and the KPI strip is per page. */
+.page-hero { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); margin-bottom: 16px; }
+.hero-main { display: flex; align-items: flex-start; gap: 18px; padding: 18px 20px 14px; flex-wrap: wrap; }
+/* calendar-style date badge: weekday / day / month+year on three levels */
+.hero-date {
+    flex: 0 0 auto; width: 82px; display: grid; justify-items: center; gap: 2px; padding: 9px 6px 10px;
+    background: var(--accent-soft); border: 1px solid var(--accent-soft); border-radius: 12px; text-align: center;
+}
+.hero-date-dow { font-size: 11px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--accent); }
+.hero-date-day { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.hero-date-mon { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.hero-ident { min-width: 0; flex: 1 1 240px; }
+.hero-eyebrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
+.hero-kicker { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
+.hero-title { font-size: 25px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+.hero-when { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); }
+.hero-when svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--accent-2); }
+.hero-time { font-size: 18px; font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.hero-time-unit { font-size: 12.5px; }
+.hero-rel { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+.hero-rel.is-soon { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.hero-rel.is-past { opacity: .75; }
+.hero-actions { margin-left: auto; }
+.hero-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 12px 34px; margin: 0; padding: 0 20px 16px; }
+.hero-meta-item { min-width: 0; }
+.hero-meta dt, .hero-stat-label {
+    font-size: 10.5px; font-family: var(--font-mono); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .12em; color: var(--muted);
+}
+.hero-meta dt { margin-bottom: 4px; }
+.hero-meta dd { margin: 0; font-size: 13.5px; font-weight: 600; }
+.hero-foot { border-top: 1px solid var(--line-soft); background: var(--panel2); padding: 14px 20px; display: flex; flex-direction: column; gap: 15px; }
+.hero-stats { display: flex; flex-wrap: wrap; gap: 12px 26px; }
+.hero-stat { display: grid; align-content: start; gap: 5px; min-width: 92px; padding-left: 13px; border-left: 2px solid var(--line); }
+.hero-stat-value { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.hero-stat-of { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.hero-stat.is-total { border-left-color: var(--accent); }
+.hero-stat.is-ok { border-left-color: var(--good); }
+.hero-stat.is-warn { border-left-color: var(--high); }
+.hero-stat.is-warn .hero-stat-value { color: var(--high); }
+.hero-bar { display: block; width: 100%; max-width: 118px; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.hero-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent-2); }
+.hero-stat.is-total .hero-bar i { background: var(--accent); }
+.hero-roster-label { align-self: center; padding-bottom: 2px; }
+/* the avatar rings are cut against the footer's tint, not the panel behind it */
+.hero-foot .avatar-stack .av { border-color: var(--panel2); }
+@media (max-width: 700px) {
+    .hero-title { font-size: 21px; }
+    .hero-actions { margin-left: 0; width: 100%; }
+    .hero-actions-row { justify-content: flex-start; }
+}
+
+/* ===== raid detail: setup/attendance summary + roster chips (ported from renderAdmin.js's ADMIN_STYLE) ===== */
+.setup-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.setup-count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
+.setup-count b { color: var(--text); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.setup-count.setup-total { border-color: var(--accent-soft); background: var(--accent-soft); }
+/* raid-roster avatar row (real signups: spec icon + small name, initials as fallback) */
+.avatar-stack { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.avatar-stack .av-item { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.avatar-stack .av-name {
+    font-size: 9.5px; line-height: 1; color: var(--muted); max-width: 52px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.avatar-stack .av {
+    width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--panel);
+    font-size: 10.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.avatar-stack .av-ico { object-fit: cover; }
+.avatar-stack .av.more { background: var(--panel2); color: var(--muted); border-color: var(--line); }
+.setup-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.setup-group { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.setup-group-head { font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
+.setup-group-n { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+.setup-group-list { display: flex; flex-direction: column; gap: 6px; }
+.setup-player { display: flex; align-items: center; gap: 9px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
+.setup-ico { width: 22px; height: 22px; border-radius: 5px; flex: 0 0 auto; }
+.setup-ico-blank { background: var(--panel2); border: 1px solid var(--line); }
+.setup-player .sp-name { font-weight: 700; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ===== toggle switch ===== */
+input[type=checkbox] {
+    appearance: none; width: 18px; height: 18px; min-width: 18px; margin: 0;
+    border: 1.5px solid var(--line); border-radius: 5px; background: var(--bg); cursor: pointer; position: relative;
+}
+input[type=checkbox]:checked { background-color: var(--accent); border-color: var(--accent); }
+input[type=checkbox]:checked::after {
+    content: ""; position: absolute; left: 3px; top: 3px; width: 8px; height: 5px;
+    border: 2px solid var(--accent-ink); border-top: 0; border-right: 0; transform: rotate(-45deg);
+}
+.switch { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; cursor: pointer; }
+.switch input[type=checkbox] { position: absolute; inset: 0; width: 36px; height: 20px; margin: 0; opacity: 0; border: 0; background: none; cursor: pointer; }
+.switch input[type=checkbox]::after { content: none; }
+.switch-track { width: 36px; height: 20px; border-radius: 999px; background: var(--panel3); border: 1.5px solid var(--line); transition: background-color .2s ease, border-color .2s ease; flex: 0 0 auto; position: relative; }
+.switch-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .25s cubic-bezier(.34,1.56,.64,1), background-color .2s ease; }
+.switch input[type=checkbox]:checked + .switch-track { background: var(--accent); border-color: var(--accent); }
+.switch input[type=checkbox]:checked + .switch-track .switch-thumb { transform: translateX(16px); background: var(--accent-ink); }
+.switch-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+
+.sheetcard { background: var(--panel2); border: 1px solid var(--line); border-radius: 0; padding: 14px; margin-bottom: 12px; }
+
+/* ===== list + editor sections (Raidsheets, Vorlagen, Nachrichten) =====
+   The heading row above a list: title and note on the left, the one button that
+   opens an editor on the right — and the same row in the editor view, with the
+   way back where the new-button was. The button keeps its place across both,
+   so the eye does not have to go looking for it. */
+.list-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; }
+.list-head-text { flex: 1 1 320px; min-width: 0; }
+.list-head-text h2 { margin: 0 0 4px; }
+.list-head-text .note { margin: 0; }
+.list-head > .btn { flex: 0 0 auto; margin-top: 2px; }
+
+/* ===== sidebar app shell ===== */
+.app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+.side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; align-self: start; }
+/* A link to the dashboard, styled as the brand block it always was: no link
+   colour or underline, the crest answers the pointer instead. */
+.brand { display: flex; align-items: center; gap: 12px; padding: 18px 18px 16px; border-bottom: 1px solid var(--line-soft); color: inherit; text-decoration: none; }
+.brand:hover .crest, .brand:focus-visible .crest { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+.brand:focus-visible { outline: none; }
+.crest { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; display: grid; place-items: center; background: linear-gradient(150deg, var(--accent), var(--accent-2)); color: var(--accent-ink); }
+.crest svg { width: 22px; height: 22px; }
+.brand-name { font-weight: 800; font-size: 16px; }
+.brand-sub { font-size: 10.5px; font-family: var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 1px; }
+nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.menu-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.3px; color: var(--muted); opacity: .7; padding: 14px 12px 6px; }
+/* Menu entries lead with their WoW icon (src/config/menu.json): slightly
+   desaturated at rest, full colour on hover, and ringed in the section's own
+   --area-* colour when active. */
+.nav-item { --area: var(--accent); --area-soft: var(--accent-soft); display: flex; align-items: center; gap: 12px; padding: 7px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 14.5px; text-decoration: none; border: 1px solid transparent; position: relative; transition: background .12s, color .12s, border-color .12s; }
+.nav-item .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; filter: saturate(.45) brightness(.8); transition: filter .12s, box-shadow .12s, border-color .12s; }
+.nav-item:hover { background: var(--panel2); color: var(--text); }
+.nav-item:hover .wi, .nav-item:focus-visible .wi { filter: none; }
+.nav-item.active { background: var(--area-soft); color: var(--text); border-color: var(--area-soft); }
+.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--area); }
+.nav-item.active .wi { filter: none; border-color: var(--area); box-shadow: 0 0 0 2px var(--area-soft); }
+.nav-item .nav-n { margin-left: auto; }
+/* "Spektrum": every section keeps its own accent for the active state */
+.area-home { --area: var(--area-home); --area-soft: var(--area-home-soft); }
+.area-profile { --area: var(--area-profile); --area-soft: var(--area-profile-soft); }
+.area-signups { --area: var(--area-signups); --area-soft: var(--area-signups-soft); }
+.area-recruitment { --area: var(--area-recruitment); --area-soft: var(--area-recruitment-soft); }
+.area-cla { --area: var(--area-cla); --area-soft: var(--area-cla-soft); }
+.area-raids { --area: var(--area-raids); --area-soft: var(--area-raids-soft); }
+.area-roster { --area: var(--area-roster); --area-soft: var(--area-roster-soft); }
+.area-history { --area: var(--area-history); --area-soft: var(--area-history-soft); }
+.area-lootcouncil { --area: var(--area-lootcouncil); --area-soft: var(--area-lootcouncil-soft); }
+.area-channels { --area: var(--area-channels); --area-soft: var(--area-channels-soft); }
+.area-settings { --area: var(--area-settings); --area-soft: var(--area-settings-soft); }
+/* Which commit the server runs (#314). One quiet line above the user block —
+   small, muted, the details in its tooltip; only the dot carries the tone. */
+.side-version { padding: 8px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: flex-start; gap: 8px; font-size: 11px; line-height: 1.4; color: var(--muted); cursor: default; }
+/* Two lines at most: the sidebar is narrow and cutting the sentence off after
+   "Server läuft auf 26bf95c vom 18.09. · akt…" hides exactly the half that
+   matters. Anything beyond that is in the tooltip. */
+.side-version .v-text { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.side-version .v-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--line); margin-top: 4px; }
+.side-version.v-ok .v-dot { background: var(--good); }
+.side-version.v-mid .v-dot { background: var(--medium); }
+.side-version.v-bad .v-dot { background: var(--high); }
+.side-version.v-bad { color: var(--high); }
+.side-foot { padding: 12px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); display: grid; place-items: center; font-weight: 800; color: var(--accent); border: 1px solid var(--line); flex: 0 0 auto; }
+.ub-meta { min-width: 0; flex: 1; }
+.u-name { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.u-role { font-size: 11.5px; color: var(--muted); }
+.main { display: flex; flex-direction: column; min-width: 0; }
+.topbar { display: flex; align-items: center; gap: 14px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+.crumbs { font-size: 13.5px; color: var(--muted); }
+.crumbs b { color: var(--text); font-weight: 700; }
+.crumbs a { color: inherit; text-decoration: none; }
+.crumbs a:hover { color: var(--accent); text-decoration: underline; }
+.crumbs .crumb-sep { opacity: .45; }
+.top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ibtn.menu-toggle { display: none; }
+.content { padding: 24px; max-width: 1080px; width: 100%; }
+.page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
+
+/* ===== panel geometry: clipped top-right corner + accent tick, the signature
+   shape of the 2026-07 redesign, replacing plain rounded corners on the main
+   structural panels (stat tiles, dashboard cards, forms, sheet cards) ===== */
+.tile, .dash-card, form.card-form, .sheetcard, .page-hero {
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.tile::after, .dash-card::after, form.card-form::after, .sheetcard::after, .page-hero::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
+    opacity: .85; pointer-events: none;
+}
+
+/* ===== stat tiles (the start page's own layout is in styles/dashboard.css) ===== */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 20px 22px;
+    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
+.tile:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 14px 32px -14px var(--accent); }
+.tile.accent { border-top: 2px solid var(--accent); }
+.tile .t-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.tile .t-icon svg { width: 18px; height: 18px; }
+.tile .t-label { font-size: 11.5px; color: var(--muted); font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.tile .t-value { font-size: 32px; font-weight: 700; letter-spacing: -.02em; margin-top: 6px; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.tile .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+/* "Spektrum": each dashboard tile picks up its section's accent for icon + hover glow */
+.tile.area-recruitment .t-icon { background: var(--area-recruitment-soft); color: var(--area-recruitment); }
+.tile.area-recruitment:hover { border-color: var(--area-recruitment); box-shadow: 0 14px 32px -14px var(--area-recruitment); }
+.tile.area-cla .t-icon { background: var(--area-cla-soft); color: var(--area-cla); }
+.tile.area-cla:hover { border-color: var(--area-cla); box-shadow: 0 14px 32px -14px var(--area-cla); }
+.tile.accent.area-cla { border-top-color: var(--area-cla); }
+.tile.area-channels .t-icon { background: var(--area-channels-soft); color: var(--area-channels); }
+.tile.area-channels:hover { border-color: var(--area-channels); box-shadow: 0 14px 32px -14px var(--area-channels); }
+.tile.area-settings .t-icon { background: var(--area-settings-soft); color: var(--area-settings); }
+.tile.area-settings:hover { border-color: var(--area-settings); box-shadow: 0 14px 32px -14px var(--area-settings); }
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
+.dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; margin-bottom: 16px; }
+/* Card head: an accented icon tile (same idiom as the stat tiles' .t-icon and
+   the quick-links' .qi), the title at heading size, an optional kicker, and the
+   "go there" link pushed right. */
+.dash-card-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
+.dash-card-head h3 { font-size: 19px; margin: 0; letter-spacing: -.01em; }
+.dash-card-head .dch-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto;
+    background: var(--accent-soft); color: var(--accent); display: grid; place-items: center;
+}
+.dash-card-head .dch-icon svg { width: 18px; height: 18px; }
+.dash-card-head .dch-kicker {
+    font-size: 11.5px; font-weight: 700; font-family: var(--font-mono); color: var(--accent);
+    text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--accent-soft);
+    background: var(--accent-soft); border-radius: 999px; padding: 2px 9px;
+}
+.dash-card-head .mlink { margin-left: auto; font-size: 13px; white-space: nowrap; }
+.dash-card table.idx { margin: 0; }
+/* Only the inset — the vertical padding stays with the table rules above, so a
+   row holding a control can still take itself back down inside a card. */
+.dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }
+
+@media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: fixed; z-index: 30; width: 264px; transform: translateX(-102%); transition: transform .2s; box-shadow: 0 8px 28px var(--shade-35); }
+    .side.open { transform: none; }
+    .ibtn.menu-toggle { display: inline-grid; }
+    .content { padding: 18px 14px; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .dash-card-head h3 { font-size: 17px; }
+}
+
+/* ===== recruitment: sub-nav, emoji picker, spec picker, application cards ===== */
+.subnav { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 0 0 18px; flex-wrap: wrap; }
+.subnav-item { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; background: none; border: 0; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14.5px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font: inherit; }
+.subnav-item:hover { color: var(--text); }
+.subnav-item.active { color: var(--accent); border-bottom-color: var(--accent); }
+.subnav-count { font-size: 12px; font-weight: 700; font-family: var(--font-mono); background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.subnav-item.active .subnav-count { color: var(--accent); border-color: var(--accent-soft); }
+.cat-badge { display: inline-block; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.lbadge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1.5; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
+.lbadge-ok { background: var(--good-bg); color: var(--good); border-color: var(--good); }
+.lbadge-neutral { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+.lbadge-warn { background: var(--high-bg); color: var(--high); border-color: var(--high); }
+/* One step below lbadge-warn: a finding worth fixing, not a blocker (a gem
+   quality nit next to a missing enchant). */
+.lbadge-medium { background: var(--medium-bg); color: var(--medium); border-color: var(--medium); }
+
+/* ===== loot award reasons =====
+   One colour per reason bucket (utils/lootReasons.js hands the tone down with
+   every loot row), running from "this was their mainspec gain" to "nobody
+   wanted it": green for BiS/Mainspec, fading over lime and yellow for the
+   weaker upgrades, orange for offspec, red for PvP, cool tones for greed,
+   sharding and the guild bank. The scale is the point — a row of badges has to
+   show at a glance whether someone's loot was mostly mainspec. The tone
+   colours themselves sit with the other palettes in :root, so light mode can
+   restate them without touching these rules. */
+.rbadge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; line-height: 1.6; white-space: nowrap;
+    border: 1px solid var(--reason-line, var(--line)); background: var(--reason-bg, var(--panel2)); color: var(--reason-fg, var(--muted));
+}
+.rbadge-count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; opacity: .85; }
+.rbadge-bis { --reason-fg: var(--reason-bis); --reason-bg: var(--reason-bis-bg); --reason-line: var(--reason-bis); }
+.rbadge-mainspec { --reason-fg: var(--reason-mainspec); --reason-bg: var(--reason-mainspec-bg); --reason-line: var(--reason-mainspec); }
+.rbadge-upgrade { --reason-fg: var(--reason-upgrade); --reason-bg: var(--reason-upgrade-bg); --reason-line: var(--reason-upgrade); }
+.rbadge-minor { --reason-fg: var(--reason-minor); --reason-bg: var(--reason-minor-bg); --reason-line: var(--reason-minor); }
+.rbadge-offspec { --reason-fg: var(--reason-offspec); --reason-bg: var(--reason-offspec-bg); --reason-line: var(--reason-offspec); }
+.rbadge-pvp { --reason-fg: var(--reason-pvp); --reason-bg: var(--reason-pvp-bg); --reason-line: var(--reason-pvp); }
+.rbadge-greed { --reason-fg: var(--reason-greed); --reason-bg: var(--reason-greed-bg); --reason-line: var(--reason-greed); }
+.rbadge-disenchant { --reason-fg: var(--reason-disenchant); --reason-bg: var(--reason-disenchant-bg); --reason-line: var(--reason-disenchant); }
+.rbadge-bank { --reason-fg: var(--reason-bank); --reason-bg: var(--reason-bank-bg); --reason-line: var(--reason-bank); }
+.rbadge-other { --reason-fg: var(--muted); --reason-bg: var(--panel2); --reason-line: var(--line); }
+/* A raider chip: spec icon + class-coloured name, for wherever a list of people
+   has to stay scannable (the item table's recipients). */
+.raider-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 700; line-height: 1.6; white-space: nowrap;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-decoration: none;
+}
+.raider-badge-ico { width: 18px; height: 18px; border-radius: 999px; flex: 0 0 auto; }
+.raider-badge-ico-ph { background: var(--panel3); border: 1px solid var(--line); }
+
+/* Both badges double as HoverPanel triggers, and .loot-pop-trigger's own look
+   (dashed pill, mono, centred) would otherwise win on source order — restate
+   the badge look at trigger specificity instead of reordering the file. */
+.loot-pop-trigger.rbadge, .loot-pop-trigger.raider-badge {
+    display: inline-flex; min-width: 0; text-align: left; font-family: inherit; cursor: help;
+}
+.loot-pop-trigger.rbadge {
+    padding: 2px 9px; border: 1px solid var(--reason-line, var(--line));
+    background: var(--reason-bg, var(--panel2)); color: var(--reason-fg, var(--muted));
+}
+.loot-pop-trigger.raider-badge {
+    padding: 2px 9px 2px 3px; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+}
+.loot-pop-wrap:hover .loot-pop-trigger.rbadge,
+.loot-pop-wrap:focus-visible .loot-pop-trigger.rbadge {
+    color: var(--reason-fg, var(--muted)); border-color: var(--reason-line, var(--line)); filter: brightness(1.14);
+}
+.loot-pop-wrap:hover .loot-pop-trigger.raider-badge,
+.loot-pop-wrap:focus-visible .loot-pop-trigger.raider-badge { color: var(--text); border-color: var(--accent); }
+.badge-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+/* Filter bar above a table (Gründe, Items, Charaktere, Roster).
+   The cells are label-over-control stacks of differing height — a wrapped
+   two-line label, or none at all on a button/checkbox cell — so they are
+   bottom-aligned: what has to line up across the row is the controls, not the
+   tops of the labels. A cell without a label gets the control height as its own
+   floor, which puts its button or checkbox on exactly the line the selects sit on. */
+.filter-bar { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.filter-bar .field { margin: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.filter-bar .field > :only-child { margin-bottom: 0; }
+.filter-bar .field > label:only-child {
+    display: flex; align-items: center; gap: 7px; min-height: var(--ctl-h);
+    font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer;
+}
+
+/* Class-coloured text. WoW's palette is built for a black game UI — Priest
+   white (#FFFFFF) and Rogue yellow (#FFF569) are unreadable on the light
+   theme's white panels — so light mode darkens whatever colour it was handed
+   instead of showing it raw. That is only possible because the colour arrives
+   as the custom property --cc rather than as `color:` (see classColorProps in
+   ClassSpec.tsx); the hue survives, the luminance is pulled down far enough to
+   read. Dark mode uses the game colours unchanged.
+
+   `a.class-colored` is spelled out because a class-coloured character name is
+   usually a link (CharacterLink), and `a.mlink`'s accent colour would otherwise
+   win on specificity — which is exactly what happened in dark mode, where the
+   two theme rules below (more specific still) don't apply and every name came
+   out accent-violet instead of its class colour. */
+.class-colored, a.class-colored { color: var(--cc); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+}
+:root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, var(--ink-shade)); }
+
+/* Item names in their WoW quality colour (epic purple, rare blue, legendary
+   orange, …), handed in as --iq by lib/itemQuality.ts — same mechanism and the
+   same light-theme darkening as the class colours above, for the same reason:
+   raw #1eff00 or #ff8000 washes out on a white panel. The doubled base selector
+   only exists so a name inside a hover popover — which sets its own colour —
+   still wins. An item whose quality was never resolved gets no class at all and
+   keeps the surrounding text colour instead of a guessed rarity. */
+.item-quality, .loot-pop-name.item-quality { color: var(--iq); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .item-quality { color: color-mix(in srgb, var(--iq) 62%, var(--ink-shade)); }
+}
+:root[data-theme="light"] .item-quality { color: color-mix(in srgb, var(--iq) 62%, var(--ink-shade)); }
+
+.flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+.flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
+.flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+
+/* ===== CLA: sortable table headers + pager (new pattern, first paginated table) ===== */
+.sort-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; cursor: pointer; }
+.sort-link:hover { color: var(--accent); }
+.sort-link.active { color: var(--accent); }
+.sort-link.tipped { text-decoration: underline dotted; text-decoration-color: var(--line); text-underline-offset: 3px; }
+/* the active column's direction: one chevron, turned for ascending */
+.sort-chev { display: inline-block; width: 12px; height: 12px; margin-left: 3px; }
+.sort-chev svg { width: 12px; height: 12px; display: block; }
+.sort-chev.asc svg { transform: rotate(180deg); }
+.pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.pager-info { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+/* .sel-sm / .inp-sm — the compact input pair used outside a .field wrapper —
+   live with the other controls in the form section above. */
+/* Topbar server switcher: the guild crest sits inside the select's left edge. */
+.guild-sel { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.guild-sel > .wi { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 5px; pointer-events: none; }
+.guild-sel select { min-height: var(--ctl-h); max-width: 300px; padding-left: 38px; font-size: 14px; font-weight: 600; }
+.guild-sel.is-single { min-height: var(--ctl-h); padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); font-size: 14px; font-weight: 600; }
+
+.emoji-picker { position: relative; display: inline-block; margin-top: 2px; }
+.emoji-panel {
+    display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 288px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 12px 32px -6px var(--shade-40), 0 0 0 1px var(--line);
+}
+.emoji-panel.open { display: block; animation: emoji-pop .16s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes emoji-pop { from { opacity: 0; transform: scale(.92) translateY(-4px); } to { opacity: 1; transform: none; } }
+.emoji-search {
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font: inherit; margin-bottom: 8px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.emoji-search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; }
+.emoji-item {
+    display: grid; place-items: center; padding: 5px; background: transparent; border: 1px solid transparent; border-radius: 7px;
+    cursor: pointer; transition: background-color .12s ease, border-color .12s ease, transform .1s ease;
+}
+.emoji-item:hover { background: var(--accent-soft); border-color: var(--accent-soft); transform: translateY(-1px); }
+.emoji-item img { width: 26px; height: 26px; object-fit: contain; }
+.emoji-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; grid-column: 1 / -1; }
+
+.spec-picker { display: flex; flex-direction: column; gap: 10px; }
+.spec-pills { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
+.spec-pill {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1px solid var(--accent-soft);
+    color: var(--text); border-radius: 999px; padding: 4px 6px 4px 8px; font-size: 13px; font-weight: 600;
+}
+.spec-pill img { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
+.spec-pill-q {
+    width: 18px; height: 18px; border-radius: 4px; background: var(--panel3); color: var(--muted); font-size: 11px; font-weight: 800;
+    display: grid; place-items: center; flex: 0 0 auto;
+}
+.spec-pill-custom { background: var(--panel2); border-color: var(--line); }
+.spec-pill-x {
+    background: none; border: 0; color: inherit; opacity: .6; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px;
+    border-radius: 50%; display: grid; place-items: center; transition: opacity .12s ease, background-color .12s ease;
+}
+.spec-pill-x:hover { opacity: 1; background: var(--shade-12); }
+.spec-add { position: relative; display: inline-block; }
+.spec-add-panel {
+    display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 260px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 12px 32px -6px var(--shade-40), 0 0 0 1px var(--line);
+}
+.spec-add-panel.open { display: block; animation: emoji-pop .16s cubic-bezier(.2, .9, .3, 1.2) both; }
+.spec-add-search {
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font: inherit; margin-bottom: 8px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.spec-add-search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.spec-add-list { display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; }
+.spec-option {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; background: transparent; border: 1px solid transparent;
+    border-radius: 7px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); text-align: left;
+    transition: background-color .12s ease, border-color .12s ease;
+}
+.spec-option:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
+.spec-option img { width: 20px; height: 20px; border-radius: 4px; flex: 0 0 auto; }
+.spec-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
+
+/* ===== raid detail: softres tab (instance groups + hardreserve item search) ===== */
+.softres-ed { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+.softres-ed legend { padding: 0 6px; font-size: 12.5px; color: var(--muted); }
+.hr-picker { position: relative; max-width: 440px; }
+/* The picker brings its own control look along: it is dropped straight into a
+   section on the Loot-Council page, not only into a .field, and an input that
+   only looks right inside a label wrapper is a trap for the next caller. */
+.hr-picker input { width: 100%; min-height: var(--ctl-h); padding: 8px 12px; }
+.hr-panel {
+    display: none; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto;
+    box-shadow: 0 12px 32px -6px var(--shade-40), 0 0 0 1px var(--line);
+}
+.hr-panel.open { display: block; }
+.hr-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 13.5px; }
+.hr-row:hover { background: var(--accent-soft); }
+.hr-row img { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
+.hr-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; max-width: 440px; }
+.hr-chip { display: flex; justify-content: space-between; align-items: center; cursor: default; }

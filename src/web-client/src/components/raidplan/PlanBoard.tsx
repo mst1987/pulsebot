@@ -17,7 +17,7 @@ import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
 import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
-import "../../styles/raidplan.css";
+import "../../styles/raidplan/index.css";
 
 // The role icons the raid detail already uses for its role groups (meta.ts's ROLE_META).
 const ROLE_ICONS: Record<string, string> = {

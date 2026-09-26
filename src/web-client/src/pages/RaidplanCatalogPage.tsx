@@ -17,7 +17,7 @@ import { MobIcon } from "./raid-detail/raidplan/AssignPanel";
 import Flyout from "../components/raidplan/Flyout";
 import { ASSIGN_META } from "../lib/raidplan/assign";
 import { useT } from "../i18n";
-import "../styles/raidplan.css";
+import "../styles/raidplan/index.css";
 
 type Tab = "mobs" | "spells";
 type Draft = Partial<CatalogMob & CatalogSpell>;

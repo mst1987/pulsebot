@@ -11,7 +11,7 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const src = fs.readFileSync(path.join(CLIENT, "pages", "history", "ManualLootForm.tsx"), "utf8");
-const css = fs.readFileSync(path.join(CLIENT, "index.css"), "utf8");
+const css = require("../clientSource").read("index.css");
 
 /** The body of one `function <name>(` … up to the next top-level `function`. */
 function fn(name) {

@@ -6,7 +6,7 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const shellSrc = fs.readFileSync(path.join(CLIENT, "components", "Shell.tsx"), "utf8");
-const css = fs.readFileSync(path.join(CLIENT, "index.css"), "utf8");
+const css = require("../clientSource").read("index.css");
 
 describe("brand link", () => {
     it("takes the crest to the site root, where the dashboard lives", () => {

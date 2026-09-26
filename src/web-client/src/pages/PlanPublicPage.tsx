@@ -24,7 +24,7 @@ import { rosterMap, sectionLabel, severalInstances, startSection } from "../lib/
 import { cleanNames } from "../lib/raidplan/mention";
 import Mentions from "../components/raidplan/Mentions";
 import { useT } from "../i18n";
-import "../styles/raidplan.css";
+import "../styles/raidplan/index.css";
 
 /**
  * The read view of a published raid plan, /p/<token> — the "Sheet-Ansicht".

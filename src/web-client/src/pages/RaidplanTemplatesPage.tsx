@@ -34,7 +34,7 @@ import { applyTactic, stepsOf } from "../lib/raidplan/steps";
 import BossNav from "./raid-detail/raidplan/BossNav";
 import type { MapRow } from "./raid-detail/raidplan/MapPanel";
 import { useDraftHistory } from "./raid-detail/raidplan/useDraftHistory";
-import "../styles/raidplan.css";
+import "../styles/raidplan/index.css";
 import RaidplanBoundary from "../components/raidplan/RaidplanBoundary";
 
 type Fields = { name: string; category: string; description: string; guildId: string; instanceIds: string[]; size: number; counts: BesetzungCounts | null };

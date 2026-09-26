@@ -1,0 +1,289 @@
+/* Raidplan, part 4 of 7: layout v2 (map, dock, splitter), read view v2 and v3, several objects selected, the shared input look, the roster-slot dialog. */
+
+/* layout v2: map (height adjustable) with a narrow dock, the splitter, and the assignments in columns underneath */
+.rp-stage2 { grid-template-columns: minmax(0, 1fr) 300px; }
+/* up to 1000 px the dock goes under the map (this rule came after the older media query and kept two columns: the map shrank to ~50 px on a phone) */
+@media (max-width: 1000px) {
+    .rp-stage2, .rp-stage2.no-dock { grid-template-columns: minmax(0, 1fr); }
+}
+.rp-stage2.no-dock { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1001px) {
+    .rp-stage2:not(.is-only-dock) .rp-board-wrap { position: static; }
+}
+.rp-splitter { display: flex; align-items: center; justify-content: center; height: 12px; margin: -4px 0; cursor: row-resize; touch-action: none; }
+.rp-splitter span { width: 64px; height: 4px; border-radius: 2px; background: var(--line); transition: background .12s ease; }
+.rp-splitter:hover span, .rp-splitter:focus-visible span { background: var(--accent); }
+.rp-splitter:focus-visible { outline: none; }
+.rp-below-map { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-below-map .rp-assign { padding: 10px 12px; }
+.rp-below-map .rp-cards { display: block; columns: 300px 4; column-gap: 12px; }
+.rp-below-map .rp-cards > .rp-acard { break-inside: avoid; margin-bottom: 12px; }
+.rp-mapsize { gap: 2px; }
+.rp-mapsize-btn { min-width: 26px; height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); color: var(--muted); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.rp-mapsize-btn.is-on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.rp-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rp-side .rp-tray { flex-direction: column; align-items: flex-start; }
+.rp-side .rp-tray-list { gap: 4px; }
+
+.rp-side .rp-tray { padding: 6px 8px; gap: 4px; width: 100%; box-sizing: border-box; }
+.rp-side .rp-tray-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; width: 100%; }
+.rp-side .rp-chip { min-width: 0; padding: 1px 5px 1px 2px; font-size: 11.5px; overflow: hidden; }
+.rp-side .rp-chip .rp-name, .rp-side .rp-chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ==== read view v2: assignments left (tables), map right and sticky; my assignments first; the log by player at the end ==== */
+.rp-read-2col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 46%); gap: 22px; align-items: start; }
+.rp-read-2col.no-board { grid-template-columns: minmax(0, 1fr); }
+.rp-read-right { position: sticky; top: 12px; min-width: 0; }
+.rp-read-right .rp-board-wrap, .rp-read-right > * { width: 100%; }
+.rp-read-left { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 900px) {
+    .rp-read-2col { grid-template-columns: minmax(0, 1fr); }
+    .rp-read-right { position: static; order: -1; }
+}
+.rp-rtables { display: flex; flex-direction: column; gap: 18px; font-size: 15px; }
+
+.rp-tbadge { --tb: var(--rp-tb-default); display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 4px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tb) 70%, transparent); background: color-mix(in srgb, var(--tb) 20%, var(--panel)); color: var(--text); font-size: 13px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.rp-tbadge .wi { border-radius: 50%; }
+.rp-tbadge > span { color: color-mix(in srgb, var(--tb) 55%, var(--text)); }
+.rp-tbadge.is-small { padding: 1px 9px 1px 2px; font-size: 12px; letter-spacing: .02em; text-transform: none; font-weight: 700; white-space: normal; }
+.rp-tb-tank, .rp-tb-trashtank { --tb: var(--rp-tb-tank); }
+.rp-tb-heal { --tb: var(--rp-tb-heal); }
+.rp-tb-kick { --tb: var(--rp-tb-kick); }
+.rp-tb-md { --tb: var(--rp-tb-md); }
+.rp-tb-ss { --tb: var(--rp-tb-ss); }
+.rp-tb-fearward { --tb: var(--rp-tb-fearward); }
+.rp-tb-special { --tb: var(--rp-tb-special); }
+.rp-tb-dispel { --tb: var(--rp-tb-dispel); }
+.rp-tb-cc { --tb: var(--rp-tb-cc); }
+.rp-tb-buff { --tb: var(--rp-tb-buff); }
+.rp-tb-curse { --tb: var(--rp-tb-curse); }
+.rp-tb-thunderclap, .rp-tb-demoshout { --tb: var(--rp-tb-aoe); }
+
+.rp-mine { padding: 14px 16px; border: 2px solid var(--accent); border-radius: 14px; background: var(--accent-soft); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
+.rp-mine h2 { margin: 0 0 10px; font-size: 13px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+.rp-mine ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rp-mine li { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.rp-mine-text { font-size: 19px; font-weight: 800; line-height: 1.25; }
+.rp-mine-hint { margin: 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; }
+
+.rp-rsec { display: flex; flex-direction: column; gap: 8px; }
+.rp-rsec h3 { margin: 0; }
+.rp-rtable { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
+.rp-rtable th { padding: 7px 12px; text-align: left; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--panel2); border-bottom: 1px solid var(--line); }
+.rp-rtable td { padding: 9px 12px; vertical-align: middle; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+.rp-rtable tbody tr:last-child td { border-bottom: 0; }
+.rp-rtable tbody tr:nth-child(even) { background: color-mix(in srgb, var(--panel2) 55%, transparent); }
+.rp-rtable tbody tr.is-own { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+.rp-col-no { width: 40px; text-align: center; }
+.rp-who { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; }
+.rp-who .wi { border-radius: 5px; flex: 0 0 auto; }
+.rp-who.is-own { color: var(--accent); }
+.rp-who-slot { font-size: 12px; font-weight: 600; color: var(--muted); }
+.rp-who-list { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.rp-rtask { display: block; font-weight: 700; margin-bottom: 3px; }
+.rp-rnote { display: block; font-size: 13px; }
+.rp-gbadge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); font-weight: 800; }
+.rp-gbadge.is-own { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+
+@media (max-width: 700px) {
+    .rp-rtable { table-layout: fixed; }
+    .rp-rtable th, .rp-rtable td { padding: 7px 8px; overflow-wrap: anywhere; }
+    .rp-who { flex-wrap: wrap; }
+    .rp-who-slot { display: none; }
+    .rp-mine-text { font-size: 17px; }
+}
+
+/* several objects selected: the rubber band, the shared frame with its grips, the counter */
+.rp-band { position: absolute; z-index: 30; border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); pointer-events: none; }
+.rp-multibox { position: absolute; z-index: 29; border: 1.5px dashed var(--accent); border-radius: 4px; pointer-events: none; box-sizing: border-box; }
+.rp-multibox .rp-handle { pointer-events: auto; }
+.rp-multi-count { position: absolute; left: 0; top: -24px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 11.5px; font-weight: 800; white-space: nowrap; pointer-events: none; }
+.rp-token.is-multi { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.rp-zone.is-multi { box-shadow: 0 0 0 2px var(--accent); }
+.rp-multi-insp .rp-insp-actions { flex-wrap: wrap; }
+
+/* read view, compact: tables as wide as their content, side by side when there is room; nothing wraps inside a chip */
+.rp-rtables { flex-direction: column; gap: 0; }
+.rp-rgrid { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 14px 18px; }
+.rp-rgrid > .rp-rsec { flex: 0 1 auto; max-width: 100%; min-width: 0; }
+.rp-personal { display: flex; flex-direction: column; gap: 12px; }
+.rp-rtable { width: auto; max-width: 100%; }
+.rp-rtable th { padding: 5px 10px; }
+.rp-rtable td { padding: 5px 10px; }
+.rp-who { white-space: nowrap; }
+.rp-who-open { color: var(--muted); }
+.rp-who .rp-ico { flex: 0 0 auto; }
+.rp-who-list { gap: 3px 12px; }
+.rp-tbadge > span, .rp-mine-text { white-space: nowrap; }
+.rp-tbadge.is-small > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+@media (max-width: 700px) {
+    .rp-rgrid { flex-direction: column; flex-wrap: nowrap; }
+    .rp-rgrid > .rp-rsec { width: 100%; }
+    .rp-rtable { width: 100%; table-layout: auto; }
+    .rp-who { white-space: normal; }
+    .rp-mine-text { white-space: normal; }
+}
+
+/* cards: no suggestion look, names never wrap inside a chip, the task field keeps a readable width, the note has its own line */
+.rp-arow.is-suggested { border-style: solid; border-color: var(--line); }
+.rp-arow-top { flex-wrap: wrap; row-gap: 4px; }
+.rp-arow-top .rp-atitle { flex: 1 1 150px; min-width: 150px; }
+.rp-arow-top .rp-spellchip { flex: 0 0 auto; }
+.rp-achip, .rp-pchip, .rp-mobchip { white-space: nowrap; }
+.rp-achip > span, .rp-mobchip .rp-achip > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.rp-acard .rp-anote { flex: 1 1 100%; min-width: 200px; height: 30px; font-size: 13px; }
+.rp-below-map .rp-cards { columns: 510px 4; }
+
+/* the Besetzung: its label on its own line above, every role a block with its small label on top; nothing sticks out */
+.rp-bes { flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 4px; min-width: 0; }
+.rp-bes-blocks { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 10px; min-width: 0; max-width: 100%; }
+.rp-bes-role { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 2px 8px 4px 6px; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.rp-bes-rolelabel { margin: 0; font-size: 9.5px; line-height: 1.2; color: var(--muted); }
+.rp-bes-rolebody { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.rp-bes-tools { display: inline-flex; align-items: center; gap: 4px; align-self: center; }
+/* palette: every group of icons with its label above it */
+.rp-bands .rp-palette { align-items: flex-start; gap: 4px 14px; }
+.rp-palette-group { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rp-multi-edge { position: absolute; pointer-events: auto; cursor: move; touch-action: none; }
+.rp-me-n, .rp-me-s { left: 0; right: 0; height: 10px; }
+.rp-me-n { top: -5px; }
+.rp-me-s { bottom: -5px; }
+.rp-me-w, .rp-me-e { top: 0; bottom: 0; width: 10px; }
+.rp-me-w { left: -5px; }
+.rp-me-e { right: -5px; }
+
+/* ==== ONE look for every input of the raid plan: the app's control base (height, radius, accent focus ring), one number field, one slider row ==== */
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) :is(input:not([type]), input[type="text"], input[type="search"], textarea, select) {
+    box-sizing: border-box; min-height: var(--ctl-h-sm, 32px); padding: 5px 10px; font: inherit; font-size: 13.5px; line-height: 1.35;
+    background-color: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius, 8px);
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select):focus {
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) :is(input, textarea)::placeholder { color: var(--muted); opacity: .85; }
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) :is(input, textarea, select):disabled { opacity: .55; cursor: not-allowed; background-color: var(--panel2); }
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) select {
+    appearance: none; -webkit-appearance: none; min-width: 140px; max-width: 100%; padding-right: 30px; cursor: pointer;
+    background-image: var(--ctl-arrow); background-repeat: no-repeat; background-position: right 9px center; background-size: 14px 14px;
+}
+:is(.rp-work, .rp-dock, .rp-am, .rp-fly, .rp-catalog, .rp-templates) select:hover:not(:disabled) { border-color: var(--muted); background-image: var(--ctl-arrow-hi, var(--ctl-arrow)); }
+.rp-dock .rp-field input:not([type]), .rp-dock .rp-field input[type="text"], .rp-dock .rp-field select, .rp-dock .rp-field textarea { width: 100%; }
+.rp-field .rp-kicker { margin: 0; }
+.rp-field { gap: 4px; }
+.rp-field-row { align-items: flex-end; }
+input[type="checkbox"], input[type="range"] { accent-color: var(--accent); }
+.rp-check { display: inline-flex; align-items: center; gap: 8px; min-height: var(--ctl-h-sm, 32px); cursor: pointer; font-size: 13.5px; }
+.rp-check input { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; }
+input[type="color"].rp-color { width: 48px; height: var(--ctl-h-sm, 32px); padding: 2px; border: 1px solid var(--line); border-radius: var(--ctl-radius, 8px); background: var(--bg); cursor: pointer; }
+input[type="color"].rp-color::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6px; }
+
+/* the number field: fixed width, digits to the right, the unit inside; no browser spinner */
+.rp-num { position: relative; display: inline-flex; align-items: center; width: 84px; flex: 0 0 auto; }
+.rp-dock .rp-num input, .rp-num input { width: 100%; text-align: right; padding-right: 27px; font-variant-numeric: tabular-nums; }
+.rp-num i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12px; color: var(--muted); pointer-events: none; }
+.rp-num.is-inert i { opacity: .5; }
+.rp-num input::-webkit-outer-spin-button, .rp-num input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* slider + number: the slider takes the room, the number keeps its width, both on one centre line */
+.rp-sf { display: flex; align-items: center; gap: 10px; min-height: var(--ctl-h-sm, 32px); }
+.rp-sf input[type="range"] { flex: 1 1 auto; min-width: 0; height: 20px; margin: 0; padding: 0; background: transparent; }
+.rp-disabled { opacity: .6; }
+
+/* the template's Standard: rows a boss inherits */
+.rp-arow.is-inherited { border-style: dashed; background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.rp-inh-mark { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; border: 1px dashed var(--line); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.rp-defaults-explain { margin: 0 0 6px; font-size: 13px; max-width: 900px; }
+
+/* ==== read view v3: the whole window; assignments left (40 %, at most 640 px), map right (the rest, sticky) ==== */
+.rp-public.rp-wide { max-width: none; width: 100%; margin: 0; padding: 10px 20px 28px; gap: 8px; box-sizing: border-box; }
+.rp-public-head { align-items: center; flex-wrap: nowrap; gap: 12px; min-height: 0; }
+.rp-public-titles { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; min-width: 0; }
+.rp-public-title { margin: 0; font-size: 19px; line-height: 1.25; }
+.rp-public-titles .rp-kicker { font-size: 10px; }
+.rp-public-nav { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
+.rp-read-2col { display: grid; grid-template-columns: clamp(560px, 40%, 640px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.rp-read-2col.no-board { grid-template-columns: minmax(0, 640px); }
+.rp-read-2col.is-map-only { grid-template-columns: minmax(0, 1fr); }
+/* a boss / trash section planned without its map: the assignments take the whole width */
+.rp-read-2col.no-board.no-map { grid-template-columns: minmax(0, 1fr); }
+.rp-read-right { position: sticky; top: 8px; min-width: 0; display: flex; justify-content: center; }
+.rp-read-right .rp-board { flex: 0 1 auto; width: 100%; }
+.rp-maponly { position: absolute; right: 8px; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--text); cursor: pointer; z-index: 5; }
+.rp-maponly:hover { border-color: var(--accent); }
+.rp-read-right { position: sticky; }
+.rp-read-left { gap: 10px; }
+.rp-read-left .rp-notes-text { margin: 0; font-size: 13.5px; }
+.rp-rtables { gap: 10px 14px; font-size: 14px; }
+.rp-rsec { gap: 4px; }
+.rp-rsec h3 { font-size: 12px; }
+.rp-rtable th { padding: 3px 8px; font-size: 10.5px; }
+.rp-rtable td { padding: 3px 8px; }
+.rp-rtable { border-radius: 9px; }
+.rp-mine { padding: 8px 12px; border-radius: 11px; }
+.rp-mine h2 { margin-bottom: 6px; font-size: 11.5px; }
+.rp-mine-text { font-size: 16px; }
+@media (max-width: 1099px) {
+    .rp-read-2col, .rp-read-2col.no-board { grid-template-columns: minmax(0, 1fr); }
+    .rp-read-right { position: static; order: -1; }
+    .rp-public.rp-wide { padding: 8px 12px 24px; }
+}
+@media (max-width: 700px) {
+    .rp-public-head { flex-wrap: wrap; }
+    .rp-public-title { font-size: 17px; }
+}
+.rp-grouptext { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap; font-size: 13px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--on-fill); text-shadow: 0 1px 3px var(--shade-90), 0 0 6px var(--shade-70); pointer-events: none; }
+
+/* "that is you": one highlight everywhere — a strong accent frame + a soft fill + a small "Du" badge; never colour alone */
+.rp-me-hit { background: var(--accent-soft); color: inherit; border-bottom: 2px solid var(--accent); border-radius: 3px; padding: 0 3px; font-weight: 800; }
+.rp-who.is-own { padding: 1px 8px 1px 3px; border: 2px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--text); }
+.rp-who.is-own .class-colored { color: var(--text) !important; font-weight: 800; }
+.rp-du { padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 16px; }
+.rp-mine-from { display: inline-flex; align-items: center; gap: 6px; }
+.rp-mine-note { flex-basis: 100%; }
+.rp-links line.is-yours { stroke-width: 4; stroke-dasharray: none; opacity: 1; stroke: var(--accent); filter: drop-shadow(0 0 3px var(--accent)); }
+.rp-groupring.is-yours { border-width: 3px; border-style: solid; opacity: .9; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+@keyframes rp-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent), 0 0 12px 3px var(--accent); } 50% { box-shadow: 0 0 0 5px var(--accent), 0 0 24px 8px var(--accent); } }
+.rp-token.is-me .rp-ico { animation: rp-pulse 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .rp-token.is-me .rp-ico { animation: none; } }
+
+/* the dialog that gives the roster slots to players: slots by role on the left, the players on the right, all on one page */
+.rp-ar { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.rp-ar-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.rp-ar-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 14px; align-items: start; }
+.rp-ar-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rp-ar-col h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; }
+.rp-ar-row { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel2); color: var(--text); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; min-width: 0; }
+.rp-ar-row:hover { border-color: var(--accent); }
+.rp-ar-row.is-sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.rp-ar-row.is-target:hover { border-style: dashed; }
+.rp-ar-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rp-ar-n { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); font-size: 11px; font-weight: 800; color: var(--muted); flex: 0 0 auto; }
+.rp-ar-cls { margin-left: auto; display: inline-flex; gap: 2px; padding: 1px 3px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); flex: 0 0 auto; }
+.rp-ar-cls.is-missing { border-color: var(--high); }
+.rp-ar-cls.is-filled { border-color: var(--rp-ok); }
+.rp-ar-cls .wi { border-radius: 4px; }
+.rp-ar-pick { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rp-ar-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rp-ar-wish { display: flex; flex-direction: column; gap: 5px; }
+.rp-ar-filter { display: flex; flex-direction: column; gap: 6px; }
+.rp-ar-players { display: flex; flex-direction: column; gap: 8px; }
+.rp-ar-note { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; font-weight: 700; }
+.rp-ar-at { font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.rp-fchip.is-used { opacity: .7; }
+.rp-bes-assign { align-self: flex-start; }
+@media (max-width: 900px) { .rp-ar { grid-template-columns: minmax(0, 1fr); } }
+.rp-ar { user-select: none; -webkit-user-select: none; }
+.rp-ar-players .rp-fchip { touch-action: none; }
+
+.rp-crash { padding: 18px; border: 1px solid var(--high); border-radius: 12px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+.rp-crash-actions { display: flex; gap: 8px; }
+.rp-crash pre { max-height: 180px; overflow: auto; font-size: 12px; white-space: pre-wrap; }
+
+.rp-bes-chip { position: relative; }
+.rp-bes-cls { position: absolute; right: -5px; top: -5px; display: inline-flex; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); line-height: 0; }
+.rp-bes-cls.is-missing { border-color: var(--high); }
+.rp-bes-cls.is-filled { border-color: var(--rp-ok); }
+.rp-bes-missing { align-self: center; padding: 2px 8px; border-radius: 8px; border: 1px solid var(--high); font-size: 12px; font-weight: 700; }

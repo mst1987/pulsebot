@@ -3,7 +3,7 @@
 
 describe("effects round an icon scale with the icon (effectMetrics)", () => {
     it("the stylesheet draws the me-glow, the selection glow and the shadows of the canvas from those variables, not from fixed px", () => {
-        const css = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
+        const css = require("../clientSource").read("styles/raidplan/index.css");
         for (const rule of [".rp-canvas .rp-token.is-me .rp-ico {", "@keyframes rp-pulse-s", ".rp-canvas .rp-token.is-selected .rp-ico"]) {
             const at = css.indexOf(rule);
             expect(at).toBeGreaterThan(-1);

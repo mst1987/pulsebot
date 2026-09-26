@@ -1,0 +1,89 @@
+/* Raidplan, part 7 of 7: sections without a map, auto-placed tanks, role groups, Raid-Helper events, group chips, and the board geometry custom properties. */
+
+/* a boss / trash section planned without its map */
+.rp-mapoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13.5px; }
+.rp-mapoff > span { flex: 1 1 260px; }
+
+/* what the tank rows put on the map (lib/raidplan/autoPlace.ts): a placeholder of the template dashed, a class nobody in the raid has dimmed with a warning */
+.rp-autotank .rp-token-btn { position: relative; }
+.rp-autotank.is-rule .rp-ico, .rp-autotank.is-slot .rp-ico { border-style: dashed; opacity: .85; }
+.rp-autotank.is-missing { opacity: .6; }
+.rp-autotank.is-missing .rp-ico { border-style: dashed; filter: grayscale(.85); }
+.rp-autowarn { position: absolute; right: -5px; top: -5px; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--rp-warn); color: var(--on-medium); box-shadow: 0 0 0 1.5px var(--on-medium); }
+.rp-autotank-miss { color: var(--rp-autotank-miss); font-weight: 700; }
+.rp-autobadge { display: inline-flex; align-self: flex-start; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: 11.5px; font-weight: 700; }
+.rp-autoinfo { display: flex; flex-direction: column; gap: 8px; }
+.rp-autoinfo-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
+.rp-autoinfo-line { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.rp-autoinfo-tanks { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.rp-autoinfo-miss { display: flex; gap: 6px; align-items: flex-start; margin: 0; color: var(--rp-warn-strong); }
+.rp-autoinfo-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-amb-mobcount { margin-top: 10px; }
+.rp-amb-mobline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 0; }
+.rp-layer.is-auto .rp-layer-kind { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
+/* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with ONE outline, the role icon, an optional label and count; never players */
+/* a role group ("Melees" ...): ONE clean outline and a light fill in its colour, its icon once in the middle, unscaled - every measure a share of
+   the zone (lib/raidplan/roleGroups.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
+.rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
+.rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
+/* the content of a role group stands UPRIGHT over its (possibly turned) outline: a box of the turned zone's upright size (.rp-rg-up), in it the
+   inner area (--rp-iw x --rp-ih) with the symbol as its head and the names below; the label inside (in the flow) or outside on one side.
+   Nothing of it turns with the zone, so it stays readable (#raidplan-16) */
+.rp-rg-up { position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
+.rp-rg-inner { position: absolute; left: 50%; top: 50%; width: var(--rp-iw, 60px); height: var(--rp-ih, 60px); transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--rp-zn, 11px) * .3); overflow: hidden; }
+.rp-rg-head { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; flex: 0 0 auto; }
+.rp-rg-ico { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--rp-rg, 30px); height: var(--rp-rg, 30px); aspect-ratio: 1; border-radius: 50%; background: var(--rp-label-bg-soft); box-sizing: border-box; }
+.rp-rg-ico img { width: 72%; height: 72%; border-radius: 50%; }
+.rp-rg-label { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--rp-zl, 11.5px); padding: calc(var(--rp-zl, 11.5px) * .1) calc(var(--rp-zl, 11.5px) * .55); border-radius: calc(var(--rp-zl, 11.5px) * .5); background: var(--rp-label-bg); color: var(--rp-zone-ink); font-weight: 700; }
+/* the label outside: next to the upright box of the zone, on the side chosen (labelPos) */
+.rp-rg-label.is-out { position: absolute; max-width: none; }
+.rp-rg-label.is-top { left: 50%; bottom: calc(100% + var(--rp-zl, 11.5px) * .35); transform: translateX(-50%); }
+.rp-rg-label.is-bottom { left: 50%; top: calc(100% + var(--rp-zl, 11.5px) * .35); transform: translateX(-50%); }
+.rp-rg-label.is-left { right: calc(100% + var(--rp-zl, 11.5px) * .35); top: 50%; transform: translateY(-50%); }
+.rp-rg-label.is-right { left: calc(100% + var(--rp-zl, 11.5px) * .35); top: 50%; transform: translateY(-50%); }
+/* the count badge sits at the symbol's upper right */
+.rp-rg-count { position: absolute; right: calc(var(--rp-zk, 12px) * -.55); top: calc(var(--rp-zk, 12px) * -.45); min-width: calc(var(--rp-zk, 12px) * 1.65); padding: 0 calc(var(--rp-zk, 12px) * .4); border-radius: 999px; background: var(--zc); color: var(--rp-rg-ink); font-size: var(--rp-zk, 12px); font-weight: 800; line-height: calc(var(--rp-zk, 12px) * 1.65); text-align: center; }
+/* the names INSIDE: small class-coloured chips in lines of the inner width, a name never split; what does not fit is one "+N" chip */
+.rp-rg-names { display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: calc(var(--rp-zn, 11px) * .25) calc(var(--rp-zn, 11px) * .35); max-width: 92%; font-size: var(--rp-zn, 11px); line-height: 1.4; }
+.rp-rg-names > * { white-space: nowrap; padding: 0 calc(var(--rp-zn, 11px) * .35); border-radius: calc(var(--rp-zn, 11px) * .5); background: var(--rp-names-bg); font-weight: 600; }
+.rp-rg-names > .rp-rg-more { background: var(--zc); color: var(--rp-rg-ink); font-weight: 800; }
+.rp-lc.is-role, .rp-achip-role { border-color: var(--rc, var(--line)); }
+.rp-rolechip-ico { display: inline-flex; border-radius: 50%; border: 2px double var(--rc, var(--line)); }
+/* the grip that turns a role group, above its top edge */
+.rp-zone .rp-h-zrot { left: calc(50% - 7px); top: -26px; width: 14px; height: 14px; border-radius: 50%; cursor: grab; }
+
+/* A Raid-Helper event's plan (docs/raidplan.md, "Raid-Helper-Events"): where the players come from, and how a name reads */
+.rp-rhsrc { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.rp-rhsrc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 13px; }
+.rp-rhsrc-main { font-weight: 700; }
+.rp-rhsrc.is-stale .rp-rhsrc-main { color: var(--medium); }
+.rp-rhsrc-note { font-size: 12px; color: var(--muted); padding: 1px 8px; border: 1px solid var(--line); border-radius: 10px; }
+.rp-pname-rh { font-style: italic; }
+.rp-pname-gone { opacity: .5; text-decoration: line-through; }
+
+
+/* a group's chip: as wide as its longest name needs (up to 220 reference px) or the width set for it; a name is never split, a name longer
+   than the chip ends in "…" (#raidplan-15) */
+.rp-canvas .rp-groupchip { width: max-content; max-width: 220px; }
+.rp-canvas .rp-groupchip.is-sized { width: var(--rp-cw); max-width: var(--rp-cw); }
+.rp-canvas .rp-groupchip-names { align-self: stretch; min-width: 0; }
+.rp-canvas .rp-groupchip-names > * { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- board geometry (#441) -----------------------------------------------
+   Every board object's place, size and opacity comes in as custom properties
+   (components/raidplan/PlanBoard.tsx): --rp-x/--rp-y (left/top), --rp-w/--rp-h,
+   --rp-o. They used to be inline styles; !important keeps them above the state
+   classes (.rp-groupring.is-yours, .rp-autotank.is-missing, ...) exactly as the
+   inline styles were. */
+.rp-board[data-rp-board] { aspect-ratio: var(--rp-aspect) !important; max-width: var(--rp-maxw) !important; }
+.rp-canvas { width: var(--rp-canvas-w); height: var(--rp-canvas-h); transform: var(--rp-canvas-tf); }
+.rp-board .rp-map { opacity: var(--rp-mo); }
+.rp-board :is(.rp-token, .rp-text) { left: var(--rp-x) !important; top: var(--rp-y) !important; opacity: var(--rp-o) !important; }
+.rp-board :is(.rp-zone, .rp-rg-up, .rp-band, .rp-multibox) { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; }
+.rp-board .rp-groupring { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; opacity: var(--rp-o) !important; }
+.rp-board .rp-groupring.is-colored { border-color: var(--rp-ringc) !important; }
+.rp-board .rp-h-end { left: var(--rp-x) !important; top: var(--rp-y) !important; }
+.rp-board g.rp-line { opacity: var(--rp-o) !important; }
+.rp-board .rp-facing { transform: rotate(var(--rp-face)); }
+.rp-board .rp-wedge { opacity: var(--rp-wo, 1); }
+.rp-board .rp-text { color: var(--rp-tc, inherit); font-size: var(--rp-fs); }

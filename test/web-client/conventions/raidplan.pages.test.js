@@ -14,7 +14,7 @@ describe("the pages", () => {
     const detail = read("pages/RaidDetailPage.tsx");
     const app = read("App.tsx");
     const pub = read("pages/PlanPublicPage.tsx");
-    const css = read("styles/raidplan.css");
+    const css = read("styles/raidplan/index.css");
     const menu = read("pages/raid-detail/raidplan/ContextMenu.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
 
@@ -234,7 +234,7 @@ describe("the new pages", () => {
     const board2 = read("components/raidplan/PlanBoard.tsx");
     const palette = read("pages/raid-detail/raidplan/Palette.tsx");
     const insp = read("pages/raid-detail/raidplan/Inspector.tsx");
-    const css = read("styles/raidplan.css");
+    const css = read("styles/raidplan/index.css");
     const pub = read("pages/PlanPublicPage.tsx");
 
     it("scales objects by a grip, by + / -, by Alt + wheel and by the inspector; Shift keeps a zone's proportions", () => {
@@ -289,7 +289,7 @@ describe("template overview", () => {
 describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
     const fs = require("fs");
     const p = require("path");
-    const css = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
+    const css = require("../clientSource").read("styles/raidplan/index.css");
     it("a read-only card's columns are as wide as their longest chip (up to 320 px), a card at least 240 px", () => {
         expect(css).toContain(".rp-alist.rp-linelist.is-ro.rp-read-lines { grid-template-columns: 26px fit-content(320px) 18px fit-content(320px); }");
         expect(css).toContain(".rp-rgrid > .rp-rsec { min-width: min(100%, 240px); }");
@@ -319,7 +319,7 @@ describe("the section bar names every section (feature/raidplan-16)", () => {
         const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
         expect(sheet).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
-        const css = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/styles/raidplan.css"), "utf8");
+        const css = require("../clientSource").read("styles/raidplan/index.css");
         expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");
     });
 });
