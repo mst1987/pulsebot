@@ -81,7 +81,7 @@ const { migrateSignup } = require("./signupCharacters");
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../utils/text");
 const { approvedSetupOf } = require("./setupCore");
-const { getConfig, resolveEventSheetLink } = require("./settingsStore");
+const { getConfig, resolveEventSheetLink } = require("./configStore");
 const { getEventSheet } = require("./eventSheetStore");
 const { getEventSoftres } = require("./eventSoftresStore");
 
@@ -537,7 +537,7 @@ function buildEventMessage(event, signups, {
     if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     // The raid's comp sheet (an own copy, else the category's fixed one — see
-    // settingsStore.resolveEventSheetLink) and its softres.it reservation list
+    // configStore.resolveEventSheetLink) and its softres.it reservation list
     // (eventSoftresStore), when either is on record (#357).
     if (compUrl) links.push(`[Comp](${compUrl})`);
     if (srUrl) links.push(`[SR](${srUrl})`);
