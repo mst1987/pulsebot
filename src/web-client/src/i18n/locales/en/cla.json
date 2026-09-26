@@ -1,0 +1,179 @@
+{
+    "page": {
+        "title": "Log analysis",
+        "newEvaluation": "New evaluation",
+        "loading": "Loading logs",
+        "loadError": "Error while loading: {message}"
+    },
+    "choices": {
+        "bothSub": "Full evaluation on one report page",
+        "claLabel": "CLA only",
+        "claSub": "Gear, consumables, fight timeline",
+        "rpbLabel": "RPB only",
+        "rpbSub": "Damage, deaths, activity, cooldowns"
+    },
+    "analyses": {
+        "claSub": "Gear, enchants, gems, consumables, drums, potions & shadow resistance",
+        "rpbSub": "Avoidable damage, deaths, activity, cooldowns, interrupts & log checks"
+    },
+    "filters": {
+        "ariaLabel": "Filter logs",
+        "all": {
+            "label": "All",
+            "tip": "All logs",
+            "sub": "Warcraft Logs detected by the bot in the log channel and reports evaluated from a link, newest post time first. Each report is evaluated only once.",
+            "empty": "No logs yet. As soon as a Warcraft Logs link is posted in the log channel, it shows up here."
+        },
+        "open": {
+            "label": "Open",
+            "tip": "Not evaluated yet",
+            "sub": "Logs that neither CLA nor RPB has run on. Check them first via the log link, then \"Evaluate\".",
+            "empty": "No log is waiting for an evaluation."
+        },
+        "unlinked": {
+            "label": "No raid event",
+            "tip": "Not assigned to a raid event",
+            "sub": "Each log belongs to the raid whose start time fits the post time. The suggestion is preselected in the assign dialog.",
+            "empty": "All logs are assigned to a raid event."
+        },
+        "done": {
+            "label": "Evaluated",
+            "tip": "At least one half evaluated",
+            "sub": "Logs with a CLA or RPB evaluation and the reports created from a link.",
+            "empty": "No evaluations yet."
+        }
+    },
+    "offset": {
+        "onTime": "right at the start",
+        "after": "{span} after start",
+        "before": "{span} before start"
+    },
+    "jobs": {
+        "evalLabel": "{label} evaluation",
+        "already": "{label} evaluation already existed.",
+        "created": "{label} evaluation created.",
+        "bothDone": "CLA + RPB evaluated.",
+        "reportCreated": "Evaluation created.",
+        "viewReport": "View report"
+    },
+    "confirm": {
+        "resetTitle": "Discard the {label} evaluation?",
+        "resetText": "The {label} evaluation of \"{title}\" is discarded and can be started again afterwards.",
+        "deleteLogTitle": "Delete log from the list?",
+        "deleteLogText": "\"{title}\" is removed from the list. An existing evaluation is kept as a report.",
+        "deleted": "Deleted.",
+        "deleteReportTitle": "Delete evaluation?",
+        "deleteReportText": "\"{title}\" will be deleted.",
+        "unlinkTitle": "Remove assignment?",
+        "unlinkText": "The assignment of \"{title}\" to \"{event}\" is removed. The evaluation itself stays."
+    },
+    "columns": {
+        "log": "Log",
+        "logSub": "Title from Warcraft Logs, post time and channel. Sorted by the post time in the channel.",
+        "content": "Content",
+        "contentSub": "Which raids the log contains and how many bosses are down. Yellow: the final boss is missing, the raid may still be running.",
+        "evaluation": "Evaluation",
+        "evaluationSub": "CLA (gear, consumables, fight timeline) and RPB (damage, deaths, activity). Time, players and issues in the badge's tooltip.",
+        "event": "Raid event",
+        "eventSub": "The Raid-Helper event the log belongs to – the event whose start time fits the post time."
+    },
+    "toolbar": {
+        "autoMatch": "Assign automatically",
+        "autoMatchSub": "Assigns each open log to the raid event whose start time clearly fits. Ambiguous ones are left for the assign dialog.",
+        "scanning": "Searching …",
+        "scan": "Scan log channels",
+        "scanSub": "Searches the log channels for Warcraft Logs links the bot missed.",
+        "noChannels": "No log channels",
+        "noChannelsSub": "Without a log channel the bot detects no logs on its own. Set it in the settings.",
+        "setupChannels": "Set up log channels"
+    },
+    "raids": {
+        "zoneSub": "The bosses of this log have not been read yet.",
+        "unknown": "Content unknown",
+        "unknownSub": "Warcraft Logs has not delivered the fight list yet – it is requested again on the next load."
+    },
+    "badges": {
+        "players": {
+            "one": "{count} player",
+            "other": "{count} players"
+        },
+        "issues": {
+            "one": "{count} issue",
+            "other": "{count} issues"
+        },
+        "running": "{label} running",
+        "runningSub": "Progress in the notice at the bottom centre.",
+        "done": "{label} evaluated",
+        "open": "{label} open",
+        "noneTip": "Not evaluated yet",
+        "noneSub": "\"Evaluate\" runs CLA and RPB one after the other, both end up on one report page.",
+        "none": "open"
+    },
+    "event": {
+        "fallback": "Raid event",
+        "start": "Start {when} · ",
+        "auto": "assigned automatically",
+        "manual": "assigned manually",
+        "sub": "{start}{source}. Change it via the row menu.",
+        "reportTip": "Cannot be assigned without a log",
+        "reportSub": "This report was created from a link. Only a log can be assigned – post the link in the log channel, then it shows up as a log.",
+        "report": "no log",
+        "errorTip": "Raid events not loaded",
+        "error": "Events missing",
+        "noneTip": "No matching event",
+        "noneSub": "No raid event has a start time that fits this log's post time.",
+        "none": "no matching event",
+        "ambiguous": "Several events fit",
+        "ambiguousSub": "The start times are close together – please check.",
+        "found": "Matching event found",
+        "assign": "Assign"
+    },
+    "row": {
+        "running": "running",
+        "evaluateBoth": "Evaluate CLA + RPB",
+        "evaluateBothSub": "Both halves one after the other, one report page.",
+        "evaluate": "Evaluate",
+        "evaluateOne": "Evaluate {label}",
+        "report": "Report",
+        "viaLink": "Evaluated from a link",
+        "logChannel": "Log channel",
+        "link": "Link",
+        "moreActions": "More actions for \"{title}\""
+    },
+    "menu": {
+        "more": "More actions",
+        "openReport": "Open report",
+        "wcl": "Log on Warcraft Logs",
+        "message": "Message in the log channel",
+        "changeAssign": "Change assignment",
+        "assign": "Assign raid event",
+        "reset": "Discard the {label} evaluation",
+        "deleteLog": "Delete from the list",
+        "deleteReport": "Delete evaluation"
+    },
+    "assign": {
+        "kicker": "{title} · posted {posted}",
+        "title": "Assign raid event",
+        "hint": "The assignment can be changed any time via the row menu.",
+        "unlink": "Remove assignment",
+        "submit": "Assign",
+        "linked": "is assigned ({how})",
+        "auto": "automatically",
+        "manual": "manually",
+        "fitting": "{count} events fit",
+        "sortedHint": "sorted by closeness to the post time – the first one is preselected",
+        "candidatesAria": "Matching raid events",
+        "sameCategory": "same category",
+        "current": "current",
+        "none": "No raid event with a fitting start time found."
+    },
+    "newEval": {
+        "kicker": "Warcraft Logs report from a link",
+        "hint": "Runs in the background – progress at the bottom centre.",
+        "submit": "Evaluate",
+        "linkLabel": "Report link or report ID",
+        "linkTip": "Report link or ID",
+        "linkTipSub": "The link from Warcraft Logs or just the ID behind it. Logs detected by the bot are already in the list and can be evaluated there directly.",
+        "which": "Which analyses"
+    }
+}

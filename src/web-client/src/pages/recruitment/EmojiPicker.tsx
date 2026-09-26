@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Emoji } from "../../api";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
+import { useT } from "../../i18n";
 
 // Ported from renderAdmin.js's EMOJI_PICKER_SCRIPT/emojiPicker(), adapted for a
 // controlled textarea: insertion reads the cursor position from the DOM ref
@@ -13,6 +14,7 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
     value: string;
     onChange: (next: string) => void;
 }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const rootRef = useRef<HTMLDivElement>(null);
@@ -45,14 +47,14 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
             <Button
                 variant="ghost" size="sm" icon="inv_misc_head_murloc_01" className="emoji-trigger"
                 aria-expanded={open}
-                data-tip="Server-Emoji einfügen" data-tip-sub="Fügt den Code <:name:id> an der Cursor-Position ein."
+                data-tip={t("recruitment.emoji.tip")} data-tip-sub={t("recruitment.emoji.tipSub")}
                 onClick={() => { setOpen((o) => !o); setSearch(""); }}
             >
-                Server-Emoji
+                {t("recruitment.emoji.button")}
             </Button>
             <div className={`emoji-panel${open ? " open" : ""}`}>
                 <input
-                    ref={searchRef} className="emoji-search" placeholder="Emoji suchen …"
+                    ref={searchRef} className="emoji-search" placeholder={t("recruitment.emoji.search")}
                     value={search} onChange={(e) => setSearch(e.target.value)}
                 />
                 <div className="emoji-grid">
@@ -62,7 +64,7 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
                                 <img src={e.url} alt={`:${e.name}:`} loading="lazy" />
                             </button>
                         ))
-                        : <div className="emoji-empty">Keine Treffer.</div>}
+                        : <div className="emoji-empty">{t("recruitment.emoji.noHits")}</div>}
                 </div>
             </div>
         </div>

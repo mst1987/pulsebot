@@ -43,7 +43,9 @@ describe("the Recruitment templates use it", () => {
     });
 
     it("every labelled column is sortable", () => {
-        const cols = [...tab.matchAll(/\{ id: "(\w+)",(?: label: "([^"]+)",)?( sortKey: "\w+",)?/g)];
+        // a label is a literal or, since the page is translated (#440), a t("…") key
+        const cols = [...tab.matchAll(/\{ id: "(\w+)",(?: label: (?:"([^"]+)"|t\("([^"]+)"\)),)?( sortKey: "\w+",)?/g)]
+            .map(([all, id, literal, key, sortKey]) => [all, id, literal || key, sortKey]);
         expect(cols.length).toBe(5);
         for (const [, id, label, sortKey] of cols) {
             if (label) expect({ id, sortable: !!sortKey }).toEqual({ id, sortable: true });

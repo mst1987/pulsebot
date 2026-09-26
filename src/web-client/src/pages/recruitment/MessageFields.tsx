@@ -6,6 +6,7 @@ import SpecPicker from "./SpecPicker";
 import DiscordPreview from "./DiscordPreview";
 import { IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 import { TipLabel } from "./RecruitmentBits";
 
 // ---- the editor: fields on the left, the Discord preview on the right ----
@@ -36,6 +37,7 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
     /** Fields above the specs (the template's name). */
     children?: ReactNode;
 }) {
+    const t = useT();
     const contentRef = useRef<HTMLTextAreaElement>(null);
     const format = (kind: "bold" | "italic" | "heading") => {
         const el = contentRef.current;
@@ -51,41 +53,42 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
                 {children}
                 <div className="field">
                     <TipLabel
-                        label="Gesuchte Specs" tip="Gesuchte Specs"
-                        tipSub="Werden oben im Text als „## Icon Spec-Name“ ein- und ausgetragen und bleiben dort frei editierbar."
+                        label={t("recruitment.fields.specs")} tip={t("recruitment.fields.specs")}
+                        tipSub={t("recruitment.fields.specsSub")}
                     />
                     <SpecPicker value={content} onChange={setContent} specCatalog={data.specCatalog} emojis={data.emojis} />
                 </div>
                 <div className="field">
                     <TipLabel
-                        label="Nachrichtentext" htmlFor="rc-content" tip="Nachrichtentext"
-                        tipSub="Der eigentliche Text der Nachricht. Server-Emojis als <:name:id>, Discord-Markdown erlaubt."
+                        label={t("recruitment.fields.content")} htmlFor="rc-content" tip={t("recruitment.fields.content")}
+                        tipSub={t("recruitment.fields.contentSub")}
                         extra={(
-                            <span className={`rc-count mono${over ? " over" : ""}`} data-tip="Zeichen" data-tip-sub={`Discord nimmt höchstens ${DISCORD_CONTENT_LIMIT} Zeichen je Nachricht.`}>
+                            <span className={`rc-count mono${over ? " over" : ""}`} data-tip={t("recruitment.fields.chars")} data-tip-sub={t("recruitment.fields.charsSub", { limit: DISCORD_CONTENT_LIMIT })}>
                                 {content.length} / {DISCORD_CONTENT_LIMIT}
                             </span>
                         )}
                     />
                     <div className="rc-ta-bar">
                         <EmojiPicker emojis={data.emojis} textareaRef={contentRef} value={content} onChange={setContent} />
-                        <IconButton size="sm" icon={<b>B</b>} tip="Fett" tipSub="**Text**" onClick={() => format("bold")} />
-                        <IconButton size="sm" icon={<i>I</i>} tip="Kursiv" tipSub="*Text*" onClick={() => format("italic")} />
-                        <IconButton size="sm" icon={<span className="mono">##</span>} tip="Überschrift" tipSub="## am Zeilenanfang" onClick={() => format("heading")} />
+                        <IconButton size="sm" icon={<b>B</b>} tip={t("recruitment.fields.bold")} tipSub={t("recruitment.fields.boldSub")} onClick={() => format("bold")} />
+                        <IconButton size="sm" icon={<i>I</i>} tip={t("recruitment.fields.italic")} tipSub={t("recruitment.fields.italicSub")} onClick={() => format("italic")} />
+                        <IconButton size="sm" icon={<span className="mono">##</span>} tip={t("recruitment.fields.heading")} tipSub={t("recruitment.fields.headingSub")} onClick={() => format("heading")} />
                     </div>
                     <textarea
                         id="rc-content" ref={contentRef} className="rc-ta" value={content}
-                        onChange={(e) => setContent(e.target.value)} placeholder="Nachrichtentext …"
+                        onChange={(e) => setContent(e.target.value)} placeholder={t("recruitment.fields.contentPlaceholder")}
                     />
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
-                    <TipLabel label="Button-Beschriftung" htmlFor="rc-button" tip="Button-Beschriftung" tipSub="Leer lassen für „Jetzt bewerben“." />
+                    <TipLabel label={t("recruitment.fields.button")} htmlFor="rc-button" tip={t("recruitment.fields.button")} tipSub={t("recruitment.fields.buttonSub")} />
+                    {/* The placeholder is the bot's default label (German in the posted message), not UI text. */}
                     <input id="rc-button" type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Jetzt bewerben" />
                 </div>
             </div>
             <div className="rc-preview">
                 <div className="kicker rc-preview-head">
-                    Vorschau in Discord
-                    <Badge tone="ok" tip="Live" tipSub="Folgt jeder Eingabe links.">live</Badge>
+                    {t("recruitment.fields.preview")}
+                    <Badge tone="ok" tip={t("recruitment.fields.liveTip")} tipSub={t("recruitment.fields.liveSub")}>{t("recruitment.fields.live")}</Badge>
                 </div>
                 <DiscordPreview content={content} buttonLabel={buttonLabel} emojis={data.emojis} channels={data.channels} />
             </div>

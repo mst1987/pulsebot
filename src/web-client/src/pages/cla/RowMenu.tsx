@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { IconButton } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
+import { useT } from "../../i18n";
 import { DotsIcon } from "./ClaIcons";
 
 // ---- row menu ----
@@ -9,6 +10,7 @@ export type MenuItem = { id: string; label: string; icon: ReactNode; onSelect?: 
 
 /** "⋯" icon button with a popover of the row's rarely needed actions. */
 export function RowMenu({ items, label }: { items: MenuItem[]; label: string }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -20,7 +22,7 @@ export function RowMenu({ items, label }: { items: MenuItem[]; label: string }) 
     return (
         <div className="la-menu" ref={ref}>
             <IconButton
-                icon={<DotsIcon />} tip="Weitere Aktionen" size="sm" aria-label={label}
+                icon={<DotsIcon />} tip={t("cla.menu.more")} size="sm" aria-label={label}
                 aria-haspopup="menu" aria-expanded={open}
                 className={open ? "on" : undefined}
                 onClick={() => setOpen((o) => !o)}

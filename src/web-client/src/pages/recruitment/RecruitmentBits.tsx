@@ -5,6 +5,7 @@ import { SpecImg } from "./SpecPicker";
 import { CheckIcon } from "../../components/icons";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
+import { useT } from "../../i18n";
 
 /** The pencil — a pure UI function, so a line icon. */
 export function EditIcon() {
@@ -30,13 +31,14 @@ export function TipLabel({ label, tip, tipSub, htmlFor, extra }: { label: string
 
 /** The spec icons a message asks for, named in the tooltip. */
 export function WantedIcons({ content, data }: { content: string; data: RecruitmentData }) {
+    const t = useT();
     const specs = specsInContent(content, data.specCatalog);
-    if (!specs.length) return <span className="csub" data-tip="Keine Specs angegeben" data-tip-sub="Der Text hat keine „## Icon Spec“-Zeilen.">—</span>;
+    if (!specs.length) return <span className="csub" data-tip={t("recruitment.bits.noSpecsTip")} data-tip-sub={t("recruitment.bits.noSpecsSub")}>—</span>;
     return (
         <span
             className="rc-specs" tabIndex={0}
             data-tip={specs.map((s) => s.name).join(" · ")}
-            data-tip-sub="Aus den „##“-Zeilen des Nachrichtentexts. Ein Klick auf die Zeile öffnet Text und Discord-Vorschau."
+            data-tip-sub={t("recruitment.bits.specsSub")}
         >
             {specs.map((s, i) => {
                 const spec = data.specCatalog.find((c) => c.name === s.name);
@@ -47,18 +49,20 @@ export function WantedIcons({ content, data }: { content: string; data: Recruitm
 }
 
 export function DraftBadge({ dirty }: { dirty: boolean }) {
+    const t = useT();
     if (!dirty) return null;
     return (
-        <Badge icon={<CheckIcon />} tip="Entwurf gesichert" tipSub="Ungespeicherte Änderungen bleiben in diesem Tab erhalten, bis du speicherst oder abbrichst.">
-            Entwurf gesichert
+        <Badge icon={<CheckIcon />} tip={t("recruitment.bits.draftSaved")} tipSub={t("recruitment.bits.draftSavedSub")}>
+            {t("recruitment.bits.draftSaved")}
         </Badge>
     );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-    if (status === "neu") return <Badge tone="accent" tip="Neu" tipSub="Jünger als 7 Tage.">neu</Badge>;
-    if (status === "archiviert") return <Badge tip="Archiviert" tipSub="Der Thread ist in Discord archiviert.">archiviert</Badge>;
-    return <Badge tip="Offen" tipSub="Thread aktiv, älter als 7 Tage.">offen</Badge>;
+    const t = useT();
+    if (status === "neu") return <Badge tone="accent" tip={t("recruitment.status.newTip")} tipSub={t("recruitment.status.newSub")}>{t("recruitment.status.new")}</Badge>;
+    if (status === "archiviert") return <Badge tip={t("recruitment.status.archivedTip")} tipSub={t("recruitment.status.archivedSub")}>{t("recruitment.status.archived")}</Badge>;
+    return <Badge tip={t("recruitment.status.openTip")} tipSub={t("recruitment.status.openSub")}>{t("recruitment.status.open")}</Badge>;
 }
 
 /** The class icon on a tile tinted in the class colour (IconTile only knows the area tones). */

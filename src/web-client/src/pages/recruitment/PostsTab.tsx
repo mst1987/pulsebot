@@ -11,6 +11,7 @@ import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import { PartHead } from "../../components/ui/PartHead";
+import { useT } from "../../i18n";
 import { ICONS, openExternal, shortStamp } from "./shared";
 import { EditIcon, WantedIcons } from "./RecruitmentBits";
 
@@ -26,11 +27,12 @@ export function PostsTab({ data, editor, onChanged, reload }: {
     onChanged: (msg: string) => void;
     reload: () => void;
 }) {
+    const t = useT();
     const ask = useConfirm();
     const { run } = useJobs();
     const toast = useToast();
     const [scanning, setScanning] = useState(false);
-    const templateName = (id: string | undefined) => data.templates.find((t) => t.id === id)?.name || "";
+    const templateName = (id: string | undefined) => data.templates.find((tpl) => tpl.id === id)?.name || "";
     const channelOf = (id: string) => data.channels.find((c) => c.id === id);
     const { sort, dir, onSort, apply } = useTableSort<PostSortKey>("recruitment-posts-sort", POST_SORT_DEFAULTS, "updated");
     const posts = apply(data.posts, (p, key) => {
@@ -46,7 +48,7 @@ export function PostsTab({ data, editor, onChanged, reload }: {
     const scan = async () => {
         setScanning(true);
         const r = await run(
-            { label: "Server durchsuchen", icon: ICONS.scan, detail: "Sucht Bot-Nachrichten mit Bewerben-Button", describe: (x: { count: number }) => ({ message: `${x.count} Nachricht(en) gefunden oder aktualisiert.` }) },
+            { label: t("recruitment.posts.scan"), icon: ICONS.scan, detail: t("recruitment.posts.scanDetail"), describe: (x: { count: number }) => ({ message: t("recruitment.posts.scanDone", { count: x.count }) }) },
             () => scanRecruitmentPosts(),
         );
         setScanning(false);
@@ -54,10 +56,10 @@ export function PostsTab({ data, editor, onChanged, reload }: {
     };
 
     const removePost = async (p: RecruitmentPost) => {
-        if (!(await ask({ title: "Aus der Verwaltung entfernen?", text: `Die Nachricht in #${p.channelName || p.channelId} bleibt in Discord bestehen — sie wird hier nur nicht mehr geführt.`, action: "Entfernen" }))) return;
+        if (!(await ask({ title: t("recruitment.posts.removeTitle"), text: t("recruitment.posts.removeText", { channel: p.channelName || p.channelId }), action: t("recruitment.posts.removeAction") }))) return;
         try {
             await deleteRecruitmentPost(p.id);
-            onChanged("Aus der Verwaltung entfernt.");
+            onChanged(t("recruitment.posts.removed"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -66,11 +68,11 @@ export function PostsTab({ data, editor, onChanged, reload }: {
     return (
         <>
             <PartHead
-                icon={ICONS.posts} tone="recruitment" title="Gepostete Nachrichten" crumb="Recruitment › Nachrichten"
-                tip="Vom Bot gepostete Nachrichten"
-                tipSub="Bearbeiten ändert die Nachricht direkt in Discord. Entfernen nimmt sie nur aus der Verwaltung – die Discord-Nachricht bleibt."
+                icon={ICONS.posts} tone="recruitment" title={t("recruitment.posts.title")} crumb={t("recruitment.crumb.posts")}
+                tip={t("recruitment.posts.tip")}
+                tipSub={t("recruitment.posts.tipSub")}
                 action={data.activeGuildId
-                    ? <Button variant="run" size="sm" icon={ICONS.scan} running={scanning} onClick={scan}>Server durchsuchen</Button>
+                    ? <Button variant="run" size="sm" icon={ICONS.scan} running={scanning} onClick={scan}>{t("recruitment.posts.scan")}</Button>
                     : undefined}
             />
             {data.posts.length
@@ -81,11 +83,11 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                 <tr>
                                     {/* The Channel column takes what the fixed ones leave: a channel
                                         name is the one cell whose length nobody controls. */}
-                                    <SortTh sortKey="channel" label="Channel" sort={sort} dir={dir} onSort={onSort} />
-                                    <SortTh sortKey="wanted" label="Gesucht" sort={sort} dir={dir} onSort={onSort} tip="Gesuchte Specs" tipSub="Aus den „##“-Zeilen des Texts." style={{ width: 140 }} />
-                                    <SortTh sortKey="template" label="Vorlage" sort={sort} dir={dir} onSort={onSort} tip="Vorlage" tipSub="Aus welcher Vorlage gepostet. Per Scan gefundene Nachrichten haben keine." style={{ width: 190 }} />
-                                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} tip="Quelle" tipSub="Gepostet = über dieses Menü. Gefunden = beim Durchsuchen des Servers entdeckt." style={{ width: 130 }} />
-                                    <SortTh sortKey="updated" label="Aktualisiert" sort={sort} dir={dir} onSort={onSort} style={{ width: 130 }} />
+                                    <SortTh sortKey="channel" label={t("recruitment.posts.colChannel")} sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="wanted" label={t("recruitment.posts.colWanted")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.wantedTip")} tipSub={t("recruitment.posts.wantedSub")} style={{ width: 140 }} />
+                                    <SortTh sortKey="template" label={t("recruitment.posts.colTemplate")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.templateTip")} tipSub={t("recruitment.posts.templateSub")} style={{ width: 190 }} />
+                                    <SortTh sortKey="source" label={t("recruitment.posts.colSource")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.posts.sourceTip")} tipSub={t("recruitment.posts.sourceSub")} style={{ width: 130 }} />
+                                    <SortTh sortKey="updated" label={t("recruitment.posts.colUpdated")} sort={sort} dir={dir} onSort={onSort} style={{ width: 130 }} />
                                     <th style={{ width: 132 }} />
                                 </tr>
                             </thead>
@@ -105,15 +107,15 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                             <td>{tpl ? <div className="cell-cut" data-tip={tpl}>{tpl}</div> : <span className="csub">—</span>}</td>
                                             <td>
                                                 {p.source === "scan"
-                                                    ? <Badge icon={ICONS.scan}>Gefunden</Badge>
-                                                    : <Badge tone="accent" icon={ICONS.post}>Gepostet</Badge>}
+                                                    ? <Badge icon={ICONS.scan}>{t("recruitment.posts.found")}</Badge>
+                                                    : <Badge tone="accent" icon={ICONS.post}>{t("recruitment.posts.posted")}</Badge>}
                                             </td>
                                             <td className="mono csub">{shortStamp(p.updatedAt || p.postedAt)}</td>
                                             <td onClick={(e) => e.stopPropagation()}>
                                                 <div className="rc-acts">
-                                                    <IconButton size="sm" icon={<ExternalIcon />} tip="In Discord öffnen" onClick={() => openExternal(messageLink(p.guildId, p.channelId, p.messageId))} />
-                                                    <IconButton size="sm" icon={<EditIcon />} tip="Bearbeiten" tipSub="Text und Button — wird direkt in Discord geändert." onClick={() => editor.startEdit(p.id)} />
-                                                    <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Entfernen" tipSub="Nur aus der Verwaltung; die Discord-Nachricht bleibt." onClick={() => removePost(p)} />
+                                                    <IconButton size="sm" icon={<ExternalIcon />} tip={t("recruitment.posts.openInDiscord")} onClick={() => openExternal(messageLink(p.guildId, p.channelId, p.messageId))} />
+                                                    <IconButton size="sm" icon={<EditIcon />} tip={t("recruitment.posts.editTip")} tipSub={t("recruitment.posts.editSub")} onClick={() => editor.startEdit(p.id)} />
+                                                    <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("recruitment.posts.removeTip")} tipSub={t("recruitment.posts.removeSub")} onClick={() => removePost(p)} />
                                                 </div>
                                             </td>
                                         </tr>
@@ -125,8 +127,8 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                 )
                 : (
                     <div className="rc-empty rc-empty-panel">
-                        <Badge>Noch keine Nachrichten</Badge>
-                        <span>Poste eine Vorlage oder durchsuche den Server nach Bot-Nachrichten.</span>
+                        <Badge>{t("recruitment.posts.empty")}</Badge>
+                        <span>{t("recruitment.posts.emptyText")}</span>
                     </div>
                 )}
         </>

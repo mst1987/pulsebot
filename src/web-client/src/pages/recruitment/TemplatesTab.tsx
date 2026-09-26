@@ -9,6 +9,7 @@ import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import DataTable from "../../components/ui/DataTable";
 import { PartHead } from "../../components/ui/PartHead";
+import { useT } from "../../i18n";
 import { ICONS } from "./shared";
 import { EditIcon, WantedIcons } from "./RecruitmentBits";
 
@@ -22,24 +23,25 @@ export function TemplatesTab({ data, editor, onPost, onChanged }: {
     onPost: (templateId: string) => void;
     onChanged: (msg: string) => void;
 }) {
+    const t = useT();
     const ask = useConfirm();
     const toast = useToast();
     const postedCount = (id: string) => data.posts.filter((p) => p.templateId === id).length;
     const sort = useTableSort<TemplateSortKey>("recruitment-templates-sort", TEMPLATE_SORT_DEFAULTS, "name");
-    const sortValue = (t: RecruitmentTemplate, key: TemplateSortKey) => {
+    const sortValue = (tpl: RecruitmentTemplate, key: TemplateSortKey) => {
         switch (key) {
-            case "name": return (t.name || "").toLowerCase();
-            case "wanted": return specsInContent(t.content, data.specCatalog).map((s) => s.name).join(" ").toLowerCase();
-            case "button": return (t.buttonLabel || "").toLowerCase();
-            default: return postedCount(t.id);
+            case "name": return (tpl.name || "").toLowerCase();
+            case "wanted": return specsInContent(tpl.content, data.specCatalog).map((s) => s.name).join(" ").toLowerCase();
+            case "button": return (tpl.buttonLabel || "").toLowerCase();
+            default: return postedCount(tpl.id);
         }
     };
 
-    const remove = async (t: RecruitmentTemplate) => {
-        if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name || "(ohne Name)"}" wird gelöscht. Bereits gepostete Nachrichten bleiben bestehen.`, action: "Löschen" }))) return;
+    const remove = async (tpl: RecruitmentTemplate) => {
+        if (!(await ask({ title: t("recruitment.templates.deleteTitle"), text: t("recruitment.templates.deleteText", { name: tpl.name || t("recruitment.templates.noName") }), action: t("common.delete") }))) return;
         try {
-            await deleteRecruitmentTemplate(t.id);
-            onChanged("Vorlage gelöscht.");
+            await deleteRecruitmentTemplate(tpl.id);
+            onChanged(t("recruitment.templates.deleted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -48,33 +50,33 @@ export function TemplatesTab({ data, editor, onPost, onChanged }: {
     return (
         <>
             <PartHead
-                icon={ICONS.templates} tone="recruitment" title="Recruitment-Vorlagen" crumb="Recruitment › Vorlagen"
-                tip="Vorlagen-Texte" tipSub="Der Bot nutzt sie beim Posten — hier und über den Discord-Befehl /recruitment."
-                action={<Button variant="ghost" size="sm" icon={ICONS.templates} onClick={editor.startNew}>Neue Vorlage</Button>}
+                icon={ICONS.templates} tone="recruitment" title={t("recruitment.templates.title")} crumb={t("recruitment.crumb.templates")}
+                tip={t("recruitment.templates.tip")} tipSub={t("recruitment.templates.tipSub")}
+                action={<Button variant="ghost" size="sm" icon={ICONS.templates} onClick={editor.startNew}>{t("recruitment.templates.new")}</Button>}
             />
             <DataTable
-                rows={data.templates} rowKey={(t) => t.id} sort={sort} sortValue={sortValue}
-                wrapClassName="rc-tbl" rowClassName="rc-row" onRowClick={(t) => editor.startEdit(t.id)}
+                rows={data.templates} rowKey={(tpl) => tpl.id} sort={sort} sortValue={sortValue}
+                wrapClassName="rc-tbl" rowClassName="rc-row" onRowClick={(tpl) => editor.startEdit(tpl.id)}
                 columns={[
-                    { id: "name", label: "Name", sortKey: "name", cell: (t) => <div className="cname">{t.name || "(ohne Name)"}</div> },
-                    { id: "wanted", label: "Gesucht", sortKey: "wanted", tip: "Gesuchte Specs", tipSub: "Aus den „##“-Zeilen des Texts.", width: 150, cell: (t) => <WantedIcons content={t.content} data={data} /> },
-                    { id: "button", label: "Button", sortKey: "button", tip: "Button-Beschriftung", tipSub: "Leer = „Jetzt bewerben“.", width: 150, className: "csub", cell: (t) => t.buttonLabel || "—" },
-                    { id: "posted", label: "Gepostet", sortKey: "posted", tip: "Gepostet", tipSub: "In wie vielen Channels dieses Servers die Vorlage gerade steht.", width: 110, cell: (t) => {
-                        const n = postedCount(t.id);
+                    { id: "name", label: t("recruitment.templates.colName"), sortKey: "name", cell: (tpl) => <div className="cname">{tpl.name || t("recruitment.templates.noName")}</div> },
+                    { id: "wanted", label: t("recruitment.templates.colWanted"), sortKey: "wanted", tip: t("recruitment.posts.wantedTip"), tipSub: t("recruitment.posts.wantedSub"), width: 150, cell: (tpl) => <WantedIcons content={tpl.content} data={data} /> },
+                    { id: "button", label: t("recruitment.templates.colButton"), sortKey: "button", tip: t("recruitment.templates.buttonTip"), tipSub: t("recruitment.templates.buttonSub"), width: 150, className: "csub", cell: (tpl) => tpl.buttonLabel || "—" },
+                    { id: "posted", label: t("recruitment.templates.colPosted"), sortKey: "posted", tip: t("recruitment.templates.postedTip"), tipSub: t("recruitment.templates.postedSub"), width: 110, cell: (tpl) => {
+                        const n = postedCount(tpl.id);
                         return <Badge count tone={n ? "accent" : undefined}>{n}</Badge>;
                     } },
-                    { id: "actions", width: 200, actions: true, cell: (t) => (
+                    { id: "actions", width: 200, actions: true, cell: (tpl) => (
                         <div className="rc-acts">
-                            <Button variant="run" size="sm" icon={ICONS.post} onClick={() => onPost(t.id)}>Posten</Button>
-                            <IconButton size="sm" icon={<EditIcon />} tip="Bearbeiten" onClick={() => editor.startEdit(t.id)} />
-                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip="Löschen" onClick={() => remove(t)} />
+                            <Button variant="run" size="sm" icon={ICONS.post} onClick={() => onPost(tpl.id)}>{t("recruitment.templates.post")}</Button>
+                            <IconButton size="sm" icon={<EditIcon />} tip={t("common.edit")} onClick={() => editor.startEdit(tpl.id)} />
+                            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("common.delete")} onClick={() => remove(tpl)} />
                         </div>
                     ) },
                 ]}
                 empty={(
                     <div className="rc-empty rc-empty-panel">
-                        <Badge>Noch keine Vorlagen</Badge>
-                        <Button variant="ghost" size="sm" icon={ICONS.templates} onClick={editor.startNew}>Neue Vorlage</Button>
+                        <Badge>{t("recruitment.templates.empty")}</Badge>
+                        <Button variant="ghost" size="sm" icon={ICONS.templates} onClick={editor.startNew}>{t("recruitment.templates.new")}</Button>
                     </div>
                 )}
             />
