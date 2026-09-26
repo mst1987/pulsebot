@@ -50,8 +50,6 @@ jest.mock("../../src/web/userPrefsStore", () => ({
     getLang: jest.fn(() => ""),
     setLang: jest.fn((userId, lang) => (["de", "en"].includes(String(lang).trim().toLowerCase()) ? { lang: String(lang).trim().toLowerCase() } : { code: "unknown_lang" })),
 }));
-// The deploy line compares against GitHub (deployStatus.js): never from a test.
-jest.mock("../../src/web/deployStatus", () => ({ deployStatus: jest.fn(async () => ({ status: "unknown" })) }));
 jest.mock("../../src/web/dashboardData", () => ({
     loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
     loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
