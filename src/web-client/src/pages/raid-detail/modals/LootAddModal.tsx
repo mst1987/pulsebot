@@ -33,7 +33,7 @@ function toLocalInput(ms: number): string {
 
 function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void; setBusy: (b: boolean) => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const toast = useToast();
     // Draft per event: a pasted export belongs to exactly this raid.
     const [draft, patch] = useDraftState(`raid-loot-import:${eventId}`, { tool: (data.lootTool || "auto") as string, text: "" });
@@ -51,7 +51,7 @@ function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await importLoot(csrfToken, { data: draft.text, tool: draft.tool, event: eventId, manualLabel: "" });
+            const r = await importLoot({ data: draft.text, tool: draft.tool, event: eventId, manualLabel: "" });
             patch({ text: "" });
             if (fileRef.current) fileRef.current.value = "";
             onDone();
@@ -86,7 +86,7 @@ function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void
 
 function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: boolean) => void; setHint: (h: string) => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const toast = useToast();
     const [picker, setPicker] = useState<LootPickerData | null>(null);
     const [loadError, setLoadError] = useState("");
@@ -136,7 +136,7 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
         setBusy(true);
         try {
             const reason = picker?.reasons.find((r) => r.label === response) || null;
-            const r = await addLootItem(csrfToken, {
+            const r = await addLootItem({
                 event: eventId, itemId: item.id, character: character.trim(), boss: item.boss, instance: content?.label || "",
                 response, offspec: reason?.id === "offspec", awardedAt: awardedAt ? new Date(awardedAt).getTime() : 0,
             });

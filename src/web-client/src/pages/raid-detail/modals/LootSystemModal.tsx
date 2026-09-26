@@ -31,7 +31,7 @@ const SOURCE_KEYS: Record<string, string> = {
 
 export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const ls = data.lootSystem;
     const [system, setSystem] = useState<LootSystemKey | "">("");
     const [softres, setSoftres] = useState(false);
@@ -53,7 +53,7 @@ export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; 
     const save = async () => {
         setBusy(true);
         try {
-            const r = await setRaidLootSystem(csrfToken, { event: eventId, system, softres: effective !== "softres" && softres });
+            const r = await setRaidLootSystem({ event: eventId, system, softres: effective !== "softres" && softres });
             onClose();
             onChanged(r.message);
         } catch (err) {

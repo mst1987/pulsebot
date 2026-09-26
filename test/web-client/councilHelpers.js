@@ -19,7 +19,7 @@ const files = {
     drop: read("pages", "lootcouncil", "DropCheckPage.tsx"),
     css: read("styles", "loot-council.css"),
     app: read("App.tsx"),
-    api: read("api.ts"),
+    api: read("api", "lootcouncil.ts"),
     jobs: read("components", "Jobs.tsx"),
 };
 

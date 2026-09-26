@@ -18,7 +18,7 @@ const page = read("pages", "SignupsPage.tsx");
 const dialog = read("components", "SignupDialog.tsx");
 const lib = read("lib", "signups.ts");
 const app = read("App.tsx");
-const api = read("api.ts");
+const api = read("api", "signups.ts");
 const roster = read("pages", "raid-detail", "RosterTab.tsx");
 const css = read("styles", "anmeldung.css");
 const picksView = read("components", "SignupCharacterPicks.tsx");
@@ -208,9 +208,9 @@ describe("SignupDialog", () => {
         expect(api).toMatch(/send\("PUT", "\/api\/signups"/);
         expect(api).toContain("\"/api/signups\"");
         expect(api).toContain("/api/signups/event?id=");
-        expect(dialog).toContain("saveSignup(csrfToken,");
+        expect(dialog).toContain("saveSignup({");
         expect(api).toMatch(/send\("POST", "\/api\/signups\/bulk"/);
-        expect(bulk).toContain("saveSignupsBulk(csrfToken,");
+        expect(bulk).toContain("saveSignupsBulk({");
     });
 });
 

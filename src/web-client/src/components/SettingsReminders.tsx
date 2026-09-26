@@ -20,8 +20,7 @@ import Field, { FieldLabel } from "./ui/Field";
 
 const OFF: ReminderRule = { missingHours: 0, signedHours: 0, target: "event" };
 
-export default function RemindersPart({ csrfToken, onConfig }: {
-    csrfToken: string | null;
+export default function RemindersPart({ onConfig }: {
     onConfig: (config: AdminConfig) => void;
 }) {
     const [data, setData] = useState<RemindersData | null>(null);
@@ -87,7 +86,7 @@ export default function RemindersPart({ csrfToken, onConfig }: {
                     onClose={() => setEditing(null)}
                     onSave={async (rule) => {
                         try {
-                            const { config } = await updateSettings(csrfToken, remindersPatch(data.categoryReminders, editingCategory.id, rule) as Partial<AdminConfig>);
+                            const { config } = await updateSettings(remindersPatch(data.categoryReminders, editingCategory.id, rule) as Partial<AdminConfig>);
                             toast("Erinnerungen gespeichert.");
                             onConfig(config);
                             setEditing(null);

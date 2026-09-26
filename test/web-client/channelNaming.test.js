@@ -16,7 +16,7 @@ describe("web client — visible channel naming (#285)", () => {
     });
 
     it("asks the server for the create dialog's name suggestion and shows where it comes from", () => {
-        const api = read("api.ts");
+        const api = read("api", "raids.ts");
         expect(api).toContain("`/api/raids/channel-name?${q.toString()}`");
         const dialog = read("components", "RaidCreateDialog.tsx");
         expect(dialog).toContain("getChannelNameSuggestion({ categoryId, date, instanceIds: plan.instanceIds, sourceEventId: namingSourceId })");

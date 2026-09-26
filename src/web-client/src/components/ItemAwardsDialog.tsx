@@ -43,14 +43,13 @@ export function shortDay(ms: number): string {
     return new Date(ms).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ, weekday: "short", day: "2-digit", month: "2-digit" }).replace(",", "");
 }
 
-export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, csrfToken, onClose, onChanged }: {
+export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, onClose, onChanged }: {
     /** null keeps the dialog closed. */
     item: LootCatalogItem | null;
     contents: LootContent[];
     tiers: LootTier[];
     reasons: LootReason[];
     canEdit: boolean;
-    csrfToken: string | null;
     onClose: () => void;
     /** After a delete: toast + reload the overview. */
     onChanged: (msg: string) => void;
@@ -73,7 +72,7 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, csrf
         if (!(await ask({ title: "Vergabe löschen?", text: `„${name}" von ${character} wird aus dem Loot gelöscht. Ein erneuter Import desselben Exports bringt sie zurück.`, action: "Löschen" }))) return;
         setBusyId(awardId);
         try {
-            await deleteLootItems(csrfToken, [awardId]);
+            await deleteLootItems([awardId]);
             onChanged(`„${name}" von ${character} gelöscht.`);
         } catch (err) {
             toast((err as ApiError).message, "err");

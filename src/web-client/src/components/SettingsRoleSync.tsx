@@ -33,8 +33,7 @@ const roleName = (roles: { id: string; name: string }[], id: string) => {
     return r ? `@${r.name}` : id;
 };
 
-export default function RoleSyncPart({ csrfToken, onConfig }: {
-    csrfToken: string | null;
+export default function RoleSyncPart({ onConfig }: {
     onConfig: (config: AdminConfig) => void;
 }) {
     const [data, setData] = useState<RoleSyncData | null>(null);
@@ -50,7 +49,7 @@ export default function RoleSyncPart({ csrfToken, onConfig }: {
     useEffect(load, []);
 
     const save = async (rules: RoleSyncRule[], message: string) => {
-        const { config } = await updateSettings(csrfToken, roleSyncPatch(rules) as Partial<AdminConfig>);
+        const { config } = await updateSettings(roleSyncPatch(rules) as Partial<AdminConfig>);
         toast(message);
         onConfig(config);
         load();

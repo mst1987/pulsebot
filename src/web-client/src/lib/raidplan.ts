@@ -6,7 +6,7 @@
 // server checks and cleans every save again; these rules keep the page consistent
 // while the orga works.
 //
-// Written to be strippable like setupEditor.ts (test/web-client/raidplan.test.js
+// Written to be strippable like setupEditor.ts (test/web-client/raidplan.<thema>.test.js
 // runs it for real, with `t` injected): imports, `export type`, `export const`
 // tables and one-line signatures only, no typed locals or casts inside a body.
 import type {

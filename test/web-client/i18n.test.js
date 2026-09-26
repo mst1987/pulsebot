@@ -128,8 +128,8 @@ describe("the language switch", () => {
     });
 
     it("saves it for the account too, and a failed save changes nothing", () => {
-        expect(toggle).toMatch(/setLang\(next\);\s*\n\s*if \(csrfToken\) saveLang\(csrfToken, next\)\.catch\(\(\) => \{\}\);/);
-        expect(read("api.ts")).toMatch(/send\("POST", "\/api\/session\/lang", csrfToken, \{ lang \}\)/);
+        expect(toggle).toMatch(/setLang\(next\);\s*\n\s*if \(account\) saveLang\(next\)\.catch\(\(\) => \{\}\);/);
+        expect(read("api/session.ts")).toMatch(/send\("POST", "\/api\/session\/lang", \{ lang \}\)/);
     });
 
     it("lets the account's saved language win when the session loads", () => {
@@ -137,7 +137,7 @@ describe("the language switch", () => {
     });
 
     it("sits in the top bar, and before login on the sign-in screen", () => {
-        expect(shell).toMatch(/<div className="top-actions">[\s\S]*<LangToggle csrfToken=\{csrfToken\} \/>[\s\S]*<ThemeToggle \/>/);
+        expect(shell).toMatch(/<div className="top-actions">[\s\S]*<LangToggle account \/>[\s\S]*<ThemeToggle \/>/);
         expect(app).toMatch(/loginButton[\s\S]*<LangToggle \/>/);
     });
 

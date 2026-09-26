@@ -18,7 +18,7 @@ import type { RaidCtx } from "../meta";
 
 export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const { raidsheets, matchedSheetId, tankCandidates, eventSheet, sheetLink, event: ev } = data;
     const jobs = useJobs();
     const toast = useToast();
@@ -42,7 +42,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
             icon: "inv_scroll_03",
             expectedSeconds: 20,
             describe: (r) => ({ message: r.message }),
-        }, () => fillRaidsheet(csrfToken, { event: eventId, sheetId: sheetId || raidsheets[0]?.id || "", tank3, eventTitle: ev.title, eventStartTime: ev.startTime })).then(() => {
+        }, () => fillRaidsheet({ event: eventId, sheetId: sheetId || raidsheets[0]?.id || "", tank3, eventTitle: ev.title, eventStartTime: ev.startTime })).then(() => {
             setFilling(false);
             onChanged("");
         });
@@ -51,7 +51,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
     const post = async () => {
         setPosting(true);
         try {
-            const r = await postRaidSheet(csrfToken, { event: eventId, message });
+            const r = await postRaidSheet({ event: eventId, message });
             onChanged(r.message);
         } catch (err) {
             toast((err as ApiError).message, "err");

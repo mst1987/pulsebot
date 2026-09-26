@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useOutletContext } from "react-router-dom";
 import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
-    type ApiError, type NotifyTemplate,
-} from "../api";
+    type ApiError, type NotifyTemplate } from "../api";
+import { useApi } from "../hooks/useApi";
 import { useDraftState } from "../lib/persistedState";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
-import type { ShellContext } from "../components/Shell";
 import { TrashIcon, CrestIcon, ChevronDownIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -98,8 +96,7 @@ function DiscordPreview({ title, body }: { title: string; body: string }) {
 
 // ---- editor ---------------------------------------------------------------------
 
-function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
-    csrfToken: string | null;
+function NotifyTemplateForm({ editing, onSaved, onDirty }: {
     editing: NotifyTemplate | null;
     onSaved: (msg: string) => void;
     onDirty: (dirty: boolean, clear: () => void) => void;
@@ -117,7 +114,7 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await saveNotifyTemplate(csrfToken, { id: editing?.id, name, title, body });
+            await saveNotifyTemplate({ id: editing?.id, name, title, body });
             clearDraft();
             onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
@@ -163,41 +160,34 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onDirty }: {
 
 export default function NotifyTemplatesPage() {
     const ask = useConfirm();
-    const { csrfToken } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
 
-    const [templates, setTemplates] = useState<NotifyTemplate[] | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const loaded = useApi(() => getNotifyTemplates().then((r) => r.templates), []);
+    const templates = loaded.data;
     const [dirty, setDirty] = useState(false);
     // The open form's "drop the draft" — Abbrechen and closing the dialog throw it away.
     const clearDraftRef = useRef<(() => void) | null>(null);
     const toast = useToast();
     const { sort, dir, onSort, apply } = useTableSort<SortKey>("notify-templates-sort", SORT_DEFAULTS, "name");
 
-    const load = () => {
-        getNotifyTemplates().then((r) => setTemplates(r.templates)).catch((err: ApiError) => setError(err));
-    };
-
-    useEffect(load, []);
-
     const afterChange = (msg: string) => {
         toast(msg);
         setDirty(false);
         editor.close();
-        load();
+        loaded.reload();
     };
 
     const remove = async (t: NotifyTemplate) => {
         if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name}“ wird gelöscht.`, action: "Löschen" }))) return;
         try {
-            await deleteNotifyTemplate(csrfToken, t.id);
+            await deleteNotifyTemplate(t.id);
             afterChange("Gelöscht.");
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
     };
 
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
+    if (loaded.error) return <div className="empty">Fehler beim Laden: {loaded.error.message}</div>;
     if (!templates) return <RaidLoader text="Vorlagen werden geladen" />;
 
     const sorted = apply(templates, (t, key) => (key === "name" ? (t.name || "") : (t.title || "")).toLowerCase());
@@ -283,7 +273,6 @@ export default function NotifyTemplatesPage() {
                 {editor.open && (
                     <NotifyTemplateForm
                         key={entry?.id ?? "new"}
-                        csrfToken={csrfToken}
                         editing={entry}
                         onSaved={afterChange}
                         onDirty={(d, clear) => {

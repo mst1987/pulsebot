@@ -32,9 +32,8 @@ function today(): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose, onCreate }: {
+export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }: {
     data: ChannelsData;
-    csrfToken: string | null;
     initialCategoryId?: string;
     onClose: () => void;
     /** Runs the creation (as a job) with the final input. */
@@ -81,7 +80,7 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
     useEffect(() => {
         let alive = true;
         const timer = setTimeout(() => {
-            quickCreateChannels(csrfToken, { ...input, dryRun: true })
+            quickCreateChannels({ ...input, dryRun: true })
                 .then((r) => { if (alive) { setPlan(r.plan); setNaming(r.naming || null); setPlanError(""); } })
                 .catch((err: ApiError) => { if (alive) { setPlan([]); setNaming(null); setPlanError(err.message); } });
         }, 250);
@@ -90,7 +89,7 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
             clearTimeout(timer);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [csrfToken, categoryId, schema, raid, from, count, mode, templateChannelId]);
+    }, [categoryId, schema, raid, from, count, mode, templateChannelId]);
 
     const todo = plan.filter((p) => !p.exists).length;
     const categoryName = categories.find((c) => c.id === categoryId)?.name || "Ohne Kategorie";

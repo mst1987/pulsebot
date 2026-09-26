@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, LayoutTemplate, RotateCw, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
-    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary, type RaidplanView,
-} from "../../api";
+    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
+import { useApi } from "../../hooks/useApi";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
 import { useOnFocus } from "../../lib/useOnFocus";
@@ -43,10 +43,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { eventId, csrfToken } = ctx;
+    const { eventId } = ctx;
 
-    const [view, setView] = useState<RaidplanView | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
     const { draft, edit: histEdit, editAll: histEditAll, reset, undo, redo, canUndo, canRedo } = useDraftHistory();
     const [selected, setSelected] = useState("");
     const [saving, setSaving] = useState(false);
@@ -57,20 +55,15 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const selectedRef = useRef("");
     selectedRef.current = selected;
 
-    const load = useCallback(() => {
-        setError(null);
-        getRaidplan(eventId)
-            .then((v) => {
-                setView(v);
-                reset(v.plan.bosses);
-                setProfiles(v.profiles);
-                setConflict(false);
-                // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
-                setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
-            })
-            .catch((err: ApiError) => setError(err));
-    }, [eventId, reset]);
-    useEffect(load, [load]);
+    const plan = useApi(() => getRaidplan(eventId).then((v) => {
+        reset(v.plan.bosses);
+        setProfiles(v.profiles);
+        setConflict(false);
+        // the section it opens on: a deep link, else the one last open for this plan, else "Allgemein" (it comes first)
+        setSelected((cur) => (v.bosses.some((b) => b.key === cur) ? cur : startSection(v.bosses, new URLSearchParams(window.location.search).get("section") || "", rememberedSection(eventId), [])));
+        return v;
+    }), [eventId, reset]);
+    const { data: view, setData: setView } = plan;
 
     /** Only the maps (uploads/removals) changed: refresh them without losing the unsaved draft. */
     const reloadMaps = () => {
@@ -130,7 +123,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         if (!view || saving) return;
         setSaving(true);
         try {
-            const v = await saveRaidplan(csrfToken, { event: eventId, version: view.plan.version, bosses: toSave(draft, bossKeys) });
+            const v = await saveRaidplan({ event: eventId, version: view.plan.version, bosses: toSave(draft, bossKeys) });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -151,7 +144,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const publish = async (published: boolean, rotate = false) => {
         setSaving(true);
         try {
-            const v = await publishRaidplan(csrfToken, { event: eventId, published, rotate });
+            const v = await publishRaidplan({ event: eventId, published, rotate });
             // Only the publishing state changes here: the unsaved draft stays.
             setView((cur) => (cur ? { ...cur, plan: { ...cur.plan, status: v.plan.status, publicPath: v.plan.publicPath } } : v));
             toast(rotate ? t("raidBoard.share.rotated") : published ? t("raidBoard.share.published") : t("raidBoard.share.unpublished"));
@@ -170,7 +163,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         setSaving(true);
         try {
             // The server copies the template onto the *saved* plan; unsaved edits are replaced by it (asked above).
-            const v = await applyRaidplanTemplate(csrfToken, { event: eventId, templateId: tpl.id, version: view.plan.version });
+            const v = await applyRaidplanTemplate({ event: eventId, templateId: tpl.id, version: view.plan.version });
             setView(v);
             reset(v.plan.bosses);
             setConflict(false);
@@ -198,7 +191,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const categories = useMemo(() => [...new Set(profiles.map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [profiles]);
     const profile = profiles.find((p) => p.id === board.profileId) || null;
 
-    if (error) return <div className="empty">{t("raidDetail.page.loadError", { message: error.message })}</div>;
+    if (plan.error) return <div className="empty">{t("raidDetail.page.loadError", { message: plan.error.message })}</div>;
     if (!view) return <RaidLoader text={t("raidDetail.page.loading")} />;
     if (view.bosses.length === 0) {
         return (
@@ -223,7 +216,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             {conflict && (
                 <div className="flash flash-err rp-conflict">
                     <span>{t("raidBoard.conflict.text")}</span>
-                    <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={load} />
+                    <IconButton size="sm" icon={<RotateCw size={16} />} tip={t("raidBoard.conflict.reload")} onClick={plan.reload} />
                 </div>
             )}
             {view.rosterSource && <RhSource src={view.rosterSource} busy={reloading} onReload={reloadRoster} />}
@@ -237,7 +230,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                     mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
-                    csrfToken={csrfToken} mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
+                    mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
                     saveState={canWrite ? saveState : "clean"} notice={canWrite ? <UnsavedBar state={saveState} sections={unsavedKeys.length} busy={saving} onSave={save} conflictText={t("raidBoard.conflict.text")} /> : undefined}
                     bossNav={<BossNav dirtyKeys={unsavedKeys} bosses={view.bosses} selected={selected} draft={draft} onSelect={setSelected} onSheet={canWrite ? (k, on) => setSheet({ [k]: on }) : undefined} onMap={canWrite ? (k, on) => histEditAll([k], (b) => ({ ...b, showMap: on })) : undefined} />}
                     status={(
@@ -304,7 +297,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 onManage={() => setModal("profiles")}
             />
             <ProfilesModal
-                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")} csrfToken={csrfToken}
+                open={modal === "profiles" || modal === "save"} onClose={() => setModal("")}
                 profiles={profiles} categories={categories} bosses={view.bosses} bossKey={selected}
                 draft={modal === "save" ? board : null} limits={view.limits}
                 onChanged={(list, saved) => {

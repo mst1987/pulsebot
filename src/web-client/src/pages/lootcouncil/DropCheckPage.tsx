@@ -7,15 +7,13 @@
 // seconds, not the minutes the whole BiS list takes. No estimates: until the
 // simulation is through a candidate says "nicht simuliert".
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useOutletContext, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
     getLootCouncil, loadCouncilLogGear, refreshCouncilArmory, searchCouncilItems,
-    type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult,
-} from "../../api";
+    type ApiError, type CouncilCandidate, type CouncilFocus, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/Jobs";
 import ItemSearchPicker from "../../components/ItemSearchPicker";
 import PageLoader from "../../components/PageLoader";
-import type { ShellContext } from "../../components/Shell";
 import { Badge, Button, PartHead } from "../../components/ui";
 import { ChevronLeftIcon } from "../../components/icons";
 import { usePersistedState } from "../../lib/persistedState";
@@ -24,13 +22,11 @@ import { refreshWowheadLinks } from "../../lib/wowheadTooltips";
 import { itemQualityProps } from "../../lib/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
-    type CandidateSortKey, type FilterView,
-} from "./council";
+    type CandidateSortKey, type FilterView } from "./council";
 import { BisSpecs, CandidateTable, ContentBadge, FoldRow, ListBadge, LootCount, NeedBar, RaiderIdent, SlotOptions } from "./parts";
 import "../../styles/loot-council.css";
 
 export default function DropCheckPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const { itemId: param } = useParams();
     const itemId = Number(param) || 0;
     const navigate = useNavigate();
@@ -46,7 +42,7 @@ export default function DropCheckPage() {
     // The character a "Log laden"/"Gear aus Armory holen" reload is running
     // for, from a candidate's fold-out gear panel — one at a time.
     const [gearBusyChar, setGearBusyChar] = useState<string | null>(null);
-    const { sim, simRunning, runSim } = useCouncilSim(csrfToken);
+    const { sim, simRunning, runSim } = useCouncilSim();
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
     /** This item against the raiders it fits. */
@@ -109,7 +105,7 @@ export default function DropCheckPage() {
         setGearBusyChar(character);
         const result = await jobs.run(
             { label: "Armory wird geladen", detail: character, quiet: true },
-            () => refreshCouncilArmory(csrfToken, [character]),
+            () => refreshCouncilArmory([character]),
         );
         if (result) {
             const fresh = await reloadFocus();
@@ -133,7 +129,7 @@ export default function DropCheckPage() {
         setGearBusyChar(character);
         const result = await jobs.run(
             { label: "Log wird geladen", detail: character, quiet: true },
-            () => loadCouncilLogGear(csrfToken, { character }),
+            () => loadCouncilLogGear({ character }),
         );
         if (result) {
             const fresh = await reloadFocus();

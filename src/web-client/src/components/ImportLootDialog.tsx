@@ -40,15 +40,14 @@ const TOOL_OPTIONS: { value: Tool; label: string; icon?: string; tip?: string }[
 // How long the text has to rest before the preview is asked for.
 const PREVIEW_DELAY_MS = 350;
 
-export function ImportLootDialog({ open, onClose, data, csrfToken, onImported }: {
+export function ImportLootDialog({ open, onClose, data, onImported }: {
     open: boolean;
     onClose: () => void;
     data: HistoryData;
-    csrfToken: string | null;
     onImported: (msg: string) => void;
 }) {
     // categoryId is only used when the import lands without a Raid-Helper event:
-    // a real event brings its own Discord category along (see api.ts's
+    // a real event brings its own Discord category along (see api/loot.ts's
     // ImportLootInput).
     const [draft, patch] = useDraftState<ImportDraft>("history-import", IMPORT_DRAFT_DEFAULT);
     const { eventId, manualLabel, categoryId, tool, text } = draft;
@@ -63,12 +62,12 @@ export function ImportLootDialog({ open, onClose, data, csrfToken, onImported }:
         if (!text.trim()) { setPreview(null); setPreviewError(""); return undefined; }
         let cancelled = false;
         const handle = setTimeout(() => {
-            previewLootImport(csrfToken, { data: text, tool, event: eventId })
+            previewLootImport({ data: text, tool, event: eventId })
                 .then((p) => { if (!cancelled) { setPreview(p); setPreviewError(""); } })
                 .catch((err: ApiError) => { if (!cancelled) { setPreview(null); setPreviewError(err.message); } });
         }, PREVIEW_DELAY_MS);
         return () => { cancelled = true; clearTimeout(handle); };
-    }, [open, text, tool, eventId, csrfToken]);
+    }, [open, text, tool, eventId]);
 
     const selectEvent = (id: string) => {
         const ev = data.events.find((e) => e.id === id);
@@ -87,7 +86,7 @@ export function ImportLootDialog({ open, onClose, data, csrfToken, onImported }:
     const submit = async () => {
         setBusy(true);
         try {
-            const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId });
+            const r = await importLoot({ data: text, tool, event: eventId, manualLabel, categoryId });
             onImported(`${r.added} Item(s) importiert${r.skipped ? ` · ${r.skipped} Duplikat(e) übersprungen` : ""} · ${r.eventLabel}`);
             // Only the imported content goes — the event and tool choice stay, the
             // next import of the evening usually belongs to the same raid.

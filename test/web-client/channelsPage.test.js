@@ -18,7 +18,7 @@ const quick = read("components", "channels", "QuickCreateDialog.tsx");
 const archive = read("components", "channels", "ArchiveTab.tsx");
 const purposes = read("components", "channels", "PurposeList.tsx");
 const lib = read("lib", "channels.ts");
-const api = read("api.ts");
+const api = read("api", "channels.ts");
 const css = read("styles", "kanaele.css");
 const dashboard = read("pages", "DashboardPage.tsx");
 const server = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "channelPurposes.js"), "utf8");
@@ -128,8 +128,8 @@ describe("ChannelsPage", () => {
     });
 
     it("previews rename-by-schema and quick-create on the server, marking existing names", () => {
-        expect(bulk).toContain("renamePreview(csrfToken, { ids, schema, raid })");
-        expect(quick).toContain("quickCreateChannels(csrfToken, { ...input, dryRun: true })");
+        expect(bulk).toContain("renamePreview({ ids, schema, raid })");
+        expect(quick).toContain("quickCreateChannels({ ...input, dryRun: true })");
         expect(quick).toMatch(/p\.exists && <Badge tone="mid"[^>]*>existiert<\/Badge>/);
         expect(quick).toContain("× wöchentlich");
         expect(quick).toMatch(/\{ value: "once", label: "Einzeln" \}, \{ value: "weekly", label: "Serie" \}/);
@@ -160,7 +160,7 @@ describe("ChannelsPage", () => {
         expect(tree).toMatch(/tone="danger" icon=\{<TrashIcon \/>\} tip="Löschen"[^>]*onClick=\{\(\) => onDelete\(c\)\}/);
         expect(bulk).toContain("{onDelete && <Button size=\"sm\" variant=\"danger\" onClick={onDelete}>Löschen …</Button>}");
         expect(page).toContain("onDelete={(channel) => setDialog({ kind: \"delete\", ids: [channel.id], anywhere: true })}");
-        expect(page).toContain("deleteChannels(csrfToken, ids, confirm, anywhere)");
+        expect(page).toContain("deleteChannels(ids, confirm, anywhere)");
         expect(api).toContain("anywhere ? { ids, confirm, anywhere: true } : { ids, confirm }");
         // an upcoming event's channel is named before the name is typed
         expect(page).toContain("warnings={dialog.anywhere ? deleteWarnings(dialog.ids, data) : []}");
@@ -177,7 +177,7 @@ describe("ChannelsPage", () => {
         expect(page).toContain("{data.archive.count} warten auf Löschung");
         expect(page).toMatch(/tone=\{data\.archive\.overdue \? "mid" : undefined\}/);
         expect(archive).toContain("Gelöscht wird nie automatisch");
-        expect(api).toContain("\"inbox\" | \"channels\"");
+        expect(read("api", "dashboard.ts")).toContain("\"inbox\" | \"channels\"");
         // the dashboard task renders like any other task
         expect(dashboard).toContain("tasks.map((t) =>");
     });
@@ -261,8 +261,8 @@ describe("Kanäle — Namensschema pro Kategorie", () => {
     });
 
     it("saves through its own endpoint and previews what an empty field would mean", () => {
-        expect(schemaDialog).toContain("saveChannelSchema(csrfToken, { categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId })");
-        expect(schemaDialog).toMatch(/quickCreateChannels\(csrfToken, \{[\s\S]*?dryRun: true, ignoreStoredSchema: true/);
+        expect(schemaDialog).toContain("saveChannelSchema({ categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId })");
+        expect(schemaDialog).toMatch(/quickCreateChannels\(\{[\s\S]*?dryRun: true, ignoreStoredSchema: true/);
         expect(schemaDialog).toContain("<PlaceholderChips");
         expect(schemaDialog).toContain("placeholder=\"leer = wie der letzte Event-Kanal\"");
     });

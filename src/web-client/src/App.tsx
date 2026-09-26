@@ -131,7 +131,7 @@ function MenuApp() {
         return <div className="empty">{t("shell.app.sessionError", { message: state.error.message })}</div>;
     }
 
-    const { user, csrfToken, guilds, activeGuildId } = state.session;
+    const { user, guilds, activeGuildId } = state.session;
     // Not logged in is the one case without a shell: there is no user to put in
     // its footer and nothing to navigate to, only the way in.
     if (!user) {
@@ -164,7 +164,7 @@ function MenuApp() {
             <JobsProvider>
                 <ConfirmProvider>
                     <Routes>
-                        <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
+                        <Route element={<Shell user={user} guilds={guilds} activeGuildId={activeGuildId} />}>
                             <Route index element={
                                 canAccess(user, "dashboard")
                                     ? <DashboardPage />

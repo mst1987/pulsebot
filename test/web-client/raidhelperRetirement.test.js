@@ -131,7 +131,7 @@ describe("the card on the page", () => {
     const connections = read("components", "SettingsConnections.tsx");
 
     it("sits under the connection cards, for full admins only", () => {
-        expect(connections).toContain("{data.canManageAccess && <RaidhelperRetirementCard csrfToken={csrfToken} />}");
+        expect(connections).toContain("{data.canManageAccess && <RaidhelperRetirementCard />}");
     });
 
     it("is one line per item with the explanation in the label's tooltip, not in a paragraph", () => {

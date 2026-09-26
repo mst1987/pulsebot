@@ -17,9 +17,8 @@ import Badge from "./ui/Badge";
 // held in local state here — the parent only renders this row once the entry
 // has an overview target, so the button needs no separate "configured" check.
 export default function TalkOverviewRow({
-    csrfToken, guildId, targetGuildName, targetChannelName, status, onReposted,
+    guildId, targetGuildName, targetChannelName, status, onReposted,
 }: {
-    csrfToken: string | null;
     guildId: string;
     targetGuildName: string;
     targetChannelName: string;
@@ -32,7 +31,7 @@ export default function TalkOverviewRow({
     const repost = async () => {
         setBusy(true);
         try {
-            const { result, status: next } = await repostTalkOverview(csrfToken, guildId);
+            const { result, status: next } = await repostTalkOverview(guildId);
             if (next) onReposted(next);
             if (result.status === "error") toast(result.error || "Übersicht konnte nicht gepostet werden.", "err");
             else toast("Raid-Übersicht neu gepostet.");

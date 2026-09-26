@@ -3,13 +3,10 @@
 // A page rather than a dialog from the head button: a raid week with four raids
 // brings four cards, each with its own event choice, and that does not fit into
 // a modal. The head button on the history page leads here with the open count.
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
-    getHistoryData, getLootInbox,
-    type ApiError, type Category, type HistoryEvent, type InboxLinkedSession, type InboxSession,
-} from "../api";
-import type { ShellContext } from "../components/Shell";
+    getHistoryData, getLootInbox } from "../api";
+import { useApi } from "../hooks/useApi";
 import { useToast } from "../components/Jobs";
 import { IconButton, buttonClass } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -21,33 +18,22 @@ import "../styles/historie-loot.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
 export default function HistoryInboxPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
     const navigate = useNavigate();
     const toast = useToast();
-    const [sessions, setSessions] = useState<InboxSession[] | null>(null);
-    const [linked, setLinked] = useState<InboxLinkedSession[]>([]);
-    const [loadError, setLoadError] = useState<ApiError | null>(null);
+    const inbox = useApi(() => getLootInbox(), []);
+    const sessions = inbox.data ? inbox.data.sessions : null;
+    const linked = inbox.data?.linked || [];
+    const loadError = inbox.error;
     // The full event list and the category names, for "Anderes Event" — loaded
-    // beside the inbox; the cards work without it (their candidates come along).
-    const [events, setEvents] = useState<HistoryEvent[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-
-    const load = () => {
-        getLootInbox()
-            .then((r) => { setSessions(r.sessions); setLinked(r.linked || []); setLoadError(null); })
-            .catch((err: ApiError) => setLoadError(err));
-    };
-
-    useEffect(() => {
-        load();
-        getHistoryData()
-            .then((d) => { setEvents(d.events); setCategories(d.categories); })
-            .catch(() => { /* the cards still offer their candidates and the no-event path */ });
-    }, []);
+    // beside the inbox; the cards work without it (their candidates come along
+    // and the no-event path stays), so a failed load is not shown.
+    const history = useApi(() => getHistoryData(), []);
+    const events = history.data?.events || [];
+    const categories = history.data?.categories || [];
 
     const afterChange = (msg: string) => {
         toast(msg);
-        load();
+        inbox.reload();
     };
 
     return (
@@ -86,7 +72,7 @@ export default function HistoryInboxPage() {
             {sessions?.map((s) => (
                 <InboxSessionCard
                     key={s.id} session={s} events={events} categories={categories}
-                    csrfToken={csrfToken} onDone={afterChange}
+                    onDone={afterChange}
                 />
             ))}
             <LinkedSessions linked={linked} />

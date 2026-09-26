@@ -43,7 +43,7 @@ function editionMap(catalogue: SoftresCatalogueGroup[]): Map<string, string> {
 
 export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const { softresCatalogue, softresSuggested, softresEdition, eventSoftres: so, event: ev } = data;
     const toast = useToast();
     const [mode, setMode] = useState<Mode>(so?.url ? "post" : "create");
@@ -99,18 +99,18 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
 
     const create = (e: React.FormEvent) => {
         e.preventDefault();
-        run(() => createSoftres(csrfToken, {
+        run(() => createSoftres({
             event: eventId, instanceCodes: [...selected], amount: draft.amount, faction: draft.faction,
             hardReserves: draft.hardReserves.map(({ id, name }) => ({ id, name })), hideReserves: false, protection: draft.protection,
         }), () => { clearDraft(); setMode("post"); });
     };
     const saveLink = (e: React.FormEvent) => {
         e.preventDefault();
-        run(() => linkSoftres(csrfToken, { event: eventId, softresUrl, softresEditUrl }), () => setMode("post"));
+        run(() => linkSoftres({ event: eventId, softresUrl, softresEditUrl }), () => setMode("post"));
     };
     const post = (e: React.FormEvent) => {
         e.preventDefault();
-        run(() => postRaidSoftres(csrfToken, { event: eventId, message }));
+        run(() => postRaidSoftres({ event: eventId, message }));
     };
 
     const posted = !!(so?.postedChannelId && so?.postedMessageId);

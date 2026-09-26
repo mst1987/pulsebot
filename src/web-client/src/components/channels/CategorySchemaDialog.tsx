@@ -22,9 +22,8 @@ function today(): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function CategorySchemaDialog({ data, csrfToken, categoryId, onClose, onSaved }: {
+export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
     data: ChannelsData;
-    csrfToken: string | null;
     categoryId: string;
     onClose: () => void;
     onSaved: () => void;
@@ -46,7 +45,7 @@ export function CategorySchemaDialog({ data, csrfToken, categoryId, onClose, onS
     useEffect(() => {
         let alive = true;
         const timer = setTimeout(() => {
-            quickCreateChannels(csrfToken, {
+            quickCreateChannels({
                 categoryId, schema, raid, from: today(), count: 3, interval: "weekly", templateChannelId, dryRun: true, ignoreStoredSchema: true,
             })
                 .then((r) => { if (alive) { setPlan(r.plan); setNaming(r.naming || null); setPlanError(""); } })
@@ -56,12 +55,12 @@ export function CategorySchemaDialog({ data, csrfToken, categoryId, onClose, onS
             alive = false;
             clearTimeout(timer);
         };
-    }, [csrfToken, categoryId, schema, raid, templateChannelId]);
+    }, [categoryId, schema, raid, templateChannelId]);
 
     const save = async () => {
         setSaving(true);
         try {
-            await saveChannelSchema(csrfToken, { categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId });
+            await saveChannelSchema({ categoryId, schema: schema.trim(), raid: raid.trim(), templateChannelId });
             toast(schema.trim() ? `${categoryName}: Namensschema gespeichert.` : `${categoryName}: Namen wieder wie der letzte Event-Kanal.`);
             onSaved();
         } catch (err) {

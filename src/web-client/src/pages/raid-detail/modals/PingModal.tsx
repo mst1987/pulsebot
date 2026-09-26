@@ -12,7 +12,7 @@ import type { RaidCtx } from "../meta";
 
 export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const t = useT();
-    const { data, eventId, csrfToken, onChanged } = ctx;
+    const { data, eventId, onChanged } = ctx;
     const missing = data.attendance.missing.length;
     const [text, setText] = useState("");
     const [target, setTarget] = useState<PingTarget>("event");
@@ -23,7 +23,7 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await pingMissingRaiders(csrfToken, { event: eventId, text, target });
+            const r = await pingMissingRaiders({ event: eventId, text, target });
             setText("");
             onClose();
             onChanged(r.message);

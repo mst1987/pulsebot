@@ -13,7 +13,7 @@ describe("Ansicht als Rolle (client)", () => {
     const shell = read("components", "Shell.tsx");
 
     it("sits in the shell: the button in the top bar, the bar above every page", () => {
-        expect(shell).toContain("<ViewAsButton user={user} csrfToken={csrfToken} />");
+        expect(shell).toContain("<ViewAsButton user={user} />");
         const content = shell.slice(shell.indexOf("<div className=\"content\""));
         expect(content.indexOf("<ViewAsBanner")).toBeGreaterThan(-1);
         expect(content.indexOf("<ViewAsBanner")).toBeLessThan(content.indexOf("<Outlet"));
@@ -25,7 +25,7 @@ describe("Ansicht als Rolle (client)", () => {
 
     it("always offers the way back — Beenden does not depend on the viewed role's rights", () => {
         const banner = view.slice(view.indexOf("export function ViewAsBanner"));
-        expect(banner).toContain("setViewAs(csrfToken, { stop: true })");
+        expect(banner).toContain("setViewAs({ stop: true })");
         // "Beenden" is not behind canViewAs, only "Ändern" is
         expect(banner).toMatch(/<Button size="sm" onClick=\{stop\}/);
         expect(banner).toMatch(/\{user\.canViewAs && <Button variant="ghost" size="sm"/);

@@ -14,9 +14,9 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen, setRaidplanLink,
-    type ApiError, type RaidDetailData, type RaidDetailModal, type RaidEventSteps,
-    type RaidPrimaryAction, type RaidStep, type RaidStepDeed,
-} from "../api";
+    type ApiError, type RaidDetailModal, type RaidEventSteps,
+    type RaidPrimaryAction, type RaidStep, type RaidStepDeed } from "../api";
+import { useApi } from "../hooks/useApi";
 import { useConfirm } from "../components/ui/Modal";
 import { raidhelperMenu, type ManageAction } from "../lib/eventManage";
 import { withoutDeeds } from "../lib/raidSteps";
@@ -84,7 +84,7 @@ const TAB_ICONS: Record<Tab, string> = {
 
 export default function RaidDetailPage() {
     const t = useT();
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const [editing, setEditing] = useState(false);
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
@@ -98,17 +98,12 @@ export default function RaidDetailPage() {
 
     const jobs = useJobs();
     const ask = useConfirm();
-    const [data, setData] = useState<RaidDetailData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const detail = useApi(() => getRaidDetail(eventId), [eventId]);
+    const { data } = detail;
     const [modal, setModal] = useState<RaidDetailModal | null>(legacy?.modal || null);
     const [player, setPlayer] = useState<PlayerRef | null>(null);
     // "Raidplan aktivieren" of a Raid-Helper event (docs/raidplan.md, "Raid-Helper-Events")
     const [linkOpen, setLinkOpen] = useState(false);
-
-    const load = () => {
-        getRaidDetail(eventId).then(setData).catch((err: ApiError) => setError(err));
-    };
-    useEffect(load, [eventId]);
 
     // An old ?tab= value: rewrite it to the tab it became (the dialog it maps to
     // was already opened by the initial state above).
@@ -122,17 +117,17 @@ export default function RaidDetailPage() {
     // message means the action already reported itself through its job toast.
     const afterChange = (msg: string) => {
         if (msg) jobs.notify(msg);
-        load();
+        detail.reload();
     };
 
     const ctx: RaidCtx | null = data && {
-        data, eventId, csrfToken, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
+        data, eventId, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
         canManage: data.event.source === "eventhelper" && canAccess(user, "raids", "write"),
     };
-    const evaluator = useEvaluate({ csrfToken, onChanged: afterChange });
+    const evaluator = useEvaluate({ onChanged: afterChange });
 
     const backLink = <p className="note"><Link className="mlink" to="/raids">{t("raidDetail.page.back")}</Link></p>;
-    if (error) return <>{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: error.message })}</div></>;
+    if (detail.error) return <>{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: detail.error.message })}</div></>;
     if (!data || !ctx) return <RaidLoader text={t("raidDetail.page.loading")} />;
 
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
@@ -177,7 +172,7 @@ export default function RaidDetailPage() {
             const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "inv_misc_map02" });
             if (!ok) return;
             try {
-                await setRaidplanLink(csrfToken, { event: ev.id, enabled: false });
+                await setRaidplanLink({ event: ev.id, enabled: false });
                 if (tab === "plan") switchTab("roster");
                 afterChange(t("raidDetail.raidplanLink.deactivated"));
             } catch (err) {
@@ -203,7 +198,7 @@ export default function RaidDetailPage() {
                 : { title: t("raidDetail.page.signups.closeTitle"), text: t("raidDetail.page.signups.closeText"), action: t("raidDetail.page.signups.closeAction"), tone: "primary", icon: "inv_misc_note_02" });
             if (!ok) return;
             try {
-                const r = await setRaidSignupsOpen(csrfToken, { event: ev.id, open });
+                const r = await setRaidSignupsOpen({ event: ev.id, open });
                 afterChange([r.message, ...(r.warnings || [])].join("\n"));
             } catch (err) {
                 jobs.notify((err as ApiError).message, "err");
@@ -215,7 +210,7 @@ export default function RaidDetailPage() {
             });
             if (!ok) return;
             try {
-                const r = await reopenRaid(csrfToken, { event: ev.id });
+                const r = await reopenRaid({ event: ev.id });
                 afterChange([r.message, ...(r.warnings || [])].join("\n"));
             } catch (err) {
                 jobs.notify((err as ApiError).message, "err");
@@ -300,11 +295,11 @@ export default function RaidDetailPage() {
                     <InviteModal ctx={ctx} open={modal === "invite"} onClose={close} />
                 </>
             )}
-            {canSwitchPlan && <RaidplanLinkModal ctx={ctx} open={linkOpen} onClose={() => setLinkOpen(false)} onDone={() => { load(); switchTab("plan"); }} />}
+            {canSwitchPlan && <RaidplanLinkModal ctx={ctx} open={linkOpen} onClose={() => setLinkOpen(false)} onDone={() => { detail.reload(); switchTab("plan"); }} />}
             {editing && (
                 <RaidCreateDialog
-                    open sourceId="" editEventId={data.event.id} csrfToken={csrfToken} userId={user?.id || ""}
-                    onClose={() => setEditing(false)} onCreated={() => { setEditing(false); load(); }}
+                    open sourceId="" editEventId={data.event.id} userId={user?.id || ""}
+                    onClose={() => setEditing(false)} onCreated={() => { setEditing(false); detail.reload(); }}
                 />
             )}
         </div>

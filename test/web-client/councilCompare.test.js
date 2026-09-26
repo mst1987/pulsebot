@@ -20,7 +20,7 @@ const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 const page = read("pages", "LootCouncilPage.tsx");
 const css = read("index.css");
-const api = read("api.ts");
+const api = read("api", "lootcouncil.ts");
 
 /** The body of one top-level function in the page source. */
 function fn(name) {

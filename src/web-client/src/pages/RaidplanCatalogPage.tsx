@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Pencil, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     canAccess, deleteCatalogEntry, getRaidplanCatalog, resetCatalogEntry, saveCatalogEntry,
-    type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell,
-} from "../api";
+    type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell } from "../api";
+import { useApi } from "../hooks/useApi";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -31,23 +31,21 @@ export default function RaidplanCatalogPage() {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const { user } = useOutletContext<ShellContext>();
     const canWrite = canAccess(user, "raids", "write");
-    const [data, setData] = useState<CatalogAdmin | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
+    const catalog = useApi(() => getRaidplanCatalog(), []);
+    const { data, setData } = catalog;
     const [which, setWhich] = useState<Tab>("mobs");
     const [q, setQ] = useState("");
     const [draft, setDraft] = useState<Draft | null>(null);
 
-    useEffect(() => { getRaidplanCatalog().then(setData).catch((e: ApiError) => setError(e)); }, []);
-
     const needle = q.trim().toLowerCase();
     const instanceName = (id: string) => (data ? data.instances.find((i) => i.id === id) : undefined)?.name || t("catalog.noInstance");
-    const bossName = (key: string) => {
+    const bossName = useCallback((key: string) => {
         if (!data || !key) return "";
         for (const i of data.instances) { const b = i.bosses.find((x) => x.key === key); if (b) return b.name; }
         return "";
-    };
+    }, [data]);
     const mobGroups = useMemo(() => {
         const groups = new Map<string, CatalogMob[]>();
         for (const m of data ? data.mobs : []) {
@@ -55,8 +53,7 @@ export default function RaidplanCatalogPage() {
             groups.set(m.instanceId, [...(groups.get(m.instanceId) || []), m]);
         }
         return [...groups.entries()];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data, needle]);
+    }, [data, needle, bossName]);
     const spellGroups = useMemo(() => {
         const groups = new Map<string, CatalogSpell[]>();
         for (const s of data ? data.spells : []) {
@@ -66,7 +63,7 @@ export default function RaidplanCatalogPage() {
         return [...groups.entries()];
     }, [data, needle]);
 
-    if (error) return <div className="empty">{t("catalog.loadError", { message: error.message })}</div>;
+    if (catalog.error) return <div className="empty">{t("catalog.loadError", { message: catalog.error.message })}</div>;
     if (!data) return <RaidLoader text={t("catalog.loading")} />;
 
     const run = async (job: () => Promise<CatalogAdmin>, message: string) => {
@@ -93,7 +90,7 @@ export default function RaidplanCatalogPage() {
     const remove = async (kind: Tab, e: CatalogMob | CatalogSpell) => {
         const isDefault = e.id.startsWith("d:");
         if (!(await ask({ title: t(isDefault ? "catalog.hideTitle" : "catalog.deleteTitle", { name: e.name }), text: t(isDefault ? "catalog.hideText" : "catalog.deleteText"), action: t(isDefault ? "catalog.hide" : "catalog.delete"), tone: "danger" }))) return;
-        await run(() => deleteCatalogEntry(csrfToken, kind, e.id), t("catalog.removed"));
+        await run(() => deleteCatalogEntry(kind, e.id), t("catalog.removed"));
     };
 
     const row = (kind: Tab, e: CatalogMob | CatalogSpell, icon: JSX.Element, meta: string, extra?: ReactNode) => (
@@ -105,7 +102,7 @@ export default function RaidplanCatalogPage() {
             {canWrite && (
                 <span className="rp-crow-tools">
                     <IconButton size="sm" icon={<Pencil size={15} />} tip={t("catalog.edit")} onClick={() => setDraft({ ...e })} />
-                    {e.source === "override" && <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("catalog.reset")} onClick={() => run(() => resetCatalogEntry(csrfToken, kind, e.id), t("catalog.wasReset"))} />}
+                    {e.source === "override" && <IconButton size="sm" icon={<RotateCcw size={15} />} tip={t("catalog.reset")} onClick={() => run(() => resetCatalogEntry(kind, e.id), t("catalog.wasReset"))} />}
                     <IconButton size="sm" tone="danger" icon={<Trash2 size={15} />} tip={t(e.id.startsWith("d:") ? "catalog.hide" : "catalog.delete")} onClick={() => remove(kind, e)} />
                 </span>
             )}
@@ -158,7 +155,7 @@ export default function RaidplanCatalogPage() {
                         {hidden.map((e) => (
                             <li key={e.id} className="rp-crow is-hidden">
                                 <span className="rp-crow-main"><strong>{e.name}</strong></span>
-                                {canWrite && <Button variant="ghost" size="sm" onClick={() => run(() => resetCatalogEntry(csrfToken, which, e.id), t("catalog.wasReset"))}><RotateCcw size={14} /> {t("catalog.restore")}</Button>}
+                                {canWrite && <Button variant="ghost" size="sm" onClick={() => run(() => resetCatalogEntry(which, e.id), t("catalog.wasReset"))}><RotateCcw size={14} /> {t("catalog.restore")}</Button>}
                             </li>
                         ))}
                     </ul>
@@ -168,7 +165,7 @@ export default function RaidplanCatalogPage() {
             {draft && (
                 <EntryModal
                     which={which} data={data} initial={draft} onClose={() => setDraft(null)}
-                    onSave={async (d) => { if (await run(() => saveCatalogEntry(csrfToken, which, d), t("catalog.saved"))) setDraft(null); }}
+                    onSave={async (d) => { if (await run(() => saveCatalogEntry(which, d), t("catalog.saved"))) setDraft(null); }}
                 />
             )}
         </div>

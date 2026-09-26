@@ -163,14 +163,13 @@ function RaiderPicker({ characters, roster, value, onChange }: {
     );
 }
 
-export default function ManualLootForm({ eventId, eventTitle = "", defaultAwardedAt = 0, roster = [], csrfToken, onAdded }: {
+export default function ManualLootForm({ eventId, eventTitle = "", defaultAwardedAt = 0, roster = [], onAdded }: {
     eventId: string;
     /** Used to guess which raid to open on when no loot is stored yet. */
     eventTitle?: string;
     /** The raid's start, so a nachgetragenes item lands on the right night. */
     defaultAwardedAt?: number;
     roster?: string[];
-    csrfToken: string | null;
     onAdded: (msg: string) => void;
 }) {
     const [open, setOpen] = useState(false);
@@ -217,7 +216,7 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
         setBusy(true);
         try {
             const reason = picker?.reasons.find((r) => r.label === response) || null;
-            const r = await addLootItem(csrfToken, {
+            const r = await addLootItem({
                 event: eventId,
                 itemId: item.id,
                 character: character.trim(),

@@ -18,11 +18,10 @@ import { useT } from "../i18n";
 // (deadline, raider role, class) — the answer lists what was saved and, for
 // the rest, why not, so nothing is silently left out.
 
-export default function BulkSignupDialog({ rows, profile, classes, csrfToken, onClose, onDone }: {
+export default function BulkSignupDialog({ rows, profile, classes, onClose, onDone }: {
     rows: OwnSignupRow[];
     profile: SignupProfile;
     classes: SignupClass[];
-    csrfToken: string | null;
     onClose: () => void;
     onDone: (results: BulkSignupResult[]) => void;
 }) {
@@ -54,7 +53,7 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
     const submit = async () => {
         setBusy(true);
         try {
-            const res = await saveSignupsBulk(csrfToken, { eventIds: rows.map((r) => r.id), characters, status });
+            const res = await saveSignupsBulk({ eventIds: rows.map((r) => r.id), characters, status });
             setResults(res.results);
             onDone(res.results);
             const saved = res.results.filter((r) => r.ok).length;

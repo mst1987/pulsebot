@@ -151,12 +151,13 @@ describe("the menu's version line", () => {
     });
 
     it("is only fetched for settings readers, so a member's page load asks GitHub nothing", () => {
-        expect(shell).toMatch(/canAccess\(user, "settings"\)/);
-        expect(shell).toMatch(/if \(!maySee\) return;/);
+        expect(shell).toMatch(/const maySee = canAccess\(user, "settings"\);/);
+        expect(shell).toMatch(/useApi\(\(\) => getVersion\(\), \[\], \{ enabled: maySee \}\)/);
     });
 
     it("disappears rather than showing an error", () => {
-        expect(shell).toMatch(/catch\(\(\) => \{\}\)/);
+        // only the answer is read: a failure leaves `version` null, and the line out
+        expect(shell).toMatch(/useApi\(\(\) => getVersion\(\), \[\], \{ enabled: maySee \}\)\.data;/);
         expect(shell).toMatch(/if \(!version\) return null;/);
     });
 

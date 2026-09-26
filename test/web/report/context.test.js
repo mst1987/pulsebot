@@ -22,6 +22,12 @@ describe("web/report/context", () => {
         expect(ctx.linkFor("Fremd")).toBeNull();
     });
 
+    it("indexes the roster for linkFor without throwing on a null entry (#483)", () => {
+        const ctx = reportContext(report({ roster: [{ name: "Brokk" }, null, { name: "Elun" }] }), null);
+        expect(ctx.linkFor("Brokk")).toBe("/r/rep1/p/0");
+        expect(ctx.linkFor("Elun")).toBe("/r/rep1/p/2");
+    });
+
     it("works for a bare report: no recommendations, no fights, empty slices, everyone DPS", () => {
         const ctx = reportContext({ id: "x" }, undefined);
         expect(ctx.reviewer).toBe(false);
