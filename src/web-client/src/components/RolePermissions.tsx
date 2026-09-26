@@ -9,8 +9,8 @@ import Badge from "./ui/Badge";
 import Segment from "./ui/Segment";
 import PartHead from "./ui/PartHead";
 import WowIcon from "./ui/WowIcon";
-import { TrashIcon, XIcon } from "./icons";
-import { EyeIcon, InfoTip, LockIcon, PenIcon, PlusIcon, FieldLabel } from "./settingsUi";
+import { EyeIcon, LockIcon, PlusIcon, TrashIcon, XIcon } from "./icons";
+import { InfoTip, PenIcon, FieldLabel } from "./settingsUi";
 import { useDismiss } from "../hooks/useDismiss";
 
 // Einstellungen → Berechtigungen as one matrix: rows = who, columns = the areas
