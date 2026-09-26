@@ -1,9 +1,9 @@
 // Generates src/config/generated/rpbData.json (read by src/config/rpbData.js) from the RPB reference CSVs.
 // Run once (and again if the RPB config sheet changes). Not used at runtime.
 //
-// Source: reference/rpb/config/configNew.csv — the shared CLA/RPB master config
+// Source: scripts/data-sources/rpb/config/configNew.csv — the shared CLA/RPB master config
 // sheet (1pIbbPkn9i5jxyQ60Xt86fLthtbdCAmFriIpPSvmXiu0, tab "configNew"), plus
-// reference/rpb/spell_haste_config.csv.
+// scripts/data-sources/rpb/spell_haste_config.csv.
 //
 // The config sheet is laid out horizontally: row 2 holds the section headers and
 // each section occupies a block of columns — an "[id]" column carrying the machine
@@ -19,8 +19,7 @@ const fs = require("fs");
 const path = require("path");
 const { writeGeneratedJson } = require("./lib/generatedJson");
 
-const ROOT = path.resolve(__dirname, "..");
-const REF = path.join(ROOT, "reference", "rpb");
+const REF = path.join(__dirname, "data-sources", "rpb");
 
 // --- CSV parsing ----------------------------------------------------------
 function parseCsv(file) {
@@ -295,7 +294,7 @@ for (const row of sh) {
 // time — and baked into the generated file. The report is then independent of
 // what an individual log happens to include.
 //
-// The mapping lives in reference/rpb/spell-icons.json so it is reviewable in git
+// The mapping lives in scripts/data-sources/rpb/spell-icons.json so it is reviewable in git
 // and a re-run costs no requests for anything already known.
 const ICON_CACHE = path.join(REF, "spell-icons.json");
 

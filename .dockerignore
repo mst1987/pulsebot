@@ -9,7 +9,7 @@ logs/
 *.log
 coverage/
 test/
-reference/
+scripts/data-sources/
 docs/
 bin/
 src/web-client/dist

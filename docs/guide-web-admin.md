@@ -4,9 +4,13 @@ Diese Seite ist für Orga-Mitglieder, die das **Web-Admin-Panel** benutzen — n
 
 ## Übersicht / Dashboard
 
+Technik: [web-admin.md](web-admin.md)
+
 Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf einen Blick (fehlender Softres-Link, Kanäle zum Archivieren, fehlgeschlagene Serien-Events, Rollen-Drift, veralteter Server-Stand) sowie die nächsten anstehenden Raids.
 
 ## Raid-Events
+
+Technik: [events.md](events.md)
 
 *Bereich "Raids" (lesen/schreiben)*
 
@@ -17,6 +21,8 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 ## Setup-Editor
 
+Technik: [setup.md](setup.md)
+
 *Teil der Raid-Detailseite, Bereich "Raids" schreiben*
 
 - Setup automatisch vorschlagen lassen (Rollenverteilung, Buffs, Fairness, Wünsche der Raider) und per Drag & Drop von Hand anpassen; einzelne Plätze lassen sich fixieren.
@@ -24,6 +30,8 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 - Eine KI-Begründung erklärt die vorgeschlagene Aufstellung; **"Invite callen"** lässt sich direkt aus dem Editor auslösen.
 
 ## Raidplan
+
+Technik: [raidplan.md](raidplan.md)
 
 *Tab der Raid-Detailseite, Bereich "Raids" (lesen/schreiben) — bei eigenen Events immer, bei Raid-Helper-Events sobald der Raidplan aktiviert ist*
 
@@ -65,6 +73,8 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 ## Raidplan-Vorlagen
 
+Technik: [raidplan.md](raidplan.md)
+
 *Raid-Events → "Raidplan-Vorlagen", Bereich "Raids"*
 
 - Benannte Vorlagen (z. B. "Montags-Raid") mit Name, Kategorie, Beschreibung, optional einem Server und den Instanzen. Je Boss ein Board **ohne Spieler**: Slots, Raid-Marker, Zonen, Aufgabenzeilen, Notiz; je Boss lässt sich eine eigene Karte hinterlegen.
@@ -74,6 +84,8 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 ## Serien (wiederkehrende Events)
 
+Technik: [events.md](events.md)
+
 *Bereich "Raids"*
 
 - Feste Wochentage/Uhrzeit je Kategorie festlegen und eine Vorlage wählen — die Events werden automatisch rechtzeitig angelegt.
@@ -81,17 +93,23 @@ Für alle mit Zugriff auf mindestens einen Bereich. Zeigt offene Aufgaben auf ei
 
 ## Raid-Vorlagen
 
+Technik: [raid-templates.md](raid-templates.md)
+
 *Bereich "Raids"*
 
 Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
 
 ## Anmeldungen
 
+Technik: [signups.md](signups.md)
+
 *Bereich "signup", Mitglieder-Sicht*
 
 Eigene kommende Raids und den eigenen Anmeldestatus je Charakter verwalten, auch für mehrere Raids gleichzeitig — das Web-Pendant zum Discord-Anmelde-Dialog.
 
 ## Mein Profil
+
+Technik: [roster-profile.md](roster-profile.md)
 
 *Bereich "signup" — nicht standardmäßig für alle offen, muss zugewiesen werden*
 
@@ -101,11 +119,15 @@ Eigene kommende Raids und den eigenen Anmeldestatus je Charakter verwalten, auch
 
 ## Roster
 
+Technik: [roster-profile.md](roster-profile.md)
+
 *Bereich "roster"*
 
 Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen sich ausblenden (ohne Daten zu löschen), z. B. bei Guild-Austritt.
 
 ## Loot Council
+
+Technik: [loot-council.md](loot-council.md)
 
 *Bereich "lootcouncil" — für die Raidleitung beim Verteilen von Beute*
 
@@ -115,6 +137,8 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 
 ## Historie & Loot
 
+Technik: [loot-import.md](loot-import.md)
+
 *Bereich "history" — lesend teils auch über den Basiszugang für alle Mitglieder*
 
 - Vergaben, Items, Gründe und Loot nach Raid einsehen.
@@ -122,6 +146,8 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 - Addon-Inbox: automatisch hochgeladene Loot-Sessions bestätigen und zuordnen. Details: [docs/loot-import.md](loot-import.md).
 
 ## Log-Auswertung (CLA/RPB)
+
+Technik: [logcheck.md](logcheck.md)
 
 *Bereich "history" bzw. eigener Report-Zugang*
 
@@ -131,11 +157,15 @@ Alle bekannten Charaktere je Raid-Kategorie mit Anwesenheit. Charaktere lassen s
 
 ## Kanäle
 
+Technik: [channels.md](channels.md)
+
 *Bereich "channels"*
 
 Alle Server-Kanäle als Liste; umbenennen, archivieren, löschen (einzeln oder per Mehrfachauswahl). Schnellanlage mehrerer Event-Kanäle nach Namensschema, optional gleich mit Event. Details: [docs/channels.md](channels.md).
 
 ## Einstellungen
+
+Technik: [permissions.md](permissions.md), [discord-servers.md](discord-servers.md)
 
 Die meisten Unterbereiche brauchen Vollzugriff/Admin-Rechte:
 

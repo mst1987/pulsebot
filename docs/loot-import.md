@@ -1,5 +1,7 @@
 # Loot-Import und Loot-Daten
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#historie--loot](guide-web-admin.md#historie--loot).
+
 ## Loot import (Gargul/RCLootcouncil)
 
 `src/utils/lootImport.js` normalizes all export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`/`parseEventHelper`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests). Call it once, right after `parseLoot()` — the import handlers are `apiRoutes/history.js`'s `importLoot` (JSON, called from the React client's Historie-&-Loot and Raid-Detail Loot-tab imports) and `apiRoutes/ingest.js`'s `ingestLoot` (below).
