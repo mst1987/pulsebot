@@ -218,3 +218,33 @@ describe("gearIssues buildArmory", () => {
         expect(armory).toEqual([]);
     });
 });
+
+describe("gearIssues analyzePlayerGear — gem quality ladder (characterisation, #431)", () => {
+    // Pinned before analyzePlayerGear was split into checks: which gem gets
+    // which label at which gemsToConsider, one quality flag per item, and an
+    // uncut gem flagged on its own.
+    function gemmed() {
+        const gear = fullGear();
+        gear.find((g) => g.slot === 0).gems = [{ id: "23112", itemLevel: 60 }, { id: "1", itemLevel: 40 }];
+        gear.find((g) => g.slot === 2).gems = [{ id: "1", itemLevel: 60 }, { id: "38549", itemLevel: 60 }];
+        gear.find((g) => g.slot === 4).gems = [{ id: "2", itemLevel: 70 }, { id: "3", itemLevel: 40 }];
+        gear.find((g) => g.slot === 6).gems = [{ id: "38549", itemLevel: 70 }, { id: "4" }];
+        return gear;
+    }
+    const labels = (issues) => issues.map((i) => [i.slot, i.kind, i.label]);
+
+    test.each([
+        [1, [[0, "uncutGem", "ungeschliffener Edelstein"]]],
+        [2, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "gewöhnlicher Edelstein"], [4, "badGem", "gewöhnlicher Edelstein"]]],
+        [3, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "grüner Edelstein"], [2, "badGem", "grüner Edelstein"], [4, "badGem", "gewöhnlicher Edelstein"]]],
+        [4, [[0, "uncutGem", "ungeschliffener Edelstein"], [0, "badGem", "grüner Edelstein"], [2, "badGem", "grüner Edelstein"], [4, "badGem", "blauer Edelstein"]]],
+    ])("gemsToConsider %i", (gemsToConsider, expected) => {
+        expect(labels(analyzePlayerGear(playerWith(gemmed()), { gemsToConsider }))).toEqual(expected);
+    });
+
+    test("a shield with a misc icon needs no enchant, a missing item in the gear list is skipped", () => {
+        const gear = fullGear();
+        gear.push({ id: "2016", slot: 16, name: "Buckler", icon: "inv_misc_book_01" }, null, { id: 0, slot: 3 });
+        expect(analyzePlayerGear(playerWith(gear))).toEqual([]);
+    });
+});
