@@ -7,7 +7,7 @@
 // Needs WARCRAFTLOGS_API_KEY (from .env.dev or .env) to list the zones; the
 // icons themselves are public. Writes:
 //   src/web-client/public/bosses/<encounterId>.jpg   (served at /bosses/<id>.jpg)
-//   src/config/bossIcons.json                         (zone → encounters, id → name)
+//   src/config/generated/bossIcons.json                       (zone → encounters, id → name)
 const fs = require("fs");
 const path = require("path");
 
@@ -16,7 +16,7 @@ const ENV_DEV = path.join(ROOT, ".env.dev");
 require("dotenv").config({ path: fs.existsSync(ENV_DEV) ? ENV_DEV : path.join(ROOT, ".env") });
 
 const ICON_DIR = path.join(ROOT, "src", "web-client", "public", "bosses");
-const OUT_JSON = path.join(ROOT, "src", "config", "bossIcons.json");
+const OUT_JSON = path.join(ROOT, "src", "config", "generated", "bossIcons.json");
 const ZONES_URL = "https://classic.warcraftlogs.com/v1/zones";
 const ICON_URL = (id) => `https://assets.rpglogs.com/img/warcraft/bosses/${id}-icon.jpg`;
 

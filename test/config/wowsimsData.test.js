@@ -3,8 +3,8 @@
 // richtigen Tier hängen. Genau daran ist es schon einmal gescheitert: die
 // Sunwell-Liste zweier Caster zeigte auf die ZA-Phase.
 const wowsims = require("../../src/config/wowsims");
-const items = require("../../src/config/wowsims/items.json");
-const bis = require("../../src/config/wowsims/bisSets.json");
+const items = require("../../src/config/generated/wowsims/items.json");
+const bis = require("../../src/config/generated/wowsims/bisSets.json");
 
 // Womit man rechnen darf, wenn ein Set beim richtigen Tier hängt. Grob genug,
 // dass ein schwaches Set nicht auffällt, eng genug für ein ganzes Tier daneben.

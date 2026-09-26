@@ -1,0 +1,482 @@
+{
+ "itemMeta": {
+  "21882": [
+   "Soul Essence",
+   "spell_shadow_soulleech_3",
+   1
+  ],
+  "28453": [
+   "Bracers of the White Stag",
+   "inv_bracer_02",
+   4
+  ],
+  "28745": [
+   "Mithril Chain of Heroism",
+   "inv_jewelry_necklace_06",
+   4
+  ],
+  "29765": [
+   "Leggings of the Fallen Hero",
+   "inv_pants_plate_17",
+   4
+  ],
+  "30236": [
+   "Chestguard of the Vanquished Champion",
+   "inv_chest_chain_03",
+   4
+  ],
+  "30675": [
+   "Lurker's Cord",
+   "inv_belt_03",
+   4
+  ],
+  "32837": [
+   "Warglaive of Azzinoth",
+   "inv_weapon_glave_01",
+   5
+  ],
+  "34176": [
+   "Reign of Misery",
+   "inv_mace_73",
+   4
+  ],
+  "35733": [
+   "Ring of Harmonic Beauty",
+   "inv_jewelry_ring_57",
+   4
+  ],
+  "99999": null
+ },
+ "itemName": {
+  "21882": "Soul Essence",
+  "28453": "Bracers of the White Stag",
+  "28745": "Mithril Chain of Heroism",
+  "29765": "Leggings of the Fallen Hero",
+  "30236": "Chestguard of the Vanquished Champion",
+  "30675": "Lurker's Cord",
+  "32837": "Warglaive of Azzinoth",
+  "34176": "Reign of Misery",
+  "35733": "Ring of Harmonic Beauty",
+  "99999": ""
+ },
+ "raidItemsCount": 800,
+ "sourceForItem": {
+  "21882": {
+   "content": "kara",
+   "boss": "Trash"
+  },
+  "28453": {
+   "content": "kara",
+   "boss": "Attumen the Huntsman"
+  },
+  "28745": {
+   "content": "kara",
+   "boss": "Chess Event"
+  },
+  "29765": {
+   "content": "gruul",
+   "boss": "Gruul the Dragonkiller"
+  },
+  "30236": {
+   "content": "tk",
+   "boss": "Kael'thas Sunstrider"
+  },
+  "30675": {
+   "content": "kara",
+   "boss": "Hyakiss the Lurker"
+  },
+  "32837": {
+   "content": "bt",
+   "boss": "Illidan Stormrage"
+  },
+  "34176": {
+   "content": "swp",
+   "boss": "Brutallus"
+  },
+  "35733": {
+   "content": "swp",
+   "boss": "Trash"
+  },
+  "99999": null
+ },
+ "raidLootBosses": {
+  "kara": 18,
+  "gruul": 2,
+  "mag": 1,
+  "ssc": 7,
+  "tk": 5,
+  "za": 9,
+  "hyjal": 6,
+  "bt": 10,
+  "swp": 7
+ },
+ "raidLootItems": 800,
+ "encountersBt": [
+  "High Warlord Naj'entus",
+  "Supremus",
+  "Shade of Akama",
+  "Teron Gorefiend",
+  "Gurtogg Bloodboil",
+  "Reliquary of the Lost",
+  "Mother Shahraz",
+  "The Illidari Council",
+  "Illidan Stormrage"
+ ],
+ "contentForBoss": "ssc",
+ "claKeys": [
+  "ENCHANTABLE_SLOTS",
+  "GEM_QUALITY",
+  "META_GEM_IDS",
+  "YELLOW_GEM_IDS",
+  "RED_GEM_IDS",
+  "BLUE_GEM_IDS",
+  "UNCUT_GEM_IDS",
+  "ACCEPTABLE_UNCOMMON_GEM_IDS",
+  "ACCEPTABLE_RARE_GEM_IDS",
+  "ITEMS_WITHOUT_ENCHANT",
+  "ENCHANT_BLACKLIST",
+  "EXCLUDED_GEAR",
+  "SOCKETS",
+  "SHADOW_RESISTANCE",
+  "CONSUMABLES"
+ ],
+ "claSamples": {
+  "ENCHANTABLE_SLOTS": [
+   0,
+   2,
+   4,
+   6,
+   7,
+   8,
+   9,
+   14,
+   15,
+   16
+  ],
+  "GEM_QUALITY": {
+   "ignore": 0,
+   "common": 1,
+   "uncommon": 2,
+   "rare": 3,
+   "epic": 4
+  },
+  "META_GEM_IDS": [
+   "25897",
+   "25899",
+   "34220",
+   "25890",
+   "35503",
+   "25895",
+   "35501",
+   "32641",
+   "25901",
+   "25893",
+   "25896",
+   "28557",
+   "32409",
+   "25894",
+   "28556",
+   "25898",
+   "32640",
+   "32410"
+  ]
+ },
+ "rpbKeys": [
+  "EXCLUDED_ENCOUNTER_ID",
+  "HASTE_RATING_PER_PERCENT",
+  "HASTE_BUFFS",
+  "HEADINGS",
+  "SPELL_HASTE_ITEMS",
+  "TRASH_REQUIREMENTS",
+  "SINGLE_TARGET_CASTS",
+  "AOE_CASTS",
+  "CLASS_COOLDOWNS",
+  "DAMAGE_TAKEN",
+  "DEBUFFS",
+  "STATS_AND_MISC",
+  "TRINKETS_AND_RACIALS",
+  "ENGINEERING",
+  "OTHER_CASTS",
+  "ABSORBS"
+ ],
+ "rpbSamples": {
+  "EXCLUDED_ENCOUNTER_ID": 724,
+  "HASTE_RATING_PER_PERCENT": 15.77,
+  "HASTE_BUFFS": [
+   {
+    "key": "bloodlust",
+    "label": "Kampfrausch/Heldentum",
+    "ids": [
+     "2825",
+     "32182"
+    ],
+    "seconds": 9
+   },
+   {
+    "key": "icyVeins",
+    "label": "Eisige Adern",
+    "ids": [
+     "12472"
+    ],
+    "seconds": 3
+   },
+   {
+    "key": "skull",
+    "label": "Schädel von Gul'dan",
+    "ids": [
+     "40396"
+    ],
+    "seconds": 1.5
+   },
+   {
+    "key": "berserking",
+    "label": "Berserker",
+    "ids": [
+     "26635"
+    ],
+    "seconds": 0.5
+   },
+   {
+    "key": "scrollOfBlindingLight",
+    "label": "Rolle des blendenden Lichts",
+    "ids": [
+     "23733"
+    ],
+    "seconds": 3.1
+   },
+   {
+    "key": "quagmirransEye",
+    "label": "Quagmirrans Auge",
+    "ids": [
+     "33370",
+     "33369"
+    ],
+    "seconds": 1
+   },
+   {
+    "key": "scarabOfTheInfiniteCycle",
+    "label": "Skarabäus des unendlichen Zyklus",
+    "ids": [
+     "33953"
+    ],
+    "seconds": 1
+   },
+   {
+    "key": "mysticalSkyfireDiamond",
+    "label": "Mystischer Himmelsfeuerdiamant",
+    "ids": [
+     "18803"
+    ],
+    "seconds": 0.6
+   },
+   {
+    "key": "mindQuickeningGem",
+    "label": "Edelstein der Gedankenbeschleunigung",
+    "ids": [
+     "23723"
+    ],
+    "seconds": 4.8
+   },
+   {
+    "key": "bladeOfWizardry",
+    "label": "Klinge der Zauberei",
+    "ids": [
+     "38317"
+    ],
+    "seconds": 0.9
+   }
+  ]
+ },
+ "bossIcon": "/bosses/601.jpg",
+ "bossName": "High Warlord Naj'entus",
+ "zones": 6,
+ "wowsimsItem": {
+  "name": "Nathrezim Mindblade",
+  "icon": "inv_weapon_shortblade_41",
+  "slots": [
+   15,
+   16
+  ],
+  "ilvl": 125,
+  "quality": 4,
+  "phase": 1,
+  "stats": {
+   "stamina": 18,
+   "intellect": 18,
+   "healingPower": 203,
+   "spellPower": 203,
+   "spellCrit": 23
+  },
+  "hand": "main",
+  "weaponType": 2,
+  "weapon": {
+   "min": 24,
+   "max": 124,
+   "speed": 1.8,
+   "type": 2
+  }
+ },
+ "wowsimsVersions": [
+  "v0.0.97",
+  "v0.0.126"
+ ],
+ "wowsimsBis": {
+  "items": [
+   {
+    "id": 31064,
+    "enchant": 3002,
+    "gems": [
+     25893,
+     30600
+    ]
+   },
+   {
+    "id": 30666
+   },
+   {
+    "id": 31070,
+    "enchant": 2982,
+    "gems": [
+     32196,
+     32196
+    ]
+   },
+   {
+    "id": 32590,
+    "enchant": 2621
+   },
+   {
+    "id": 31065,
+    "enchant": 2661,
+    "gems": [
+     32196,
+     32196,
+     32196
+    ]
+   },
+   {
+    "id": 32586,
+    "enchant": 2650
+   },
+   {
+    "id": 31061,
+    "enchant": 2937,
+    "gems": [
+     32196
+    ]
+   },
+   {
+    "id": 32256
+   },
+   {
+    "id": 30916,
+    "enchant": 2748,
+    "gems": [
+     32196,
+     32196,
+     32196
+    ]
+   },
+   {
+    "id": 32239,
+    "enchant": 2940,
+    "gems": [
+     32196,
+     32196
+    ]
+   },
+   {
+    "id": 32527,
+    "enchant": 2928
+   },
+   {
+    "id": 32527,
+    "enchant": 2928
+   },
+   {
+    "id": 29370
+   },
+   {
+    "id": 32483
+   },
+   {
+    "id": 32374,
+    "enchant": 2672
+   },
+   {
+    "id": 29982
+   }
+  ],
+  "tier": "t6",
+  "exact": true
+ },
+ "apl": true,
+ "bisHoly": {
+  "items": [
+   {
+    "id": 31063
+   },
+   {
+    "id": 32370
+   },
+   {
+    "id": 31069
+   },
+   {
+    "id": 32524
+   },
+   {
+    "id": 31066
+   },
+   {
+    "id": 32584
+   },
+   {
+    "id": 31060
+   },
+   {
+    "id": 30895
+   },
+   {
+    "id": 30912
+   },
+   {
+    "id": 32609
+   },
+   {
+    "id": 32528
+   },
+   {
+    "id": 29309
+   },
+   {
+    "id": 29376
+   },
+   {
+    "id": 38288
+   },
+   {
+    "id": 32500
+   },
+   {
+    "id": 30911
+   },
+   {
+    "id": 32363
+   }
+  ],
+  "tier": "t6",
+  "exact": true,
+  "source": "wowhead",
+  "sourceLabel": "Wowhead"
+ },
+ "bisSource": "wowhead",
+ "wowheadFetchedAt": "2026-09-03",
+ "mobChoicesCount": 9,
+ "hashes": {
+  "claData": "cf91b19e604072ea71ce36639cca51633a7bc80215d6208ed7e1908b753fc1ab",
+  "rpbData": "e46916d3f054666227d216c33af00b843a63fc84cd9310eba52639c299d4a637",
+  "RAID_ITEMS": "9ae2876ca862ad4f2574fd5fdb5217d0c2de6be497239f574f8f906cdbfa1988",
+  "RAID_LOOT": "2ea30a28ba97c4c37232a81769635a7b5194931a5869c67e80535750aa040f3a"
+ }
+}
