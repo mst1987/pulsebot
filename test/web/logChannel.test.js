@@ -9,6 +9,7 @@ const mockGetFights = jest.fn();
 jest.mock("../../src/classes/warcraftlogs.js", () =>
     jest.fn().mockImplementation(() => ({ getFights: mockGetFights })));
 
+const { ChannelType } = require("discord.js");
 const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
 const { getConfig } = require("../../src/web/settingsStore.js");
 const logStore = require("../../src/web/logStore.js");
@@ -17,7 +18,10 @@ require("../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");
 const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../src/web/logChannel.js");
 
-const CLIENT = { user: { id: "botself" } };
+const { makeClient, makeChannel } = require("../helpers/discordClient");
+
+const BOT = { id: "botself" };
+const CLIENT = makeClient({ user: BOT });
 
 function msg(over = {}) {
     return {
@@ -192,13 +196,8 @@ describe("web/logChannel — scanLogChannels", () => {
         const messages = new Map([
             ["m1", { content: "https://classic.warcraftlogs.com/reports/RPT1", embeds: [], components: [], createdTimestamp: 222000 }],
         ]);
-        const channel = {
-            isTextBased: () => true,
-            guildId: "g1",
-            id: "logch",
-            messages: { fetch: jest.fn().mockResolvedValue(messages) },
-        };
-        discord.getClient.mockReturnValue({ ...CLIENT, channels: { fetch: jest.fn().mockResolvedValue(channel) } });
+        const channel = makeChannel({ id: "logch", guildId: "g1", messages: [...messages] });
+        discord.getClient.mockReturnValue(makeClient({ user: BOT, channels: [channel] }));
         logStore.getByReportId.mockReturnValue(null);
 
         const count = await scanLogChannels("g1");
@@ -207,10 +206,11 @@ describe("web/logChannel — scanLogChannels", () => {
     });
 
     it("skips a channel that is gone or holds no messages", async () => {
-        const voice = { isTextBased: () => false, guildId: "g1", messages: { fetch: jest.fn() } };
-        const fetch = jest.fn().mockRejectedValueOnce(Object.assign(new Error("Unknown Channel"), { code: 10003 })).mockResolvedValue(voice);
+        const voice = makeChannel({ id: "voice", type: ChannelType.GuildVoice, guildId: "g1" });
         getConfig.mockReturnValue({ logChannelIds: ["gone", "voice"] });
-        discord.getClient.mockReturnValue({ ...CLIENT, channels: { fetch } });
+        const client = makeClient({ user: BOT, channels: [voice] }); // "gone" is unknown
+        const { fetch } = client.channels;
+        discord.getClient.mockReturnValue(client);
 
         expect(await scanLogChannels("g1")).toBe(0);
         expect(fetch).toHaveBeenCalledTimes(2);

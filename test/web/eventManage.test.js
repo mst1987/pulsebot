@@ -53,6 +53,7 @@ const archiveStore = require("../../src/web/channelArchiveStore");
 const signupService = require("../../src/web/signupService");
 const discordEvent = require("../../src/web/discordEvent");
 const manage = require("../../src/web/eventManage");
+const { makeClient, makeChannel } = require("../helpers/discordClient");
 
 const ZONE = "Europe/Berlin";
 const ORGA = { id: "900000000000000001", name: "Orga" };
@@ -297,8 +298,9 @@ describe("cancelling an event", () => {
 
 describe("deleting an event", () => {
     const fakeClient = (onDelete = jest.fn(async () => ({}))) => {
-        const fetchMessage = jest.fn(async () => ({ delete: onDelete }));
-        return { onDelete, fetchMessage, client: { channels: { fetch: jest.fn(async () => ({ isTextBased: () => true, messages: { fetch: fetchMessage } })) } } };
+        // the event message m1 and the setup post m2, both in the raid channel c1
+        const channel = makeChannel({ id: "c1", messages: [{ id: "m1", delete: onDelete }, { id: "m2", delete: onDelete }] });
+        return { onDelete, fetchMessage: channel.messages.fetch, client: makeClient({ channels: [channel] }) };
     };
     let logSpy;
     beforeEach(() => {

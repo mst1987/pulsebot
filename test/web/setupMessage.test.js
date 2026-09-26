@@ -31,6 +31,8 @@ const discord = require("../../src/web/discord");
 const eventStore = require("../../src/web/eventStore");
 const appEmojis = require("../../src/web/appEmojis");
 const sm = require("../../src/web/setupMessage");
+const { event: baseEvent } = require("../factories/events");
+const { makeClient, makeChannel } = require("../helpers/discordClient");
 
 const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name, { id: String(1000 + i), name: e.name, animated: false }]));
 const p = (userId, character, spec, role) => ({ userId, character, classId: spec.split("-")[0], spec, role });
@@ -51,9 +53,9 @@ function approved(version = 2) {
 
 function seed(over = {}) {
     const a = approved();
-    const event = {
-        id: "eh-1", guildId: "g1", categoryId: "cat1", channelId: "c1", channelName: "kara-do", title: "Kara Donnerstag",
-        startTime: 2000000000, size: 10, status: "active", fairness: true,
+    const event = baseEvent({
+        id: "eh-1", guildId: "g1", categoryId: "cat1", channelName: "kara-do", title: "Kara Donnerstag",
+        size: 10, status: "active", fairness: true,
         setup: {
             status: "approved", version: 2, options: { fairness: true },
             groups: a.groups, bench: [{ ...a.bench[0], reasons: ["Raid voll (10/10)", "Wunsch erfüllt: mit Kael"] }],
@@ -61,20 +63,17 @@ function seed(over = {}) {
         },
         setupPost: null,
         ...over,
-    };
+    });
     mockEvents.set(event.id, event);
     return event;
 }
 
 function fakeChannel({ fetchError } = {}) {
     const message = { id: "m1", edit: jest.fn(() => Promise.resolve()) };
-    const channel = {
-        id: "c1",
-        isTextBased: () => true,
-        send: jest.fn(() => Promise.resolve({ id: "m-new" })),
-        messages: { fetch: jest.fn(() => (fetchError ? Promise.reject(fetchError) : Promise.resolve(message))) },
-    };
-    discord.getClient.mockReturnValue({ channels: { fetch: jest.fn(() => Promise.resolve(channel)) } });
+    // m1 is the setup already there; a post answers "m-new", which later edits fetch again
+    const channel = makeChannel({ id: "c1", messages: [message, ["m-new", message]] });
+    if (fetchError) channel.messages.fetch.mockRejectedValue(fetchError);
+    discord.getClient.mockReturnValue(makeClient({ channels: [channel] }));
     return { channel, message };
 }
 

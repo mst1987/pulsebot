@@ -16,6 +16,8 @@ const { getEvent, setEventMessage, listEvents } = require("../../src/web/eventSt
 const { listSignups } = require("../../src/web/signupStore");
 const discord = require("../../src/web/discord");
 const appEmojis = require("../../src/web/appEmojis");
+const { event: baseEvent } = require("../factories/events");
+const { makeClient, makeChannel } = require("../helpers/discordClient");
 const {
     buildEventMessage, rosterCounts, signupButtonId, joinSelectId, buttonId, rosterEntries, messagePhase, signupNumbers, embedLength, blockValue,
     sweepEventMessages, postEventMessage, refreshEventMessage, startEventMessageSync, redrawEventMessage, LIMITS,
@@ -23,9 +25,9 @@ const {
 } = require("../../src/web/eventMessage");
 
 const NOW = 1999000000 * 1000;
-const event = (over = {}) => ({
-    id: "eh-1", title: "Kara Donnerstag", description: "Treffpunkt Eingang", leaderId: "7", channelId: "c1",
-    startTime: 2000000000, size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: 0, message: null, ...over,
+const event = (over = {}) => baseEvent({
+    id: "eh-1", title: "Kara Donnerstag", description: "Treffpunkt Eingang", leaderId: "7",
+    size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: 0, message: null, ...over,
 });
 const su = (userId, character, spec, role, status = "signed", at = Number(userId)) => ({ userId, character, spec, role, status, at });
 const signups = [
@@ -41,13 +43,9 @@ const emojis = Object.fromEntries(appEmojis.emojiCatalog().map((e, i) => [e.name
 
 function fakeDiscord({ fetchError } = {}) {
     const message = { id: "m1", edit: jest.fn() };
-    const channel = {
-        id: "c1",
-        isTextBased: () => true,
-        send: jest.fn(() => Promise.resolve({ id: "m-new" })),
-        messages: { fetch: jest.fn(() => (fetchError ? Promise.reject(fetchError) : Promise.resolve(message))) },
-    };
-    discord.getClient.mockReturnValue({ channels: { fetch: jest.fn(() => Promise.resolve(channel)) } });
+    const channel = makeChannel({ id: "c1", messages: [message] });
+    if (fetchError) channel.messages.fetch.mockRejectedValue(fetchError);
+    discord.getClient.mockReturnValue(makeClient({ channels: [channel] }));
     return { channel, message };
 }
 

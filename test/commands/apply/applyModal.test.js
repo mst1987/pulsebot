@@ -7,14 +7,18 @@ const command = require("../../../src/commands/apply/applyModal.js");
 const { pendingApplications } = require("../../../src/utils/applicationState.js");
 const { analyzeApplicant } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
+const discordClient = require("../../helpers/discordClient.js");
 
 function makeClient() {
     const threadSend = jest.fn().mockResolvedValue(undefined);
     const threadDelete = jest.fn().mockResolvedValue(undefined);
     const thread = { send: threadSend, delete: threadDelete };
     const threadsCreate = jest.fn().mockResolvedValue(thread);
-    const channel = { threads: { create: threadsCreate } };
-    const client = { channels: { fetch: jest.fn().mockResolvedValue(channel) } };
+    const channel = discordClient.makeChannel({ id: "applications", threads: { create: threadsCreate } });
+    const client = discordClient.makeClient({ channels: [channel] });
+    // The application channel id comes from the settings store, which the
+    // suite does not pin - any id answers the application channel.
+    client.channels.fetch.mockResolvedValue(channel);
     return { client, threadSend, threadsCreate, threadDelete };
 }
 
