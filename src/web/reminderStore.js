@@ -7,23 +7,25 @@
 // and `at` the ms timestamp it was marked. Old
 // marks are pruned once the raid is long over; nothing else reads them.
 
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
-let file = path.join(__dirname, "..", "..", "data", "settings", "reminders-sent.json");
+
+const store = createJsonStore({
+    file: settingsPath("reminders-sent.json"),
+    defaults: () => ({}),
+    normalize: (data) => (data && data.events && typeof data.events === "object" && !Array.isArray(data.events) ? data.events : {}),
+});
+
+/** Tests point the store at a file of their own; null = the default again. */
+const useFile = store.useFile;
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(file, "utf8"));
-        return data && data.events && typeof data.events === "object" && !Array.isArray(data.events) ? data.events : {};
-    } catch {
-        return {};
-    }
+    return store.read();
 }
 
 function writeAll(events) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ events }, null, 2));
+    store.write({ events });
 }
 
 /** The marks of one event: `{ [kind]: at }`, empty when nothing was sent. */
@@ -82,9 +84,4 @@ function prune(maxAgeMs = 30 * 24 * 60 * 60 * 1000, now = Date.now()) {
     return dropped;
 }
 
-/** Test-only: point the store at another file. */
-function _setFileForTests(next) {
-    file = next;
-}
-
-module.exports = { getSent, markSent, clearSent, clearEvent, prune, _setFileForTests };
+module.exports = { getSent, markSent, clearSent, clearEvent, prune, useFile };

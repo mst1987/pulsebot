@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
 // Raid-Helper events the periodic/on-view scan (raidEventScan.js) has already
 // seen are snapshotted here — including their channel/category NAME, not just
@@ -8,25 +8,20 @@ const path = require("path");
 // window, or the event being cleaned up on their end) or its Discord channel is
 // renamed/deleted. Stored as a single JSON file next to the other editable
 // settings under data/settings/raid-events.json.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const RAID_EVENTS_FILE = path.join(SETTINGS_DIR, "raid-events.json");
+const RAID_EVENTS_FILE = settingsPath("raid-events.json");
 
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
+const store = createJsonStore({
+    file: RAID_EVENTS_FILE,
+    defaults: () => [],
+    normalize: (data) => (Array.isArray(data.events) ? data.events : []),
+});
 
 function readAll() {
-    try {
-        const data = JSON.parse(fs.readFileSync(RAID_EVENTS_FILE, "utf8"));
-        return Array.isArray(data.events) ? data.events : [];
-    } catch {
-        return [];
-    }
+    return store.read();
 }
 
 function writeAll(events) {
-    ensureDir();
-    fs.writeFileSync(RAID_EVENTS_FILE, JSON.stringify({ events }, null, 2));
+    store.write({ events });
 }
 
 /** All persisted events for a guild, newest start first. */
@@ -95,4 +90,4 @@ function saveRaidEvents(list) {
     return added;
 }
 
-module.exports = { listRaidEvents, getRaidEvent, saveRaidEvents, RAID_EVENTS_FILE };
+module.exports = { listRaidEvents, getRaidEvent, saveRaidEvents, RAID_EVENTS_FILE, useFile: store.useFile };

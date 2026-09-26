@@ -19,7 +19,7 @@ const stored = () => {
 };
 
 beforeEach(() => {
-    store._setFileForTests(FILE);
+    store.useFile(FILE);
     try {
         fs.unlinkSync(FILE);
     } catch {

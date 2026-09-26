@@ -1,33 +1,15 @@
-const fs = require("fs");
-const path = require("path");
+const { settingsPath } = require("../config/paths");
+const { createJsonStore } = require("./jsonStore");
 
 // Records which Raid-Helper events had their setup written into a Google
 // raidsheet via the admin menu (POST /admin/raids/fill). Events themselves are
 // not persisted (they come from the Raid-Helper API each request), so this is
 // the only local trace of "the sheet was made" — keyed by the event id.
-const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
-const EVENT_SHEETS_FILE = path.join(SETTINGS_DIR, "event-sheets.json");
-
-function ensureDir() {
-    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
-}
-
-function readJson(file, fallback) {
-    try {
-        return JSON.parse(fs.readFileSync(file, "utf8"));
-    } catch {
-        return fallback;
-    }
-}
-
-function writeJson(file, data) {
-    ensureDir();
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
+const store = createJsonStore({ file: settingsPath("event-sheets.json"), defaults: { events: [] } });
 
 /** All recorded fills, newest first. */
 function listEventSheets() {
-    const data = readJson(EVENT_SHEETS_FILE, { events: [] });
+    const data = store.read();
     const events = Array.isArray(data.events) ? data.events : [];
     return events.slice().sort((a, b) => (b.filledAt || 0) - (a.filledAt || 0));
 }
@@ -68,7 +50,7 @@ function markEventSheetFilled(eventId, data = {}) {
         saved = Object.assign(clean, { filledAt: Date.now() });
         events.push(saved);
     }
-    writeJson(EVENT_SHEETS_FILE, { events });
+    store.write({ events });
     return saved;
 }
 
@@ -101,7 +83,7 @@ function markEventSheetPosted(eventId, { channelId, messageId, message, createIf
         postedMessage: String(message || "").trim(),
         postedAt: Date.now(),
     });
-    writeJson(EVENT_SHEETS_FILE, { events });
+    store.write({ events });
     return match;
 }
 
@@ -111,10 +93,10 @@ function deleteEventSheet(eventId) {
     const events = listEventSheets();
     const next = events.filter((e) => e.eventId !== id);
     if (next.length === events.length) return false;
-    writeJson(EVENT_SHEETS_FILE, { events: next });
+    store.write({ events: next });
     return true;
 }
 
 module.exports = {
-    listEventSheets, getEventSheet, markEventSheetFilled, markEventSheetPosted, deleteEventSheet,
+    listEventSheets, getEventSheet, markEventSheetFilled, markEventSheetPosted, deleteEventSheet, useFile: store.useFile,
 };
