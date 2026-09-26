@@ -4,11 +4,12 @@
 // officer sees and what a click does.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { Application, RecruitmentData, RecruitmentPost, RecruitmentTemplate } from "../../api";
 import { DISCORD_CONTENT_LIMIT } from "../../lib/discordMarkdown";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import RecruitmentPage from "./RecruitmentPage";
 
 vi.mock("../../api", async (orig) => ({
@@ -259,5 +260,43 @@ describe("the message editor", () => {
         expect(within(preview).getByText("Heiler").closest("strong")).not.toBeNull();
         await user.type(within(dialog).getByLabelText("Button-Beschriftung"), "Bewirb dich");
         expect(within(preview).getByText("Bewirb dich")).toBeInTheDocument();
+    });
+});
+
+describe("in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("names the tabs, the part heads and the posting dialog in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        renderPage(<RecruitmentPage />, { route: "/recruitment" });
+
+        expect(await screen.findByText("Posted messages")).toBeInTheDocument();
+        expect(screen.getByRole("tab", { name: /Messages/ })).toHaveAttribute("aria-selected", "true");
+        expect(screen.getByRole("tab", { name: /Applications/ })).toHaveTextContent("1 · 1 new");
+        expect(screen.getByRole("button", { name: "Scan server" })).toBeInTheDocument();
+
+        await user.click(screen.getByRole("tab", { name: /Templates/ }));
+        expect(await screen.findByText("Recruitment templates")).toBeInTheDocument();
+
+        await user.click(screen.getByRole("button", { name: "Post message" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByRole("button", { name: "Post to channel" })).toBeDisabled();
+        expect(within(dialog).getByText("Preview in Discord")).toBeInTheDocument();
+        expect(within(dialog).getByText(/^Today at /)).toBeInTheDocument();
+        // the button label is what the bot posts, not UI text
+        expect(within(dialog).getByText("Jetzt bewerben")).toBeInTheDocument();
+    });
+
+    it("shows an application's details in English", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        renderPage(<RecruitmentPage />, { route: "/recruitment?view=applications" });
+
+        await user.click(await screen.findByText("Thrall", { selector: ".cname span" }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("About the applicant")).toBeInTheDocument();
+        expect(within(dialog).getByRole("link", { name: /Open thread in Discord/ })).toBeInTheDocument();
+        expect(within(dialog).getByText("new")).toBeInTheDocument();
     });
 });

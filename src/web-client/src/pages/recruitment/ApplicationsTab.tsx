@@ -11,6 +11,7 @@ import Badge from "../../components/ui/Badge";
 import Expand from "../../components/ui/Expand";
 import { PartHead } from "../../components/ui/PartHead";
 import WowIcon from "../../components/ui/WowIcon";
+import { useT } from "../../i18n";
 import { ICONS, isUrl, openExternal, shortStamp } from "./shared";
 import { ClassTile, StatusBadge } from "./RecruitmentBits";
 
@@ -21,7 +22,8 @@ const APP_SORT_DEFAULTS: Record<AppSortKey, Dir> = { character: "asc", discord: 
 const STATUS_ORDER: Record<string, number> = { neu: 0, offen: 1, archiviert: 2 };
 
 function ApplicationDetails({ app, onClose }: { app: Application; onClose: () => void }) {
-    const who = app.displayName || app.discordName || (app.applicantId ? "Discord-Mitglied" : "—");
+    const t = useT();
+    const who = app.displayName || app.discordName || (app.applicantId ? t("recruitment.appDetails.member") : "—");
     const link = (value: string, icon: string) => {
         const v = (value || "").trim();
         if (!v) return <span className="csub">—</span>;
@@ -36,14 +38,14 @@ function ApplicationDetails({ app, onClose }: { app: Application; onClose: () =>
         <Modal
             open onClose={onClose} width={680}
             icon={app.classIcon || "inv_misc_questionmark"} tone="none"
-            kicker={`Bewerbung · ${shortStamp(app.createdAt)}`}
-            title={app.character || app.name || "Bewerbung"}
-            hint="Aus dem Thread im Bewerbungs-Channel"
+            kicker={t("recruitment.appDetails.kicker", { date: shortStamp(app.createdAt) })}
+            title={app.character || app.name || t("recruitment.applications.fallbackName")}
+            hint={t("recruitment.appDetails.hint")}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Schließen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
                     <a className={buttonClass("primary", "md", true)} href={app.url} target="_blank" rel="noopener noreferrer">
-                        <ExternalIcon />Thread in Discord öffnen
+                        <ExternalIcon />{t("recruitment.appDetails.openThread")}
                     </a>
                 </>
             )}
@@ -54,18 +56,19 @@ function ApplicationDetails({ app, onClose }: { app: Application; onClose: () =>
                 <StatusBadge status={app.status} />
             </div>
             <dl className="rc-meta">
-                <dt>Bewerber</dt>
+                <dt>{t("recruitment.appDetails.applicant")}</dt>
                 <dd>{who}{app.discordName && app.discordName !== who && <span className="csub"> (@{app.discordName})</span>}</dd>
                 <dt>Armory</dt><dd>{link(app.armory, ICONS.armory)}</dd>
                 <dt>WarcraftLogs</dt><dd>{link(app.wcl, ICONS.wcl)}</dd>
             </dl>
-            <div className="kicker rc-about-head">Über den Bewerber</div>
-            <div className="rc-about">{app.description || <span className="csub">Keine Angabe.</span>}</div>
+            <div className="kicker rc-about-head">{t("recruitment.appDetails.about")}</div>
+            <div className="rc-about">{app.description || <span className="csub">{t("recruitment.appDetails.noInfo")}</span>}</div>
         </Modal>
     );
 }
 
 export function ApplicationsTab({ data }: { data: RecruitmentData }) {
+    const t = useT();
     const [openId, setOpenId] = useState("");
     const apps = data.applications || [];
     const { sort, dir, onSort, apply } = useTableSort<AppSortKey>("recruitment-applications-sort", APP_SORT_DEFAULTS, "date");
@@ -84,24 +87,24 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
     if (!data.applicationChannelId) {
         content = (
             <div className="rc-empty rc-empty-panel">
-                <Badge tone="mid">Kein Bewerbungs-Channel</Badge>
-                <span>Lege ihn in den <a className="mlink" href="/settings">Einstellungen</a> fest, damit die Bewerbungen hier erscheinen.</span>
+                <Badge tone="mid">{t("recruitment.applications.noChannel")}</Badge>
+                <span>{t("recruitment.applications.noChannelBefore")}<a className="mlink" href="/settings">{t("recruitment.applications.noChannelLink")}</a>{t("recruitment.applications.noChannelAfter")}</span>
             </div>
         );
     } else if (data.applicationsError) {
-        content = <div className="rc-empty rc-empty-panel"><Badge tone="bad">Fehler</Badge><span>{data.applicationsError}</span></div>;
+        content = <div className="rc-empty rc-empty-panel"><Badge tone="bad">{t("recruitment.applications.error")}</Badge><span>{data.applicationsError}</span></div>;
     } else if (!apps.length) {
-        content = <div className="rc-empty rc-empty-panel"><Badge>Keine Bewerbungen</Badge><span>In den letzten 6 Wochen kam keine Bewerbung.</span></div>;
+        content = <div className="rc-empty rc-empty-panel"><Badge>{t("recruitment.applications.none")}</Badge><span>{t("recruitment.applications.noneText")}</span></div>;
     } else {
         content = (
             <div className="rc-tbl">
                 <table className="idx">
                     <thead>
                         <tr>
-                            <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="discord" label="Discord" sort={sort} dir={dir} onSort={onSort} style={{ width: 170 }} />
-                            <SortTh sortKey="date" label="Eingereicht" sort={sort} dir={dir} onSort={onSort} style={{ width: 140 }} />
-                            <SortTh sortKey="status" label="Status" sort={sort} dir={dir} onSort={onSort} tip="Status" tipSub="neu = jünger als 7 Tage · offen = Thread aktiv · archiviert = Thread archiviert." style={{ width: 120 }} />
+                            <SortTh sortKey="character" label={t("recruitment.applications.colCharacter")} sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="discord" label={t("recruitment.applications.colDiscord")} sort={sort} dir={dir} onSort={onSort} style={{ width: 170 }} />
+                            <SortTh sortKey="date" label={t("recruitment.applications.colSubmitted")} sort={sort} dir={dir} onSort={onSort} style={{ width: 140 }} />
+                            <SortTh sortKey="status" label={t("recruitment.applications.colStatus")} sort={sort} dir={dir} onSort={onSort} tip={t("recruitment.applications.statusTip")} tipSub={t("recruitment.applications.statusSub")} style={{ width: 120 }} />
                             <th style={{ width: 210 }} />
                         </tr>
                     </thead>
@@ -112,7 +115,7 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
                                     <div className="rc-char">
                                         <ClassTile app={a} />
                                         <div>
-                                            <div className="cname"><span {...classColorProps(a.classColor)}>{a.character || a.name || "Bewerbung"}</span></div>
+                                            <div className="cname"><span {...classColorProps(a.classColor)}>{a.character || a.name || t("recruitment.applications.fallbackName")}</span></div>
                                             <div className="csub">{a.spec || a.classSpec || "—"}</div>
                                         </div>
                                     </div>
@@ -138,13 +141,13 @@ export function ApplicationsTab({ data }: { data: RecruitmentData }) {
     return (
         <>
             <PartHead
-                icon={ICONS.applications} tone="recruitment" title="Bewerbungen" crumb="Recruitment › Bewerbungen"
-                tip="Die letzten 10 Bewerbungen der vergangenen 6 Wochen"
-                tipSub="Aus den Threads im Bewerbungs-Channel, neueste zuerst."
+                icon={ICONS.applications} tone="recruitment" title={t("recruitment.applications.title")} crumb={t("recruitment.crumb.applications")}
+                tip={t("recruitment.applications.tip")}
+                tipSub={t("recruitment.applications.tipSub")}
                 action={data.applicationChannelId && data.activeGuildId
                     ? (
                         <a className={buttonClass("ghost", "sm", true)} href={channelUrl(data.activeGuildId, data.applicationChannelId)} target="_blank" rel="noopener noreferrer">
-                            <ExternalIcon />#{channel ? channel.name : "bewerbungen"} öffnen
+                            <ExternalIcon />{t("recruitment.applications.openChannel", { name: channel ? channel.name : t("recruitment.applications.channelFallback") })}
                         </a>
                     )
                     : undefined}

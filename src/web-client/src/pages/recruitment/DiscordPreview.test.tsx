@@ -2,8 +2,9 @@
 // shared parser, the server's own emojis in place of their <:name:id> codes, and
 // the apply button with the label the bot posts.
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { Emoji } from "../../api";
+import { switchLang } from "../../test/i18n";
 import DiscordPreview from "./DiscordPreview";
 
 const EMOJIS: Emoji[] = [{ id: "111", name: "holy", animated: false, code: "<:holy:111>", url: "https://cdn.example/holy.png" }];
@@ -42,5 +43,22 @@ describe("DiscordPreview", () => {
     it("says so when there is no text yet", () => {
         render(<DiscordPreview content="" buttonLabel="" emojis={[]} />);
         expect(screen.getByText("Noch kein Text.")).toBeInTheDocument();
+    });
+
+    it("writes the time like German Discord", () => {
+        render(<DiscordPreview content="" buttonLabel="" emojis={[]} />);
+        expect(screen.getByText(/^Heute um \d\d:\d\d$/)).toBeInTheDocument();
+    });
+});
+
+describe("DiscordPreview in English", () => {
+    afterEach(() => switchLang("de"));
+
+    it("writes the time like English Discord and keeps the bot's button label", async () => {
+        await switchLang("en");
+        render(<DiscordPreview content="" buttonLabel="" emojis={[]} />);
+        expect(screen.getByText(/^Today at \d\d:\d\d$/)).toBeInTheDocument();
+        expect(screen.getByText("No text yet.")).toBeInTheDocument();
+        expect(screen.getByText("Jetzt bewerben")).toBeInTheDocument();
     });
 });

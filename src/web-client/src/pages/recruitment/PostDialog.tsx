@@ -6,6 +6,7 @@ import { useToast } from "../../components/Jobs";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import { useT } from "../../i18n";
 import { TipLabel, WantedIcons } from "./RecruitmentBits";
 import { ICONS } from "./shared";
 
@@ -15,6 +16,7 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
     onPosted: (msg: string) => void;
     onClose: () => void;
 }) {
+    const t = useT();
     const [target, patchTarget] = useDraftState("recruitment-post-target", { templateId: data.templates[0]?.id ?? "", channelId: "" });
     const [posting, setPosting] = useState(false);
     const toast = useToast();
@@ -25,15 +27,15 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [presetTemplateId]);
 
-    const template = data.templates.find((t) => t.id === target.templateId) || data.templates[0] || null;
+    const template = data.templates.find((tpl) => tpl.id === target.templateId) || data.templates[0] || null;
     const byCategory = useMemo(() => {
         const groups = new Map<string, TextChannel[]>();
         for (const c of data.channels) {
-            const key = c.category || "Ohne Kategorie";
+            const key = c.category || t("recruitment.postDialog.noCategory");
             groups.set(key, [...(groups.get(key) || []), c]);
         }
         return [...groups.entries()];
-    }, [data.channels]);
+    }, [data.channels, t]);
 
     const ready = !!(data.activeGuildId && template && target.channelId);
     const submit = async (e: React.FormEvent) => {
@@ -42,7 +44,7 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
         setPosting(true);
         try {
             await postRecruitmentTemplate({ templateId: template.id, channelId: target.channelId });
-            onPosted("Nachricht gepostet.");
+            onPosted(t("recruitment.postDialog.posted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -52,25 +54,25 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
 
     let body: ReactNode;
     if (!data.activeGuildId) {
-        body = <div className="rc-empty"><Badge tone="mid">Kein Server gewählt</Badge><span>Wähle oben einen Server, um eine Nachricht zu posten.</span></div>;
+        body = <div className="rc-empty"><Badge tone="mid">{t("recruitment.postDialog.noServer")}</Badge><span>{t("recruitment.postDialog.noServerText")}</span></div>;
     } else if (!data.templates.length) {
-        body = <div className="rc-empty"><Badge tone="mid">Keine Vorlage</Badge><span>Lege zuerst eine Vorlage an, um sie posten zu können.</span></div>;
+        body = <div className="rc-empty"><Badge tone="mid">{t("recruitment.postDialog.noTemplate")}</Badge><span>{t("recruitment.postDialog.noTemplateText")}</span></div>;
     } else {
         body = (
             <form id="rc-postdlg-form" onSubmit={submit} className="rc-editor">
                 <div className="rc-fields">
                     <div className="field">
-                        <TipLabel label="Vorlage" htmlFor="rc-pick-template" />
+                        <TipLabel label={t("recruitment.postDialog.template")} htmlFor="rc-pick-template" />
                         <select id="rc-pick-template" value={template?.id || ""} onChange={(e) => patchTarget({ templateId: e.target.value })} required>
-                            {data.templates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                            {data.templates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name || t("recruitment.postDialog.noName")}</option>)}
                         </select>
                     </div>
                     <div className="field">
-                        <TipLabel label="Ziel-Channel" htmlFor="rc-pick-channel" tip="Ziel-Channel" tipSub="Der Bot postet die Nachricht dort mit Bewerben-Button und merkt sie sich zum späteren Bearbeiten." />
+                        <TipLabel label={t("recruitment.postDialog.channel")} htmlFor="rc-pick-channel" tip={t("recruitment.postDialog.channel")} tipSub={t("recruitment.postDialog.channelSub")} />
                         {data.channels.length
                             ? (
                                 <select id="rc-pick-channel" value={target.channelId} onChange={(e) => patchTarget({ channelId: e.target.value })} required>
-                                    <option value="">— Channel wählen —</option>
+                                    <option value="">{t("recruitment.postDialog.pickChannel")}</option>
                                     {byCategory.map(([cat, list]) => (
                                         <optgroup key={cat} label={cat}>
                                             {list.map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
@@ -81,19 +83,19 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
                             : (
                                 <input
                                     id="rc-pick-channel" type="text" value={target.channelId}
-                                    onChange={(e) => patchTarget({ channelId: e.target.value })} placeholder="Channel-ID" required
+                                    onChange={(e) => patchTarget({ channelId: e.target.value })} placeholder={t("recruitment.postDialog.channelId")} required
                                 />
                             )}
                     </div>
                     {template && (
                         <div className="rc-postdlg-meta">
-                            <span className="kicker">Gesucht</span>
+                            <span className="kicker">{t("recruitment.postDialog.wanted")}</span>
                             <WantedIcons content={template.content} data={data} />
                         </div>
                     )}
                 </div>
                 <div className="rc-preview">
-                    <div className="kicker rc-preview-head">Vorschau in Discord</div>
+                    <div className="kicker rc-preview-head">{t("recruitment.postDialog.preview")}</div>
                     {template && <DiscordPreview content={template.content} buttonLabel={template.buttonLabel} emojis={data.emojis} channels={data.channels} />}
                 </div>
             </form>
@@ -103,12 +105,12 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
     return (
         <Modal
             open onClose={onClose} width={data.activeGuildId && data.templates.length ? 1040 : 520}
-            icon={ICONS.post} tone="recruitment" kicker="Recruitment" title="Nachricht posten" initialFocus="select, .btn-ghost"
+            icon={ICONS.post} tone="recruitment" kicker={t("recruitment.page.title")} title={t("recruitment.postDialog.title")} initialFocus="select, .btn-ghost"
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     {data.activeGuildId && data.templates.length > 0 && (
-                        <Button type="submit" form="rc-postdlg-form" icon={ICONS.post} running={posting} disabled={!ready}>In Channel posten</Button>
+                        <Button type="submit" form="rc-postdlg-form" icon={ICONS.post} running={posting} disabled={!ready}>{t("recruitment.postDialog.submit")}</Button>
                     )}
                 </>
             )}
