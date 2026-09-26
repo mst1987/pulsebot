@@ -22,8 +22,8 @@ const http = require("http");
 const { google } = require("googleapis");
 
 // Load env the same way the bot does: prefer .env.dev, fall back to .env.
-try { require("dotenv").config({ path: ".env.dev" }); } catch { /* optional */ }
-require("dotenv").config();
+try { require("dotenv").config({ path: ".env.dev", quiet: true }); } catch { /* optional */ }
+require("dotenv").config({ quiet: true });
 
 const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
 const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
