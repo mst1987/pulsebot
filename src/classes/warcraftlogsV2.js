@@ -1,5 +1,7 @@
-const axios = require("axios");
-const agent = require("../utils/httpAgent");
+const { createClient } = require("./httpClient");
+
+const TOKEN_TIMEOUT_MS = 10000;
+const QUERY_TIMEOUT_MS = 30000;
 
 /**
  * Client for the Warcraft Logs **v2** API (GraphQL, OAuth2 client credentials).
@@ -59,6 +61,18 @@ const agent = require("../utils/httpAgent");
  * couple of seconds) gives a boss-HP sample every few seconds from a few
  * hundred events — one page — instead of the tens of thousands of friendly
  * damage events.
+ *
+ * Error contract: `query()` and `getFightSeries()` never throw. A failure
+ * answers `null` and leaves the reason in `lastError`:
+ *   { reason: "not_configured" }    no credentials
+ *   { reason: "graphql", message }  GraphQL errors (partial data is still returned)
+ *   { status, message }             HTTP/network/timeout: status null without an
+ *                                   answer, message the error code (ERR_BAD_REQUEST,
+ *                                   ECONNABORTED, …) or its text
+ * The requests go through classes/httpClient.js, whose ApiError is translated
+ * into that shape in `_fail()`. Both POSTs are reads, so a 5xx or a dropped
+ * connection is retried; a timeout is not (a report build asks for every
+ * boss — three 30-s waits per fight would stall it for many minutes).
  */
 class WarcraftLogsV2 {
     /**
@@ -72,6 +86,11 @@ class WarcraftLogsV2 {
         this._token = null;
         this._tokenExpiry = 0; // epoch ms
         this.lastError = null;
+        this.http = createClient({
+            service: "Warcraft Logs v2",
+            timeout: QUERY_TIMEOUT_MS,
+            retry: { methods: ["post"], timeouts: false },
+        });
     }
 
     /** Whether credentials are present. Without them every fetch answers null. */
@@ -93,16 +112,11 @@ class WarcraftLogsV2 {
      */
     async getToken() {
         if (this._token && Date.now() < this._tokenExpiry) return this._token;
-        const res = await axios.post(
-            this.tokenUrl,
-            "grant_type=client_credentials",
-            {
-                auth: { username: this.clientId, password: this.clientSecret },
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                httpsAgent: agent,
-                timeout: 10000,
-            }
-        );
+        const res = await this.http.post(this.tokenUrl, "grant_type=client_credentials", {
+            auth: { username: this.clientId, password: this.clientSecret },
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            timeout: TOKEN_TIMEOUT_MS,
+        });
         const token = res && res.data && res.data.access_token;
         if (!token) throw new Error("WCL v2 token response carried no access_token");
         this._token = token;
@@ -135,10 +149,8 @@ class WarcraftLogsV2 {
                 return this._fail(err);
             }
             try {
-                const res = await axios.post(this.apiUrl, { query, variables }, {
+                const res = await this.http.post(this.apiUrl, { query, variables }, {
                     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                    httpsAgent: agent,
-                    timeout: 30000,
                 });
                 const body = res && res.data;
                 if (body && Array.isArray(body.errors) && body.errors.length) {
@@ -149,8 +161,7 @@ class WarcraftLogsV2 {
                 this.lastError = null;
                 return (body && body.data) || null;
             } catch (err) {
-                const status = err.response && err.response.status;
-                if (status === 401) {
+                if (err.status === 401) {
                     // a refused token is useless either way; retry only once
                     this._token = null;
                     this._tokenExpiry = 0;
@@ -165,10 +176,10 @@ class WarcraftLogsV2 {
         return null;
     }
 
-    /** Record a failed request in `lastError` and answer null. */
+    /** Translate a failure (ApiError or plain Error) into `lastError` and answer null. */
     _fail(err) {
-        const status = err.response && err.response.status;
-        this.lastError = { status: status || null, message: err.code || err.message || "unbekannt" };
+        const status = err.status || null;
+        this.lastError = { status, message: err.code || err.message || "unbekannt" };
         console.warn(`WCL v2 request failed (${status || err.code || err.message})`);
         return null;
     }

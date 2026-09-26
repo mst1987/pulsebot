@@ -1,5 +1,7 @@
-const axios = require("axios");
-const agent = require("../utils/httpAgent");
+const { createClient } = require("./httpClient");
+
+// v1 tables of a whole raid night can take a while; this caps a hung request.
+const REQUEST_TIMEOUT_MS = 60000;
 
 /**
  * Client for the Warcraft Logs **v1** API (the "V1 Client Key" from the WCL profile).
@@ -11,6 +13,29 @@ const agent = require("../utils/httpAgent");
  *   - report/events/summary/{id}    -> raw events (used for raid start/end detection)
  *
  * The API key is read from process.env.WARCRAFTLOGS_API_KEY.
+ *
+ * Error contract: every request **throws** — an ApiError (classes/httpClient.js)
+ * with `status`/`kind`, which still carries axios' `response`, so the callers
+ * that print `e.response.status` (utils/logcheck/report.js) keep working. GETs
+ * are retried on 5xx, network errors and timeouts, never on a 4xx (e.g. WCL's
+ * 429 rate limit). Every caller catches and degrades on its own.
+ *
+ * Why v1 and v2 both stay (#429): v2 (warcraftlogsV2.js) is optional — its
+ * OAuth client lives in the settings and may be missing — while this key is
+ * the one the bot needs anyway. The importers and why each stays on v1:
+ *   - utils/logcheck/report.js    the whole log check: summary, casts, buffs,
+ *                                 debuffs, damage, deaths tables and raw events,
+ *                                 read as v1 answers throughout the analyzers
+ *   - commands/apply/applyModal   getParses (character rankings on the fresh
+ *                                 host, analyzeApplicant), then report.js
+ *   - web/characterInfo.js        getSummary: the gear snapshot of a report
+ *   - web/logGearStore.js         getCasts: the gear of every raider
+ *   - web/logChannel.js           getFights for title and raid progress. v2 has
+ *                                 both, but only with the optional OAuth client
+ *                                 and in another shape (raidProgress reads v1's
+ *                                 boss/kill/zoneName), so a v2 path would need
+ *                                 this one as fallback: two paths for one list
+ *   - commands/logcheck/logcheck  only the static parseReportId(), no request
  */
 class WarcraftLogs {
     constructor(apiKey = process.env.WARCRAFTLOGS_API_KEY) {
@@ -20,6 +45,7 @@ class WarcraftLogs {
         this.apiKey = apiKey;
         // CLA always targets the classic v1 host regardless of fresh/tbc/classic reports.
         this.baseUrl = "https://classic.warcraftlogs.com/v1/";
+        this.http = createClient({ service: "Warcraft Logs", baseURL: this.baseUrl, timeout: REQUEST_TIMEOUT_MS });
     }
 
     /**
@@ -37,16 +63,11 @@ class WarcraftLogs {
     }
 
     async #get(path, params = {}) {
-        const url = `${this.baseUrl}${path}`;
         try {
-            const response = await axios.get(url, {
-                params: { translate: true, api_key: this.apiKey, ...params },
-                httpsAgent: agent,
-            });
+            const response = await this.http.get(path, { params: { translate: true, api_key: this.apiKey, ...params } });
             return response.data;
         } catch (error) {
-            const status = error.response ? error.response.status : "?";
-            console.error(`WCL API error (${status}) on ${path}:`, error.message);
+            console.error(`WCL API error (${error.status || "?"}) on ${path}:`, error.message);
             throw error;
         }
     }
@@ -111,16 +132,13 @@ class WarcraftLogs {
      * @returns array of parses (encounterName, spec, percentile, total, reportID, fightID, startTime, ...)
      */
     async getParses(name, realm, region, metric = "dps") {
+        // an absolute URL: axios ignores the classic baseURL for it
         const url = `https://fresh.warcraftlogs.com/v1/parses/character/${encodeURIComponent(name)}/${encodeURIComponent(realm)}/${encodeURIComponent(region)}`;
         try {
-            const response = await axios.get(url, {
-                params: { metric, api_key: this.apiKey },
-                httpsAgent: agent,
-            });
+            const response = await this.http.get(url, { params: { metric, api_key: this.apiKey } });
             return response.data;
         } catch (error) {
-            const status = error.response ? error.response.status : "?";
-            console.error(`WCL parses error (${status}) for ${name}-${realm}:`, error.message);
+            console.error(`WCL parses error (${error.status || "?"}) for ${name}-${realm}:`, error.message);
             throw error;
         }
     }
@@ -154,5 +172,7 @@ class WarcraftLogs {
         return all;
     }
 }
+
+WarcraftLogs.REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
 
 module.exports = WarcraftLogs;
