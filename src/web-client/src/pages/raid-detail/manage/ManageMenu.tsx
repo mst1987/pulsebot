@@ -6,13 +6,14 @@
 //
 // The menu is portalled into <body> and placed under the button: the head is a
 // clipped panel, and a popover inside it would be cut off after three entries.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { manageMenu, type ManageAction, type ManageMenuEntry, type ManageState } from "../../../lib/eventManage";
 import { Button } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/icons";
 import { useT } from "../../../i18n";
+import { useDismiss } from "../../../hooks/useDismiss";
 
 type Place = { top: number; right: number };
 
@@ -39,23 +40,7 @@ export default function ManageMenu({ state, entries: given, tipSub, onAction }: 
         };
     }, [open]);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent) {
-                if (e.key === "Escape") setOpen(false);
-                return;
-            }
-            const target = e.target as Node;
-            if (!anchor.current?.contains(target) && !pop.current?.contains(target)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss([anchor, pop], open, () => setOpen(false));
 
     const entries = given || (state ? manageMenu(state) : []);
     return (

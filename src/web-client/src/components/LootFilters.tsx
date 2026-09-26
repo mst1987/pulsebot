@@ -3,13 +3,14 @@
 // "Filter" button with a count. What is active below that button shows up as
 // removable badges under the row, so a filter remembered from last week is never
 // invisible.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { LootContent } from "../api";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
 import { SearchIcon, XIcon } from "./icons";
 import { contentIcon } from "./LootBadges";
+import { useDismiss } from "../hooks/useDismiss";
 
 export function SearchBox({ id, value, onChange, placeholder }: {
     id: string;
@@ -76,18 +77,7 @@ export function FilterPopover({ active, children }: { active: number; children: 
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     return (
         <div ref={ref} className="hl-filter-btn">

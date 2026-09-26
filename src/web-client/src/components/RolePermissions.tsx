@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Access, Area, Role, RolePermissions } from "../api";
 import {
     LEVEL_LABEL, areaCounts, isDiscordId, levelOf, nextLevel, withLevel, type Grants, type Level,
@@ -11,6 +11,7 @@ import PartHead from "./ui/PartHead";
 import WowIcon from "./ui/WowIcon";
 import { TrashIcon, XIcon } from "./icons";
 import { EyeIcon, InfoTip, LockIcon, PenIcon, PlusIcon, FieldLabel } from "./settingsUi";
+import { useDismiss } from "../hooks/useDismiss";
 
 // Einstellungen → Berechtigungen as one matrix: rows = who, columns = the areas
 // of the menu, each cell one tri-state button (aus › Lesen › Schreiben). It
@@ -70,18 +71,7 @@ function RowName({ label, sub, avatar, onAll }: {
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     return (
         <div className="perm-who" ref={ref}>

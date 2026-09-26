@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { clampMenuPosition, type MenuItem } from "../../../lib/raidplan";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import type { RaidplanMarkName } from "../../../api";
+import { useDismiss } from "../../../hooks/useDismiss";
 
 /**
  * The board's own right-click (or long-press) menu. It replaces the browser's
@@ -33,16 +34,16 @@ export default function ContextMenu({ x, y, title, items, labelFor, onPick, onCl
         setPos(clampMenuPosition(x, y, el.offsetWidth, el.offsetHeight, window.innerWidth, window.innerHeight));
     }, [x, y, items.length]);
 
+    // Esc is the menu's own key (it keeps the board's handlers from seeing it).
+    useDismiss(ref, true, onClose, { event: "pointerdown", capture: true, escape: false });
+
     useEffect(() => {
         const before = document.activeElement as HTMLElement | null;
-        const away = (e: Event) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
         const close = () => onClose();
-        document.addEventListener("pointerdown", away, true);
         window.addEventListener("resize", close);
         window.addEventListener("scroll", close, true);
         window.addEventListener("blur", close);
         return () => {
-            document.removeEventListener("pointerdown", away, true);
             window.removeEventListener("resize", close);
             window.removeEventListener("scroll", close, true);
             window.removeEventListener("blur", close);

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ItemSearchResult } from "../api";
 import { itemQualityProps } from "../lib/itemQuality";
 import { useT } from "../i18n";
+import { useDismiss } from "../hooks/useDismiss";
 
 export default function ItemSearchPicker({ search, onPick, placeholder }: {
     search: (q: string) => Promise<{ items: ItemSearchResult[] }>;
@@ -42,13 +43,7 @@ export default function ItemSearchPicker({ search, onPick, placeholder }: {
         return () => clearTimeout(handle);
     }, [query, search]);
 
-    useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
-    }, []);
+    useDismiss(rootRef, open, () => setOpen(false), { event: "click", escape: false });
 
     const pick = (item: ItemSearchResult) => {
         onPick(item);
