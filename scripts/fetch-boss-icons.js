@@ -13,7 +13,7 @@ const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
 const ENV_DEV = path.join(ROOT, ".env.dev");
-require("dotenv").config({ path: fs.existsSync(ENV_DEV) ? ENV_DEV : path.join(ROOT, ".env") });
+require("dotenv").config({ path: fs.existsSync(ENV_DEV) ? ENV_DEV : path.join(ROOT, ".env"), quiet: true });
 
 const ICON_DIR = path.join(ROOT, "src", "web-client", "public", "bosses");
 const OUT_JSON = path.join(ROOT, "src", "config", "generated", "bossIcons.json");

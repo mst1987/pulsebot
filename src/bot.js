@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const envDev = path.join(__dirname, "../.env.dev");
 const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env");
-require("dotenv").config({ path: envFile });
+require("dotenv").config({ path: envFile, quiet: true });
 require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/http/server.js");

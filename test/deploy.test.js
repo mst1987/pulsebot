@@ -264,7 +264,23 @@ describe("CI workflow (#414)", () => {
         const bot = read(".github/dependabot.yml").replace(/\r\n/g, "\n");
         for (const dir of ["\"/\"", "\"/src/web-client\""]) expect(bot).toContain(`directory: ${dir}`);
         expect(bot).toMatch(/package-ecosystem: "github-actions"/);
-        expect(bot.match(/interval: "weekly"/g)).toHaveLength(3);
+        expect(bot.match(/interval: "monthly"/g)).toHaveLength(3);
+        expect(bot).not.toMatch(/interval: "weekly"/);
+    });
+
+    it("bundles Dependabot updates so a run opens few PRs", () => {
+        const bot = read(".github/dependabot.yml").replace(/\r\n/g, "\n");
+        expect(bot.match(/open-pull-requests-limit: 3/g)).toHaveLength(3);
+        expect(bot.match(/minor-and-patch:\n\s+update-types: \["minor", "patch"\]/g)).toHaveLength(3);
+        expect(bot.match(/majors:\n\s+update-types: \["major"\]/g)).toHaveLength(3);
+    });
+
+    it("leaves TypeScript and Vite majors in the client to a manual migration", () => {
+        const bot = read(".github/dependabot.yml").replace(/\r\n/g, "\n");
+        const client = bot.slice(bot.indexOf("directory: \"/src/web-client\""), bot.indexOf("package-ecosystem: \"github-actions\""));
+        for (const name of ["typescript", "vite"]) {
+            expect(client).toContain(`dependency-name: "${name}"\n        update-types: ["version-update:semver-major"]`);
+        }
     });
 
     it("gives the web client the same Node requirement as the bot", () => {
