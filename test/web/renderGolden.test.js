@@ -42,6 +42,13 @@ describe("web/render — golden master", () => {
         check("error", render.renderError("Fehler <x>", "Etwas ging schief & so"));
     });
 
+    it("ships the former inline style block as /r-assets/report.css, rule for rule", () => {
+        const rules = (css) => css.replace(/\r\n/g, "\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").trim();
+        const before = fs.readFileSync(path.join(DIR, "layout-style.css"), "utf8");
+        const now = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "static", "report.css"), "utf8");
+        expect(rules(now)).toBe(rules(before));
+    });
+
     it("renders the bare shell as before", () => {
         check("layout", render.layout("Titel", "<p>Inhalt</p>"));
         check("layout-bare", render.layout("Titel", "<main>x</main>", { bare: true, bodyClass: "dark", wowheadIconize: true, extraStyle: ".x{}" }));

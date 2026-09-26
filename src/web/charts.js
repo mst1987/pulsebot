@@ -395,79 +395,6 @@ function fmtNumber(v) {
     return String(Math.round(n));
 }
 
-/** The page CSS for every chart above; appended once to the report page's style block. */
-const CHART_STYLE = `
-  .fc-figure { margin:0; }
-  .fc-title { font-size:13px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 8px; }
-  .fc-legend { font-size:13px; color:var(--muted); margin:0 0 6px; }
-  .fc-key { display:inline-block; width:16px; height:2px; vertical-align:middle; margin-right:6px; background:var(--accent); }
-  .fc-key-b { background:var(--accent-2); }
-  .fc-key-hp { background:var(--muted); }
-  .fc-key-mark { background:var(--accent-2); height:8px; width:8px; border-radius:50%; }
-  .fc-marks { margin:6px 0 0; padding:0 0 0 18px; font-size:13px; color:var(--muted); }
-  .fc-marks b { font-family:var(--font-mono); color:var(--text); }
-  .fc-grid { display:flex; align-items:flex-start; }
-  .fc-col { flex:0 0 auto; display:flex; flex-direction:column; box-sizing:border-box; }
-  .fc-icons { width:72px; align-items:center; }
-  .fc-values { width:100px; align-items:flex-end; padding-right:14px; }
-  .fc-cell { height:${ROW_H}px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .fc-values .fc-cell { align-items:flex-end; }
-  .fc-icons img { width:36px; height:36px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); display:block; }
-  .fc-initial { width:36px; height:36px; border-radius:6px; border:1px solid var(--line); background:var(--panel2); display:grid; place-items:center; font-size:13px; font-weight:700; color:var(--muted); }
-  .fc-values b { font-size:17px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; color:var(--text); line-height:1.1; }
-  .fc-values b.fc-good { color:var(--good); }
-  .fc-values b.fc-medium { color:var(--medium); }
-  .fc-values b.fc-high { color:var(--high); }
-  .fc-values span { font-size:11.5px; color:var(--muted); white-space:nowrap; }
-  .fc-yaxis { width:72px; position:relative; }
-  .fc-ytick { position:absolute; right:10px; transform:translateY(-50%); font-size:12px; font-family:var(--font-mono); color:var(--muted); }
-  /* The bar stays visible instead of appearing on hover: a chart drawn at a
-     fixed 6 px per second is almost always wider than its box, and a timeline
-     nobody can tell scrolls is a timeline that gets read to the end of the
-     screen. The gutter was reserved anyway. */
-  .fc-scroll { flex:1 1 auto; min-width:0; overflow-x:scroll; overflow-y:hidden; scrollbar-gutter:stable; }
-  .fc-scroll::-webkit-scrollbar { height:12px; }
-  .fc-scroll::-webkit-scrollbar-thumb { background:var(--line); border-radius:6px; border:3px solid transparent; background-clip:content-box; }
-  .fc-scroll::-webkit-scrollbar-thumb:hover { background:var(--muted); border:3px solid transparent; background-clip:content-box; }
-  .fchart { display:block; font:12px -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; --cc:var(--muted); }
-  .fchart text { fill:var(--text); }
-  .fchart .fc-label { font-size:13px; }
-  .fchart .fc-axis { fill:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; }
-  .fchart .fc-value { fill:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; font-family:var(--font-mono); }
-  .fchart .fc-track { stroke:var(--line-soft); stroke-width:1; }
-  .fchart .fc-tick, .fchart .fc-axisline, .fchart .fc-grid { stroke:var(--line); stroke-width:1; }
-  .fchart .fc-band { fill:var(--accent); }
-  .fchart .fc-band.fc-good { fill:var(--good); }
-  .fchart .fc-band.fc-medium { fill:var(--medium); }
-  .fchart .fc-band.fc-high { fill:var(--high); }
-  .fchart .fc-band-soft { fill:var(--accent); fill-opacity:.45; }
-  .fchart .fc-bar { fill:var(--accent); }
-  .fchart .fc-bar.fc-good { fill:var(--good); }
-  .fchart .fc-bar.fc-medium { fill:var(--medium); }
-  .fchart .fc-bar.fc-high { fill:var(--high); }
-  .fchart .fc-window { fill:var(--accent-2); fill-opacity:.12; }
-  .fchart .fc-marker { fill:var(--accent); stroke:var(--panel); stroke-width:2; }
-  .fchart .fc-mark:hover .fc-marker { fill:var(--accent-2); }
-  .fchart .fc-mark-pt { fill:var(--accent-2); }
-  .fchart .fc-hit { fill:transparent; }
-  .fchart .fc-death line { stroke:var(--cc); stroke-width:2; }
-  .fchart .fc-death:hover line { stroke-width:3; }
-  .fchart .fc-line { fill:none; stroke:var(--accent); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
-  .fchart .fc-area { fill:var(--accent); fill-opacity:.1; }
-  .fchart .fc-end { fill:var(--accent); stroke:var(--panel); stroke-width:2; }
-  .fchart .fc-series-b .fc-line { stroke:var(--accent-2); }
-  .fchart .fc-series-b .fc-area, .fchart .fc-series-b .fc-end { fill:var(--accent-2); }
-  .fchart .fc-hp { fill:none; stroke:var(--muted); stroke-width:1; }
-  .fc-details { margin-top:6px; font-size:13px; }
-  .fc-details summary { color:var(--muted); cursor:pointer; }
-  .fc-table { width:100%; border-collapse:collapse; margin-top:6px; font-variant-numeric:tabular-nums; }
-  .fc-table th, .fc-table td { text-align:left; padding:5px 10px; border-bottom:1px solid var(--line-soft); }
-  .fc-empty { color:var(--muted); padding:12px 0; font-size:14px; }
-  /* light theme: WoW's class palette is made for a dark ground — darken it for the markers */
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fchart .fc-death line { stroke:color-mix(in srgb, var(--cc) 70%, #000); } }
-  :root[data-theme="light"] .fchart .fc-death line { stroke:color-mix(in srgb, var(--cc) 70%, #000); }
-`;
-
 module.exports = {
     ribbonChart,
     markerChart,
@@ -477,6 +404,5 @@ module.exports = {
     axisTicks,
     plotWidth,
     bandStats,
-    CHART_STYLE,
     PX_PER_SEC,
 };
