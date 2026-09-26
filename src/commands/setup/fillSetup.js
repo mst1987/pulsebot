@@ -1,4 +1,4 @@
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
@@ -23,6 +23,11 @@ module.exports = {
     description: "Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan",
     group: "raids",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("fillsetup")
+        .setDescription("Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan")
+        .addStringOption((o) => o.setName("setup_id").setDescription("Raidhelper Setup-ID oder EventHelper-Event (eh-…); leer = Event dieses Kanals").setRequired(false))
+        .addStringOption((o) => o.setName("tank3").setDescription("3. Tank (Charaktername fuer B13, optional)").setRequired(false)),
     async execute(interaction, client) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

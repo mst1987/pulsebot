@@ -1,9 +1,9 @@
 // Message context menu "Event verwalten" (#288): right click on the event's
 // signup message → Apps → Event verwalten. Opens the same ephemeral message as
 // /event verwalten, for the event whose message was clicked (else the event of
-// that channel). Registered as a message command (type 3) in
-// scripts/register-commands.js; the router finds it by its command name.
-const { MessageFlags } = require("discord.js");
+// that channel). Its `data` is a message command (no description), which
+// `npm run register` collects; the router finds it by its command name.
+const { MessageFlags, ContextMenuCommandBuilder, ApplicationCommandType } = require("discord.js");
 const { openPayload } = require("../../web/eventManageBot");
 const { guildFor } = require("../../web/eventDraft");
 
@@ -13,6 +13,9 @@ module.exports = {
     name: CONTEXT_MENU_NAME,
     description: "Kontextmenü an der Anmelde-Nachricht: Event verwalten",
     accessOf: "event",
+    data: new ContextMenuCommandBuilder()
+        .setName(CONTEXT_MENU_NAME)
+        .setType(ApplicationCommandType.Message),
     async execute(interaction) {
         const { guildId, error } = guildFor(interaction);
         if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });

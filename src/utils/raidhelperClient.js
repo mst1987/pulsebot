@@ -28,9 +28,7 @@ function refuse() {
 }
 
 /** A client with Raid-Helper's method names that never asks raid-helper.xyz. */
-function disabledClient(config) {
-    // saveRaid talks to Pulse GDKP's backend, not to Raid-Helper — it keeps working.
-    const real = new Raidhelper({ serverId: config.raidhelperServerId });
+function disabledClient() {
     return {
         disabled: true,
         fetchEvents: async () => [],
@@ -46,13 +44,12 @@ function disabledClient(config) {
         createEvent: refuse,
         signUpToRaid: refuse,
         signUp: refuse,
-        saveRaid: (data) => real.saveRaid(data),
     };
 }
 
 function createRaidhelperClient() {
     const config = getConfig();
-    if (raidhelperDisabled(config)) return disabledClient(config);
+    if (raidhelperDisabled(config)) return disabledClient();
     // DEV ONLY (utils/raidhelperFixture.js): a made-up Raid-Helper event for local test instances; never in production
     const fixture = require("./raidhelperFixture");
     if (fixture.fixtureEnabled()) return fixture.fixtureClient();

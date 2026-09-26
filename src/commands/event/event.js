@@ -8,7 +8,7 @@
 // are eventManageStep.js, its modals eventManageForm.js, the logic
 // web/eventManageBot.js on top of web/eventManage.js. The message context menu
 // "Event verwalten" (eventManageContext.js) opens the same message.
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, SlashCommandBuilder } = require("discord.js");
 const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
 const { openPayload } = require("../../web/eventManageBot");
 const { listEvents } = require("../../web/eventStore");
@@ -24,6 +24,12 @@ module.exports = {
     // Creating events is the orga's job; the role gets it in Einstellungen → Berechtigungen → Bot-Befehle.
     group: "raids",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("event")
+        .setDescription("Events anlegen und verwalten")
+        .addSubcommand((s) => s.setName("anlegen").setDescription("Event anlegen: Kategorie, Vorlage und Kanal wählen, dann Datum und Titel"))
+        .addSubcommand((s) => s.setName("verwalten").setDescription("Event bearbeiten, verschieben, Anmeldung schließen, Raider eintragen, absagen")
+            .addStringOption((o) => o.setName("event").setDescription("Event (leer = das Event dieses Kanals)").setRequired(false).setAutocomplete(true))),
     async execute(interaction) {
         const sub = interaction.options && typeof interaction.options.getSubcommand === "function"
             ? interaction.options.getSubcommand(false)

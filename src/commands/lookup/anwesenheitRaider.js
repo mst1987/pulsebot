@@ -1,4 +1,5 @@
 // /anwesenheit-raider <Name> — one raider's attendance, for the raid lead (#265).
+const { SlashCommandBuilder } = require("discord.js");
 const { characterAttendance, knownCharacterNames } = require("../../web/attendanceLookup");
 const { eventGuildId } = require("../../web/guildRoles");
 const { webUrl, respondChoices, clip } = require("../../utils/botLookup");
@@ -9,6 +10,10 @@ module.exports = {
     description: "Anwesenheit eines Raiders in den letzten Raids je Raid-Kategorie.",
     group: "raids",
     defaultAccess: "admins",
+    data: new SlashCommandBuilder()
+        .setName("anwesenheit-raider")
+        .setDescription("Anwesenheit eines Raiders in den letzten Raids")
+        .addStringOption((o) => o.setName("raider").setDescription("Charaktername").setRequired(true).setAutocomplete(true)),
     async execute(interaction) {
         const name = String(interaction.options.getString("raider") || "").trim();
         const result = characterAttendance(eventGuildId(), name);

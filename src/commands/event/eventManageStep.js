@@ -2,15 +2,13 @@
 // for the customIds. Bearbeiten, Verschieben, Absagen and Löschen open their modal
 // directly (a modal cannot follow a defer); the modal submits are eventManageForm.js.
 const { MANAGE_PREFIX, handleComponent } = require("../../web/eventManageBot");
-const { guildFor } = require("../../web/eventDraft");
+const { componentRoute } = require("../componentRoute");
 
-module.exports = {
+module.exports = componentRoute({
     name: MANAGE_PREFIX,
     description: "Knöpfe und Auswahlmenüs von Event verwalten",
     accessOf: "event",
-    async execute(interaction) {
-        const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.update({ content: error, embeds: [], components: [] });
-        return handleComponent(interaction, guildId);
-    },
-};
+    handler: handleComponent,
+    // the error replaces the management message the button sits on
+    onGuildError: "update",
+});

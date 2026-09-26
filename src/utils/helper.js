@@ -1,10 +1,8 @@
 ﻿const { MessageFlags } = require("discord.js");
-const { DateTime } = require("luxon");
 const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const {
-    raidhelperBotId,
     defaultTimeout,
     embedAccentColor,
 } = require("../config/variables");
@@ -138,65 +136,6 @@ function getChannelsFromCategories(guild, categoryIds) {
     return channelsFromCategories;
 }
 
-// The raid of the current channel with its setup, for `/saveraid`. An own
-// EventHelper event of the channel comes first (#291) — with its APPROVED setup
-// only, a draft is never handed on —, then a Raid-Helper event posted by the
-// Raid-Helper bot. Undefined when the channel has neither.
-async function getRaidInfosFromChannel(interaction) {
-    const own = ownRaidInfos(interaction.channel && interaction.channel.id);
-    if (own) return own;
-    const raidhelper = createRaidhelperClient();
-    const channelMessages = await interaction.channel.messages.fetch();
-    const botMessages = channelMessages.filter(
-        (msg) => msg.author.id === raidhelperBotId
-    );
-
-    for (const [key] of botMessages) {
-        const event = await raidhelper.getEvent(key);
-
-        if (event && event.id) {
-            const comp = await raidhelper.getSetup(event.id);
-            return {
-                raidData: createRaidData(event),
-                setupData: comp ? comp.setup : [],
-            };
-        }
-    }
-}
-
-function ownRaidInfos(channelId) {
-    // Lazily: the web stores are only needed for own events.
-    const { ownEventInChannel } = require("../web/eventSources");
-    const { raidHelperSlots } = require("../web/setupEditor");
-    const event = ownEventInChannel(channelId);
-    if (!event) return null;
-    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: "Europe/Berlin" });
-    return {
-        raidData: createRaidData({
-            id: event.id,
-            title: event.title,
-            description: event.description || "",
-            channelName: event.channelName || "",
-            date: start.toFormat("dd-MM-yyyy"),
-            time: start.toFormat("HH:mm"),
-        }),
-        setupData: raidHelperSlots(event),
-        source: "eventhelper",
-    };
-}
-
-function createRaidData(event) {
-    return {
-        raidid: event.id,
-        title: event.title,
-        description: event.description,
-        raidname: event.channelName + " " + event.date,
-        date: event.date,
-        time: event.time,
-        isGdkp: true,
-    };
-}
-
 async function showAllEvents(interaction, categoryId) {
     const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
@@ -257,6 +196,5 @@ module.exports = {
     botReply,
     findServerEmoji,
     getCharacterIcon,
-    getRaidInfosFromChannel,
     botEditReply,
 };

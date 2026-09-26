@@ -7,7 +7,7 @@
 // file answers the slash command and the clicks (see bot.js' customId routing).
 // The switches belong to a character; the buttons act on the main — the other
 // characters are switched on the web page.
-const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 const profiles = require("../../web/raiderProfileStore");
 const { publicBaseUrl } = require("../../config/variables");
 
@@ -77,6 +77,9 @@ module.exports = {
     // therefore this access.
     group: "signup",
     defaultAccess: "everyone",
+    data: new SlashCommandBuilder()
+        .setName("profil")
+        .setDescription("Zeigt dein Raider-Profil kurz an, mit Link ins Web"),
     summaryLines,
     async execute(interaction) {
         const userId = interaction.user.id;
