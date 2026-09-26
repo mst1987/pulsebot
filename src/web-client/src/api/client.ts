@@ -126,12 +126,12 @@ export async function pollJob(
         }
         if (state.status === "unknown") {
             // the job vanished without leaving a result (server restart mid-run)
-            throw { code: "job_lost", message: "Der Vorgang wurde unterbrochen. Bitte erneut starten." } as ApiError;
+            throw { code: "job_lost", message: t("jobs.lost") } as ApiError;
         }
         if (Date.now() - startedAt > TIMEOUT_MS) {
             throw {
                 code: "job_timeout",
-                message: "Der Vorgang dauert ungewöhnlich lange. Er läuft im Hintergrund weiter — lade die Seite später neu.",
+                message: t("jobs.slow"),
             } as ApiError;
         }
     }
