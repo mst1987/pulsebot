@@ -9,8 +9,7 @@ const { getConfig } = require("./settingsStore");
 const { computeAttendance, hasStarted } = require("../utils/attendance");
 const discord = require("./discord");
 const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS } = require("./pingDelivery");
-
-const fail = (status, code, message) => ({ error: { status, code, message } });
+const { fail } = require("./apiResult");
 
 /**
  * @param {{ guildId: string, eventId: string, target?: string, text?: string }} p
