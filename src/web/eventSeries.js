@@ -490,8 +490,10 @@ function _resetForTests() {
 }
 
 module.exports = {
-    ZONE: TIMEZONE, WEEKDAY_SHORT, MIN_DAYS_BEFORE, MAX_DAYS_BEFORE, MAX_ATTEMPTS, RETRY_AFTER_MS, STALE_CREATING_MS,
-    normalizeSeries, occurrences, retryable, dueDates, planSeries, templateFor, summaryLine, categoryEvents,
-    runSeries, seriesOverview, describeSeries, previewSeries, saveSeriesFor, seriesFailures, RAIDHELPER_HINT,
+    MIN_DAYS_BEFORE, MAX_DAYS_BEFORE, STALE_CREATING_MS, runSeries, seriesOverview, previewSeries, saveSeriesFor, seriesFailures,
     startEventSeries, _resetForTests,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        ZONE: TIMEZONE, MAX_ATTEMPTS, normalizeSeries, occurrences, dueDates, planSeries, summaryLine,
+    },
 };

@@ -95,9 +95,9 @@ describe("overrides, own entries, hiding and reset", () => {
     it("the classes of a type follow the catalog: an override that adds a class is used by the suggestions", () => {
         expect(catalog.classesOf("curse")).toEqual(["Warlock"]);
         catalog.save("spells", { id: "d:curse-of-doom", classes: ["Warlock", "Mage"] });
-        expect(assign.classesFor("curse")).toEqual(["Warlock", "Mage"]);
+        expect(assign._internal.classesFor("curse")).toEqual(["Warlock", "Mage"]);
         expect(catalog.classesOf("kick")).toEqual(expect.arrayContaining(["Rogue", "Warrior", "Shaman", "Mage"]));
-        expect(assign.classesFor("kick").slice(0, 4)).toEqual(["Rogue", "Shaman", "Warrior", "Mage"]);
+        expect(assign._internal.classesFor("kick").slice(0, 4)).toEqual(["Rogue", "Shaman", "Warrior", "Mage"]);
     });
 });
 

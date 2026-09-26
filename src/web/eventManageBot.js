@@ -413,7 +413,9 @@ function openPayload(guildId, where, now = Date.now()) {
 }
 
 module.exports = {
-    MANAGE_PREFIX, FORM_PREFIX,
-    manageId, parseManageId, findEvent, summaryLine, manageView, raiderView, movePreviewView,
-    editModal, moveModal, cancelModal, deleteModal, DELETE_WORD, handleComponent, handleForm, openPayload,
+    MANAGE_PREFIX, FORM_PREFIX, handleComponent, handleForm, openPayload,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        manageId,
+    },
 };

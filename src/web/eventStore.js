@@ -604,8 +604,7 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 }
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
-    normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
-    eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
+    appendEventLog, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
+    normalizePlan, isOwnEventId, eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION,
 };

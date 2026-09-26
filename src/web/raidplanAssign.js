@@ -32,7 +32,6 @@ const catalog = require("./raidplanCatalogStore");
 const { str } = require("../utils/text");
 const { newId } = require("../utils/ids");
 
-const TARGET_KINDS = ["slot", "group", "player", "mark", "text", "mob", "class", "role"];
 // a whole role group as who does it / at whom ("Melees -> Boss", "Ranged soaken hier")
 const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
@@ -462,7 +461,10 @@ function renumberClassRefs(list) {
 }
 
 module.exports = {
-    impliedRole, ANY, CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, mobInstance,
-    ASSIGN_TYPES, TARGET_KINDS, CLASS_IDS, SLOT_ROLES, cleanClasses, CLASS_RULES, CURSES, LIMITS, SUGGESTABLE,
-    cleanAssignments, reidAssignments, expandClassRefs, renumberClassRefs, targetsToAssignments, suggest, suggestHeal, classesFor,
+    CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, ASSIGN_TYPES, CLASS_IDS, SLOT_ROLES, cleanClasses, LIMITS, SUGGESTABLE,
+    cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        impliedRole, mobInstance, renumberClassRefs, classesFor,
+    },
 };

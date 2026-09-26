@@ -65,8 +65,8 @@ describe("validation", () => {
         const r = assign.cleanAssignments([row("a", "tank", [], [flame(1), flame(2), flame(2), flame(), flame(0), flame(25)])]);
         expect(r.assignments[0].targets.map((t) => t.n)).toEqual([1, 2, undefined]);
         expect(r.dropped).toBe(3);
-        expect(assign.mobInstance("3")).toBe(3);
-        expect(assign.mobInstance(21)).toBe(0);
+        expect(assign._internal.mobInstance("3")).toBe(3);
+        expect(assign._internal.mobInstance(21)).toBe(0);
     });
 
     it("a default row keeps the number of its mob target in each section", () => {

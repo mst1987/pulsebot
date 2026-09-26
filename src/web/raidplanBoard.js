@@ -658,7 +658,9 @@ function fillSlots(slots, roster) {
 }
 
 module.exports = {
-    cleanFactor, cleanView,
-    LIMITS, SIZES, SLOT_KINDS, MARKS, cleanGroupStyles, LINE_KINDS, ZONE_TYPES, ZONE_SHAPES, ZONE_COLORS, ZONE_ROLES, ROLE_COLORS, cleanArrow, MIN_ZONE,
-    cleanBoard, boardHasContent, reidBoard, fillSlots, newId, cleanAutoPos, cleanAutoStyle, rowKey, AUTO_KEY, ANY_PLAYER,
+    LIMITS, cleanBoard, boardHasContent, reidBoard, fillSlots, newId, ANY_PLAYER,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        cleanFactor, cleanView, MARKS, cleanGroupStyles, ZONE_ROLES, MIN_ZONE,
+    },
 };

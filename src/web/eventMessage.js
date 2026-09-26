@@ -89,9 +89,9 @@ const { getEventSoftres } = require("./eventSoftresStore");
 const SIGNUP_BUTTON_PREFIX = "event-signup";
 // The select of #287 — messages posted before the buttons carry it and keep working.
 const JOIN_SELECT_PREFIX = "event-join";
-// The signup buttons: `event-btn:<eventId>:<action>` ("join"/"class" only on messages posted before #303).
+// The signup buttons: `event-btn:<eventId>:<action>`, action join | class | absence | late | tentative | bench
+// ("join"/"class" only on messages posted before #303).
 const BUTTON_PREFIX = "event-btn";
-const BUTTON_ACTIONS = ["join", "class", "absence", "late", "tentative", "bench"];
 // The public signup select (#303): `event-pick:<eventId>`, value "mine" or a class id.
 const PICK_PREFIX = "event-pick";
 const PICK_MINE = "mine";
@@ -734,9 +734,11 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, BUTTON_ACTIONS, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, LIMITS,
-    signupButtonId, joinSelectId, buttonId, pickSelectId, buttonRows, messageComponents, rosterEntries, classesOf,
-    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash, titleTiles,
-    buildEventMessage, approvedSetupText, sweepEventMessages, redrawEventMessage,
-    postEventMessage, refreshEventMessage, startEventMessageSync,
+    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, messageComponents, rosterEntries,
+    classesOf, rosterCounts, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        LIMITS, signupButtonId, joinSelectId, buttonId, pickSelectId, signupNumbers, embedLength, blockValue, payloadHash,
+        buildEventMessage, sweepEventMessages, redrawEventMessage,
+    },
 };

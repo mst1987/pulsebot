@@ -526,7 +526,10 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
 }
 
 module.exports = {
-    proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation,
-    approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
-    lineupSignature, mergeOptions, withSetupDefaults, cleanWeights, snapshotOf, avoidPairCount, addUnplacedSignups,
+    proposeEventSetup, saveEventSetup, approveEventSetup, storeExplanation, approvedPlacementFor, raidHelperSlots, setupSummary, editorView,
+    avoidPairCount,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        withSetupDefaults, addUnplacedSignups,
+    },
 };

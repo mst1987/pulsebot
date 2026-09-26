@@ -145,7 +145,7 @@ describe("opening", () => {
 describe("actions", () => {
     it("Bearbeiten, Verschieben, Absagen and Löschen open their modal without deferring", async () => {
         for (const [field, title] of [["e", "bearbeiten"], ["v", "verschieben"], ["x", "absagen"], ["l", "löschen"]]) {
-            const i = interaction({ customId: bot.manageId(field, event.id) });
+            const i = interaction({ customId: bot._internal.manageId(field, event.id) });
             await stepCommand.execute(i);
             expect(i.deferUpdate).not.toHaveBeenCalled();
             expect(lastPayload(i.showModal).toJSON().title).toBe(`SSC + TK ${title}`);
@@ -153,7 +153,7 @@ describe("actions", () => {
     });
 
     it("closes the signup and says so in the same message", async () => {
-        const i = interaction({ customId: bot.manageId("s", event.id) });
+        const i = interaction({ customId: bot._internal.manageId("s", event.id) });
         await stepCommand.execute(i);
         expect(eventStore.getEvent(event.id).signupsClosed).toBe(true);
         const payload = lastPayload(i.editReply);
@@ -163,7 +163,7 @@ describe("actions", () => {
     });
 
     it("picks a raider, signs them up with a profile character, and signs them off", async () => {
-        const pick = interaction({ customId: bot.manageId("u", event.id), values: [RAIDER] });
+        const pick = interaction({ customId: bot._internal.manageId("u", event.id), values: [RAIDER] });
         await stepCommand.execute(pick);
         const panel = lastPayload(pick.editReply);
         expect(panel.embeds[0].description).toContain("Eingetragen: **Dabei**");
@@ -171,18 +171,18 @@ describe("actions", () => {
         expect(select.options[0]).toMatchObject({ label: "Thorwald · Schutz", value: "thorwald|Warrior-Protection" });
 
         signupStore.removeSignup(event.id, RAIDER);
-        const add = interaction({ customId: bot.manageId("a", event.id, RAIDER), values: ["thorwald|Warrior-Protection"] });
+        const add = interaction({ customId: bot._internal.manageId("a", event.id, RAIDER), values: ["thorwald|Warrior-Protection"] });
         await stepCommand.execute(add);
         expect(signupStore.getSignup(event.id, RAIDER)).toMatchObject({ character: "Thorwald", status: "signed" });
         expect(lastPayload(add.editReply).embeds[0].description).toContain("Thorwald eingetragen");
 
-        const off = interaction({ customId: bot.manageId("d", event.id, RAIDER) });
+        const off = interaction({ customId: bot._internal.manageId("d", event.id, RAIDER) });
         await stepCommand.execute(off);
         expect(signupStore.getSignup(event.id, RAIDER)).toBeNull();
     });
 
     it("pings the missing raiders in the event channel and logs it", async () => {
-        const i = interaction({ customId: bot.manageId("p", event.id) });
+        const i = interaction({ customId: bot._internal.manageId("p", event.id) });
         await stepCommand.execute(i);
         expect(pingMissingRaiders).toHaveBeenCalledWith({ guildId: GUILD, eventId: event.id, target: "event" });
         expect(eventStore.getEvent(event.id).log.at(-1)).toMatchObject({ action: "ping", detail: "3 Raider" });
@@ -241,7 +241,7 @@ describe("actions", () => {
         const client = { channels: { fetch: jest.fn(async () => ({ isTextBased: () => true, messages: { fetch: jest.fn(async () => message) } })) } };
         require("../../../src/web/discord").getClient.mockReturnValue(client);
 
-        const modal = interaction({ customId: bot.manageId("l", event.id) });
+        const modal = interaction({ customId: bot._internal.manageId("l", event.id) });
         await stepCommand.execute(modal);
         const fields = lastPayload(modal.showModal).toJSON().components.map((r) => r.components[0].custom_id);
         // a raid still ahead: the DM is offered, "nein" by default
@@ -266,7 +266,7 @@ describe("actions", () => {
 
     it("offers no DM in the delete modal for a cancelled event, and deletes a started raid once LÖSCHEN is typed", async () => {
         eventStore.setEventState(event.id, { status: "cancelled", cancel: { reason: "x" } });
-        const modal = interaction({ customId: bot.manageId("l", event.id) });
+        const modal = interaction({ customId: bot._internal.manageId("l", event.id) });
         await stepCommand.execute(modal);
         expect(lastPayload(modal.showModal).toJSON().components.map((r) => r.components[0].custom_id)).toEqual(["confirm", "archive"]);
 
@@ -277,7 +277,7 @@ describe("actions", () => {
     });
 
     it("a click on an event that is gone, or of another server, says so", async () => {
-        const i = interaction({ customId: bot.manageId("s", "eh-gone") });
+        const i = interaction({ customId: bot._internal.manageId("s", "eh-gone") });
         await stepCommand.execute(i);
         expect(lastPayload(i.update).content).toMatch(/gibt es nicht/);
     });

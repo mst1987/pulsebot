@@ -25,8 +25,10 @@ const discord = require("../../src/web/discord");
 const { getConfig } = require("../../src/web/settingsStore");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const {
-    buildOverviewMessage, formatStart, channelUrl, payloadHash, syncOverview, overviewStatus,
-    scheduleOverviewSync, startTalkOverview, overviewLinks, currentPayload,
+    channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
+    _internal: {
+        buildOverviewMessage, formatStart, payloadHash, overviewLinks,
+    },
 } = require("../../src/web/talkOverview");
 
 const NOW = Date.UTC(2026, 8, 16, 12, 0); // Wed 16.09.2026 14:00 Berlin

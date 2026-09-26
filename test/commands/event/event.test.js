@@ -62,8 +62,8 @@ describe("/event anlegen — access", () => {
     it("the router guard refuses a member without the role on every step, and lets the orga role through", async () => {
         const state = draft.initialState("guild-1", CAT_EH);
         for (const [command, customId, modal] of [
-            [eventCommand, undefined, false], [stepCommand, draft.stepId("k", state), false],
-            [formCommand, draft.formId(state), false], [formCommand, draft.formId(state), true],
+            [eventCommand, undefined, false], [stepCommand, draft._internal.stepId("k", state), false],
+            [formCommand, draft._internal.formId(state), false], [formCommand, draft._internal.formId(state), true],
         ]) {
             const i = mockInteraction({ commandName: customId ? undefined : "event", customId, modal });
             expect(await guardInteraction(i, command, commands)).toBe(false);
@@ -73,7 +73,7 @@ describe("/event anlegen — access", () => {
 
         settings.getConfig.mockReturnValue({ categoryIds: [CAT_EH], botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } });
         eventGuildId.mockReturnValue("guild-1");
-        const orga = mockInteraction({ customId: draft.formId(state) });
+        const orga = mockInteraction({ customId: draft._internal.formId(state) });
         orga.member = { roles: [ORGA] };
         expect(await guardInteraction(orga, formCommand, commands)).toBe(true);
     });
@@ -99,7 +99,7 @@ describe("/event anlegen — step 1", () => {
 
     it("a select redraws the message with the choice in every customId", async () => {
         const state = draft.initialState("guild-1", CAT_EH);
-        const i = mockInteraction({ customId: draft.stepId("c", state), values: [CAT_RH] });
+        const i = mockInteraction({ customId: draft._internal.stepId("c", state), values: [CAT_RH] });
         await stepCommand.execute(i);
         expect(i.deferUpdate).toHaveBeenCalled();
         const payload = lastPayload(i.editReply);
@@ -109,15 +109,15 @@ describe("/event anlegen — step 1", () => {
 
     it("switches the channel mode, the source, and cancels", async () => {
         const state = draft.initialState("guild-1", CAT_EH);
-        const mode = mockInteraction({ customId: draft.stepId("k", state), values: ["e"] });
+        const mode = mockInteraction({ customId: draft._internal.stepId("k", state), values: ["e"] });
         await stepCommand.execute(mode);
         expect(lastPayload(mode.editReply).components[3].components[0].type).toBe(8);
 
-        const src = mockInteraction({ customId: draft.stepId("s", state) });
+        const src = mockInteraction({ customId: draft._internal.stepId("s", state) });
         await stepCommand.execute(src);
         expect(lastPayload(src.editReply).embeds[0].description).toContain("**Anmeldung über:** Raid-Helper");
 
-        const cancel = mockInteraction({ customId: draft.stepId("x", state) });
+        const cancel = mockInteraction({ customId: draft._internal.stepId("x", state) });
         await stepCommand.execute(cancel);
         expect(cancel.update).toHaveBeenCalledWith({ content: "Abgebrochen.", embeds: [], components: [] });
     });
@@ -126,12 +126,12 @@ describe("/event anlegen — step 1", () => {
 describe("/event anlegen — step 2", () => {
     it("Weiter opens the modal at once (no defer), prefilled from the template", async () => {
         const state = draft.initialState("guild-1", CAT_EH);
-        const i = mockInteraction({ customId: draft.formId(state) });
+        const i = mockInteraction({ customId: draft._internal.formId(state) });
         await formCommand.execute(i);
         expect(i.deferReply).not.toHaveBeenCalled();
         expect(i.deferUpdate).not.toHaveBeenCalled();
         const json = i.showModal.mock.calls[0][0].toJSON();
-        expect(json.custom_id).toBe(draft.formId(state));
+        expect(json.custom_id).toBe(draft._internal.formId(state));
         const comp = json.components.map((r) => r.components[0]).find((c) => c.custom_id === "comp");
         expect(comp.value).toBe("25/3/6");
     });
@@ -140,7 +140,7 @@ describe("/event anlegen — step 2", () => {
         createEvent.mockResolvedValue({ status: 201, body: { id: "eh-abc", event: { id: "eh-abc", channelId: "555", size: 25 }, messageError: null } });
         const state = draft.initialState("guild-1", CAT_EH);
         const i = mockInteraction({
-            customId: draft.formId(state), modal: true,
+            customId: draft._internal.formId(state), modal: true,
             options: { title: "SSC + TK", date: future(), time: "1930", comp: "25/3/6", description: "" },
         });
         await formCommand.execute(i);
@@ -154,7 +154,7 @@ describe("/event anlegen — step 2", () => {
     it("a Raid-Helper category creates through Raid-Helper with its linked template", async () => {
         createEvent.mockResolvedValue({ status: 201, body: { id: "1234567890", channelId: "200000000000000001" } });
         const state = { ...draft.initialState("guild-1", CAT_RH), mode: "e", ref: "200000000000000001" };
-        const i = mockInteraction({ customId: draft.formId(state), modal: true, options: { title: "Kara", date: future(), time: "20:00", description: "" } });
+        const i = mockInteraction({ customId: draft._internal.formId(state), modal: true, options: { title: "Kara", date: future(), time: "20:00", description: "" } });
         await formCommand.execute(i);
         expect(createEvent.mock.calls[0][0].body).toMatchObject({ signupSource: "raidhelper", templateId: "37", channelId: "200000000000000001" });
         expect(lastPayload(i.editReply).embeds[0].description).toContain("Kanal <#200000000000000001> gewählt");
@@ -164,7 +164,7 @@ describe("/event anlegen — step 2", () => {
         discord.listAllChannels.mockReturnValue([{ id: "1", name: "x" }]);
         const state = draft.initialState("guild-1", CAT_EH);
         const typed = { title: "Vashj Progress", date: "01.01.2020", time: "19:30", comp: "25/4/7", description: "P2 üben" };
-        const submit = mockInteraction({ customId: draft.formId(state), modal: true, options: typed, userId: "77" });
+        const submit = mockInteraction({ customId: draft._internal.formId(state), modal: true, options: typed, userId: "77" });
         await formCommand.execute(submit);
         const payload = lastPayload(submit.editReply);
         expect(payload.embeds[0].description).toContain("Vergangenheit");

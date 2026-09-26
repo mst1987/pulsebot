@@ -526,8 +526,10 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 }
 
 module.exports = {
-    useFile, LIMITS, slug, bossKeyOf, bossesForInstances, bossIconByName, isMapKey,
-    GENERAL_KEY, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
-    setLink, normalizeLink, playersOf, knownAfter,
-    sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    useFile, LIMITS, bossKeyOf, bossesForInstances, isMapKey, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope,
+    templateMapKey, eventMapKey, setPublished, deletePlan, setLink, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        slug, normalizeLink, knownAfter, sniffImage,
+    },
 };

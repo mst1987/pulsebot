@@ -778,7 +778,6 @@ function setupPath(eventId) {
 }
 
 module.exports = {
-    ACTION_LABELS, STATUS_LABELS, MIN_REASON,
-    whenLabel, startTimeOf, ownEvent, recipientsOf, channelPlan, movePlan, moveEvent, setSignupsOpen,
-    addRaider, removeRaider, cancelEvent, reopenEvent, deleteEvent, deletionInfo, deleteDm, manageInfo, raiderCandidates, logView, setupPath, cancelDm,
+    STATUS_LABELS, whenLabel, ownEvent, movePlan, moveEvent, setSignupsOpen, addRaider, removeRaider, cancelEvent, reopenEvent, deleteEvent,
+    deletionInfo, manageInfo, raiderCandidates, logView, setupPath,
 };

@@ -38,7 +38,7 @@ const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const eventStore = require("../../src/web/eventStore");
 const store = require("../../src/web/eventSeriesStore");
 const series = require("../../src/web/eventSeries");
-const { eventSeriesTask, buildTasks } = require("../../src/web/dashboardOverview");
+const { buildTasks, _internal: { eventSeriesTask } } = require("../../src/web/dashboardOverview");
 
 const ZONE = "Europe/Berlin";
 const at = (iso) => DateTime.fromISO(iso, { zone: ZONE }).toMillis();
@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe("occurrences", () => {
     it("lists the coming Wednesdays at 19:30 Berlin time, with the creation moment 6 days before", () => {
-        const list = series.occurrences(base, { now: at("2026-09-14T12:00"), count: 3 });
+        const list = series._internal.occurrences(base, { now: at("2026-09-14T12:00"), count: 3 });
         expect(list.map((o) => o.date)).toEqual(["2026-09-16", "2026-09-23", "2026-09-30"]);
         expect(utc(list[0].startTime * 1000)).toBe("2026-09-16T17:30:00.000Z");
         expect(utc(list[0].createAt)).toBe("2026-09-10T17:30:00.000Z");
@@ -79,15 +79,15 @@ describe("occurrences", () => {
 
     it("orders several weekdays and keeps today only while its start is ahead", () => {
         const s = { ...base, weekdays: [SAT, WED] };
-        expect(series.occurrences(s, { now: at("2026-09-16T19:00"), count: 3 }).map((o) => o.date))
+        expect(series._internal.occurrences(s, { now: at("2026-09-16T19:00"), count: 3 }).map((o) => o.date))
             .toEqual(["2026-09-16", "2026-09-19", "2026-09-23"]);
-        expect(series.occurrences(s, { now: at("2026-09-16T19:30"), count: 2 }).map((o) => o.date))
+        expect(series._internal.occurrences(s, { now: at("2026-09-16T19:30"), count: 2 }).map((o) => o.date))
             .toEqual(["2026-09-19", "2026-09-23"]);
     });
 
     it("keeps 19:30 wall-clock time across the October switch (last Sunday, 25.10.2026)", () => {
         const s = { ...base, weekdays: [7, WED] };
-        const list = series.occurrences(s, { now: at("2026-10-15T12:00"), count: 4 });
+        const list = series._internal.occurrences(s, { now: at("2026-10-15T12:00"), count: 4 });
         expect(list.map((o) => [o.date, utc(o.startTime * 1000)])).toEqual([
             ["2026-10-18", "2026-10-18T17:30:00.000Z"],
             ["2026-10-21", "2026-10-21T17:30:00.000Z"],
@@ -101,14 +101,14 @@ describe("occurrences", () => {
 
     it("keeps 19:30 across the March switch (last Sunday, 28.03.2027)", () => {
         const s = { ...base, weekdays: [2], daysBefore: 3 };
-        const [first] = series.occurrences(s, { now: at("2027-03-24T12:00"), count: 1 });
+        const [first] = series._internal.occurrences(s, { now: at("2027-03-24T12:00"), count: 1 });
         expect(first.date).toBe("2027-03-30");
         expect(utc(first.startTime * 1000)).toBe("2027-03-30T17:30:00.000Z");
         expect(utc(first.createAt)).toBe("2027-03-27T18:30:00.000Z"); // 27.03. 19:30 CET
     });
 
     it("marks skipped dates", () => {
-        const list = series.occurrences({ ...base, skipDates: ["2026-09-23"] }, { now: at("2026-09-14T12:00"), count: 2 });
+        const list = series._internal.occurrences({ ...base, skipDates: ["2026-09-23"] }, { now: at("2026-09-14T12:00"), count: 2 });
         expect(list.map((o) => o.skipped)).toEqual([false, true]);
     });
 });
@@ -116,39 +116,39 @@ describe("occurrences", () => {
 describe("normalizeSeries", () => {
     const now = at("2026-09-14T12:00");
     it("cleans weekdays, time and skip dates", () => {
-        const { value } = series.normalizeSeries({ ...base, weekdays: [6, "3", 3, 9], time: "1930", skipDates: ["2026-09-23", "2026-09-01", "x"] }, { now });
+        const { value } = series._internal.normalizeSeries({ ...base, weekdays: [6, "3", 3, 9], time: "1930", skipDates: ["2026-09-23", "2026-09-01", "x"] }, { now });
         expect(value).toMatchObject({ weekdays: [3, 6], time: "19:30", skipDates: ["2026-09-23"], enabled: true });
     });
 
     it("refuses what cannot become a series", () => {
-        expect(series.normalizeSeries({ ...base, weekdays: [] }, { now }).error).toMatch(/Wochentag/);
-        expect(series.normalizeSeries({ ...base, time: "25:00" }, { now }).error).toMatch(/Uhrzeit/);
-        expect(series.normalizeSeries({ ...base, daysBefore: 0 }, { now }).error).toMatch(/Tage vorher/);
-        expect(series.normalizeSeries({ ...base, daysBefore: 40 }, { now }).error).toMatch(/Tage vorher/);
-        expect(series.normalizeSeries({ ...base, raidTemplateId: "gone" }, { now }).error).toMatch(/Vorlage/);
-        expect(series.normalizeSeries({ ...base, raidTemplateId: "" }, { now }).error).toMatch(/Standard-Vorlage/);
-        expect(series.normalizeSeries({ ...base, raidTemplateId: "" }, { now, categoryTemplateId: "tpl-ssc" }).value).toBeTruthy();
+        expect(series._internal.normalizeSeries({ ...base, weekdays: [] }, { now }).error).toMatch(/Wochentag/);
+        expect(series._internal.normalizeSeries({ ...base, time: "25:00" }, { now }).error).toMatch(/Uhrzeit/);
+        expect(series._internal.normalizeSeries({ ...base, daysBefore: 0 }, { now }).error).toMatch(/Tage vorher/);
+        expect(series._internal.normalizeSeries({ ...base, daysBefore: 40 }, { now }).error).toMatch(/Tage vorher/);
+        expect(series._internal.normalizeSeries({ ...base, raidTemplateId: "gone" }, { now }).error).toMatch(/Vorlage/);
+        expect(series._internal.normalizeSeries({ ...base, raidTemplateId: "" }, { now }).error).toMatch(/Standard-Vorlage/);
+        expect(series._internal.normalizeSeries({ ...base, raidTemplateId: "" }, { now, categoryTemplateId: "tpl-ssc" }).value).toBeTruthy();
     });
 });
 
 describe("summaryLine", () => {
     it("is the one compact line of the page", () => {
-        expect(series.summaryLine(base, "SSC + TK 25er")).toBe("Mi 19:30 · SSC + TK 25er · 6 Tage vorher");
-        expect(series.summaryLine({ ...base, weekdays: [3, 6], daysBefore: 1 }, "Kara")).toBe("Mi + Sa 19:30 · Kara · 1 Tag vorher");
+        expect(series._internal.summaryLine(base, "SSC + TK 25er")).toBe("Mi 19:30 · SSC + TK 25er · 6 Tage vorher");
+        expect(series._internal.summaryLine({ ...base, weekdays: [3, 6], daysBefore: 1 }, "Kara")).toBe("Mi + Sa 19:30 · Kara · 1 Tag vorher");
     });
 });
 
 describe("dueDates", () => {
     it("opens a date's window X days before its start, and not a minute earlier", () => {
-        expect(series.dueDates(base, {}, at("2026-09-10T19:29"))).toEqual([]);
-        expect(series.dueDates(base, {}, at("2026-09-10T19:30")).map((o) => o.date)).toEqual(["2026-09-16"]);
+        expect(series._internal.dueDates(base, {}, at("2026-09-10T19:29"))).toEqual([]);
+        expect(series._internal.dueDates(base, {}, at("2026-09-10T19:30")).map((o) => o.date)).toEqual(["2026-09-16"]);
     });
 
     it("leaves marked, skipped and switched-off dates alone", () => {
         const now = at("2026-09-10T20:00");
-        expect(series.dueDates(base, { "2026-09-16": { status: "created" } }, now)).toEqual([]);
-        expect(series.dueDates({ ...base, skipDates: ["2026-09-16"] }, {}, now)).toEqual([]);
-        expect(series.dueDates({ ...base, enabled: false }, {}, now)).toEqual([]);
+        expect(series._internal.dueDates(base, { "2026-09-16": { status: "created" } }, now)).toEqual([]);
+        expect(series._internal.dueDates({ ...base, skipDates: ["2026-09-16"] }, {}, now)).toEqual([]);
+        expect(series._internal.dueDates({ ...base, enabled: false }, {}, now)).toEqual([]);
     });
 });
 
@@ -185,10 +185,10 @@ describe("runSeries", () => {
         await series.runSeries({ now });
         // eventManage.deleteEvent turns the mark into "deleted"; the event is gone from every list
         store.setRun("cat1", "2026-09-16", { status: "deleted", at: now, eventId: "eh-1" });
-        expect(series.dueDates(base, store.getRuns("cat1"), now + 60 * 1000)).toEqual([]);
+        expect(series._internal.dueDates(base, store.getRuns("cat1"), now + 60 * 1000)).toEqual([]);
         expect((await series.runSeries({ now: now + 60 * 60 * 1000 })).created).toBe(0);
         expect(createEvent).toHaveBeenCalledTimes(1);
-        const plan = series.planSeries(base, store.getRuns("cat1"), { now, events: [] });
+        const plan = series._internal.planSeries(base, store.getRuns("cat1"), { now, events: [] });
         expect(plan[0]).toMatchObject({ date: "2026-09-16", state: "deleted" });
         // it is no failure the dashboard reports
         expect(series.seriesFailures({ now })).toEqual([]);
@@ -221,7 +221,7 @@ describe("runSeries", () => {
         const runs = store.getRuns("cat1");
         expect(runs["2026-09-16"]).toMatchObject({ status: "existing", eventId: "eh-cancelled" });
         expect(runs["2026-09-11"]).toMatchObject({ status: "existing", eventId: "123" });
-        const plan = series.planSeries({ ...base, weekdays: [WED] }, runs, { now, events: ownUpcomingRaw() });
+        const plan = series._internal.planSeries({ ...base, weekdays: [WED] }, runs, { now, events: ownUpcomingRaw() });
         expect(plan[0].state).toBe("cancelled");
     });
 
@@ -253,7 +253,7 @@ describe("runSeries", () => {
         await series.runSeries({ now: now + 11 * 60 * 1000 });
         await series.runSeries({ now: now + 22 * 60 * 1000 });
         await series.runSeries({ now: now + 33 * 60 * 1000 }); // attempts exhausted
-        expect(createEvent).toHaveBeenCalledTimes(series.MAX_ATTEMPTS);
+        expect(createEvent).toHaveBeenCalledTimes(series._internal.MAX_ATTEMPTS);
         expect(store.getRuns("cat1")["2026-09-16"]).toMatchObject({ status: "failed", attempts: 3 });
 
         const failures = series.seriesFailures({ now: now + 40 * 60 * 1000 });
@@ -271,7 +271,7 @@ describe("runSeries", () => {
         await series.runSeries({ now: now + 60 * 60 * 1000 });
         expect(createEvent).not.toHaveBeenCalled();
         expect(series.seriesFailures({ now: now + 60 * 60 * 1000 })[0].error).toMatch(/unterbrochen/);
-        expect(series.planSeries(base, store.getRuns("cat1"), { now: now + 60 * 60 * 1000 })[0].state).toBe("interrupted");
+        expect(series._internal.planSeries(base, store.getRuns("cat1"), { now: now + 60 * 60 * 1000 })[0].state).toBe("interrupted");
     });
 });
 
@@ -279,11 +279,11 @@ describe("planSeries", () => {
     it("says for every coming date what happens: planned, due, created, skipped", () => {
         const now = at("2026-09-10T20:00");
         const runs = { "2026-09-16": { status: "created", at: now, eventId: "eh-1", channelName: "mi-16-09-ssc-tk" } };
-        const plan = series.planSeries({ ...base, skipDates: ["2026-09-30"] }, runs, { now, count: 4 });
+        const plan = series._internal.planSeries({ ...base, skipDates: ["2026-09-30"] }, runs, { now, count: 4 });
         expect(plan.map((o) => o.state)).toEqual(["created", "planned", "skipped", "planned"]);
         expect(plan[0]).toMatchObject({ eventId: "eh-1", channelName: "mi-16-09-ssc-tk" });
-        expect(series.planSeries(base, {}, { now: at("2026-09-17T20:00"), count: 1 })[0].state).toBe("due");
-        expect(series.planSeries({ ...base, enabled: false }, {}, { now, count: 1 })[0].state).toBe("off");
+        expect(series._internal.planSeries(base, {}, { now: at("2026-09-17T20:00"), count: 1 })[0].state).toBe("due");
+        expect(series._internal.planSeries({ ...base, enabled: false }, {}, { now, count: 1 })[0].state).toBe("off");
     });
 });
 
