@@ -3,6 +3,7 @@ import type { CouncilCandidate, SimResult } from "../../api";
 import { Badge, Bar, Expand, IconButton } from "../../components/ui";
 import { RefreshIcon } from "../../components/icons";
 import { SortTh } from "../../components/SortTh";
+import { useT } from "../../i18n";
 import type { TableSort } from "../../lib/tableSort";
 import { deltaFor, gainFor, raiderHref, simErrorFor, waitedTip, type CandidateSortKey } from "./council";
 import { LootCount, RaiderIdent } from "./ItemBits";
@@ -24,27 +25,28 @@ export function GainCell({ candidate, simDelta, simError, gainMax, onRetry, retr
     onRetry?: () => void;
     retrying?: boolean;
 }) {
+    const t = useT();
     if (typeof simDelta !== "number") {
         if (!candidate.simSupported) {
-            return <span className="lc-muted" data-tip="Keine Simulation" data-tip-sub="Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.">—</span>;
+            return <span className="lc-muted" data-tip={t("lootcouncil.sim.noSim")} data-tip-sub={t("lootcouncil.candidates.noSimTipSub")}>—</span>;
         }
         if (!candidate.hasGear) {
-            return <span className="lc-muted" data-tip="Kein Gear bekannt" data-tip-sub="Der Raider taucht in keiner der letzten Auswertungen auf.">kein Gear</span>;
+            return <span className="lc-muted" data-tip={t("lootcouncil.candidates.noGearTip")} data-tip-sub={t("lootcouncil.candidates.noGearTipSub")}>{t("lootcouncil.candidates.noGear")}</span>;
         }
         return (
             <span className="lc-gain-pending">
                 <span
                     className={simError ? "lc-muted lc-gain-err" : "lc-muted"}
-                    data-tip={simError ? "Simulation fehlgeschlagen" : "Noch nicht simuliert"}
-                    data-tip-sub={simError || "Wird bei „Erneut simulieren“ automatisch mit einbezogen — oder einzeln über den Knopf rechts."}
+                    data-tip={simError ? t("lootcouncil.sim.failedTip") : t("lootcouncil.sim.notSimulatedTip")}
+                    data-tip-sub={simError || t("lootcouncil.candidates.pendingTipSub")}
                 >
-                    {simError ? "Fehler" : "nicht simuliert"}
+                    {simError ? t("common.error") : t("lootcouncil.sim.notSimulated")}
                 </span>
                 {onRetry ? (
                     <IconButton
                         icon={<RefreshIcon />}
-                        tip={simError ? "Erneut simulieren" : "Simulieren"}
-                        tipSub={`Nur ${candidate.character} für dieses Item.`}
+                        tip={simError ? t("lootcouncil.sim.rerun") : t("lootcouncil.sim.simulate")}
+                        tipSub={t("lootcouncil.candidates.retryOnly", { character: candidate.character })}
                         size="sm"
                         tone={simError ? "danger" : undefined}
                         disabled={retrying}
@@ -67,8 +69,8 @@ export function GainCell({ candidate, simDelta, simError, gainMax, onRetry, retr
             {candidate.inflatedBy.length ? (
                 <Badge
                     tone="mid"
-                    tip="Nicht vergleichbar"
-                    tipSub={`${candidate.inflatedBy.map((b) => `„${b.itemName}“ ${b.note}`).join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
+                    tip={t("lootcouncil.candidates.notComparableTip")}
+                    tipSub={t("lootcouncil.candidates.notComparableTipSub", { list: candidate.inflatedBy.map((b) => `${t("common.quoted", { text: b.itemName })} ${b.note}`).join("; ") })}
                 >
                     !
                 </Badge>
@@ -79,9 +81,10 @@ export function GainCell({ candidate, simDelta, simError, gainMax, onRetry, retr
 
 /** The candidate's list badge: BiS, or "kein BiS · ½". */
 export function ListBadge({ candidate }: { candidate: CouncilCandidate }) {
+    const t = useT();
     return candidate.isBis
-        ? <Badge tone="ok" tip="BiS" tipSub="Steht auf der BiS-Liste dieses Raiders.">BiS</Badge>
-        : <Badge tone="mid" tip="Kein BiS" tipSub={`Nicht auf der BiS-Liste dieses Raiders — Zugewinn und Bedarf zählen mit ${Math.round(candidate.bisWeight * 100)} %.`}>kein BiS · ½</Badge>;
+        ? <Badge tone="ok" tip="BiS" tipSub={t("lootcouncil.candidates.bisTipSub")}>BiS</Badge>
+        : <Badge tone="mid" tip={t("lootcouncil.candidates.noBisTip")} tipSub={t("lootcouncil.candidates.noBisTipSub", { pct: Math.round(candidate.bisWeight * 100) })}>{t("lootcouncil.candidates.noBis")}</Badge>;
 }
 
 /**
@@ -110,12 +113,13 @@ export function CandidateRow({
     onLoadLog?: (character: string) => void;
     onLoadArmory?: (character: string) => void;
 }) {
+    const t = useT();
     return (
         <>
             <tr className={open ? "lc-crow-open" : undefined}>
                 {expandable ? (
                     <td className="lc-crow-exp">
-                        <Expand open={!!open} onToggle={onToggleOpen || (() => {})} showLabel={false} label={`Gear von ${candidate.character}`} />
+                        <Expand open={!!open} onToggle={onToggleOpen || (() => {})} showLabel={false} label={t("lootcouncil.candidates.gearOf", { character: candidate.character })} />
                     </td>
                 ) : null}
                 <td>
@@ -167,6 +171,7 @@ export function CandidateTable({
     onLoadLog?: (character: string) => void;
     onLoadArmory?: (character: string) => void;
 }) {
+    const t = useT();
     const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
     const rows = sortState.apply(candidates, (c, key) => {
         switch (key) {
@@ -197,13 +202,13 @@ export function CandidateTable({
                 <thead>
                     <tr>
                         {expandable ? <th aria-hidden="true" /> : null}
-                        <SortTh sortKey="character" label="Raider" {...sortState} />
-                        <SortTh sortKey="bis" label="Liste" tip="BiS-Liste" tipSub="Steht das Item auf der Liste des Raiders? Wenn nicht, zählen Zugewinn und Bedarf halb." {...sortState} />
-                        <SortTh sortKey="slot" label="Ersetzt" tip="Ersetzt" tipSub="Was dafür abgelegt würde — alle Slots, in die es passt; sortiert nach Itemlevel, ein freier Slot zuerst." {...sortState} />
-                        <SortTh sortKey="gain" label="Zugewinn" tip="Zugewinn" tipSub="Simulierte DPS-Differenz aus WoWSims, gleicher Seed für alle. Ist das Item nicht BiS, zählt der Zugewinn halb (schraffiert). Geschätzt wird nichts: ohne Simulation bleibt die Zelle leer." {...sortState} />
-                        <SortTh sortKey="need" label="Bedarf" tip="Bedarf" tipSub="Wartezeit, Loot-Anteil und BiS-Lücke, gewichtet 50 / 40 / 10 — halbiert, wenn das Item für den Raider nicht BiS ist." {...sortState} />
-                        <SortTh sortKey="waited" label="Tage" tip="Tage" tipSub="Seit dem letzten Item." {...sortState} />
-                        <SortTh sortKey="loot" label="Items" tip="Items" tipSub="Im aktuellen Content-Filter." {...sortState} />
+                        <SortTh sortKey="character" label={t("lootcouncil.word.raider")} {...sortState} />
+                        <SortTh sortKey="bis" label={t("lootcouncil.candidates.list")} tip={t("lootcouncil.candidates.listTip")} tipSub={t("lootcouncil.candidates.listTipSub")} {...sortState} />
+                        <SortTh sortKey="slot" label={t("lootcouncil.word.replaces")} tip={t("lootcouncil.word.replaces")} tipSub={t("lootcouncil.candidates.replacesTipSub")} {...sortState} />
+                        <SortTh sortKey="gain" label={t("lootcouncil.candidates.gain")} tip={t("lootcouncil.candidates.gain")} tipSub={t("lootcouncil.candidates.gainTipSub")} {...sortState} />
+                        <SortTh sortKey="need" label={t("lootcouncil.word.need")} tip={t("lootcouncil.word.need")} tipSub={t("lootcouncil.candidates.needTipSub")} {...sortState} />
+                        <SortTh sortKey="waited" label={t("lootcouncil.word.days")} tip={t("lootcouncil.word.days")} tipSub={t("lootcouncil.list.lastTipSub")} {...sortState} />
+                        <SortTh sortKey="loot" label={t("lootcouncil.word.items")} tip={t("lootcouncil.word.items")} tipSub={t("lootcouncil.candidates.itemsTipSub")} {...sortState} />
                     </tr>
                 </thead>
                 <tbody>

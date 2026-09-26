@@ -1,4 +1,5 @@
 import { WowIcon } from "../../components/ui";
+import { useT } from "../../i18n";
 import { RichTip } from "./RichTip";
 
 /** Everything the need bar needs, from a roster row or a candidate alike. */
@@ -17,19 +18,20 @@ export type NeedSubject = {
  * lets two raiders be compared out loud. What drives it sits in the tooltip.
  */
 export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?: number }) {
+    const t = useT();
     const score = Math.round(subject.needScore * 100);
     const p = subject.needParts;
     const parts = [
         { cls: "s1", icon: "inv_misc_pocketwatch_02", w: p.drought * 50, max: 50,
-            text: subject.daysSinceLoot === null ? "Wartezeit · noch nie etwas" : `Wartezeit · ${subject.daysSinceLoot} Tage` },
+            text: subject.daysSinceLoot === null ? t("lootcouncil.need.waitNever") : t("lootcouncil.need.wait", { count: subject.daysSinceLoot }) },
         { cls: "s2", icon: "inv_misc_bag_10", w: p.share * 40, max: 40,
-            text: `Loot-Anteil · ${subject.lootCount} ${subject.lootCount === 1 ? "Item" : "Items"}` },
+            text: t("lootcouncil.need.share", { count: subject.lootCount }) },
         { cls: "s3", icon: "inv_misc_gem_variety_02", w: p.need * 10, max: 10,
-            text: subject.bisTotal ? `BiS-Lücke · ${subject.bisOwned}/${subject.bisTotal}` : "BiS-Lücke · keine Liste" },
+            text: subject.bisTotal ? t("lootcouncil.need.bisGap", { owned: subject.bisOwned, total: subject.bisTotal }) : t("lootcouncil.need.bisGapNone") },
     ];
     return (
         <RichTip
-            label={`Bedarf ${score} von 100`}
+            label={t("lootcouncil.need.score", { score })}
             trigger={
                 <span className="lc-needbar" style={{ width }}>
                     {parts.map((s) => <i key={s.cls} className={s.cls} style={{ width: `${s.w}%` }} />)}
@@ -37,7 +39,7 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
                 </span>
             }
         >
-            <b>Bedarf {score} von 100</b>
+            <b>{t("lootcouncil.need.score", { score })}</b>
             <span className="lc-need-rows">
                 {parts.map((s) => (
                     <span key={s.cls} className="lc-need-row">
@@ -48,7 +50,7 @@ export function NeedBar({ subject, width = 150 }: { subject: NeedSubject; width?
                     </span>
                 ))}
             </span>
-            <i>Gewichtet 50 / 40 / 10: wer lange wartet, zählt am meisten.</i>
+            <i>{t("lootcouncil.need.weighted")}</i>
         </RichTip>
     );
 }
