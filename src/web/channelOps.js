@@ -8,6 +8,7 @@
 // admin with a half-renamed category.
 
 const { discordErrorText } = require("./discordChannels");
+const { plural } = require("../utils/text");
 
 const DEFAULT_PAUSE_MS = 350;
 
@@ -33,7 +34,6 @@ async function runSerial(ids, action, { pauseMs = DEFAULT_PAUSE_MS } = {}) {
     return results;
 }
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * "3 Kanäle geändert, 1 fehlgeschlagen: fehlende Rechte" — the toast line for a

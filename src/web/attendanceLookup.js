@@ -6,9 +6,7 @@ const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { listAllAssignments } = require("./raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listKnownCategories } = require("./categoryNames");
-const { characterKey, splitPlayer } = require("../utils/lootImport");
-
-const keyOf = (name) => characterKey(splitPlayer(name).character);
+const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 
 /**
  * Every character name the roster knows (loot and assignments), for autocomplete.
@@ -17,12 +15,12 @@ const keyOf = (name) => characterKey(splitPlayer(name).character);
 function knownCharacterNames() {
     const names = new Map();
     for (const c of annotatedCharacters()) {
-        const key = keyOf(c.character);
+        const key = characterKeyOf(c.character);
         if (key && !names.has(key)) names.set(key, c.character);
     }
     for (const map of Object.values(listAllAssignments())) {
         for (const name of Object.values(map)) {
-            const key = keyOf(name);
+            const key = characterKeyOf(name);
             if (key && !names.has(key)) names.set(key, String(name).trim());
         }
     }
@@ -36,21 +34,21 @@ function knownCharacterNames() {
  * @returns {{ character: string, categories: {id, name, attended, total, pct, missed}[] }}
  */
 function characterAttendance(guildId, name, { ctx } = {}) {
-    const key = keyOf(name);
+    const key = characterKeyOf(name);
     const character = splitPlayer(String(name || "").trim()).character;
     if (!key) return { character, categories: [] };
 
     const userIdsByCategory = new Map();
     for (const [categoryId, map] of Object.entries(listAllAssignments())) {
         for (const [userId, charName] of Object.entries(map)) {
-            if (keyOf(charName) !== key) continue;
+            if (characterKeyOf(charName) !== key) continue;
             const list = userIdsByCategory.get(categoryId) || [];
             list.push(String(userId));
             userIdsByCategory.set(categoryId, list);
         }
     }
     const categoryIds = new Set(userIdsByCategory.keys());
-    const loot = annotatedCharacters().find((c) => keyOf(c.character) === key);
+    const loot = annotatedCharacters().find((c) => characterKeyOf(c.character) === key);
     for (const id of (loot && loot.categoryIds) || []) categoryIds.add(id);
 
     const context = ctx || buildAttendanceContext(guildId);

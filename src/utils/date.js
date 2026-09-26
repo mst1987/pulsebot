@@ -1,33 +1,10 @@
 ﻿const { DateTime } = require("luxon");
+const { TIMEZONE } = require("../config/timezone");
 
 module.exports = {
-    getWednesdayWeeksAgo: function(weeks) {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        // Calculate the number of days to subtract to get to the previous Wednesday
-        const daysToSubtract = ((today.getDay() + 4) % 7) + 7 * (weeks - 1);
-    
-        // Subtract two weeks' worth of days and the calculated daysToSubtract
-        const weeksAgo = new Date(today.getTime() - daysToSubtract * 24 * 60 * 60 * 1000);
-    
-        return weeksAgo;
-    },
-    // Function to parse "D-M-YYYY" format
-    parseDMYDateString: function(dateString) {
-        const parts = dateString.split("-");
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
-        const year = parseInt(parts[2], 10);
-        return new Date(year, month, day);
-    }, 
-    toTimestamp: function(dateString) {
-        const timestampCET = DateTime.fromFormat(dateString, "dd.MM.yy-HH:mm", { zone: "Europe/Paris" }).toMillis();
-    
-        return timestampCET;
-    },
     formatTimestampToDateString: function(timestamp) {
         // Convert the timestamp to a Luxon DateTime object in CET
-        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: "Europe/Paris" });
+        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: TIMEZONE });
 
         // Format the DateTime object as the desired string format
         const formattedString = dateTimeCET.toFormat("dd.MM.yyyy") + " - " + dateTimeCET.toFormat("HH:mm");
@@ -58,10 +35,10 @@ module.exports = {
         const de = str.match(/^(\d{1,2})\.(\d{1,2})\.(?:(\d{2}|\d{4}))?$/);
         if (!iso && !de) return "";
         const [day, month] = iso ? [Number(iso[3]), Number(iso[2])] : [Number(de[1]), Number(de[2])];
-        const today = DateTime.fromMillis(Number(now), { zone: "Europe/Berlin" }).startOf("day");
+        const today = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
         let year = iso ? Number(iso[1]) : (de[3] ? Number(de[3]) : today.year);
         if (year < 100) year += 2000;
-        let dt = DateTime.fromObject({ year, month, day }, { zone: "Europe/Berlin" });
+        let dt = DateTime.fromObject({ year, month, day }, { zone: TIMEZONE });
         if (!dt.isValid) return "";
         if (!iso && !de[3] && today.diff(dt, "days").days > 60) {
             dt = dt.plus({ years: 1 });

@@ -602,7 +602,9 @@ describe("the pages", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
         expect(detail).toContain("const hasPlan = ownEvent || !!data.event.raidplanEnabled;");
         expect(detail).toContain("t === \"plan\" ? hasPlan");
-        expect(detail).toContain("{shown === \"plan\" && <RaidplanTab ctx={ctx} />}");
+        expect(detail).toContain("{shown === \"plan\" && <Suspense fallback={<RaidLoader />}><RaidplanTab ctx={ctx} /></Suspense>}");
+        // the editor is a chunk of its own, loaded only when the tab is opened (#436)
+        expect(detail).toContain("const RaidplanTab = lazy(() => import(\"./raid-detail/RaidplanTab\"));");
     });
 
     it("drags with Pointer Events on window, never with HTML5 drag and drop", () => {
@@ -636,7 +638,7 @@ describe("the pages", () => {
 
     it("answers the public route before the menu asks for a session", () => {
         expect(app).toMatch(/pathname\.match\(\/\^\\\/p\\\/\(\[A-Za-z0-9_-\]\+\)\\\/\?\$\/\)/);
-        expect(app).toMatch(/if \(publicPlan\) return <PlanPublicPage token=\{publicPlan\[1\]\} \/>;\s*\n\s*return <MenuApp \/>;/);
+        expect(app).toMatch(/if \(publicPlan\) return <Suspense fallback=\{<RaidLoader \/>\}><PlanPublicPage token=\{publicPlan\[1\]\} \/><\/Suspense>;\s*\n\s*return <MenuApp \/>;/);
         expect(pub).toContain("getRaidplanPublic(token)");
         expect(pub).toContain("data.me");
         expect(pub).not.toContain("csrfToken");

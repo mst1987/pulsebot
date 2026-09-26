@@ -1,13 +1,41 @@
-﻿const pendingApplications = new Map();
+// In-memory state for the multi-step /apply flow (select -> spec -> modal).
+// A pending entry is dropped after 30 minutes (the modal must be submitted
+// promptly) by a periodic sweep, following the start()/stop() pattern of
+// src/utils/sheetCleanup.js: idempotent, unref'd so it never keeps the
+// process alive on its own, and started explicitly from bot.js rather than
+// as a side effect of require() (#430).
 
-// Remove stale entries after 30 minutes (modal must be submitted promptly)
-setInterval(() => {
-    const cutoff = Date.now() - 30 * 60 * 1000;
+const pendingApplications = new Map();
+
+const STALE_AFTER_MS = 30 * 60 * 1000;
+const SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+
+function sweepStaleApplications(now = Date.now()) {
+    const cutoff = now - STALE_AFTER_MS;
     for (const [userId, data] of pendingApplications.entries()) {
         if (data.timestamp < cutoff) {
             pendingApplications.delete(userId);
         }
     }
-}, 5 * 60 * 1000);
+}
 
-module.exports = { pendingApplications };
+let timer = null;
+
+/** Start the periodic sweep (idempotent). The timer is unref'd so it never
+ * keeps the process alive on its own. */
+function start({ intervalMs = SWEEP_INTERVAL_MS } = {}) {
+    if (timer) return timer;
+    timer = setInterval(() => sweepStaleApplications(), intervalMs);
+    if (timer.unref) timer.unref();
+    return timer;
+}
+
+/** Stop the periodic sweep (idempotent). */
+function stop() {
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
+    }
+}
+
+module.exports = { pendingApplications, sweepStaleApplications, start, stop };

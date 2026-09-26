@@ -21,7 +21,7 @@ const { buildArmory } = require("../utils/logcheck/gearIssues");
 const { selectPlayers } = require("../utils/logcheck/common");
 const { resolveSituationalGear } = require("../utils/logcheck/gearVariants");
 const { listLogs } = require("./logStore");
-const { characterKey, splitPlayer } = require("../utils/lootImport");
+const { characterKeyOf } = require("../utils/lootImport");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const LOG_GEAR_FILE = path.join(SETTINGS_DIR, "logGear.json");
@@ -53,14 +53,9 @@ function writeAll(characters) {
     fs.writeFileSync(LOG_GEAR_FILE, JSON.stringify({ characters }, null, 2));
 }
 
-/** Same key as lootStore/characterStore: lowercased, realm suffix dropped. */
-function keyOf(character) {
-    return characterKey(splitPlayer(character).character);
-}
-
 /** The loaded snapshot for one character, or null. */
 function getLogGear(character) {
-    return readAll()[keyOf(character)] || null;
+    return readAll()[characterKeyOf(character)] || null;
 }
 
 /** Every loaded snapshot. */
@@ -71,7 +66,7 @@ function listLogGear() {
 /** Forget a loaded snapshot; the evaluations take over again. */
 function clearLogGear(character) {
     const all = readAll();
-    const key = keyOf(character);
+    const key = characterKeyOf(character);
     if (!all[key]) return false;
     delete all[key];
     writeAll(all);
@@ -113,8 +108,8 @@ function recentLogs(limit = 12) {
 async function gearFromReport(wcl, reportId, character) {
     const fights = await wcl.getFights(reportId);
     const table = await wcl.getCasts(reportId, 0, fights.end || 999999999999);
-    const key = keyOf(character);
-    const player = selectPlayers(table).find((p) => keyOf(p.name) === key);
+    const key = characterKeyOf(character);
+    const player = selectPlayers(table).find((p) => characterKeyOf(p.name) === key);
     if (!player) return null;
     const entry = { name: player.name, type: player.type, armory: buildArmory(player, { gemsToConsider: 3 }) };
     try {
@@ -193,5 +188,5 @@ async function loadLogGear(character, { reportId = "", link = "", wcl = null } =
 
 module.exports = {
     loadLogGear, gearFromReport, getLogGear, listLogGear, clearLogGear, recentLogs,
-    LogGearError, MAX_LOGS, keyOf, LOG_GEAR_FILE,
+    LogGearError, MAX_LOGS, keyOf: characterKeyOf, LOG_GEAR_FILE,
 };

@@ -34,6 +34,7 @@ const discord = require("./discord");
 const eventStore = require("./eventStore");
 const { eventEndTime } = require("../utils/eventTime");
 const { getConfig } = require("./settingsStore");
+const { str, clip } = require("../utils/text");
 
 // Discord's limits for a scheduled event.
 const LIMITS = { name: 100, description: 1000, location: 100 };
@@ -46,10 +47,6 @@ const SIGNUP_NOTE = "Sign up only through the message in the channel – “Inte
 /** Discord's "this is gone already" for a scheduled event. */
 const isGone = (e) => !!(e && (e.code === 10070 || e.code === 10008 || e.status === 404 || /unknown (guild )?scheduled event/i.test((e && e.message) || "")));
 
-const clip = (text, max) => {
-    const s = String(text || "").trim();
-    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 
 /** Whether a category creates Discord events for its own events (off by default). */
 function enabledFor(event, config = getConfig()) {
@@ -73,17 +70,17 @@ function eventUrl(event) {
  * the sentence that says where the signup happens, and the link to it.
  */
 function describeEvent(event) {
-    const own = clip(event && event.description, 600);
+    const own = clip(str(event && event.description), 600);
     const url = eventUrl(event);
     const cancelled = event && event.status === "cancelled";
     const reason = cancelled ? String((event.cancel && event.cancel.reason) || "").trim() : "";
     const lines = [
-        cancelled ? `❌ Cancelled${reason ? `: ${clip(reason, 200)}` : ""}` : "",
+        cancelled ? `❌ Cancelled${reason ? `: ${clip(str(reason), 200)}` : ""}` : "",
         own,
         SIGNUP_NOTE,
         url,
     ].filter(Boolean);
-    return clip(lines.join("\n\n"), LIMITS.description);
+    return clip(str(lines.join("\n\n")), LIMITS.description);
 }
 
 /**
@@ -102,7 +99,7 @@ function buildScheduledEvent(event, { voiceChannelId = "" } = {}) {
     const start = Number(event && event.startTime) || 0;
     const end = eventEndTime(event);
     const payload = {
-        name: clip(event && event.title, LIMITS.name) || "Raid",
+        name: clip(str(event && event.title), LIMITS.name) || "Raid",
         description: describeEvent(event),
         scheduledStartTime: new Date(start * 1000).toISOString(),
         scheduledEndTime: new Date(end * 1000).toISOString(),
@@ -119,7 +116,7 @@ function buildScheduledEvent(event, { voiceChannelId = "" } = {}) {
         // when the option is present, and Discord refuses a switch back from a
         // voice event to an external one without an explicit null.
         channel: null,
-        entityMetadata: { location: clip(url || (event && event.channelName ? `#${event.channelName}` : "Discord"), LIMITS.location) },
+        entityMetadata: { location: clip(str(url || (event && event.channelName ? `#${event.channelName}` : "Discord")), LIMITS.location) },
     };
 }
 

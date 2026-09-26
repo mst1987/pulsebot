@@ -15,6 +15,7 @@
 const { getConfig, saveConfig } = require("./settingsStore");
 const { signupSourceFor } = require("./eventSources");
 const { raidhelperDisabled } = require("../utils/raidhelperClient");
+const { TIMEZONE } = require("../config/timezone");
 
 // Statuses: ok (green), mid (open, yellow), bad (red), unknown (cannot be
 // checked right now), info (nothing to check — a reminder).
@@ -23,7 +24,7 @@ const REQUIRED = new Set(["categories", "upcoming"]);
 function fmtDate(seconds) {
     if (!seconds) return "";
     return new Date(Number(seconds) * 1000).toLocaleString("de-DE", {
-        timeZone: "Europe/Berlin", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        timeZone: TIMEZONE, weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
     });
 }
 
@@ -85,7 +86,7 @@ function historyItem({ history }) {
         status: done ? "ok" : "mid",
         value: done ? `${history.importedEvents} Events · ${history.users} Raider` : "noch nicht",
         why: "Damit die Ein-Klick-Anmeldung und das Profil die Spec vorschlagen, mit der sich jemand zuletzt bei Raid-Helper angemeldet hat.",
-        detail: history.lastRun ? [`Zuletzt: ${new Date(history.lastRun.at).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}${history.lastRun.byName ? ` von ${history.lastRun.byName}` : ""}`] : [],
+        detail: history.lastRun ? [`Zuletzt: ${new Date(history.lastRun.at).toLocaleString("de-DE", { timeZone: TIMEZONE })}${history.lastRun.byName ? ` von ${history.lastRun.byName}` : ""}`] : [],
         action: "import",
     };
 }

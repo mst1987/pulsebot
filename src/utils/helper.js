@@ -3,15 +3,12 @@ const { DateTime } = require("luxon");
 const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
+const { TIMEZONE } = require("../config/timezone");
 const {
     raidhelperBotId,
     defaultTimeout,
     embedAccentColor,
 } = require("../config/variables");
-
-function isNumber(value) {
-    return typeof value === "number" && !isNaN(value);
-}
 
 function getCharacterIcon(interaction, spec) {
     return `${interaction.guild.emojis.cache.find(
@@ -23,13 +20,6 @@ function findServerEmoji(interaction, emojiName) {
     return `${interaction.guild.emojis.cache.find(
         (emoji) => emoji.name === emojiName
     )}`;
-}
-
-async function getUserNickname(interaction) {
-    const displayName = await interaction.guild.members.fetch(
-        interaction.user.id
-    );
-    return displayName;
 }
 
 async function botReply(
@@ -181,7 +171,7 @@ function ownRaidInfos(channelId) {
     const { raidHelperSlots } = require("../web/setupEditor");
     const event = ownEventInChannel(channelId);
     if (!event) return null;
-    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: "Europe/Berlin" });
+    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: TIMEZONE });
     return {
         raidData: createRaidData({
             id: event.id,
@@ -206,11 +196,6 @@ function createRaidData(event) {
         time: event.time,
         isGdkp: true,
     };
-}
-
-function formatNumberWithDots(number) {
-    const formattedNumber = number.toLocaleString("en-US");
-    return formattedNumber.replace(/,/g, ".");
 }
 
 async function showAllEvents(interaction, categoryId) {
@@ -263,17 +248,14 @@ async function getCategoryEvents(interaction, categoryId) {
 }
 
 module.exports = {
-    isNumber,
     getCategoryEvents,
     delay,
     showAllEvents,
-    formatNumberWithDots,
     getChannelsFromCategories,
     formatSignUps,
     formatSpecs,
     botFollowup,
     botReply,
-    getUserNickname,
     findServerEmoji,
     getCharacterIcon,
     getRaidInfosFromChannel,

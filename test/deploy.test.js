@@ -81,3 +81,164 @@ describe("deploy.sh", () => {
         expect(deploy).toMatch(/command -v pm2/);
     });
 });
+
+describe("deploy.sh health check", () => {
+    const deploy = read("deploy.sh");
+    const healthAt = deploy.indexOf("HEALTH_URL=");
+    const restartAt = deploy.lastIndexOf("pm2 restart");
+
+    it("asks /health with curl after the restart, not before", () => {
+        expect(deploy).toMatch(/curl -fsS/);
+        expect(healthAt).toBeGreaterThan(restartAt);
+        expect(deploy.indexOf("pm2 start ecosystem.config.js")).toBeLessThan(healthAt);
+    });
+
+    it("retries before giving up", () => {
+        const attempts = Number(deploy.match(/HEALTH_ATTEMPTS=(\d+)/)?.[1]);
+        const delay = Number(deploy.match(/HEALTH_DELAY=(\d+)/)?.[1]);
+        expect(attempts).toBeGreaterThanOrEqual(10);
+        expect(delay).toBeGreaterThanOrEqual(1);
+        expect(deploy).toMatch(/for ATTEMPT in \$\(seq 1 "\$HEALTH_ATTEMPTS"\)/);
+        expect(deploy).toMatch(/sleep "\$HEALTH_DELAY"/);
+    });
+
+    it("fails the deploy (exit 1) when the bot never answers", () => {
+        const failure = deploy.slice(deploy.indexOf("if [ \"$HEALTHY\" -ne 1 ]"));
+        expect(failure).toMatch(/ERROR: .*did not answer/);
+        expect(failure).toMatch(/exit 1/);
+    });
+
+    it("reads WEB_PORT from the env file the bot reads, defaulting to 3005", () => {
+        expect(deploy).toMatch(/WEB_PORT=\S*read_env_port "\$HEALTH_ENV_FILE"/);
+        expect(deploy).toMatch(/\.env\.dev" \] && HEALTH_ENV_FILE=/);
+        expect(deploy).toMatch(/WEB_PORT="\$\{WEB_PORT:-3005\}"/);
+    });
+
+    it("only reports the deploy complete once the check has passed", () => {
+        expect(deploy.lastIndexOf("Deployment complete.")).toBeGreaterThan(healthAt);
+    });
+});
+
+describe("ecosystem.config.js", () => {
+    const [app] = require(path.join(root, "ecosystem.config.js")).apps;
+
+    it("runs production unless told otherwise", () => {
+        expect(app.env.NODE_ENV).toBe("production");
+        expect(app.env_production.NODE_ENV).toBe("production");
+        expect(app.env_development.NODE_ENV).toBe("development");
+    });
+
+    it("gives the bot at least 512M before pm2 restarts it", () => {
+        const mb = Number(String(app.max_memory_restart).match(/^(\d+)M$/)?.[1]);
+        expect(mb).toBeGreaterThanOrEqual(512);
+    });
+});
+
+describe("Dockerfile", () => {
+    const docker = read("Dockerfile");
+
+    it("builds the web client in its own stage and ships only dist/", () => {
+        expect(docker).toMatch(/^FROM node:\d+-alpine AS client$/m);
+        expect(docker).toMatch(/npm run build/);
+        expect(docker).toMatch(/COPY --from=client \/app\/src\/web-client\/dist \.\/src\/web-client\/dist/);
+    });
+
+    it("copies what the bot reads at runtime", () => {
+        for (const dir of ["src", "assets", "scripts"]) {
+            expect(docker).toMatch(new RegExp(`^COPY ${dir}/ \./${dir}/$`, "m"));
+        }
+        // The client imports the shared menu list from outside its folder.
+        expect(docker).toMatch(/COPY src\/config\/menu\.json/);
+    });
+
+    it("installs only production dependencies in the runtime stage", () => {
+        const runtime = docker.slice(docker.indexOf("AS runtime"));
+        expect(runtime).toMatch(/npm ci --omit=dev/);
+    });
+
+    it("passes the commit in, keeps data on a volume and checks /health", () => {
+        expect(docker).toMatch(/^ARG GIT_COMMIT/m);
+        expect(docker).toMatch(/^ENV GIT_COMMIT=\$GIT_COMMIT$/m);
+        expect(docker).toMatch(/^VOLUME \/app\/data$/m);
+        expect(docker).toMatch(/HEALTHCHECK[\s\S]*\$\{WEB_PORT\}\/health/);
+        expect(docker).toMatch(/^USER node$/m);
+    });
+});
+
+describe(".dockerignore", () => {
+    const lines = read(".dockerignore").split(/\r?\n/).map((l) => l.trim());
+
+    it("keeps every env file with secrets out of the build context", () => {
+        expect(lines).toContain(".env*");
+        expect(lines).toContain("!.env.example");
+        expect(lines).toContain("*.bak");
+    });
+
+    it("leaves out nested node_modules, local data and what the image never needs", () => {
+        for (const entry of ["**/node_modules", "data/", "coverage/", "test/", "reference/", "docs/", "bin/", "src/web-client/dist", ".claude/", ".github/"]) {
+            expect(lines).toContain(entry);
+        }
+    });
+});
+
+describe("CI workflow (#414)", () => {
+    // Line endings depend on core.autocrlf; the checks below read LF.
+    const ci = read(".github/workflows/ci.yml").replace(/\r\n/g, "\n");
+    // The body of one job: from its key up to the next top-level job key.
+    const job = (name) => {
+        const start = ci.indexOf(`\n  ${name}:\n`);
+        expect(start).toBeGreaterThan(-1);
+        const rest = ci.slice(start + 1);
+        const next = rest.slice(1).search(/\n {2}[A-Za-z][\w-]*:\n/);
+        return next === -1 ? rest : rest.slice(0, next + 1);
+    };
+
+    it("runs on pushes to main only, no longer on dev", () => {
+        expect(ci).toMatch(/push:\n\s+branches: \[main\]/);
+        expect(ci).not.toMatch(/branches: \[[^\]]*\bdev\b/);
+    });
+
+    it("lints, type-checks and builds the web client in its own directory", () => {
+        const web = job("web-client");
+        expect(web).toMatch(/working-directory: src\/web-client/);
+        expect(web).toMatch(/cache-dependency-path: src\/web-client\/package-lock\.json/);
+        expect(web).toContain("node-version-file: \".nvmrc\"");
+        const steps = ["npm ci", "npm run lint -- --max-warnings=", "npx tsc -b", "npm run build"];
+        const at = steps.map((s) => web.indexOf(`run: ${s}`));
+        for (const i of at) expect(i).toBeGreaterThan(-1);
+        expect(at).toEqual([...at].sort((a, b) => a - b));
+    });
+
+    it("never lets the client's warning budget grow", () => {
+        // A ratchet from the 30 warnings at the time of #414: lower it, never raise it.
+        const budget = Number(job("web-client").match(/--max-warnings=(\d+)/)[1]);
+        expect(budget).toBeLessThanOrEqual(30);
+    });
+
+    it("deploys only after lint, tests and the web client passed", () => {
+        const needs = job("deploy").match(/needs: \[([^\]]*)\]/);
+        expect(needs).not.toBeNull();
+        expect(needs[1].split(",").map((s) => s.trim()).sort()).toEqual(["lint", "test", "web-client"]);
+    });
+
+    it("runs the tests with coverage", () => {
+        expect(job("test")).toContain("run: npm run test:coverage");
+    });
+
+    it("audits the runtime dependencies of the bot and the client", () => {
+        expect(job("lint")).toContain("npm audit --omit=dev --audit-level=");
+        expect(job("web-client")).toContain("npm audit --omit=dev --audit-level=");
+    });
+
+    it("keeps dependencies current through Dependabot", () => {
+        const bot = read(".github/dependabot.yml").replace(/\r\n/g, "\n");
+        for (const dir of ["\"/\"", "\"/src/web-client\""]) expect(bot).toContain(`directory: ${dir}`);
+        expect(bot).toMatch(/package-ecosystem: "github-actions"/);
+        expect(bot.match(/interval: "weekly"/g)).toHaveLength(3);
+    });
+
+    it("gives the web client the same Node requirement as the bot", () => {
+        const client = JSON.parse(read("src/web-client/package.json"));
+        expect(client.engines?.node).toBe(`>=${requiredMajor}`);
+    });
+});

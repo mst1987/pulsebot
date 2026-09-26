@@ -245,11 +245,7 @@ function isUnknownMessage(e) {
     return !!(e && (e.code === 10008 || /unknown message/i.test(e.message || "")));
 }
 
-async function textChannel(client, channelId) {
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) throw new Error("Übersichts-Kanal nicht gefunden oder kein Textkanal.");
-    return channel;
-}
+const OVERVIEW_CHANNEL_MISSING = "Übersichts-Kanal nicht gefunden oder kein Textkanal.";
 
 /** Every configured event server that has an overview target set (both guild and channel). */
 function overviewEntries(config = getConfig()) {
@@ -285,14 +281,13 @@ async function runSyncOne(entry, { repost = false, now = Date.now(), config = ge
         return { guildId: entry.guildId, label, status: "error", error: message };
     };
     try {
-        const client = discord.getClient();
-        if (!client) return fail("Bot nicht verbunden.");
+        if (!discord.isOnline()) return fail("Bot nicht verbunden.");
         const { payload, error } = await currentPayload({ config, now, guildId: entry.guildId });
         // A Raid-Helper outage would post a list without its events: leave an
         // existing message as it is and try again on the next sweep.
         if (error && state.messageId && !repost) return fail(`Events nicht vollständig ladbar: ${error}`);
         const hash = payloadHash(payload);
-        const channel = await textChannel(client, entry.overviewChannelId);
+        const channel = await discord.fetchTextChannel(entry.overviewChannelId, OVERVIEW_CHANNEL_MISSING);
 
         const sameChannel = state.messageId && state.channelId === entry.overviewChannelId;
         if (sameChannel && !repost) {
@@ -312,7 +307,7 @@ async function runSyncOne(entry, { repost = false, now = Date.now(), config = ge
         } else if (state.messageId) {
             // Asked to re-post, or the channel changed: the old message goes.
             try {
-                const old = await textChannel(client, state.channelId || entry.overviewChannelId);
+                const old = await discord.fetchTextChannel(state.channelId || entry.overviewChannelId, OVERVIEW_CHANNEL_MISSING);
                 const message = await old.messages.fetch(state.messageId);
                 await message.delete();
             } catch (e) {

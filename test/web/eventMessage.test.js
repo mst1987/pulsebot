@@ -9,7 +9,7 @@ jest.mock("../../src/web/signupStore", () => ({
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
     }),
 }));
-jest.mock("../../src/web/discord", () => ({ getClient: jest.fn() }));
+jest.mock("../../src/web/discord", () => require("../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const { getEvent, setEventMessage, listEvents } = require("../../src/web/eventStore");

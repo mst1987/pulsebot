@@ -91,7 +91,7 @@ describe("one menu for both front ends", () => {
 
     it("is rendered by the React shell from the shared file, with WoW icons", () => {
         expect(read("lib", "menu.ts")).toContain("import MENU_JSON from \"../../../config/menu.json\";");
-        expect(shellSrc).toContain("import { MENU, type MenuEntry } from \"../lib/menu\";");
+        expect(shellSrc).toContain("import { MENU, firstAllowedTab, type MenuEntry } from \"../lib/menu\";");
         expect(shellSrc).toContain("<WowIcon name={tab.wowIcon} size={24} />");
     });
 
@@ -171,7 +171,7 @@ describe("menu access", () => {
         // tab too" — every tab and guard takes the union of its areas.
         expect(read("lib", "menu.ts")).toMatch(/export type MenuEntry = \{[\s\S]*?areas: string\[\];/);
         expect(shellSrc).toContain("type Tab = MenuEntry;");
-        expect(shellSrc).toContain("canAccessAny(user, t.areas)");
+        expect(read("lib", "menu.ts")).toContain("MENU.find((t) => canAccessAny(user, t.areas))");
         expect(shellSrc).toContain("canAccessAny(user, tab.areas)");
         expect(appSrc).toContain("canAccessAny(user, areas, level)");
         expect(appSrc).not.toMatch(/<Guard user=\{user\} area="/);

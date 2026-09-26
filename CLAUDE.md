@@ -1,9 +1,7 @@
 # EventHelper Discord Bot
 
 A Discord bot for managing community events. Built with Node.js and Discord.js v14. The bot handles:
-- Legendary item auctions (bidding, tracking, winner announcement)
-- GDKP raid signups and setup tracking via the Raidhelper API
-- Gold-spending history per player
+- Raid signups and setup tracking via the Raidhelper API
 - Overview dashboards with interactive buttons
 
 ## Commands
@@ -22,7 +20,6 @@ npm run register:clear   # Remove all guild slash commands
 npm run agents           # Overview of running agents per worktree: changes, test instance, what to test (--serve = self-refreshing page, --watch, --html, --json, --all)
 node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them (the bot also does this on start)
 node scripts/render-ui-emojis.js           # redraw the flat UI icons (assets/emojis/eh_ui_*.png, checked in)
-node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
 
 ## Development Workflow
@@ -34,7 +31,7 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
 **Four hooks in `.claude/settings.json` enforce this and the lint rule mechanically** (checked in, so every agent in every worktree gets them). The first three are one rule at three distances — an edit, a shell command, and the moment somebody walks away:
 - `.claude/hooks/guardMainCheckout.js` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit) refuses any edit whose target lies in the *main* worktree of this repository, in whichever directory the session runs. Linked worktrees, other repositories, files outside git and git-ignored files (`.env.dev`, `data/`) pass. A deliberate one-off override is `EVENTHELPER_ALLOW_MAIN_EDITS=1`.
 - `.claude/hooks/guardMainShell.js` (PreToolUse on Bash/PowerShell, #315) does the same for a **shell write**: twice an empty file landed in the main checkout through a redirection the Edit guard never sees. It is a prefilter, not a shell parser — it reads `>` / `>>` targets, `Out-File`/`Set-Content`/`Add-Content`/`New-Item`/`Tee-Object`/`tee` and `[IO.File]::WriteAll*`, and refuses **only** when the resolved path lies in the main checkout and is not git-ignored. Everything it cannot read with certainty passes: quoted text, a heredoc's body, `[[ … ]]`/`(( … ))`, a target holding a variable or a glob, `/dev/null` and `2>&1`, and a *relative* target when the command moves itself (`cd`, `Set-Location`). A guard that cries wolf gets switched off, so silence beats a false alarm.
-- `.claude/hooks/mainCheckoutClean.js` (Stop / SubagentStop, #315) runs `scripts/check-main-clean.js` when an agent is done and blocks the stop while the main checkout holds anything unexpected — one line per find. The same script is the by-hand check (`node scripts/check-main-clean.js`, exit 1 with the lines, silent when clean); it finds the main worktree through `git worktree list`, so it works from any worktree, and it excuses only `.env*`, `data/`, `nodemon` and `tbc-guild-simulator-backend@0.1.0`. It never loops (`stop_hook_active` ends it after one round).
+- `.claude/hooks/mainCheckoutClean.js` (Stop / SubagentStop, #315) runs `scripts/check-main-clean.js` when an agent is done and blocks the stop while the main checkout holds anything unexpected — one line per find. The same script is the by-hand check (`node scripts/check-main-clean.js`, exit 1 with the lines, silent when clean); it finds the main worktree through `git worktree list`, so it works from any worktree; git-ignored files (`.env*`, `data/`, `coverage/`) never count, and there is no list of excused names. It never loops (`stop_hook_active` ends it after one round).
 - `.claude/hooks/lintChanged.js` (PostToolUse on Edit/Write/MultiEdit) runs ESLint on the file just written (`src/`, `test/`, the hooks, and `src/web-client/` with its own config) and feeds the problems straight back, so style errors are fixed at the edit, not at the PR. No ESLint installed yet (fresh worktree) means it stays silent.
 All are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers `src/`, `scripts/` and the hooks (#320 — the one exception is the quote rule in `scripts/render-ui-emojis.js`, whose SVG constants are single-quoted on purpose; see the comment in `eslint.config.mjs`).
 
@@ -104,29 +101,20 @@ The web server boots **independently of the Discord gateway** (`src/bot.js` `sta
 src/
   bot.js                    # Entry point. Loads commands, handles interactionCreate
   commands/
-    auction/                # Auction commands: createAuction, bid, bid-5k, bid-10k,
-                            #   bidCustom, auctionStatus, deleteAuction, endAuction, updateAuction
-    gdkp/                   # GDKP spend commands: currentspent, lastspent, totalspent
     setup/                  # Event setup commands: signup, saveraid, showSignups,
                             #   showAllSetups, show-mysetups, createoverview, update-events
   classes/
     raidhelper.js           # Raw HTTPS client for raid-helper.xyz API
-    gdkp.js                 # Axios client for pulse-gdkp.de GDKP data
-    legendary.js            # Axios client for pulse-gdkp.de legendary auction data
   config/
     classlist.js            # WoW class/spec lookup map (spec name -> icon/class/spec)
     messages.js             # Shared user-facing text strings
-    variables.js            # Constants: Discord IDs, API URLs, auction limits
+    variables.js            # Constants: Discord IDs, API URLs
   utils/
     helper.js               # Core utilities: botReply, botEditReply, formatters
-    auction.js              # Auction UI helpers: modals, buttons, bidForLegendary()
     date.js                 # Date utilities using Luxon (CET timezone)
-    responses.js            # Message formatters: setupResponse, getAuctionMessage, etc.
+    responses.js            # Message formatters: setupResponse, mySetupResponse
     raidhelper.js           # Signup/setup query logic on top of classes/raidhelper.js
-    legendary.js            # getTargetMessage(), updateHighestBids()
     httpAgent.js            # Shared https.Agent for Axios clients (SSL handling)
-  discordcommands/
-    raidhelper.js           # Legacy one-off script to register slash commands
 scripts/
   register-commands.js      # Preferred command registration script (supports --global, --clear)
 ```
@@ -165,7 +153,6 @@ All required variables must be in `.env` at the project root. See `.env.example`
 DISCORDJS_BOT_TOKEN=    # Bot token from Discord Developer Portal
 CLIENT_ID=              # Discord Application ID
 GUILD_ID=               # Discord server (guild) ID
-API_BASE_URL=           # Backend API base (default: https://pulse-gdkp.de:3001/api)
 NODE_ENV=               # Set to "production" to enable SSL cert verification
 RAIDHELPER_API_KEY=     # API key for raid-helper.xyz
 RAIDHELPER_SERVER_ID=   # Discord server ID on raid-helper.xyz

@@ -21,6 +21,7 @@ const profiles = require("./raiderProfileStore");
 const { appEmojiMap, emojiText, statusEmojiName } = require("./appEmojis");
 const { messageUrl } = require("./eventAnnounce");
 const { embedAccentColor } = require("../config/variables");
+const { isSnowflake } = require("../utils/ids");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];
@@ -43,7 +44,6 @@ function noteChannelId(config = getConfig()) {
     return String(((config && config.discordServers) || {}).signupNoteChannelId || "").trim();
 }
 
-const SNOWFLAKE = /^\d{5,25}$/;
 
 /**
  * The channel a category's notes go to: its own channel (#335) when it has one
@@ -52,7 +52,7 @@ const SNOWFLAKE = /^\d{5,25}$/;
  */
 function noteChannelFor(categoryId, config = getConfig(), { reachable } = {}) {
     const own = String(((config && config.categorySignupNoteChannel) || {})[String(categoryId || "")] || "").trim();
-    if (SNOWFLAKE.test(own) && (typeof reachable !== "function" || reachable(own))) return own;
+    if (isSnowflake(own) && (typeof reachable !== "function" || reachable(own))) return own;
     return noteChannelId(config);
 }
 

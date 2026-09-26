@@ -39,7 +39,7 @@ const { loadEventGroups } = require("./raidEventGroups");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { parseClockTime } = require("../utils/date");
 
-const ZONE = "Europe/Berlin";
+const { TIMEZONE } = require("../config/timezone");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;
@@ -52,7 +52,7 @@ const MAX_TITLE = 100;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 function todayIn(now) {
-    return DateTime.fromMillis(Number(now), { zone: ZONE }).toISODate();
+    return DateTime.fromMillis(Number(now), { zone: TIMEZONE }).toISODate();
 }
 
 /**
@@ -104,12 +104,12 @@ function occurrences(series, { now = Date.now(), count = 4, horizonDays = 120 } 
     if (!series || !Array.isArray(series.weekdays) || !series.weekdays.length || !series.time) return out;
     const days = new Set(series.weekdays.map(Number));
     const skip = new Set(series.skipDates || []);
-    const first = DateTime.fromMillis(Number(now), { zone: ZONE }).startOf("day");
+    const first = DateTime.fromMillis(Number(now), { zone: TIMEZONE }).startOf("day");
     for (let i = 0; i <= horizonDays && out.length < count; i++) {
         const day = first.plus({ days: i });
         if (!days.has(day.weekday)) continue;
         const date = day.toISODate();
-        const start = DateTime.fromISO(`${date}T${series.time}`, { zone: ZONE });
+        const start = DateTime.fromISO(`${date}T${series.time}`, { zone: TIMEZONE });
         if (!start.isValid || start.toMillis() <= now) continue;
         out.push({
             date,
@@ -128,7 +128,7 @@ function retryable(mark, now = Date.now()) {
 
 /** An event row's Berlin day. */
 function dayOf(ev) {
-    return ev && ev.startTime ? DateTime.fromSeconds(Number(ev.startTime), { zone: ZONE }).toISODate() : "";
+    return ev && ev.startTime ? DateTime.fromSeconds(Number(ev.startTime), { zone: TIMEZONE }).toISODate() : "";
 }
 
 /**
@@ -491,7 +491,7 @@ function _resetForTests() {
 }
 
 module.exports = {
-    ZONE, WEEKDAY_SHORT, MIN_DAYS_BEFORE, MAX_DAYS_BEFORE, MAX_ATTEMPTS, RETRY_AFTER_MS, STALE_CREATING_MS,
+    ZONE: TIMEZONE, WEEKDAY_SHORT, MIN_DAYS_BEFORE, MAX_DAYS_BEFORE, MAX_ATTEMPTS, RETRY_AFTER_MS, STALE_CREATING_MS,
     normalizeSeries, occurrences, retryable, dueDates, planSeries, templateFor, summaryLine, categoryEvents,
     runSeries, seriesOverview, describeSeries, previewSeries, saveSeriesFor, seriesFailures, RAIDHELPER_HINT,
     startEventSeries, _resetForTests,

@@ -1,13 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
-
-// "Keslight-Thunderstrike", "keslight" and "Keslight" are one character: the realm
-// suffix is dropped first, then the loot store's own (lowercasing) key is used, so
-// the key matches the one the loot items carry.
-function characterKey(character) {
-    return lootCharacterKey(splitPlayer(character).character);
-}
+const { splitPlayer, characterKeyOf } = require("../utils/lootImport");
 
 // Class + spec per character, kept next to the other editable settings. This is a
 // CACHE: the facts come from the loot export or from a Warcraft-Logs report, and
@@ -15,7 +8,7 @@ function characterKey(character) {
 // history pages read them for free.
 //
 // Keyed case-insensitively by the character name without its realm (see
-// characterKey below), so "Keslight", "keslight" and "Keslight-Thunderstrike" are
+// characterKeyOf in utils/lootImport), so "Keslight", "keslight" and "Keslight-Thunderstrike" are
 // one character.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const CHARACTERS_FILE = path.join(SETTINGS_DIR, "characters.json");
@@ -48,7 +41,7 @@ function listCharacters() {
 
 /** What is known about one character (by name or key), or null. */
 function getCharacter(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     return readAll().find((c) => c.key === key) || null;
 }
@@ -67,7 +60,7 @@ function characterMap() {
  * saved record, or null for a blank name / an update that changed nothing.
  */
 function saveCharacter(character, data = {}) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return null;
     const name = splitPlayer(character).character;
     const className = String(data.className || "").trim();
@@ -106,7 +99,7 @@ function saveCharacter(character, data = {}) {
 
 /** Drop what is known about a character. Returns true if a record was removed. */
 function deleteCharacter(character) {
-    const key = characterKey(character);
+    const key = characterKeyOf(character);
     if (!key) return false;
     const all = readAll();
     const next = all.filter((c) => c.key !== key);

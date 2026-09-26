@@ -194,7 +194,7 @@ describe("loot council — the raider dialog", () => {
 
 describe("loot council — the drop check page", () => {
     it("is its own route under the same guard", () => {
-        expect(app).toContain("import DropCheckPage from \"./pages/lootcouncil/DropCheckPage\";");
+        expect(app).toContain("const DropCheckPage = lazy(() => import(\"./pages/lootcouncil/DropCheckPage\"));");
         expect(app).toMatch(/<Route path="lootcouncil\/drop\/:itemId\?" element=\{<Guard user=\{user\} areas=\{\["lootcouncil"\]\}><DropCheckPage \/><\/Guard>\} \/>/);
         expect(council).toMatch(/export const dropHref = \(itemId\?: number\) => \(itemId \? `\/lootcouncil\/drop\/\$\{itemId\}` : "\/lootcouncil\/drop"\);/);
         expect(drop).toMatch(/const \{ itemId: param \} = useParams\(\);/);
