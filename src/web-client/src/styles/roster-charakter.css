@@ -244,16 +244,16 @@
 /* ---- item-details modal ---- */
 .ros-dlg-icon { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--line); display: block; box-sizing: border-box; }
 .dlg-head .itile:has(> .ros-dlg-icon) { background: none; width: 40px; height: 40px; }
-dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: #a335ee; }
-dialog.dlg:has(.ros-item-body.q-rare) .dlg-title { color: #0070dd; }
-dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: #1eff00; }
-dialog.dlg:has(.ros-item-body.q-legendary) .dlg-title { color: #ff8000; }
+dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: var(--q-epic); }
+dialog.dlg:has(.ros-item-body.q-rare) .dlg-title { color: var(--q-rare); }
+dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: var(--q-uncommon); }
+dialog.dlg:has(.ros-item-body.q-legendary) .dlg-title { color: var(--q-legendary); }
 @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: #7b1fc4; }
-    :root:not([data-theme="dark"]) dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: #178a00; }
+    :root:not([data-theme="dark"]) dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: var(--q-epic-light); }
+    :root:not([data-theme="dark"]) dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: var(--q-uncommon-light); }
 }
-:root[data-theme="light"] dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: #7b1fc4; }
-:root[data-theme="light"] dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: #178a00; }
+:root[data-theme="light"] dialog.dlg:has(.ros-item-body.q-epic) .dlg-title { color: var(--q-epic-light); }
+:root[data-theme="light"] dialog.dlg:has(.ros-item-body.q-uncommon) .dlg-title { color: var(--q-uncommon-light); }
 .ros-item-body { display: flex; flex-direction: column; gap: 14px; }
 .ros-find { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent); background: color-mix(in srgb, var(--medium) 8%, transparent); }
 .ros-find.is-high { border-color: color-mix(in srgb, var(--high) 35%, transparent); background: color-mix(in srgb, var(--high) 8%, transparent); }

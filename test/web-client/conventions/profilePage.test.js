@@ -42,7 +42,9 @@ describe("ProfilePage conventions", () => {
     it("gives every weekday its own colour, readable in light and dark", () => {
         // The render test checks that buttons and summary tags carry data-day.
         for (const day of ["mo", "di", "mi", "do", "fr", "sa", "so"]) {
-            expect(css).toMatch(new RegExp(`\\[data-day="${day}"\\] \\{ --day: #[0-9a-f]{6}; --day-dark: #[0-9a-f]{6}; \\}`));
+            // the values live with the other colours (#441), the page only picks them
+            expect(css).toContain(`[data-day="${day}"] { --day: var(--day-${day}); --day-dark: var(--day-${day}-dark); }`);
+            expect(read("index.css")).toMatch(new RegExp(`--day-${day}: #[0-9a-f]{6}; --day-${day}-dark: #[0-9a-f]{6};`));
         }
         expect(css).toMatch(/:root\[data-theme="light"\] \.pf-day, :root\[data-theme="light"\] \.pf-day-tag \{ --day-ink: var\(--day-dark\); \}/);
     });

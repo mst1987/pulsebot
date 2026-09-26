@@ -39,7 +39,7 @@
 .hl-filter-btn { margin-left: auto; }
 .hl-pop {
     position: absolute; z-index: 30; right: 16px; top: calc(100% - 6px); width: 300px; display: flex; flex-direction: column; gap: 12px; padding: 14px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 38px -12px rgba(0, 0, 0, .5);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 38px -12px var(--shade-50);
 }
 .hl-pop label.hl-lbl { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
 .hl-pop select { width: 100%; }
@@ -120,15 +120,15 @@ button.rbadge:hover { filter: brightness(1.1); box-shadow: 0 0 0 2px var(--accen
    title in the item's quality colour (the Modal owns the head, so the colour is
    picked from the body's data-quality). */
 .dlg-head .itile:has(> .hl-ico) { width: auto; height: auto; background: none; }
-.dlg:has(.hl-item-dlg[data-quality="2"]) { --iq: #1eff00; }
-.dlg:has(.hl-item-dlg[data-quality="3"]) { --iq: #0070dd; }
-.dlg:has(.hl-item-dlg[data-quality="4"]) { --iq: #a335ee; }
-.dlg:has(.hl-item-dlg[data-quality="5"]) { --iq: #ff8000; }
+.dlg:has(.hl-item-dlg[data-quality="2"]) { --iq: var(--q-uncommon); }
+.dlg:has(.hl-item-dlg[data-quality="3"]) { --iq: var(--q-rare); }
+.dlg:has(.hl-item-dlg[data-quality="4"]) { --iq: var(--q-epic); }
+.dlg:has(.hl-item-dlg[data-quality="5"]) { --iq: var(--q-legendary); }
 .dlg:has(.hl-item-dlg) .dlg-title { color: var(--iq, var(--text)); }
 @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .dlg:has(.hl-item-dlg) .dlg-title { color: color-mix(in srgb, var(--iq, var(--text)) 62%, #0d0f14); }
+    :root:not([data-theme="dark"]) .dlg:has(.hl-item-dlg) .dlg-title { color: color-mix(in srgb, var(--iq, var(--text)) 62%, var(--ink-shade)); }
 }
-:root[data-theme="light"] .dlg:has(.hl-item-dlg) .dlg-title { color: color-mix(in srgb, var(--iq, var(--text)) 62%, #0d0f14); }
+:root[data-theme="light"] .dlg:has(.hl-item-dlg) .dlg-title { color: color-mix(in srgb, var(--iq, var(--text)) 62%, var(--ink-shade)); }
 
 /* ---- import dialog ---- */
 .hl-field { display: flex; flex-direction: column; gap: 7px; margin: 0 0 16px; }

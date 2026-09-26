@@ -51,7 +51,9 @@ describe("the pages", () => {
         expect(board2).toContain("player.iconUrl");
         expect(board2).toContain("rp-role-${roleTone(player.role)}");
         expect(css).toMatch(/\.rp-role-tank \{ --ring: var\(--rp-tank\)/);
-        expect(css).toMatch(/--rp-tank: #60a5fa; --rp-healer: #35d6c4; --rp-melee: #f97316; --rp-ranged: #a78bfa; --rp-dps: #f5c542/);
+        // the role colours are scoped to the board, their values live with the other colours (#441)
+        expect(css).toContain("--rp-tank: var(--rp-role-tank); --rp-healer: var(--rp-role-healer); --rp-melee: var(--rp-role-melee); --rp-ranged: var(--rp-role-ranged); --rp-dps: var(--rp-role-dps);");
+        expect(read("index.css")).toMatch(/--rp-role-tank: #60a5fa; --rp-role-healer: #35d6c4; --rp-role-melee: #f97316; --rp-role-ranged: #a78bfa; --rp-role-dps: #f5c542/);
         // ranged is told from melee by a double ring, not only by its colour
         expect(css).toMatch(/\.rp-role-ranged \{[^}]*border-style: double/);
     });

@@ -93,13 +93,13 @@
 /* Every weekday its own colour, so the week reads at a glance — in the buttons
    and in the folded summary alike. --day-ink is the text tone: the colour
    itself on dark, a darker shade of it on light. */
-[data-day="mo"] { --day: #5b8def; --day-dark: #2f5fbf; }
-[data-day="di"] { --day: #22b8cf; --day-dark: #0f7f91; }
-[data-day="mi"] { --day: #3fbf73; --day-dark: #1f8a4c; }
-[data-day="do"] { --day: #8fbf3f; --day-dark: #5a7f1f; }
-[data-day="fr"] { --day: #f0883e; --day-dark: #b5561a; }
-[data-day="sa"] { --day: #e0569b; --day-dark: #b02f70; }
-[data-day="so"] { --day: #9b72f0; --day-dark: #6a43c4; }
+[data-day="mo"] { --day: var(--day-mo); --day-dark: var(--day-mo-dark); }
+[data-day="di"] { --day: var(--day-di); --day-dark: var(--day-di-dark); }
+[data-day="mi"] { --day: var(--day-mi); --day-dark: var(--day-mi-dark); }
+[data-day="do"] { --day: var(--day-do); --day-dark: var(--day-do-dark); }
+[data-day="fr"] { --day: var(--day-fr); --day-dark: var(--day-fr-dark); }
+[data-day="sa"] { --day: var(--day-sa); --day-dark: var(--day-sa-dark); }
+[data-day="so"] { --day: var(--day-so); --day-dark: var(--day-so-dark); }
 .pf-day, .pf-day-tag { --day-ink: var(--day); }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) .pf-day, :root:not([data-theme="dark"]) .pf-day-tag { --day-ink: var(--day-dark); }

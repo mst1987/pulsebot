@@ -36,7 +36,7 @@
 .lc-popmenu {
     position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(420px, calc(100vw - 48px));
     display: flex; flex-direction: column; gap: 8px; padding: 12px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px var(--shade-40);
 }
 .lc-popmenu > .btn { align-self: flex-start; }
 .lc-popbtns { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -61,8 +61,8 @@ a.lc-id-name:hover { text-decoration: underline; }
 .lc-needbar i { display: block; height: 100%; }
 .lc-needbar .s1, .lc-need-dot.s1 { background: color-mix(in srgb, var(--accent) 42%, transparent); }
 .lc-needbar .s2, .lc-need-dot.s2 { background: color-mix(in srgb, var(--accent-2) 38%, transparent); }
-.lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, #5badde 55%, transparent); }
-.lc-needbar i:last-of-type { border-right: 2px solid #5badde; }
+.lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, var(--lc-need-3) 55%, transparent); }
+.lc-needbar i:last-of-type { border-right: 2px solid var(--lc-need-3); }
 .lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
 .lc-rtip-anchor { display: inline-flex; cursor: help; outline: none; border-radius: 5px; }
 .lc-rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }

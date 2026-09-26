@@ -313,7 +313,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .savebar {
     position: sticky; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     padding: 10px 14px; margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
-    border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 14px 38px -18px rgba(0, 0, 0, .7);
+    border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 14px 38px -18px var(--shade-70);
 }
 .savebar b { font-size: 14.5px; white-space: nowrap; }
 .savebar-list { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; cursor: default; }
