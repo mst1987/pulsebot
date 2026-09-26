@@ -15,9 +15,15 @@ describe("utils/helper", () => {
             expect(result).toEqual([{ className: "Paladin", specName: "Holy1" }]);
         });
 
-        it("uses sodclazz for template 40", () => {
-            const result = formatSpecs("Holy1", "40");
-            expect(result[0].className).toBe("Healer");
+        it("uses the role for template 40", () => {
+            expect(formatSpecs("Holy1", "40")[0].className).toBe("healer");
+            expect(formatSpecs("TankRogue", "40")[0].className).toBe("tank");
+            expect(formatSpecs("PALADIN", "40")[0].className).toBeUndefined();
+        });
+
+        it("sends Raid-Helper's own \"Tank\" class for its tank entries", () => {
+            expect(formatSpecs("ProtPala", "10")).toEqual([{ className: "Tank", specName: "Protection1" }]);
+            expect(formatSpecs("Guardian", "10")).toEqual([{ className: "Druid", specName: "Guardian" }]);
         });
 
         it("skips unknown spec keys and caps at 10", () => {

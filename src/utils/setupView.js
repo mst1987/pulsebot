@@ -2,30 +2,15 @@
 // the web admin (class icons + WoW class colours). Discord server emojis don't
 // render on the web, so we use the zamimg class-icon CDN like src/web/render.js.
 
-const classlist = require("../config/classlist");
-
-// Resolve a slot's spec by classlist key ("Destro") AND by spec field
-// ("Destruction") — Raid-Helper may send either form. First definition wins, so
-// a spec's own key (e.g. "Combat" = melee rogue) is never clobbered by a later
-// entry that reuses the same spec field (e.g. "TankRogue" whose spec is "Combat").
-const SPEC_LOOKUP = {};
-for (const [key, val] of Object.entries(classlist)) {
-    if (!(key in SPEC_LOOKUP)) SPEC_LOOKUP[key] = val;
-    if (val.spec && !(val.spec in SPEC_LOOKUP)) SPEC_LOOKUP[val.spec] = val;
-}
+// A slot's spec resolves by Raid-Helper alias ("Destro") AND by Raid-Helper's
+// own spec name ("Destruction") — Raid-Helper may send either form.
+const { entryForSpec } = require("../config/classlist");
 
 // WoW class colours (hex), matching src/commands/setup/fillSetup.js.
 const CLASS_COLORS = {
     Warrior: "#C79C6E", Paladin: "#F58CBA", Hunter: "#ABD473", Rogue: "#FFF569",
     Priest: "#FFFFFF", Shaman: "#0070DE", Mage: "#69CCF0", Warlock: "#9482C9",
     Druid: "#FF7D0A", DK: "#C41F3B",
-};
-
-// classlist `clazz` is sometimes the generic "Tank"; recover the real class from
-// the spec icon so we pick the right class icon + colour.
-const TANK_ICON_CLASS = {
-    protpala: "Paladin", protection: "Warrior", blooddk: "DK",
-    guardian: "Druid", combat: "Rogue", enhancement: "Shaman", demonology: "Warlock",
 };
 
 // WoW class -> zamimg class-icon asset slug.
@@ -75,25 +60,22 @@ const SPEC_ICON = {
 
 const ROLE_LABELS = { tank: "Tanks", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf", dps: "DPS" };
 
-// Classes that can main-/off-tank, plus any explicit tank spec (sodclazz/clazz
-// "tank"). Drives the 3rd-tank candidate picker on the raidsheet-fill form.
+// Classes that can main-/off-tank, plus any explicit tank spec (role "tank" or
+// Raid-Helper's "Tank" class). Drives the 3rd-tank candidate picker on the
+// raidsheet-fill form.
 const TANK_CANDIDATE_CLASSES = new Set(["Warrior", "Druid", "Paladin", "DK"]);
 
-// The real WoW class for a classlist entry (recovering it when clazz is "Tank").
+// The real WoW class of a classlist entry.
 function realClass(entry) {
-    if (!entry) return null;
-    if (entry.clazz && entry.clazz !== "Tank") return entry.clazz;
-    return TANK_ICON_CLASS[entry.icon] || null;
+    return (entry && entry.clazz) || null;
 }
 
-// Bucket a spec into tank / healer / melee / ranged (fallback: dps).
+// Bucket a spec into tank / healer / melee / ranged (fallback: dps). What
+// Raid-Helper files under its "Tank" class is a tank whatever the spec.
 function roleOf(entry) {
     if (!entry) return "dps";
-    const sod = String(entry.sodclazz || "").toLowerCase();
-    if (sod === "tank" || entry.clazz === "Tank") return "tank";
-    if (sod === "healer") return "healer";
-    if (sod === "melee") return "melee";
-    if (sod === "ranged") return "ranged";
+    if (entry.role === "tank" || entry.raidhelperClass === "Tank") return "tank";
+    if (["healer", "melee", "ranged"].includes(entry.role)) return entry.role;
     return "dps";
 }
 
@@ -158,7 +140,7 @@ function enrichSlot(slot) {
     const slotObj = slot || {};
     const name = slotName(slotObj);
     const spec = slotSpec(slotObj);
-    const entry = SPEC_LOOKUP[spec] || null;
+    const entry = entryForSpec(spec);
     const cls = realClass(entry);
     return {
         name,
@@ -184,12 +166,12 @@ function groupOf(slot, index) {
     return Math.floor(index / 5) + 1;
 }
 
-// Whether a classlist entry can tank: an explicit tank spec (sodclazz/clazz
-// "tank") or a class that can off-tank (Warrior, Druid, Paladin, DK).
+// Whether a classlist entry can tank: an explicit tank spec (role "tank" or
+// Raid-Helper's "Tank" class) or a class that can off-tank (Warrior, Druid,
+// Paladin, DK).
 function isTankSpec(entry) {
     if (!entry) return false;
-    if (String(entry.sodclazz || "").toLowerCase() === "tank") return true;
-    if (entry.clazz === "Tank") return true;
+    if (entry.role === "tank" || entry.raidhelperClass === "Tank") return true;
     return TANK_CANDIDATE_CLASSES.has(entry.clazz);
 }
 
@@ -226,7 +208,7 @@ function tankCandidates(slots) {
     for (const slot of (Array.isArray(slots) ? slots : [])) {
         const p = enrichSlot(slot);
         if (!p.name || seen.has(p.name)) continue;
-        if (!isTankSpec(SPEC_LOOKUP[p.spec] || null)) continue;
+        if (!isTankSpec(entryForSpec(p.spec))) continue;
         seen.add(p.name);
         out.push({ name: p.name, specName: p.specName, className: p.className });
     }
@@ -241,7 +223,7 @@ function tankCandidates(slots) {
  * @returns {{ specName:string, className:string, classColor:string, iconUrl:string }|null}
  */
 function specProfile(spec) {
-    const entry = SPEC_LOOKUP[String(spec || "").trim()];
+    const entry = entryForSpec(String(spec || "").trim());
     if (!entry) return null;
     const cls = realClass(entry);
     return {
