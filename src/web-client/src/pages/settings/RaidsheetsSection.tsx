@@ -11,6 +11,7 @@ import Field from "../../components/ui/Field";
 import { useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import { splitList } from "./settingsDraft";
+import { useT } from "../../i18n";
 
 type SheetSortKey = "name" | "sheetName" | "keywords";
 
@@ -28,13 +29,14 @@ function RaidsheetForm({ sheet, onSaved, onCancel }: {
     const [keywords, setKeywords] = useState((sheet?.keywords ?? []).join(", "));
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
         try {
             await saveRaidsheet({ id: sheet?.id, name, spreadsheetId, sheetName, gid, keywords: splitList(keywords) });
-            onSaved(sheet ? `Raidsheet „${name}“ gespeichert.` : `Raidsheet „${name}“ angelegt.`);
+            onSaved(t(sheet ? "settings.raidsheets.saved" : "settings.raidsheets.created", { name }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -44,18 +46,18 @@ function RaidsheetForm({ sheet, onSaved, onCancel }: {
 
     return (
         <form className="sheetcard set-form" onSubmit={submit}>
-            <Field className="set-field" htmlFor="rs-name" label="Name (Content)"><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Tier 6 / SWP" required /></Field>
-            <Field className="set-field" htmlFor="rs-id" label="Spreadsheet-ID" tip="Spreadsheet-ID" tipSub="Der lange Teil der Sheet-URL zwischen /d/ und /edit."><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></Field>
+            <Field className="set-field" htmlFor="rs-name" label={t("settings.raidsheets.name")}><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.raidsheets.namePlaceholder")} required /></Field>
+            <Field className="set-field" htmlFor="rs-id" label={t("settings.raidsheets.sheetId")} tip={t("settings.raidsheets.sheetId")} tipSub={t("settings.raidsheets.sheetIdSub")}><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder={t("settings.raidsheets.sheetIdPlaceholder")} /></Field>
             <div className="set-grid">
-                <Field className="set-field" htmlFor="rs-tab" label="Tab-Name"><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></Field>
-                <Field className="set-field" htmlFor="rs-gid" label="Tab-GID" tip="Tab-GID" tipSub="Die Zahl hinter #gid= in der URL des Tabs."><input id="rs-gid" type="text" className="mono" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></Field>
+                <Field className="set-field" htmlFor="rs-tab" label={t("settings.raidsheets.tab")}><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></Field>
+                <Field className="set-field" htmlFor="rs-gid" label={t("settings.raidsheets.gid")} tip={t("settings.raidsheets.gid")} tipSub={t("settings.raidsheets.gidSub")}><input id="rs-gid" type="text" className="mono" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></Field>
             </div>
-            <Field className="set-field" htmlFor="rs-kw" label="Keywords" tip="Keywords" tipSub="Kommagetrennt. Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.">
+            <Field className="set-field" htmlFor="rs-kw" label={t("settings.raidsheets.keywords")} tip={t("settings.raidsheets.keywords")} tipSub={t("settings.raidsheets.keywordsSub")}>
                 <input id="rs-kw" type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="kara, gruul, maggi" />
             </Field>
             <div className="row-actions">
-                <Button type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</Button>
-                <Button variant="ghost" disabled={busy} onClick={onCancel}>Abbrechen</Button>
+                <Button type="submit" disabled={busy}>{sheet ? t("common.save") : t("settings.raidsheets.create")}</Button>
+                <Button variant="ghost" disabled={busy} onClick={onCancel}>{t("common.cancel")}</Button>
             </div>
         </form>
     );
@@ -69,13 +71,14 @@ export function RaidsheetsSection({ sheets, onChanged }: {
     const ask = useConfirm();
     const editor = useCollectionEditor("sheet");
     const toast = useToast();
+    const t = useT();
     const { sort, dir, onSort, apply } = useTableSort<SheetSortKey>("raidsheets-sort", SHEET_SORT_DEFAULTS, "name");
 
     const remove = async (sheet: Raidsheet) => {
-        if (!(await ask({ title: `Raidsheet „${sheet.name}“ löschen?`, action: "Löschen" }))) return;
+        if (!(await ask({ title: t("settings.raidsheets.deleteAsk", { name: sheet.name }), action: t("common.delete") }))) return;
         try {
             await deleteRaidsheet(sheet.id);
-            onChanged(`Raidsheet „${sheet.name}“ gelöscht.`);
+            onChanged(t("settings.raidsheets.deleted", { name: sheet.name }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -95,8 +98,8 @@ export function RaidsheetsSection({ sheets, onChanged }: {
             editor={editor}
             entries={sheets}
             idOf={(s) => s.id}
-            newLabel="Neues Raidsheet"
-            editorTitle={(s) => (s ? `Raidsheet „${s.name || ""}“ bearbeiten` : "Neues Raidsheet")}
+            newLabel={t("settings.raidsheets.new")}
+            editorTitle={(s) => (s ? t("settings.raidsheets.editTitle", { name: s.name || "" }) : t("settings.raidsheets.new"))}
             editorFor={(s) => <RaidsheetForm sheet={s} onSaved={saved} onCancel={editor.close} />}
         >
             {sheets.length ? (
@@ -104,34 +107,34 @@ export function RaidsheetsSection({ sheets, onChanged }: {
                     <table className="idx">
                         <thead>
                             <tr>
-                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="sheetName" label="Tab" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="keywords" label="Keywords" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="name" label={t("common.name")} sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="sheetName" label={t("settings.raidsheets.colTab")} sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="keywords" label={t("settings.raidsheets.keywords")} sort={sort} dir={dir} onSort={onSort} />
                                 <th />
                             </tr>
                         </thead>
                         <tbody>
                             {sorted.map((s) => (
                                 <tr key={s.id}>
-                                    <td><strong>{s.name || "(ohne Name)"}</strong></td>
+                                    <td><strong>{s.name || t("settings.noName")}</strong></td>
                                     <td className="small">{s.sheetName || "—"}</td>
                                     <td className="small">{s.keywords.length ? s.keywords.join(", ") : "—"}</td>
                                     <td className="cell-act">
                                         {s.spreadsheetId && (
-                                            <a className="ibtn sm" target="_blank" rel="noopener noreferrer" aria-label="Sheet öffnen" data-tip="Sheet öffnen"
+                                            <a className="ibtn sm" target="_blank" rel="noopener noreferrer" aria-label={t("settings.raidsheets.open")} data-tip={t("settings.raidsheets.open")}
                                                 href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit${s.gid ? `#gid=${s.gid}` : ""}`}>
                                                 <ExternalIcon />
                                             </a>
                                         )}
-                                        <IconButton icon={<PenIcon />} tip="Bearbeiten" size="sm" onClick={() => editor.startEdit(s.id)} />
-                                        <IconButton icon={<TrashIcon />} tip="Löschen" size="sm" tone="danger" onClick={() => remove(s)} />
+                                        <IconButton icon={<PenIcon />} tip={t("common.edit")} size="sm" onClick={() => editor.startEdit(s.id)} />
+                                        <IconButton icon={<TrashIcon />} tip={t("common.delete")} size="sm" tone="danger" onClick={() => remove(s)} />
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-            ) : <div className="empty">Noch keine Raidsheets angelegt.</div>}
+            ) : <div className="empty">{t("settings.raidsheets.empty")}</div>}
         </ListSection>
     );
 }

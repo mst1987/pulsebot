@@ -16,6 +16,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { ChevronRightIcon } from "../../components/icons";
 import { AdminOnlyBadge, CheckMark, WarnIcon } from "../../components/settings/settingsUi";
 import { InfoTip } from "../../components/ui/Field";
+import { useT } from "../../i18n";
 
 // Einstellungen → Verbindungen → "Umstieg von Raid-Helper" (#291). One compact
 // card: a line per checklist item (badge, label, value), everything else — why
@@ -25,6 +26,7 @@ import { InfoTip } from "../../components/ui/Field";
 // done. The spec-history import is a dialog with a dry run first.
 
 function ItemLine({ item, onImport }: { item: RetirementItem; onImport: () => void }) {
+    const t = useT();
     const look = statusLook(item.status);
     return (
         <li className={`rhr-item is-${item.status}`} data-item={item.id}>
@@ -36,14 +38,14 @@ function ItemLine({ item, onImport }: { item: RetirementItem; onImport: () => vo
             </Badge>
             <span className="rhr-label tipped" tabIndex={0} data-tip={item.label} data-tip-sub={itemTip(item)}>
                 {item.label}
-                {item.required && <span className="rhr-req">Pflicht</span>}
+                {item.required && <span className="rhr-req">{t("settings.retirement.required")}</span>}
             </span>
             <span className="rhr-value">{item.value}</span>
             <span className="rhr-act">
                 {item.action === "import" ? (
-                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={onImport}>Importieren …</Button>
+                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={onImport}>{t("settings.retirement.importAction")}</Button>
                 ) : item.link ? (
-                    <Link className="rhr-link" to={item.link.to} data-tip={`Zu ${item.link.label}`}>{item.link.label}<ChevronRightIcon /></Link>
+                    <Link className="rhr-link" to={item.link.to} data-tip={t("settings.retirement.toLink", { label: item.link.label })}>{item.link.label}<ChevronRightIcon /></Link>
                 ) : null}
             </span>
         </li>
@@ -59,6 +61,7 @@ function ImportModal({ open, onClose, onStored }: {
     const [result, setResult] = useState<HistoryImportResult | null>(null);
     const [busy, setBusy] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     const run = async (dryRun: boolean) => {
         setBusy(true);
@@ -84,21 +87,21 @@ function ImportModal({ open, onClose, onStored }: {
             onClose={close}
             icon="inv_scroll_03"
             tone="settings"
-            kicker="Umstieg von Raid-Helper"
-            title="Spec-Historie importieren"
+            kicker={t("settings.retirement.title")}
+            title={t("settings.retirement.importTitle")}
             width={620}
             hint={<AdminOnlyBadge />}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={close} disabled={busy}>{result && !result.dryRun ? "Fertig" : "Abbrechen"}</Button>
-                    <Button variant="ghost" onClick={() => run(true)} disabled={busy}>Probelauf</Button>
-                    <Button onClick={() => run(false)} disabled={busy || !canStore}>{busy ? "Läuft…" : "Importieren"}</Button>
+                    <Button variant="ghost" onClick={close} disabled={busy}>{result && !result.dryRun ? t("common.done") : t("common.cancel")}</Button>
+                    <Button variant="ghost" onClick={() => run(true)} disabled={busy}>{t("settings.retirement.dryRun")}</Button>
+                    <Button onClick={() => run(false)} disabled={busy || !canStore}>{busy ? t("settings.retirement.running") : t("settings.retirement.import")}</Button>
                 </>
             )}
         >
             <div className="conn-form">
                 <div className="rhr-import-row">
-                    <label htmlFor="rhr-per-category">Letzte Events je Kategorie</label>
+                    <label htmlFor="rhr-per-category">{t("settings.retirement.perCategory")}</label>
                     <input
                         id="rhr-per-category"
                         className="inp-sm"
@@ -109,31 +112,31 @@ function ImportModal({ open, onClose, onStored }: {
                         onChange={(e) => { setPerCategory(Math.max(1, Math.min(50, Math.floor(Number(e.target.value) || 1)))); setResult(null); }}
                     />
                     <InfoTip
-                        head="Was importiert wird"
-                        sub="Nur wer sich mit welcher Spec angemeldet hat – keine Events, keine Anmeldungen. Daraus schlagen die Ein-Klick-Anmeldung und das Profil die zuletzt gespielte Spec vor. Ein Event wird nie doppelt gezählt; ein zweiter Import holt nur neue Raids."
+                        head={t("settings.retirement.whatHead")}
+                        sub={t("settings.retirement.whatSub")}
                     />
                 </div>
                 {!result ? (
-                    <div className="note">Erst der Probelauf zeigt, was gespeichert würde. Gespeichert wird erst mit „Importieren“.</div>
+                    <div className="note">{t("settings.retirement.dryFirst")}</div>
                 ) : (
                     <>
                         <div className={`conn-status${result.dryRun ? " mid" : ""}`}>
-                            <Badge tone={result.dryRun ? "mid" : "ok"} icon={result.dryRun ? undefined : <CheckMark />}>{result.dryRun ? "Probelauf" : "gespeichert"}</Badge>
+                            <Badge tone={result.dryRun ? "mid" : "ok"} icon={result.dryRun ? undefined : <CheckMark />}>{result.dryRun ? t("settings.retirement.dryRun") : t("settings.retirement.stored")}</Badge>
                             <span>{importSummary(result)}</span>
                         </div>
                         {result.liveError && (
-                            <div className="note" data-tip="Raid-Helper nicht abgefragt" data-tip-sub={result.liveError}>
-                                Raid-Helper antwortet nicht – nur die gespeicherten Events wurden gelesen.
+                            <div className="note" data-tip={t("settings.retirement.liveTip")} data-tip-sub={result.liveError}>
+                                {t("settings.retirement.liveText")}
                             </div>
                         )}
                         {result.categories.length > 0 && (
                             <ul className="rhr-import-list">
                                 {result.categories.map((c) => (
                                     <li key={c.categoryId || "none"}>
-                                        <strong>{c.categoryName || c.categoryId || "Ohne Kategorie"}</strong>
-                                        <Badge>{c.events} {c.events === 1 ? "Event" : "Events"}</Badge>
-                                        <Badge tone="accent">{c.entries} Einträge</Badge>
-                                        {c.skipped > 0 && <Badge tip="Schon importiert" tipSub="Diese Events wurden bei einem früheren Import gezählt und werden übersprungen.">{c.skipped} schon da</Badge>}
+                                        <strong>{c.categoryName || c.categoryId || t("settings.retirement.noCategory")}</strong>
+                                        <Badge>{t("settings.retirement.events", { count: c.events })}</Badge>
+                                        <Badge tone="accent">{t("settings.retirement.entries", { count: c.entries })}</Badge>
+                                        {c.skipped > 0 && <Badge tip={t("settings.retirement.skippedTip")} tipSub={t("settings.retirement.skippedSub")}>{t("settings.retirement.skipped", { count: c.skipped })}</Badge>}
                                     </li>
                                 ))}
                             </ul>
@@ -153,6 +156,7 @@ export default function RaidhelperRetirementCard() {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     const ask = useConfirm();
+    const t = useT();
 
     const load = useCallback(() => {
         getRaidhelperRetirement()
@@ -165,21 +169,21 @@ export default function RaidhelperRetirementCard() {
         if (!list) return;
         const off = !list.disabled;
         const ok = await ask(off ? {
-            title: "Raid-Helper abschalten?",
-            text: "Der EventHelper fragt Raid-Helper danach nicht mehr ab: keine neuen Raid-Helper-Events, keine Anmeldungen, kein Scan. Vergangene Raids bleiben mit ihren gespeicherten Anmeldungen lesbar. Wieder einschalten geht jederzeit.",
-            action: "Abschalten",
+            title: t("settings.retirement.offTitle"),
+            text: t("settings.retirement.offText"),
+            action: t("settings.retirement.offAction"),
             tone: "danger",
         } : {
-            title: "Raid-Helper wieder einschalten?",
-            text: "Events, Anmeldungen und der Scan laufen dann wieder über Raid-Helper.",
-            action: "Einschalten",
+            title: t("settings.retirement.onTitle"),
+            text: t("settings.retirement.onText"),
+            action: t("settings.retirement.onAction"),
         });
         if (!ok) return;
         setBusy(true);
         try {
             const d = await setRaidhelperDisabled(off);
             setList(d.checklist);
-            toast(off ? "Raid-Helper abgeschaltet." : "Raid-Helper wieder eingeschaltet.");
+            toast(off ? t("settings.retirement.toastOff") : t("settings.retirement.toastOn"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -194,16 +198,16 @@ export default function RaidhelperRetirementCard() {
             <div className="conn-head">
                 <IconTile icon="spell_holy_borrowedtime" tone={list && !list.disabled && !list.ready ? "mid" : "settings"} />
                 <div className="conn-title">
-                    <span>Umstieg von Raid-Helper</span>
+                    <span>{t("settings.retirement.title")}</span>
                     <InfoTip
-                        head="Umstieg von Raid-Helper"
-                        sub="Was erledigt sein sollte, bevor der EventHelper Raid-Helper ganz ersetzt. Die zwei Pflichtpunkte schalten den Schalter unten frei; der Rest macht den Alltag der Raider leichter. Jeder Punkt erklärt sich im Tooltip seines Namens."
+                        head={t("settings.retirement.title")}
+                        sub={t("settings.retirement.infoSub")}
                     />
                 </div>
                 {head && <Badge tone={head.tone || undefined} icon={head.tone === "ok" ? <CheckMark /> : undefined}>{head.label}</Badge>}
             </div>
             {!list ? (
-                error ? <div className="note rhr-pad">Checkliste nicht ladbar: {error}</div> : <RaidLoader compact text="Checkliste wird geprüft" />
+                error ? <div className="note rhr-pad">{t("settings.retirement.loadError", { message: error })}</div> : <RaidLoader compact text={t("settings.retirement.loading")} />
             ) : (
                 <ul className="rhr-list">
                     {list.items.map((item) => <ItemLine key={item.id} item={item} onImport={() => setImporting(true)} />)}
@@ -211,13 +215,13 @@ export default function RaidhelperRetirementCard() {
             )}
             {list && sw && (
                 <div className="conn-foot rhr-foot">
-                    <label className={`switch${sw.enabled ? "" : " is-disabled"}`} data-tip={list.disabled ? "Abgeschaltet" : "Raid-Helper-Abfragen abschalten"} data-tip-sub={sw.reason}>
-                        <input type="checkbox" checked={sw.checked} disabled={!sw.enabled || busy} onChange={toggle} aria-label="Raid-Helper-Abfragen abschalten" />
+                    <label className={`switch${sw.enabled ? "" : " is-disabled"}`} data-tip={list.disabled ? t("settings.retirement.switchedOff") : t("settings.retirement.switchLabel")} data-tip-sub={sw.reason}>
+                        <input type="checkbox" checked={sw.checked} disabled={!sw.enabled || busy} onChange={toggle} aria-label={t("settings.retirement.switchLabel")} />
                         <span className="switch-track"><span className="switch-thumb" /></span>
                     </label>
                     <div className="rhr-switch-text">
-                        <strong>Raid-Helper-Abfragen abschalten</strong>
-                        <span className="note">{list.disabled ? `abgeschaltet ${disabledSince(list, Date.now())}` : sw.enabled ? "bereit – Historie bleibt lesbar" : sw.reason}</span>
+                        <strong>{t("settings.retirement.switchLabel")}</strong>
+                        <span className="note">{list.disabled ? t("settings.retirement.disabledSince", { since: disabledSince(list, Date.now()) }) : sw.enabled ? t("settings.retirement.ready") : sw.reason}</span>
                     </div>
                     <span className="grow" />
                     <AdminOnlyBadge />

@@ -15,6 +15,8 @@ const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src"
 const css = fs.readFileSync(path.join(CLIENT, "styles", "settings.css"), "utf8");
 const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryMatrix.tsx"), "utf8");
 const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
+// The texts live in the dictionaries since #440; the source names their keys.
+const de = require("../clientSource").dictionary("de");
 
 function rule(selector) {
     const re = new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`);
@@ -44,9 +46,11 @@ describe("Kategorien list", () => {
 
     it("folds the inactive categories under one line, and the part head switches to all of them", () => {
         expect(matrix).toContain("splitCategoryRows(rows, categoryIds, showAll)");
-        expect(matrix).toContain("weitere Discord-");
+        expect(matrix).toContain("t(\"settings.categories.folded\", { count: folded.length })");
+        expect(de["settings.categories.folded"].other).toContain("weitere Discord-Kategorien");
         expect(matrix).toContain("usePersistedState(\"settings-categories-all\", false)");
-        expect(matrix).toContain("Alle Discord-Kategorien");
+        expect(matrix).toContain("t(\"settings.categories.allOnes\", { count: rows.length })");
+        expect(de["settings.categories.allOnes"]).toContain("Alle Discord-Kategorien");
     });
 
     it("keeps an unknown category id visible with a bad badge", () => {
@@ -54,15 +58,17 @@ describe("Kategorien list", () => {
     });
 
     it("shows the per-category settings as badges in the row", () => {
-        expect(matrix).toContain("<Badge tone=\"bad\" icon={<WarnIcon />}>keine</Badge>");
-        expect(matrix).toContain("<Badge tone=\"mid\" icon={<WarnIcon />}>fehlt</Badge>");
+        expect(matrix).toContain("<Badge tone=\"bad\" icon={<WarnIcon />}>{t(\"settings.categories.noRoles\")}</Badge>");
+        expect(matrix).toContain("<Badge tone=\"mid\" icon={<WarnIcon />}>{t(\"settings.categories.missing\")}</Badge>");
+        expect([de["settings.categories.noRoles"], de["settings.categories.missing"]]).toEqual(["keine", "fehlt"]);
         expect(matrix).toContain("icon=\"inv_scroll_03\"");
         expect(matrix).toContain("{summary.assigned} / {summary.members}");
     });
 
     it("picks the loot addon with a segment and opens the character assignment for this category", () => {
-        expect(matrix).toMatch(/<Segment ariaLabel=\{`Loot-Addon/);
-        expect(matrix).toContain("{ value: \"\", label: \"keins\" }");
+        expect(matrix).toMatch(/<Segment ariaLabel=\{t\("settings\.categories\.lootAddonAria"/);
+        expect(matrix).toContain("[\"gargul\", \"rclc\", \"\"].map((value) => ({ value, label: lootToolLabel(value) }))");
+        expect(de["settings.lootTool.none"]).toBe("keins");
         expect(matrix).toContain("icon=\"ability_rogue_disguise\"");
         expect(matrix).toContain("categoryId={assigning.id}");
         const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "RaiderCharactersModal.tsx"), "utf8");
@@ -73,9 +79,10 @@ describe("Kategorien list", () => {
 
     it("moves the hints into tooltips at the field names", () => {
         expect(matrix).not.toContain("className=\"hint\"");
-        for (const tip of ["tip=\"Raider-Rollen\"", "tip=\"Loot-Addon\"", "tip=\"Festes Raidsheet\"", "tip=\"Raider → Charakter\""]) {
-            expect(matrix).toContain(tip);
+        for (const key of ["raiderRoles", "lootAddon", "fixedSheet", "chars"]) {
+            expect(matrix).toContain(`tip={t("settings.categories.${key}")}`);
         }
+        expect(de["settings.categories.chars"]).toBe("Raider → Charakter");
     });
 
     it("spaces the list from the stylesheet, never inline", () => {
@@ -85,13 +92,14 @@ describe("Kategorien list", () => {
 
     it("picks the message channel at the message segment, hidden for \"keine\" and while no channels load (#335)", () => {
         const block = matrix.slice(matrix.indexOf("{onSignupNotes && ("), matrix.indexOf("{onDiscordEvent && ("));
-        expect(block).toContain("options={NOTE_MODES}");
+        expect(block).toContain("options={noteModes()}");
         expect(block).toContain("signupNoteMode(categorySignupNotes, cat.id) !== \"none\"");
         expect(block).toContain("noteChannels.channels.length > 0");
         expect(block).toContain("<option value=\"\">{pick.defaultLabel}</option>");
         // an own channel out of reach stays selected and is marked, never silently dropped
         expect(block).toContain("{pick.unreachable && <option value={own}>");
-        expect(block).toMatch(/\{pick\.unreachable && <Badge tone="bad"[^>]*>nicht erreichbar<\/Badge>\}/);
+        expect(block).toMatch(/\{pick\.unreachable && <Badge tone="bad"[^>]*>\{t\("settings\.categories\.unreachable"\)\}<\/Badge>\}/);
+        expect(de["settings.categories.unreachable"]).toBe("nicht erreichbar");
         expect(rule(".cat-note-channel")).toContain("display: flex");
         expect(page).toContain("noteChannels={data.noteChannels}");
         expect(page).toContain("categorySignupNoteChannel: draft.categorySignupNoteChannel,");

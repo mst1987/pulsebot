@@ -5,6 +5,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
+import { useT } from "../../i18n";
 
 // Raider → Charakter for exactly one category (see raiderCharactersStore.js):
 // which character a raider plays on that raid day. Overrides the automatic
@@ -23,6 +24,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
     const [loadError, setLoadError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     useEffect(() => {
         getRaiderCharacters(categoryId)
@@ -36,7 +38,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
         try {
             const { assignments } = await saveRaiderCharacters(categoryId, draftMap);
             const next = { ...info, assignments };
-            toast(`Zuordnung für ${categoryName} gespeichert.`);
+            toast(t("settings.raiderChars.saved", { name: categoryName }));
             onSaved(next);
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -53,25 +55,25 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
             onClose={onClose}
             icon="ability_rogue_disguise"
             tone="settings"
-            kicker={`Raider → Charakter · ${categoryName}`}
-            title="Charaktere zuordnen"
+            kicker={t("settings.raiderChars.kicker", { name: categoryName })}
+            title={t("settings.raiderChars.title")}
             width={620}
-            hint={info && info.members.length ? <Badge tone={open ? "mid" : "ok"}>{open ? `${open} offen` : "alle fest"}</Badge> : undefined}
+            hint={info && info.members.length ? <Badge tone={open ? "mid" : "ok"}>{open ? t("settings.raiderChars.open", { count: open }) : t("settings.raiderChars.allFixed")}</Badge> : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose} disabled={saving}>Abbrechen</Button>
-                    <Button onClick={save} disabled={saving || !info || !info.members.length}>{saving ? "Speichert…" : "Speichern"}</Button>
+                    <Button variant="ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
+                    <Button onClick={save} disabled={saving || !info || !info.members.length}>{saving ? t("settings.saving") : t("common.save")}</Button>
                 </>
             )}
         >
             {loadError && <div className="empty is-bad">{loadError}</div>}
-            {!loadError && !info && <RaidLoader compact text="Charaktere werden geladen" />}
+            {!loadError && !info && <RaidLoader compact text={t("settings.raiderChars.loading")} />}
             {info && !info.roleIds.length && (
-                <div className="empty">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet — erst in der Zeile Rollen wählen und speichern.</div>
+                <div className="empty">{t("settings.raiderChars.noRoles")}</div>
             )}
-            {info && info.membersError && <div className="empty is-bad">Mitglieder konnten nicht geladen werden: {info.membersError}</div>}
+            {info && info.membersError && <div className="empty is-bad">{t("settings.raiderChars.membersError", { message: info.membersError })}</div>}
             {info && !!info.roleIds.length && !info.membersError && (
-                !info.members.length ? <div className="empty">Keine Mitglieder mit den zugeordneten Rollen gefunden.</div> : (
+                !info.members.length ? <div className="empty">{t("settings.raiderChars.noMembers")}</div> : (
                     <div className="rch-list">
                         {info.members.map((m) => (
                             <label className="rch-row" key={m.id}>
@@ -81,7 +83,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
                                     list="raider-characters-known"
                                     value={draftMap[m.id] || ""}
                                     onChange={(e) => setDraftMap({ ...draftMap, [m.id]: e.target.value })}
-                                    placeholder="Charname (leer = automatisch)"
+                                    placeholder={t("settings.raiderChars.placeholder")}
                                 />
                             </label>
                         ))}

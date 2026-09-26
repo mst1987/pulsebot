@@ -28,9 +28,14 @@ describe("Bot-Befehle view", () => {
         expect(view).toMatch(/<Modal[\s\S]*title=\{commandLabel\(command\)\}/);
         expect(view).toMatch(/<Segment<BotAccessMode>/);
         expect(view).toMatch(/const MODES: BotAccessMode\[\] = \["everyone", "roles", "admins"\]/);
-        expect(view).toMatch(/Zurücksetzen/);
-        expect(view).toMatch(/Standard/);
-        expect(view).toMatch(/für alle \{groupSize\} Befehle der Gruppe übernehmen/);
+        // the texts live in the dictionaries since #440; the source names their keys
+        const de = require("../clientSource").dictionary("de");
+        expect(view).toMatch(/\{t\("common\.reset"\)\}/);
+        expect(de["common.reset"]).toBe("Zurücksetzen");
+        expect(view).toMatch(/\{t\("settings\.botCommands\.default"\)\}/);
+        expect(de["settings.botCommands.default"]).toBe("Standard");
+        expect(view).toMatch(/t\("settings\.botCommands\.wholeGroup", \{ count: groupSize \}\)/);
+        expect(de["settings.botCommands.wholeGroup"]).toBe("für alle {count} Befehle der Gruppe übernehmen");
         expect(view).toMatch(/withGroupRule\(map, data\.commands, editCommand\.group, rule\)/);
     });
 
@@ -44,6 +49,7 @@ describe("Bot-Befehle view", () => {
     it("is a second view of the Berechtigungen section, kept in the url", () => {
         expect(page).toMatch(/usePersistedSearchParam<PermView>\("settings-perm-view", "perm", "areas", PERM_VIEWS\)/);
         expect(page).toMatch(/permView === "bot" \? \(\s*<BotCommandAccess/);
-        expect(page).toMatch(/label: "Bot-Befehle"/);
+        expect(page).toMatch(/label: t\("settings\.page\.permView\.bot"\)/);
+        expect(require("../clientSource").dictionary("de")["settings.page.permView.bot"]).toBe("Bot-Befehle");
     });
 });

@@ -13,8 +13,10 @@ import DiscordServersSection from "./SettingsDiscordServers";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
-    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection } from "../../lib/settingsSections";
-import { draftChanges, missingConnections, serverIssues } from "../../lib/settingsLogic";
+    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
+    type SettingsSection } from "../../lib/settingsSections";
+import { areaLabel, draftChanges, missingConnections, serverIssues } from "../../lib/settingsLogic";
+import { useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
 import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
@@ -34,6 +36,7 @@ type PermView = "areas" | "bot";
 const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
 
 export default function SettingsPage() {
+    const t = useT();
     // The draft is cut from the answer as it lands — not from `data`: the parts
     // that save themselves update `data` without touching an unsaved draft.
     const [draft, setDraft] = useState<Draft | null>(null);
@@ -58,8 +61,8 @@ export default function SettingsPage() {
     const tokens = tokensData.error ? null : tokensData.data;
     const loadTokens = tokensData.reload;
 
-    if (settingsData.error) return <div className="empty">Fehler beim Laden der Einstellungen: {settingsData.error.message}</div>;
-    if (!data || !draft) return <RaidLoader text="Einstellungen werden geladen" />;
+    if (settingsData.error) return <div className="empty">{t("settings.page.loadError", { message: settingsData.error.message })}</div>;
+    if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
 
     // A user who only holds write on "Einstellungen" never sees the access
     // section; a remembered id that is gone resolves to the first section they
@@ -83,11 +86,11 @@ export default function SettingsPage() {
 
     const saved = toDraft(data.config);
     const roleNames = new Map(data.roles.map((r) => [r.id, r.name]));
-    const areaNames = new Map(data.areas.map((a) => [a.id, a.label]));
+    const areaNames = new Map(data.areas.map((a) => [a.id, areaLabel(a)]));
     const categoryNames = new Map(data.categories.map((c) => [c.id, c.name]));
     const changes = draftChanges(saved, draft, {
         role: (id) => (roleNames.has(id) ? `@${roleNames.get(id)}` : id),
-        user: (id) => (data.userNames || {})[id] || `Konto ${id}`,
+        user: (id) => (data.userNames || {})[id] || t("settings.account", { id }),
         area: (id) => areaNames.get(id) || id,
         category: (id) => categoryNames.get(id) || id,
     });
@@ -138,7 +141,7 @@ export default function SettingsPage() {
             });
             setData({ ...data, config });
             setDraft(toDraft(config));
-            toast("Gespeichert.");
+            toast(t("settings.savedToast"));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -147,18 +150,19 @@ export default function SettingsPage() {
     };
 
     const head = (s: SettingsSection, action?: ReactNode, tip?: string, tipSub?: string) => (
-        <PartHead icon={s.icon} tone="settings" title={s.label} crumb={`Einstellungen › ${s.crumb}`} action={action} tip={tip} tipSub={tipSub} />
+        <PartHead icon={s.icon} tone="settings" title={sectionLabel(s)} crumb={t("settings.crumb", { crumb: sectionCrumb(s) })} action={action} tip={tip} tipSub={tipSub} />
     );
+    const activeCrumb = sectionCrumb(activeSection);
 
     const permSwitch = (
         <Segment
-            ariaLabel="Berechtigungen"
+            ariaLabel={t("settings.sections.berechtigungen.label")}
             size="sm"
             value={permView}
             onChange={(v) => setPermView(v)}
             options={[
-                { value: "areas", label: "Bereiche", tip: "Wer im EventHelper welchen Bereich sehen oder bearbeiten darf" },
-                { value: "bot", label: "Bot-Befehle", tip: "Wer im Discord welchen Bot-Befehl nutzen darf" },
+                { value: "areas", label: t("settings.page.permView.areas"), tip: t("settings.page.permView.areasTip") },
+                { value: "bot", label: t("settings.page.permView.bot"), tip: t("settings.page.permView.botTip") },
             ]}
         />
     );
@@ -167,7 +171,7 @@ export default function SettingsPage() {
     const panel = () => {
         switch (active) {
             case "berechtigungen": return permView === "bot" ? (
-                <BotCommandAccess viewSwitch={permSwitch} icon={activeSection.icon} crumb="Zugang · wer darf welchen Bot-Befehl im Discord nutzen" />
+                <BotCommandAccess viewSwitch={permSwitch} icon={activeSection.icon} crumb={t("settings.page.botCrumb")} />
             ) : (
                 <RolePermissionsEditor
                     viewSwitch={permSwitch}
@@ -183,7 +187,7 @@ export default function SettingsPage() {
                     onUserPermissionsChange={(userPermissions) => patch({ userPermissions })}
                     userNames={data.userNames || {}}
                     icon={activeSection.icon}
-                    crumb={activeSection.crumb}
+                    crumb={activeCrumb}
                 />
             );
 
@@ -194,7 +198,7 @@ export default function SettingsPage() {
                     onConfig={(config) => setData({ ...data, config })}
                     onTokensChanged={loadTokens}
                     icon={activeSection.icon}
-                    crumb={activeSection.crumb}
+                    crumb={activeCrumb}
                 />
             );
 
@@ -207,7 +211,7 @@ export default function SettingsPage() {
                         getSettings().then((d) => setData((cur) => (cur ? { ...cur, servers: d.servers } : cur))).catch(() => {});
                     }}
                     icon={activeSection.icon}
-                    crumb={activeSection.crumb}
+                    crumb={activeCrumb}
                 />
             );
 
@@ -253,7 +257,7 @@ export default function SettingsPage() {
                         onChange: (id, templateId) => patch({ categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: templateId } }),
                     }}
                     icon={activeSection.icon}
-                    crumb={activeSection.crumb}
+                    crumb={activeCrumb}
                 />
             );
 
@@ -262,7 +266,7 @@ export default function SettingsPage() {
                     {head(activeSection)}
                     <ModuleCard>
                         <div className="set-field">
-                            <FieldLabel htmlFor="set-raid-channel" tip="Standard-Kanal" tipSub="Der Kanal, in dem ein neues Raid-Event angelegt wird, wenn beim Anlegen keiner gewählt ist.">Standard-Kanal</FieldLabel>
+                            <FieldLabel htmlFor="set-raid-channel" tip={t("settings.page.raidChannel")} tipSub={t("settings.page.raidChannelSub")}>{t("settings.page.raidChannel")}</FieldLabel>
                             <ChannelPicker id="set-raid-channel" value={draft.raidChannelId} channels={channels} onChange={(raidChannelId) => patch({ raidChannelId })} />
                         </div>
                     </ModuleCard>
@@ -271,14 +275,14 @@ export default function SettingsPage() {
 
             case "raidsheets": return (
                 <>
-                    {head(activeSection, undefined, "Raidsheet-Vorlagen", "Google-Sheets nach Content (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raid-Kategorie wird unter Kategorien zugewiesen.")}
+                    {head(activeSection, undefined, t("settings.page.raidsheetsTip"), t("settings.page.raidsheetsSub"))}
                     <RaidsheetsSection sheets={data.raidsheets} onChanged={(msg) => { toast(msg); load(); }} />
                 </>
             );
 
             case "topitems": return (
                 <>
-                    {head(activeSection, undefined, "Top-Items", "Die richtig großen Drops — Waffen, Legendary-Teile, alles, was die Gilde als besonders wertet. Vergibt ein Raid eines davon, hebt das Dashboard die Vergabe hervor. Welches Loot-Addon eine Kategorie benutzt, steht unter Kategorien.")}
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.page.topItemsSub"))}
                     <ModuleCard>
                         <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
                     </ModuleCard>
@@ -290,7 +294,7 @@ export default function SettingsPage() {
                     {head(activeSection)}
                     <ModuleCard>
                         <div className="set-field">
-                            <FieldLabel tip="Log-Kanäle" tipSub="Kanäle, in denen automatisch Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an.">Log-Kanäle</FieldLabel>
+                            <FieldLabel tip={t("settings.page.logChannels")} tipSub={t("settings.page.logChannelsSub")}>{t("settings.page.logChannels")}</FieldLabel>
                             <ChannelListField ids={draft.logChannelIds} channels={channels} onChange={(logChannelIds) => patch({ logChannelIds })} />
                         </div>
                     </ModuleCard>
@@ -302,12 +306,12 @@ export default function SettingsPage() {
                     {head(activeSection)}
                     <ModuleCard>
                         <div className="set-field">
-                            <FieldLabel htmlFor="set-app-channel" tip="Bewerbungs-Kanal" tipSub="Kanal, in dem neue Bewerbungen als Thread gepostet werden.">Bewerbungs-Kanal</FieldLabel>
+                            <FieldLabel htmlFor="set-app-channel" tip={t("settings.page.appChannel")} tipSub={t("settings.page.appChannelSub")}>{t("settings.page.appChannel")}</FieldLabel>
                             <ChannelPicker id="set-app-channel" value={draft.applicationChannelId} channels={channels} onChange={(applicationChannelId) => patch({ applicationChannelId })} />
                         </div>
                         <div className="set-field">
-                            <FieldLabel htmlFor="set-officer" tip="Offizier-Rolle" tipSub="Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.">Offizier-Rolle</FieldLabel>
-                            <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder="— kein Ping —" />
+                            <FieldLabel htmlFor="set-officer" tip={t("settings.page.officerRole")} tipSub={t("settings.page.officerRoleSub")}>{t("settings.page.officerRole")}</FieldLabel>
+                            <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder={t("settings.page.noPing")} />
                         </div>
                     </ModuleCard>
                 </>
@@ -323,14 +327,14 @@ export default function SettingsPage() {
     const serverGaps = serverIssues(data.servers);
     const activeCategories = draft.categoryIds.length;
     const navGroups = groupedSections(sections).map((g) => ({
-        group: g.group,
+        group: groupLabel(g.group),
         items: g.items.map((s) => ({
             id: s.id,
-            label: s.label,
+            label: sectionLabel(s),
             icon: s.icon,
-            badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: `${missing} ${missing === 1 ? "Verbindung" : "Verbindungen"} nicht eingerichtet` }
-                : s.id === "discordserver" ? { count: serverGaps, tone: "mid" as const, tip: `${serverGaps} ${serverGaps === 1 ? "Server braucht" : "Server brauchen"} Aufmerksamkeit` }
-                : s.id === "kategorien" ? { count: activeCategories, tip: `${activeCategories} aktive Raid-Kategorien` }
+            badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: t("settings.page.badgeConnections", { count: missing }) }
+                : s.id === "discordserver" ? { count: serverGaps, tone: "mid" as const, tip: t("settings.page.badgeServers", { count: serverGaps }) }
+                : s.id === "kategorien" ? { count: activeCategories, tip: t("settings.page.badgeCategories", { count: activeCategories }) }
                     : null,
         })),
     }));
@@ -342,28 +346,28 @@ export default function SettingsPage() {
             <div className="page-head settings-head">
                 <IconTile icon="trade_engineering" tone="settings" size="lg" />
                 <div className="ph-text">
-                    <div className="kicker">System · greift ohne Bot-Neustart</div>
+                    <div className="kicker">{t("settings.page.kicker")}</div>
                     <h1>
-                        Einstellungen
-                        <InfoTip head="Einstellungen" sub={"Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart.\nIDs bekommst du in Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus)."} />
+                        {t("shell.menu.settings")}
+                        <InfoTip head={t("shell.menu.settings")} sub={t("settings.page.infoSub")} />
                     </h1>
                 </div>
             </div>
 
             <div className="settings-layout">
-                <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel="Einstellungs-Bereiche" />
+                <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel={t("settings.page.navAria")} />
                 <div className={`settings-panel${inForm ? " in-form" : ""}`}>
                     {panel()}
                     {changes.length > 0 && (
                         <div className="savebar" role="status" aria-live="polite">
                             <IconTile icon={activeSection.icon} tone="settings" />
-                            <b>{changes.length} ungespeicherte {changes.length === 1 ? "Änderung" : "Änderungen"}</b>
-                            <span className="savebar-list" data-tip="Ungespeichert" data-tip-sub={changes.join("\n")}>
+                            <b>{t("settings.page.unsaved", { count: changes.length })}</b>
+                            <span className="savebar-list" data-tip={t("settings.page.unsavedTip")} data-tip-sub={changes.join("\n")}>
                                 {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
                             </span>
                             <span className="grow" />
-                            <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>Verwerfen</Button>
-                            <Button onClick={submit} disabled={saving}>{saving ? "Speichert…" : "Speichern"}</Button>
+                            <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>{t("common.discard")}</Button>
+                            <Button onClick={submit} disabled={saving}>{saving ? t("settings.saving") : t("common.save")}</Button>
                         </div>
                     )}
                 </div>

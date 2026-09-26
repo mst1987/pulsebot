@@ -4,10 +4,11 @@
 // source scans in test/web-client/pingsRoleSync.test.js).
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, RemindersData } from "../../api";
 import { renderPage } from "../../test/render";
+import { switchLang } from "../../test/i18n";
 import RemindersPart from "./SettingsReminders";
 
 vi.mock("../../api", async (orig) => ({
@@ -41,6 +42,7 @@ const row = (name: string) => screen.getByText(name).closest("li")!;
 beforeEach(() => {
     vi.mocked(api.updateSettings).mockResolvedValue({ config: { saved: true } as unknown as AdminConfig });
 });
+afterEach(() => switchLang("de"));
 
 describe("Erinnerungen part", () => {
     it("is one line per category with the summary, details in a modal", async () => {
@@ -90,5 +92,18 @@ describe("Erinnerungen part", () => {
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({
             categoryReminders: { c1: { missingHours: 24, signedHours: 1, target: "talk" } },
         }));
+    });
+
+    it("speaks English once the page is switched", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        await show(reminders());
+        expect(screen.getByText("Reminders")).toBeInTheDocument();
+        expect(within(row("Raids Mittwoch")).getByText("24 h before close · 1 h before raid")).toBeInTheDocument();
+        expect(within(row("Raids Sonntag")).getByText("off")).toBeInTheDocument();
+        await user.click(within(row("Raids Sonntag")).getByRole("button", { name: "Edit reminders" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByLabelText("Missing · h before")).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: "Save" })).toBeInTheDocument();
     });
 });

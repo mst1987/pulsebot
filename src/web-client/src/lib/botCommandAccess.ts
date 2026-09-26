@@ -6,11 +6,15 @@
 // name(params): Result {` on one line and no body uses type syntax, so stripping
 // the signatures' annotations leaves valid JavaScript.
 import type { BotAccessMode, BotAccessRule, BotCommand } from "../api";
+import { t } from "../i18n";
 
 export type AccessMap = Record<string, BotAccessRule>;
 export type RoleNameOf = (id: string) => string;
 
-export const MODE_LABEL: Record<BotAccessMode, string> = { everyone: "Jeder", roles: "Nur Rollen", admins: "Nur Admins" };
+/** "Jeder" · "Nur Rollen" · "Nur Admins", in the active language. */
+export function modeLabel(mode: BotAccessMode): string {
+    return t(`settings.botCommands.mode.${mode}`);
+}
 
 /** How the command is written in the list: `/name` for a slash command, the bare name for a button. */
 export function commandLabel(command: BotCommand): string {
@@ -75,7 +79,7 @@ export function commandsOfGroup(commands: BotCommand[], groupId: string): BotCom
  */
 export function groupSummary(commands: BotCommand[], map: AccessMap, roleName: RoleNameOf): string {
     const count = commands.length;
-    const parts = [`${count} ${count === 1 ? "Befehl" : "Befehle"}`];
+    const parts = [t("settings.botCommands.commands", { count })];
     const roles = [];
     let everyone = 0;
     let admins = 0;
@@ -89,8 +93,8 @@ export function groupSummary(commands: BotCommand[], map: AccessMap, roleName: R
         const names = roles.slice(0, 3).map(roleName);
         parts.push(roles.length > 3 ? `${names.join(", ")} +${roles.length - 3}` : names.join(", "));
     }
-    if (everyone) parts.push(everyone === count ? "Jeder" : `${everyone} für jeden`);
-    if (admins) parts.push(admins === count ? "nur Admins" : `${admins} nur Admins`);
+    if (everyone) parts.push(everyone === count ? modeLabel("everyone") : t("settings.botCommands.everyoneSome", { count: everyone }));
+    if (admins) parts.push(admins === count ? t("settings.botCommands.adminsAll") : t("settings.botCommands.adminsSome", { count: admins }));
     return parts.join(" · ");
 }
 
