@@ -47,7 +47,7 @@
         "axios": "^1.6.7",
         "discord.js": "^14.27.0",
         "dotenv": "^16.3.1",
-        "googleapis": "^173.0.0",
+        "googleapis": "^181.0.0",
         "luxon": "^3.7.2"
     },
     "devDependencies": {
