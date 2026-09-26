@@ -27,9 +27,8 @@ import Badge from "./ui/Badge";
 import Expand from "./ui/Expand";
 import IconTile from "./ui/IconTile";
 import WowIcon from "./ui/WowIcon";
-import { TrashIcon } from "./icons";
+import { InfoIcon, TrashIcon } from "./icons";
 import { ItemIcon, contentIcon } from "./LootBadges";
-import { InfoIcon } from "./LootFilters";
 import { shortDay } from "./ItemAwardsDialog";
 
 const DISPLAY_TZ = "Europe/Berlin";

@@ -22,6 +22,7 @@ import Tip from "../components/ui/Tip";
 import WowIcon from "../components/ui/WowIcon";
 import "../styles/log-auswertung.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { useDismiss } from "../hooks/useDismiss";
 
 // Log-Auswertung (design issue #217): one list, one row per log. What used to be
 // two tabs ("Auswertungen" / "Erkannte Logs") showing the same log twice is now
@@ -194,18 +195,7 @@ function RowMenu({ items, label }: { items: MenuItem[]; label: string }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!open) return undefined;
-        const close = (e: MouseEvent | KeyboardEvent) => {
-            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("mousedown", close);
-        document.addEventListener("keydown", close);
-        return () => {
-            document.removeEventListener("mousedown", close);
-            document.removeEventListener("keydown", close);
-        };
-    }, [open]);
+    useDismiss(ref, open, () => setOpen(false));
 
     // no separator at the start, the end, or twice in a row
     const clean = items.filter((it, i, all) => it !== "sep" || (i > 0 && i < all.length - 1 && all[i - 1] !== "sep"));

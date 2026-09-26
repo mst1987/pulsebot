@@ -1,14 +1,19 @@
-jest.mock("axios");
-jest.mock("../../src/utils/httpAgent");
+jest.mock("axios", () => require("../helpers/axiosMock").mockAxios());
+jest.mock("../../src/utils/httpAgent", () => ({ fake: "agent" }));
 
 const axios = require("axios");
 const agent = require("../../src/utils/httpAgent");
+const { transport, reply, respond, sent } = require("../helpers/axiosMock");
+const { ApiError } = require("../../src/classes/httpClient");
 const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
+
+const url = (cfg) => (/^https?:/.test(cfg.url) ? cfg.url : `${cfg.baseURL}${cfg.url}`);
 
 describe("classes/WarcraftLogs", () => {
     const OLD_ENV = process.env.WARCRAFTLOGS_API_KEY;
 
     beforeEach(() => {
+        transport.mockReset();
         process.env.WARCRAFTLOGS_API_KEY = "test-wcl-key";
     });
 
@@ -81,167 +86,135 @@ describe("classes/WarcraftLogs", () => {
     });
 
     describe("getFights", () => {
-        it("GETs report/fights with translate + api_key params", async () => {
+        it("GETs report/fights with translate + api_key params, the shared agent and a timeout", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: { fights: [] } });
+            respond(reply(200, { fights: [] }));
 
             const result = await client.getFights("rep1");
 
-            expect(axios.get).toHaveBeenCalledWith(
-                "https://classic.warcraftlogs.com/v1/report/fights/rep1",
-                {
-                    params: { translate: true, api_key: "test-wcl-key" },
-                    httpsAgent: agent,
-                }
-            );
+            const req = sent();
+            expect(url(req)).toBe("https://classic.warcraftlogs.com/v1/report/fights/rep1");
+            expect(req.params).toEqual({ translate: true, api_key: "test-wcl-key" });
+            expect(req.httpsAgent).toEqual(agent);
+            expect(req.timeout).toBe(WarcraftLogs.REQUEST_TIMEOUT_MS);
             expect(result).toEqual({ fights: [] });
         });
 
-        it("re-throws API errors", async () => {
+        it("throws an ApiError that still carries axios' response status", async () => {
             const client = new WarcraftLogs();
-            const err = new Error("Request failed");
-            err.response = { status: 401 };
-            axios.get.mockRejectedValue(err);
+            respond(reply(401, { error: "Invalid key" }));
 
-            await expect(client.getFights("rep1")).rejects.toThrow(
-                "Request failed"
-            );
+            const err = await client.getFights("rep1").catch((e) => e);
+
+            expect(err).toBeInstanceOf(ApiError);
+            expect(err).toMatchObject({ service: "Warcraft Logs", status: 401, kind: "http" });
+            // utils/logcheck/report.js prints this one
+            expect(err.response.status).toBe(401);
+            expect(transport).toHaveBeenCalledTimes(1);
+        });
+
+        it("retries a 5xx before answering", async () => {
+            const client = new WarcraftLogs();
+            respond(reply(503, "busy"), reply(200, { fights: [1] }));
+            await expect(client.getFights("rep1")).resolves.toEqual({ fights: [1] });
+            expect(transport).toHaveBeenCalledTimes(2);
         });
     });
 
-    describe("getSummary / getCasts / getBuffs / getDebuffs", () => {
+    describe("getSummary / getCasts / getBuffs / getDebuffs / tables", () => {
         it("passes start/end and merges extra params", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: {} });
+            respond(reply(200, {}));
 
             await client.getSummary("rep1", 100, 200, { sourceid: 5 });
 
-            expect(axios.get).toHaveBeenCalledWith(
-                "https://classic.warcraftlogs.com/v1/report/tables/summary/rep1",
-                {
-                    params: {
-                        translate: true,
-                        api_key: "test-wcl-key",
-                        start: 100,
-                        end: 200,
-                        sourceid: 5,
-                    },
-                    httpsAgent: agent,
-                }
-            );
+            const req = sent();
+            expect(url(req)).toBe("https://classic.warcraftlogs.com/v1/report/tables/summary/rep1");
+            expect(req.params).toEqual({ translate: true, api_key: "test-wcl-key", start: 100, end: 200, sourceid: 5 });
         });
 
-        it("getCasts builds the casts table path", async () => {
+        it.each([
+            ["getCasts", "casts"],
+            ["getBuffs", "buffs"],
+            ["getDebuffs", "debuffs"],
+            ["getDamageTaken", "damage-taken"],
+            ["getDamageDone", "damage-done"],
+            ["getHealing", "healing"],
+            ["getDeaths", "deaths"],
+            ["getInterrupts", "interrupts"],
+        ])("%s builds the %s table path", async (method, table) => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: {} });
-            await client.getCasts("rep1", 1, 2);
-            expect(axios.get.mock.calls[0][0]).toBe(
-                "https://classic.warcraftlogs.com/v1/report/tables/casts/rep1"
-            );
-        });
-
-        it("getBuffs builds the buffs table path", async () => {
-            const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: {} });
-            await client.getBuffs("rep1", 1, 2);
-            expect(axios.get.mock.calls[0][0]).toBe(
-                "https://classic.warcraftlogs.com/v1/report/tables/buffs/rep1"
-            );
-        });
-
-        it("getDebuffs builds the debuffs table path", async () => {
-            const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: {} });
-            await client.getDebuffs("rep1", 1, 2);
-            expect(axios.get.mock.calls[0][0]).toBe(
-                "https://classic.warcraftlogs.com/v1/report/tables/debuffs/rep1"
-            );
+            respond(reply(200, {}));
+            await client[method]("rep1", 1, 2);
+            expect(url(sent())).toBe(`https://classic.warcraftlogs.com/v1/report/tables/${table}/rep1`);
+            expect(sent().params).toMatchObject({ start: 1, end: 2 });
         });
     });
 
     describe("getEvents", () => {
         it("builds the events/{view} path with a time window", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: { events: [] } });
+            respond(reply(200, { events: [] }));
 
             await client.getEvents("rep1", "summary", 10, 20, { hostility: 1 });
 
-            expect(axios.get).toHaveBeenCalledWith(
-                "https://classic.warcraftlogs.com/v1/report/events/summary/rep1",
-                {
-                    params: {
-                        translate: true,
-                        api_key: "test-wcl-key",
-                        start: 10,
-                        end: 20,
-                        hostility: 1,
-                    },
-                    httpsAgent: agent,
-                }
-            );
+            const req = sent();
+            expect(url(req)).toBe("https://classic.warcraftlogs.com/v1/report/events/summary/rep1");
+            expect(req.params).toEqual({ translate: true, api_key: "test-wcl-key", start: 10, end: 20, hostility: 1 });
         });
     });
 
     describe("getParses", () => {
         it("targets the fresh host and url-encodes name/realm/region", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: [{ percentile: 99 }] });
+            respond(reply(200, [{ percentile: 99 }]));
 
             const result = await client.getParses("Naz Gûl", "Thunderstrike", "EU");
 
-            expect(axios.get).toHaveBeenCalledWith(
-                "https://fresh.warcraftlogs.com/v1/parses/character/Naz%20G%C3%BBl/Thunderstrike/EU",
-                {
-                    params: { metric: "dps", api_key: "test-wcl-key" },
-                    httpsAgent: agent,
-                }
+            const req = sent();
+            expect(axios.getUri(req)).toBe(
+                "https://fresh.warcraftlogs.com/v1/parses/character/Naz%20G%C3%BBl/Thunderstrike/EU?metric=dps&api_key=test-wcl-key"
             );
+            expect(req.params).toEqual({ metric: "dps", api_key: "test-wcl-key" });
             expect(result).toEqual([{ percentile: 99 }]);
         });
 
         it("re-throws on failure", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockRejectedValue(new Error("500"));
-            await expect(
-                client.getParses("a", "b", "EU")
-            ).rejects.toThrow("500");
+            respond(reply(404, "no such character"));
+            await expect(client.getParses("a", "b", "EU")).rejects.toMatchObject({ status: 404, kind: "http" });
         });
     });
 
     describe("getAllEvents", () => {
         it("follows nextPageTimestamp and concatenates events", async () => {
             const client = new WarcraftLogs();
-            axios.get
-                .mockResolvedValueOnce({
-                    data: { events: [{ t: 1 }], nextPageTimestamp: 500 },
-                })
-                .mockResolvedValueOnce({
-                    data: { events: [{ t: 2 }] },
-                });
+            respond(
+                reply(200, { events: [{ t: 1 }], nextPageTimestamp: 500 }),
+                reply(200, { events: [{ t: 2 }] })
+            );
 
             const result = await client.getAllEvents("rep1", "summary", 0, 1000);
 
-            expect(axios.get).toHaveBeenCalledTimes(2);
+            expect(transport).toHaveBeenCalledTimes(2);
             expect(result).toEqual([{ t: 1 }, { t: 2 }]);
             // second call uses the advanced cursor as start
-            expect(axios.get.mock.calls[1][1].params.start).toBe(500);
+            expect(sent(1).params.start).toBe(500);
         });
 
         it("stops when nextPageTimestamp does not advance", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({
-                data: { events: [{ t: 1 }], nextPageTimestamp: 0 },
-            });
+            transport.mockImplementation(reply(200, { events: [{ t: 1 }], nextPageTimestamp: 0 }));
 
             const result = await client.getAllEvents("rep1", "summary", 0, 1000);
 
-            expect(axios.get).toHaveBeenCalledTimes(1);
+            expect(transport).toHaveBeenCalledTimes(1);
             expect(result).toEqual([{ t: 1 }]);
         });
 
         it("returns an empty array when a page has no events", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: {} });
+            transport.mockImplementation(reply(200, {}));
 
             const result = await client.getAllEvents("rep1", "summary", 0, 1000);
 
@@ -251,21 +224,21 @@ describe("classes/WarcraftLogs", () => {
         it("stops at maxPages and marks the result as truncated", async () => {
             const client = new WarcraftLogs();
             let t = 0;
-            axios.get.mockImplementation(async () => {
+            transport.mockImplementation((config) => {
                 t += 100;
-                return { data: { events: [{ t }], nextPageTimestamp: t } };
+                return reply(200, { events: [{ t }], nextPageTimestamp: t })(config);
             });
 
             const result = await client.getAllEvents("rep1", "casts", 0, 100000, {}, { maxPages: 3 });
 
-            expect(axios.get).toHaveBeenCalledTimes(3);
+            expect(transport).toHaveBeenCalledTimes(3);
             expect(result).toHaveLength(3);
             expect(result.truncated).toBe(true);
         });
 
         it("does not flag a walk that ends within the bound", async () => {
             const client = new WarcraftLogs();
-            axios.get.mockResolvedValue({ data: { events: [{ t: 1 }] } });
+            transport.mockImplementation(reply(200, { events: [{ t: 1 }] }));
 
             const result = await client.getAllEvents("rep1", "casts", 0, 1000, {}, { maxPages: 3 });
 

@@ -180,6 +180,7 @@ function start() {
     // reliable way to see which version the bot actually runs on after an
     // upgrade. Keep it first, before anything can fail.
     console.log(`PulseBot starting on Node ${process.version} (${process.env.NODE_ENV || "development"})`);
+    require("./web/settingsMigration").migrateSettings();
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
     applicationState.start();

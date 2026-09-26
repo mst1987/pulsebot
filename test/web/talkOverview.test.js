@@ -25,8 +25,10 @@ const discord = require("../../src/web/discord");
 const { getConfig } = require("../../src/web/settingsStore");
 const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const {
-    buildOverviewMessage, formatStart, channelUrl, payloadHash, syncOverview, overviewStatus,
-    scheduleOverviewSync, startTalkOverview, overviewLinks, currentPayload,
+    channelUrl, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
+    _internal: {
+        buildOverviewMessage, formatStart, payloadHash, overviewLinks,
+    },
 } = require("../../src/web/talkOverview");
 const { event: baseEvent } = require("../factories/events");
 const { makeClient, makeChannel } = require("../helpers/discordClient");

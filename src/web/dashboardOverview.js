@@ -401,8 +401,10 @@ function deployTask(deploy, now = Date.now()) {
 }
 
 module.exports = {
-    eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, DEPLOY_RED_DAYS,
-    ZONE_ICONS, FALLBACK_ZONE_ICON, ROLE_TARGETS, ROLES,
-    zoneFor, zoneForEvent, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
-    openRecommendations, lastReportArea, newLootSince, buildTasks, roleDriftTask, isAttending,
+    zoneFor, zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, openRecommendations, lastReportArea, newLootSince, buildTasks,
+    isAttending,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, FALLBACK_ZONE_ICON, roleBucket, roleDriftTask,
+    },
 };

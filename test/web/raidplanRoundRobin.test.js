@@ -94,22 +94,22 @@ describe("a class of any spec, chosen on purpose (a mage tank)", () => {
 
 describe("renumbering (migration of stored references, nothing lost)", () => {
     it("repeated numbers over the rows of a task become 1, 2, 3; other tasks count on their own", () => {
-        const out = assign.renumberClassRefs([row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:1"]), row("c", "cc", ["class:Hunter:1"]), row("d", "md", ["class:Hunter:1"])]);
+        const out = assign._internal.renumberClassRefs([row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:1"]), row("c", "cc", ["class:Hunter:1"]), row("d", "md", ["class:Hunter:1"])]);
         expect(who(out)).toEqual([["class:Hunter:1"], ["class:Hunter:2"], ["class:Hunter:1"], ["class:Hunter:3"]]);
     });
     it("unique numbers stay as they are; a class with another role counts separately", () => {
         const list = [row("a", "tank", ["class:Warrior:2:tank"]), row("b", "tank", ["class:Warrior:1"]), row("c", "tank", ["class:Warrior:1:tank"])];
-        expect(who(assign.renumberClassRefs(list))).toEqual([["class:Warrior:2:tank"], ["class:Warrior:1"], ["class:Warrior:1:tank"]]);
+        expect(who(assign._internal.renumberClassRefs(list))).toEqual([["class:Warrior:2:tank"], ["class:Warrior:1"], ["class:Warrior:1:tank"]]);
     });
     it("a hand-made pick moves with its renumbered reference; the pick of the reference that keeps its name stays", () => {
-        const out = assign.renumberClassRefs([row("a", "md", ["class:Hunter:1"], [], { picks: { "class:Hunter:1": "h2" } }), row("b", "md", ["class:Hunter:1"], [], { picks: { "class:Hunter:1": "h1" } })]);
+        const out = assign._internal.renumberClassRefs([row("a", "md", ["class:Hunter:1"], [], { picks: { "class:Hunter:1": "h2" } }), row("b", "md", ["class:Hunter:1"], [], { picks: { "class:Hunter:1": "h1" } })]);
         expect(out[0].picks).toEqual({ "class:Hunter:1": "h2" });
         expect(out[1]).toMatchObject({ assignees: ["class:Hunter:2"], picks: { "class:Hunter:2": "h1" } });
-        const twice = assign.renumberClassRefs([row("a", "md", ["class:Hunter:1", "class:Hunter:1"], [], { picks: { "class:Hunter:1": "h2" } })]);
+        const twice = assign._internal.renumberClassRefs([row("a", "md", ["class:Hunter:1", "class:Hunter:1"], [], { picks: { "class:Hunter:1": "h2" } })]);
         expect(twice[0]).toMatchObject({ assignees: ["class:Hunter:1", "class:Hunter:2"], picks: { "class:Hunter:1": "h2" } });
     });
     it("class targets are numbered on among the targets", () => {
-        const out = assign.renumberClassRefs([row("a", "ss", [], [{ kind: "class", ref: "Priest:1" }]), row("b", "ss", [], [{ kind: "class", ref: "Priest:1" }])]);
+        const out = assign._internal.renumberClassRefs([row("a", "ss", [], [{ kind: "class", ref: "Priest:1" }]), row("b", "ss", [], [{ kind: "class", ref: "Priest:1" }])]);
         expect(out.map((a) => a.targets[0].ref)).toEqual(["Priest:1", "Priest:2"]);
     });
     it("the save keeps a template's old references (count 1 each) and resolves them as before", () => {
@@ -119,8 +119,8 @@ describe("renumbering (migration of stored references, nothing lost)", () => {
         expect(who(expand(saved, hunters2))).toEqual(who(expand(old, hunters2)));
     });
     it("tolerates raw junk", () => {
-        expect(assign.renumberClassRefs([null, 5, { type: "md" }, { type: "md", assignees: "x", targets: [null] }])).toHaveLength(4);
-        expect(assign.renumberClassRefs("nope")).toEqual([]);
+        expect(assign._internal.renumberClassRefs([null, 5, { type: "md" }, { type: "md", assignees: "x", targets: [null] }])).toHaveLength(4);
+        expect(assign._internal.renumberClassRefs("nope")).toEqual([]);
     });
 });
 

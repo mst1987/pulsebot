@@ -1,0 +1,1022 @@
+{
+  "board": {
+    "board": {
+      "tokens": [
+        {
+          "userId": "u1",
+          "x": 0.25,
+          "y": 1,
+          "size": 60,
+          "opacity": 0.5,
+          "lock": true,
+          "hidden": false
+        },
+        {
+          "userId": "u2",
+          "x": 0,
+          "y": 0,
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": true,
+          "ring": false,
+          "showName": false
+        }
+      ],
+      "slots": [
+        {
+          "id": "s-tank",
+          "kind": "tank",
+          "n": 1,
+          "label": "",
+          "x": 0.1,
+          "y": 0.2,
+          "userId": "u1",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [
+            "Warrior",
+            "Druid"
+          ],
+          "byClass": true
+        },
+        {
+          "id": "gen1",
+          "kind": "tank",
+          "n": 2,
+          "label": "",
+          "x": 0.2,
+          "y": 0.2,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-heal",
+          "kind": "healer",
+          "n": 1,
+          "label": "",
+          "x": 1,
+          "y": 0.5,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-melee",
+          "kind": "melee",
+          "n": 99,
+          "label": "",
+          "x": 0.4,
+          "y": 0.4,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": false,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-ranged",
+          "kind": "ranged",
+          "n": 3,
+          "label": "",
+          "x": 0.5,
+          "y": 0.5,
+          "userId": "",
+          "size": 152,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-dps",
+          "kind": "dps",
+          "n": 1,
+          "label": "",
+          "x": 0.6,
+          "y": 0.6,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-group",
+          "kind": "group",
+          "n": 2,
+          "label": "Gruppe zwei mit einem sehr langen Namen,",
+          "x": 0.7,
+          "y": 0.7,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": true,
+          "split": true,
+          "offsets": {
+            "u1": {
+              "dx": 1,
+              "dy": -0.5,
+              "size": 20
+            }
+          },
+          "groupScale": 4,
+          "ringSpread": 0.25,
+          "tokenScale": 1.23,
+          "showRing": false,
+          "ringColor": "#abcdef",
+          "ringOpacity": 0.1,
+          "chipWidth": 400,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-group2",
+          "kind": "group",
+          "n": 1,
+          "label": "",
+          "x": 0.7,
+          "y": 0.7,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 60,
+          "preferredClasses": [],
+          "byClass": false
+        },
+        {
+          "id": "s-label",
+          "kind": "label",
+          "n": 1,
+          "label": "Hier stehen",
+          "x": 0.8,
+          "y": 0.8,
+          "userId": "",
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "placed": true,
+          "hideMembers": false,
+          "split": false,
+          "offsets": {},
+          "groupScale": 1,
+          "ringSpread": 1,
+          "tokenScale": 1,
+          "showRing": true,
+          "ringColor": "",
+          "ringOpacity": 0.55,
+          "chipWidth": 0,
+          "preferredClasses": [],
+          "byClass": false
+        }
+      ],
+      "marks": [
+        {
+          "id": "m1",
+          "mark": "skull",
+          "x": 0.1,
+          "y": 0.2,
+          "size": 9,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        },
+        {
+          "id": "gen2",
+          "mark": "cross",
+          "x": 0.3,
+          "y": 0.4,
+          "size": 34,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        }
+      ],
+      "icons": [
+        {
+          "id": "i1",
+          "iconKey": "boss:601",
+          "label": "Boss",
+          "x": 0.5,
+          "y": 0.5,
+          "size": 192,
+          "rotation": 270,
+          "showLabel": true,
+          "mobId": "b:illidan",
+          "autoFace": false,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false,
+          "arrowScale": 2,
+          "arrowHidden": true,
+          "arrowColor": "#00ff00",
+          "arrowOpacity": 0.5
+        },
+        {
+          "id": "i2",
+          "iconKey": "wow:spell_fire_fireball",
+          "label": "",
+          "x": 0.2,
+          "y": 0.2,
+          "size": 48,
+          "rotation": 0,
+          "showLabel": false,
+          "mobId": "",
+          "autoFace": true,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        },
+        {
+          "id": "i3",
+          "iconKey": "enemy",
+          "label": "",
+          "x": 0.9,
+          "y": 0.9,
+          "size": 48,
+          "rotation": 0,
+          "showLabel": false,
+          "mobId": "d:gathios",
+          "autoFace": true,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        },
+        {
+          "id": "i4",
+          "iconKey": "bosspos",
+          "label": "",
+          "x": 0.9,
+          "y": 0.9,
+          "size": 48,
+          "rotation": 5,
+          "showLabel": false,
+          "mobId": "",
+          "autoFace": true,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        }
+      ],
+      "zones": [
+        {
+          "id": "z1",
+          "shape": "ellipse",
+          "type": "danger",
+          "label": "Feuer",
+          "color": "#123456",
+          "opacity": 0.3,
+          "lock": false,
+          "hidden": false,
+          "w": 0.5,
+          "h": 0.03,
+          "x": 0.5,
+          "y": 0.5
+        },
+        {
+          "id": "z2",
+          "shape": "cluster",
+          "type": "role",
+          "label": "",
+          "color": "#35d6c4",
+          "role": "healer",
+          "count": 40,
+          "showNames": true,
+          "rotation": 45,
+          "iconScale": 3,
+          "labelPos": "top",
+          "opacity": 0.3,
+          "lock": false,
+          "hidden": false,
+          "w": 0.2,
+          "h": 0.2,
+          "x": 0.2,
+          "y": 0.2
+        },
+        {
+          "id": "z3",
+          "shape": "ellipse",
+          "type": "role",
+          "label": "",
+          "color": "#f97316",
+          "role": "melee",
+          "count": 0,
+          "showNames": false,
+          "rotation": 0,
+          "iconScale": 1,
+          "labelPos": "in",
+          "opacity": 0.8,
+          "lock": false,
+          "hidden": false,
+          "w": 0.03,
+          "h": 0.03,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "z4",
+          "shape": "rect",
+          "type": "neutral",
+          "label": "",
+          "color": "#60a5fa",
+          "opacity": 0.3,
+          "lock": false,
+          "hidden": false,
+          "w": 1,
+          "h": 0.03,
+          "x": 0,
+          "y": 0
+        },
+        {
+          "id": "gen3",
+          "shape": "rect",
+          "type": "neutral",
+          "label": "",
+          "color": "#60a5fa",
+          "opacity": 0.3,
+          "lock": false,
+          "hidden": false,
+          "w": 0.03,
+          "h": 0.03,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "lines": [
+        {
+          "id": "l1",
+          "kind": "arrow",
+          "x1": 0.1,
+          "y1": 0.2,
+          "x2": 1,
+          "y2": 0,
+          "color": "#ff0000",
+          "width": 16,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        },
+        {
+          "id": "l2",
+          "kind": "line",
+          "x1": 0,
+          "y1": 0,
+          "x2": 0,
+          "y2": 0,
+          "color": "#f8fafc",
+          "width": 4,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        }
+      ],
+      "texts": [
+        {
+          "id": "t1",
+          "text": "Hier sammeln",
+          "x": 0.3,
+          "y": 0.3,
+          "color": "#00ff00",
+          "size": 72,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        },
+        {
+          "id": "t3",
+          "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "x": 0,
+          "y": 0,
+          "color": "#f8fafc",
+          "size": 16,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        }
+      ],
+      "targets": [
+        {
+          "id": "tg1",
+          "title": "Adds",
+          "userIds": [
+            "u1",
+            "u2",
+            "p0",
+            "p1",
+            "p2",
+            "p3",
+            "p4",
+            "p5",
+            "p6",
+            "p7",
+            "p8",
+            "p9",
+            "p10",
+            "p11",
+            "p12",
+            "p13",
+            "p14",
+            "p15",
+            "p16",
+            "p17",
+            "p18",
+            "p19",
+            "p20",
+            "p21",
+            "p22"
+          ]
+        },
+        {
+          "id": "gen4",
+          "title": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+          "userIds": []
+        }
+      ],
+      "assignments": [
+        {
+          "id": "a1",
+          "type": "tank",
+          "title": "Boss tanken",
+          "spell": null,
+          "assignees": [
+            "user:u1",
+            "slot:tank:1"
+          ],
+          "targets": [
+            {
+              "kind": "mob",
+              "ref": "b:illidan",
+              "name": "Illidan",
+              "icon": "",
+              "oid": "i1"
+            },
+            {
+              "kind": "mob",
+              "ref": "d:gathios",
+              "name": "Gathios",
+              "icon": ""
+            },
+            {
+              "kind": "mob",
+              "ref": "d:zerevor",
+              "name": "Zerevor",
+              "icon": "",
+              "n": 2
+            },
+            {
+              "kind": "mark",
+              "ref": "skull"
+            }
+          ],
+          "note": "",
+          "suggested": false,
+          "preferredClasses": [],
+          "allowOthers": false,
+          "picks": {},
+          "allowMulti": false,
+          "origin": ""
+        },
+        {
+          "id": "a2",
+          "type": "other",
+          "title": "",
+          "spell": null,
+          "assignees": [
+            "class:Mage:1"
+          ],
+          "targets": [
+            {
+              "kind": "text",
+              "ref": "Fear"
+            }
+          ],
+          "note": "",
+          "suggested": false,
+          "preferredClasses": [],
+          "allowOthers": false,
+          "picks": {},
+          "allowMulti": false,
+          "origin": ""
+        }
+      ],
+      "steps": [
+        {
+          "id": "st1",
+          "action": "note",
+          "participants": [
+            "user:u1",
+            "slot:tank:1"
+          ],
+          "sentence": "",
+          "targets": [
+            {
+              "kind": "mark",
+              "ref": "skull"
+            }
+          ],
+          "timing": {
+            "kind": "",
+            "from": null,
+            "to": null,
+            "text": ""
+          }
+        }
+      ],
+      "showMap": false,
+      "autoPlace": false,
+      "autoPos": {
+        "t:a1:1": {
+          "x": 0.5,
+          "y": 1
+        }
+      },
+      "autoStyle": {
+        "t:a1:1": {
+          "size": 152,
+          "opacity": 0.1,
+          "ring": false,
+          "showName": false,
+          "label": "Main tank",
+          "showLabel": true,
+          "rotation": 10,
+          "autoFace": false,
+          "hidden": true,
+          "lock": true,
+          "arrowScale": 0.25,
+          "z": 999
+        }
+      },
+      "autoScale": 0.4,
+      "hiddenCards": [
+        "kick",
+        "curse"
+      ],
+      "inheritOff": [
+        "row-1",
+        "7"
+      ],
+      "showRings": false,
+      "inSheet": false,
+      "groupColors": {
+        "1": "#aabbcc"
+      },
+      "groupMarks": {
+        "1": "skull",
+        "3": "moon"
+      },
+      "showNames": false,
+      "showBadges": false,
+      "showRoleRings": false,
+      "view": {
+        "zoom": 4,
+        "cx": 0.5,
+        "cy": 1
+      },
+      "mobs": [
+        {
+          "id": "d:gathios",
+          "name": "Gathios",
+          "icon": "mob:22949"
+        },
+        {
+          "id": "c:own-mob",
+          "name": "Eigener Mob",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-0",
+          "name": "Mob 0",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-1",
+          "name": "Mob 1",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-2",
+          "name": "Mob 2",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-3",
+          "name": "Mob 3",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-4",
+          "name": "Mob 4",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-5",
+          "name": "Mob 5",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-6",
+          "name": "Mob 6",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-7",
+          "name": "Mob 7",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-8",
+          "name": "Mob 8",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-9",
+          "name": "Mob 9",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-10",
+          "name": "Mob 10",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-11",
+          "name": "Mob 11",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-12",
+          "name": "Mob 12",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-13",
+          "name": "Mob 13",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-14",
+          "name": "Mob 14",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-15",
+          "name": "Mob 15",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-16",
+          "name": "Mob 16",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-17",
+          "name": "Mob 17",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-18",
+          "name": "Mob 18",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-19",
+          "name": "Mob 19",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-20",
+          "name": "Mob 20",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-21",
+          "name": "Mob 21",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-22",
+          "name": "Mob 22",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-23",
+          "name": "Mob 23",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-24",
+          "name": "Mob 24",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-25",
+          "name": "Mob 25",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-26",
+          "name": "Mob 26",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-27",
+          "name": "Mob 27",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-28",
+          "name": "Mob 28",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-29",
+          "name": "Mob 29",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-30",
+          "name": "Mob 30",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-31",
+          "name": "Mob 31",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-32",
+          "name": "Mob 32",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-33",
+          "name": "Mob 33",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-34",
+          "name": "Mob 34",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-35",
+          "name": "Mob 35",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-36",
+          "name": "Mob 36",
+          "icon": ""
+        },
+        {
+          "id": "d:mob-37",
+          "name": "Mob 37",
+          "icon": ""
+        }
+      ],
+      "counts": {
+        "tank": 2,
+        "healer": 5,
+        "dps": 13,
+        "melee": 6,
+        "ranged": 7
+      },
+      "roles": {
+        "u1": "dps",
+        "u3": "healer"
+      },
+      "notes": "12345",
+      "profileId": "prof-1",
+      "mapOpacity": 0.46,
+      "objectScale": 2
+    },
+    "dropped": 22
+  },
+  "anyPlayer": {
+    "board": {
+      "tokens": [
+        {
+          "userId": "any-1",
+          "x": 0.5,
+          "y": 0.5,
+          "size": 38,
+          "opacity": 1,
+          "lock": false,
+          "hidden": false
+        }
+      ],
+      "slots": [],
+      "marks": [],
+      "icons": [],
+      "zones": [],
+      "lines": [],
+      "texts": [],
+      "targets": [
+        {
+          "id": "t",
+          "title": "",
+          "userIds": [
+            "any-2"
+          ]
+        }
+      ],
+      "assignments": [],
+      "steps": [],
+      "showMap": true,
+      "autoPlace": true,
+      "autoPos": {},
+      "autoStyle": {},
+      "autoScale": 1,
+      "hiddenCards": [],
+      "inheritOff": [],
+      "showRings": true,
+      "inSheet": true,
+      "groupColors": {},
+      "groupMarks": {},
+      "showNames": true,
+      "showBadges": true,
+      "showRoleRings": true,
+      "view": null,
+      "mobs": [],
+      "counts": null,
+      "roles": {},
+      "notes": "",
+      "profileId": "",
+      "mapOpacity": 1,
+      "objectScale": 1
+    },
+    "dropped": 1
+  },
+  "noTokens": {
+    "board": {
+      "tokens": [],
+      "slots": [],
+      "marks": [],
+      "icons": [],
+      "zones": [],
+      "lines": [],
+      "texts": [],
+      "targets": [],
+      "assignments": [],
+      "steps": [],
+      "showMap": true,
+      "autoPlace": true,
+      "autoPos": {},
+      "autoStyle": {},
+      "autoScale": 1,
+      "hiddenCards": [],
+      "inheritOff": [],
+      "showRings": true,
+      "inSheet": true,
+      "groupColors": {},
+      "groupMarks": {},
+      "showNames": true,
+      "showBadges": true,
+      "showRoleRings": true,
+      "view": null,
+      "mobs": [],
+      "counts": null,
+      "roles": {},
+      "notes": "",
+      "profileId": "",
+      "mapOpacity": 1,
+      "objectScale": 1
+    },
+    "dropped": 0
+  },
+  "empty": {
+    "board": {
+      "tokens": [],
+      "slots": [],
+      "marks": [],
+      "icons": [],
+      "zones": [],
+      "lines": [],
+      "texts": [],
+      "targets": [],
+      "assignments": [],
+      "steps": [],
+      "showMap": true,
+      "autoPlace": true,
+      "autoPos": {},
+      "autoStyle": {},
+      "autoScale": 1,
+      "hiddenCards": [],
+      "inheritOff": [],
+      "showRings": true,
+      "inSheet": true,
+      "groupColors": {},
+      "groupMarks": {},
+      "showNames": true,
+      "showBadges": true,
+      "showRoleRings": true,
+      "view": null,
+      "mobs": [],
+      "counts": null,
+      "roles": {},
+      "notes": "",
+      "profileId": "",
+      "mapOpacity": 1,
+      "objectScale": 1
+    },
+    "dropped": 0
+  }
+}

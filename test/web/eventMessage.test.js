@@ -19,9 +19,11 @@ const appEmojis = require("../../src/web/appEmojis");
 const { event: baseEvent } = require("../factories/events");
 const { makeClient, makeChannel } = require("../helpers/discordClient");
 const {
-    buildEventMessage, rosterCounts, signupButtonId, joinSelectId, buttonId, rosterEntries, messagePhase, signupNumbers, embedLength, blockValue,
-    sweepEventMessages, postEventMessage, refreshEventMessage, startEventMessageSync, redrawEventMessage, LIMITS,
-    pickSelectId, payloadHash, messageComponents,
+    rosterCounts, rosterEntries, messagePhase, postEventMessage, refreshEventMessage, startEventMessageSync, messageComponents,
+    _internal: {
+        buildEventMessage, signupButtonId, joinSelectId, buttonId, signupNumbers, embedLength, blockValue, sweepEventMessages,
+        redrawEventMessage, LIMITS, pickSelectId, payloadHash,
+    },
 } = require("../../src/web/eventMessage");
 
 const NOW = 1999000000 * 1000;

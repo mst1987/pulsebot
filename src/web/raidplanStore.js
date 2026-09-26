@@ -36,6 +36,7 @@ const board = require("./raidplanBoard");
 const inherit = require("./raidplanInherit");
 const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
+const catalogStore = require("./raidplanCatalogStore");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -369,7 +370,7 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, t
         let tb = (template.bosses || {})[key] || {};
         const bm = meta.get(key);
         if (defaultRows.length > 0 && bm && !bm.general) {
-            if (!mobsOfCatalog) mobsOfCatalog = require("./raidplanCatalogStore").listMobs();
+            if (!mobsOfCatalog) mobsOfCatalog = catalogStore.listMobs();
             const section = inherit.sectionOf(bm, mobsOfCatalog, tb.mobs);
             tb = { ...tb, assignments: inherit.effectiveRows(defaultRows, tb, section) };
         }
@@ -525,8 +526,10 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 }
 
 module.exports = {
-    useFile, LIMITS, slug, bossKeyOf, bossesForInstances, bossIconByName, isMapKey,
-    GENERAL_KEY, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope, templateMapKey, eventMapKey, setPublished, deletePlan, cleanBosses,
-    setLink, normalizeLink, playersOf, knownAfter,
-    sniffImage, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    useFile, LIMITS, bossKeyOf, bossesForInstances, isMapKey, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope,
+    templateMapKey, eventMapKey, setPublished, deletePlan, setLink, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    // only for the tests (#424): not part of the module's API
+    _internal: {
+        slug, normalizeLink, knownAfter, sniffImage,
+    },
 };

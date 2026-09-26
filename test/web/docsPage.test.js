@@ -48,4 +48,15 @@ describe("docsPage", () => {
         const closes = (html.match(/<\/li>/g) || []).length;
         expect(opens).toBe(closes);
     });
+
+    it("names only slash commands the bot registers (#418: /saveraid and /profile outlived their commands here)", () => {
+        const { loadCommandModules, commandDefinitions } = require("../../src/commands/loader");
+        const registered = commandDefinitions(loadCommandModules()).map((d) => d.name);
+        const items = [...DISCORD_GROUPS, ...WEB_GROUPS].flatMap((g) => g.items).join("\n");
+        const mentioned = [...new Set([...items.matchAll(/<code>\/([a-z0-9_-]+)/g)].map((m) => m[1]))];
+        expect(mentioned.length).toBeGreaterThan(10);
+        for (const name of mentioned) {
+            expect({ name, registered: registered.includes(name) }).toEqual({ name, registered: true });
+        }
+    });
 });

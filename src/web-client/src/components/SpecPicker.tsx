@@ -7,6 +7,7 @@ import { Button } from "./ui/Button";
 import WowIcon from "./ui/WowIcon";
 import { XIcon } from "./icons";
 import { useT } from "../i18n";
+import { useDismiss } from "../hooks/useDismiss";
 
 // Ported from renderAdmin.js's specPickerScript()/specPicker(). Unlike the SSR
 // version (which re-parses the textarea's raw DOM value), this re-derives the
@@ -37,14 +38,9 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
     const filtered = available.filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()));
 
     useEffect(() => {
-        if (!open) return;
-        searchRef.current?.focus();
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
+        if (open) searchRef.current?.focus();
     }, [open]);
+    useDismiss(rootRef, open, () => setOpen(false), { event: "click", escape: false });
 
     const addSpec = (spec: SpecCatalogEntry) => {
         const emoji = findGuildEmoji(spec.icon, emojis);

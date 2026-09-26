@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { SEARCH_FROM, filterItems, paginate, rangeKeys, sectionsOf, ticked, toggleAllKeys, type FlyItem, type FlySection } from "../../lib/flyout";
 import { useT } from "../../i18n";
+import { useDismiss } from "../../hooks/useDismiss";
 
 export type FlyoutOption = FlyItem & { node: ReactNode };
 
@@ -49,17 +50,14 @@ export default function Flyout({ anchor, title, options, onToggle, onClose, mult
         if (el && el.scrollHeight > el.clientHeight + 1 && cap > 4) setCap((c) => Math.max(4, c - 2));
     }, [cap, at, visible, query, tab, shown.length]);
 
+    // A click beside it closes it; Esc is handled by the panel's own keys (it returns the focus to the anchor).
+    useDismiss([panel, anchor], true, onClose, { event: "pointerdown", capture: true, escape: false });
+
     useEffect(() => {
-        const away = (e: Event) => {
-            const el = e.target as Node;
-            if (panel.current && !panel.current.contains(el) && !(anchor && anchor.contains(el))) onClose();
-        };
-        document.addEventListener("pointerdown", away, true);
         const first = body.current ? body.current.querySelector<HTMLElement>(".rp-fchip") : null;
         // after the click that opened it has finished (it would take the focus back to its button otherwise)
         const focusTimer = window.setTimeout(() => (first || panel.current)?.focus(), 0);
-        return () => { window.clearTimeout(focusTimer); document.removeEventListener("pointerdown", away, true); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => window.clearTimeout(focusTimer);
     }, []);
 
     const close = () => { onClose(); if (anchor) anchor.focus(); };

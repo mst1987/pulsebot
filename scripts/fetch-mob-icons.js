@@ -3,13 +3,13 @@
 //
 //   node scripts/fetch-mob-icons.js [--offline] [--force]
 //
-// 1. PORTRAITS (the real thing): for every mob in src/web/raidplanMobNpcs.js the Wowhead TBC page of the NPC is fetched,
+// 1. PORTRAITS (the real thing): for every mob in scripts/data/raidplanMobNpcs.js the Wowhead TBC page of the NPC is fetched,
 //    its title has to name the mob, its display id is read, and the model render of that display
 //    (wow.zamimg.com/modelviewer/tbc/webthumbs/npc/<id % 256>/<id>.png) is cropped to a round-friendly square
 //    (head and shoulders for a figure, the whole creature for a compact one; scripts/lib/png.js) and stored as
 //    src/web-client/public/mobs/<npcId>.png (64 px, served at /mobs/<npcId>.png, icon key `mob:<npcId>`).
 // 2. PLACEHOLDERS: every other mob gets a similar WoW icon of the Wowhead icon CDN by the kind of creature it is
-//    (src/web/raidplanMobIconRules.js, the table to edit). The catalog marks those as "Platzhalter-Icon".
+//    (scripts/data/raidplanMobIconRules.js, the table to edit). The catalog marks those as "Platzhalter-Icon".
 // Every request is checked (HTTP 200 and an image) and the result of each check is written next to the entry —
 // nothing is entered blind. The JSON is generated: do not edit it by hand. Idempotent: a portrait that is stored and
 // recorded is not fetched again (--force fetches it again). --offline keeps the results already in the JSON and only
@@ -17,8 +17,8 @@
 const fs = require("fs");
 const path = require("path");
 const { MOBS } = require("../src/web/raidplanCatalogDefaults");
-const { KIND_ICONS, MOB_KINDS, ICON_CHOICES } = require("../src/web/raidplanMobIconRules");
-const { MOB_NPCS } = require("../src/web/raidplanMobNpcs");
+const { KIND_ICONS, MOB_KINDS, ICON_CHOICES } = require("./data/raidplanMobIconRules");
+const { MOB_NPCS } = require("./data/raidplanMobNpcs");
 const png = require("./lib/png");
 
 const ROOT = path.join(__dirname, "..");

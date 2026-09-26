@@ -48,7 +48,7 @@ describe("config/paths", () => {
         const paths = require("../../src/config/paths");
         expect(paths.DATA_DIR).toBe(dir);
         expect(paths.settingsPath("config.json")).toBe(path.join(dir, "settings", "config.json"));
-        expect(require("../../src/web/eventStore").EVENTS_FILE).toBe(path.join(dir, "settings", "events.json"));
+        expect(require("../../src/web/eventStore")._internal.EVENTS_FILE).toBe(path.join(dir, "settings", "events.json"));
         expect(require("../../src/web/reportStore").REPORTS_DIR).toBe(path.join(dir, "reports"));
     });
 });

@@ -38,7 +38,7 @@ describe("a role group placeholder", () => {
         expect(z[1]).toMatchObject({ type: "role", role: "melee", shape: "ellipse", color: "#f97316", count: 0, showNames: false });
         expect(z[2]).toMatchObject({ type: "neutral", shape: "rect" });
         expect(z[2]).not.toHaveProperty("role");
-        expect(board.ZONE_ROLES).toEqual(["melee", "ranged", "healer", "tank", "dps"]);
+        expect(board._internal.ZONE_ROLES).toEqual(["melee", "ranged", "healer", "tank", "dps"]);
         // a role group can be turned (0..359, 0 = as drawn); other zones have no rotation
         expect(z[0].rotation).toBe(0);
         expect(clean({ zones: [{ type: "role", x: 0, y: 0, w: 0.2, h: 0.2, rotation: -30 }] }).board.zones[0].rotation).toBe(330);

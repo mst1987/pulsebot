@@ -1,5 +1,7 @@
 # Umstieg von Raid-Helper (`src/web/raidhelperRetirement.js`, #291)
 
+Endnutzer-Sicht: siehe [guide-discord.md#umstieg-von-raid-helper](guide-discord.md#umstieg-von-raid-helper).
+
 The last package of #286: everything the EventHelper needs to replace Raid-Helper completely, and the switch that stops asking Raid-Helper. **Nothing is deleted and nothing flips silently.**
 
 **Raid-Helper stays a supported source for as long as a server wants it.** This page is the way out for a server that wants to leave, not a plan to leave: features that work with Raid-Helper events keep working (the raid plan of a Raid-Helper event, docs/raidplan.md "Raid-Helper-Events", is a permanent mode and does not depend on this switch — switched off, it plans from the line-up it saved last).
@@ -18,4 +20,4 @@ The last package of #286: everything the EventHelper needs to replace Raid-Helpe
 | `/fillsetup` | `setup_id` optional: `eh-…` or empty (= the channel's own event) fills from the **approved** setup; a number is still a Raid-Helper raidplan |
 | `/show-signups`, `/show-mysetups`, `/show-allsetups`, `/createoverview`, `update-events` | Both sources (`helper.getCategoryEvents`, `ownSignedUpEvents`, `ownApprovedSetup`); a failing Raid-Helper leaves the own events. The overview's successor is the raid overview on the talk server |
 
-Once every server has switched off Raid-Helper for good, `commands/setup/signup.js` (the legacy `/signup` above, which only ever spoke Raid-Helper), `show-*`, `update-events` and `createoverview` are candidates to remove together in one pass rather than one at a time — see #430.
+Once every server has switched off Raid-Helper for good, `commands/setup/signup.js` (the legacy `/signup` above, which only ever spoke Raid-Helper), `show-*`, `update-events` and `createoverview` are candidates to remove together in one pass rather than one at a time — see #430. The one-off migration `scripts/import-raidhelper-history.js` (and its test `test/scripts/importRaidhelperHistory.test.js`) goes in the same pass: once Raid-Helper is gone there is nothing left to import (#418, `scripts/README.md`).

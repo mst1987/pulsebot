@@ -1,5 +1,7 @@
 # Befehle des Bots
 
+Endnutzer-Sicht: siehe [guide-discord.md#anmeldung](guide-discord.md#anmeldung), [guide-discord.md#übersicht--nachschlagen](guide-discord.md#übersicht--nachschlagen).
+
 ## How the Command System Works
 
 `bot.js` `start()` calls `loadCommands()`, which reads every `.js` file from every subfolder of `src/commands/` through the shared loader `src/commands/loader.js` (`loadCommandModules()`). Files directly in `src/commands/` (the loader, `componentRoute.js`) and folders starting with `_` are not modules. **A name used twice throws** at start — before #413 the second file silently replaced the first. Each file must export:
@@ -74,9 +76,17 @@ Used after `interaction.deferReply()`. Call this when the command needs more tha
 
 ## API Clients
 
-**`classes/raidhelper.js` (Raidhelper):** Uses raw `https` module. API key and server ID come from `process.env.RAIDHELPER_API_KEY` and `process.env.RAIDHELPER_SERVER_ID` via the constructor. Key methods: `getAllEvents()`, `getUserSignUps(userid)`, `getEvent(eventid)`, `getSetup(raidid)`, `signUpToRaid(raidid, signUps, userid)`.
+**`classes/httpClient.js` is the base of every HTTP client in `src/classes`** (#429): `createClient({ service, baseURL, timeout, headers?, retry? })` is an `axios.create` instance with the shared `utils/httpAgent.js` (certificate checks only in `NODE_ENV=production`), a mandatory timeout and one response interceptor. It retries only a 5xx, a network error or a timeout, only for idempotent methods unless the client lists more (`retry.methods`), never a 4xx (default: 2 retries, 250 ms → 500 ms; `retry: { timeouts: false }` for a server that hangs rather than fails), and turns everything that still fails into an **`ApiError { service, status, code, kind, message, cause, data }`** (`kind`: `timeout` | `network` | `http` | `canceled`; `err.response` stays readable for old callers). What a failure means for the caller is each client's own contract, written in its file head — they are deliberately not unified, because the callers rely on them:
 
-The Axios clients (`classes/warcraftlogs*.js`, `utils/softres.js`, `utils/wowhead.js`, `web/deployStatus.js`) use the shared `utils/httpAgent.js` which enables SSL cert verification only in `NODE_ENV=production`.
+| Client | Contract |
+|---|---|
+| `classes/raidhelper.js` | The body decides, whatever the HTTP status. Event-list reads reject (the `status: "failed"` payload as-is, else an Error), `getTemplates` → `[]`, `getSetup` → `undefined`, `createEvent`/`getEvent` resolve the parsed body. POSTs and timeouts (20 s) are never retried. Always obtained through `utils/raidhelperClient.js` (switch-off, fixture). |
+| `classes/warcraftlogs.js` (v1) | Throws the `ApiError`. The workhorse of the log check; the head lists every importer and why it stays on v1. |
+| `classes/warcraftlogsV2.js` | Never throws: `null` + `lastError` (`not_configured`, `graphql`, `{ status, message }`). A 401 on a query refreshes the token once. |
+| `classes/blizzard.js` | Never throws (except `getToken`): `null` + `lastError { status, message, namespace }`, so the UI falls back to the armory link. |
+| `classes/anthropic.js` | Only creates the SDK client (`createAnthropicClient({ apiKey })`); the SDK has its own transport and retries. |
+
+In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("axios", () => require("../helpers/axiosMock").mockAxios())`), so retry, translation and transforms run for real and no request leaves the process. The remaining direct axios users (`utils/softres.js`, `utils/wowhead.js`, `web/deployStatus.js`) use the shared agent as well.
 
 ## Common Patterns
 

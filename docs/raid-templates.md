@@ -1,5 +1,7 @@
 # Spielversionen und Raid-Vorlagen
 
+Endnutzer-Sicht: siehe [guide-web-admin.md#raid-vorlagen](guide-web-admin.md#raid-vorlagen).
+
 ## Spielversionen und Instanzen (`src/config/gameVersions/`)
 
 One rule set per game version — `tbc.js` (TBC Anniversary), `classic.js` (Classic Era), `forever.js` (WoW Forever) — pure data plus pure functions in `index.js` (`rulesFor`, `instance`, `instanceById`, `roleOfSpec`, `buffsOf`, `defaultComposition`, `compositionFor`). Signup, raid templates, event creation and the setup suggestion (#250 ff.) read from here; **there are no custom raids**, the rule set is the only source of instances. Served as `GET /api/game-versions` (area `raids`, types `GameVersion…` in `api.ts`).

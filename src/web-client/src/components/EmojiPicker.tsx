@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Emoji } from "../api";
 import { Button } from "./ui/Button";
+import { useDismiss } from "../hooks/useDismiss";
 
 // Ported from renderAdmin.js's EMOJI_PICKER_SCRIPT/emojiPicker(), adapted for a
 // controlled textarea: insertion reads the cursor position from the DOM ref
@@ -18,14 +19,9 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
     const searchRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!open) return;
-        searchRef.current?.focus();
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
+        if (open) searchRef.current?.focus();
     }, [open]);
+    useDismiss(rootRef, open, () => setOpen(false), { event: "click", escape: false });
 
     if (!emojis.length) return null;
 

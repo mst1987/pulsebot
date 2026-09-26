@@ -11,7 +11,7 @@
 const eventStore = require("./eventStore");
 const signupStore = require("./signupStore");
 const discord = require("./discord");
-const { approvedSetupOf } = require("./setupEditor");
+const { approvedSetupOf } = require("./setupCore");
 const { fail } = require("./apiResult");
 
 /** Groups 1 to this one are called to the invite. */

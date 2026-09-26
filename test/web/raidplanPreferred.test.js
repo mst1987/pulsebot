@@ -21,10 +21,10 @@ describe("preferred classes of a row", () => {
     });
 
     it("a row's own classes replace the catalog's, the usual ones only follow when others are allowed", () => {
-        expect(assign.classesFor("kick", ["Warrior"], false)).toEqual(["Warrior"]);
-        expect(assign.classesFor("kick", ["Warrior"], true)[0]).toBe("Warrior");
-        expect(assign.classesFor("kick", ["Warrior"], true)).toEqual(expect.arrayContaining(["Rogue", "Shaman", "Mage"]));
-        expect(assign.classesFor("kick", [], false)).toEqual(assign.classesFor("kick"));
+        expect(assign._internal.classesFor("kick", ["Warrior"], false)).toEqual(["Warrior"]);
+        expect(assign._internal.classesFor("kick", ["Warrior"], true)[0]).toBe("Warrior");
+        expect(assign._internal.classesFor("kick", ["Warrior"], true)).toEqual(expect.arrayContaining(["Rogue", "Shaman", "Mage"]));
+        expect(assign._internal.classesFor("kick", [], false)).toEqual(assign._internal.classesFor("kick"));
     });
 
     it("a suggestion takes the preferred class first and stays empty when nobody fits and others are not allowed", () => {

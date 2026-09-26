@@ -6,7 +6,7 @@
 // and counts the bosses killed.
 //
 // The requirement tables come from the config sheet's validate*Log tabs
-// (reference/rpb/config/validate*.csv) via scripts/build-rpb-data.js.
+// (scripts/data-sources/rpb/config/validate*.csv) via scripts/build-rpb-data.js.
 const rpbData = require("../../../config/rpbData");
 const { EXCLUDE_KALECGOS, bossFights } = require("./common");
 

@@ -16,12 +16,10 @@ jest.mock("../../src/web/eventStore", () => ({
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../src/web/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
-jest.mock("../../src/web/setupEditor", () => ({
-    approvedSetupOf: (e) => (e && e.setup && e.setup.approved && Array.isArray(e.setup.approved.groups) ? e.setup.approved : null),
-}));
 
 const eventStore = require("../../src/web/eventStore");
 const confirmBot = require("../../src/web/setupConfirmBot");
+const setupCore = require("../../src/web/setupCore");
 
 const p = (userId, character, spec, role) => ({ userId, character, classId: spec.split("-")[0], spec, role });
 
@@ -59,7 +57,7 @@ describe("setupConfirmBot", () => {
     });
 
     it("builds the button row — plain labels, no icon (Raid-Helper style)", () => {
-        expect(confirmBot.confirmButtonRow("eh-1")).toEqual({
+        expect(setupCore.confirmButtonRow("eh-1")).toEqual({
             type: 1,
             components: [
                 { type: 2, style: 3, custom_id: "setup-confirm:y:eh-1", label: "Confirm" },
@@ -105,7 +103,7 @@ describe("setupConfirmBot", () => {
         event.setup.approved = approved(3);
         event.setup.version = 3;
         mockEvents.set("eh-1", event);
-        expect(confirmBot.confirmationsFor(event, approved(3))).toEqual({});
+        expect(setupCore.confirmationsFor(event, approved(3))).toEqual({});
         await confirmBot.setConfirmation("eh-1", "2", "y");
         // the stale v2 entry for "1" is gone, only the fresh v3 one for "2" remains
         expect(eventStore.getEvent("eh-1").setupPost.confirmations).toEqual({ 2: { status: "confirmed", version: 3 } });
