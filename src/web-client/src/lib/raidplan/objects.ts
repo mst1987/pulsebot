@@ -1,6 +1,6 @@
 import type { RaidplanBoard, RaidplanLook, RaidplanSlot, RaidplanSlotKind, RaidplanZone, RaidplanZoneType, RaidplanMarkName, RaidplanLine, RaidplanText, RaidplanIcon } from "../../api";
 import { t } from "../../i18n";
-import { clamp01, DEFAULT_LINE_COLOR, DEFAULT_TEXT_COLOR, type InsertSpec, newLook, newRowId, type ObjectKind, ROLE_GROUP_COLORS, ROLE_GROUPS, type Selection, SIZE_RANGES, ZONE_COLORS } from "./model";
+import { clamp01, DEFAULT_LINE_COLOR, DEFAULT_TEXT_COLOR, type InsertSpec, NEW_ARROW_SCALE, NEW_ROLE_GROUP, newLook, newRowId, type ObjectKind, ROLE_GROUP_COLORS, ROLE_GROUPS, type Selection, SIZE_RANGES, ZONE_COLORS } from "./model";
 import { isRoleKind, unplaceSlot } from "./besetzung";
 import { nextSlotNumber, parseMemberId, removeToken } from "./players";
 import { autoStyleOf, patchAutoStyle } from "./autoStyle";
@@ -42,15 +42,17 @@ export function insertObject(board: RaidplanBoard, spec: InsertSpec, at: { x: nu
         return { board: { ...board, marks: [...board.marks, { id, mark: spec.mark as RaidplanMarkName, x: p.x, y: p.y, size: SIZE_RANGES.mark.def, ...newLook(1) }] }, sel: { kind: "mark", id } };
     }
     if (spec.type === "icon") {
-        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, showLabel: false, mobId: spec.mobId || "", autoFace: true, ...newLook(1) };
+        // an icon that faces (boss, mob, enemy: not a plain "wow:" icon, see facing.ts canFace) starts with a smaller wedge (#496)
+        const faces = spec.iconKey.slice(0, 4) !== "wow:";
+        const icon = { id, iconKey: spec.iconKey, label: spec.label, x: p.x, y: p.y, size: SIZE_RANGES.icon.def, rotation: 0, showLabel: false, mobId: spec.mobId || "", autoFace: true, ...(faces ? { arrowScale: NEW_ARROW_SCALE } : {}), ...newLook(1) };
         return { board: { ...board, icons: [...board.icons, icon] }, sel: { kind: "icon", id } };
     }
     if (spec.type === "zone") {
         const zoneType = spec.zoneType as RaidplanZoneType;
-        // a role group ("Melees") starts as a soft ellipse in its role colour, a little flatter than an area
+        // a role group ("Melees") starts as a soft ellipse in its role colour, smaller and a little flatter than an area
         const role = (zoneType === "role" ? (ROLE_GROUPS.indexOf(spec.role || "") >= 0 ? spec.role : "melee") : "") as RaidplanZone["role"];
-        const w = role ? 0.18 : 0.2;
-        const h = role ? 0.16 : 0.2;
+        const w = role ? NEW_ROLE_GROUP.w : 0.2;
+        const h = role ? NEW_ROLE_GROUP.h : 0.2;
         const zone = {
             id, shape: spec.shape as RaidplanZone["shape"], type: zoneType, label: "", color: role ? ROLE_GROUP_COLORS[role] : ZONE_COLORS[zoneType],
             x: Math.max(0, Math.min(1 - w, p.x - w / 2)), y: Math.max(0, Math.min(1 - h, p.y - h / 2)), w, h, ...newLook(role ? 0.35 : 0.3),
