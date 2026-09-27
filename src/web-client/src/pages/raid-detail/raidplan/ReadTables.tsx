@@ -9,7 +9,7 @@ import { cleanNames } from "../../../lib/raidplan/mention";
 import Mentions from "../../../components/raidplan/Mentions";
 import { groupHealByGroup, healerGroups, simpleTables, tankTable } from "../../../lib/raidplan/planTables";
 import { mergeGroupRuns, mineCard, splitMine, type MineBlock } from "../../../lib/raidplan/mineView";
-import { groupColor, groupMark, inkOn } from "../../../lib/raidplan/groupStyle";
+import { groupColor, groupFocusCls, groupMark, inkOn } from "../../../lib/raidplan/groupStyle";
 import { MobIcon } from "./AssignPanel";
 import { ROLE_TONE } from "../../../lib/raidplan/assign";
 import TypeBadge from "./TypeBadge";
@@ -178,7 +178,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                             <thead><tr><th>{t("raidBoard.read.colHealer")}</th><th>{t("raidBoard.read.colGroups")}</th></tr></thead>
                             <tbody>
                                 {byHealer.map((h) => (
-                                    <tr key={h.healer.ref} className={isMe(h.healer, me) ? "is-own" : h.groups.some((g) => myGroups.indexOf(g) >= 0) ? "is-mygroup" : ""}>
+                                    <tr key={h.healer.ref} className={[isMe(h.healer, me) ? "is-own" : h.groups.some((g) => myGroups.indexOf(g) >= 0) ? "is-mygroup" : "", groupFocusCls(focusGroup, h.groups.indexOf(focusGroup) >= 0 ? focusGroup : 0)].filter(Boolean).join(" ")}>
                                         <td><Who r={h.healer} mine={isMe(h.healer, me)} names={names} ctx={ctx} /></td>
                                         <td><span className="rp-who-list">{h.groups.map((g) => <span key={g} className="rp-gtag" style={{ "--gc": groupColor(ctx.groupColors, g) } as React.CSSProperties}><strong>{t("raidBoard.slot.group", { n: g })}</strong></span>)}</span></td>
                                     </tr>
@@ -194,7 +194,7 @@ export default function ReadTables({ assignments, ctx, me, loggedIn, loginHref, 
                                 const mk = groupMark(ctx.groupMarks, g.group);
                                 const mine = myGroups.indexOf(g.group) >= 0;
                                 return (
-                                    <tr key={g.group} className={mine ? "is-mygroup" : ""}>
+                                    <tr key={g.group} className={[mine ? "is-mygroup" : "", groupFocusCls(focusGroup, g.group)].filter(Boolean).join(" ")}>
                                         <td>
                                             <span className={`rp-gcell${focusGroup === g.group ? " is-focus" : ""}`} style={{ "--gc": col } as React.CSSProperties} role={onFocusGroup ? "button" : undefined} tabIndex={onFocusGroup ? 0 : undefined} aria-pressed={onFocusGroup ? focusGroup === g.group : undefined} data-tip={onFocusGroup ? t("raidBoard.group.legendFocus") : undefined} onClick={onFocusGroup ? () => onFocusGroup(focusGroup === g.group ? 0 : g.group) : undefined} onKeyDown={onFocusGroup ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFocusGroup(focusGroup === g.group ? 0 : g.group); } } : undefined}>
                                                 <span className="rp-gbar" aria-hidden="true" />

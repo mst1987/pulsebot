@@ -64,3 +64,13 @@ export function inkOn(color: string): string {
     const lum = 0.2126 * linearChannel((v >> 16) & 255) + 0.7152 * linearChannel((v >> 8) & 255) + 0.0722 * linearChannel(v & 255);
     return lum > 0.4 ? "#000000" : "#ffffff";
 }
+
+/**
+ * The focus class of something that belongs to raid group `group` while group `focus` is highlighted (a chip of the "Groups" bar, a group
+ * cell of the read tables, the inspector): "rp-gdim" for everything of another group (or of none), "is-focus" for the group itself, "" when no
+ * group is highlighted (focus 0). `null` means "not a raider" (a mark, a boss, an open slot): never dimmed. The dimming itself is CSS (#512).
+ */
+export function groupFocusCls(focus: number, group: number | null | undefined): string {
+    if (!focus || group === null) return "";
+    return group === focus ? "is-focus" : "rp-gdim";
+}

@@ -2,7 +2,7 @@ import { REF_W, boardScale, canvasStyle } from "../../lib/raidplan/boardScale";
 import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, badgeMetrics, effectMetrics, labelMetrics } from "../../lib/raidplan/labelScale";
 import { FIT, type BoardView } from "../../lib/raidplan/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
-import { groupColor, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
+import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
 import { groupScales, rhNote } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
@@ -200,6 +200,8 @@ export default function PlanBoard({
     const isSel = (kind: ObjectKind, id: string) => !!selected && selected.kind === kind && selected.id === id;
     const picked = (kind: ObjectKind, id: string) => multi.some((m) => m.kind === kind && m.id === id);
     const cls = (base: string, kind: ObjectKind, id: string, extra = "", locked = false) => [base, editable ? "is-editable" : "", selectionDrawn(editable, isSel(kind, id) || picked(kind, id), showSelection) ? "is-selected" : "", picked(kind, id) ? "is-multi" : "", dragKey === `${kind}:${id}` ? "is-drag" : "", locked ? "is-locked" : "", extra].filter(Boolean).join(" ");
+    // a highlighted group (the "Groups" bar, #512): the raiders of the other groups dim, a mark / boss / open slot never ("rp-gdim" in objects.css)
+    const gf = (group: number | null | undefined) => { const c = groupFocusCls(focusGroup, group); return c ? ` ${c}` : ""; };
     const handlers = (kind: ObjectKind, id: string) => (editable ? {
         onPointerDown: (e: PointerEvent<HTMLElement>) => onObjectDown!(e, kind, id),
         onKeyDown: onObjectKey ? (e: KeyboardEvent<HTMLElement>) => onObjectKey(e, kind, id) : undefined,
@@ -522,7 +524,7 @@ export default function PlanBoard({
                     const shownOffsets = [...around.map((p) => { const off = s.offsets ? s.offsets[p.userId] : undefined; const at = everyone.findIndex((x) => x.userId === p.userId); return off ? { dx: off.dx * spread, dy: off.dy * spread } : ring[at] || { dx: 0, dy: 0 }; }), ...holders];
                     const cover = ringCover(shownOffsets, (memberPx * 0.9) / size.w, (memberPx * 0.9) / size.h);
                     return (
-                        <div key={s.id} className={`rp-groupwrap${focusGroup > 0 && focusGroup !== s.n ? " rp-gdim" : ""}${focusGroup === s.n ? " is-focus" : ""}`} style={{ "--gc": gcol, "--gi": inkOn(gcol), "--rp-gs": String(gs * objectScale) } as CSSProperties}>
+                        <div key={s.id} className={`rp-groupwrap${gf(s.n)}`} style={{ "--gc": gcol, "--gi": inkOn(gcol), "--rp-gs": String(gs * objectScale) } as CSSProperties}>
                             {tag.ring && ringShown(showRings, s) && shownOffsets.length > 0 && (
                                 <div className={`rp-groupring${everyone.some((p) => isMe(p.userId)) ? " is-yours" : ""}${s.ringColor ? " is-colored" : ""}`} aria-hidden="true" style={{ "--rp-x": `${s.x * 100}%`, "--rp-y": `${s.y * 100}%`, "--rp-w": `${cover.rx * 200}%`, "--rp-h": `${cover.ry * 200}%`, "--rp-o": s.opacity * (s.ringOpacity === undefined ? 0.55 : s.ringOpacity) / 0.55, ...(s.ringColor ? { "--rp-ringc": s.ringColor } : {}) } as CSSProperties} />
                             )}
@@ -581,7 +583,7 @@ export default function PlanBoard({
                     );
                 }
                 return (
-                    <div key={s.id} data-obj={`slot:${s.id}`} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? "" : " is-open"}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
+                    <div key={s.id} data-obj={`slot:${s.id}`} className={cls(`rp-token rp-slotobj rp-slot-${s.kind}`, "slot", s.id, `${mine ? "is-me" : ""}${player ? gf(player.group) : " is-open"}${ringShownFor(showRoleRings, s.ring) ? "" : " is-noring"}${noName(s.size, SIZE_RANGES.slot.def, 1, s.showName)}`, s.lock)} style={anchor} data-slot={s.id}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={player ? `${title}: ${playerLabel(player)}` : `${title} (${t("raidBoard.slot.open")})`}
@@ -623,7 +625,7 @@ export default function PlanBoard({
                 if (!p) return null;
                 const mine = isMe(tok.userId);
                 return (
-                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, `${mine ? "is-me" : ""}${ringShownFor(showRoleRings, tok.ring) ? "" : " is-noring"}${noName(tok.size, SIZE_RANGES.token.def, 1, tok.showName)}`, tok.lock)} style={{ "--rp-x": `${tok.x * 100}%`, "--rp-y": `${tok.y * 100}%`, "--rp-o": tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) } as CSSProperties}>
+                    <div key={tok.userId} data-obj={`token:${tok.userId}`} className={cls("rp-token", "token", tok.userId, `${mine ? "is-me" : ""}${gf(p.group)}${ringShownFor(showRoleRings, tok.ring) ? "" : " is-noring"}${noName(tok.size, SIZE_RANGES.token.def, 1, tok.showName)}`, tok.lock)} style={{ "--rp-x": `${tok.x * 100}%`, "--rp-y": `${tok.y * 100}%`, "--rp-o": tok.opacity, ...sizeStyle(tok.size, SIZE_RANGES.token.def) } as CSSProperties}>
                         <button
                             type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1}
                             aria-label={t("raidBoard.board.tokenLabel", { name: p.character, spec: [p.specLabel, p.className].filter(Boolean).join(" ") })}
@@ -655,7 +657,7 @@ export default function PlanBoard({
                     // his group's badge when a marker of his group stands on the map (split or not): taken out of the chip, he still shows where he belongs
                     const badge = showBadges ? autoBadgeGroup(boardOwn, p) : 0;
                     return (
-                        <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto`, "auto", k.key, `${ring}${noName(k.size, SIZE_RANGES.token.def, 1, st.showName)}`, !!st.lock)} style={style}>
+                        <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto`, "auto", k.key, `${ring}${gf(p.group)}${noName(k.size, SIZE_RANGES.token.def, 1, st.showName)}`, !!st.lock)} style={style}>
                             <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
                                 <TokenIcon player={p} />
                             </button>

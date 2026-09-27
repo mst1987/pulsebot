@@ -20,7 +20,10 @@
 .rp-groupchip { border-color: var(--gc); }
 .rp-groupchip-n { background: var(--gc); color: var(--gi); }
 .rp-token-gbadge { background: var(--gc, var(--accent)); color: var(--gi, var(--accent-ink)); }
-.rp-groupwrap.rp-gdim { opacity: .22; transition: opacity .15s; }
+/* a highlighted group (#512): everything of the other groups carries .rp-gdim, which only sets a factor; the board objects multiply their own
+   --rp-o with it (objects.css) - .rp-groupwrap is display: contents, an opacity of its own would never show */
+.rp-gdim { --rp-gf: var(--rp-group-dim); }
+.rp-rtable tr.rp-gdim { opacity: var(--rp-group-dim); }
 .rp-groupwrap.is-focus .rp-groupring { border-width: 3px; opacity: 1; }
 .rp-groupchip-head { align-items: center; }
 .rp-grouptext { display: inline-flex; align-items: center; gap: 4px; }

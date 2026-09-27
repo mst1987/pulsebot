@@ -74,13 +74,14 @@
    (components/raidplan/PlanBoard.tsx): --rp-x/--rp-y (left/top), --rp-w/--rp-h,
    --rp-o. They used to be inline styles; !important keeps them above the state
    classes (.rp-groupring.is-yours, .rp-autotank.is-missing, ...) exactly as the
-   inline styles were. */
+   inline styles were. The opacity is multiplied by --rp-gf, the factor .rp-gdim
+   sets on the raiders of the other groups while one is highlighted (#512). */
 .rp-board[data-rp-board] { aspect-ratio: var(--rp-aspect) !important; max-width: var(--rp-maxw) !important; }
 .rp-canvas { width: var(--rp-canvas-w); height: var(--rp-canvas-h); transform: var(--rp-canvas-tf); }
 .rp-board .rp-map { opacity: var(--rp-mo); }
-.rp-board :is(.rp-token, .rp-text) { left: var(--rp-x) !important; top: var(--rp-y) !important; opacity: var(--rp-o) !important; }
+.rp-board :is(.rp-token, .rp-text) { left: var(--rp-x) !important; top: var(--rp-y) !important; opacity: calc(var(--rp-o, 1) * var(--rp-gf, 1)) !important; }
 .rp-board :is(.rp-zone, .rp-rg-up, .rp-band, .rp-multibox) { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; }
-.rp-board .rp-groupring { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; opacity: var(--rp-o) !important; }
+.rp-board .rp-groupring { left: var(--rp-x) !important; top: var(--rp-y) !important; width: var(--rp-w) !important; height: var(--rp-h) !important; opacity: calc(var(--rp-o, 1) * var(--rp-gf, 1)) !important; }
 .rp-board .rp-groupring.is-colored { border-color: var(--rp-ringc) !important; }
 .rp-board .rp-h-end { left: var(--rp-x) !important; top: var(--rp-y) !important; }
 .rp-board g.rp-line { opacity: var(--rp-o) !important; }
