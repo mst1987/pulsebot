@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from "react";
-import { AlertTriangle, ArrowRight, EyeOff, Lock, Pencil, StickyNote, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, Pencil, StickyNote, Trash2 } from "lucide-react";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../../components/ui/WowIcon";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
@@ -51,7 +51,7 @@ function Cell({ items, ctx, readOnly, side, type }: { items: LineItem[]; ctx: As
  * there is a spell, a task text or a note. `readOnly` (the sheet): no actions, the viewer's own chip carries "DU" and frames the row.
  * `inherited` (a row from the template's Standard): a lock instead of the trash, the pencil makes it the section's own.
  */
-export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherited, me = [], onOpen, onNote, onDelete, onHide }: {
+export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherited, me = [], onOpen, onNote, onDelete, onHide, onMap }: {
     a: RaidplanAssignment;
     /** the row with its class references resolved (same order) */
     filled: RaidplanAssignment;
@@ -65,6 +65,8 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
     /** `ask` = the Delete key (asks first); the trash removes at once (Ctrl+Z brings it back) */
     onDelete?: (ask: boolean) => void;
     onHide?: () => void;
+    /** "Auf Map setzen" / "Von der Map nehmen" of a task row (lib/raidplan/autoPlace.ts canPutOnMap); missing = the row cannot (a tank row, only role groups) */
+    onMap?: () => void;
 }) {
     const t = useT();
     const typeName = t(`raidBoard.assign.type.${a.type}`);
@@ -101,6 +103,7 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
                         </>
                     ) : (
                         <>
+                            {onMap && <button type="button" className={`rp-line-btn${a.onMap ? " is-on is-map" : ""}`} aria-pressed={!!a.onMap} aria-label={t(a.onMap ? "raidBoard.auto.offMap" : "raidBoard.auto.onMap")} data-tip={a.onMap ? t("raidBoard.auto.offMap") : `${t("raidBoard.auto.onMap")}: ${t("raidBoard.auto.onMapTip")}`} onClick={onMap}><MapPin size={14} /></button>}
                             {onNote && <button type="button" className={`rp-line-btn${a.note ? " is-on" : ""}`} aria-label={t("raidBoard.assign.addNote")} data-tip={a.note || t("raidBoard.assign.addNote")} onClick={onNote}><StickyNote size={14} /></button>}
                             {onDelete && <button type="button" className="rp-line-btn is-danger" aria-label={t("raidBoard.assign.delete")} data-tip={t("raidBoard.assign.delete")} onClick={() => onDelete(false)}><Trash2 size={14} /></button>}
                         </>

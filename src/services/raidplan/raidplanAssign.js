@@ -58,6 +58,8 @@ const ANY = "Any";
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
+// the rows that put their tanks on the map by themselves (twin of lib/raidplan/autoPlace.ts AUTO_TANK_TYPES)
+const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];
 const LIMITS = { perBoard: 60, assignees: 12, targets: 12, note: 200, text: 60, title: 80 };
 
 // Which classes can do it (Vorschlag / Filter). Kick: rogue, warrior, mage (Counterspell), shaman (Earth Shock).
@@ -151,6 +153,9 @@ function cleanAssignments(raw, allowed = new Set()) {
             preferredClasses: cleanClasses(o.preferredClasses), allowOthers: o.allowOthers === true, picks, allowMulti: o.allowMulti === true,
             // where the row comes from: "default" (written in from the template's Standard) or the id of the default row a boss deviated from
             origin: /^[\w-]{1,24}$/.test(str(o.origin)) ? str(o.origin) : "",
+            // "Auf Map setzen" of a task row (kick, special task ...): its named raiders stand on the map as auto tokens (docs/raidplan/board.md,
+            // "Auto tokens of every task row"); a tank row is on the map anyway. Only stored when on, so older boards stay exactly as they are
+            ...(o.onMap === true && !AUTO_TANK_TYPES.includes(o.type) ? { onMap: true } : {}),
         });
     }
     return { assignments: out, dropped };

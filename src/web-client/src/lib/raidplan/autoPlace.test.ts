@@ -217,3 +217,63 @@ describe("editing the rows from the map and the dialog", () => {
         expect(lib.rowKeyOf({ id: "x" })).toBe("x");
     });
 });
+
+// #498: "Auf Map setzen" of a task row (kick, special task ...): its named raiders stand on the map like the tanks of a tank row
+describe("task rows put on the map", () => {
+    const kick = (id, assignees, extra = {}) => row(id, assignees, [], { type: "kick", onMap: true, ...extra });
+
+    it("one token per named raider, keyed like a tank row's; no mob, no target, marked as a task", () => {
+        const plan = lib.deriveAuto([kick("k1", ["user:u1", "user:u4"])], board(), EVENT);
+        expect(plan.mobs).toEqual([]);
+        expect(plan.tanks.map((t) => [t.key, t.task, t.mobKey, t.state, t.userId, t.existing])).toEqual([["t:k1:1", true, "", "player", "u1", ""], ["t:k1:2", true, "", "player", "u4", ""]]);
+        expect(plan.users).toEqual(["u1", "u4"]);
+        expect(noOverlap(plan)).toBe(true);
+    });
+
+    it("nothing without the pin, nothing for a whole role group, nothing with the section's switch off", () => {
+        expect(lib.deriveAuto([kick("k1", ["user:u1"], { onMap: false })], board(), EVENT).tanks).toEqual([]);
+        const roles = lib.deriveAuto([kick("k1", ["role:melee", "user:u4"])], board(), EVENT);
+        expect(roles.tanks.map((t) => t.key)).toEqual(["t:k1:2"]);
+        expect(lib.deriveAuto([kick("k1", ["user:u1"])], board({ autoPlace: false }), EVENT).tanks).toEqual([]);
+    });
+
+    it("one place per player: a tank row first (in whatever order the rows come), a free token, a split ring, a second task row", () => {
+        const slots = [{ id: "g2", kind: "group", n: 2, userId: "", x: 0.9, y: 0.9, placed: true, hidden: false, split: true, hideMembers: false }];
+        const rows = [kick("k1", ["user:u1", "user:u2", "user:u3", "user:u4"]), row("t1", ["user:u1"], [BOSS]), kick("k2", ["user:u4"], { type: "other" })];
+        const plan = lib.deriveAuto(rows, board({ tokens: [{ userId: "u2", x: 0.2, y: 0.8 }], slots }), EVENT);
+        const byKey = Object.fromEntries(plan.tanks.map((t) => [t.key, t.existing]));
+        expect(byKey).toEqual({ "t:t1:1": "", "t:k1:1": "auto:t:t1:1", "t:k1:2": "token:u2", "t:k1:3": "member:g2:u3", "t:k1:4": "", "t:k2:1": "auto:t:k1:4" });
+        expect(plan.users.sort()).toEqual(["u1", "u4"]);
+    });
+
+    it("a template's class reference is a placeholder, in an event it is the raider it resolves to or missing", () => {
+        const tpl = lib.deriveAuto([kick("k1", ["class:Rogue:1"])], board(), TEMPLATE);
+        expect(tpl.tanks[0]).toMatchObject({ state: "rule", classId: "Rogue", task: true });
+        const ev = lib.deriveAuto([kick("k1", ["class:Rogue:1"])], board(), EVENT);
+        expect(ev.tanks[0].state).toBe("missing");
+    });
+
+    it("a moved token stays where it was put; the row's key follows a Standard copy", () => {
+        const plan = lib.deriveAuto([kick("k1", ["user:u4"], { origin: "d7" })], board({ autoPos: { "t:d7:1": { x: 0.1, y: 0.2 } } }), EVENT);
+        expect(plan.tanks[0]).toMatchObject({ key: "t:d7:1", x: 0.1, y: 0.2, moved: true });
+    });
+
+    it("which rows can, and switching it on and off", () => {
+        expect(lib.canPutOnMap(kick("k1", ["user:u1"]))).toBe(true);
+        expect(lib.canPutOnMap(kick("k1", ["role:melee"]))).toBe(false);
+        expect(lib.canPutOnMap(kick("k1", []))).toBe(false);
+        expect(lib.canPutOnMap(row("t1", ["user:u1"], [BOSS]))).toBe(false);
+        expect(lib.onMapRow(kick("k1", ["user:u1"], { onMap: false }))).toBe(false);
+        // a tank row with the flag is still just a tank row (never counted twice)
+        expect(lib.onMapRow(row("t1", ["user:u1"], [BOSS], { onMap: true }))).toBe(false);
+        const on = lib.setRowOnMap(board({ assignments: [kick("k1", ["user:u1"], { onMap: false }), kick("k2", ["user:u2"], { onMap: false })] }), "k1", true);
+        expect(on.assignments.map((a) => a.onMap)).toEqual([true, false]);
+        const off = lib.setRowOnMap(on, "k1", false);
+        expect("onMap" in off.assignments[0]).toBe(false);
+    });
+
+    it("the heal lines find a raider of a task row at his token", () => {
+        const plan = lib.deriveAuto([kick("k1", ["user:u4"])], board(), EVENT);
+        expect(lib.autoPlaces(plan).u4).toEqual({ x: plan.tanks[0].x, y: plan.tanks[0].y });
+    });
+});

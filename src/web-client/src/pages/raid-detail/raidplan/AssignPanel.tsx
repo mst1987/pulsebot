@@ -16,7 +16,7 @@ import {
 } from "../../../lib/raidplan/assign";
 import { cardSummary } from "../../../lib/raidplan/assignLine";
 import { targetKey } from "../../../lib/raidplan/assignModal";
-import { mobTargetsFor, sameTargetAs } from "../../../lib/raidplan/autoPlace";
+import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/autoPlace";
 import { wowIconUrl } from "../../../lib/wowIcon";
 import { canRestore, deviate, hideInherited, restoreInherited } from "../../../lib/raidplan/inherit";
 import { portraitUrl } from "../../../lib/raidplan";
@@ -371,6 +371,7 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
                                             key={a.id} a={a} filled={filledOf(a)} ctx={ctx} isEvent={isEvent} readOnly={!canWrite}
                                             onOpen={canWrite ? () => openRow(a.id) : undefined} onNote={canWrite ? () => openRow(a.id, "task", "text") : undefined}
                                             onDelete={canWrite ? (confirmFirst) => deleteRow(a.id, confirmFirst) : undefined}
+                                            onMap={canWrite && canPutOnMap(a) ? () => edit((b) => setRowOnMap(b, a.id, !a.onMap)) : undefined}
                                         />
                                     ))}
                                 </ul>

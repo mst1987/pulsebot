@@ -80,7 +80,8 @@ onto the board. Decision: the objects are **derived** from the rows every time (
 the orga changes about them is stored on the board. That keeps them in step with the rows (a row deleted = its
 objects gone, a tank swapped = the token shows the new player) and makes a template resolve by itself: the
 event keeps references (class / slot / user refs), resolved at render time. The earlier idea of a per-row "Auf
-Map setzen" token was dropped for tank rows (one mechanism, no double logic).
+Map setzen" token was dropped for tank rows (one mechanism, no double logic); every other task row got it in #498 on the same
+mechanism (see "Auto tokens of every task row").
 
 - **Board fields**: `autoPlace` (default on; off = only what was placed by hand, in the view menu "Automatisch
   aus Tankeinteilung platzieren" and in the inspector of an auto object) and `autoPos { [key]: { x, y } }`
@@ -168,6 +169,48 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   reset, the plan uses it, spacing grows without overlap, multi selection),
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
   apply and duplicate), `test/web/apiRoutes/raidplan.test.js` (public API).
+
+## Auto tokens of every task row (#498)
+
+"Ich muss denjenigen, der kickt oder eine besondere Aufgabe hat, auch auf das Feld positionieren können": any row
+that is not a tank row (kick, special task, decurse, other ...) can put its named raiders on the map. The same
+mechanism as the tanks of a tank row, not a second one: the tokens are **derived** (`deriveAuto`), never stored.
+
+- **The switch** is the row's `onMap` (`true` or missing). Where: the pin in the row's actions ("Auf Map setzen" /
+  "Von der Map nehmen", `AssignLine` `onMap`, accent colour when on), the checkbox "Auf Map setzen" in the row
+  dialog's foot (`AssignModal`), and on a token itself the right-click "Von der Map nehmen" and the same button in
+  its inspector (`AutoInfo`). A row that names only whole role groups (`role:melee`) has no pin (`canPutOnMap`: not a
+  tank type and at least one assignee that is not `role:`); a tank row never needs it (`onMapRow` ignores the flag
+  there). Lib: `canPutOnMap`, `onMapRow`, `setRowOnMap` in `lib/raidplan/autoPlace.ts`.
+- **Tokens**: one per assignee of the row (`user:`, `slot:`, `class:`; `role:` skipped), keyed `t:<row>:<n>` exactly
+  like a tank's (`rowKeyOf`: a copy of a Standard row keeps the default's key), so `autoPos` / `autoStyle` /
+  `reidBoard` / apply / duplicate / the sheet work unchanged and the server's `AUTO_KEY` needed nothing new. An
+  `AutoTank` carries `task: true`, no `mobKey`. In a template a class reference is the placeholder, in an event the
+  raider the rule takes or the dimmed "missing" place, like the tanks.
+- **One place per player**: the task rows come **after** all tank rows (whatever their order in the list), so a
+  raider who tanks and kicks stands at his tank place once; a free token, a role slot on the map, the ring of his
+  split group or an earlier task row is used as it is (`existing`), no second token.
+- **Out of a group chip**: a raider on such a token has a place of his own (`board.autoUsers`), so a group that is
+  not split leaves him out of its name list and a split group closes its ring - the group itself stays. Every auto
+  token of a raider (tank or task) carries his group's badge when a marker of his group stands on the map, split
+  or not (`players.ts autoBadgeGroup`), the way a member taken out of a split group does.
+- **References**: the row's assignee is the reference, so "Neu zuweisen", a setup change or a new pick in the row
+  moves the token to the new raider; deleting the row (or taking the pin off) removes its tokens; a position moved
+  by hand stays in `autoPos` under its key (a row that comes back under the same key finds it) - as for tank rows.
+- **What stays tank-specific**: no mob is derived from a task row, there is no "Tankt →" line or menu entry on its
+  tokens, no facing of a mob follows them, and the tooltip names the task ("Arkanix · Unterbrecher · aus Einteilung")
+  instead of "→ mob". A task row's targets keep their thin lines where they already had them (heal-style lines find
+  the raider at his token through `autoPlaces`). The inspector says "Aufgabe: <type>" and "Zeile bearbeiten …".
+- **Sheet and "Meine Aufgaben"**: `raidplanAssign.cleanAssignments` stores `onMap: true` only when it is exactly true
+  and never on a tank row (older rows and the golden-master fixtures are unchanged); `publicView` passes the row as
+  it is, and `PlanPublicPage` derives the same tokens, the viewer's own with the "DU" highlight.
+- Tests: "task rows put on the map" in `src/web-client/src/lib/raidplan/autoPlace.test.ts` (tokens, keys, role groups
+  skipped, one place per player with a tank row, token, split ring and a second task row, template / event, moved
+  positions, the switch), "a task row on the map" in
+  `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx` (pin -> tokens, drag, delete the row,
+  pin off, tank + kick = one token, group badge, the menu), "task rows put on the map" in
+  `test/services/raidplan/raidplanAutoPlace.test.js` (validation, reidBoard, inherited rows) and the public API in
+  `test/web/apiRoutes/raidplan.test.js`.
 
 ## Facing arrow per icon and role group placeholders (feature/raidplan-10)
 

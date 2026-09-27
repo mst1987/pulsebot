@@ -123,3 +123,40 @@ describe("the moved positions follow their rows", () => {
         expect(b.assignments[0].id).not.toBe("r1");
     });
 });
+
+// #498: a task row (kick, special task ...) can put its raiders on the map ("Auf Map setzen"): the flag on the row, the tokens keyed
+// like a tank row's ("t:<row>:<n>"), so the moved positions and the look are validated and travel exactly the same way
+describe("task rows put on the map", () => {
+    it("keeps onMap on a task row only when it is exactly true; a tank row never carries it; an old row stays as it was", () => {
+        const r = assign.cleanAssignments([
+            row("k1", "kick", ["slot:melee:1"], [], { onMap: true }),
+            row("k2", "kick", ["slot:melee:2"], [], { onMap: "yes" }),
+            row("k3", "other", ["slot:melee:3"], []),
+            row("t1", "tank", ["slot:tank:1"], [], { onMap: true }),
+        ], new Set()).assignments;
+        expect(r.map((a) => a.onMap)).toEqual([true, undefined, undefined, undefined]);
+        expect(r.map((a) => "onMap" in a)).toEqual([true, false, false, false]);
+    });
+
+    it("a board keeps the flag, the moved position and the look of the row's tokens", () => {
+        const b = clean({ assignments: [row("k1", "kick", ["slot:melee:1"], [], { onMap: true })], autoPos: { "t:k1:1": { x: 0.3, y: 0.7 } }, autoStyle: { "t:k1:1": { size: 30, showName: false } } }).board;
+        expect(b.assignments[0].onMap).toBe(true);
+        expect(b.autoPos).toEqual({ "t:k1:1": { x: 0.3, y: 0.7 } });
+        expect(b.autoStyle).toEqual({ "t:k1:1": { size: 30, showName: false } });
+    });
+
+    it("reidBoard (apply, duplicate): the row keeps its flag and takes its moved tokens along under its new id", () => {
+        const b = clean({ assignments: [row("k1", "kick", ["slot:melee:1"], [], { onMap: true })], autoPos: { "t:k1:1": { x: 0.3, y: 0.7 } } }).board;
+        const copy = board.reidBoard(b);
+        const id = copy.assignments[0].id;
+        expect(id).not.toBe("k1");
+        expect(copy.assignments[0].onMap).toBe(true);
+        expect(copy.autoPos).toEqual({ [`t:${id}:1`]: { x: 0.3, y: 0.7 } });
+    });
+
+    it("an inherited Standard row keeps its flag in every section", () => {
+        const section = inherit.sectionOf(BOSS);
+        const rows = inherit.inheritedRows([row("d1", "kick", ["class:Rogue:1"], [], { onMap: true })], [], section);
+        expect(rows[0]).toMatchObject({ onMap: true, origin: "d1" });
+    });
+});

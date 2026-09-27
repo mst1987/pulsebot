@@ -1,11 +1,11 @@
-import { AlertTriangle, BringToFront, Lock, LockOpen, RotateCcw, SendToBack, Wand2 } from "lucide-react";
+import { AlertTriangle, BringToFront, Lock, LockOpen, MapPinOff, RotateCcw, SendToBack, Wand2 } from "lucide-react";
 import type { RaidplanAutoStyle, RaidplanBoard, RaidplanPlayer } from "../../../api";
 import { Button, IconButton } from "../../../components/ui";
 import { SliderField } from "../../../components/raidplan/NumberField";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { classPlaceNameFor } from "../../../lib/raidplan/assign";
 import { ANY } from "../../../lib/raidplan/classRefs";
-import type { AutoPlan, AutoTank } from "../../../lib/raidplan/autoPlace";
+import { setRowOnMap, type AutoPlan, type AutoTank } from "../../../lib/raidplan/autoPlace";
 import { COMPASS, COMPASS_NAMES, autoStyleOf, normAngle, objectPercent, patchAutoStyle, reorderObject, resetAutoAll, resetAutoPos, setAutoScale, setObjectPercent } from "../../../lib/raidplan";
 import { ArrowFields, OpacityField, SizeField } from "./Inspector";
 import { useT } from "../../../i18n";
@@ -48,6 +48,9 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
         return <span>{t(`raidBoard.slot.${k.slotKind || "tank"}`, { n: k.slotN || 1 })}</span>;
     };
     const tanks = mob ? plan.tanks.filter((x) => x.mobKey === mob.key) : [];
+    // a raider of a task row put on the map ("Auf Map setzen"): its task instead of a mob; "Von der Map nehmen" on a row of this section
+    const taskName = tank && tank.task ? t(`raidBoard.assign.type.${tank.type}`) : "";
+    const ownTaskRow = !!tank && tank.task && board.assignments.some((a) => a.id === tank.rowId);
     const player = tank && tank.userId ? players.get(tank.userId) || null : null;
     const pct = objectPercent(board, "auto", id) || 100;
     const rotation = st.rotation || 0;
@@ -60,7 +63,13 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
                 </strong>
                 <span className="rp-autobadge"><Wand2 size={13} aria-hidden="true" />{t("raidBoard.auto.fromRow")}</span>
             </div>
-            {tank && (
+            {tank && tank.task && (
+                <p className="rp-autoinfo-line">
+                    <span className="rp-kicker">{t("raidBoard.auto.task")}</span>
+                    <span>{taskName}</span>
+                </p>
+            )}
+            {tank && !tank.task && (
                 <p className="rp-autoinfo-line">
                     <span className="rp-kicker">{t("raidBoard.auto.tanks")}</span>
                     <span>{tank.mobKey ? mobName(tank.mobKey) : t("raidBoard.auto.noMob")}</span>
@@ -108,11 +117,12 @@ export default function AutoInfo({ plan, id, board, players, canWrite, edit, onR
             </div>
             <div className="rp-autoinfo-actions">
                 {canWrite && <Button size="sm" variant="ghost" onClick={() => onRow(tank, mob ? mob.key : "")}>{tank ? t("raidBoard.auto.editRow") : t("raidBoard.auto.pickTank")}</Button>}
+                {canWrite && ownTaskRow && tank && <Button size="sm" variant="ghost" icon={<MapPinOff size={14} />} onClick={() => edit((b) => setRowOnMap(b, tank.rowId, false))}>{t("raidBoard.auto.offMap")}</Button>}
                 {canWrite && moved && <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={() => edit((b) => resetAutoPos(b, id))}>{t("raidBoard.auto.reset")}</Button>}
                 {canWrite && (moved || styled) && <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={() => edit((b) => resetAutoAll(b, id))}>{t("raidBoard.auto.resetAll")}</Button>}
             </div>
             {moved && <p className="rp-muted">{t("raidBoard.auto.moved")}</p>}
-            <p className="rp-muted">{t("raidBoard.auto.explain")}</p>
+            <p className="rp-muted">{tank && tank.task ? t("raidBoard.auto.explainTask", { task: taskName }) : t("raidBoard.auto.explain")}</p>
             <span className="rp-kicker">{t("raidBoard.auto.section")}</span>
             <SliderField label={t("raidBoard.auto.scale")} value={Math.round((board.autoScale || 1) * 100)} min={40} max={200} step={5} unit="%" disabled={dis} onChange={(v) => edit((b) => setAutoScale(b, v / 100), true)} />
             {canWrite && (

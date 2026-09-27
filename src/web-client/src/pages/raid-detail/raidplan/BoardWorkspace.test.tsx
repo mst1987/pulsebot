@@ -279,3 +279,68 @@ describe("BoardWorkspace: a split group", () => {
         expect(save().slots[0].offsets.u2.dy).toBeCloseTo(0.1);
     });
 });
+
+// #498: every task row with named raiders can put them on the map ("Auf Map setzen"), like the tanks of a tank row
+const taskRow = (id: string, type: string, assignees: string[], extra: Record<string, unknown> = {}) => ({
+    id, type, title: "", spell: null, assignees, targets: [], note: "", suggested: false, preferredClasses: [], allowOthers: false, ...extra,
+}) as RaidplanBoard["assignments"][number];
+
+describe("BoardWorkspace: a task row on the map", () => {
+    it("puts the raiders of a kick row on the map, drags one, and the row deleted takes them along", () => {
+        const { obj, save, container } = setup({ zones: [], assignments: [taskRow("k1", "kick", ["user:u1", "user:u2"])] }, true, ROSTER);
+        expect(obj("auto:t:k1:1")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Auf Map setzen" }));
+        expect(save().assignments[0].onMap).toBe(true);
+        expect(obj("auto:t:k1:1")).not.toBeNull();
+        expect(obj("auto:t:k1:2")).not.toBeNull();
+        // the tooltip names the task, never a mob
+        expect(obj("auto:t:k1:1")!.querySelector(".rp-token-btn")!.getAttribute("data-tip")).toContain("Unterbrecher");
+        expect(container.querySelectorAll(".rp-autotank.is-task")).toHaveLength(2);
+        down(obj("auto:t:k1:1")!.querySelector(".rp-token-btn")!, { clientX: 100, clientY: 60 });
+        fireEvent.pointerMove(window, { clientX: 150, clientY: 90 });
+        up(150, 90);
+        expect(save().autoPos["t:k1:1"]).toBeDefined();
+        fireEvent.click(screen.getByRole("button", { name: "Einteilung löschen" }));
+        expect(save().assignments).toHaveLength(0);
+        expect(obj("auto:t:k1:1")).toBeNull();
+        expect(obj("auto:t:k1:2")).toBeNull();
+    });
+
+    it("takes the pin off again: the tokens go, the row stays", () => {
+        const { obj, save } = setup({ zones: [], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        expect(obj("auto:t:k1:1")).not.toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: "Von der Map nehmen" }));
+        expect(save().assignments).toHaveLength(1);
+        expect(save().assignments[0].onMap).toBeUndefined();
+        expect(obj("auto:t:k1:1")).toBeNull();
+    });
+
+    it("a raider who tanks and kicks stands once: at his tank place", () => {
+        const { obj } = setup({ zones: [], assignments: [taskRow("t1", "tank", ["user:u1"]), taskRow("k1", "kick", ["user:u1", "user:u2"], { onMap: true })] }, true, ROSTER);
+        expect(obj("auto:t:t1:1")).not.toBeNull();
+        expect(obj("auto:t:k1:1")).toBeNull();
+        expect(obj("auto:t:k1:2")).not.toBeNull();
+    });
+
+    it("a member of a group that is not split gets a token of his own with the group badge; the group stays", () => {
+        const { obj } = setup({ zones: [], slots: [groupSlot(false)], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        const tok = obj("auto:t:k1:1")!;
+        expect(tok).not.toBeNull();
+        expect(tok.querySelector(".rp-token-gbadge")!.textContent).toBe("1");
+        expect(obj("slot:g1")).not.toBeNull();
+    });
+
+    it("the right-click menu of such a token offers its row and taking it off the map, never tanking", async () => {
+        const { obj, save } = setup({ zones: [], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        fireEvent.contextMenu(obj("auto:t:k1:1")!, { clientX: 500, clientY: 300 });
+        expect(await screen.findByRole("menuitem", { name: /Zeile bearbeiten/ })).toBeTruthy();
+        expect(screen.queryByRole("menuitem", { name: /Tankt/ })).toBeNull();
+        await act(async () => { fireEvent.click(await screen.findByRole("menuitem", { name: "Von der Map nehmen" })); });
+        expect(save().assignments[0].onMap).toBeUndefined();
+    });
+
+    it("a row of a whole role group has no pin (nobody to put on the map), a tank row neither", () => {
+        setup({ zones: [], assignments: [taskRow("k1", "kick", ["role:melee"]), taskRow("t1", "tank", ["user:u1"])] }, true, ROSTER);
+        expect(screen.queryByRole("button", { name: "Auf Map setzen" })).toBeNull();
+    });
+});

@@ -1046,7 +1046,7 @@
         "moved": "Von Hand verschoben: diese Position bleibt, auch wenn sich die Einteilung ändert.",
         "explain": "Kommt aus der Tankeinteilung und wird automatisch platziert. Verschieben geht; entfernt wird es mit seiner Zeile oder mit „Automatisch aus Tankeinteilung platzieren“ aus.",
         "place": "Automatisch aus Tankeinteilung platzieren",
-        "noDelete": "Kommt aus der Tankeinteilung: Zeile löschen oder „Automatisch platzieren“ ausschalten.",
+        "noDelete": "Kommt aus der Einteilung: Zeile löschen, bei einer Aufgabe „Von der Map nehmen“ oder „Automatisch platzieren“ ausschalten.",
         "tanksMob": "Tankt → {mob}",
         "untank": "Tankt nicht mehr",
         "several": "Mehrere dieser Art",
@@ -1058,13 +1058,19 @@
             "row": "Zeile bearbeiten …",
             "tank": "Tank wählen …",
             "reset": "Position zurücksetzen",
-            "resetAll": "Alles zurücksetzen (Position + Stil)"
+            "resetAll": "Alles zurücksetzen (Position + Stil)",
+            "offMap": "Von der Map nehmen"
         },
         "label": "Beschriftung",
         "labelHint": "optional, z. B. „Wand“",
         "resetAll": "Alles zurücksetzen (Position + Stil)",
         "section": "Dieser Abschnitt",
-        "scale": "Größe Tanks/Mobs (alle aus Einteilung)"
+        "scale": "Größe Tanks/Mobs (alle aus Einteilung)",
+        "task": "Aufgabe",
+        "onMap": "Auf Map setzen",
+        "offMap": "Von der Map nehmen",
+        "onMapTip": "Die Spieler dieser Zeile stehen als eigene Symbole auf der Karte. Wer schon auf der Karte steht, behält seinen Platz; ein Gruppenmitglied wird aus seinem Gruppen-Chip gelöst.",
+        "explainTask": "Kommt aus der Zeile „{task}“ (Auf Map setzen) und wird automatisch platziert. Verschieben geht; entfernt wird es mit seiner Zeile oder mit „Von der Map nehmen“."
     },
     "roleGroup": {
         "melee": "Melees",

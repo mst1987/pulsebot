@@ -1,5 +1,5 @@
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
-import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Swords, Trash2, Type, User, Wand2, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, MapPin, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Swords, Trash2, Type, User, Wand2, X } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../api";
 import { Button, Modal } from "../../../components/ui";
 import WowIcon from "../../../components/ui/WowIcon";
@@ -9,7 +9,7 @@ import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceName
 import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
-import { mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance } from "../../../lib/raidplan/autoPlace";
+import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/autoPlace";
 import { MobIcon } from "./AssignPanel";
 import { groupColor } from "../../../lib/raidplan/groupStyle";
 import { AssignChip } from "./AssignPanel";
@@ -486,6 +486,9 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
             footer={(
                 <>
                     {onRemove && <Button variant="ghost" className="rp-amb-remove" icon={<Trash2 size={16} />} onClick={onRemove}>{t("raidBoard.amb.removeRow")}</Button>}
+                    {AUTO_TANK_TYPES.indexOf(type) < 0 && (
+                        <label className="rp-check rp-amb-onmap" data-tip={t("raidBoard.auto.onMapTip")}><input type="checkbox" checked={!!row.onMap} onChange={(e) => set((b) => setRowOnMap(b, rowId, e.target.checked))} /> <MapPin size={15} aria-hidden="true" /> {t("raidBoard.auto.onMap")}</label>
+                    )}
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.am.cancel")}</Button>
                     <Button icon={<Check size={16} />} onClick={done}>{t("raidBoard.am.done")}</Button>
                 </>

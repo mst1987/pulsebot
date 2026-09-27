@@ -35,6 +35,15 @@ export function ownBadgeGroup(board: RaidplanBoard, player: RaidplanPlayer): num
     return board.slots.some((s) => s.kind === "group" && s.split && !s.hideMembers && s.n === player.group && s.placed !== false) ? player.group : 0;
 }
 
+/**
+ * The group badge of a raider the rows put on the map (an auto token): the group of any group marker of his setup group on the map, split or
+ * not - a raider taken out of his group chip for a task ("Auf Map setzen") keeps showing where he belongs, like a member taken out of a split
+ * group. 0 = no marker of his group stands on the map.
+ */
+export function autoBadgeGroup(board: RaidplanBoard, player: RaidplanPlayer): number {
+    return board.slots.some((s) => s.kind === "group" && s.n === player.group && s.placed !== false && !s.hidden) ? player.group : 0;
+}
+
 /** "Aus Gruppe herausnehmen": a raider of a split group becomes a free token where he stands now (his setup group stays, so assignments and the badge keep it). "Zurück in die Gruppe" is removing that token. */
 export function takeOutOfGroup(board: RaidplanBoard, memberKey: string, at: { x: number; y: number } | null): RaidplanBoard {
     const ref = parseMemberId(memberKey);
