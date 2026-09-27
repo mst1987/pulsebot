@@ -269,6 +269,8 @@
 /* ---- the row dialog, design "Variante B": assignment bar, categories, ONE grid, sheet preview; nothing scrolls ---- */
 dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-height: 96vh; }
 .rp-amb .rp-amb-remove { order: -2; color: var(--rp-bad); }
+/* "Auf Map setzen" of a task row: left in the foot, after "Zeile entfernen" */
+.rp-amb .rp-amb-onmap { order: -1; margin-right: auto; }
 .rp-amb-body { display: flex; flex-direction: column; min-height: 0; }
 .rp-amb :is(input:not([type]), input[type="text"]) { box-sizing: border-box; min-height: var(--ctl-h-sm); padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); color: var(--text); font: inherit; font-size: 14px; }
 .rp-amb :is(input:not([type]), input[type="text"]):focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -387,9 +389,9 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-acard-open { color: var(--rp-warn); font-weight: 600; }
 .rp-acard-add { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: none; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
 .rp-acard-add:hover { border-color: var(--accent); }
-.rp-line { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr) 18px minmax(0, 1fr) 76px; gap: 0 8px; align-items: center; min-height: 46px; padding: 8px 6px 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); list-style: none; }
+.rp-line { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr) 18px minmax(0, 1fr) minmax(76px, auto); gap: 0 8px; align-items: center; min-height: 46px; padding: 8px 6px 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); list-style: none; }
 .rp-line.is-ro { grid-template-columns: 26px minmax(0, 1fr) 18px minmax(0, 1fr); }
-.rp-line.is-blank { grid-template-columns: 26px minmax(0, 1fr) 76px; border-style: dashed; background: transparent; color: var(--muted); }
+.rp-line.is-blank { grid-template-columns: 26px minmax(0, 1fr) minmax(76px, auto); border-style: dashed; background: transparent; color: var(--muted); }
 .rp-line.is-blank.is-ro { display: none; }
 .rp-line:not(.is-ro):hover { background: var(--panel2); cursor: pointer; }
 .rp-line:has(.rp-line-open:focus-visible) { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -404,6 +406,8 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-line-btn { position: relative; z-index: 1; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
 .rp-line-btn:hover { background: var(--panel3); color: var(--text); }
 .rp-line-btn.is-on { color: var(--text); }
+/* a task row put on the map: its pin in the accent colour */
+.rp-line-btn.is-map { color: var(--accent); }
 .rp-line-btn.is-danger:hover { color: var(--rp-bad); }
 .rp-line-btn.is-fixed { cursor: default; background: none; }
 .rp-line-open { position: static; }
@@ -412,7 +416,7 @@ dialog.dlg.rp-amb { width: min(1320px, calc(100vw - 32px)) !important; max-heigh
 .rp-line:hover .rp-line-open { color: var(--text); }
 .rp-line-empty { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; font-size: 14px; white-space: nowrap; }
 /* the rows of a card share their columns (subgrid): who is as wide as its widest chips (at most 45 %), the targets take the rest, so the arrows line up and nothing is stretched */
-.rp-alist.rp-linelist { display: grid; grid-template-columns: 26px fit-content(45%) 18px minmax(0, 1fr) 76px; column-gap: 8px; row-gap: 6px; }
+.rp-alist.rp-linelist { display: grid; grid-template-columns: 26px fit-content(45%) 18px minmax(0, 1fr) minmax(76px, auto); column-gap: 8px; row-gap: 6px; }
 .rp-alist.rp-linelist.is-ro { grid-template-columns: 26px fit-content(45%) 18px minmax(0, 1fr); }
 .rp-linelist > .rp-line { grid-column: 1 / -1; grid-template-columns: subgrid; column-gap: 8px; }
 .rp-linelist > .rp-acard-empty { grid-column: 1 / -1; }

@@ -12,7 +12,7 @@ import Mentions from "./Mentions";
 import WowIcon from "../ui/WowIcon";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
-import { SIZE_RANGES, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
+import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
 import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
@@ -319,7 +319,8 @@ export default function PlanBoard({
         );
     };
     const mobName = (key: string) => { const m = auto ? auto.mobs.find((x) => x.key === key) : undefined; return m ? (m.count > 1 ? `${m.name} ${m.inst}` : m.name) : ""; };
-    const autoTip = (k: AutoTank, who: string) => `${who}${k.mobKey ? ` → ${mobName(k.mobKey)}` : ""} · ${t("raidBoard.auto.fromRow")}`;
+    // a tank: "who -> mob"; a raider of a task row put on the map: "who · Unterbrechen" (the task, no target, no arrow)
+    const autoTip = (k: AutoTank, who: string) => `${who}${k.task ? ` · ${t(`raidBoard.assign.type.${k.type}`)}` : k.mobKey ? ` → ${mobName(k.mobKey)}` : ""} · ${t("raidBoard.auto.fromRow")}`;
 
     return (
         <div
@@ -643,12 +644,14 @@ export default function PlanBoard({
                 const st = k.style;
                 const p = k.state === "player" && k.userId ? players.get(k.userId) || null : null;
                 const mine = !!p && isMe(p.userId);
-                const base = `rp-token rp-autotank is-${k.state}${mine ? " is-me" : ""}`;
+                const base = `rp-token rp-autotank is-${k.state}${k.task ? " is-task" : ""}${mine ? " is-me" : ""}`;
                 const style = { "--rp-x": `${k.x * 100}%`, "--rp-y": `${k.y * 100}%`, "--rp-o": st.opacity === undefined ? 1 : st.opacity, ...sizeStyle(k.size, SIZE_RANGES.token.def) } as CSSProperties;
                 const ring = ringShownFor(showRoleRings, st.ring) ? "" : " is-noring";
                 const label = st.label || "";
                 if (p) {
                     const tip = autoTip(k, `${playerLabel(p)}${offRole(k.type, p) ? ` (${t("raidBoard.class.asTank")})` : ""}`);
+                    // his group's badge when a marker of his group stands on the map (split or not): taken out of the chip, he still shows where he belongs
+                    const badge = showBadges ? autoBadgeGroup(boardOwn, p) : 0;
                     return (
                         <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto`, "auto", k.key, `${ring}${noName(k.size, SIZE_RANGES.token.def, 1, st.showName)}`, !!st.lock)} style={style}>
                             <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
@@ -656,6 +659,7 @@ export default function PlanBoard({
                             </button>
                             <span className="rp-token-name rp-slot-name">{label && <span className="rp-slot-title">{label}</span>}<PlayerName player={p} /></span>
                             {mine && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
+                            {badge > 0 && <span className="rp-token-gbadge" aria-hidden="true" style={{ "--gc": groupColor(groupColors, badge), "--gi": inkOn(groupColor(groupColors, badge)) } as React.CSSProperties}>{badge}</span>}
                             {sizeHandle("auto", k.key, !!st.lock)}
                         </div>
                     );
@@ -664,12 +668,13 @@ export default function PlanBoard({
                 const missing = k.state === "missing";
                 const miss = missing ? t("raidBoard.auto.missing", { cls: k.classId === ANY ? who : t(`wow.class.${k.classId}`) }) : "";
                 const tip = autoTip(k, missing ? miss : who);
-                const icon = k.classId ? classRefIcon(k.classId, k.role || "tank") : ROLE_ICONS[k.slotKind] || ROLE_ICONS.tank;
+                // a task row's place: the role of its class / slot (no tank shield by default)
+                const icon = k.classId ? classRefIcon(k.classId, k.role || (k.task ? "dps" : "tank")) : ROLE_ICONS[k.slotKind] || (k.task ? ROLE_ICONS.dps : ROLE_ICONS.tank);
                 const shown = missing || !!label;
                 return (
                     <div key={`auto:${k.key}`} data-obj={`auto:${k.key}`} className={cls(`${base} is-auto is-open`, "auto", k.key, `${ring}${shown ? noName(k.size, SIZE_RANGES.token.def, 1, st.showName) : " is-noname"}`, !!st.lock)} style={style}>
                         <button type="button" className="rp-token-btn" tabIndex={editable ? 0 : -1} aria-label={tip} data-tip={tip} {...handlers("auto", k.key)}>
-                            <span className="rp-ico rp-ico-open rp-role-tank" aria-hidden="true"><WowIcon name={icon} size={Math.max(14, Math.round(scaled(k.size, SIZE_RANGES.token.def) * 0.58))} /></span>
+                            <span className={`rp-ico rp-ico-open rp-role-${k.task ? k.slotKind || k.role || "dps" : "tank"}`} aria-hidden="true"><WowIcon name={icon} size={Math.max(14, Math.round(scaled(k.size, SIZE_RANGES.token.def) * 0.58))} /></span>
                             {missing && <span className="rp-autowarn" aria-hidden="true"><AlertTriangle size={11} /></span>}
                         </button>
                         {shown && <span className={`rp-token-name${missing ? " rp-autotank-miss" : ""}`}>{label && <span className="rp-slot-title">{label}</span>}{miss}</span>}

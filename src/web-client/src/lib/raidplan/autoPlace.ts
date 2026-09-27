@@ -25,10 +25,31 @@ export const LAYOUT_H = 625;
 export const AUTO_SIZES = { icon: 24, token: 19, mark: 17, gap: 6, tankDist: 105, tankSpread: 62, mobSide: 200, mobRow: 125, trashCol: 140, trashRow: 150, looseCol: 70, looseRow: 215 };
 
 export type AutoMob = { key: string; ref: string; inst: number; count: number; name: string; icon: string; iconKey: string; iconId: string; x: number; y: number; moved: boolean; boss: boolean; /** the size in reference px (its own size x the section's autoScale; objectScale comes on top) */ size: number; /** what the orga changed about its look */ style: RaidplanAutoStyle };
-export type AutoTank = { key: string; rowId: string; rowKey: string; type: string; j: number; ref: string; state: string; userId: string; classId: string; role: string; slotKind: string; slotN: number; mobKey: string; existing: string; x: number; y: number; moved: boolean; size: number; style: RaidplanAutoStyle };
+export type AutoTank = { key: string; rowId: string; rowKey: string; type: string; /** a raider of a task row put on the map ("Auf Map setzen": kick, special task ...), not a tank: no mob, no "Tankt" */ task: boolean; j: number; ref: string; state: string; userId: string; classId: string; role: string; slotKind: string; slotN: number; mobKey: string; existing: string; x: number; y: number; moved: boolean; size: number; style: RaidplanAutoStyle };
 export type AutoPlan = { mobs: AutoMob[]; tanks: AutoTank[]; users: string[] };
 export type AutoPoint = { x: number; y: number };
 export type AutoOptions = { template: boolean; roster: RaidplanPlayer[] };
+
+/** Whether a row can put its raiders on the map ("Auf Map setzen"): a task row (not a tank row, those are on the map anyway) that names somebody other than a whole role group. */
+export function canPutOnMap(a: RaidplanAssignment): boolean {
+    return AUTO_TANK_TYPES.indexOf(String(a.type)) < 0 && (a.assignees || []).some((r) => r.indexOf("role:") !== 0);
+}
+
+/** A task row put on the map: its raiders stand there as auto tokens (a tank row always does, see deriveAuto). */
+export function onMapRow(a: RaidplanAssignment): boolean {
+    return !!a.onMap && canPutOnMap(a);
+}
+
+/** "Auf Map setzen" / "Von der Map nehmen" of a row of the board's own rows. */
+export function setRowOnMap(board: RaidplanBoard, rowId: string, on: boolean): RaidplanBoard {
+    return { ...board, assignments: (board.assignments || []).map((a) => (a.id !== rowId ? a : on ? { ...a, onMap: true } : withoutOnMap(a))) };
+}
+
+function withoutOnMap(a: RaidplanAssignment): RaidplanAssignment {
+    const out = { ...a };
+    delete out.onMap;
+    return out;
+}
 
 /** The key a row's tanks go by: a copy of a default row keeps the default's id, so a tank moved by hand stays where it is. */
 export function rowKeyOf(a: RaidplanAssignment): string {
@@ -98,7 +119,9 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     const plan: AutoPlan = { mobs: [], tanks: [], users: [] };
     if (board.autoPlace === false) return plan;
     const tankRows = (rows || []).filter((a) => AUTO_TANK_TYPES.indexOf(String(a.type)) >= 0);
-    if (tankRows.length === 0) return plan;
+    // the task rows put on the map ("Auf Map setzen"): after the tanks, so a raider who tanks AND kicks stands at his tank place once
+    const taskRows = (rows || []).filter((a) => onMapRow(a));
+    if (tankRows.length === 0 && taskRows.length === 0) return plan;
     // 1. the mob instances, in the order of the rows; a target of one placed icon is that icon (its number is the icon's)
     const explicit: Record<string, number[]> = {};
     for (const a of tankRows) for (const tg of a.targets || []) if (tg.kind === "mob" && tg.n) (explicit[tg.ref] = explicit[tg.ref] || []).push(tg.n);
@@ -156,10 +179,11 @@ export function deriveAuto(rows: RaidplanAssignment[], board: RaidplanBoard, opt
     // 3. the tanks
     const roster = opts.roster || [];
     const byUser: Record<string, string> = {};
-    tankRows.forEach((a, i) => {
-        const mobs = rowMobs[i];
+    [...tankRows, ...taskRows].forEach((a, i) => {
+        const mobs = i < tankRows.length ? rowMobs[i] : [];
+        const task = i >= tankRows.length;
         (a.assignees || []).forEach((ref, j) => {
-            const t: AutoTank = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false, size: 0, style: {} };
+            const t: AutoTank = { key: `t:${rowKeyOf(a)}:${j + 1}`, rowId: a.id, rowKey: rowKeyOf(a), type: String(a.type), task, j: j + 1, ref, state: "", userId: "", classId: "", role: "", slotKind: "", slotN: 0, mobKey: mobs.length > 0 ? mobs[j % mobs.length] : "", existing: "", x: 0, y: 0, moved: false, size: 0, style: {} };
             const p = ref.split(":");
             let uid = "";
             if (p[0] === "user") uid = p[1];

@@ -362,6 +362,17 @@ describe("GET /api/raidplan/public", () => {
             return body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
         }
 
+        it("sends a task row's \"Auf Map setzen\" (#498): the page derives its tokens like a tank row's", async () => {
+            await call(route.putPlan, ORGA, {
+                event: "eh_1", version: 0,
+                bosses: { "bt/supremus": { assignments: [{ id: "k1", type: "kick", title: "", spell: null, assignees: ["slot:melee:1"], targets: [], note: "", onMap: true }], autoPos: { "t:k1:1": { x: 0.4, y: 0.6 } } } },
+            });
+            const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
+            const b = body(await publicGet(on.plan.publicPath.replace("/p/", ""))).bosses[0];
+            expect(b.assignments[0]).toMatchObject({ id: "k1", type: "kick", onMap: true });
+            expect(b.autoPos).toEqual({ "t:k1:1": { x: 0.4, y: 0.6 } });
+        });
+
         it("sends the map and its objects while it is shown", async () => {
             const b = await publishMap(true);
             expect(b.showMap).toBe(true);

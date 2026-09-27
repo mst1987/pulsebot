@@ -1046,7 +1046,7 @@
         "moved": "Moved by hand: this position stays, also when the assignments change.",
         "explain": "Comes from the tank assignments and is placed automatically. It can be moved; it goes with its row or with “Place automatically from the tank assignments” off.",
         "place": "Place automatically from the tank assignments",
-        "noDelete": "Comes from the tank assignments: delete the row or switch “Place automatically” off.",
+        "noDelete": "Comes from the assignments: delete the row, for a task “Take off the map”, or switch “Place automatically” off.",
         "tanksMob": "Tanks → {mob}",
         "untank": "No longer tanks",
         "several": "Several of this kind",
@@ -1058,13 +1058,19 @@
             "row": "Edit row …",
             "tank": "Choose tank …",
             "reset": "Reset position",
-            "resetAll": "Reset everything (position + look)"
+            "resetAll": "Reset everything (position + look)",
+            "offMap": "Take off the map"
         },
         "label": "Label",
         "labelHint": "optional, e.g. “wall”",
         "resetAll": "Reset everything (position + look)",
         "section": "This section",
-        "scale": "Size of tanks/mobs (all from the assignments)"
+        "scale": "Size of tanks/mobs (all from the assignments)",
+        "task": "Task",
+        "onMap": "Put on the map",
+        "offMap": "Take off the map",
+        "onMapTip": "The players of this row stand on the map as symbols of their own. Whoever already stands on the map keeps his place; a group member is taken out of his group chip.",
+        "explainTask": "Comes from the row “{task}” (Put on the map) and is placed automatically. It can be moved; it goes with its row or with “Take off the map”."
     },
     "roleGroup": {
         "melee": "Melees",

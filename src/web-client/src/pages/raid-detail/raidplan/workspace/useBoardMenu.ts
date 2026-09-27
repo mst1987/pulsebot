@@ -1,7 +1,7 @@
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import type { RaidplanBoard, RaidplanMobRef, RaidplanPlayer } from "../../../../api";
 import type { useT } from "../../../../i18n";
-import { mobIconNo, mobIconsOf, mobOfIcon, type AutoPlan } from "../../../../lib/raidplan/autoPlace";
+import { mobIconNo, mobIconsOf, mobOfIcon, setRowOnMap, type AutoPlan } from "../../../../lib/raidplan/autoPlace";
 import { alignSelection, hasItem, reorderSelection, scaleArrowSelection, setLookSelection, setRingSelection, type SelItem } from "../../../../lib/raidplan/multiSelect";
 import {
     applyMenuAction, autoStyleOf, canFace, compassName, contextMenuItems, lookOf, ownBadgeGroup, resetAutoAll, resetAutoPos, scaleArrow, SIZE_STEPS,
@@ -78,7 +78,9 @@ export function useBoardMenu({ menu, setMenu, canWrite, isEvent, board, auto, mo
             const styled = !!(board.autoStyle || {})[sel.id];
             const locked = !!autoStyleOf(board, sel.id).lock;
             // like any object: order, lock, the size steps; plus its row, and back to its own place / look
-            return [it("properties", "main"), ...(k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")]),
+            // a raider of a task row put on the map: its row and "Von der Map nehmen" (a row of this section), never "Tankt -> ..."
+            const byRow = k && k.task ? [it("auto:row", "main"), ...(board.assignments.some((a) => a.id === k.rowId) ? [it("auto:offMap", "main")] : [])] : k ? [it("auto:row", "main"), ...tankItems(true)] : [it("auto:tank", "main")];
+            return [it("properties", "main"), ...byRow,
                 it("front", "order"), it("back", "order"), it(locked ? "unlock" : "lock", "order"), ...(locked ? [] : SIZE_STEPS.map((p) => it(`size:${p}`, "size"))),
                 ...(!k && !locked ? [it("arrow:up", "size"), it("arrow:down", "size")] : []),
                 ...(moved ? [it("auto:reset", "end")] : []), ...(moved || styled ? [it("auto:resetAll", "end")] : [])];
@@ -121,6 +123,7 @@ export function useBoardMenu({ menu, setMenu, canWrite, isEvent, board, auto, mo
         const one = target && target !== "board" ? target : null;
         if (id === "auto:reset" && one) { edit((b) => resetAutoPos(b, one.id)); return; }
         if (id === "auto:resetAll" && one) { edit((b) => resetAutoAll(b, one.id)); return; }
+        if (id === "auto:offMap" && one) { const k = auto.tanks.find((x) => x.key === one.id); if (k) edit((b) => setRowOnMap(b, k.rowId, false)); return; }
         if (id === "auto:row" && one) { const k = auto.tanks.find((x) => x.key === one.id); if (k) tanks.openRowFromMap(k.rowId); return; }
         if (id === "auto:tank" && one) {
             if (one.kind === "auto") tanks.pickTankFor(one.id, null);
