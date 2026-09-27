@@ -51,6 +51,36 @@ the organiser's own view of it is the "Meine Aufgaben" preview (`MyTasksPreview`
 it mounts the `TipLayer` itself: the `data-tip` boxes of the chips ("Only for me", the mark) and the zoom
 buttons show here too.
 
+## Einteilungen in den Event-Kanal posten (#502)
+
+The read link as one message in the event's channel, like "Sheet posten" for the raidsheet:
+
+- **Route:** `POST /api/raids/post-raidplan { event, message? }` (`apiRoutes/raidDetail.js`, area `raids`, write,
+  CSRF). The event — channel, title, start — is resolved on the server from its own event list, never taken from
+  the body. The work is `postRaidplanLink()` in `src/services/raidplan/raidplanPost.js`.
+- **What it checks:** the event has a plan (an own event always, a Raid-Helper event once switched on — else 409
+  `no_plan`), the plan was saved with at least one board (else 400 `empty_plan`), `PUBLIC_BASE_URL` is an http(s)
+  url (else 400 `no_public_url` — a `localhost` fallback would post a link nobody can open) and the event has a
+  channel.
+- **Publishing on the way:** a draft is published (`raidplanStore.setPublished`, the token minted if there is
+  none), so the posted link never leads to the 404; an already published plan keeps its token. The answer says
+  when it published ("… Der Raidplan ist dafür freigegeben worden.").
+- **One message per event:** `src/stores/raidplanPostStore.js` (`settings/raidplan-posts.json`, `{ posts: [{
+  eventId, channelId, messageId, message, postedAt, postedBy }] }`) remembers where it went; a second post edits
+  that message (`discord.editLink`), and only when that fails (deleted by hand) posts a new one. Without
+  `message` in the body the text of the last post stays, `""` clears it. Deleting the event forgets the record.
+- **What the raider reads** (English, CLAUDE.md "Language"): `🗺️ **Raid assignments – <title>**`, the orga's
+  line, `Raid start: <t:…:F>` (a Discord timestamp) and a link button "Open assignments" — the same
+  `buildLinkMessage` as the sheet and softres posts.
+- **Web:** the raid detail's payload carries `raidplanPost` (`raidplanPostState()`: `filled`, `published`,
+  `publicPath` only while published, where and when it was posted; `null` without a plan). The own event's
+  cockpit has the step *Einteilungen* (docs/events.md, "Das Raid-Cockpit"), a Raid-Helper event with a plan gets
+  it in its progress bar after the raidsheet. Both open `RaidplanPostModal.tsx`; the raid plan tab has the same
+  entry as an icon (`Send`) beside "Freigeben & teilen" (raids write only), which reads the page's data again
+  first so the dialog knows the last save. A post that published the plan turns the tab's badge to "Freigegeben"
+  without reloading the plan (the draft stays). The link shows the **saved** plan — the tooltip says so while
+  there are unsaved changes.
+
 ## "All assignments" never cuts a name (feature/raidplan-16, part 2)
 
 - **Cards of one type** (Curse, Kick, Misdirect ... - `AssignLine` read-only in `.rp-read-lines`): the "who"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, LayoutTemplate, RotateCw, Share2 } from "lucide-react";
+import { AlertTriangle, LayoutTemplate, RotateCw, Send, Share2 } from "lucide-react";
 import {
     applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
     type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
@@ -101,6 +101,18 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot)
     const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster) : []), [view, draft, besetzung, roster]);
     const canWrite = !!view && view.canWrite;
+    // "Einteilungen posten" (#502) publishes a draft plan on the way: the page's reload after the post brings the new state here
+    const postedPath = ctx.data.raidplanPost?.publicPath || "";
+    const loaded = !!view;
+    useEffect(() => {
+        if (!postedPath || !loaded) return;
+        setView((cur) => (cur && cur.plan.publicPath !== postedPath ? { ...cur, plan: { ...cur.plan, status: "published", publicPath: postedPath } } : cur));
+    }, [postedPath, loaded, setView]);
+    /** The dialog lives on the page (the cockpit opens it too); the page's data is read again first, so it knows the last save. */
+    const openPost = () => {
+        ctx.onChanged("");
+        ctx.openModal("raidplan");
+    };
 
     /** Applies a change to the selected boss's board (stable: the workspace's drag listens through it). */
     // the colours and marks of the groups are the plan's, not one boss's: one step over every board with a map
@@ -251,6 +263,10 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         <>
                             <IconButton size="sm" icon={<LayoutTemplate size={17} />} tip={t("raidBoard.template.pick")} onClick={() => setModal("template")} />
                             <IconButton size="sm" icon={<Share2 size={17} />} tip={t("raidBoard.bar.share")} onClick={() => setModal("share")} />
+                            <IconButton
+                                size="sm" icon={<Send size={17} />} tip={t("raidBoard.bar.postLink")}
+                                tipSub={dirty ? t("raidBoard.bar.postLinkUnsaved") : t("raidBoard.bar.postLinkSub")} onClick={openPost}
+                            />
                             <SaveButton state={saveState} busy={saving} flash={savedFlash} onSave={save} />
                         </>
                     ) : undefined}

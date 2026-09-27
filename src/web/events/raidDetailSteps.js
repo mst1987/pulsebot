@@ -1,5 +1,6 @@
 // The Raid-Detail page's progress bar: where a raid stands, as six steps
-// (Anmeldung › Setup › Raidsheet › Softres › Loot › Logs). Each step is a figure,
+// (Anmeldung › Setup › Raidsheet › Softres › Loot › Logs, plus „Einteilungen“
+// after the sheet when the raid has a raid plan, #502). Each step is a figure,
 // a status badge and the way into that part of the page at once, and the first
 // step that is still open becomes the page head's one primary action.
 //
@@ -178,6 +179,33 @@ function sheetStep(d) {
     };
 }
 
+/**
+ * The raid plan's read link in the event channel (#502), beside the sheet —
+ * only for a raid that has a plan (`raidplanPost` null otherwise). An empty
+ * plan counts as done: there is nothing to post, so nothing to push.
+ */
+function raidplanStep(d) {
+    const rp = d.raidplanPost;
+    const posted = !!rp.messageId;
+    const step = { key: "raidplan", label: "Einteilungen", icon: "inv_misc_map02", open: { modal: "raidplan" }, done: posted || !rp.filled };
+    if (!rp.filled) {
+        return {
+            ...step, tone: "none", value: "—", unit: "", badge: { label: "kein Plan" },
+            tip: { head: "Einteilungen · Raidplan leer", sub: "Im Tab „Raidplan“ einteilen und speichern; dann den Link in den Kanal posten." },
+        };
+    }
+    if (posted) {
+        return {
+            ...step, tone: "ok", value: "Gepostet", unit: "", badge: { label: `am ${shortDate(rp.postedAt)}`, tone: "ok" },
+            tip: { head: `Einteilungen · gepostet am ${shortDate(rp.postedAt)}`, sub: "Klick öffnet den Dialog; erneutes Posten aktualisiert dieselbe Nachricht." },
+        };
+    }
+    return {
+        ...step, tone: "mid", value: "Offen", unit: "", badge: { label: "nicht gepostet", tone: "mid" },
+        tip: { head: "Einteilungen · nicht gepostet", sub: "Klick öffnet den Dialog: den Link zur Lese-Ansicht in den Event-Kanal posten." },
+    };
+}
+
 function softresStep(d) {
     const so = d.eventSoftres || null;
     const ev = d.event || {};
@@ -259,6 +287,7 @@ function primaryFor(step, d) {
             ? { label: d.ownSetup && d.ownSetup.placed ? "Setup freigeben" : "Setup vorschlagen", icon: "inv_misc_map_01", tab: "setup" }
             :{ label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
         case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
+        case "raidplan": return { label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" };
         case "softres": return { label: "Softres erstellen", icon: "inv_misc_ticket_tarot_madness", modal: "softres" };
         case "loot": return { label: "Loot hinzufügen", icon: "inv_misc_bag_10", modal: "loot" };
         case "logs": {
@@ -288,8 +317,11 @@ function wantsSoftres(d) {
  * @returns {{ steps: object[], next: string, primary: object|null }}
  */
 function raidSteps(d) {
-    const steps = [signupStep(d), setupStep(d), sheetStep(d), wantsSoftres(d) ? softresStep(d) : null, lootStep(d), logsStep(d)].filter(Boolean);
-    const before = ["signup", "setup", "sheet", "softres"];
+    const steps = [
+        signupStep(d), setupStep(d), sheetStep(d), d.raidplanPost ? raidplanStep(d) : null,
+        wantsSoftres(d) ? softresStep(d) : null, lootStep(d), logsStep(d),
+    ].filter(Boolean);
+    const before = ["signup", "setup", "sheet", "raidplan", "softres"];
     const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : before;
     // A cancelled event (#288) has no next step to push.
     const cancelled = !!(d.event && d.event.status === "cancelled");
@@ -307,13 +339,13 @@ module.exports = {
 };
 
 // ---------------------------------------------------------------------------
-// Das Raid-Cockpit (#319): dieselbe Frage in fünf Schritten
+// Das Raid-Cockpit (#319): dieselbe Frage in sechs Schritten
 // ---------------------------------------------------------------------------
 // Ein Raid wohnt an sieben Stellen im Menü, die Frage der Orga ist aber immer
 // dieselbe: was ist bei diesem Raid als Nächstes zu tun? eventSteps() beantwortet
 // sie für ein *eigenes* Event als Strecke — Angelegt › Anmeldung › Setup ›
-// Freigabe › Nachbereitung —, je Schritt ein Zustand, eine Zahl und höchstens
-// eine Tat.
+// Freigabe › Einteilungen (#502) › Nachbereitung —, je Schritt ein Zustand, eine
+// Zahl und höchstens eine Tat.
 //
 // Rein wie alles hier oben: keine Store- und keine Discord-Aufrufe, nur eine
 // Funktion über das Detail-Payload, das die Seite ohnehin bekommt. Deshalb kann
@@ -323,7 +355,7 @@ module.exports = {
 /** Die fünf Zustände eines Schritts; der Client spiegelt sie in lib/raidSteps.ts. */
 const STEP_STATES = ["done", "current", "todo", "skipped", "cancelled"];
 /** Die Strecke, in ihrer Reihenfolge. */
-const STEP_IDS = ["created", "signup", "setup", "approval", "after"];
+const STEP_IDS = ["created", "signup", "setup", "approval", "plan", "after"];
 /** Innerhalb der letzten Stunde vor dem Start kommt kein Setup mehr. */
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** Einen Platz im Raid belegt, wer „Dabei“ oder „Spät“ ist — wie rosterCounts(). */
@@ -503,6 +535,42 @@ function approvalStep(d, now) {
     };
 }
 
+/**
+ * Einteilungen (#502): der Link zur Lese-Ansicht des Raidplans im Event-Kanal.
+ * Ohne gespeicherten Plan gibt es nichts zu posten — „später“, nie offen; nach
+ * dem Raid drängt ein nie geposteter Plan nicht mehr.
+ */
+function planStepOwn(d) {
+    const rp = d.raidplanPost || null;
+    const ev = d.event || {};
+    const step = { id: "plan", label: "Einteilungen", icon: "inv_misc_map02", value: "—", unit: "", note: "", fill: null };
+    const post = deed("raidplan", "Einteilungen posten", "inv_letter_15", { modal: "raidplan" });
+    if (!rp || !rp.filled) {
+        return {
+            ...step, state: "todo", note: "Raidplan leer",
+            hint: "Im Tab „Raidplan“ die Bosse einteilen und speichern — danach kommt der Link zu den Einteilungen in den Kanal.",
+            action: deed("plan", "Raidplan öffnen", "inv_misc_map02", { tab: "plan" }),
+        };
+    }
+    if (rp.messageId) {
+        return {
+            ...step, state: "done", value: "Gepostet", note: `am ${shortDate(rp.postedAt)}`,
+            hint: rp.published
+                ? "Der Link zu den Einteilungen steht im Kanal. Erneutes Posten aktualisiert dieselbe Nachricht."
+                : "Gepostet, aber die Freigabe ist zurückgenommen — der Link im Kanal führt ins Leere, bis erneut gepostet wird.",
+            action: post,
+        };
+    }
+    if (ev.isPast) {
+        return { ...step, state: "skipped", note: "nicht gepostet", hint: "Der Link wurde nie gepostet. Nach dem Raid ändert das nichts mehr.", action: post };
+    }
+    return {
+        ...step, state: "open", value: "Offen", note: rp.published ? "freigegeben" : "Entwurf",
+        hint: "Der Raidplan steht, im Kanal fehlt der Link. „Einteilungen posten“ gibt ihn bei Bedarf frei und postet ihn.",
+        action: post,
+    };
+}
+
 function afterStep(d) {
     const logs = d.eventLogs || [];
     const loot = (d.lootItems || []).length;
@@ -536,7 +604,7 @@ function afterStep(d) {
 }
 
 /**
- * Die Strecke eines eigenen Events: fünf Schritte, der erste offene ist der
+ * Die Strecke eines eigenen Events: sechs Schritte, der erste offene ist der
  * aktuelle und trägt die eine auffällige Tat. Jeder andere Schritt bleibt ruhig
  * — „später“ oder „übersprungen“, nie ein Fehler.
  * @param {object} d das Raid-Detail-Payload
@@ -546,7 +614,7 @@ function afterStep(d) {
 function eventSteps(d, opts = {}) {
     const now = Number(opts.now) || Date.now();
     const ev = (d && d.event) || {};
-    const steps = [createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now), afterStep(d)];
+    const steps = [createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now), planStepOwn(d), afterStep(d)];
     // Abgesagt: nur „abgesagt“ und der Weg zurück. Kein Schritt ist mehr offen.
     if (ev.status === "cancelled") {
         for (const s of steps) {
@@ -560,7 +628,7 @@ function eventSteps(d, opts = {}) {
         };
     }
     // Vergangene Raids fangen bei der Nachbereitung an; vorher ist sie nur „später“.
-    const candidates = ev.isPast ? ["after"] : ["signup", "setup", "approval"];
+    const candidates = ev.isPast ? ["after"] : ["signup", "setup", "approval", "plan"];
     const current = steps.find((s) => s.state === "open" && candidates.includes(s.id)) || null;
     for (const s of steps) {
         if (s.state !== "open") continue;

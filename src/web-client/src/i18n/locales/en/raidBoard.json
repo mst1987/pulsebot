@@ -8,6 +8,9 @@
         "saved": "Raid plan saved.",
         "savedDropped": "Raid plan saved. {count} assignment(s) to players no longer in the setup were removed.",
         "share": "Publish & share",
+        "postLink": "Post assignments to the event channel",
+        "postLinkSub": "Link to the read view; publishes the raid plan if needed, posting again updates the same message.",
+        "postLinkUnsaved": "Save first: the link only shows the saved state.",
         "readOnly": "Read only",
         "savedState": "Saved"
     },

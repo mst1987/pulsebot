@@ -55,7 +55,7 @@ button.rd-loot-chip:hover { border-color: var(--accent); color: var(--accent); }
 .rd-cockpit { border-top: 1px solid var(--line-soft); background: var(--panel2); }
 /* Die zusammengeklappte Zeile: nur auf schmalen Flächen. */
 .rd-ck-sum { display: none; margin: 0; padding: 10px 16px 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
-.rd-ck-steps { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; padding: 0; }
+.rd-ck-steps { list-style: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 0; }
 .rd-ck-steps > li { display: flex; min-width: 0; border-right: 1px solid var(--line-soft); }
 .rd-ck-steps > li:last-child { border-right: 0; }
 .rd-ck {

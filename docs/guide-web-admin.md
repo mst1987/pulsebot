@@ -15,7 +15,8 @@ Technik: [events.md](events.md)
 *Bereich "Raids" (lesen/schreiben)*
 
 - Neues Event per geführtem Dialog anlegen (Vorlage, Termin, Größe/Rollen, Kanal, Anmeldung) oder ein bestehendes bearbeiten.
-- **Raid-Cockpit** auf der Detailseite: führt in fünf Schritten durch den Ablauf (Angelegt → Anmeldung → Setup → Freigabe → Nachbereitung) und schlägt jeweils die nächste sinnvolle Handlung vor.
+- **Raid-Cockpit** auf der Detailseite: führt in sechs Schritten durch den Ablauf (Angelegt → Anmeldung → Setup → Freigabe → Einteilungen → Nachbereitung) und schlägt jeweils die nächste sinnvolle Handlung vor.
+- **Einteilungen posten:** Der Schritt „Einteilungen“ (oder der Knopf neben „Freigeben & teilen“ im Raidplan-Tab) postet den Link zur Lese-Ansicht des Raidplans mit optionaler Nachricht in den Event-Kanal, gibt den Plan dabei bei Bedarf frei, und ein erneutes Posten aktualisiert dieselbe Nachricht.
 - Über das **"Verwalten"-Menü**: Termin verschieben, Anmeldung öffnen/schließen, Raider ein-/austragen, Fehlende pingen, absagen/zurücknehmen, löschen (inklusive Kanal archivieren und Discord benachrichtigen).
 - Kalender-Link (.ics) und öffentliche Event-Seite ohne Login; optional ein natives Discord-Event anlegen.
 

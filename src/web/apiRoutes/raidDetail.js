@@ -35,6 +35,7 @@ const {
 } = require("../../services/discord/pingDelivery");
 const { pingMissingRaiders } = require("../../services/events/missingPing");
 const { buildRaidDetail } = require("../events/raidDetailView");
+const { postRaidplanLink } = require("../../services/raidplan/raidplanPost");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
@@ -273,6 +274,21 @@ const postPostSoftres = withUser({ csrf: true, body: true }, async ({ body, req,
     }
 });
 
+/**
+ * POST /api/raids/post-raidplan (#502) — post the raid plan's read link
+ * (/p/<token>) into the event channel, publishing the plan first when needed;
+ * a second post edits the same message. Body: { event, message? } — without
+ * `message` the text of the last post stays.
+ */
+const postPostRaidplan = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const eventId = q.str(body, "event");
+    // The channel, title and start come from the server's own event list, never from the body.
+    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    const message = body.message !== undefined ? String(body.message || "").slice(0, 500) : undefined;
+    sendResult(res, await postRaidplanLink({ event: found, message, userId: user.id }));
+});
+
 /** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
 const getItemSearch = withUser({}, async ({ res, url }) => {
     const term = url.searchParams.get("q") || "";
@@ -372,6 +388,7 @@ const routes = [
     { method: "POST", path: "/api/raids/fill", handler: postFill, area: "raids" },
     { method: "POST", path: "/api/raids/post-sheet", handler: postPostSheet, area: "raids" },
     { method: "POST", path: "/api/raids/post-softres", handler: postPostSoftres, area: "raids" },
+    { method: "POST", path: "/api/raids/post-raidplan", handler: postPostRaidplan, area: "raids" },
     { method: "GET", path: "/api/raids/softres/item-search", handler: getItemSearch, area: "raids" },
     { method: "POST", path: "/api/raids/softres", handler: postSoftresCreate, area: "raids" },
     { method: "POST", path: "/api/raids/softres/link", handler: postSoftresLink, area: "raids" },
@@ -386,6 +403,7 @@ module.exports = {
     postFill,
     postPostSheet,
     postPostSoftres,
+    postPostRaidplan,
     getItemSearch,
     postSoftresCreate,
     postSoftresLink,

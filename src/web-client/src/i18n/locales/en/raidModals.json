@@ -8,6 +8,20 @@
         "openPosted": "Open posted message",
         "updateMessage": "Update message"
     },
+    "raidplan": {
+        "title": "Post assignments",
+        "published": "Raid plan published",
+        "draft": "Raid plan not published yet",
+        "empty": "Raid plan still empty",
+        "publishedHint": "The link shows the saved state of the assignments.",
+        "draftHint": "Posting publishes the raid plan; the link shows the saved state.",
+        "emptyHint": "Assign and save in the \"Raid plan\" tab first.",
+        "postedAt": "posted on {date}",
+        "open": "Open read view",
+        "postKicker": "Post into the event channel",
+        "messagePlaceholder": "e.g. Please read before the first pull",
+        "post": "Post assignments"
+    },
     "itemSearch": {
         "placeholder": "Search item names (Wowhead) …"
     },

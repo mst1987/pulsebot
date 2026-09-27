@@ -8,6 +8,9 @@
         "saved": "Raidplan gespeichert.",
         "savedDropped": "Raidplan gespeichert. {count} Zuordnung(en) zu Spielern, die nicht mehr im Setup stehen, wurden entfernt.",
         "share": "Freigeben & teilen",
+        "postLink": "Einteilungen in den Event-Kanal posten",
+        "postLinkSub": "Link zur Lese-Ansicht; gibt den Raidplan bei Bedarf frei, erneutes Posten aktualisiert dieselbe Nachricht.",
+        "postLinkUnsaved": "Erst speichern: der Link zeigt nur den gespeicherten Stand.",
         "readOnly": "Nur lesen",
         "savedState": "Gespeichert"
     },

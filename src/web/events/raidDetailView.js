@@ -39,6 +39,7 @@ const { listSignups } = require("../../stores/signupStore");
 const { eventSignupList } = require("../signups/signupView");
 const { getEvent } = require("../../stores/eventStore");
 const raidplanStore = require("../../stores/raidplanStore");
+const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 
@@ -297,6 +298,8 @@ async function buildRaidDetail({ guildId, eventId }) {
         // Which sheet this raid actually links: its own filled copy, else the
         // fixed sheet assigned to its category in the settings, else null.
         sheetLink: resolveEventSheetLink(getEventSheet(eventId), found.g.categoryId),
+        // The raid plan's read link in the event channel (#502): null without a plan.
+        raidplanPost: raidplanPostState(found.e),
         eventSoftres: softresInfo.eventSoftres,
         softresCatalogue: softres.catalogue().filter((g) => g.edition === SOFTRES_EDITION),
         softresEdition: SOFTRES_EDITION,
@@ -318,8 +321,8 @@ async function buildRaidDetail({ guildId, eventId }) {
     };
     // The progress bar and the head's primary action, from the same payload.
     payload.progress = raidSteps(payload);
-    // An own event answers the orga's one question as a five-step route instead
-    // (#319). Raid-Helper events keep exactly today's view: steps stays null.
+    // An own event answers the orga's one question as a six-step route instead
+    // (#319, #502). Raid-Helper events keep exactly today's view: steps stays null.
     payload.steps = isOwn(found) ? eventSteps(payload) : null;
     payload.playerSummaries = playerSummariesPart(guildId, found, { setup: setupInfo.setup, attendance: attendanceInfo.attendance });
     return { body: payload };
