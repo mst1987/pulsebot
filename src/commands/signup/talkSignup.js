@@ -6,7 +6,7 @@ const { SELECT_ID } = require("../../services/talk/talkOverview");
 const guildRoles = require("../../services/discord/guildRoles");
 const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { answerPayload } = require("../../utils/signup/signupReply");
 
 // The select "Raid wählen, um dich anzumelden" under the raid overview on the
 // talk server (customId `talk-signup`, services/talk/talkOverview.js). An own event opens
@@ -21,16 +21,14 @@ module.exports = {
     defaultAccess: "everyone",
     async execute(interaction) {
         const eventId = String((interaction.values && interaction.values[0]) || "").trim();
-        if (!eventId) {
-            return interaction.reply({ content: "No raid picked.", flags: MessageFlags.Ephemeral });
-        }
+        if (!eventId) return interaction.reply(answerPayload("No raid picked."));
         if (isOwnEventId(eventId)) {
             const event = getEvent(eventId);
-            if (!event) return interaction.reply({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
+            if (!event) return interaction.reply(answerPayload("This event no longer exists."));
             // The overview is one message for everybody, so it cannot leave out a raid
             // the member may not join — the raider-role rule answers here instead.
             const access = await checkRaiderRole(event, interaction.user.id);
-            if (access.error) return interaction.reply({ content: toEnglish(access.error), flags: MessageFlags.Ephemeral });
+            if (access.error) return interaction.reply(answerPayload(access.error, { event }));
             return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), flags: MessageFlags.Ephemeral });
         }
 
@@ -42,15 +40,16 @@ module.exports = {
             : "";
         const base = publicBaseUrl();
         const url = channelUrl || `${base}/raids/detail?event=${encodeURIComponent(eventId)}`;
-        return interaction.reply({
-            content: channelUrl
-                ? `Signups for ${name} run through Raid-Helper – sign up in the event channel.`
-                : `Signups for ${name} run through Raid-Helper. You can find the raid in the EventHelper.`,
+        const text = channelUrl
+            ? `Signups for ${name} run through Raid-Helper – sign up in the event channel.`
+            : `Signups for ${name} run through Raid-Helper. You can find the raid in the EventHelper.`;
+        return interaction.reply(answerPayload(text, {
+            event,
+            title: "Sign up at Raid-Helper",
             components: [new ActionRowBuilder().addComponents(new ButtonBuilder()
                 .setStyle(ButtonStyle.Link)
                 .setLabel(channelUrl ? "Go to the event channel" : "Open on the web")
                 .setURL(url)).toJSON()],
-            flags: MessageFlags.Ephemeral,
-        });
+        }));
     },
 };

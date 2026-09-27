@@ -2,6 +2,7 @@
 // Charakter-Auswahl, die nur der Raider sieht: Vorauswahl, Direkt-Anmeldung bei genau
 // einer Spec, Abmelden, Weg ohne Profil, Anmeldeschluss, Raider-Rolle, Zugriff.
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -137,7 +138,8 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("absence");
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence", character: "Brokk", comment: "Pizza" });
-        expect(replyOf(i)).toEqual({ content: "✅ Signed off.", flags: MessageFlags.Ephemeral });
+        // #508: the same confirmation embed as the signup buttons, in the raid's colour
+        expect(answerOf(replyOf(i))).toMatchObject({ title: "Signed off from Karazhan", body: "Reason: Pizza", flags: MessageFlags.Ephemeral, embedCount: 1 });
     });
 
     it("opens the dialog of #258 without a profile character", async () => {
@@ -155,7 +157,7 @@ describe("commands/signup/eventJoin", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
         const refused = pick("signed");
         await command.execute(refused);
-        expect(replyOf(refused).content).toContain("signup deadline has passed");
+        expect(answerOf(replyOf(refused)).text).toContain("signup deadline has passed");
         expect(replyOf(refused).flags).toBe(MessageFlags.Ephemeral);
 
         const late = pick("late");
@@ -169,7 +171,7 @@ describe("commands/signup/eventJoin", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ startTime: sec() - 60, signupDeadline: 0 }));
         const i = pick("absence");
         await command.execute(i);
-        expect(replyOf(i).content).toContain("The raid has already started");
+        expect(answerOf(replyOf(i)).text).toContain("The raid has already started");
         expect(mocks.signups.size).toBe(0);
     });
 
@@ -180,7 +182,7 @@ describe("commands/signup/eventJoin", () => {
         mocks.access.roleIds = ["something-else"];
         const i = pick("signed");
         await command.execute(i);
-        expect(replyOf(i)).toEqual({ content: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(replyOf(i))).toMatchObject({ title: "", description: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral, embedCount: 1 });
 
         mocks.access.roleIds = ["role-raider"];
         const ok = pick("signed");
@@ -191,10 +193,10 @@ describe("commands/signup/eventJoin", () => {
     it("says so for a gone event or an unknown status", async () => {
         const gone = mockInteraction({ customId: "event-join:eh-gone", userId: ANNA, values: ["signed"] });
         await command.execute(gone);
-        expect(replyOf(gone).content).toBe("This event no longer exists.");
+        expect(answerOf(replyOf(gone))).toMatchObject({ title: "", description: "This event no longer exists." });
         const bogus = pick("maybe");
         await command.execute(bogus);
-        expect(replyOf(bogus).content).toBe("Unknown status.");
+        expect(answerOf(replyOf(bogus))).toMatchObject({ title: "", description: "Unknown status." });
     });
 
     it("redraws the picker with a new pick and the profile's kann auch", async () => {
@@ -224,6 +226,6 @@ describe("commands/signup/eventJoin", () => {
     it("clears the picker when its event is gone", async () => {
         const i = mockInteraction({ customId: "event-join:eh-gone:s:c:::", userId: ANNA, values: ["x|y"] });
         await command.execute(i);
-        expect(updateOf(i)).toEqual({ content: "This event no longer exists.", embeds: [], components: [] });
+        expect(answerOf(updateOf(i))).toMatchObject({ content: "", title: "", description: "This event no longer exists.", components: [], embedCount: 1 });
     });
 });

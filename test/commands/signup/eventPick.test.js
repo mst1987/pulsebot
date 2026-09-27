@@ -2,6 +2,7 @@
 // öffnet die eigenen Charaktere (Mehrfachauswahl, Klassen darunter), eine Klasse führt zu
 // Spec und Namen. Die Auswahl setzt sich für das Mitglied zurück, die Antwort ist ephemer.
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -78,7 +79,7 @@ describe("commands/signup/eventPick", () => {
         profiles.addCharacter(ANNA, { name: "Devire", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
         const i = pick("mine");
         await command.execute(i);
-        expect(followOf(i).content).toBe("Saved for **Karazhan**:\n`1.` Devire · Arcane – **Signed up**");
+        expect(answerOf(followOf(i))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Devire · Arcane – **Signed up**" });
         expect(stored()).toMatchObject({ status: "signed", character: "Devire" });
     });
 
@@ -106,14 +107,14 @@ describe("commands/signup/eventPick", () => {
 
         const unknown = pick("Tinker");
         await command.execute(unknown);
-        expect(followOf(unknown).content).toBe("Unknown class.");
+        expect(answerOf(followOf(unknown))).toMatchObject({ title: "", description: "Unknown class." });
     });
 
     it("refuses after the deadline and for the raider role, still ephemeral", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
         const late = pick("mine");
         await command.execute(late);
-        expect(followOf(late)).toEqual({ content: "The signup deadline has passed – only “Late” or Absence now.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(followOf(late))).toMatchObject({ title: "", description: "The signup deadline has passed – only “Late” or Absence now.", flags: MessageFlags.Ephemeral, embedCount: 1 });
         // the reset draws the phase's components: no select any more
         expect(late.update.mock.calls[0][0].components.flatMap((r) => r.components).map((c) => c.custom_id)).toEqual(["event-btn:eh-kara:late", "event-btn:eh-kara:absence"]);
 
@@ -122,7 +123,7 @@ describe("commands/signup/eventPick", () => {
         mocks.access.roleIds = ["other"];
         const cls = pick("Mage");
         await command.execute(cls);
-        expect(followOf(cls).content).toBe("You need a raider role for this raid.");
+        expect(answerOf(followOf(cls))).toMatchObject({ title: "", description: "You need a raider role for this raid." });
     });
 
     it("answers with a reply when the select cannot be reset, and for a gone event", async () => {
@@ -132,12 +133,12 @@ describe("commands/signup/eventPick", () => {
             const i = mockInteraction({ customId: "event-pick:eh-kara", userId: ANNA, values: ["mine"] });
             i.update.mockRejectedValue(new Error("Unknown interaction"));
             await command.execute(i);
-            expect(i.reply.mock.calls[0][0].content).toContain("Devire · Arcane");
+            expect(answerOf(i.reply.mock.calls[0][0]).text).toContain("Devire · Arcane");
         } finally {
             warn.mockRestore();
         }
         const gone = mockInteraction({ customId: "event-pick:eh-weg", userId: ANNA, values: ["mine"] });
         await command.execute(gone);
-        expect(gone.reply.mock.calls[0][0]).toEqual({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(gone.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "This event no longer exists.", flags: MessageFlags.Ephemeral, embedCount: 1 });
     });
 });

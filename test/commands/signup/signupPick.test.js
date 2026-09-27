@@ -3,6 +3,7 @@
 // „Anmelden“-Button (Router-Guard).
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+const { answerOf } = require("../../helpers/signupMocks");
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/services/events/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
@@ -73,7 +74,7 @@ describe("commands/signup/signupPick", () => {
     it("clears the message when the event is gone", async () => {
         const i = mockInteraction({ customId: "signup-pick:eh-gone:a:::", values: [] });
         await command.execute(i);
-        expect(i.update).toHaveBeenCalledWith({ content: "This event no longer exists.", embeds: [], components: [] });
+        expect(answerOf(i.update.mock.calls[0][0])).toMatchObject({ content: "", title: "", description: "This event no longer exists.", components: [], embedCount: 1 });
     });
 });
 

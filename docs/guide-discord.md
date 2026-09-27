@@ -11,6 +11,7 @@ Technik: [signups.md](signups.md), [bot-commands.md](bot-commands.md)
 - Bei "Vielleicht" oder "Absagen" öffnet sich (je nach Kategorie Pflicht oder optional) ein kurzes Textfeld für eine Nachricht an die Raidleitung.
 - Auf der automatischen Übersichtsnachricht im Talk-Server gibt es zusätzlich **"Für alle Raids anmelden"** bzw. **"Mehrere Raids wählen …"**, um mehrere Termine auf einmal zu erledigen.
 - Wer noch keinen Charakter im Bot hat: Der Dialog fragt beim ersten Mal nach Klasse/Spec/Name und legt den Charakter automatisch an.
+- Jede Rückmeldung des Bots zur Anmeldung (gespeichert, abgemeldet, Warteliste, Fehler wie „Event gibt es nicht mehr“) kommt als kleine Karte in der Farbe des Raids, nur für dich sichtbar: oben „Saved for <Raid>“, darunter deine Charaktere mit Spec-Icon und Status, der Raidbeginn in deiner Ortszeit und ggf. der Warteliste-Hinweis.
 - `/profil` zeigt eine kurze Zusammenfassung des eigenen Profils, mit Buttons um "kann Offtank/Heilen" je Hauptcharakter zu setzen, plus Link zur eigenen Profilseite im Web.
 
 Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen Kategorie — eine bereits bestehende Anmeldung lässt sich aber immer noch ändern.

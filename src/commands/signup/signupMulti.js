@@ -8,7 +8,7 @@ const {
     buildRaidPicker, buildCharacterModal, entriesFromModal, buildResults,
 } = require("../../utils/signup/multiSignup");
 const { STATUS_CODES } = require("../../utils/signup/signupDialog");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 
 // Every step of signing up for several raids at once (#293) after the first
 // click — see utils/signup/multiSignup.js for the flow and the customIds:
@@ -25,7 +25,8 @@ async function emojisFor(interaction) {
     return appEmojiMap();
 }
 
-const ephemeral = (interaction, content) => interaction.reply({ content: toEnglish(content), flags: MessageFlags.Ephemeral });
+// A short answer only the member sees, as an embed (#508).
+const ephemeral = (interaction, content, event = null) => interaction.reply(answerPayload(content, { event }));
 
 /** Open the modal of one page (a click, so the modal can still be shown). */
 async function openModal(interaction, token, session, page) {
@@ -42,10 +43,10 @@ async function onOneEvent(interaction, eventId, status) {
     const event = getEvent(eventId);
     if (!event) return ephemeral(interaction, "This event no longer exists.");
     if (!allowedStatuses(event).includes(status)) {
-        return ephemeral(interaction, "The signup deadline has passed – you can only sign off or sign up as “Late” now.");
+        return ephemeral(interaction, "The signup deadline has passed – you can only sign off or sign up as “Late” now.", event);
     }
     const access = await checkRaiderRole(event, uid);
-    if (access.error) return ephemeral(interaction, access.error);
+    if (access.error) return ephemeral(interaction, access.error, event);
     const token = createSession(uid, { mode: "one", eventIds: [event.id], status });
     return openModal(interaction, token, getSession(token, uid), 0);
 }
@@ -81,7 +82,7 @@ module.exports = {
         const session = getSession(token, uid);
         if (!session) {
             if (interaction.isModalSubmit && interaction.isModalSubmit()) return ephemeral(interaction, EXPIRED);
-            return interaction.update({ content: EXPIRED, embeds: [], components: [] });
+            return interaction.update(answerUpdate(EXPIRED));
         }
         if (action === "m") return onSubmit(interaction, token, session, page);
         if (action === "go") return openModal(interaction, token, session, page);
@@ -93,7 +94,7 @@ module.exports = {
             const picked = String((interaction.values || [])[0] || "");
             if (STATUS_CODES[picked]) session.status = picked;
         } else {
-            return interaction.update({ content: "Unknown action.", embeds: [], components: [] });
+            return interaction.update(answerUpdate("Unknown action."));
         }
         const events = session.eventIds.map((id) => getEvent(id)).filter(Boolean);
         return interaction.update(buildRaidPicker(token, session, events, { emojis: await emojisFor(interaction) }));

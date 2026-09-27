@@ -1,5 +1,6 @@
 // Der „Anmelden“-Button unter der Event-Nachricht öffnet den Anmelde-Dialog (#258).
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -49,7 +50,7 @@ describe("commands/signup/eventSignup", () => {
         mocks.access.roleIds = ["role-other"];
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral, embedCount: 1 });
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
 
         // …an own signup from before may still be changed
@@ -62,6 +63,6 @@ describe("commands/signup/eventSignup", () => {
     it("says so when the event is gone", async () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-9" });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "This event no longer exists.", flags: MessageFlags.Ephemeral, embedCount: 1 });
     });
 });

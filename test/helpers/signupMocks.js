@@ -78,6 +78,30 @@ function signupStore() {
 /** An own event three days ahead, deadline in two (the shared factory, #433). */
 const { ownEvent } = require("../factories/events");
 
+/**
+ * The answer embed of a reply / follow-up / update payload (#508): its title,
+ * description and colour, the payload's flags, content and components — plus
+ * `body`, the description without the raid-start line (its timestamps move with
+ * the clock), and `text`, title and body as one string.
+ */
+function answerOf(payload) {
+    const p = payload || {};
+    const e = (p.embeds || [])[0] || {};
+    const description = String(e.description || "");
+    const body = description.split("\n").filter((l) => !l.startsWith("🗓️")).join("\n").trim();
+    return {
+        title: e.title || "",
+        description,
+        body,
+        text: [e.title || "", body].filter(Boolean).join("\n"),
+        color: e.color,
+        flags: p.flags,
+        content: p.content,
+        components: p.components,
+        embedCount: (p.embeds || []).length,
+    };
+}
+
 function reset() {
     events.clear();
     signups.clear();
@@ -89,4 +113,4 @@ function reset() {
     postNotice.mockClear();
 }
 
-module.exports = { events, signups, changed, access, memberRoleIds, eventLog, postNotice, settingsStore, discord, eventStore, signupStore, ownEvent, reset };
+module.exports = { events, signups, changed, access, memberRoleIds, eventLog, postNotice, settingsStore, discord, eventStore, signupStore, ownEvent, answerOf, reset };
