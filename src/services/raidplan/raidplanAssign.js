@@ -232,7 +232,8 @@ function suggestHeal({ slots = [], roster = [], groups = [], preferredClasses = 
     return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", ""), preferredClasses, allowOthers) : null)).filter(Boolean);
 }
 
-const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"];
+// dispel / cc / buff: the row dialog's wand names the one raider of the row's classes who ranks best (decurse: not the druid tank, #501)
+const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout", "dispel", "cc", "buff"];
 
 /**
  * Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid.
@@ -326,7 +327,9 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
         const refs = sequence(3).map((x) => x.ref);
         return refs.length ? [make(type, refs, [], spellFor(type, "Warrior", 0, versionId), pc, allowOthers)] : [];
     }
-    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
+    // dispel, cc, buff: one raider (with a roster the best ranked one of the classes)
+    const one = withRoster ? sequence(1).map((x) => x.ref) : [ref(cls[0], 1)];
+    return one.length ? [make(type, one, [], null, pc, allowOthers)] : [];
 }
 
 /**
@@ -343,7 +346,7 @@ function resolveSuggested(type, rows, { roster, slots = [], keep = [], context =
 }
 
 /** Whether a suggestion of this type exists (the button is offered). */
-const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
+const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank", "dispel", "cc", "buff"];
 
 /**
  * The old task rows of a board ({ id, title, userIds }) as assignments: the title is the task

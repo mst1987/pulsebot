@@ -120,7 +120,15 @@ describe("suggest uses the ranking", () => {
         // the tank row as a class reference ("Magier-Tank") counts the same
         expect(assign.suggest("kick", { roster: [mageTank, mage2], preferredClasses: ["Mage"], context: [councilTank] })[0].assignees).toEqual(["user:mage2"]);
     });
-    it("case 2: nobody is suggested a task twice when an alternative is there (load of the other rows)", () => {
+    it("case 2: the row dialog's wand on a decurse row of druids names the other druid, not the druid tank; alone the tank", () => {
+        expect(assign.SUGGESTABLE).toEqual(expect.arrayContaining(["dispel", "cc", "buff"]));
+        expect(assign.suggest("dispel", { roster: [bear, tree], preferredClasses: ["Druid"] }).map((a) => a.assignees)).toEqual([["user:tree"]]);
+        expect(assign.suggest("dispel", { roster: [bear], preferredClasses: ["Druid"] }).map((a) => a.assignees)).toEqual([["user:bear"]]);
+        // a template names the class, nobody of it in the raid = nothing
+        expect(assign.suggest("dispel", { preferredClasses: ["Druid"] })[0].assignees).toEqual(["class:Druid:1"]);
+        expect(assign.suggest("dispel", { roster: [mage2], preferredClasses: ["Druid"] })).toEqual([]);
+    });
+    it("nobody is suggested a task twice when an alternative is there (load of the other rows)", () => {
         const h1 = P("h1", "Hunter", "ranged");
         const h2 = P("h2", "Hunter", "ranged");
         const context = [row("x", "cc", ["user:h1"])];

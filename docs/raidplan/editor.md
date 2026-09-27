@@ -520,7 +520,9 @@ whether he played elemental or enhancement, and the council's mage tank was also
 - **Suggestions** (`suggestClassRows`): the raiders of the row's classes are ranked and a tank / healer who should
   not do it is left out **only while somebody else is left** (`withoutMisfits`); each class is numbered only as
   often as it is taken, so two mages with one tanking the council give ONE "Magier 1" (the other mage), one mage
-  who tanks still kicks. The editor sends `context` (the board's rows of the other types, inherited ones too)
+  who tanks still kicks. The row dialog's wand now also works on **dispel, cc and buff** rows (server
+  `SUGGESTABLE`; the card's wand stays as it was): one raider, the best ranked of the row's classes (a decurse
+  row of druids gets the other druid, not the druid tank). The editor sends `context` (the board's rows of the other types, inherited ones too)
   and, from the row dialog's wand, the row's `preferredRole` to `POST /api/raidplan/suggest`. Suggested rows keep
   the rule "Vorschlag bis bearbeitet": only unedited suggestions of the type are replaced.
 - **Row dialog**: "Rolle" (egal / Nahkampf / Fernkampf / Heiler / Tank) as a small segmented choice at the foot
