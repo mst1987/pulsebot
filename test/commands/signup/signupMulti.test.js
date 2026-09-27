@@ -4,6 +4,7 @@
 // das Ergebnis je Raid mit Gründen, abgelaufene Auswahl und „Mehrere Charaktere …“
 // an einem einzelnen Event.
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -93,14 +94,14 @@ describe("talk overview buttons (#293)", () => {
         const none = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
         await all.execute(none);
         expect(none.showModal).not.toHaveBeenCalled();
-        expect(none.reply.mock.calls[0][0]).toMatchObject({ flags: MessageFlags.Ephemeral, content: expect.stringContaining("characters with a spec") });
+        expect(answerOf(none.reply.mock.calls[0][0])).toMatchObject({ flags: MessageFlags.Ephemeral, title: "", description: "To sign up for several raids you need characters with a spec in your profile." });
         expect(none.reply.mock.calls[0][0].components[0].components[0].url).toBe("https://eh.example/profile");
 
         characters();
         mocks.events.clear();
         const empty = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
         await pickRaids.execute(empty);
-        expect(empty.reply.mock.calls[0][0].content).toContain("no coming raids");
+        expect(answerOf(empty.reply.mock.calls[0][0]).text).toContain("no coming raids");
     });
 
     it("saves „alle“ per raid: first pick = choice, class and deadline refusals named per raid", async () => {
@@ -194,13 +195,13 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const foreign = mockInteraction({ customId: `signup-multi:${token}:go:0`, userId: BERT });
         await step.execute(foreign);
         expect(foreign.showModal).not.toHaveBeenCalled();
-        expect(foreign.update.mock.calls[0][0].content).toContain("expired");
+        expect(answerOf(foreign.update.mock.calls[0][0]).text).toContain("expired");
 
         const later = Date.now() + multi.SESSION_TTL + 1000;
         expect(multi.getSession(token, ANNA, later)).toBeNull();
         const expired = modalSubmit("signup-multi:deadbeef:m:0", { r0: ["zibbo|Priest-Holy"] });
         await step.execute(expired);
-        expect(expired.reply.mock.calls[0][0]).toMatchObject({ flags: MessageFlags.Ephemeral, content: expect.stringContaining("expired") });
+        expect(answerOf(expired.reply.mock.calls[0][0])).toMatchObject({ flags: MessageFlags.Ephemeral, title: "", description: "This selection has expired – start the signup again from the raid overview." });
         expect(mocks.signups.size).toBe(0);
     });
 });
@@ -231,14 +232,14 @@ describe("Mehrere Charaktere … an einem Event (#293)", () => {
         raids(1, () => ({ signupDeadline: sec() - 60 }));
         const late = mockInteraction({ customId: "signup-multi:e:eh-r1:s", userId: ANNA });
         await step.execute(late);
-        expect(late.reply.mock.calls[0][0].content).toContain("signup deadline");
+        expect(answerOf(late.reply.mock.calls[0][0]).text).toContain("signup deadline");
 
         mocks.events.set("eh-r2", mocks.ownEvent({ id: "eh-r2", categoryId: "cat" }));
         mocks.access.config = { guildId: "g", categoryRoles: { cat: ["role"] } };
         mocks.access.roleIds = [];
         const noRole = mockInteraction({ customId: "signup-multi:e:eh-r2:s", userId: ANNA });
         await step.execute(noRole);
-        expect(noRole.reply.mock.calls[0][0].content).toBe("You need a raider role for this raid.");
+        expect(answerOf(noRole.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "You need a raider role for this raid." });
         expect(noRole.showModal).not.toHaveBeenCalled();
     });
 });

@@ -1,6 +1,7 @@
 // Die Raid-Auswahl unter der Übersicht auf dem Talk-Server (#258): eigene Events
 // öffnen den Anmelde-Dialog, Raid-Helper-Events verlinken in ihren Event-Kanal.
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -50,7 +51,7 @@ describe("commands/signup/talkSignup", () => {
         mocks.access.roleIds = [];
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral, embedCount: 1 });
         // no event guild on the event → the configured (event) server
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009");
     });
@@ -60,7 +61,7 @@ describe("commands/signup/talkSignup", () => {
         const interaction = mockInteraction({ values: ["123456"] });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.content).toBe("Signups for **Gruul** run through Raid-Helper – sign up in the event channel.");
+        expect(answerOf(payload)).toMatchObject({ title: "Sign up at Raid-Helper", description: "Signups for **Gruul** run through Raid-Helper – sign up in the event channel." });
         expect(payload.flags).toBe(MessageFlags.Ephemeral);
         expect(payload.components[0].components[0]).toMatchObject({ label: "Go to the event channel", url: "https://discord.com/channels/g-1/c-1" });
     });
@@ -75,16 +76,16 @@ describe("commands/signup/talkSignup", () => {
         interaction = mockInteraction({ values: ["123456"] });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.content).toContain("this raid");
+        expect(answerOf(payload).text).toContain("this raid");
         expect(payload.components[0].components[0].url).toBe("https://eh.example/raids/detail?event=123456");
     });
 
     it("says so when nothing was chosen or the own event is gone", async () => {
         let interaction = mockInteraction({ values: [] });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "No raid picked.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "No raid picked.", flags: MessageFlags.Ephemeral, embedCount: 1 });
         interaction = mockInteraction({ values: ["eh-gone"] });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
+        expect(answerOf(interaction.reply.mock.calls[0][0])).toMatchObject({ title: "", description: "This event no longer exists.", flags: MessageFlags.Ephemeral, embedCount: 1 });
     });
 });

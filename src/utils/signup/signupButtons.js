@@ -41,6 +41,8 @@ const { BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
 const { MIN_NOTE } = require("../../services/signups/signupNotes");
+const { toEnglish } = require("./botEnglish");
+const { plainTitle, colorOf } = require("./signupReply");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;
@@ -110,6 +112,40 @@ function savedText(event, signup, profile, { emojis = {} } = {}) {
     });
     const headIcon = icon(uiEmojiName("signed"));
     return [headIcon ? `${headIcon} Saved for **${title}**` : `Saved for **${title}**:`, ...lines].join("\n");
+}
+
+/**
+ * The confirmation after a save as an embed (#508): the head line of savedText
+ * as the title ("Saved for …" / "Signed off from …"), one line per character
+ * with spec and status icon as the description, then the raid start as a
+ * Discord timestamp and the service's notice (waiting list) below it. The
+ * colour is the raid's (embedLook).
+ * @returns {{ title: string, description: string, color: number }}
+ */
+function savedEmbed(event, signup, profile, { emojis = {}, notice = "" } = {}) {
+    const title = String((event && event.title) || "Raid");
+    const icon = (name) => emojiText(emojis, name);
+    let head;
+    let lines;
+    if (!signup || signup.status === "absence") {
+        head = [icon(uiEmojiName("absence")), `Signed off from ${title}`].filter(Boolean).join(" ");
+        lines = signup && signup.comment ? [`Reason: ${signup.comment}`] : [];
+    } else {
+        const [first, ...rest] = savedText(event, signup, profile, { emojis }).split("\n");
+        head = plainTitle(first).replace(/:$/, "");
+        lines = rest;
+    }
+    const start = Number(event && event.startTime) || 0;
+    const meta = [
+        start ? `🗓️ <t:${start}:F> · <t:${start}:R>` : "",
+        notice ? `⏳ ${toEnglish(notice)}` : "",
+    ].filter(Boolean).join("\n");
+    const out = { title: head };
+    const description = [lines.join("\n"), meta].filter(Boolean).join("\n\n");
+    if (description) out.description = description;
+    const color = colorOf(event);
+    if (color !== undefined) out.color = color;
+    return out;
 }
 
 /**
@@ -241,7 +277,7 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
         : "Pick your character.");
     if (notice) lines.push("", notice);
     return {
-        embeds: [{ description: lines.join("\n") }],
+        embeds: [{ color: colorOf(event), description: lines.join("\n") }],
         components: [
             {
                 type: 1,
@@ -264,7 +300,7 @@ function buildClassPicker(event, status, { emojis = {}, notice = "" } = {}) {
     const lines = [headLine(event, status), "Which class?"];
     if (notice) lines.push("", notice);
     return {
-        embeds: [{ description: lines.join("\n") }],
+        embeds: [{ color: colorOf(event), description: lines.join("\n") }],
         components: [{ type: 1, components: [classSelect(event, status, emojis)] }],
     };
 }
@@ -274,7 +310,7 @@ function buildSpecPicker(event, status, classId, { emojis = {} } = {}) {
     const cls = classesFor(event).find((c) => c.id === classId);
     if (!cls) return null;
     return {
-        embeds: [{ description: `${headLine(event, status)}\n**${en(cls)}** – which spec?` }],
+        embeds: [{ color: colorOf(event), description: `${headLine(event, status)}\n**${en(cls)}** – which spec?` }],
         components: [
             {
                 type: 1,
@@ -336,7 +372,7 @@ function buildNoteModal(eventId, status, { required = false } = {}) {
 }
 
 module.exports = {
-    MAX_REASON, STATUS_WORD, btnId, parseButtonId, refusal, characterText, savedText,
+    MAX_REASON, STATUS_WORD, btnId, parseButtonId, refusal, characterText, savedText, savedEmbed,
     picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues, pickOptions,
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal,
 };

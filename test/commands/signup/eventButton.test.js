@@ -3,6 +3,7 @@
 // Charakter bzw. Auswahl), Absagen mit Grund, Anmeldeschluss/geschlossen/abgesagt,
 // Raider-Rolle, alte customIds.
 const { MessageFlags } = require("discord.js");
+const { answerOf } = require("../../helpers/signupMocks");
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -66,7 +67,7 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
         const i = click("join");
         await command.execute(i);
         expect(stored().status).toBe("bench");
-        const text = String(replyOf(i).content || "");
+        const text = answerOf(replyOf(i)).text;
         expect(text).toContain("waiting list");
         expect(text).toContain("raid is full (2/2)");
     });
@@ -78,7 +79,7 @@ describe("Warteliste unter der Event-Nachricht (#306)", () => {
         const i = click("join");
         await command.execute(i);
         expect(stored()).toBeUndefined();
-        expect(String(replyOf(i).content || "")).toContain("full (2/2)");
+        expect(answerOf(replyOf(i)).text).toContain("full (2/2)");
     });
 });
 
@@ -107,7 +108,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             expect(replyOf(i).flags).toBe(MessageFlags.Ephemeral);
-            expect(replyOf(i).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Signed up**");
+            expect(answerOf(replyOf(i))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Signed up**" });
             expect(stored()).toMatchObject({ status: "signed", character: "Zibbo", spec: "Priest-Holy" });
         });
 
@@ -130,8 +131,11 @@ describe("commands/signup/eventButton", () => {
             // values handed back out of order: the listed order decides the priority
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"] }), select);
             await command.execute(pick);
-            expect(updateOf(pick)).toMatchObject({ components: [], embeds: [] });
-            expect(updateOf(pick).content).toContain("`2.` Zibbowar · Protection – **Signed up**");
+            // #508: the picker message turns into the confirmation embed, without components
+            expect(answerOf(updateOf(pick))).toMatchObject({
+                content: "", components: [], embedCount: 1, title: "Saved for Karazhan",
+                body: "`1.` Zibbo · Holy – **Signed up**\n`2.` Zibbowar · Protection – **Signed up**",
+            });
             expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbowar", "signed"]]);
 
             // "Spät" moves the first; "Anmelden" again names the current characters (never preselected,
@@ -179,7 +183,7 @@ describe("commands/signup/eventButton", () => {
 
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { character: "Zibbo" } });
             await command.execute(submit);
-            expect(updateOf(submit).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Bench**");
+            expect(answerOf(updateOf(submit))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Bench**" });
             expect(profiles.getProfile(ANNA).characters.map((c) => c.name)).toEqual(["Zibbo"]);
             expect(stored()).toMatchObject({ status: "bench", character: "Zibbo" });
         });
@@ -199,7 +203,7 @@ describe("commands/signup/eventButton", () => {
             expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbomage", "signed"], ["Zibbowar", "signed"]]);
             const fourth = mockInteraction({ customId: "event-btn:eh-kara:name:s:Rogue-Combat", userId: ANNA, modal: true, options: { character: "Zibborog" } });
             await command.execute(fourth);
-            expect(updateOf(fourth).content).toMatch(/already signed up with 3 characters/);
+            expect(answerOf(updateOf(fourth)).text).toMatch(/already signed up with 3 characters/);
             expect(stored().characters).toHaveLength(3);
         });
 
@@ -229,7 +233,7 @@ describe("commands/signup/eventButton", () => {
             ]) {
                 const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Priest-Holy", userId: ANNA, modal: true, options: { character: name } });
                 await command.execute(submit);
-                expect(updateOf(submit).content).toMatch(why);
+                expect(answerOf(updateOf(submit)).text).toMatch(why);
             }
             expect(profiles.getProfile(ANNA).characters).toEqual([]);
             expect(stored()).toBeUndefined();
@@ -239,7 +243,7 @@ describe("commands/signup/eventButton", () => {
             twoCharacters();
             const submit = mockInteraction({ customId: "event-btn:eh-kara:name:s:Mage-Fire", userId: ANNA, modal: true, options: { character: "Zibbowar" } });
             await command.execute(submit);
-            expect(updateOf(submit).content).toBe("⚠️ Zibbowar is already in your profile as a Warrior – pick another name.");
+            expect(answerOf(updateOf(submit))).toMatchObject({ title: "", description: "⚠️ Zibbowar is already in your profile as a Warrior – pick another name." });
             expect(stored()).toBeUndefined();
         });
     });
@@ -251,7 +255,7 @@ describe("commands/signup/eventButton", () => {
             const late = click("late");
             await command.execute(late);
             expect(replyOf(late).flags).toBe(MessageFlags.Ephemeral);
-            expect(replyOf(late).content).toBe("Saved for **Karazhan**:\n`1.` Zibbo · Holy – **Late**\n`2.` Zibbowar · Protection – **Signed up**");
+            expect(answerOf(replyOf(late))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Late**\n`2.` Zibbowar · Protection – **Signed up**" });
             expect(stored().status).toBe("late");
             expect(statuses()).toEqual([["Zibbo", "late"], ["Zibbowar", "signed"]]);
             // a single signup's one character goes to the status
@@ -306,7 +310,7 @@ describe("commands/signup/eventButton", () => {
             expect(strict.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
             const empty = mockInteraction({ customId: "event-btn:eh-kara:note:t", userId: ANNA, modal: true, options: { reason: " " } });
             await command.execute(empty);
-            expect(replyOf(empty).content).toBe("Please leave a short message.");
+            expect(answerOf(replyOf(empty))).toMatchObject({ title: "", description: "Please leave a short message." });
             expect(stored()).toBeUndefined();
         });
 
@@ -332,7 +336,7 @@ describe("commands/signup/eventButton", () => {
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:b");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["devire|Mage-Arcane"] }), select);
             await command.execute(pick);
-            expect(updateOf(pick).content).toBe("Saved for **Karazhan**:\n`1.` Devire · Arcane – **Bench**");
+            expect(answerOf(updateOf(pick))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Devire · Arcane – **Bench**" });
             expect(stored()).toMatchObject({ status: "bench", character: "Devire" });
             expect(statuses()).toEqual([["Devire", "bench"]]);
 
@@ -359,15 +363,21 @@ describe("commands/signup/eventButton", () => {
             appEmojis.setAppEmojis(appEmojis.emojiCatalog().map((e, i) => ({ id: String(900 + i), name: e.name })));
             const pick = withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:b", userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), null);
             await command.execute(pick);
-            const lines = updateOf(pick).content.replace(/:\d+>/g, ">").split("\n");
-            expect(lines).toEqual([
-                "<:eh_ui_signed> Saved for **Karazhan**",
+            const saved = answerOf(updateOf(pick));
+            const noIds = (s) => s.replace(/:\d+>/g, ">");
+            // #508: the head line is the embed's title, the characters its description
+            expect(noIds(saved.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
+            expect(noIds(saved.body).split("\n")).toEqual([
                 "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_bench> **Bench**",
                 "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Bench**",
             ]);
+            const start = mocks.events.get("eh-kara").startTime;
+            expect(saved.description.split("\n").pop()).toBe(`🗓️ <t:${start}:F> · <t:${start}:R>`);
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
-            expect(replyOf(submit).content.replace(/:\d+>/g, ">")).toBe("<:eh_ui_absence> Signed off from **Karazhan** – reason: Arbeit.");
+            const off = answerOf(replyOf(submit));
+            expect(noIds(off.title)).toBe("<:eh_ui_absence> Signed off from Karazhan");
+            expect(off.body).toBe("Reason: Arbeit");
         });
     });
 
@@ -386,7 +396,7 @@ describe("commands/signup/eventButton", () => {
             await command.execute(submit);
             // the modal came from the public message: reply, never edit that message
             expect(submit.update).not.toHaveBeenCalled();
-            expect(replyOf(submit)).toEqual({ content: "Signed off from **Karazhan** – reason: Arbeit.", flags: MessageFlags.Ephemeral });
+            expect(answerOf(replyOf(submit))).toMatchObject({ title: "Signed off from Karazhan", body: "Reason: Arbeit", flags: MessageFlags.Ephemeral, embedCount: 1 });
             expect(stored()).toMatchObject({ status: "absence", comment: "Arbeit", character: "Zibbo" });
         });
 
@@ -400,7 +410,7 @@ describe("commands/signup/eventButton", () => {
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "" } });
             await command.execute(submit);
             expect(stored()).toMatchObject({ status: "absence", comment: "" });
-            expect(replyOf(submit).content).toBe("Signed off from **Karazhan**.");
+            expect(answerOf(replyOf(submit))).toMatchObject({ title: "Signed off from Karazhan", body: "" });
         });
 
         it("follows the category: required insists, none signs off at once", async () => {
@@ -411,7 +421,7 @@ describe("commands/signup/eventButton", () => {
             expect(btn.showModal.mock.calls[0][0].toJSON().components[0].components[0]).toMatchObject({ required: true, min_length: 2 });
             const short = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "x" } });
             await command.execute(short);
-            expect(replyOf(short).content).toBe("Please leave a short message.");
+            expect(answerOf(replyOf(short))).toMatchObject({ title: "", description: "Please leave a short message." });
             expect(stored()).toBeUndefined();
 
             mocks.access.config = { categorySignupNotes: { "cat-1": "none" } };
@@ -445,13 +455,13 @@ describe("commands/signup/eventButton", () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
             const join = click("join");
             await command.execute(join);
-            expect(replyOf(join).content).toBe("The signup deadline has passed – only “Late” or Absence now.");
+            expect(answerOf(replyOf(join))).toMatchObject({ title: "", description: "The signup deadline has passed – only “Late” or Absence now." });
             const late = click("late");
             await command.execute(late);
             expect(statuses()).toEqual([["Zibbo", "late"], ["Zibbowar", "signed"]]);
             const bench = click("bench");
             await command.execute(bench);
-            expect(replyOf(bench).content).toMatch(/signup deadline/);
+            expect(answerOf(replyOf(bench)).text).toMatch(/signup deadline/);
             const off = click("absence");
             await command.execute(off);
             expect(off.showModal).toHaveBeenCalled();
@@ -461,7 +471,7 @@ describe("commands/signup/eventButton", () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ signupsClosed: true }));
             const late = click("late");
             await command.execute(late);
-            expect(replyOf(late).content).toBe("Signups are closed – you can only sign off now.");
+            expect(answerOf(replyOf(late))).toMatchObject({ title: "", description: "Signups are closed – you can only sign off now." });
             const off = click("absence");
             await command.execute(off);
             expect(off.showModal).toHaveBeenCalled();
@@ -470,7 +480,7 @@ describe("commands/signup/eventButton", () => {
             const cancelled = click("absence");
             await command.execute(cancelled);
             expect(cancelled.showModal).not.toHaveBeenCalled();
-            expect(replyOf(cancelled).content).toBe("The event was cancelled.");
+            expect(answerOf(replyOf(cancelled))).toMatchObject({ title: "", description: "The event was cancelled." });
             expect(refusal(null, "signed")).toBe("This event no longer exists.");
         });
 
@@ -481,19 +491,19 @@ describe("commands/signup/eventButton", () => {
             mocks.access.roleIds = ["other"];
             const i = click("join");
             await command.execute(i);
-            expect(replyOf(i).content).toBe("You need a raider role for this raid.");
+            expect(answerOf(replyOf(i))).toMatchObject({ title: "", description: "You need a raider role for this raid." });
             const cls = click("class");
             await command.execute(cls);
-            expect(replyOf(cls).content).toBe("You need a raider role for this raid.");
+            expect(answerOf(replyOf(cls))).toMatchObject({ title: "", description: "You need a raider role for this raid." });
         });
 
         it("answers a gone event in the right place", async () => {
             const gone = mockInteraction({ customId: "event-btn:eh-weg:join", userId: ANNA });
             await command.execute(gone);
-            expect(replyOf(gone).content).toBe("This event no longer exists.");
+            expect(answerOf(replyOf(gone))).toMatchObject({ title: "", description: "This event no longer exists." });
             const step = mockInteraction({ customId: "event-btn:eh-weg:cls:s", userId: ANNA, values: ["Priest"] });
             await command.execute(step);
-            expect(updateOf(step).content).toBe("This event no longer exists.");
+            expect(answerOf(updateOf(step))).toMatchObject({ title: "", description: "This event no longer exists." });
         });
     });
 });

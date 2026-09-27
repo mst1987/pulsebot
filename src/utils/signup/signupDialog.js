@@ -25,6 +25,7 @@ const { publicBaseUrl } = require("../publicUrl");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
+const { answerUpdate } = require("./signupReply");
 const { listSignups, getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
 const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
@@ -317,9 +318,9 @@ function buildCommentModal(customId, comment = "") {
         .addComponents(new ActionRowBuilder().addComponents(input));
 }
 
-/** Reply to or update the dialog message with a short text (the event is gone, …). */
-function plainUpdate(interaction, content) {
-    return interaction.update({ content: toEnglish(content), embeds: [], components: [] });
+/** Update the dialog message into a short answer embed (the event is gone, …) — #508. */
+function plainUpdate(interaction, content, event = null) {
+    return interaction.update(answerUpdate(content, { event }));
 }
 
 module.exports = {

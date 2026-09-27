@@ -7,7 +7,8 @@ const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/ev
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { buildSignupDialog, savedNotice, plainUpdate } = require("../../utils/signup/signupDialog");
 const { parseJoinId, characterOptions, buildJoinPicker } = require("../../utils/signup/joinPicker");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { answerPayload } = require("../../utils/signup/signupReply");
+const { savedEmbed } = require("../../utils/signup/signupButtons");
 
 // The public "Anmelden …" select under an event message (#287) and the
 // components of the character select it opens (utils/signup/joinPicker.js):
@@ -23,11 +24,13 @@ const { toEnglish } = require("../../utils/signup/botEnglish");
 //   * otherwise the character select with Anmelden / Kann auch … / Kommentar.
 // Deadline, start, raider roles and the profile rules are the service's; the
 // select on the message already offers only what is still allowed.
-const reply = (interaction, payload) => interaction.reply({
-    ...payload,
-    ...(payload.content ? { content: toEnglish(payload.content) } : {}),
-    flags: MessageFlags.Ephemeral,
-});
+// A text answer (`{ content }`) and the save confirmation (`{ embed }`) go out as an
+// embed in the raid's colour (#508, utils/signup/signupReply.js); a picker as it is.
+const reply = (interaction, payload, event = null) => {
+    if (payload.embed) return interaction.reply(answerPayload(payload.embed));
+    if (payload.content) return interaction.reply(answerPayload(payload.content, { event }));
+    return interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+};
 
 /** Why a status cannot be chosen right now, or "". */
 function refusal(event, status, now = Date.now()) {
@@ -46,11 +49,11 @@ async function emojisFor(interaction) {
 async function onStatus(interaction, event) {
     const uid = interaction.user.id;
     const status = String((interaction.values && interaction.values[0]) || "");
-    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: "Unknown status." });
+    if (!STATUS_OPTIONS[status]) return reply(interaction, { content: "Unknown status." }, event);
     const refused = refusal(event, status);
-    if (refused) return reply(interaction, { content: refused });
+    if (refused) return reply(interaction, { content: refused }, event);
     const access = await checkRaiderRole(event, uid);
-    if (access.error) return reply(interaction, { content: access.error });
+    if (access.error) return reply(interaction, { content: access.error }, event);
 
     const mine = getSignup(event.id, uid);
     const profile = profiles.getProfile(uid) || { characters: [] };
@@ -62,7 +65,8 @@ async function onStatus(interaction, event) {
             canAlso: mine ? mine.canAlso || [] : [],
             comment: mine ? mine.comment : "",
         });
-        return reply(interaction, { content: result.error ? `⚠️ ${result.error}` : "✅ Signed off." });
+        if (result.error) return reply(interaction, { content: `⚠️ ${result.error}` }, event);
+        return reply(interaction, { embed: savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis: await emojisFor(interaction), notice: result.notice }) });
     }
 
     const options = characterOptions(profile);

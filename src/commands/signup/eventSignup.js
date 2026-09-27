@@ -3,7 +3,7 @@ const { getEvent } = require("../../stores/eventStore");
 const { SIGNUP_BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { answerPayload } = require("../../utils/signup/signupReply");
 
 // The "Anmelden" button under an EventHelper event message
 // (customId `event-signup:<eventId>`, services/events/eventMessage.js). Opens the signup
@@ -19,11 +19,9 @@ module.exports = {
     async execute(interaction) {
         const eventId = String(interaction.customId || "").split(":")[1] || "";
         const event = getEvent(eventId);
-        if (!event) {
-            return interaction.reply({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
-        }
+        if (!event) return interaction.reply(answerPayload("This event no longer exists."));
         const access = await checkRaiderRole(event, interaction.user.id);
-        if (access.error) return interaction.reply({ content: toEnglish(access.error), flags: MessageFlags.Ephemeral });
+        if (access.error) return interaction.reply(answerPayload(access.error, { event }));
         return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), flags: MessageFlags.Ephemeral });
     },
 };

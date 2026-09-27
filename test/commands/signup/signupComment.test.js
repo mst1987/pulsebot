@@ -2,6 +2,7 @@
 // speichert den Kommentar an der bestehenden Anmeldung.
 
 jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+const { answerOf } = require("../../helpers/signupMocks");
 jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
@@ -70,6 +71,6 @@ describe("commands/signup/signupComment", () => {
     it("clears the message when the event is gone", async () => {
         const i = mockInteraction({ customId: "signup-comment:eh-gone:::", modal: true });
         await command.execute(i);
-        expect(i.update).toHaveBeenCalledWith({ content: "This event no longer exists.", embeds: [], components: [] });
+        expect(answerOf(i.update.mock.calls[0][0])).toMatchObject({ content: "", title: "", description: "This event no longer exists.", components: [], embedCount: 1 });
     });
 });

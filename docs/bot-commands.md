@@ -72,7 +72,7 @@ Short answers in Discord, the big view one click away: every reply is **ephemera
 
 | Folder | What lives there |
 |---|---|
-| `utils/discord/` | `reply.js`: `botReply`, `botEditReply`, `botFollowup`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
+| `utils/discord/` | `reply.js`: `botReply`, `botEditReply`, `botFollowup` (each with an `{ embed }` option), `buildEmbed`, `embedPayload`, `findServerEmoji`, `getCharacterIcon`; `botLookup.js`: the embeds of the lookup commands (`lookupReply`, `linkRow`, `respondChoices`, …) |
 | `utils/signup/` | Signup buttons, dialog, multi-signup, join picker, character-name rule, `botEnglish.js` (German service messages → English) |
 | `utils/setup/` | Setup proposal (`model`, `proposal`, `score`, …), `fillSetup.js`, `setupView.js`, `raidsheets.js`, `sheetCleanup.js`, `response.js` (the line per raid of `/mysetups`) |
 | `utils/raidhelper/` | `client.js` (`createRaidhelperClient`, switch-off), `fixture.js` (dev stand-in), `queries.js` (signups/setups of a category), `channelEvents.js` (events of a category from both sources) |
@@ -88,6 +88,9 @@ Standard way to send a Discord reply (`utils/discord/reply.js`). Sends an embed 
 
 ### `botEditReply(interaction, title, message, timeout, ephemeral, components)`
 Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond. `timeout` and `ephemeral` have no effect on an edit; they only keep `components` in sixth place.
+
+### Embed option: `botReply(interaction, { embed, components, ephemeral, timeout })` (#508)
+All three helpers (`botReply`, `botEditReply`, `botFollowup`) also take one options object instead of the positional arguments: `embed` is `{ title, description, fields, color, footer, timestamp, url }`, built by `buildEmbed()` through discord.js' `EmbedBuilder` — accent colour (`embedAccentColor`) unless `color` is given, every text clipped with „…“ to Discord's limits (`EMBED_LIMITS`: title 256, description 4096, field name 256 / value 1024, 25 fields, 6000 in all), so an overlong text never makes Discord refuse the reply. Ephemeral by default (`ephemeral: false` for a public one), `timeout` as before; `botEditReply` sets `content: ""` so no old text stays above the embed. `embedPayload(embed, { ephemeral, components })` gives the same payload for code that calls `interaction.reply/followUp` itself. Callers without `embed` behave exactly as before. The signup flow's answers use it through `utils/signup/signupReply.js` (docs/signups.md).
 
 ## API Clients
 
