@@ -152,7 +152,8 @@ async function ingestLoot(req, res) {
 
 /**
  * Status of each recent raid event for the loot-sync tool's raid list: whether
- * loot is already in the history for it ("done"), whether one of the tool's
+ * loot is already in the history for it ("done"), whether an upload for it
+ * waits unconfirmed in the Addon-Inbox ("pending"), whether one of the tool's
  * local sessions falls on its day and could be uploaded for it ("ready"), or
  * neither ("empty"). Pure and side-effect-free — the caller supplies
  * everything read from disk/the Raid-Helper API, so this is unit-testable with
@@ -160,11 +161,11 @@ async function ingestLoot(req, res) {
  *
  * A session already sitting in the inbox (pending or resolved) is never
  * offered as "ready" again — re-clicking upload for a raid that was already
- * sent would just look like nothing happened. Its event still counts as
- * "done" once resolved, or once the suggested match from its (possibly still
- * unconfirmed) inbox entry names an event, so the desktop tool doesn't ask
- * for a raid the raidleader already uploaded, just because an admin hasn't
- * confirmed it yet.
+ * sent would just look like nothing happened. "done" means the loot really is
+ * in the history (or the session was accepted into the event); an inbox card
+ * that only *suggests* the event is "pending", whichever PC uploaded it. It
+ * used to count as "done", and the tool then showed "Importiert" for a raid
+ * whose loot page was still empty.
  *
  * @param {object[]} events    recent events (both sources), as loadEventGroups() gives them,
  *                             each already carrying its own `categoryId`/`categoryName`
@@ -182,8 +183,14 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
         if (!sessionId) continue;
         const resolved = resolveSession(sessionId);
         if (resolved && resolved.eventId) doneEventIds.add(resolved.eventId);
-        const suggested = pendingBySession.get(sessionId)?.match?.suggested;
-        if (suggested && suggested.eventId) doneEventIds.add(suggested.eventId);
+    }
+
+    // Every unconfirmed inbox card that names an event — not only the ones
+    // this PC sent: a card from another raidleader's upload waits just as much.
+    const inboxByEventId = new Map();
+    for (const entry of pending) {
+        const eventId = entry?.match?.suggested?.eventId;
+        if (eventId && !inboxByEventId.has(eventId)) inboxByEventId.set(eventId, entry);
     }
 
     const readyByEventId = new Map();
@@ -200,7 +207,8 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
     return events
         .map((ev) => {
             const done = doneEventIds.has(ev.id);
-            const session = done ? null : readyByEventId.get(ev.id) || null;
+            const inbox = done ? null : inboxByEventId.get(ev.id) || null;
+            const session = done || inbox ? null : readyByEventId.get(ev.id) || null;
             return {
                 eventId: ev.id,
                 title: ev.title || ev.id,
@@ -208,11 +216,13 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
                 categoryId: ev.categoryId || "",
                 categoryName: ev.categoryName || "",
                 source: ev.source || "",
-                status: done ? "done" : session ? "ready" : "empty",
+                status: done ? "done" : inbox ? "pending" : session ? "ready" : "empty",
                 matchedSessionId: session ? session.sessionId : null,
                 itemCount: session ? Number(session.items) || 0 : null,
                 gargul: session ? Number(session.gargul) || 0 : null,
                 rclc: session ? Number(session.rclc) || 0 : null,
+                // How much waits in the inbox card — "41 Items warten auf Bestätigung".
+                inboxItems: inbox ? Number(inbox.itemCount) || (inbox.items || []).length : null,
             };
         })
         .sort((a, b) => b.startTime - a.startTime);
@@ -222,7 +232,7 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
  * POST /api/ingest/raids — same bearer-token auth as ingestLoot above. The
  * loot-sync tool sends its local sessions' aggregate fields (no item detail
  * needed) and gets back the recent raids with their status, so its raid list
- * can show "done"/"ready"/"empty" without re-implementing the Europe/Berlin
+ * can show "done"/"pending"/"ready"/"empty" without re-implementing the Europe/Berlin
  * day-match this project already trusts for the real upload (see
  * computeRaidStatus() and lootEventMatch.js's bestDayMatch()).
  */

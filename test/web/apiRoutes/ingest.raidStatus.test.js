@@ -133,7 +133,17 @@ describe("POST /api/ingest/raids", () => {
             itemCount: 42,
             gargul: 42,
             rclc: 0,
+            inboxItems: null,
         }]);
+    });
+
+    it("reads the inbox cards from the store and reports them as pending", async () => {
+        loadEventGroups.mockResolvedValue({
+            groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC", startTime: 1784574000 }] }],
+        });
+        listPending.mockReturnValue([{ sessionId: SSC_SESSION.sessionId, itemCount: 42, match: { suggested: { eventId: "e1" } } }]);
+        const res = await request({ sessions: [SSC_SESSION] });
+        expect(json(res).data.raids[0]).toMatchObject({ status: "pending", inboxItems: 42, matchedSessionId: null });
     });
 
     it("treats an event already in the loot history as done, ignoring local sessions", async () => {
@@ -192,11 +202,42 @@ describe("computeRaidStatus", () => {
         expect(raid).toMatchObject({ status: "done" });
     });
 
-    it("is 'done' when a session is only pending, so a raidleader is never asked to upload twice", () => {
+    // Used to be "done", and the tool showed "Importiert" for a raid whose loot
+    // page was still empty — the card only waited in the Addon-Inbox.
+    it("is 'pending', not 'done', while the session waits unconfirmed in the inbox", () => {
         const [raid] = computeRaidStatus([event()], [session()], known({
-            pending: [{ sessionId: "s1", match: { suggested: { eventId: "e1" } } }],
+            pending: [{ sessionId: "s1", itemCount: 41, match: { suggested: { eventId: "e1" } } }],
         }));
-        expect(raid).toMatchObject({ status: "done" });
+        expect(raid).toMatchObject({ status: "pending", matchedSessionId: null, inboxItems: 41 });
+    });
+
+    it("is 'pending' for an inbox card another PC uploaded, too", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            pending: [{ sessionId: "other-pc", items: [{}, {}], match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "pending", inboxItems: 2 });
+    });
+
+    it("prefers 'done' over 'pending' once loot is in the history", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            lootedEventIds: new Set(["e1"]),
+            pending: [{ sessionId: "s2", itemCount: 3, match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "done", inboxItems: null });
+    });
+
+    it("never offers a local session as 'ready' for an event whose card waits in the inbox", () => {
+        const [raid] = computeRaidStatus([event()], [session({ sessionId: "s9" })], known({
+            pending: [{ sessionId: "other", itemCount: 5, match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "pending", matchedSessionId: null });
+    });
+
+    it("ignores an ambiguous inbox card that suggests no event", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            pending: [{ sessionId: "s1", itemCount: 5, match: { ambiguous: true, suggested: null } }],
+        }));
+        expect(raid).toMatchObject({ status: "empty", inboxItems: null });
     });
 
     it("ignores an excluded session", () => {
@@ -209,7 +250,7 @@ describe("computeRaidStatus", () => {
         const raids = computeRaidStatus(events, [session({ sessionId: "s1", startedAt: 1000 * 1000 })], known({
             pending: [{ sessionId: "s1", match: { suggested: { eventId: "e1" } } }],
         }));
-        expect(raids.find((r) => r.eventId === "e1")).toMatchObject({ status: "done" });
+        expect(raids.find((r) => r.eventId === "e1")).toMatchObject({ status: "pending" });
         expect(raids.find((r) => r.eventId === "e2")).toMatchObject({ status: "empty" });
     });
 
