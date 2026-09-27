@@ -335,8 +335,19 @@ Besides:
   name is never wider than the room to its neighbour (`ringNameWidth` -> `--rp-nw`, a long name ends in "…").
 - **The group badge** (3/4/5 on a member or a token) sits at the icon's upper right; the name hangs below, so
   they never meet (before it sat at the lower right, on the name's first line).
+- **The badge grows with its icon (#511).** "Das Gruppen-Badge ist beim Zoom kaum lesbar": it did scale with the
+  canvas, but at 0.42 of the icon with a digit smaller than the name, and the slot, token and auto-token badges
+  were placed from the zero-size anchor (their `right`/`top` meant for the icon's box) - they sat on the icon's
+  middle instead of its corner; only the split-group members, whose badge lived inside the button, sat right.
+  Now there is ONE badge: a child of the token's anchor for every kind (split members, placeholders, slots,
+  tokens, auto and task tokens; editor and `/p/<token>` alike), centred near the icon's upper right corner
+  (`.rp-canvas .rp-token > .rp-token-gbadge`). Its diameter, digit and rim come from `labelScale.ts`
+  `badgeMetrics` as `--rp-badge` / `--rp-bf` / `--rp-bb` (set with the other icon variables in `PlanBoard`
+  `effectVars`): BADGE_FACTOR 0.5 of the icon, at least BADGE_MIN 10 and at most BADGE_MAX 30 reference units,
+  never more than 0.8 of the icon; the digit is 0.6 of the badge (at the default token as big as the name).
+  Rim `--rp-icon-outline`, halo `--rp-text-halo` (the board is dark in both themes). No px size inline.
 
-Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts`, "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`.
+Tests: `src/web-client/src/lib/raidplan/labelScale.test.ts` (also "group badge metrics"), "names on a group ring" in `src/web-client/src/lib/raidplan/raidplan.roleGroups.test.ts`, "the group badge" in `src/web-client/src/pages/raid-detail/raidplan/BoardWorkspace.test.tsx`.
 
 **A group's own "Token size" (feature/raidplan-15).** Two more causes, both only with a token size away from
 the default:
