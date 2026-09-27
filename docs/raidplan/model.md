@@ -191,7 +191,9 @@ stay on rows whose title stays), typed rows are kept.
   place.
 - **Validation** (`cleanAssignments`, on every save): an unknown type becomes `other`; unknown or duplicate
   references are dropped and counted; at most 60 rows per board, 12 assignees and 12 targets per row, notes
-  200 and free text 60 characters; a user who is not in the event's lineup is dropped.
+  200 and free text 60 characters; a user who is not in the event's lineup is dropped. `preferredRole` (the row
+  dialog's "Rolle") is stored only as `melee`, `ranged`, `healer` or `tank`; anything else (and "egal") stores
+  nothing, so older rows stay as they are.
 - **Where:** every board. Two extra entries join the boss list of an event or template: **Trash** (key
   `<instance>/trash`, after the bosses of each instance: a full board, so trash pulls get slots, marks and
   rows, and it shows the instance's map) and **Allgemein** (key `general`, once at the end: no map board, only
@@ -208,7 +210,12 @@ stay on rows whose title stays), typed rows are kept.
   Doom; **thunderclap** = warrior tanks first; **demoshout** = the warriors; **trashtank** = tank n to mark n.
   **Nobody fits, nothing is suggested** (an empty answer, "Kein Vorschlag möglich"). Suggested rows are marked
   "Vorschlag" until they are edited by hand; a new suggestion replaces the earlier unedited ones of that type
-  and keeps rows made by hand.
+  and keeps rows made by hand. **Who of a class** (#501): the body may carry `preferredRole` (the row's role)
+  and `context` (the board's rows of the other types); the class-based suggestions and every class reference
+  go through ONE ranking (`rankCandidates`: role of the row +100 by the spec's role, a spell of the catalog +50,
+  a tank on a task not his −40, a healer on damage dealers' utility −20, −3 per row already held; a tie keeps
+  the setup order) and leave a tank / healer out only while somebody else is left. Details and the twins:
+  [editor.md, "Smarter suggestions"](editor.md#smarter-suggestions-the-rows-role-no-tanks-for-utility-load-501).
 - **UI:** under the board there is the Besetzung bar and the "Einteilungen" as cards per type; every row is
   ONE container (see "Round 7" below) that opens the row dialog; kick chips show their order (moved in the
   dialog). Heal assignments are drawn on the map as thin dashed lines in the healer colour (switch

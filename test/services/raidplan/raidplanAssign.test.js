@@ -101,8 +101,8 @@ describe("suggest: class based, never wrong, empty when nobody fits", () => {
         person("l2", "Warlock", "ranged"), person("p1", "Priest", "healer"), person("p2", "Paladin", "healer"),
     ];
     const slots = [slot("tank", 1), slot("tank", 2), slot("tank", 3)];
-    it("kicks: rogue, shaman, warrior in a rotation of three", () => {
-        expect(refs(assign.suggest("kick", { roster }))).toEqual(["user:r1+user:s1+user:t1>"]);
+    it("kicks: rogue, shaman, warrior in a rotation of three - the warrior who tanks is left out while another warrior can (#501)", () => {
+        expect(refs(assign.suggest("kick", { roster }))).toEqual(["user:r1+user:s1+user:w1>"]);
     });
     it("misdirects: hunters to tanks; fear ward: priest to tank; soulstone: warlock to healer; curses: warlocks", () => {
         expect(refs(assign.suggest("md", { roster, slots }))).toEqual(["user:h1>slot:tank:1", "user:h2>slot:tank:2", "user:r1>slot:tank:3"]);

@@ -92,6 +92,8 @@ export type RaidplanPlayer = {
     classColor: string;
     spec: string;
     specLabel: string;
+    /** the SPEC's own role (roleOfSpec: elemental = ranged, enhancement = melee); the ranking of suggestions reads it */
+    specRole?: string;
     role: string;
     iconUrl: string;
     group: number;
@@ -142,7 +144,7 @@ export type RaidplanSpellRef = { id: string; name: string; icon: string };
 export type RaidplanMobRef = { id: string; name: string; icon: string };
 export type RaidplanAssignType = "tank" | "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other";
 /** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean; /** "Auf Map setzen" of a task row (not a tank row): its named raiders stand on the map as auto tokens (lib/raidplan/autoPlace.ts) */ onMap?: boolean };
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean; /** "Auf Map setzen" of a task row (not a tank row): its named raiders stand on the map as auto tokens (lib/raidplan/autoPlace.ts) */ onMap?: boolean; /** the role the row prefers for suggestions and class references (melee / ranged / healer / tank; none = any) */ preferredRole?: string };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };
@@ -251,7 +253,7 @@ export function saveRaidplan(input: { event: string; version: number; bosses: Re
 }
 
 /** Suggested assignments of one type (nothing is saved); "slots" are the board's placeholder slots as the editor holds them. */
-export function suggestRaidplan(input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[] }): Promise<{ assignments: RaidplanAssignment[] }> {
+export function suggestRaidplan(input: { event?: string; type: string; preferredClasses?: string[]; allowOthers?: boolean; slots: { kind: string; n: number; userId: string }[]; roles?: Record<string, string>; /** the rows of this type made by hand: the suggestion goes round them */ keep?: RaidplanAssignment[]; /** the row's role (the ranking prefers raiders of it) */ preferredRole?: string; /** the board's rows of the other types: who tanks, who has how many tasks */ context?: RaidplanAssignment[] }): Promise<{ assignments: RaidplanAssignment[] }> {
     return send("POST", "/api/raidplan/suggest", input);
 }
 

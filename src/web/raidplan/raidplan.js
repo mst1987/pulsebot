@@ -63,6 +63,8 @@ function rosterFrom(lineup, versionId) {
             spec: p.spec || "",
             specLabel: (spec && spec.label) || "",
             role: resolveRole(p.role, spec),
+            // the SPEC's own role (roleOfSpec): the ranking tells an elemental from an enhancement shaman by it (#501)
+            specRole: (spec && spec.role) || "",
             iconUrl: wowIconUrl((spec && spec.icon) || (cls && cls.icon) || "", 56),
             group,
             // a Raid-Helper raider (raidhelperRoster.js): the name Raid-Helper shows, and whether no profile character was found for it
@@ -303,7 +305,7 @@ function publicView(plan, event, { me = "" } = {}) {
  * placeholder slots as the editor holds them, the event's roster (empty without an event, i.e.
  * in a template) and the raid's group numbers.
  */
-function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [] } = {}) {
+function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [] } = {}) {
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
     const roster = (event ? editorRoster(event) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
@@ -314,8 +316,15 @@ function suggestFor(type, { event = null, slots = [], roles = {}, preferredClass
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
     // a plan of a TBC raid never offers what only later game versions have (Tricks of the Trade); a template is a TBC one
     // the rows of this type the orga keeps (made by hand): the raiders they name are taken, the suggestion goes round the others
-    const kept = Array.isArray(keep) && keep.length > 0 ? (assign.cleanAssignments(keep.slice(0, assign.LIMITS.perBoard), new Set(roster.map((p) => p.userId))).assignments || []) : [];
-    return assign.suggest(type, { slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc", keep: kept });
+    const known = new Set(roster.map((p) => p.userId));
+    const rowsOf = (list) => (Array.isArray(list) && list.length > 0 ? (assign.cleanAssignments(list.slice(0, assign.LIMITS.perBoard), known).assignments || []) : []);
+    const kept = rowsOf(keep);
+    // the board's rows of the other kinds of task: who tanks here and who already has how many tasks (the ranking, #501)
+    const others = rowsOf(Array.isArray(context) ? context.filter((a) => a && a.type !== type) : []);
+    return assign.suggest(type, {
+        slots: clean, roster, groups, preferredClasses, allowOthers: allowOthers === true, versionId: event ? event.versionId || "tbc" : "tbc", keep: kept,
+        preferredRole: String(preferredRole || ""), context: others, roles: flex,
+    });
 }
 
 /** The Besetzung of an event without a template: its size, the planned tanks and healers, the damage dealers split evenly. */

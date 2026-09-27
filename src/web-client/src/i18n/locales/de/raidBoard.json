@@ -626,6 +626,16 @@
         "noFallback": "Passt niemand, bleibt der Platz offen. Kein Ersatz durch andere Klassen.",
         "removeClass": "Klasse entfernen",
         "forSuggest": "Für Vorschläge bevorzugen",
+        "prefRole": "Rolle",
+        "prefRoleAria": "Bevorzugte Rolle der Zeile",
+        "prefRoleTip": "Vorschläge und Klassen nehmen zuerst Spieler dieser Rolle (aus der Spec im Setup); andere bleiben wählbar.",
+        "prefRoles": {
+            "any": "egal",
+            "melee": "Nahkampf",
+            "ranged": "Fernkampf",
+            "healer": "Heiler",
+            "tank": "Tank"
+        },
         "textTarget": "Freitext als Ziel (Enter)",
         "note": "Notiz zur Zeile",
         "quick": "Schnellwahl",

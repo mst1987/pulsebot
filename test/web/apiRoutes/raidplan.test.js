@@ -164,6 +164,23 @@ describe("PUT /api/raidplan", () => {
     });
 });
 
+describe("suggestions (#501: role of the row, tanks, load)", () => {
+    beforeEach(() => {
+        const slots = [person("m1", "Tankmage", "Mage-Frost", "ranged"), person("m2", "Frosty", "Mage-Frost", "ranged"),
+            person("s1", "Enhy", "Shaman-Enhancement", "melee"), person("s2", "Elly", "Shaman-Elemental", "ranged")];
+        mockEvents.eh_1 = eventWith({ groups: [{ index: 1, slots }], bench: [], approved: { ...APPROVED, groups: [{ index: 1, slots }], bench: [] } });
+    });
+    it("passes the row's role and the board's other rows (a mage tank) to the ranking", async () => {
+        const kick = (extra) => call(route.postSuggest, ORGA, { event: "eh_1", type: "kick", slots: [], ...extra }).then(body);
+        const tankRow = { id: "t", type: "tank", assignees: ["user:m1"], targets: [] };
+        expect((await kick({ preferredClasses: ["Mage"], context: [tankRow] })).assignments[0].assignees).toEqual(["user:m2"]);
+        expect((await kick({ preferredClasses: ["Mage"] })).assignments[0].assignees).toEqual(["user:m1", "user:m2"]);
+        const ranged = await kick({ preferredClasses: ["Shaman"], preferredRole: "ranged" });
+        expect(ranged.assignments[0]).toMatchObject({ assignees: ["user:s2", "user:s1"], preferredRole: "ranged" });
+        expect((await kick({ preferredClasses: ["Shaman"], preferredRole: "nonsense" })).assignments[0].assignees).toEqual(["user:s1", "user:s2"]);
+    });
+});
+
 describe("publishing", () => {
     it("publishes with a link, withdraws it and rotates it", async () => {
         const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
