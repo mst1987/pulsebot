@@ -9,6 +9,7 @@ import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanPlayer, RaidplanSl
 import { JobsProvider } from "../../../components/Jobs";
 import { ConfirmProvider } from "../../../components/ui/Modal";
 import { boardOf, emptyBoard } from "../../../lib/raidplan";
+import { badgeMetrics } from "../../../lib/raidplan/labelScale";
 import BoardWorkspace from "./BoardWorkspace";
 import { useDraftHistory } from "./useDraftHistory";
 
@@ -379,5 +380,36 @@ describe("BoardWorkspace: the lines of the rows", () => {
         expect(container.querySelector(".rp-links")).toBeNull();
         const empty = setup({ zones: [] }, true, ROSTER);
         expect(empty.container.querySelector(".rp-links")).toBeNull();
+    });
+});
+
+// #511: the group badge grows with its icon (lib/raidplan/labelScale.ts badgeMetrics) and sits the same way on every kind of token
+describe("BoardWorkspace: the group badge", () => {
+    const badgeOf = (tok: HTMLElement) => {
+        const badge = tok.querySelector<HTMLElement>(":scope > .rp-token-gbadge");
+        expect(badge).not.toBeNull();
+        // a child of the token's anchor, never inside the icon's button, and sized only through the variables
+        expect(tok.querySelector(".rp-token-btn .rp-token-gbadge")).toBeNull();
+        for (const prop of ["width", "height", "min-width", "font-size", "line-height", "left", "top"]) expect(badge!.style.getPropertyValue(prop)).toBe("");
+        return badge!;
+    };
+
+    it("a member of a split group: the badge variables follow the member's icon", () => {
+        const { obj } = setup({ zones: [], slots: [groupSlot(true)] }, true, ROSTER);
+        const member = obj("member:g1~u1")!;
+        expect(badgeOf(member).textContent).toBe("1");
+        const px = parseFloat(member.style.getPropertyValue("--rp-s"));
+        expect(px).toBeGreaterThan(0);
+        expect(member.style.getPropertyValue("--rp-badge")).toBe(`${badgeMetrics(px).size}px`);
+        expect(member.style.getPropertyValue("--rp-bf")).toBe(`${badgeMetrics(px).font}px`);
+        expect(member.style.getPropertyValue("--rp-bb")).toBe(`${badgeMetrics(px).border}px`);
+    });
+
+    it("a task token on the map: the same badge, the same variables", () => {
+        const { obj } = setup({ zones: [], slots: [groupSlot(false)], assignments: [taskRow("k1", "kick", ["user:u1"], { onMap: true })] }, true, ROSTER);
+        const tok = obj("auto:t:k1:1")!;
+        expect(badgeOf(tok).textContent).toBe("1");
+        const px = parseFloat(tok.style.getPropertyValue("--rp-s"));
+        expect(tok.style.getPropertyValue("--rp-badge")).toBe(`${badgeMetrics(px).size}px`);
     });
 });

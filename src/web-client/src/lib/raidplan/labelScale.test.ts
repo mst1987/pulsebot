@@ -55,3 +55,30 @@ describe("effects round an icon scale with the icon (effectMetrics)", () => {
         expect(ls.effectMetrics(-5).glow).toBe(0);
     });
 });
+
+describe("group badge metrics (#511)", () => {
+    it("a normal icon: half the icon, the digit as big as the name", () => {
+        const m = ls.badgeMetrics(38);
+        expect(m.size).toBeCloseTo(19, 9);
+        expect(m.font).toBeCloseTo(38 * ls.NAME_FACTOR, 9);
+        expect(m.border).toBeCloseTo(19 * ls.BADGE_BORDER, 9);
+    });
+    it("grows with the icon between floor and ceiling (the zoom scales the whole canvas on top)", () => {
+        expect(ls.badgeMetrics(30).size).toBeCloseTo(15, 9);
+        expect(ls.badgeMetrics(50).size).toBeCloseTo(25, 9);
+        expect(ls.badgeMetrics(50).size).toBeGreaterThan(ls.badgeMetrics(38).size);
+    });
+    it("a small icon keeps a legible badge, but never one bigger than the icon's share", () => {
+        expect(ls.badgeMetrics(16).size).toBe(ls.BADGE_MIN);
+        expect(ls.badgeMetrics(8).size).toBeCloseTo(8 * ls.BADGE_MAX_SHARE, 9);
+    });
+    it("a very big icon gets a capped badge", () => {
+        expect(ls.badgeMetrics(76).size).toBe(ls.BADGE_MAX);
+        expect(ls.badgeMetrics(200).size).toBe(ls.BADGE_MAX);
+        expect(ls.badgeMetrics(200).font).toBeCloseTo(ls.BADGE_MAX * ls.BADGE_FONT, 9);
+    });
+    it("no size: nothing", () => {
+        expect(ls.badgeMetrics(0).size).toBe(0);
+        expect(ls.badgeMetrics(-5).size).toBe(0);
+    });
+});
