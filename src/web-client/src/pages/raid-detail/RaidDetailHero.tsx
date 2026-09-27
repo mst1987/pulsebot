@@ -2,7 +2,7 @@
 // day, two icon buttons (event post, raidplan), the one primary action — and
 // under it the progress bar, where every step is figure, status and entry at once.
 //
-// An own event (#319) hands in its five-step cockpit as `cockpit` instead; it
+// An own event (#319) hands in its six-step cockpit as `cockpit` instead; it
 // carries the one prominent deed itself, so the head's primary button stays out
 // of the way — the same action twice in one head is exactly the doubling the
 // cockpit exists to end. A Raid-Helper event keeps the bar of #219 unchanged.

@@ -1,6 +1,7 @@
 // Das Raid-Cockpit (#319): die Schritt-Leiste im Kopf eines *eigenen* Events.
 //
-// Fünf Kacheln — Angelegt › Anmeldung › Setup › Freigabe › Nachbereitung —, je
+// Sechs Kacheln — Angelegt › Anmeldung › Setup › Freigabe › Einteilungen ›
+// Nachbereitung —, je
 // Kachel ein Zustand, eine große Zahl und höchstens eine Tat. Der offene Schritt
 // ist markiert und trägt die Haupt-Tat als einzigen auffälligen Knopf; jede
 // andere Kachel ist still und führt per Klick dorthin, wo sie hingehört. Der

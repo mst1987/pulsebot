@@ -68,6 +68,7 @@
             "signup": "Anmeldung",
             "setup": "Setup",
             "approval": "Freigabe",
+            "plan": "Einteilungen",
             "after": "Nachbereitung"
         },
         "deed": {
@@ -79,6 +80,8 @@
             "propose": "Setup vorschlagen",
             "post": "Setup posten",
             "approve": "Setup freigeben",
+            "raidplan": "Einteilungen posten",
+            "plan": "Raidplan öffnen",
             "log": "Log zuordnen",
             "loot": "Loot importieren",
             "reopen": "Absage zurücknehmen"

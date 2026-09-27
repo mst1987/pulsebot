@@ -68,6 +68,7 @@
             "signup": "Signups",
             "setup": "Setup",
             "approval": "Approval",
+            "plan": "Assignments",
             "after": "Wrap-up"
         },
         "deed": {
@@ -79,6 +80,8 @@
             "propose": "Suggest setup",
             "post": "Post setup",
             "approve": "Approve setup",
+            "raidplan": "Post assignments",
+            "plan": "Open raid plan",
             "log": "Assign log",
             "loot": "Import loot",
             "reopen": "Undo cancellation"

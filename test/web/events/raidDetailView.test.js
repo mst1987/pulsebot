@@ -23,6 +23,7 @@ jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => nul
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
+jest.mock("../../../src/stores/raidplanPostStore", () => ({ getRaidplanPost: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventLootSystemStore", () => ({ lootSystemOf: jest.fn(() => "softres") }));
 jest.mock("../../../src/stores/lootStore", () => ({ listByEvent: jest.fn(() => []), listAll: jest.fn(() => []) }));
@@ -96,7 +97,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(Object.keys(body)).toEqual([
             "event", "setupFromSnapshot", "categoryName", "guildId", "eventsWarning", "notifyTemplates", "roles", "pingTargets",
-            "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "eventSoftres",
+            "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresSuggested", "attendance", "ownSignups", "ownSetup", "ownSetupPost",
             "attendanceRoleIds", "membersError", "signupTarget", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "progress", "steps", "playerSummaries",
@@ -120,6 +121,9 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(body.ownSignups).toBeNull();
         expect(body.steps).toBeNull();
         expect(Array.isArray(body.progress.steps)).toBe(true);
+        // the plan is switched on but empty (#502): nothing posted, nothing to post
+        expect(body.raidplanPost).toEqual({ filled: false, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0 });
+        expect(body.progress.steps.map((s) => s.key)).toContain("raidplan");
         expect(body.eventsWarning).toBeNull();
         expect(body.roles).toEqual([{ id: "r1", name: "Raider" }]);
     });

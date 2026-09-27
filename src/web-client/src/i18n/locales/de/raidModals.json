@@ -8,6 +8,20 @@
         "openPosted": "Gepostete Nachricht öffnen",
         "updateMessage": "Nachricht aktualisieren"
     },
+    "raidplan": {
+        "title": "Einteilungen posten",
+        "published": "Raidplan freigegeben",
+        "draft": "Raidplan noch nicht freigegeben",
+        "empty": "Raidplan noch leer",
+        "publishedHint": "Der Link zeigt den gespeicherten Stand der Einteilungen.",
+        "draftHint": "Beim Posten wird der Raidplan freigegeben; der Link zeigt den gespeicherten Stand.",
+        "emptyHint": "Erst im Tab „Raidplan“ einteilen und speichern.",
+        "postedAt": "gepostet am {date}",
+        "open": "Lese-Ansicht öffnen",
+        "postKicker": "In den Event-Kanal posten",
+        "messagePlaceholder": "z. B. Bitte vor dem ersten Pull lesen",
+        "post": "Einteilungen posten"
+    },
     "itemSearch": {
         "placeholder": "Item-Namen suchen (Wowhead) …"
     },
