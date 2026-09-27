@@ -69,7 +69,7 @@ Technik: [raidplan.md](raidplan.md)
 - **Rollen-Gruppen** (Melees, Ranged, Heiler, Tanks) haben einen einfachen Rand und ihr Symbol einmal in der Mitte; Symbol, Schrift und die Namen darunter wachsen und schrumpfen mit der Zone. Neben den vier Ecken gibt es Griffe in der Mitte jeder Kante: damit ziehst du ein Rechteck nur in die Höhe oder nur in die Breite.
 - **Gruppen-Chip mit Namen:** Der Chip ist so breit wie der längste Name (bis zu einer Obergrenze); Namen brechen nicht mehr mittendrin um. Unter „Breite des Gruppen-Chips“ im Inspektor stellst du eine feste Breite ein (0 = automatisch).
 - **Speichern** schreibt den Plan; hat jemand anderes inzwischen gespeichert, meldet der Editor einen Konflikt und lädt erst nach deiner Bestätigung neu.
-- **Freigeben & teilen** erzeugt einen Link (`/p/<token>`), den jeder ohne Anmeldung lesen kann (Karte + Aufgabentabelle je Boss). Angemeldete Raider sehen ihren eigenen Token hervorgehoben. Spieler nennt die Lese-Ansicht erst, wenn das Setup freigegeben ist. Die Freigabe lässt sich zurücknehmen oder der Link erneuern.
+- **Freigeben & teilen** erzeugt einen Link (`/p/<token>`), den jeder ohne Anmeldung lesen kann (Karte + Aufgabentabelle je Boss). Angemeldete Raider sehen ihren eigenen Token hervorgehoben; Boss-Reiter, bei denen sie persönlich eingeteilt sind (namentlich oder als Ziel, nicht nur über Rolle oder Gruppe), tragen einen kleinen Punkt („Du hast hier Einteilungen“). Spieler nennt die Lese-Ansicht erst, wenn das Setup freigegeben ist. Die Freigabe lässt sich zurücknehmen oder der Link erneuern.
 
 ## Raidplan-Vorlagen
 

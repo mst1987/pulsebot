@@ -163,8 +163,11 @@ describe("tooltips and modal dialogs", () => {
 
     it("leaves no module its own tooltip layer or focus workaround", () => {
         const sources = Object.fromEntries(clientSources());
+        // the one other layer: the public plan page (/p/<token>) renders without the menu shell (App.tsx answers it before the session),
+        // so it mounts the same TipLayer itself (#503) - still one layer per page
+        const shells = ["components/Shell.tsx", "components/ui/Tip.tsx", "pages/PlanPublicPage.tsx"];
         const layers = Object.entries(sources)
-            .filter(([name, src]) => name !== "components/Shell.tsx" && name !== "components/ui/Tip.tsx" && /<TipLayer\s*\/>/.test(src))
+            .filter(([name, src]) => shells.indexOf(name) < 0 && /<TipLayer\s*\/>/.test(src))
             .map(([name]) => name);
         expect(layers).toEqual([]);
         for (const name of ["pages/history/ItemAwardsDialog.tsx", "pages/history/LootInboxTab.tsx", "pages/history/ManualLootForm.tsx", "pages/recruitment/Editors.tsx", "pages/recruitment/PostDialog.tsx", "pages/recruitment/ApplicationsTab.tsx"]) {

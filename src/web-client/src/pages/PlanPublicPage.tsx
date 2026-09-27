@@ -14,9 +14,12 @@ import { autoPlaces, deriveAuto } from "../lib/raidplan/autoPlace";
 import PlanBoard from "../components/raidplan/PlanBoard";
 import ReadTables from "./raid-detail/raidplan/ReadTables";
 import ReadSteps from "./raid-detail/raidplan/ReadSteps";
+import SheetBossNav from "./raid-detail/raidplan/SheetBossNav";
+import { bossesWithMine } from "../lib/raidplan/bossMine";
 import { assignmentLinks, isMine } from "../lib/raidplan/assign";
 import { splitMine } from "../lib/raidplan/mineView";
 import RaidLoader from "../components/ui/RaidLoader";
+import { TipLayer } from "../components/ui/Tip";
 import LangToggle from "../components/LangToggle";
 import ThemeToggle from "../components/ThemeToggle";
 import { formatEventTime } from "../lib/format";
@@ -62,6 +65,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
     }, []);
 
     const players = useMemo(() => rosterMap(data ? data.roster : []), [data]);
+    // the sections where the visitor is personally assigned: their chips carry a dot (issue #503)
+    const mineKeys = useMemo(() => bossesWithMine(data ? data.bosses : [], players, data ? data.meIds : []), [data, players]);
 
     if (error) {
         return (
@@ -97,6 +102,8 @@ export default function PlanPublicPage({ token }: { token: string }) {
 
     return (
         <div className="rp-public rp-wide">
+            {/* the page has no menu shell: its own layer draws the data-tip boxes (the chips, the zoom buttons) */}
+            <TipLayer />
             <header className="rp-public-head">
                 <div className="rp-public-titles">
                     <span className="rp-kicker">{t("raidBoard.public.kicker")}</span>
@@ -115,21 +122,10 @@ export default function PlanPublicPage({ token }: { token: string }) {
 
             {data.bosses.length > 0 && (
                 <>
-                    <nav className="rp-bossnav rp-public-nav" aria-label={t("raidBoard.bosses.title")}>
-                        {data.me && data.meIds.length > 0 && (
-                            <button type="button" className={`rp-bosschip rp-onlymine${onlyMine ? " is-on" : ""}`} aria-pressed={onlyMine} data-tip={t("raidBoard.read.onlyMineTip")} onClick={() => setOnlyMine((v) => !v)}>{t("raidBoard.read.onlyMine")}</button>
-                        )}
-                        {shownBosses.map((b) => {
-                            const on = boss !== null && b.key === boss.key;
-                            // icon and name on every chip (the same bar as the editor's BossNav)
-                            return (
-                                <button key={b.key} type="button" className={`rp-bosschip${on ? " is-on" : ""}`} aria-current={on ? "true" : undefined} aria-label={label(b)} onClick={() => setSelected(b.key)}>
-                                    <img src={b.iconUrl} alt="" width={24} height={24} />
-                                    <span className="rp-bosschip-name">{label(b)}</span>
-                                </button>
-                            );
-                        })}
-                    </nav>
+                    <SheetBossNav
+                        bosses={shownBosses} selectedKey={boss ? boss.key : ""} mineKeys={mineKeys} label={label} onSelect={setSelected}
+                        showOnlyMine={!!data.me && data.meIds.length > 0} onlyMine={onlyMine} onToggleOnlyMine={() => setOnlyMine((v) => !v)}
+                    />
 
                     {boss && ctx && (
                         <div className={`rp-read-2col${boss.general || boss.showMap === false ? " no-board" : ""}${boss.showMap === false && !boss.general ? " no-map" : ""}${mapOnly ? " is-map-only" : ""}`}>
