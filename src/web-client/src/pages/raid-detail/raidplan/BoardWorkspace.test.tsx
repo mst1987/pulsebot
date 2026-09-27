@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanZone } from "../../../api";
+import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanPlayer, RaidplanSlot, RaidplanZone } from "../../../api";
 import { JobsProvider } from "../../../components/Jobs";
 import { ConfirmProvider } from "../../../components/ui/Modal";
 import { boardOf, emptyBoard } from "../../../lib/raidplan";
@@ -25,15 +25,15 @@ function start(over: Partial<RaidplanBoard> = {}): RaidplanBoard {
 }
 
 /** A parent like the raid plan tab: the draft with its history, and a "Speichern" that hands over the board. */
-function Harness({ initial, onSave, canWrite = true }: { initial: RaidplanBoard; onSave: (b: RaidplanBoard) => void; canWrite?: boolean }) {
+function Harness({ initial, onSave, canWrite = true, roster = [] }: { initial: RaidplanBoard; onSave: (b: RaidplanBoard) => void; canWrite?: boolean; roster?: RaidplanPlayer[] }) {
     const h = useDraftHistory();
     const ready = useRef(false);
     useEffect(() => { h.reset({ b1: initial }); ready.current = true; }, []); // eslint-disable-line react-hooks/exhaustive-deps
     const board = boardOf(h.draft, "b1");
     return (
         <BoardWorkspace
-            mode="template" eventId="" besetzung={BES} catalog={null} boss={BOSS} allBosses={[BOSS]} board={board}
-            edit={(fn, coalesce) => h.edit("b1", fn, coalesce)} roster={[]} canWrite={canWrite}
+            mode={roster.length > 0 ? "event" : "template"} eventId={roster.length > 0 ? "e1" : ""} besetzung={BES} catalog={null} boss={BOSS} allBosses={[BOSS]} board={board}
+            edit={(fn, coalesce) => h.edit("b1", fn, coalesce)} roster={roster} canWrite={canWrite}
             limits={{ targetsPerBoss: 10, title: 60, notes: 500 }} profileName="" onPickProfile={() => undefined}
             history={{ undo: h.undo, redo: h.redo, canUndo: h.canUndo, canRedo: h.canRedo }}
             bossNav={null} mapRows={[]} onMapsChanged={() => undefined}
@@ -42,12 +42,12 @@ function Harness({ initial, onSave, canWrite = true }: { initial: RaidplanBoard;
     );
 }
 
-function setup(over: Partial<RaidplanBoard> = {}, canWrite = true) {
+function setup(over: Partial<RaidplanBoard> = {}, canWrite = true, roster: RaidplanPlayer[] = []) {
     const saved: RaidplanBoard[] = [];
     const view = render(
         <JobsProvider>
             <ConfirmProvider>
-                <Harness initial={start(over)} onSave={(b) => saved.push(b)} canWrite={canWrite} />
+                <Harness initial={start(over)} onSave={(b) => saved.push(b)} canWrite={canWrite} roster={roster} />
             </ConfirmProvider>
         </JobsProvider>,
     );
@@ -227,5 +227,55 @@ describe("BoardWorkspace: the board's own menu", () => {
         expect(items.length).toBeGreaterThan(10);
         await act(async () => { fireEvent.click(items[items.length - 1]); });
         expect(save().zones).toHaveLength(0);
+    });
+});
+
+// #496: after a group marker is split, each of its raiders is dragged on his own (his place is stored relative to the marker)
+const player = (userId: string, character: string): RaidplanPlayer => ({
+    userId, character, classId: "warrior", className: "Warrior", classColor: "#c79c6e", spec: "Warrior-Arms", specLabel: "Arms", role: "melee", iconUrl: "", group: 1,
+});
+const ROSTER = [player("u1", "Klinge"), player("u2", "Schild"), player("u3", "Axt")];
+const groupSlot = (split: boolean): RaidplanSlot => ({
+    id: "g1", kind: "group", n: 1, label: "", x: 0.5, y: 0.5, userId: "", size: 38, hideMembers: false, split, offsets: {}, placed: true,
+    opacity: 1, lock: false, hidden: false,
+});
+
+describe("BoardWorkspace: a split group", () => {
+    it("splits a group marker from its menu, then drags one raider on his own, one undo puts him back", async () => {
+        const { obj, save } = setup({ zones: [], slots: [groupSlot(false)] }, true, ROSTER);
+        expect(obj("member:g1~u1")).toBeNull();
+        fireEvent.contextMenu(obj("slot:g1")!, { clientX: 500, clientY: 312 });
+        await act(async () => { fireEvent.click(await screen.findByRole("menuitem", { name: "Aufsplitten" })); });
+        expect(save().slots[0].split).toBe(true);
+        const member = obj("member:g1~u1")!;
+        expect(member).not.toBeNull();
+        // every box in jsdom is the board (1000 x 625 at 0 / 0): the member is taken 400 / 252.5 px off its middle, so the pointer at
+        // 100 / 60 means the member's middle at 0.5 / 0.5, 100 px to the right and 62.5 px down -> 0.6 / 0.6 on the board
+        down(member.querySelector(".rp-token-btn")!, { clientX: 100, clientY: 60 });
+        fireEvent.pointerMove(window, { clientX: 150, clientY: 90 });
+        fireEvent.pointerMove(window, { clientX: 200, clientY: 122.5 });
+        up(200, 122.5);
+        const off = save().slots[0].offsets.u1;
+        expect(off.dx).toBeCloseTo(0.1);
+        expect(off.dy).toBeCloseTo(0.1);
+        // only he moved, the marker and the others stay
+        expect(save().slots[0]).toMatchObject({ x: 0.5, y: 0.5 });
+        expect(save().slots[0].offsets.u2).toBeUndefined();
+        expect(obj("member:g1~u1")).toHaveClass("is-selected");
+        winKey("z", { ctrlKey: true });
+        expect(save().slots[0].offsets.u1).toBeUndefined();
+    });
+
+    it("drags a raider of a group that was saved split, twice in a row", () => {
+        const { obj, save } = setup({ zones: [], slots: [{ ...groupSlot(true), offsets: { u2: { dx: 0.05, dy: 0, size: 38 } } }] }, true, ROSTER);
+        const drag = (dx: number, dy: number) => {
+            down(obj("member:g1~u2")!.querySelector(".rp-token-btn")!, { clientX: 100, clientY: 60 });
+            fireEvent.pointerMove(window, { clientX: 100 + dx, clientY: 60 + dy });
+            up(100 + dx, 60 + dy);
+        };
+        drag(-100, 0);
+        expect(save().slots[0].offsets.u2).toMatchObject({ dx: expect.closeTo(0.4 - 0.5), dy: expect.closeTo(0), size: 38 });
+        drag(0, 62.5);
+        expect(save().slots[0].offsets.u2.dy).toBeCloseTo(0.1);
     });
 });
