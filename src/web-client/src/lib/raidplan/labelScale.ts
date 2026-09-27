@@ -33,3 +33,23 @@ export function effectMetrics(size: number): { ring: number; glow: number; sprea
     const s = size > 0 ? size : 0;
     return { ring: s * RING_FACTOR, glow: s * GLOW_FACTOR, spread: s * GLOW_SPREAD_FACTOR, select: s * SELECT_GLOW_FACTOR, shadow: s * SHADOW_FACTOR, outline: s * OUTLINE_FACTOR };
 }
+
+/**
+ * The group badge (3/4/5 at an icon's upper right, #511): a share of the icon like the name, so it grows with the icon and the zoom, but with a
+ * floor (a badge on a small icon stays legible) and a ceiling (a very big icon does not get a bulky badge), both in reference units, so the
+ * picture is still the same at every zoom. Never bigger than BADGE_MAX_SHARE of the icon itself. The digit is BADGE_FONT of the badge, which
+ * at the default token (38) is the name's font (NAME_FACTOR): before, the badge was 0.42 of the icon and its digit smaller than the name.
+ */
+export const BADGE_FACTOR = 0.5;
+export const BADGE_MIN = 10;
+export const BADGE_MAX = 30;
+export const BADGE_MAX_SHARE = 0.8;
+export const BADGE_FONT = 0.6;
+export const BADGE_BORDER = 0.07;
+
+/** The badge's diameter, digit font and rim (reference units) on an icon of `size` units. */
+export function badgeMetrics(size: number): { size: number; font: number; border: number } {
+    const s = size > 0 ? size : 0;
+    const b = Math.min(Math.max(s * BADGE_FACTOR, BADGE_MIN), BADGE_MAX, s * BADGE_MAX_SHARE);
+    return { size: b, font: b * BADGE_FONT, border: b * BADGE_BORDER };
+}

@@ -1,5 +1,5 @@
 import { REF_W, boardScale, canvasStyle } from "../../lib/raidplan/boardScale";
-import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, effectMetrics, labelMetrics } from "../../lib/raidplan/labelScale";
+import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, badgeMetrics, effectMetrics, labelMetrics } from "../../lib/raidplan/labelScale";
 import { FIT, type BoardView } from "../../lib/raidplan/boardView";
 import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
 import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
@@ -222,8 +222,10 @@ export default function PlanBoard({
     const screenScale = boardScale(outer.w) * view.z;
     const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
     const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
+    /** the group badge at the icon's upper right (lib/raidplan/labelScale.ts badgeMetrics, #511): its diameter, digit and rim as reference-unit variables */
+    const badgeVars = (px: number) => { const b = badgeMetrics(px); return { "--rp-badge": `${b.size}px`, "--rp-bf": `${b.font}px`, "--rp-bb": `${b.border}px` }; };
     /** the effects round an icon (me ring and glow, selection glow, shadow, outline) as reference-unit variables: shares of the icon's size, like the label */
-    const effectVars = (px: number) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px` }; };
+    const effectVars = (px: number) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px`, ...badgeVars(px) }; };
     const sizeStyle = (size: number | undefined, def: number) => ({ "--rp-s": `${scaled(size, def)}px`, "--rp-nf": `${labelOf(scaled(size, def), def).font}px`, ...effectVars(scaled(size, def)) }) as CSSProperties;
     /** " is-noname" when the object's name is off or would not fit its icon */
     const noName = (size: number | undefined, def: number, mult: number, show: boolean | undefined) => (show === false || !labelOf(scaled(size, def) * mult, def).show ? " is-noname" : "");
@@ -548,7 +550,7 @@ export default function PlanBoard({
                                 <div key={`ph-${i}`} className="rp-token rp-member rp-member-ph" aria-hidden="true" style={{ "--rp-x": `${(s.x + h.dx) * 100}%`, "--rp-y": `${(s.y + h.dy) * 100}%`, "--rp-o": s.opacity, ...memberSize(s.size) } as CSSProperties}>
                                     <span className="rp-token-btn"><span className={`rp-ico rp-ico-open rp-role-${PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]}`}>
                                         <WowIcon name={ROLE_ICONS[PLACEHOLDER_ROLES[i % GROUP_PLACEHOLDERS]]} size={Math.max(12, Math.round(memberPx * 0.58))} />
-                                    </span><span className="rp-token-gbadge">{tag.number}</span></span>
+                                    </span></span><span className="rp-token-gbadge">{tag.number}</span>
                                 </div>
                             ))}
                             {around.map((p) => {
@@ -569,8 +571,8 @@ export default function PlanBoard({
                                             data-tip={playerLabel(p)} {...handlers("member", id)}
                                         >
                                             <TokenIcon player={p} />
-                                            {tag.badges && <span className="rp-token-gbadge" aria-hidden="true">{tag.number}</span>}
                                         </button>
+                                        {tag.badges && <span className="rp-token-gbadge" aria-hidden="true">{tag.number}</span>}
                                         <span className="rp-token-name"><PlayerName player={p} /></span>
                                         {mineHere && <span className="rp-token-me">{t("raidBoard.board.you")}</span>}
                                         {sizeHandle("member", id, s.lock)}
