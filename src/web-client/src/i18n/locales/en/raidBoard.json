@@ -688,7 +688,8 @@
         "byGroup": "By group",
         "byHealer": "By healer",
         "onlyMine": "Only for me",
-        "onlyMineTip": "Only the sections and tasks that concern you"
+        "onlyMineTip": "Only the sections and tasks that concern you",
+        "hasMine": "You have assignments here"
     },
     "multi": {
         "count": "{n} selected",
