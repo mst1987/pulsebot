@@ -344,3 +344,40 @@ describe("BoardWorkspace: a task row on the map", () => {
         expect(screen.queryByRole("button", { name: "Auf Map setzen" })).toBeNull();
     });
 });
+
+// #507: the lines of the rows (heal -> tank, tank -> mob, kick -> mob) are drawn between the auto tokens and mobs, one class per row type
+describe("BoardWorkspace: the lines of the rows", () => {
+    const mob = { kind: "mob" as const, ref: "b:hydross", name: "Hydross", icon: "" };
+    const rows = [
+        taskRow("t1", "tank", ["user:u1"], { targets: [mob] }),
+        taskRow("h1", "heal", ["user:u2"], { targets: [{ kind: "player", ref: "u1" }], onMap: true }),
+        taskRow("k1", "kick", ["user:u3"], { targets: [mob], onMap: true }),
+    ];
+    // jsdom has no layout: the board reads its size from clientWidth / clientHeight, the lines need one
+    beforeEach(() => {
+        vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1000);
+        vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(625);
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
+    it("draws a heal, a tank and a kick line, each coloured by its type and nothing that hides it", () => {
+        const { container } = setup({ zones: [], assignments: rows }, true, ROSTER);
+        const svg = container.querySelector(".rp-links")!;
+        expect(svg).not.toBeNull();
+        expect(svg.getAttribute("style")).toBeNull();
+        const lines = [...svg.querySelectorAll("line")];
+        expect(lines.map((l) => l.getAttribute("class"))).toEqual(["rp-link--tank", "rp-link--heal", "rp-link--kick"]);
+        for (const l of lines) {
+            // the colour comes from the class (tokens.css), never a stroke of its own that could be empty or hidden
+            expect(l.getAttribute("stroke")).toBeNull();
+            expect(l.getAttribute("style")).toBeNull();
+            expect(l.getAttribute("x1") === l.getAttribute("x2") && l.getAttribute("y1") === l.getAttribute("y2")).toBe(false);
+        }
+    });
+    it("draws nothing when the lines are switched off, and a board without rows has no line layer", () => {
+        const { container } = setup({ zones: [], assignments: rows }, true, ROSTER);
+        fireEvent.click(screen.getByRole("checkbox", { name: "Verbindungen zeigen" }));
+        expect(container.querySelector(".rp-links")).toBeNull();
+        const empty = setup({ zones: [] }, true, ROSTER);
+        expect(empty.container.querySelector(".rp-links")).toBeNull();
+    });
+});

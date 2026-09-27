@@ -197,10 +197,10 @@ mechanism as the tanks of a tank row, not a second one: the tokens are **derived
 - **References**: the row's assignee is the reference, so "Neu zuweisen", a setup change or a new pick in the row
   moves the token to the new raider; deleting the row (or taking the pin off) removes its tokens; a position moved
   by hand stays in `autoPos` under its key (a row that comes back under the same key finds it) - as for tank rows.
-- **What stays tank-specific**: no mob is derived from a task row, there is no "Tankt →" line or menu entry on its
+- **What stays tank-specific**: no mob is derived from a task row, there is no "Tankt →" menu entry on its
   tokens, no facing of a mob follows them, and the tooltip names the task ("Arkanix · Unterbrecher · aus Einteilung")
-  instead of "→ mob". A task row's targets keep their thin lines where they already had them (heal-style lines find
-  the raider at his token through `autoPlaces`). The inspector says "Aufgabe: <type>" and "Zeile bearbeiten …".
+  instead of "→ mob". A task row's line goes from its token to each of its targets on the map (see "Connection lines
+  of the rows" below). The inspector says "Aufgabe: <type>" and "Zeile bearbeiten …".
 - **Sheet and "Meine Aufgaben"**: `raidplanAssign.cleanAssignments` stores `onMap: true` only when it is exactly true
   and never on a tank row (older rows and the golden-master fixtures are unchanged); `publicView` passes the row as
   it is, and `PlanPublicPage` derives the same tokens, the viewer's own with the "DU" highlight.
@@ -211,6 +211,52 @@ mechanism as the tanks of a tank row, not a second one: the tokens are **derived
   pin off, tank + kick = one token, group badge, the menu), "task rows put on the map" in
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation, reidBoard, inherited rows) and the public API in
   `test/web/apiRoutes/raidplan.test.js`.
+
+## Connection lines of the rows (#507)
+
+The thin dashed lines on the board ("Verbindungen zeigen" in the assignment panel, "Verbindungslinien" in the view
+menu) connect the assignee of a row with its target: healer → tank / group, tank → the mob he tanks, kicker → mob,
+hunter → tank (MD), warlock → soulstone target ... `assignmentLinks(board, me, plan)` in `lib/raidplan/assign.ts`,
+drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspace`) and in the read view
+(`PlanPublicPage`).
+
+- **Every row type** draws, not only heal rows. A line needs **both ends on the map**: an assignee starts where the
+  auto placement stands him (`plan` = `deriveAuto`: the tanks of a tank row, the raiders of a task row with "Auf Map
+  setzen", `tankPoint` also for one who already stands on a slot / token / in a ring), else at his placed slot, his
+  free token or his place in a ring (`board.places`). A slot that only stands in the Besetzung (`placed: false`)
+  falls back to its raider's place. Targets: a slot / group / mark / raider as before, a **mob** at the placed icon
+  it names (`oid`), its auto icon (`plan.mobs`, by `n`) or the first / n-th placed icon of that mob. A tank goes to
+  **his** mob only (the one `deriveAuto` stands him at, `mobKey`), not to every mob of the row. Text targets, a mob
+  nobody put on the map and zero-length lines draw nothing.
+- **Colour by type**: the line carries `rp-link--<type>` (`linkClass`, `LINE_TYPES`; unknown types are `other`;
+  `.rp-line` is taken by the drawn lines and the assignment rows), the class sets `--lc`, and `.rp-links line` strokes
+  with it - no inline colour. The variables live in `styles/tokens.css`; the board is a dark picture in both themes
+  (like `--rp-role-*`), so one bright set serves light and dark:
+
+  | Type | Variable | Colour |
+  |---|---|---|
+  | heal | `--rp-line-heal` | green `#22c55e` |
+  | tank, trashtank | `--rp-line-tank` | red `#ef4444` |
+  | kick | `--rp-line-kick` | orange `#f97316` |
+  | md | `--rp-line-md` | yellow `#facc15` |
+  | ss | `--rp-line-ss` | purple `#c084fc` |
+  | fearward | `--rp-line-fearward` | pale gold `#fde68a` |
+  | special | `--rp-line-special` | blue `#60a5fa` |
+  | dispel | `--rp-line-dispel` | teal `#2dd4bf` |
+  | cc | `--rp-line-cc` | pink `#ec4899` |
+  | buff | `--rp-line-buff` | lime `#a3e635` |
+  | curse | `--rp-line-curse` | indigo `#818cf8` |
+  | thunderclap, demoshout | `--rp-line-aoe` | sky `#38bdf8` |
+  | other / unknown | `--rp-line-other` | slate `#cbd5e1` |
+
+  Look: 2 px, dashed 5 / 4, opacity .9 and a 1 px dark halo (`--rp-text-halo`) so they stay visible on a bright map;
+  the visitor's own line (`is-yours`) is solid, 4 px and glows in the colour of its type (before: the accent colour).
+  The lines have no tooltip and no pointer events (`aria-hidden`), no arrow heads.
+- Tests: "lines on the map" in `src/web-client/src/lib/raidplan/assign.test.ts` (types, auto places, tank to his mob,
+  mob icons, slot fallback), "the lines of the rows" in `pages/raid-detail/raidplan/BoardWorkspace.test.tsx`
+  (rendered heal / tank / kick lines with their class and no stroke of their own) and the CSS guard in
+  `test/web-client/conventions/assign.test.js` (every type's class points at a variable of `tokens.css`, nothing
+  hides `.rp-links`).
 
 ## Facing arrow per icon and role group placeholders (feature/raidplan-10)
 

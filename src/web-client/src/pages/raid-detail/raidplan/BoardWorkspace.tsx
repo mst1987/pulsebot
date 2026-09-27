@@ -139,7 +139,7 @@ export default function BoardWorkspace({
     const auto = useMemo(() => (noMap ? NO_AUTO : deriveAuto(filledRows, board, { template: !isEvent, roster })), [noMap, filledRows, board, isEvent, roster]);
     // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
     const missing = useMemo(() => unplaced(roster, { ...board, autoUsers: auto.users }), [roster, board, auto]);
-    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows, places: autoPlaces(auto) }, me || []) : []), [showLinks, board, filledRows, me, auto]);
+    const links = useMemo(() => (showLinks ? assignmentLinks({ ...board, assignments: filledRows, places: autoPlaces(auto) }, me || [], auto) : []), [showLinks, board, filledRows, me, auto]);
     // where the objects of the tank rows stand now: handed to the selection code (rubber band, Ctrl+A, moving / scaling / aligning a selection)
     // as the transient `autoAt`, and taken off again before the board is kept
     const autoAt = useMemo(() => {

@@ -2,6 +2,7 @@
 // which types a board offers, suggestions merged in, the map lines, "is this row mine".
 import { describe, expect, it } from "vitest";
 import * as lib from "./assign";
+import { autoPlaces, deriveAuto } from "./autoPlace";
 import { inLang } from "../../test/i18n";
 import deBoard from "../../i18n/locales/de/raidBoard.json";
 import enBoard from "../../i18n/locales/en/raidBoard.json";
@@ -152,8 +153,51 @@ describe("lines on the map", () => {
             ],
         });
         const l = lib.assignmentLinks(b);
-        expect(l.map((k) => [k.x1, k.y1, k.x2, k.y2])).toEqual([[0.2, 0.2, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8], [0.2, 0.2, 0.9, 0.1]]);
-        expect(l[0].color).toBe(lib.HEAL_COLOR);
+        expect(l.map((k) => [k.x1, k.y1, k.x2, k.y2])).toEqual([[0.2, 0.2, 0.5, 0.5], [0.2, 0.2, 0.8, 0.8], [0.2, 0.2, 0.9, 0.1], [0.2, 0.2, 0.5, 0.5]]);
+        // every row type draws, each line carries its row's type (#507: before only the heal rows had lines)
+        expect(l.map((k) => k.type)).toEqual(["heal", "heal", "heal", "kick"]);
+    });
+    it("colours a line by the class of its row type; an unknown type is 'other'", () => {
+        expect(lib.linkClass("heal")).toBe("rp-link--heal");
+        expect(lib.linkClass("tank")).toBe("rp-link--tank");
+        expect(lib.linkClass("kick")).toBe("rp-link--kick");
+        expect(lib.linkClass("nonsense")).toBe("rp-link--other");
+        for (const type of Object.keys(lib.ASSIGN_META)) expect(lib.LINE_TYPES).toContain(type);
+    });
+    it("reaches the raiders and mobs the auto placement put on the map (#507): heal -> tank, tank -> his mob, kick -> mob", () => {
+        const b = board({
+            slots: [slot("tank", 1, "t1", 0.1, 0.1, { placed: false }), slot("tank", 2, "t2", 0.1, 0.1, { placed: false }), slot("healer", 1, "h1", 0.1, 0.1, { placed: false })],
+            assignments: [
+                { id: "tk", type: "tank", assignees: ["slot:tank:1", "slot:tank:2"], targets: [{ kind: "mob", ref: "b:boss" }, { kind: "mob", ref: "m:add", n: 1 }], note: "", suggested: false },
+                { id: "hl", type: "heal", assignees: ["slot:healer:1"], targets: [{ kind: "slot", ref: "tank:1" }], note: "", suggested: false, onMap: true },
+                { id: "kk", type: "kick", assignees: ["user:k1"], targets: [{ kind: "mob", ref: "b:boss" }, { kind: "text", ref: "Kick" }], note: "", suggested: false, onMap: true },
+            ],
+        });
+        // without what the auto placement drew nothing stands on the map: no line (what the board showed before the fix)
+        expect(lib.assignmentLinks(b)).toEqual([]);
+        const plan = deriveAuto(b.assignments, b, { template: false, roster: [] });
+        const at = (key) => { const t = plan.tanks.find((x) => x.key === key); return [t.x, t.y]; };
+        const mob = (ref) => { const m = plan.mobs.find((x) => x.ref === ref); return [m.x, m.y]; };
+        const l = lib.assignmentLinks({ ...b, places: autoPlaces(plan) }, ["h1"], plan);
+        expect(l.map((k) => k.type)).toEqual(["tank", "tank", "heal", "kick"]);
+        // the n-th tank goes to the n-th mob of the row only
+        expect([l[0].x1, l[0].y1, l[0].x2, l[0].y2]).toEqual([...at("t:tk:1"), ...mob("b:boss")]);
+        expect([l[1].x1, l[1].y1, l[1].x2, l[1].y2]).toEqual([...at("t:tk:2"), ...mob("m:add")]);
+        expect([l[2].x1, l[2].y1, l[2].x2, l[2].y2]).toEqual([...at("t:hl:1"), ...at("t:tk:1")]);
+        expect([l[3].x1, l[3].y1, l[3].x2, l[3].y2]).toEqual([...at("t:kk:1"), ...mob("b:boss")]);
+        expect(l.map((k) => !!k.mine)).toEqual([false, false, true, false]);
+        expect(new Set(l.map((k) => k.key)).size).toBe(l.length);
+    });
+    it("a mob target finds its placed icon; a slot in the Besetzung finds its raider's token", () => {
+        const b = board({
+            slots: [slot("healer", 1, "h1", 0.1, 0.1, { placed: false })],
+            tokens: [{ id: "k", userId: "h1", x: 0.3, y: 0.3 }],
+            icons: [{ id: "i1", mobId: "m:add", iconKey: "enemy", x: 0.6, y: 0.4, rotation: 0 }, { id: "i2", mobId: "m:add", iconKey: "enemy", x: 0.7, y: 0.4, rotation: 0 }],
+            assignments: [
+                { id: "c", type: "cc", assignees: ["slot:healer:1"], targets: [{ kind: "mob", ref: "m:add", n: 2 }, { kind: "mob", ref: "m:add", oid: "i1" }, { kind: "mob", ref: "m:gone" }], note: "", suggested: false },
+            ],
+        });
+        expect(lib.assignmentLinks(b).map((k) => [k.x1, k.y1, k.x2, k.y2, k.type])).toEqual([[0.3, 0.3, 0.7, 0.4, "cc"], [0.3, 0.3, 0.6, 0.4, "cc"]]);
     });
     it("a hidden slot has no line and an assignee without a slot on the board has none either", () => {
         const b = board({ slots: [slot("tank", 1, "", 0.5, 0.5)], assignments: [{ id: "a", type: "heal", assignees: ["slot:healer:1", "user:x"], targets: [{ kind: "slot", ref: "tank:1" }], note: "", suggested: false }] });

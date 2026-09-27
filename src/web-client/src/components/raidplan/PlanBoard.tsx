@@ -14,7 +14,7 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wowIcon";
 import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
-import { classPlaceNameFor, classRefIcon, facingOf, offRole, type AssignLink } from "../../lib/raidplan/assign";
+import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
 import { ANY } from "../../lib/raidplan/classRefs";
 import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
 import "../../styles/raidplan/index.css";
@@ -373,7 +373,7 @@ export default function PlanBoard({
 
             {size.w > 0 && links && links.length > 0 && (
                 <svg className="rp-links" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`} aria-hidden="true">
-                    {links.map((k) => <line key={k.key} className={k.mine ? "is-yours" : undefined} x1={px(k.x1, size.w)} y1={px(k.y1, size.h)} x2={px(k.x2, size.w)} y2={px(k.y2, size.h)} stroke={k.color} />)}
+                    {links.map((k) => <line key={k.key} className={k.mine ? `${linkClass(k.type)} is-yours` : linkClass(k.type)} x1={px(k.x1, size.w)} y1={px(k.y1, size.h)} x2={px(k.x2, size.w)} y2={px(k.y2, size.h)} />)}
                 </svg>
             )}
             {size.w > 0 && lines.some((l) => !l.hidden) && (

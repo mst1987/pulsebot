@@ -151,7 +151,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
                                     <PlanBoard
                                         bossName={boss.name} bossIcon={boss.iconUrl} mapUrl={boss.mapUrl} maxHeight={mapHeight}
                                         tokens={boss.tokens} slots={boss.slots} marks={boss.marks} zones={boss.zones} icons={boss.icons} objectScale={boss.objectScale} lines={boss.lines} texts={boss.texts} mapOpacity={boss.mapOpacity}
-                                        players={players} roster={data.roster} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
+                                        players={players} roster={data.roster} me={data.meIds} links={prefs.links ? assignmentLinks({ ...boss, places: auto ? autoPlaces(auto) : {} } as never, data.meIds, auto || null) : []} auto={auto} assignments={boss.assignments} showRings={shownFor(boss.showRings, prefs.groupRings)} groupColors={boss.groupColors} groupMarks={boss.groupMarks} focusGroup={focusGroup}
                                         view={bv.view} frameRef={bv.frame} showNames={shownFor(boss.showNames, prefs.names)} showBadges={boss.showBadges !== false} showRoleRings={shownFor(boss.showRoleRings, prefs.roleRings)} highlightMe={prefs.highlight}
                                     />
                                     <div className="rp-zoomctl" role="group" aria-label={t("raidBoard.zoom.title")}>
