@@ -209,6 +209,102 @@ export function poolOf(q: { classId: string; role: string }, type: string, roste
     return roster.filter((p) => (q.classId === ANY || p.classId === q.classId) && roleFits(want, (roles || {})[p.userId] || p.role));
 }
 
+// ---- ranking of candidates (#501) ----------------------------------------------------------------
+// Who of several raiders who COULD do a task should do it. The server twin is raidplanAssign.js (rankCandidates ...); the same cases run
+// on both (rank.test.ts here, test/services/raidplan/raidplanRank.test.js there).
+
+/** The roles a row can prefer (the row dialog's "Rolle"); none = any. */
+export const PREFERRED_ROLES = ["melee", "ranged", "healer", "tank"];
+/** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
+export const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };
+/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's). */
+const TANK_OK_TYPES = [...TANK_TYPES, "heal", "thunderclap", "demoshout"];
+/** Damage dealers' utility: a healer is only suggested for it when no damage dealer can. */
+const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md"];
+
+/** What the ranking knows of a board: flex roles, who stands in a tanking row, in how many rows each raider stands, the classes with a spell. */
+export type RankCtx = { roles?: Record<string, string>; tanks?: Record<string, boolean>; load?: Record<string, number>; spellClasses?: string[] };
+type RankPlayer = { userId: string; classId: string; role: string; specRole?: string };
+type RankRow = { type: string; preferredRole?: string };
+
+function isDamage(r: string): boolean {
+    return r === "melee" || r === "ranged";
+}
+
+/** The role a raider plays on this boss for the ranking: a flex role wins ("dps" takes melee / ranged from the spec), a tank / healer placed as such stays one, else the SPEC's role. */
+export function playerRole(p: RankPlayer, roles?: Record<string, string>): string {
+    const flex = (roles || {})[p.userId] || "";
+    const spec = p.specRole || "";
+    if (flex === "tank" || flex === "healer" || isDamage(flex)) return flex;
+    if (flex === "dps") return isDamage(spec) ? spec : isDamage(p.role) ? p.role : "dps";
+    if (p.role === "tank" || p.role === "healer") return p.role;
+    return spec || p.role || "";
+}
+
+function isTankOf(p: RankPlayer, ctx: RankCtx): boolean {
+    return !!(ctx.tanks || {})[p.userId] || playerRole(p, ctx.roles) === "tank";
+}
+
+/** The points of one raider for a row with their parts: role +100, a spell of the catalog +50, a tank on a task not his -40, a healer on DPS utility -20, -3 per row (at most 6). */
+export function scoreCandidate(row: RankRow, p: RankPlayer, ctx: RankCtx = {}): { score: number; parts: { role: number; spell: number; tank: number; healer: number; load: number } } {
+    const parts = { role: 0, spell: 0, tank: 0, healer: 0, load: 0 };
+    const role = playerRole(p, ctx.roles);
+    if (row.preferredRole && PREFERRED_ROLES.indexOf(row.preferredRole) >= 0 && role === row.preferredRole) parts.role = RANK_POINTS.role;
+    if (TANK_TYPES.indexOf(row.type) < 0) {
+        if ((ctx.spellClasses || []).indexOf(p.classId) >= 0) parts.spell = RANK_POINTS.spell;
+        if (TANK_OK_TYPES.indexOf(row.type) < 0 && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
+        if (DPS_UTILITY_TYPES.indexOf(row.type) >= 0 && role === "healer") parts.healer = RANK_POINTS.healer;
+        const n = Math.min(RANK_POINTS.loadCap, Number((ctx.load || {})[p.userId]) || 0);
+        if (n > 0) parts.load = n * RANK_POINTS.load;
+    }
+    return { score: parts.role + parts.spell + parts.tank + parts.healer + parts.load, parts };
+}
+
+/** The raiders in the order a row wants them: the highest points first; a tie keeps the order given (the setup's). */
+export function rankCandidates<T extends RankPlayer>(row: RankRow, list: T[], ctx: RankCtx = {}): T[] {
+    return list.map((p, i) => ({ p, i, s: scoreCandidate(row, p, ctx).score })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.p);
+}
+
+/** The hard rules of a suggestion, only while somebody is left: no tank on a task not his, no healer on damage dealers' utility. */
+export function withoutMisfits<T extends RankPlayer>(row: RankRow, list: T[], ctx: RankCtx = {}): T[] {
+    let out = list;
+    if (TANK_OK_TYPES.indexOf(row.type) < 0) {
+        const rest = out.filter((p) => !isTankOf(p, ctx));
+        if (rest.length > 0) out = rest;
+    }
+    if (DPS_UTILITY_TYPES.indexOf(row.type) >= 0) {
+        const rest = out.filter((p) => playerRole(p, ctx.roles) !== "healer");
+        if (rest.length > 0) out = rest;
+    }
+    return out;
+}
+
+/** What the ranking knows of a board from the raiders its rows NAME (user refs, filled slots, hand picks): tanks, load, and per row who is in it. */
+export function boardContext(list: RaidplanAssignment[], slots: { kind: string; n: number; userId: string }[], roles?: Record<string, string>): { roles: Record<string, string>; tanks: Record<string, boolean>; load: Record<string, number>; rowIds: Record<string, boolean>[] } {
+    const tanks: Record<string, boolean> = {};
+    const load: Record<string, number> = {};
+    const rowIds: Record<string, boolean>[] = [];
+    for (const a of list) {
+        const ids: Record<string, boolean> = {};
+        rowIds.push(ids);
+        for (const r of a.assignees || []) {
+            const q = r.split(":");
+            if (q[0] === "user" && q[1]) ids[q[1]] = true;
+            else if (q[0] === "slot") {
+                const s = (slots || []).find((x) => x.kind === q[1] && x.n === Number(q[2]) && x.userId);
+                if (s) ids[s.userId] = true;
+            }
+        }
+        const picks = a.picks || {};
+        for (const key of Object.keys(picks)) if (key.indexOf("t:") !== 0 && picks[key]) ids[picks[key]] = true;
+        for (const id of Object.keys(ids)) {
+            load[id] = (load[id] || 0) + 1;
+            if (TANK_TYPES.indexOf(a.type) >= 0) tanks[id] = true;
+        }
+    }
+    return { roles: roles || {}, tanks, load, rowIds };
+}
+
 /**
  * THE resolution of class references (the server twin is raidplanAssign.expandClassRefs): every class reference replaced by the raider it
  * means, round robin per kind of task. Taken first: raiders named by hand (user refs, slots, `picks`); then the references of a named
@@ -241,12 +337,22 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         const picks = a.picks || {};
         for (const key of Object.keys(picks)) if (byId[picks[key]]) take(key.indexOf("t:") === 0 ? usedAt : used, a.type, picks[key]);
     }
-    function pick(bag: Record<string, Record<string, boolean>>, a: RaidplanAssignment, ref: string, key: string): string {
+    // the ranking (#501): who tanks on this board and how many rows each raider has, counted on while references are resolved
+    const ctx = boardContext(assignments, slots, roles);
+    function counted(i: number, a: RaidplanAssignment, id: string) {
+        if (!id || ctx.rowIds[i][id]) return;
+        ctx.rowIds[i][id] = true;
+        ctx.load[id] = (ctx.load[id] || 0) + 1;
+        if (TANK_TYPES.indexOf(a.type) >= 0) ctx.tanks[id] = true;
+    }
+    function pick(bag: Record<string, Record<string, boolean>>, a: RaidplanAssignment, ref: string, key: string, ranked: boolean): string {
         const hand = (a.picks || {})[key];
         if (hand && byId[hand]) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const pool = poolOf(q, a.type, roster, roles);
+        const plain = poolOf(q, a.type, roster, roles);
+        // an assignee: the pool in the row's order of preference (rankCandidates); a target (soulstone at a priest): the setup's order
+        const pool = ranked ? rankCandidates(a, plain, ctx) : plain;
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) {
@@ -256,20 +362,26 @@ export function expandClassRefs(assignments: RaidplanAssignment[], slots: { kind
         return a.allowMulti && pool.length > 0 ? pool[(q.n - 1) % pool.length].userId : "";
     }
     const got: Record<string, string> = {};
-    // pass 1: a named class; pass 2: "Any"
-    for (const anyPass of [false, true]) {
-        assignments.forEach((a, i) => {
-            a.assignees.forEach((r, j) => {
-                if (!isClassRef(r)) return;
-                const q = parseClassRef(r);
-                if (q && (q.classId === ANY) === anyPass) got[`${i}|a|${j}`] = pick(used, a, r, r);
+    // the tanking rows first (who tanks is known before a utility row picks), then the others; each time pass 1: a named class, pass 2: "Any"
+    for (const tankPass of [true, false]) {
+        for (const anyPass of [false, true]) {
+            assignments.forEach((a, i) => {
+                if ((TANK_TYPES.indexOf(a.type) >= 0) !== tankPass) return;
+                a.assignees.forEach((r, j) => {
+                    if (!isClassRef(r)) return;
+                    const q = parseClassRef(r);
+                    if (!q || (q.classId === ANY) !== anyPass) return;
+                    const id = pick(used, a, r, r, true);
+                    got[`${i}|a|${j}`] = id;
+                    counted(i, a, id);
+                });
+                a.targets.forEach((tg, j) => {
+                    if (tg.kind !== "class") return;
+                    const q = parseClassRef(tg.ref);
+                    if (q && (q.classId === ANY) === anyPass) got[`${i}|t|${j}`] = pick(usedAt, a, tg.ref, `t:${tg.ref}`, false);
+                });
             });
-            a.targets.forEach((tg, j) => {
-                if (tg.kind !== "class") return;
-                const q = parseClassRef(tg.ref);
-                if (q && (q.classId === ANY) === anyPass) got[`${i}|t|${j}`] = pick(usedAt, a, tg.ref, `t:${tg.ref}`);
-            });
-        });
+        }
     }
     return assignments.map((a, i) => {
         const assignees = a.assignees.map((r, j) => {

@@ -495,3 +495,41 @@ Tank drehen" or one of the eight directions for all) and the **arrow** (size, hi
 selected object that has the option (locked ones keep theirs) — one board change, so one undo step. "Zum
 eigenen Tank" follows the rule above: with several Flames each turns to the tank of that very icon. No native
 selects; the compass is buttons. Tests: `src/web-client/src/lib/raidplan/multiOptions.test.ts`.
+
+## Smarter suggestions: the row's role, no tanks for utility, load (#501)
+
+Suggestions and class references used to know only classes: "Schamane 1" was the first shaman of the setup,
+whether he played elemental or enhancement, and the council's mage tank was also handed the kick.
+
+- **One ranking, two twins.** `rankCandidates(row, candidates, ctx)` / `scoreCandidate` in
+  `src/services/raidplan/raidplanAssign.js` and `src/web-client/src/lib/raidplan/classRefs.ts` (the same cases run
+  on both: `test/services/raidplan/raidplanRank.test.js`, `lib/raidplan/rank.test.ts`, which also compares a full
+  board of both twins). Points per raider: the row's **role** fits +100 (`preferredRole` against `playerRole`: a
+  flex role on the boss wins, a tank / healer placed as such stays one, else the SPEC's role `specRole` =
+  `roleOfSpec`, which `rosterFrom` now sends with every player), his class has a **spell of the catalog** for the
+  task +50 (suggestions only, the class choice across classes), a **tank** (in a tanking row of this board or by
+  his role) on a task that is not his −40 (not for tanking rows, heal, thunder clap, demoralizing shout), a
+  **healer** on damage dealers' utility (kick, cc, curse, md) −20, **−3 per row** he already stands in (at most
+  six). Sorted by points, a tie keeps today's order (setup order; in a suggestion the class order first).
+  Tanking rows only use the role part, so who tanks stays exactly as before.
+- **Resolution** (`expandClassRefs`, both twins): the tanking rows are resolved first (who tanks is known before
+  a utility row picks), then the others, each time named classes before "Any"; the pool of a reference is ranked
+  before the running number picks from it; `boardContext` counts who the rows NAME (users, filled slots, picks)
+  and every resolved reference adds to the load. Targets ("Seelenstein auf Priester 1") keep the setup order;
+  hand picks win as before.
+- **Suggestions** (`suggestClassRows`): the raiders of the row's classes are ranked and a tank / healer who should
+  not do it is left out **only while somebody else is left** (`withoutMisfits`); each class is numbered only as
+  often as it is taken, so two mages with one tanking the council give ONE "Magier 1" (the other mage), one mage
+  who tanks still kicks. The row dialog's wand now also works on **dispel, cc and buff** rows (server
+  `SUGGESTABLE`; the card's wand stays as it was): one raider, the best ranked of the row's classes (a decurse
+  row of druids gets the other druid, not the druid tank). The editor sends `context` (the board's rows of the other types, inherited ones too)
+  and, from the row dialog's wand, the row's `preferredRole` to `POST /api/raidplan/suggest`. Suggested rows keep
+  the rule "Vorschlag bis bearbeitet": only unedited suggestions of the type are replaced.
+- **Row dialog**: "Rolle" (egal / Nahkampf / Fernkampf / Heiler / Tank) as a small segmented choice at the foot
+  of *Klassen*, next to "Für Vorschläge bevorzugen"; not shown on a row whose task implies a role (heal, tank,
+  trash tank). The candidate list of a class card shows the ranked order (the other rows as context), so switching
+  the role moves the resolved player at once. The read view is unchanged. Tests:
+  `src/web-client/src/pages/raid-detail/raidplan/AssignModal.test.tsx`.
+- **Changed on existing plans (on purpose)**: a class reference in a utility row can now resolve to another raider
+  of the class than before when the first one tanks on that boss or has more tasks; the kick suggestion of the
+  old test raid skips the warrior tank (`raidplanAssign.test.js`).

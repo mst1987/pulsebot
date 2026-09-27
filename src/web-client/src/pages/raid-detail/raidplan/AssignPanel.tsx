@@ -199,7 +199,9 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
         try {
             // the rows of this type made by hand stay: the suggestion goes round the raiders they already name
             const keep = board.assignments.filter((a) => a.type === type && !a.suggested);
-            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
+            // the rows of the other kinds of task: the ranking knows who tanks here and who already has how many tasks (#501)
+            const context = [...board.assignments, ...inherited].filter((a) => a.type !== type);
+            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
             if (r.assignments.length === 0) toast(t("raidBoard.assign.noSuggestion"));
             else edit((b) => applySuggestions(b, type, r.assignments));
         } catch (err) {
@@ -283,7 +285,8 @@ export default function AssignPanel({ scope, board, edit, roster, players, isEve
     const suggestAssignees = async (a: RaidplanAssignment): Promise<string[] | null> => {
         try {
             const keep = board.assignments.filter((x) => x.type === a.type && x.id !== a.id);
-            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep });
+            const context = [...board.assignments, ...inherited].filter((x) => x.type !== a.type);
+            const r = await suggestRaidplan({ event: isEvent ? eventId : undefined, type: a.type, preferredClasses: effectiveClasses(board, a), allowOthers: !!a.allowOthers, preferredRole: a.preferredRole, slots: board.slots.map((s) => ({ kind: s.kind, n: s.n, userId: s.userId })), roles: board.roles, keep, context });
             if (r.assignments.length === 0) { toast(t("raidBoard.assign.noSuggestion")); return null; }
             return r.assignments[0].assignees;
         } catch (err) {

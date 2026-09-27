@@ -61,6 +61,8 @@ const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circl
 // the rows that put their tanks on the map by themselves (twin of lib/raidplan/autoPlace.ts AUTO_TANK_TYPES)
 const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];
 const LIMITS = { perBoard: 60, assignees: 12, targets: 12, note: 200, text: 60, title: 80 };
+/** The roles a row can prefer (the row dialog's "Rolle"); none stored = any. */
+const PREFERRED_ROLES = ["melee", "ranged", "healer", "tank"];
 
 // Which classes can do it (Vorschlag / Filter). Kick: rogue, warrior, mage (Counterspell), shaman (Earth Shock).
 const CLASS_RULES = {
@@ -156,6 +158,9 @@ function cleanAssignments(raw, allowed = new Set()) {
             // "Auf Map setzen" of a task row (kick, special task ...): its named raiders stand on the map as auto tokens (docs/raidplan/board.md,
             // "Auto tokens of every task row"); a tank row is on the map anyway. Only stored when on, so older boards stay exactly as they are
             ...(o.onMap === true && !AUTO_TANK_TYPES.includes(o.type) ? { onMap: true } : {}),
+            // the role the row prefers for its suggestions and class references ("Fernkampf": an elemental shaman before an enhancement one);
+            // only stored when chosen, so older boards stay exactly as they are
+            ...(PREFERRED_ROLES.includes(o.preferredRole) ? { preferredRole: o.preferredRole } : {}),
         });
     }
     return { assignments: out, dropped };
@@ -227,7 +232,8 @@ function suggestHeal({ slots = [], roster = [], groups = [], preferredClasses = 
     return healers.map((h, i) => (targets[i].length ? make("heal", [h], targets[i], spellFor("heal", ""), preferredClasses, allowOthers) : null)).filter(Boolean);
 }
 
-const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout"];
+// dispel / cc / buff: the row dialog's wand names the one raider of the row's classes who ranks best (decurse: not the druid tank, #501)
+const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap", "demoshout", "dispel", "cc", "buff"];
 
 /**
  * Suggestions for one type from the placeholder slots and the setup's roster. `groups` = the group numbers of the raid.
@@ -236,44 +242,57 @@ const CLASS_SUGGESTED = ["md", "fearward", "kick", "ss", "curse", "thunderclap",
  * every plan (`expandClassRefs`), next to the rows of that type the orga already made by hand (`keep`), so a suggestion never
  * takes a raider the orga has already given that task. What nobody fills is left out (no suggestion is better than a stranger).
  */
-function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "", keep = [] } = {}) {
+function suggest(type, { slots = [], roster = [], groups = [], preferredClasses = [], allowOthers = false, versionId = "", keep = [], preferredRole = "", context = [], roles = {} } = {}) {
     const tanks = slotsOf(slots, "tank");
     const pc = cleanClasses(preferredClasses);
+    const pr = PREFERRED_ROLES.includes(preferredRole) ? preferredRole : "";
     const classes = (t) => classesFor(t, pc, allowOthers, versionId);
     if (type === "heal") return suggestHeal({ slots, roster, groups, preferredClasses: pc, allowOthers });
     if (type === "trashtank") {
         return tanks.slice(0, MARKS.length).map((s, i) => make("trashtank", [refOf(s)], [{ kind: "mark", ref: MARKS[i] }]));
     }
     if (!CLASS_SUGGESTED.includes(type)) return [];
-    const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId });
+    // the other rows of the board (other kinds of task): who tanks here and who already has how many tasks (the ranking, #501)
+    const others = (context || []).filter((a) => a && a.type !== type);
+    const own = (keep || []).filter((a) => a && a.type === type);
+    // their class references resolved first: a "Magier-Tank" row counts its mage as a tank
+    const named = roster.length ? expandClassRefs([...others, ...own], slots, roster, roles) : [...others, ...own];
+    const ctx = { ...boardContext(named, slots, roles), spellClasses: catalog.classesOf(type, versionId) };
+    const rows = suggestClassRows(type, { tanks, cls: classes(type), pc, allowOthers, roster, versionId, pr, ctx })
+        .map((a) => (pr ? { ...a, preferredRole: pr } : a));
     // a template has no players: the suggestion names classes ("the first free Hunter"), resolved from the setup once the template is
     // applied; its running numbers go on after the rows the orga keeps (a kept "Hunter 1" makes the suggestion start at Hunter 2)
-    if (roster.length === 0) {
-        const own = (keep || []).filter((a) => a && a.type === type);
-        return renumberClassRefs([...own, ...rows]).slice(own.length);
-    }
-    return resolveSuggested(type, rows, { roster, slots, keep, versionId });
+    if (roster.length === 0) return renumberClassRefs([...own, ...rows]).slice(own.length);
+    return resolveSuggested(type, rows, { roster, slots, keep: own, context: others, roles });
 }
-
-/** How many raiders of a class (and role) the roster has: a suggestion never numbers further than there are players. */
-const countOf = (roster, classId, role = "") => roster.filter((p) => p.classId === classId && roleFits(role, p.role)).length;
 
 /**
  * The class-reference rows of a suggestion, numbered on per class ("Hunter 1", "Hunter 2" ...): one row per tank for misdirect /
- * fear ward (several classes: the first class until its raiders are used up, then the next), one per healer for soulstones, a
- * kick rotation over the classes in order, one row per curse, thunder clap from the warrior TANKS first. Without a roster
- * (a template) the counts are what the task asks for.
+ * fear ward, one per healer for soulstones, a kick rotation, one row per curse, thunder clap from the warrior TANKS first. With a
+ * roster the raiders of the row's classes are RANKED (rankCandidates: the row's role, a spell of the catalog, no tank for utility,
+ * few tasks; a tie keeps the class order and then the setup order) and a tank / healer who should not do it is left out while
+ * somebody else can (`withoutMisfits`); each class is numbered only as often as it is taken. Without a roster (a template) the counts
+ * are what the task asks for.
  */
-function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], versionId = "" }) {
+function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], versionId = "", pr = "", ctx = {} }) {
     if (!cls.length) return [];
     const ref = (c, n, role = "") => `class:${c}:${n}${role ? `:${role}` : ""}`;
     const withRoster = roster.length > 0;
-    /** The first `count` class references of the classes in order (with a roster: each class only as often as it is in the raid). */
+    const row = { type, preferredRole: pr };
+    /** The first `count` class references (with a roster: the ranked raiders of the classes, each class numbered on). */
     const sequence = (count, role = "") => {
         const out = [];
-        for (const c of cls) {
-            const have = withRoster ? countOf(roster, c, role) : count;
-            for (let n = 1; n <= have && out.length < count; n += 1) out.push({ c, ref: ref(c, n, role) });
+        if (!withRoster) {
+            for (const c of cls) for (let n = 1; n <= count && out.length < count; n += 1) out.push({ c, ref: ref(c, n, role) });
+            return out;
+        }
+        // today's order (the classes in order, then the setup) is the tie break of the ranking
+        const cands = cls.flatMap((c) => roster.filter((p) => p.classId === c && roleFits(role, p.role)));
+        const taken = {};
+        for (const p of rankCandidates(row, withoutMisfits(row, cands, ctx), ctx)) {
+            if (out.length >= count) break;
+            taken[p.classId] = (taken[p.classId] || 0) + 1;
+            out.push({ c: p.classId, ref: ref(p.classId, taken[p.classId], role) });
         }
         return out;
     };
@@ -308,23 +327,26 @@ function suggestClassRows(type, { tanks, cls, pc, allowOthers, roster = [], vers
         const refs = sequence(3).map((x) => x.ref);
         return refs.length ? [make(type, refs, [], spellFor(type, "Warrior", 0, versionId), pc, allowOthers)] : [];
     }
-    return [make(type, [ref(cls[0], 1)], [], null, pc, allowOthers)];
+    // dispel, cc, buff: one raider (with a roster the best ranked one of the classes)
+    const one = withRoster ? sequence(1).map((x) => x.ref) : [ref(cls[0], 1)];
+    return one.length ? [make(type, one, [], null, pc, allowOthers)] : [];
 }
 
 /**
  * Suggested class rows of an event, resolved like every plan: the rows the orga keeps (`keep`, of the same type) count as taken,
  * each class reference becomes the raider it means; a reference nobody fills is dropped, a row without anybody left is dropped.
  */
-function resolveSuggested(type, rows, { roster, slots = [], keep = [] }) {
+function resolveSuggested(type, rows, { roster, slots = [], keep = [], context = [], roles = {} }) {
     const own = (keep || []).filter((a) => a && a.type === type);
-    const all = expandClassRefs([...own, ...rows], slots, roster, {});
-    return all.slice(own.length)
+    const others = (context || []).filter((a) => a && a.type !== type);
+    const all = expandClassRefs([...others, ...own, ...rows], slots, roster, roles);
+    return all.slice(others.length + own.length)
         .map((a) => ({ ...a, assignees: a.assignees.filter((r) => !r.startsWith("class:")), targets: a.targets.filter((t) => t.kind !== "class") }))
         .filter((a) => a.assignees.length > 0);
 }
 
 /** Whether a suggestion of this type exists (the button is offered). */
-const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank"];
+const SUGGESTABLE = ["heal", "kick", "md", "ss", "fearward", "curse", "thunderclap", "demoshout", "trashtank", "dispel", "cc", "buff"];
 
 /**
  * The old task rows of a board ({ id, title, userIds }) as assignments: the title is the task
@@ -366,6 +388,99 @@ function poolOf(q, type, roster, roles) {
     return roster.filter((p) => (q.classId === ANY || p.classId === q.classId) && roleFits(want, roles[p.userId] || p.role));
 }
 
+// ---- ranking of candidates (#501) ----------------------------------------------------------------
+// Who of several raiders who COULD do a task should do it. The client twin is lib/raidplan/classRefs.ts (rankCandidates ...), the
+// same cases run on both (test/services/raidplan/raidplanRank.test.js, src/web-client/src/lib/raidplan/rank.test.ts). Pure.
+
+/** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
+const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };
+/** Kinds of task a tank does himself: no tank penalty (thunder clap and demoralizing shout are a warrior tank's). */
+const TANK_OK_TYPES = [...AUTO_TANK_TYPES, "heal", "thunderclap", "demoshout"];
+/** Damage dealers' utility: a healer is only suggested for it when no damage dealer can. */
+const DPS_UTILITY_TYPES = ["kick", "cc", "curse", "md"];
+
+/**
+ * The role a raider plays on this boss for the ranking: a flex role wins (a "dps" flex role takes melee / ranged from the spec), a tank
+ * or healer placed as such in the setup stays one, else the SPEC's role (roleOfSpec: elemental = ranged, enhancement = melee).
+ */
+function playerRole(p, roles) {
+    const flex = (roles || {})[p.userId] || "";
+    const spec = p.specRole || "";
+    const dmg = (r) => r === "melee" || r === "ranged";
+    if (flex === "tank" || flex === "healer" || dmg(flex)) return flex;
+    if (flex === "dps") return dmg(spec) ? spec : dmg(p.role) ? p.role : "dps";
+    if (p.role === "tank" || p.role === "healer") return p.role;
+    return spec || p.role || "";
+}
+
+/** A tank for the ranking: he stands in a tank row of this board, or tanks by his (flex / setup / spec) role. */
+function isTankOf(p, ctx) {
+    return !!((ctx.tanks || {})[p.userId]) || playerRole(p, ctx.roles) === "tank";
+}
+
+/**
+ * The points of one raider for a row, with their parts (so a reason can be shown): role of the row fits +100, his class has a spell of
+ * the catalog for the task +50, a tank on a task that is not his -40, a healer on damage dealers' utility -20, -3 per row he already
+ * stands in (at most 6). A tanking row only knows the role part (its tanks keep the setup order).
+ * `ctx` = { roles, tanks: { userId: true }, load: { userId: rows }, spellClasses: [classId] }.
+ */
+function scoreCandidate(row, p, ctx = {}) {
+    const parts = { role: 0, spell: 0, tank: 0, healer: 0, load: 0 };
+    const role = playerRole(p, ctx.roles);
+    const type = row && row.type;
+    if (row && PREFERRED_ROLES.includes(row.preferredRole) && role === row.preferredRole) parts.role = RANK_POINTS.role;
+    if (!AUTO_TANK_TYPES.includes(type)) {
+        if ((ctx.spellClasses || []).includes(p.classId)) parts.spell = RANK_POINTS.spell;
+        if (!TANK_OK_TYPES.includes(type) && isTankOf(p, ctx)) parts.tank = RANK_POINTS.tank;
+        if (DPS_UTILITY_TYPES.includes(type) && role === "healer") parts.healer = RANK_POINTS.healer;
+        const n = Math.min(RANK_POINTS.loadCap, Number((ctx.load || {})[p.userId]) || 0);
+        if (n > 0) parts.load = n * RANK_POINTS.load;
+    }
+    return { score: parts.role + parts.spell + parts.tank + parts.healer + parts.load, parts };
+}
+
+/** The raiders in the order a row wants them: the highest points first; a tie keeps the order given (the setup's, today's). */
+function rankCandidates(row, list, ctx = {}) {
+    return (list || []).map((p, i) => ({ p, i, s: scoreCandidate(row, p, ctx).score })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.p);
+}
+
+/**
+ * The hard rules of a suggestion, only while somebody is left: no tank on a task that is not his, no healer on damage dealers'
+ * utility. Nobody else = the list as it is (the mage tank kicks when he is the only mage).
+ */
+function withoutMisfits(row, list, ctx = {}) {
+    let out = list || [];
+    const type = row && row.type;
+    if (!TANK_OK_TYPES.includes(type)) { const rest = out.filter((p) => !isTankOf(p, ctx)); if (rest.length) out = rest; }
+    if (DPS_UTILITY_TYPES.includes(type)) { const rest = out.filter((p) => playerRole(p, ctx.roles) !== "healer"); if (rest.length) out = rest; }
+    return out;
+}
+
+/**
+ * What the ranking knows of a board from the raiders its rows NAME (user refs, filled slots, hand picks): who stands in a tanking row
+ * (`tanks`) and in how many rows each raider stands (`load`). Class references are counted while they are resolved (expandClassRefs).
+ */
+function boardContext(list, slots, roles = {}) {
+    const tanks = {};
+    const load = {};
+    const rowIds = [];
+    for (const a of list || []) {
+        const ids = new Set();
+        rowIds.push(ids);
+        for (const r of a.assignees || []) {
+            const q = String(r).split(":");
+            if (q[0] === "user" && q[1]) ids.add(q[1]);
+            else if (q[0] === "slot") { const sl = (slots || []).find((x) => x.kind === q[1] && x.n === Number(q[2]) && x.userId); if (sl) ids.add(sl.userId); }
+        }
+        for (const key of Object.keys(a.picks || {})) if (!key.startsWith("t:") && a.picks[key]) ids.add(a.picks[key]);
+        for (const id of ids) {
+            load[id] = (load[id] || 0) + 1;
+            if (AUTO_TANK_TYPES.includes(a.type)) tanks[id] = true;
+        }
+    }
+    return { roles: roles || {}, tanks, load, rowIds };
+}
+
 /**
  * THE resolution of class references (the client twin is src/web-client/src/lib/classRefs.ts, kept in step by the tests): every
  * class reference replaced by the raider it means, round robin per kind of task. Raiders named by hand (user refs, slots, `picks`)
@@ -393,32 +508,48 @@ function expandClassRefs(assignments, slots, roster, roles = {}) {
         }
         for (const key of Object.keys(a.picks || {})) if (byId.has(a.picks[key])) take(key.startsWith("t:") ? usedAt : used, a.type, a.picks[key]);
     }
-    const pick = (bag, a, ref, key) => {
+    // the ranking (#501): who tanks on this board and how many rows each raider has, counted on while references are resolved
+    const ctx = boardContext(list, slots, roles);
+    const counted = (i, a, id) => {
+        if (!id || ctx.rowIds[i].has(id)) return;
+        ctx.rowIds[i].add(id);
+        ctx.load[id] = (ctx.load[id] || 0) + 1;
+        if (AUTO_TANK_TYPES.includes(a.type)) ctx.tanks[id] = true;
+    };
+    const pick = (bag, a, ref, key, ranked) => {
         const hand = (a.picks || {})[key];
         if (hand && byId.has(hand)) return hand;
         const q = parseClassRef(ref);
         if (!q) return "";
-        const pool = poolOf(q, a.type, roster, roles || {});
+        const plain = poolOf(q, a.type, roster, roles || {});
+        // an assignee: the pool in the row's order of preference (rankCandidates); a target (soulstone at a priest): the setup's order
+        const pool = ranked ? rankCandidates(a, plain, ctx) : plain;
         const order = pool.slice(q.n - 1).concat(pool.slice(0, q.n - 1));
         const free = order.find((p) => !(bag[a.type] && bag[a.type][p.userId]));
         if (free) { take(bag, a.type, free.userId); return free.userId; }
         return a.allowMulti && pool.length ? pool[(q.n - 1) % pool.length].userId : "";
     };
     const got = new Map();
-    // pass 1: a named class; pass 2: "Any"
-    for (const anyPass of [false, true]) {
-        list.forEach((a, i) => {
-            a.assignees.forEach((r, j) => {
-                if (!r.startsWith("class:")) return;
-                const q = parseClassRef(r);
-                if (q && (q.classId === ANY) === anyPass) got.set(`${i}|a|${j}`, pick(used, a, r, r));
+    // the tanking rows first (who tanks is known before a utility row picks), then the others; each time pass 1: a named class, pass 2: "Any"
+    for (const tankPass of [true, false]) {
+        for (const anyPass of [false, true]) {
+            list.forEach((a, i) => {
+                if (AUTO_TANK_TYPES.includes(a.type) !== tankPass) return;
+                a.assignees.forEach((r, j) => {
+                    if (!r.startsWith("class:")) return;
+                    const q = parseClassRef(r);
+                    if (!q || (q.classId === ANY) !== anyPass) return;
+                    const id = pick(used, a, r, r, true);
+                    got.set(`${i}|a|${j}`, id);
+                    counted(i, a, id);
+                });
+                a.targets.forEach((t, j) => {
+                    if (t.kind !== "class") return;
+                    const q = parseClassRef(t.ref);
+                    if (q && (q.classId === ANY) === anyPass) got.set(`${i}|t|${j}`, pick(usedAt, a, t.ref, "t:" + t.ref, false));
+                });
             });
-            a.targets.forEach((t, j) => {
-                if (t.kind !== "class") return;
-                const q = parseClassRef(t.ref);
-                if (q && (q.classId === ANY) === anyPass) got.set(`${i}|t|${j}`, pick(usedAt, a, t.ref, "t:" + t.ref));
-            });
-        });
+        }
     }
     return list.map((a, i) => ({
         ...a,
@@ -469,6 +600,8 @@ module.exports = {
     CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, ASSIGN_TYPES, CLASS_IDS, SLOT_ROLES, cleanClasses, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest,
     // only for the tests (#424): not part of the module's API
+    // the ranking of candidates (#501): twin of lib/raidplan/classRefs.ts
+    PREFERRED_ROLES, RANK_POINTS, playerRole, scoreCandidate, rankCandidates, withoutMisfits, boardContext,
     _internal: {
         impliedRole, mobInstance, renumberClassRefs, classesFor,
     },

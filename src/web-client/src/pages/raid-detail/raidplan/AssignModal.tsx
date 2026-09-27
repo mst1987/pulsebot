@@ -6,7 +6,7 @@ import WowIcon from "../../../components/ui/WowIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
 import { type FlyItem } from "../../../lib/raidplan/flyout";
 import { ROLE_REFS, ROLE_TONE, CLASS_IDS, ROLE_ICON, classIconOf, classPlaceNameFor, classRefIcon, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
-import { ANY, ANY_SPEC, CLASS_COLOR, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, candidatesOf, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/raidplan/classRefs";
+import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole } from "../../../lib/raidplan/classRefs";
 import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
 import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
 import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/autoPlace";
@@ -76,6 +76,8 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
     const [bound, setBound] = useState(false);
     const byId = useMemo(() => players || new Map(roster.map((p) => [p.userId, p])), [players, roster]);
     const filledAll = useMemo(() => expandClassRefs(tmp.assignments, tmp.slots, roster, tmp.roles), [tmp.assignments, tmp.slots, roster, tmp.roles]);
+    // what the ranking knows of the OTHER rows (who tanks, who has how many tasks): the candidates of a class show in its order (#501)
+    const rankCtx = useMemo(() => boardContext(filledAll.filter((a) => a.id !== rowId), tmp.slots, tmp.roles), [filledAll, rowId, tmp.slots, tmp.roles]);
     const row = tmp.assignments.find((a) => a.id === rowId);
     if (!row) return null;
     const spells = spellOptions(row);
@@ -275,7 +277,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 const res = target ? filled.targets[idx] : null;
                 const now = target ? (res && res.kind === "player" ? res.ref : "") : ((filled.assignees[idx] || "").indexOf("user:") === 0 ? filled.assignees[idx].slice(5) : "");
                 const manual = (row.picks || {})[key] || "";
-                const pool = candidatesOf(ref, type, roster, tmp.roles);
+                const pool = target ? candidatesOf(ref, type, roster, tmp.roles) : rankCandidates(row, candidatesOf(ref, type, roster, tmp.roles), rankCtx);
                 const q = parseClassRef(ref) || { classId: "", role: "" };
                 return (
                     <div key={ref} className="rp-amb-resline">
@@ -363,6 +365,17 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
                 {!target && (
                     <div className="rp-amb-classfoot">
                         {own.length > 0 && <label className="rp-check"><input type="checkbox" checked={!!row.allowMulti} onChange={(e) => set((b) => patchAssignment(b, rowId, { allowMulti: e.target.checked }))} /> {t("raidBoard.class.allowMulti")}</label>}
+                        {!impliedRole(type) && (
+                            <span className="rp-amb-pref">
+                                <span className="rp-muted" data-tip={t("raidBoard.amb.prefRoleTip")}>{t("raidBoard.amb.prefRole")}</span>
+                                <span className="rp-amb-seg sm" role="radiogroup" aria-label={t("raidBoard.amb.prefRoleAria")}>
+                                    {["", ...PREFERRED_ROLES].map((r) => {
+                                        const on = (row.preferredRole || "") === r;
+                                        return <button key={r || "any"} type="button" role="radio" aria-checked={on} className={on ? "is-on" : ""} onClick={() => set((b) => patchAssignment(b, rowId, { preferredRole: r || undefined }))}>{t(`raidBoard.amb.prefRoles.${r || "any"}`)}</button>;
+                                    })}
+                                </span>
+                            </span>
+                        )}
                         <span className="rp-amb-pref" role="group" aria-label={t("raidBoard.amb.forSuggest")}>
                             <span className="rp-muted" data-tip={t("raidBoard.am.classHint")}>{t("raidBoard.amb.forSuggest")}</span>
                             {CLASS_IDS.map((c) => {

@@ -629,6 +629,16 @@
         "noFallback": "When nobody fits, the place stays open. No other class stands in.",
         "removeClass": "Remove class",
         "forSuggest": "Prefer for suggestions",
+        "prefRole": "Role",
+        "prefRoleAria": "Preferred role of the row",
+        "prefRoleTip": "Suggestions and classes take players of this role first (from their spec in the setup); others stay available.",
+        "prefRoles": {
+            "any": "any",
+            "melee": "Melee",
+            "ranged": "Ranged",
+            "healer": "Healer",
+            "tank": "Tank"
+        },
         "textTarget": "Free text as target (Enter)",
         "note": "Note on the row",
         "quick": "Quick pick",

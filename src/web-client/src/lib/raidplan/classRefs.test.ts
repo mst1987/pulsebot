@@ -41,8 +41,8 @@ describe("resolving a class reference", () => {
         const r = expand([row("a", "md", ["class:Hunter:1", "class:Hunter:2"])]);
         expect(refs(r)).toEqual(["user:h1", "user:h2"]);
     });
-    it("another row of the same kind of task does not take the same raider; another kind may", () => {
-        const r = expand([row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:1"]), row("c", "special", ["class:Hunter:1"])]);
+    it("another row of the same kind of task does not take the same raider; another kind may (cc: a tanking row such as special would be resolved first and make h1 a tank, #501)", () => {
+        const r = expand([row("a", "md", ["class:Hunter:1"]), row("b", "md", ["class:Hunter:1"]), row("c", "cc", ["class:Hunter:1"])]);
         expect([refs(r, 0), refs(r, 1), refs(r, 2)]).toEqual([["user:h1"], ["user:h2"], ["user:h1"]]);
     });
     it("a raider named by hand or by a slot is taken for that kind of task", () => {
