@@ -8,10 +8,10 @@ const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis
 const { characterOptions } = require("../../utils/signup/joinPicker");
 const { classLabel } = require("../../utils/signup/signupDialog");
 const {
-    parseButtonId, refusal, savedText, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
+    parseButtonId, refusal, savedEmbed, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
     buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
 } = require("../../utils/signup/signupButtons");
-const { toEnglish } = require("../../utils/signup/botEnglish");
+const { answerPayload, answerUpdate } = require("../../utils/signup/signupReply");
 const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
 
 // The signup buttons under an EventHelper event message and every step after
@@ -21,11 +21,16 @@ const { noteMode, MIN_NOTE } = require("../../services/signups/signupNotes");
 const STATUS_ACTIONS = ["late", "tentative", "bench"];
 
 // After the public select reset itself (eventPick.js: interaction.update), the answer is a follow-up.
-const reply = (interaction, payload) => {
-    const body = { ...(typeof payload === "string" ? { content: toEnglish(payload) } : payload), flags: MessageFlags.Ephemeral };
+// A text answer is an embed in the raid's colour (#508, utils/signup/signupReply.js), and so is
+// `{ embed }` (the save confirmation); a picker payload goes out as it is.
+const reply = (interaction, payload, event = null) => {
+    let body;
+    if (typeof payload === "string") body = answerPayload(payload, { event });
+    else if (payload && payload.embed) body = answerPayload(payload.embed);
+    else body = { ...payload, flags: MessageFlags.Ephemeral };
     return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
 };
-const done = (interaction, content) => interaction.update({ content: toEnglish(content), embeds: [], components: [] });
+const done = (interaction, answer, event = null) => interaction.update(answerUpdate(answer, { event }));
 
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
@@ -79,19 +84,21 @@ async function save(interaction, event, input, { update = false } = {}) {
         canAlso: previous && previous.spec === ((input.characters || [])[0] || {}).spec ? previous.canAlso : undefined,
         ...input,
     });
-    const emojis = result.error ? {} : await emojisFor(interaction);
+    if (result.error) {
+        const text = `⚠️ ${result.error}`;
+        return update ? done(interaction, text, event) : reply(interaction, text, event);
+    }
+    const emojis = await emojisFor(interaction);
     // "You are on the waiting list" belongs under the confirmation, not into the roster (#306).
-    const text = result.error
-        ? `⚠️ ${result.error}`
-        : [savedText(event, result.signup, profiles.getProfile(uid), { emojis }), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
-    return update ? done(interaction, text) : reply(interaction, text);
+    const embed = savedEmbed(event, result.signup, profiles.getProfile(uid), { emojis, notice: result.notice });
+    return update ? done(interaction, embed) : reply(interaction, { embed });
 }
 
 /** Anmelden: one fitting character signs up at once, several get the select, none the class way. */
 async function onJoin(interaction, event) {
     const uid = interaction.user.id;
     const why = await blocked(event, uid, "signed");
-    if (why) return reply(interaction, why);
+    if (why) return reply(interaction, why, event);
     const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
     const emojis = await emojisFor(interaction);
     if (!options.length) {
@@ -107,10 +114,10 @@ async function onJoin(interaction, event) {
 /** A class from the public select (#303), or the old "Klasse wählen" button (no class yet): spec step, then the name modal. */
 async function onClass(interaction, event, classId) {
     const why = await blocked(event, interaction.user.id, "signed");
-    if (why) return reply(interaction, why);
+    if (why) return reply(interaction, why, event);
     const emojis = await emojisFor(interaction);
     if (!classId) return reply(interaction, buildClassPicker(event, "signed", { emojis }));
-    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unknown class.");
+    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unknown class.", event);
 }
 
 /**
@@ -120,7 +127,7 @@ async function onClass(interaction, event, classId) {
 async function onStatus(interaction, event, status, { note } = {}) {
     const uid = interaction.user.id;
     const why = await blocked(event, uid, status);
-    if (why) return reply(interaction, why);
+    if (why) return reply(interaction, why, event);
     const comment = note === undefined ? {} : { comment: note };
     const moved = firstCharacterTo(getSignup(event.id, uid), status);
     if (moved) {
@@ -139,7 +146,7 @@ async function onStatus(interaction, event, status, { note } = {}) {
 async function onPick(interaction, event, status) {
     const listed = (interaction.component && interaction.component.options) || [];
     const picks = orderedValues(interaction.values, listed);
-    if (!picks.length) return done(interaction, "No character picked.");
+    if (!picks.length) return done(interaction, "No character picked.", event);
     const note = takeNote(event.id, interaction.user.id, status);
     return save(interaction, event, { characters: picksWithStatus(picks, status), status, ...note }, { update: true });
 }
@@ -148,14 +155,14 @@ async function onPick(interaction, event, status) {
 async function onName(interaction, event, status, specKey) {
     const uid = interaction.user.id;
     const info = profiles.specInfo(specKey);
-    if (!info) return done(interaction, "⚠️ Unknown spec – please pick again.");
+    if (!info) return done(interaction, "⚠️ Unknown spec – please pick again.", event);
     const why = await blocked(event, uid, status);
-    if (why) return done(interaction, `⚠️ ${why}`);
+    if (why) return done(interaction, `⚠️ ${why}`, event);
     const name = String(interaction.fields.getTextInputValue("character") || "").trim();
     const profile = profiles.getProfile(uid) || { characters: [] };
     const existing = profile.characters.find((c) => c.key === profiles.characterKey(name));
     if (existing && existing.className !== info.classId) {
-        return done(interaction, `⚠️ ${existing.name} is already in your profile as a ${classLabel(event, existing.className)} – pick another name.`);
+        return done(interaction, `⚠️ ${existing.name} is already in your profile as a ${classLabel(event, existing.className)} – pick another name.`, event);
     }
     const added = profiles.addCharacter(uid, {
         name,
@@ -163,9 +170,9 @@ async function onName(interaction, event, status, specKey) {
         specs: [{ key: info.key, gear: "usable" }],
         source: "manual",
     }, { name: displayName(interaction), versionId: event.versionId });
-    if (added.error) return done(interaction, `⚠️ ${added.error}`);
+    if (added.error) return done(interaction, `⚠️ ${added.error}`, event);
     const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status });
-    if (next.error) return done(interaction, `⚠️ ${next.error}`);
+    if (next.error) return done(interaction, `⚠️ ${next.error}`, event);
     const note = takeNote(event.id, uid, next.status);
     return save(interaction, event, { characters: next.characters, status: next.status, ...note }, { update: true });
 }
@@ -188,14 +195,14 @@ async function signOff(interaction, event, note) {
 /** The absence modal: its message (required or optional per category), then sign off. */
 async function onAbsence(interaction, event) {
     const { note, error } = noteFrom(interaction, event);
-    if (error) return reply(interaction, error);
+    if (error) return reply(interaction, error, event);
     return signOff(interaction, event, note);
 }
 
 /** The "Vielleicht" modal: its message, then the same way as the button without one. */
 async function onNote(interaction, event, status) {
     const { note, error } = noteFrom(interaction, event);
-    if (error) return reply(interaction, error);
+    if (error) return reply(interaction, error, event);
     return onStatus(interaction, event, status, { note });
 }
 
@@ -229,13 +236,13 @@ module.exports = {
                 const mode = noteMode(event.categoryId);
                 if (mode === "none") return onStatus(interaction, event, action);
                 const why = await blocked(event, uid, action);
-                if (why) return reply(interaction, why);
+                if (why) return reply(interaction, why, event);
                 return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required" }));
             }
             case "absence": {
                 // Signing off is always allowed until the start — unless the event is cancelled.
                 const why = refusal(event, "absence");
-                if (why) return reply(interaction, why);
+                if (why) return reply(interaction, why, event);
                 const mode = noteMode(event.categoryId);
                 if (mode === "none") return signOff(interaction, event);
                 return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required" }));
@@ -243,7 +250,7 @@ module.exports = {
             case "why":
                 return onAbsence(interaction, event);
             case "note":
-                if (!isModal || !status) return reply(interaction, "Unknown action.");
+                if (!isModal || !status) return reply(interaction, "Unknown action.", event);
                 return onNote(interaction, event, status);
             case "pick":
                 return onPick(interaction, event, status || "signed");
@@ -251,18 +258,18 @@ module.exports = {
                 return interaction.update(buildClassPicker(event, status || "signed", { emojis: await emojisFor(interaction) }));
             case "cls": {
                 const picker = buildSpecPicker(event, status || "signed", String((interaction.values || [])[0] || ""), { emojis: await emojisFor(interaction) });
-                return picker ? interaction.update(picker) : done(interaction, "Unknown class.");
+                return picker ? interaction.update(picker) : done(interaction, "Unknown class.", event);
             }
             case "spec": {
                 const specKey = String((interaction.values || [])[0] || "");
-                if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.");
+                if (!profiles.specInfo(specKey)) return done(interaction, "Unknown spec.", event);
                 return interaction.showModal(buildNameModal(event, uid, status || "signed", specKey, { displayName: displayName(interaction) }));
             }
             case "name":
-                if (!isModal) return done(interaction, "Unknown action.");
+                if (!isModal) return done(interaction, "Unknown action.", event);
                 return onName(interaction, event, status || "signed", arg);
             default:
-                return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.");
+                return fromPublic ? reply(interaction, "Unknown action.") : done(interaction, "Unknown action.", event);
         }
     },
 };

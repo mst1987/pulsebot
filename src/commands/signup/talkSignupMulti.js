@@ -5,6 +5,7 @@ const { MULTI_BUTTON_ID } = require("../../services/talk/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
 const { createSession, getSession, signableRaids, buildRaidPicker } = require("../../utils/signup/multiSignup");
+const { answerPayload } = require("../../utils/signup/signupReply");
 
 // "Mehrere Raids wählen …" under the raid overview on the talk server (#293):
 // step 1, only for the member — the coming raids (all preselected), the status
@@ -12,18 +13,14 @@ const { createSession, getSession, signableRaids, buildRaidPicker } = require(".
 
 /** Without a profile character there is nothing to pick — the reply says where to add one. */
 function noCharacterReply() {
-    const payload = {
-        content: "To sign up for several raids you need characters with a spec in your profile.",
-        flags: MessageFlags.Ephemeral,
-    };
-    if (/^https?:\/\//.test(publicBaseUrl())) {
-        payload.components = [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${publicBaseUrl()}/profile` }] }];
-    }
-    return payload;
+    const components = /^https?:\/\//.test(publicBaseUrl())
+        ? [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${publicBaseUrl()}/profile` }] }]
+        : [];
+    return answerPayload("To sign up for several raids you need characters with a spec in your profile.", { components });
 }
 
 function noRaidsReply() {
-    return { content: "There are no coming raids with an EventHelper signup right now.", flags: MessageFlags.Ephemeral };
+    return answerPayload("There are no coming raids with an EventHelper signup right now.");
 }
 
 module.exports = {
