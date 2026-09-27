@@ -317,7 +317,10 @@ describe("the section bar names every section (feature/raidplan-16)", () => {
         expect(nav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
         expect(nav).not.toContain("rp-bosschip-no");
         const sheet = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/PlanPublicPage.tsx"), "utf8");
-        expect(sheet).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        // the sheet's chips live in SheetBossNav since #503 (the mark of the visitor's own sections); the page hands it the label
+        const sheetNav = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/pages/raid-detail/raidplan/SheetBossNav.tsx"), "utf8");
+        expect(sheetNav).toContain("<span className=\"rp-bosschip-name\">{label(b)}</span>");
+        expect(sheet).toContain("<SheetBossNav");
         expect(sheet).toContain("const label = (b: RaidplanPublicBoss) => sectionLabel(b, several);");
         const css = require("../clientSource").read("styles/raidplan/index.css");
         expect(css).toContain(".rp-bossnav { display: flex; flex-wrap: wrap;");

@@ -691,7 +691,8 @@
         "byGroup": "Nach Gruppe",
         "byHealer": "Nach Heiler",
         "onlyMine": "Nur für mich",
-        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen"
+        "onlyMineTip": "Nur die Abschnitte und Aufgaben, die dich betreffen",
+        "hasMine": "Du hast hier Einteilungen"
     },
     "multi": {
         "count": "{n} ausgewählt",
