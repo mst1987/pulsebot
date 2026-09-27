@@ -151,6 +151,7 @@
   "POST /api/raids/manage/signups",
   "POST /api/raids/notify",
   "POST /api/raids/ping-missing",
+  "POST /api/raids/post-raidplan",
   "POST /api/raids/post-sheet",
   "POST /api/raids/post-softres",
   "POST /api/raids/series/run",

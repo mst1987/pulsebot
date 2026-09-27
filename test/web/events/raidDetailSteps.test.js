@@ -197,6 +197,38 @@ describe("raidSteps", () => {
         expect(step(res, "setup").tip.sub).toBe("Timeout");
     });
 
+    describe("Einteilungen step (#502)", () => {
+        const rp = (over = {}) => ({ filled: true, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0, ...over });
+        const ready = (raidplanPost) => base({
+            event: { ...base().event, signupCount: 23 },
+            setup: { total: 25, groups: [], roleCounts: {} },
+            eventSheet: { url: "u", postedChannelId: "c", postedMessageId: "m" },
+            sheetLink: { url: "u", name: "", source: "event" },
+            raidplanPost,
+        });
+
+        it("sits after the sheet, only for a raid with a plan", () => {
+            expect(raidSteps(base()).steps.map((s) => s.key)).not.toContain("raidplan");
+            expect(raidSteps(base({ raidplanPost: rp() })).steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "raidplan", "softres", "loot", "logs"]);
+        });
+
+        it("is next after the sheet while the filled plan is not posted", () => {
+            const res = raidSteps(ready(rp()));
+            expect(res.next).toBe("raidplan");
+            expect(res.primary).toEqual({ label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" });
+            expect(step(res, "raidplan")).toMatchObject({ value: "Offen", done: false, badge: { label: "nicht gepostet", tone: "mid" }, open: { modal: "raidplan" } });
+        });
+
+        it("says when it was posted, and an empty plan pushes nothing", () => {
+            const posted = step(raidSteps(ready(rp({ messageId: "m1", postedAt: Date.UTC(2026, 8, 17, 12) }))), "raidplan");
+            expect(posted).toMatchObject({ done: true, tone: "ok", value: "Gepostet", badge: { label: "am 17.09.", tone: "ok" } });
+            expect(posted.tip.head).toBe("Einteilungen · gepostet am 17.09.");
+            const empty = raidSteps(ready(rp({ filled: false })));
+            expect(step(empty, "raidplan")).toMatchObject({ done: true, tone: "none", badge: { label: "kein Plan" } });
+            expect(empty.next).toBe("softres");
+        });
+    });
+
     it("shows a softres list's amount and whether it was posted", () => {
         const res = raidSteps(base({ eventSoftres: { url: "u", editUrl: "e", instances: ["bt"], amount: 2, hardReserveCount: 1 } }));
         expect(step(res, "softres")).toMatchObject({ value: "2", unit: "/ Spieler", badge: { label: "nicht gepostet", tone: "mid" }, done: true });
@@ -251,10 +283,10 @@ const at = (res, id) => res.steps.find((s) => s.id === id);
 const signed = (n) => Array.from({ length: n }, () => ({ status: "signed" }));
 
 describe("eventSteps — das Raid-Cockpit (#319)", () => {
-    it("ist immer dieselbe Strecke aus fünf Schritten", () => {
+    it("ist immer dieselbe Strecke aus sechs Schritten", () => {
         expect(run(own()).steps.map((s) => s.id)).toEqual(STEP_IDS);
-        expect(STEP_IDS).toEqual(["created", "signup", "setup", "approval", "after"]);
-        expect(run(own()).steps.map((s) => s.label)).toEqual(["Angelegt", "Anmeldung", "Setup", "Freigabe", "Nachbereitung"]);
+        expect(STEP_IDS).toEqual(["created", "signup", "setup", "approval", "plan", "after"]);
+        expect(run(own()).steps.map((s) => s.label)).toEqual(["Angelegt", "Anmeldung", "Setup", "Freigabe", "Einteilungen", "Nachbereitung"]);
         // jeder Zustand ist einer der fünf, und jeder Schritt erklärt sich
         for (const s of run(own()).steps) {
             expect(STEP_STATES).toContain(s.state);
@@ -438,8 +470,43 @@ describe("eventSteps — das Raid-Cockpit (#319)", () => {
         expect(res.current).toBe("");
         expect(res.action).toMatchObject({ manage: "reopen", label: "Absage zurücknehmen" });
         // kein Schritt drängt noch zu irgendetwas
-        expect(res.steps.map((s) => s.state)).toEqual(["cancelled", "cancelled", "cancelled", "cancelled", "cancelled"]);
+        expect(res.steps.map((s) => s.state)).toEqual(["cancelled", "cancelled", "cancelled", "cancelled", "cancelled", "cancelled"]);
         expect(res.steps.every((s) => s.action === null)).toBe(true);
+    });
+
+    describe("Einteilungen (#502)", () => {
+        const approved = { status: "approved", placed: 25, size: 25, version: 2, bench: 0, ok: true };
+        const post = { messageId: "m1", version: 2, dms: null };
+        const rp = (over = {}) => ({ filled: true, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0, ...over });
+        const ready = (raidplanPost, event) => own({ event: { signupsClosed: true, ...event }, ownSignups: signed(25), ownSetup: approved, ownSetupPost: post, raidplanPost });
+
+        it("ohne gespeicherten Plan: später, mit dem Weg in den Tab", () => {
+            const s = at(run(ready(null)), "plan");
+            expect(s).toMatchObject({ state: "todo", note: "Raidplan leer", action: { id: "plan", tab: "plan" } });
+            expect(at(run(ready(rp({ filled: false }))), "plan").state).toBe("todo");
+        });
+
+        it("ein gefüllter, nicht geposteter Plan ist nach der Freigabe dran", () => {
+            const res = run(ready(rp()));
+            expect(res.current).toBe("plan");
+            expect(res.action).toMatchObject({ id: "raidplan", label: "Einteilungen posten", modal: "raidplan" });
+            expect(at(res, "plan")).toMatchObject({ state: "current", value: "Offen", note: "Entwurf" });
+            expect(at(run(ready(rp({ published: true }))), "plan").note).toBe("freigegeben");
+        });
+
+        it("gepostet: erledigt, mit Datum, und der Knopf bleibt fürs Aktualisieren", () => {
+            const res = run(ready(rp({ published: true, messageId: "m9", postedAt: Date.UTC(2026, 8, 18, 12) })));
+            expect(at(res, "plan")).toMatchObject({ state: "done", value: "Gepostet", note: "am 18.09.", action: { id: "raidplan" } });
+            expect(at(res, "plan").hint).toMatch(/dieselbe Nachricht/);
+            expect(res.current).toBe("");
+            // Freigabe zurückgenommen: der Link führt ins Leere
+            expect(at(run(ready(rp({ messageId: "m9", postedAt: 1 }))), "plan").hint).toMatch(/ins Leere/);
+        });
+
+        it("nach dem Raid drängt ein nie geposteter Plan nicht mehr", () => {
+            const res = run(ready(rp(), { isPast: true, startTime: inHours(-3) }));
+            expect(at(res, "plan")).toMatchObject({ state: "skipped", note: "nicht gepostet" });
+        });
     });
 
     it("kommt ohne jedes Feld aus, statt zu werfen", () => {

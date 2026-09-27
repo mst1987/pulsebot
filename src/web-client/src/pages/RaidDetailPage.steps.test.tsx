@@ -104,6 +104,16 @@ describe("a step's deed does exactly one thing", () => {
         expect(within(screen.getByRole("dialog")).getByText(t("raidModals.ping.title"))).toBeInTheDocument();
     });
 
+    it("opens the Einteilungen dialog of a raid with a plan (#502)", async () => {
+        const user = userEvent.setup();
+        const raidplanPost = { filled: true, published: false, publicPath: "", channelId: "", messageId: "", message: "", postedAt: 0 };
+        await show(withDeed({ id: "raidplan", label: "Einteilungen posten", icon: "inv_letter_15", modal: "raidplan" }, { raidplanPost }));
+        await user.click(screen.getByRole("button", { name: t("raidDetail.steps.deed.raidplan") }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText(t("raidModals.raidplan.draft"))).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: t("raidModals.raidplan.post") })).toBeInTheDocument();
+    });
+
     it("runs a menu action — editing opens the create dialog for this event", async () => {
         const user = userEvent.setup();
         await show(withDeed({ id: "edit", label: "Bearbeiten", icon: "inv_misc_note_05", manage: "edit" }));

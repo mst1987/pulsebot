@@ -12,8 +12,8 @@ export type SetupGroup = { label: string; players: SetupPlayer[] };
 export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Partial<Record<SetupRole, number>> } | null;
 
 /** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
-export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
-export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "invite" | "move" | "cancel" | "raider" | "history" | "delete";
+export type RaidStepKey = "signup" | "setup" | "sheet" | "raidplan" | "softres" | "loot" | "logs";
+export type RaidDetailModal = "notify" | "sheet" | "raidplan" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "invite" | "move" | "cancel" | "raider" | "history" | "delete";
 export type RaidStep = {
     key: RaidStepKey;
     label: string;
@@ -40,11 +40,11 @@ export type RaidPrimaryAction = {
 export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
 
 /**
- * Das Raid-Cockpit eines eigenen Events (#319) — die fünf Schritte aus
+ * Das Raid-Cockpit eines eigenen Events (#319) — die sechs Schritte aus
  * src/web/raidDetailSteps.js' eventSteps(). Ein Raid-Helper-Event hat keines
  * (`steps: null`) und behält die Leiste von #219.
  */
-export type RaidEventStepId = "created" | "signup" | "setup" | "approval" | "after";
+export type RaidEventStepId = "created" | "signup" | "setup" | "approval" | "plan" | "after";
 export type RaidEventStepState = "done" | "current" | "todo" | "skipped" | "cancelled";
 /** Die eine Tat eines Schritts: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */
 export type RaidStepDeed = {
@@ -54,7 +54,7 @@ export type RaidStepDeed = {
     /** Ein Eintrag von „Event verwalten“ (lib/eventManage.ts' ManageAction). */
     manage?: "edit" | "signups" | "reopen";
     modal?: RaidDetailModal;
-    tab?: "roster" | "setup" | "loot" | "logs";
+    tab?: "roster" | "setup" | "loot" | "logs" | "plan";
     evaluate?: { logId: string; section: LogSection };
 };
 export type RaidEventStep = {
@@ -152,6 +152,18 @@ export type TankCandidate = { name: string; specName: string; className?: string
 export type SoftresInstance = { code: string; name: string; slots?: number };
 export type SoftresCatalogueGroup = { edition: string; label: string; instances: SoftresInstance[] };
 
+/** src/services/raidplan/raidplanPost.js' raidplanPostState(): is there a plan to post, is it out, where. */
+export type RaidplanPostState = {
+    filled: boolean;
+    published: boolean;
+    /** "/p/<token>" once published, else "". */
+    publicPath: string;
+    channelId: string;
+    messageId: string;
+    message: string;
+    postedAt: number;
+};
+
 export type RaidDetailData = {
     event: RaidDetailEvent;
     categoryName: string;
@@ -173,6 +185,8 @@ export type RaidDetailData = {
     // Which sheet this raid actually links: its own filled copy ("event"), else
     // the fixed sheet assigned to its category ("category"), else null.
     sheetLink: { url: string; name: string; source: "event" | "category" } | null;
+    /** The raid plan's read link in the event channel (#502); null for a raid without a plan. */
+    raidplanPost?: RaidplanPostState | null;
     eventSoftres: EventSoftres;
     softresCatalogue: SoftresCatalogueGroup[];
     softresEdition: string;
@@ -257,6 +271,13 @@ export function postRaidSheet(
     input: { event: string; message?: string },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/post-sheet", input);
+}
+
+/** "Einteilungen posten" (#502): the plan's read link in the event channel — publishes the plan when needed, edits the earlier message. */
+export function postRaidplanLink(
+    input: { event: string; message?: string },
+): Promise<{ message: string; updated: boolean; url: string; published: boolean }> {
+    return send("POST", "/api/raids/post-raidplan", input);
 }
 
 export function postRaidSoftres(

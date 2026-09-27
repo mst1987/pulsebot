@@ -6,7 +6,7 @@
 // tab and which dialog is open, and wires the steps to them.
 //
 // An *own* event answers the orga's one question ("was ist als Nächstes zu
-// tun?") as the five-step cockpit instead (#319, StepBar.tsx): the server sends
+// tun?") as the six-step cockpit instead (#319, StepBar.tsx): the server sends
 // it as `data.steps`, every step names at most one deed, and this file is the
 // one place that turns such a deed into a dialog, a tab, a menu action or an
 // evaluation. A Raid-Helper event has no `steps` and keeps today's view.
@@ -43,6 +43,7 @@ import SetupEditor from "./raid-detail/setup/SetupEditor";
 import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
 import SheetModal from "./raid-detail/modals/SheetModal";
+import RaidplanPostModal from "./raid-detail/modals/RaidplanPostModal";
 import SoftresModal from "./raid-detail/modals/SoftresModal";
 import LootSystemModal from "./raid-detail/modals/LootSystemModal";
 import PingModal from "./raid-detail/modals/PingModal";
@@ -233,7 +234,7 @@ export default function RaidDetailPage() {
             if (log) evaluator.evaluate(log, deed.evaluate.section);
         }
     };
-    // Own event: the five-step bar. Without raids write it only informs.
+    // Own event: the six-step bar. Without raids write it only informs.
     const cockpit: RaidEventSteps | null = data.steps ? (canManage ? data.steps : withoutDeeds(data.steps)) : null;
     const cockpitEval = cockpit?.action?.evaluate;
 
@@ -283,6 +284,7 @@ export default function RaidDetailPage() {
 
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
             <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />
+            {data.raidplanPost && <RaidplanPostModal ctx={ctx} open={modal === "raidplan"} onClose={close} />}
             <SoftresModal ctx={ctx} open={modal === "softres"} onClose={close} />
             <LootSystemModal ctx={ctx} open={modal === "lootsystem"} onClose={close} />
             <PingModal ctx={ctx} open={modal === "ping"} onClose={close} />

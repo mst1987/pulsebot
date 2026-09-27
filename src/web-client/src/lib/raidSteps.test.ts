@@ -52,12 +52,13 @@ describe("the step bar's words", () => {
     it("counts a step's place in the route the server sent", () => {
         const p = progress();
         expect(lib.stepPosition(p.steps, "setup")).toBe(`Schritt 3 von ${STEP_IDS.length}`);
-        expect(lib.stepPosition(p.steps, "after")).toBe("Schritt 5 von 5");
+        expect(lib.stepPosition(p.steps, "plan")).toBe("Schritt 5 von 6");
+        expect(lib.stepPosition(p.steps, "after")).toBe("Schritt 6 von 6");
         expect(lib.stepPosition(p.steps, "nope")).toBe("");
     });
 
-    it("falls to one line: „Schritt n von 5 · Label“", () => {
-        expect(lib.stepSummary(progress())).toBe("Schritt 2 von 5 · Anmeldung");
+    it("falls to one line: „Schritt n von 6 · Label“", () => {
+        expect(lib.stepSummary(progress())).toBe("Schritt 2 von 6 · Anmeldung");
         const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
         expect(done.current).toBe("");
         expect(lib.stepSummary(done)).toBe(done.note);
