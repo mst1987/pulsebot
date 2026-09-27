@@ -15,6 +15,34 @@ describe("wiring and texts", () => {
     });
 });
 
+describe("the lines of the rows on the board (#507)", () => {
+    const root = path.join(__dirname, "../../../src/web-client/src");
+    const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+    const css = read("styles/raidplan/assign.css") + read("styles/raidplan/layout.css");
+    const tokens = read("styles/tokens.css");
+    const lineTypes = JSON.parse(read("lib/raidplan/assign.ts").match(/export const LINE_TYPES = (\[[^\]]*\]);/)[1]);
+    const rules = css.split("}").filter((r) => r.indexOf(".rp-links") >= 0);
+    it("every row type has a class that points at a colour variable defined in tokens.css", () => {
+        expect(lineTypes).toEqual(expect.arrayContaining(["heal", "tank", "kick"]));
+        for (const type of lineTypes) {
+            const rule = type === "other" ? rules.find((r) => r.indexOf(".rp-links line {") >= 0) : rules.find((r) => r.indexOf(`.rp-link--${type} `) >= 0 || r.indexOf(`.rp-link--${type},`) >= 0);
+            expect(rule).toBeDefined();
+            const name = rule.match(/--lc: var\((--rp-line-[a-z]+)\)/)[1];
+            expect(tokens).toMatch(new RegExp(`${name}: #[0-9a-f]{6};`));
+        }
+        expect(tokens).toMatch(/--rp-line-heal: #22c55e;/);
+        expect(tokens).toMatch(/--rp-line-tank: #ef4444;/);
+    });
+    it("nothing hides the lines: they take their stroke from the type, never display: none, visibility: hidden or opacity 0", () => {
+        expect(rules.join("}")).toMatch(/\.rp-links line \{[^}]*stroke: var\(--lc\)/);
+        for (const r of rules) {
+            expect(r).not.toMatch(/display:\s*none|visibility:\s*hidden|opacity:\s*0\s*;|opacity:\s*0?\.0\d*\s*;|!important/);
+        }
+        expect(read("components/raidplan/PlanBoard.tsx")).toContain("linkClass(k.type)");
+        expect(read("components/raidplan/PlanBoard.tsx")).not.toContain("stroke={k.color}");
+    });
+});
+
 describe("mobs and spells of the catalog", () => {
     it("has the catalog texts in both languages", () => {
         const root = path.join(__dirname, "../../../src/web-client/src/i18n/locales");

@@ -106,6 +106,11 @@
     --rp-tb-default: #7c86a0; --rp-tb-tank: #3b82f6; --rp-tb-heal: #22b573; --rp-tb-kick: #ef4444; --rp-tb-md: #f59e0b;
     --rp-tb-ss: #a855f7; --rp-tb-fearward: #eab308; --rp-tb-special: #60a5fa; --rp-tb-dispel: #14b8a6; --rp-tb-cc: #ec4899;
     --rp-tb-buff: #84cc16; --rp-tb-curse: #8b5cf6; --rp-tb-aoe: #f97316;
+    /* the lines of the rows on the board (.rp-links, #507): healing green, tanking red, the others in the hue of their type. The board is a
+       dark picture in both themes (like --rp-role-*), so one bright set serves light and dark */
+    --rp-line-heal: #22c55e; --rp-line-tank: #ef4444; --rp-line-kick: #f97316; --rp-line-md: #facc15; --rp-line-ss: #c084fc;
+    --rp-line-fearward: #fde68a; --rp-line-special: #60a5fa; --rp-line-dispel: #2dd4bf; --rp-line-cc: #ec4899; --rp-line-buff: #a3e635;
+    --rp-line-curse: #818cf8; --rp-line-aoe: #38bdf8; --rp-line-other: #cbd5e1;
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {

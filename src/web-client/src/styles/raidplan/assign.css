@@ -2,7 +2,20 @@
 
 /* ---- assignments ("Einteilungen") ---- */
 .rp-links { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
-.rp-links line { stroke-width: 2; stroke-dasharray: 5 4; opacity: .7; }
+/* the lines of the rows (assignmentLinks): one colour per row type (--rp-line-<type>, tokens.css), a thin dark halo so they stay visible on a bright map */
+.rp-links line { --lc: var(--rp-line-other); stroke: var(--lc); stroke-width: 2; stroke-dasharray: 5 4; opacity: .9; filter: drop-shadow(0 0 1px var(--rp-text-halo)); }
+.rp-links .rp-link--heal { --lc: var(--rp-line-heal); }
+.rp-links .rp-link--tank, .rp-links .rp-link--trashtank { --lc: var(--rp-line-tank); }
+.rp-links .rp-link--kick { --lc: var(--rp-line-kick); }
+.rp-links .rp-link--md { --lc: var(--rp-line-md); }
+.rp-links .rp-link--ss { --lc: var(--rp-line-ss); }
+.rp-links .rp-link--fearward { --lc: var(--rp-line-fearward); }
+.rp-links .rp-link--special { --lc: var(--rp-line-special); }
+.rp-links .rp-link--dispel { --lc: var(--rp-line-dispel); }
+.rp-links .rp-link--cc { --lc: var(--rp-line-cc); }
+.rp-links .rp-link--buff { --lc: var(--rp-line-buff); }
+.rp-links .rp-link--curse { --lc: var(--rp-line-curse); }
+.rp-links .rp-link--thunderclap, .rp-links .rp-link--demoshout { --lc: var(--rp-line-aoe); }
 .rp-assign { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .rp-assign-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rp-assign-head .rp-kicker { margin: 0; }

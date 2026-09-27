@@ -10,6 +10,7 @@ import { mentionsInRow } from "./mention";
 import { ANY, parseClassRef } from "./classRefs";
 import type { Catalog, CatalogMob, CatalogSpell, RaidplanAssignment, RaidplanAssignTarget, RaidplanAssignType, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanSlot, RaidplanSpellRef } from "../../api";
 import { t } from "../../i18n";
+import { mobIconsOf, tankPoint, targetIcon, type AutoPlan } from "./autoPlace";
 
 /** Per type: its icon, where it is offered and which classes can do it (a filter for the picker, never a rule). */
 export const ASSIGN_META = {
@@ -152,7 +153,6 @@ export function quickTexts(type: string): string[] {
 }
 
 export const SLOT_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
-export const HEAL_COLOR = "#35d6c4";
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
 
 /** Which area a boss entry is: the whole raid, the trash of an instance or a boss. */
@@ -502,14 +502,26 @@ export function applySuggestions(board: RaidplanBoard, type: string, list: Raidp
 
 // ---- lines on the map -----------------------------------------------------------------------
 
-export type AssignLink = { key: string; x1: number; y1: number; x2: number; y2: number; color: string; /** the line concerns one of the visitor's own characters */ mine?: boolean };
+/** The row types whose lines have a colour of their own (`--rp-line-<type>` in styles/tokens.css); any other type draws as "other". */
+export const LINE_TYPES = ["tank", "trashtank", "heal", "kick", "md", "ss", "fearward", "special", "dispel", "cc", "buff", "curse", "thunderclap", "demoshout", "other"];
+
+/** The class that colours the line of a row type (`rp-link--heal` ...; `.rp-line` is taken by the drawn lines and the rows). */
+export function linkClass(type: string): string {
+    return `rp-link--${LINE_TYPES.indexOf(type) >= 0 ? type : "other"}`;
+}
+
+export type AssignLink = { key: string; x1: number; y1: number; x2: number; y2: number; /** the row's type: the line's colour (`linkClass`) */ type: string; /** the line concerns one of the visitor's own characters */ mine?: boolean };
+
+type Point = { x: number; y: number };
 
 /** Where a reference stands on the board (a slot, the slot or token a raider is in, a mark), or null. */
-function position(board: RaidplanBoard, kind: string, ref: string) {
+function position(board: RaidplanBoard, kind: string, ref: string): Point | null {
     if (kind === "slot") {
         const p = ref.split(":");
-        const s = board.slots.find((x) => x.kind === p[0] && x.n === Number(p[1]) && !x.hidden && x.placed !== false);
-        return s ? { x: s.x, y: s.y } : null;
+        const s = board.slots.find((x) => x.kind === p[0] && x.n === Number(p[1]) && !x.hidden);
+        if (s && s.placed !== false) return { x: s.x, y: s.y };
+        // a slot that only stands in the Besetzung: its raider may stand on the map all the same (a free token, the auto token of a tank or task row)
+        return s && s.userId ? position(board, "user", s.userId) : null;
     }
     if (kind === "group") {
         const s = board.slots.find((x) => x.kind === "group" && x.n === Number(ref) && !x.hidden && x.placed !== false);
@@ -524,10 +536,26 @@ function position(board: RaidplanBoard, kind: string, ref: string) {
         if (s) return { x: s.x, y: s.y };
         const tk = board.tokens.find((x) => x.userId === ref && !x.hidden);
         if (tk) return { x: tk.x, y: tk.y };
-        // a raider who stands in the ring of a split group marker: the place the board drew him at (handed over by the board as `places`)
+        // a raider in the ring of a split group marker or on an auto token: the place the board drew him at (handed over as `places`)
         return board.places && board.places[ref] ? board.places[ref] : null;
     }
     return null;
+}
+
+/** Where a mob target stands: the placed icon it names, the auto icon of its instance, else a placed icon of that mob (the n-th for a numbered one). */
+function mobPosition(board: RaidplanBoard, tg: RaidplanAssignTarget, plan: AutoPlan | null): Point | null {
+    const named = targetIcon(board, tg);
+    if (named) return { x: named.x, y: named.y };
+    const m = plan ? plan.mobs.find((x) => x.ref === tg.ref && (!tg.n || x.inst === tg.n)) : undefined;
+    if (m) return { x: m.x, y: m.y };
+    const icons = mobIconsOf(board, tg.ref);
+    const ic = icons[tg.n ? tg.n - 1 : 0];
+    return ic ? { x: ic.x, y: ic.y } : null;
+}
+
+/** Where a target of a row stands on the board, or null (text, a mob nobody put on the map, a slot nobody placed ...). */
+function targetPosition(board: RaidplanBoard, tg: RaidplanAssignTarget, plan: AutoPlan | null): Point | null {
+    return tg.kind === "mob" ? mobPosition(board, tg, plan) : position(board, tg.kind, tg.ref);
 }
 
 /** The player behind a reference of a line: a raider, or whoever stands in a slot ("" for anything else). */
@@ -539,21 +567,32 @@ function linkPlayer(board: RaidplanBoard, kind: string, ref: string): string {
     return s ? s.userId : "";
 }
 
-/** The thin lines of the heal assignments (healer to what it heals), for the ones whose two ends are ON THE MAP: a slot or group that only stands in the Besetzung (placed: false) has no place, so no line is drawn to or from it. */
-export function assignmentLinks(board: RaidplanBoard, me: string[] = []): AssignLink[] {
+/**
+ * The thin lines of the rows on the map, one per assignee and target whose two ends are ON THE MAP, coloured by the row's type: a healer to what
+ * he heals, a tank to the mob he tanks, a kicker / a hunter / a warlock to his target. `plan` = what the auto placement put on the map (the tanks
+ * of the tank rows and the raiders of the task rows at their auto places, the auto mobs): an assignee the plan places starts at his place there,
+ * and the n-th tank of a tank row goes to HIS mob only (the one the auto placement stands him at), not to every mob of the row. A slot or group
+ * that only stands in the Besetzung (placed: false) has no place of its own, a text target none at all: no line to or from it.
+ */
+export function assignmentLinks(board: RaidplanBoard, me: string[] = [], plan: AutoPlan | null = null): AssignLink[] {
     const out: AssignLink[] = [];
+    const places = board.places || {};
     for (const a of board.assignments || []) {
-        if (a.type !== "heal") continue;
-        for (const r of a.assignees) {
+        const type = String(a.type);
+        (a.assignees || []).forEach((r, j) => {
             const p = r.split(":");
-            const from = p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : position(board, "user", p[1]);
-            if (!from) continue;
-            for (const tg of a.targets) {
-                const to = position(board, tg.kind, tg.ref);
-                const mine = me.length > 0 && (me.indexOf(linkPlayer(board, p[0] === "slot" ? "slot" : "user", p[0] === "slot" ? `${p[1]}:${p[2]}` : p[1])) >= 0 || me.indexOf(linkPlayer(board, tg.kind, tg.ref)) >= 0);
-                if (to) out.push({ key: `${a.id}:${r}:${tg.kind}:${tg.ref}`, x1: from.x, y1: from.y, x2: to.x, y2: to.y, color: HEAL_COLOR, mine });
+            const auto = plan ? plan.tanks.find((x) => x.rowId === a.id && x.j === j + 1) : undefined;
+            const from = plan && auto ? tankPoint(plan, auto, board, places) : p[0] === "slot" ? position(board, "slot", `${p[1]}:${p[2]}`) : p[0] === "user" ? position(board, "user", p[1]) : null;
+            if (!from) return;
+            const who = auto && auto.userId ? auto.userId : linkPlayer(board, p[0] === "slot" ? "slot" : "user", p[0] === "slot" ? `${p[1]}:${p[2]}` : p[1]);
+            const mob = auto && auto.mobKey && plan ? plan.mobs.find((m) => m.key === auto.mobKey) : undefined;
+            const ends: { key: string; at: Point | null; player: string }[] = mob ? [{ key: `mob:${mob.key}`, at: { x: mob.x, y: mob.y }, player: "" }] : (a.targets || []).map((tg, k) => ({ key: `${k}:${tg.kind}:${tg.ref}`, at: targetPosition(board, tg, plan), player: linkPlayer(board, tg.kind, tg.ref) }));
+            for (const e of ends) {
+                if (!e.at || (e.at.x === from.x && e.at.y === from.y)) continue;
+                const mine = me.length > 0 && ((!!who && me.indexOf(who) >= 0) || (!!e.player && me.indexOf(e.player) >= 0));
+                out.push({ key: `${a.id}:${j}:${r}:${e.key}`, x1: from.x, y1: from.y, x2: e.at.x, y2: e.at.y, type, mine });
             }
-        }
+        });
     }
     return out;
 }

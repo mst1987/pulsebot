@@ -243,7 +243,8 @@ input[type="color"].rp-color::-webkit-color-swatch { border: 0; border-radius: 6
 .rp-du { padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; line-height: 16px; }
 .rp-mine-from { display: inline-flex; align-items: center; gap: 6px; }
 .rp-mine-note { flex-basis: 100%; }
-.rp-links line.is-yours { stroke-width: 4; stroke-dasharray: none; opacity: 1; stroke: var(--accent); filter: drop-shadow(0 0 3px var(--accent)); }
+/* the visitor's own line: solid, thick and glowing in the colour of its row type */
+.rp-links line.is-yours { stroke-width: 4; stroke-dasharray: none; opacity: 1; filter: drop-shadow(0 0 3px var(--lc)); }
 .rp-groupring.is-yours { border-width: 3px; border-style: solid; opacity: .9; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent); }
 @keyframes rp-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent), 0 0 12px 3px var(--accent); } 50% { box-shadow: 0 0 0 5px var(--accent), 0 0 24px 8px var(--accent); } }
 .rp-token.is-me .rp-ico { animation: rp-pulse 1.8s ease-in-out infinite; }
