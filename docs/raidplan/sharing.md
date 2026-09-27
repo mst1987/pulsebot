@@ -37,6 +37,20 @@ answers `me` = their Discord id when they stand in the plan; the page then rings
 and says so. A visitor without a login gets a "log in" link (the login returns to the menu start, not to the
 plan — a follow-up). It grants nothing: the highlight is the only thing a session changes.
 
+**Highlighting a group (#512):** above the map the bar "Gruppen" holds one chip per group marker of the section
+(tooltip "Gruppe hervorheben (die anderen werden abgedunkelt)"); the group cells of the group heal table do the
+same. A click highlights that group, a click on the active chip ends it, another chip moves it; the state lives
+only in the page (`focusGroup`, never saved, it survives a change of section and works beside "Only for me").
+Every raider of another group (or of none) dims: the group markers with their ring, chip and member tokens,
+filled role slots, free tokens and auto-placed raiders on the map (`groupFocusCls` in
+`lib/raidplan/groupStyle.ts`, `gf()` in `PlanBoard.tsx`), and the rows of the group heal table. Marks, bosses,
+lines and open slots stay as they are. `.rp-gdim` only sets `--rp-gf: var(--rp-group-dim)` (`.22`,
+`tokens.css`), which the board rules multiply into their own opacity (`calc(var(--rp-o, 1) * var(--rp-gf, 1))
+!important`, `styles/raidplan/objects.css`). An opacity on `.rp-groupwrap` itself does nothing - it is
+`display: contents` - which is why the chips had no effect before (since the bar exists, also on 6449f731; not
+a regression). The editor shares it through the inspector's group focus (`BoardWorkspace`).
+Tests: `src/web-client/src/pages/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/groupFocus.test.js`.
+
 **Sections marked where the visitor is assigned (#503):** in the chip bar (`SheetBossNav`) every section where
 the visitor is **personally** assigned carries a small dot in `--accent` at its upper right (ringed with
 `--panel`, so it also stands out on the filled chosen chip), and its tooltip / label say "Du hast hier

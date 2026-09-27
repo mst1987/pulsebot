@@ -52,3 +52,19 @@ describe("group marks", () => {
         expect(b.groupMarks).toEqual({ 1: "skull" });
     });
 });
+
+describe("highlighting a group (#512)", () => {
+    it("nothing while no group is highlighted", () => {
+        expect(gs.groupFocusCls(0, 2)).toBe("");
+        expect(gs.groupFocusCls(0, 0)).toBe("");
+    });
+    it("the group itself is in focus, every other group and a raider without group dims", () => {
+        expect(gs.groupFocusCls(3, 3)).toBe("is-focus");
+        expect(gs.groupFocusCls(3, 1)).toBe("rp-gdim");
+        expect(gs.groupFocusCls(3, 0)).toBe("rp-gdim");
+        expect(gs.groupFocusCls(3, undefined)).toBe("rp-gdim");
+    });
+    it("something that is no raider (null) never dims", () => {
+        expect(gs.groupFocusCls(3, null)).toBe("");
+    });
+});
