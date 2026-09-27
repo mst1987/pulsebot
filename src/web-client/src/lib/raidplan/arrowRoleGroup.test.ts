@@ -55,7 +55,7 @@ describe("a role group placeholder", () => {
     it("inserts as a soft ellipse in its role colour, without players; the palette, the tool bar and the board menu offer Melees and Ranged first", () => {
         const r = raidplan.insertObject(board(), raidplan.parseInsertId("insert:role:ranged"), { x: 0.5, y: 0.5 });
         const z = r.board.zones[0];
-        expect(z).toMatchObject({ type: "role", role: "ranged", shape: "ellipse", color: "#a78bfa", count: 0, showNames: false, w: 0.18, h: 0.16 });
+        expect(z).toMatchObject({ type: "role", role: "ranged", shape: "ellipse", color: "#a78bfa", count: 0, showNames: false, w: 0.126, h: 0.112 });
         expect(raidplan.objectName(r.board, "zone", z.id, new Map())).toBe("Ranged");
         const menu = raidplan.contextMenuItems("board", { locked: false, hasPlayer: false, isEvent: true, kind: "" }).map((m) => m.id);
         expect(menu).toEqual(expect.arrayContaining(["insert:role:melee", "insert:role:ranged"]));
@@ -71,7 +71,7 @@ describe("a role group placeholder", () => {
         const moved = raidplan.moveObject(b, "zone", id, 0.1, 0.1);
         expect(moved.zones[0].x).toBeCloseTo(0.1);
         expect(moved.zones[0].y).toBeCloseTo(0.1);
-        expect(raidplan.scaleObject(b, "zone", id, 2).zones[0].w).toBeCloseTo(0.36);
+        expect(raidplan.scaleObject(b, "zone", id, 2).zones[0].w).toBeCloseTo(raidplan.NEW_ROLE_GROUP.w * 2);
         expect(raidplan.unplaced([{ userId: "u1", role: "melee", group: 1 }], b).map((p) => p.userId)).toEqual(["u1"]);
     });
 });

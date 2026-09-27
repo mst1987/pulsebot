@@ -182,6 +182,13 @@ Map setzen" token was dropped for tank rows (one mechanism, no double logic).
   0.8), Alt + "+" / "-" (x 1.15), and on several at once (`multiSelect.scaleArrowSelection`, menu "Pfeile
   größer / kleiner"). Lib: `arrowOf`, `patchArrow`, `scaleArrow` in `lib/raidplan/autoStyle.ts`. Apply / duplicate copy
   it (icons and `autoStyle` travel as they are).
+- **Defaults of a dropped object (#496)**: a new icon that faces (palette, drop, board menu; not a plain `wow:`
+  icon) starts with `arrowScale` 0.6 (`NEW_ARROW_SCALE` in `lib/raidplan/model.ts`: 40 % shorter and thinner
+  than the old default 1, stored on the icon, so "Pfeilgröße" and the steps work from there). A new role group
+  starts at 0.126 x 0.112 of the board (`NEW_ROLE_GROUP`, 30 % smaller than the old 0.18 x 0.16); its symbol
+  follows the area, "Symbolgröße" stays relative. Only new objects change: a saved icon without `arrowScale`
+  keeps 1, a saved role group keeps its size, the auto mobs of the tank rows keep their wedge. Tests:
+  `src/web-client/src/lib/raidplan/dropDefaults.test.ts`.
 - **Role group placeholder** ("Melees", "Ranged", also Heiler / Tanks / DPS): a zone of type `role` with
   `role`, `count` (0..40, a badge; 0 = none), `showNames` (default off) and the shapes ellipse ("Fläche"),
   rect and `cluster` ("Symbole": several role icons, no area). Decision: a zone, so moving, sizing (width and

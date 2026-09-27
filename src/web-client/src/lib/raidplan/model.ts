@@ -19,6 +19,16 @@ export const ARROW_MAX = 3;
 
 export const ARROW_COLOR = "#ffb020";
 
+/**
+ * What a new object starts with when it is dropped on the board (#496): a role group 30 % smaller than before
+ * (0.18 x 0.16 of the board), the facing wedge of a new icon 40 % shorter and thinner. The wedge's is stored as
+ * its arrowScale, so the slider, the menu steps and the board's symbol size keep working relative to it; boards
+ * saved before keep what they have.
+ */
+export const NEW_ROLE_GROUP = { w: 0.126, h: 0.112 };
+
+export const NEW_ARROW_SCALE = 0.6;
+
 export const MIN_ZONE = 0.03;
 
 // The size of an object in px: what a new one starts with, and the range it can be set to.
