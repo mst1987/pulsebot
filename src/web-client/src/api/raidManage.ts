@@ -12,7 +12,7 @@ export type ManageInfo = {
         channelId: string; channelName: string; categoryId: string;
     };
     started: boolean;
-    counts: { attending: number; size: number; tentative: number; bench: number; absence: number };
+    counts: { attending: number; accounts: number; size: number; tentative: number; bench: number; absence: number };
     recipients: { userId: string; name: string; character: string; status: SignupStatus }[];
     archive: { configured: boolean };
     log: ManageLogEntry[];

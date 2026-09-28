@@ -437,7 +437,7 @@ describe("what the menu shows", () => {
         const { body } = await manage.manageInfo({ guildId: "g1", eventId: event.id });
         expect(body.event).toMatchObject({ id: event.id, status: "active", signupsClosed: false, channelName: "mi-24-09-ssc-tk" });
         expect(body.recipients).toEqual([{ userId: RAIDER, name: "thor", character: "Thorwald", status: "signed" }]);
-        expect(body.counts).toMatchObject({ attending: 1, size: 25 });
+        expect(body.counts).toMatchObject({ attending: 1, accounts: 1, size: 25 });
         expect(body.archive).toEqual({ configured: false });
         expect(body.log.map((l) => l.label)).toEqual(["Anmeldung geöffnet", "Anmeldung geschlossen"]);
     });

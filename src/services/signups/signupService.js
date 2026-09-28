@@ -40,7 +40,7 @@ const signupNotes = require("./signupNotes");
 const { SIGNUP_STATUSES } = require("../../utils/attendance");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { spec: specOf } = require("../../config/gameVersions");
-const { normalizeOverflow } = require("../../utils/signup/capacity");
+const { normalizeOverflow, accountCount } = require("../../utils/signup/capacity");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -48,11 +48,13 @@ const AFTER_DEADLINE = ["absence", "late"];
 const ATTENDING = ["signed", "late"];
 
 /**
- * How many are coming per role, and how many said otherwise.
- * @returns {{ tank: number, healer: number, dps: number, attending: number, tentative: number, bench: number, absence: number }}
+ * How many are coming per role, and how many said otherwise. `accounts` (#520)
+ * is what every counter shows: the single Discord accounts on "Dabei"/"Spät"
+ * (capacity.accountCount) — `attending` stays the seat count of the rules.
+ * @returns {{ tank: number, healer: number, dps: number, attending: number, accounts: number, tentative: number, bench: number, absence: number }}
  */
 function rosterCounts(signups) {
-    const out = { tank: 0, healer: 0, dps: 0, attending: 0, tentative: 0, bench: 0, absence: 0 };
+    const out = { tank: 0, healer: 0, dps: 0, attending: 0, accounts: accountCount(signups), tentative: 0, bench: 0, absence: 0 };
     for (const s of signups || []) {
         const status = String((s && s.status) || "signed");
         if (ATTENDING.includes(status)) {
@@ -82,6 +84,7 @@ function roleCounts(event, signups) {
         healer: { n: c.healer, target: healer },
         dps: { n: c.dps, target: size ? Math.max(0, size - tank - healer) : 0 },
         attending: c.attending,
+        accounts: c.accounts,
         tentative: c.tentative,
         bench: c.bench,
         absence: c.absence,

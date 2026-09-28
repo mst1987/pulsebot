@@ -35,6 +35,8 @@ export function counts(over: Partial<SignupCounts> = {}): SignupCounts {
     return {
         tank: { n: 1, target: 2 }, healer: { n: 1, target: 3 }, dps: { n: 1, target: 5 },
         attending: 3, tentative: 0, bench: 0, absence: 0, size: 10, ...over,
+        // one account per signup unless a test says otherwise (#520)
+        accounts: over.accounts ?? over.attending ?? 3,
     };
 }
 
@@ -49,6 +51,7 @@ export function ownRow(over: Partial<OwnSignupRow> = {}): OwnSignupRow {
         deadline: at("2026-09-18T15:00:00Z"), deadlinePassed: false, started: false,
         allowedStatuses: ["signed", "tentative", "late", "bench", "absence"],
         counts: counts(), wishes: true, wishPartners: [], mine: null, ...over,
+        accounts: over.accounts ?? over.attending ?? 3,
     };
 }
 
@@ -57,6 +60,7 @@ export function raidHelperRow(over: Partial<RaidHelperSignupRow> = {}): RaidHelp
         id: "rh-1", source: "raidhelper", title: "Gruul Samstag", startTime: at("2026-09-19T18:00:00Z"),
         categoryId: "c1", categoryName: "T4", contentIds: ["gruul"], contentSources: [], instanceIcon: "",
         size: 25, attending: 12, discordUrl: "https://discord.com/channels/1/9/9", mine: null, ...over,
+        accounts: over.accounts ?? over.attending ?? 12,
     };
 }
 

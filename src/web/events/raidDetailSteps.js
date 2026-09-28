@@ -9,7 +9,7 @@
 // plain Jest tests instead of living untested in TSX.
 
 const { plural } = require("../../utils/text");
-const { seatsParts } = require("../../utils/signup/capacity");
+const { accountCount } = require("../../utils/signup/capacity");
 const { TIMEZONE } = require("../../config/timezone");
 
 const LOOT_TOOL_LABELS = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
@@ -382,6 +382,8 @@ function signupCounts(d) {
     const by = (...st) => rows.filter((s) => st.includes(s.status)).length;
     return {
         attending: by(...ATTENDING),
+        // die einzelnen Discord-Accounts auf „Dabei“/„Spät“ (#520) — die Zahl der Leiste
+        accounts: accountCount(rows),
         bench: by("bench"),
         tentative: by("tentative"),
         absence: by("absence"),
@@ -409,14 +411,13 @@ function signupStepOwn(d, now) {
     const deadline = Number(ev.signupDeadline) || 0;
     const deadlinePassed = deadline > 0 && deadline * 1000 <= now;
     const missing = ((d.attendance && d.attendance.missing) || []).length;
-    const seats = seatsParts(c.attending, size);
     const notes = [];
     if (c.bench) notes.push(`${c.bench} auf der Warteliste`);
     if (c.tentative) notes.push(`${c.tentative}× vielleicht`);
     if (!notes.length && c.absence) notes.push(`${c.absence} abgemeldet`);
     const step = {
         id: "signup", label: "Anmeldung", icon: "inv_letter_15",
-        value: String(seats.shown), unit: size ? `/ ${size}${seats.extra ? ` (+${seats.extra})` : ""}` : "", note: notes.join(" · "),
+        value: String(c.accounts), unit: "angemeldet", note: notes.join(" · "),
         fill: size ? Math.min(1, c.attending / size) : null,
     };
     const closing = deadline ? `Anmeldeschluss ${whenLabel(deadline)}.` : "Kein Anmeldeschluss gesetzt.";

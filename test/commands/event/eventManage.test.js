@@ -100,7 +100,9 @@ describe("opening", () => {
         const payload = lastPayload(i.reply);
         expect(payload.flags).toBe(64);
         expect(payload.embeds[0].title).toBe("SSC + TK verwalten");
-        expect(payload.embeds[0].description).toContain("1/25");
+        // the single Discord accounts, no "/size" (#520)
+        expect(payload.embeds[0].description).toContain("1 angemeldet ·");
+        expect(payload.embeds[0].description).not.toContain("1/25");
         expect(buttons(payload).map((b) => b.label || b.placeholder)).toEqual([
             "Bearbeiten", "Verschieben", "Anmeldung schließen", "Raider eintragen / austragen …",
             "Fehlende pingen", "Setup öffnen", "Absagen", "Löschen",

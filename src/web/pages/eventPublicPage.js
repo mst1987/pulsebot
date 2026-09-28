@@ -31,7 +31,6 @@ const { layout, esc } = require("../report/render");
 const { serverDateTime } = require("../../utils/time");
 const { ROLE_LABELS_EN } = require("../../config/gameVersions/classes");
 const { str, clip } = require("../../utils/text");
-const { seatsText } = require("../../utils/signup/capacity");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -43,7 +42,7 @@ const VIEW_KEYS = [
     // raids[]
     "label", "icon",
     // counts
-    "attending", "tank", "healer", "dps", "tentative", "bench", "absence",
+    "attending", "accounts", "tank", "healer", "dps", "tentative", "bench", "absence",
     // classes[] / other[] / setup groups
     "color", "members", "index", "groups", "approvedAt",
     // a member
@@ -150,6 +149,8 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
         }),
         counts: {
             attending: counts.attending,
+            // the single Discord accounts (#520) — what the "Signed up" fact shows
+            accounts: counts.accounts,
             tank: counts.tank,
             healer: counts.healer,
             dps: counts.dps,
@@ -241,7 +242,7 @@ function renderPublicEventBody(view) {
         { kicker: "Date · server time", value: fmtDate(view.startTime), sub: view.endTime ? `until ${fmtTime(view.endTime)} server time` : "server time" },
         {
             kicker: "Signed up",
-            value: seatsText(view.counts.attending, view.size, { sep: " / " }),
+            value: String(view.counts.accounts),
             sub: `${view.counts.tank} ${view.counts.tank === 1 ? "Tank" : "Tanks"} · ${view.counts.healer} ${view.counts.healer === 1 ? "Healer" : "Healers"} · ${view.counts.dps} DPS`,
         },
         {

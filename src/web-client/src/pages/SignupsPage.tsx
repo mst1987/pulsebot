@@ -10,7 +10,7 @@ import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
-import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, seatLabel, statusBadgeLabel } from "../lib/signups";
+import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups";
 import { specLabel } from "../lib/wowNames";
 import { weekBands } from "../lib/raidTime";
 import { useT } from "../i18n";
@@ -52,7 +52,7 @@ export default function SignupsPage() {
     const onSaved = (eventId: string, signup: OwnSignup, counts: SignupCounts) => {
         setData((d) => d && ({
             ...d,
-            events: d.events.map((e) => (e.id === eventId && e.source === "eventhelper" ? { ...e, mine: signup, counts, attending: counts.attending } : e)),
+            events: d.events.map((e) => (e.id === eventId && e.source === "eventhelper" ? { ...e, mine: signup, counts, attending: counts.attending, accounts: counts.accounts } : e)),
         }));
         open("");
     };
@@ -63,7 +63,7 @@ export default function SignupsPage() {
             ...d,
             events: d.events.map((e) => {
                 const r = byId.get(e.id);
-                return r && e.source === "eventhelper" && r.signup && r.counts ? { ...e, mine: r.signup, counts: r.counts, attending: r.counts.attending } : e;
+                return r && e.source === "eventhelper" && r.signup && r.counts ? { ...e, mine: r.signup, counts: r.counts, attending: r.counts.attending, accounts: r.counts.accounts } : e;
             }),
         }));
         setSelected([]);
@@ -157,7 +157,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
     const own = row.source === "eventhelper";
     const mine = row.mine;
     const size = row.size || 0;
-    const barTip = own ? roleCountText(row.counts) : t("signups.attending", { count: row.attending });
+    const barTip = own ? roleCountText(row.counts) : t("signups.attending", { count: row.accounts });
     const barSub = own
         ? [
             row.counts.tentative ? t("signups.row.tentative", { count: row.counts.tentative }) : "",
@@ -201,7 +201,7 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 <div className="an-sub">{rowSubline(row)}</div>
             </div>
             <span className="an-bar" data-tip={barTip} data-tip-sub={barSub}>
-                <Bar value={row.attending} max={size || Math.max(row.attending, 1)} tone={fillTone(row.attending, size)} label={seatLabel(row.attending, size)} />
+                <Bar value={row.attending} max={size || Math.max(row.attending, 1)} tone={fillTone(row.attending, size)} label={signedUpLabel(row.accounts)} />
             </span>
             {/* status and action are two columns, so each stays under its kind in every row */}
             <div className="an-state">

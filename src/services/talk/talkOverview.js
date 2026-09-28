@@ -31,7 +31,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { onSignupsChanged } = require("../../stores/signupStore");
 const { getOverviewState, setOverviewState } = require("../../stores/talkOverviewStore");
 const { signupStatus } = require("../../utils/attendance");
-const { seatsText } = require("../../utils/signup/capacity");
+const { accountCount, signedUpText } = require("../../utils/signup/capacity");
 const { appEmojiMap, emojiText, uiEmojiName } = require("../discord/appEmojis");
 
 // Between two raid stanzas (each three lines) — a blank line for breathing room.
@@ -91,14 +91,14 @@ function plain(text) {
     return String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/** How many are coming: signed and late, the same count as the event message. */
+/** How many single Discord accounts are coming (#520): signed and late, the same count as the event message. */
 function attendingCount(event) {
-    return (event.signUps || []).filter((s) => ["signed", "late"].includes(signupStatus(s))).length;
+    return accountCount(event.signUps || [], signupStatus);
 }
 
-/** "22/25" against the planned size, "25/25 (+3)" when overbooked (#516), "12" without one. */
+/** "28 signed up" — the accounts alone, no "/size" since #520. */
 function fillText(event) {
-    return seatsText(attendingCount(event), event.size);
+    return signedUpText(attendingCount(event));
 }
 
 /**

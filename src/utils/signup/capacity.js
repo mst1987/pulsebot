@@ -1,6 +1,7 @@
-// What a raid does once its size is reached (#306, #516), and how the fill is
-// written — one place for the event store, the raid templates, the signup rules
-// and every counter (event message, public page, talk overview, bot overview).
+// What a raid does once its size is reached (#306, #516), and how the signups
+// are counted — one place for the event store, the raid templates, the signup
+// rules and every counter (event message, public page, talk overview, bot
+// overview, signups page, raid cockpit).
 //
 // `overflow` of an event / a raid template:
 //   "none"     no limit (default since #516): every signup stays "Dabei"/"Spät",
@@ -14,10 +15,16 @@
 // `lockAtLimit` off on the same record. Because the new names differ, the
 // migration can tell an untouched old record from a deliberate new choice and
 // runs only once per record — no marker needed.
+//
+// The counters (#520) show one number: how many single Discord accounts are
+// signed up — no "22/25", no "25/25 (+3)". With no limit by default a raid is
+// never "full" in the counter's sense; the setup picks who plays.
 
 const OVERFLOW_MODES = ["none", "waitlist", "refuse"];
 const DEFAULT_OVERFLOW = "none";
 const LEGACY_OVERFLOW = ["bench", "off"];
+// Who counts as signed up: "Dabei" and "Spät" — the one status rule of every counter.
+const ATTENDING_STATUSES = ["signed", "late"];
 
 /** A stored or sent overflow value as one of OVERFLOW_MODES; anything else (legacy included) is "none". */
 function normalizeOverflow(value) {
@@ -38,28 +45,37 @@ function normalizeLockAtLimit(record) {
     return !isLegacyOverflow(src.overflow) && src.lockAtLimit === true;
 }
 
-/**
- * The fill in pieces: `shown` seats (never more than the size), the `size`
- * (0 = none) and `extra` signups beyond it — for a counter that styles them apart.
- */
-function seatsParts(attending, size) {
-    const n = Math.max(0, Number(attending) || 0);
-    const cap = Number(size) > 0 ? Number(size) : 0;
-    const extra = cap ? Math.max(0, n - cap) : 0;
-    return { shown: extra ? cap : n, size: cap, extra };
+/** A signup's status as the stores keep it: its `status`, "signed" when missing. */
+function storedStatus(signup) {
+    return String((signup && signup.status) || "signed");
 }
 
 /**
- * The fill as the counters write it: "22/25" below the size, "25/25 (+3)" when
- * more signed up than there are seats, just "12" without a size. `sep` is what
- * stands between the two numbers (the message puts spaces around the slash).
+ * How many single Discord accounts are signed up (#520): status "Dabei" or
+ * "Spät"; an account with several characters — one signup with alternates, or
+ * several entries of the same user at Raid-Helper — counts once; a signup
+ * without a user id counts as one of its own. Tentative, bench and absence do
+ * not count. `statusOf` reads a signup's status (Raid-Helper entries need
+ * attendance.signupStatus).
  */
-function seatsText(attending, size, { sep = "/" } = {}) {
-    const p = seatsParts(attending, size);
-    if (!p.size) return String(p.shown);
-    return `${p.shown}${sep}${p.size}${p.extra ? ` (+${p.extra})` : ""}`;
+function accountCount(signups, statusOf = storedStatus) {
+    const seen = new Set();
+    let anonymous = 0;
+    for (const s of signups || []) {
+        if (!s || !ATTENDING_STATUSES.includes(statusOf(s))) continue;
+        const uid = String(s.userId || "");
+        if (uid) seen.add(uid);
+        else anonymous += 1;
+    }
+    return seen.size + anonymous;
+}
+
+/** The counter as a raider reads it in Discord: "28 signed up". */
+function signedUpText(accounts) {
+    return `${Math.max(0, Number(accounts) || 0)} signed up`;
 }
 
 module.exports = {
-    OVERFLOW_MODES, DEFAULT_OVERFLOW, normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit, seatsParts, seatsText,
+    OVERFLOW_MODES, DEFAULT_OVERFLOW, ATTENDING_STATUSES, normalizeOverflow, isLegacyOverflow, normalizeLockAtLimit,
+    accountCount, signedUpText,
 };

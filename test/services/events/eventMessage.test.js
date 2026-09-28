@@ -74,7 +74,7 @@ describe("services/events/eventMessage", () => {
     });
 
     it("counts who comes per role and who said otherwise", () => {
-        expect(rosterCounts(signups)).toEqual({ tank: 2, healer: 1, dps: 2, attending: 5, tentative: 1, bench: 0, absence: 1 });
+        expect(rosterCounts(signups)).toEqual({ tank: 2, healer: 1, dps: 2, attending: 5, accounts: 5, tentative: 1, bench: 0, absence: 1 });
     });
 
     it("numbers the signups by when they were made, stable against the input order", () => {
@@ -101,7 +101,7 @@ describe("services/events/eventMessage", () => {
         // one field per column, its rows as lines — no empty field name between them
         expect(embed.fields.slice(0, 3).map((f) => [f.name, emojiless(f.value).split("\n"), f.inline])).toEqual([
             [ZWS, ["<:eh_ui_leader> <@7>", "<:eh_ui_date> <t:2000000000:D>"], true],
-            [ZWS, ["<:eh_ui_signups> **5** / 10", "<:eh_ui_time> <t:2000000000:t>"], true],
+            [ZWS, ["<:eh_ui_signups> **5** signed up", "<:eh_ui_time> <t:2000000000:t>"], true],
             [ZWS, ["<:eh_ui_deadline> <t:1999990000:f>", "<:eh_ui_start> <t:2000000000:R>"], true],
         ]);
         // no end time: a duration nobody set would only show the default
@@ -109,7 +109,7 @@ describe("services/events/eventMessage", () => {
         const links = embed.fields[embed.fields.length - 1].value;
         // #308: the public event page first, the menu beside it, and the event's
         // own calendar file (no icsUrl was passed).
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
         expect(links).not.toContain("Setup");
     });
 
@@ -235,19 +235,32 @@ describe("services/events/eventMessage", () => {
             "<:eh_ui_late> Late (2): `2` <:eh_priest_holy> Ysolde, `8` <:eh_priest_holy> Zibbo / <:eh_mage_fire> Zibbomage",
         );
         expect(JSON.stringify(payload)).not.toContain("+1");
-        // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
-        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
+        // one account, one count (#520): Zibbo is late with three characters, so 5 + 1 accounts, the tank count stays per person
+        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** signed up");
         expect(fields[3].value).toMatch(/Healers \*\*2\*\*\/3/);
         expect(rosterEntries([multi]).map((e) => [e.character, e.status, e.index])).toEqual([
             ["Zibbo", "late", 0], ["Zibbowar", "signed", 1], ["Zibbomage", "late", 2],
         ]);
     });
 
-    it("shows an overbooked raid as 3 / 3 (+2) instead of 5 / 3, never as full (#516)", () => {
+    it("counts the accounts alone, no /size — an overbooked raid reads 5 signed up, never as full (#516, #520)", () => {
         const payload = buildEventMessage(event({ size: 3 }), signups, { emojis, now: NOW });
         const fields = payload.embeds[0].fields;
-        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **3** / 3 (+2)");
+        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **5** signed up");
+        expect(fields[1].value).not.toMatch(/\/ ?3|\(\+/);
         expect(JSON.stringify(payload)).not.toMatch(/full/i);
+    });
+
+    it("counts one Discord account once, whatever its characters, and leaves tentative, bench and absence out (#520)", () => {
+        // 28 characters: 26 raiders with one, one raider with two; plus a tentative, a bench and an absence
+        const many = Array.from({ length: 26 }, (_, i) => su(String(100 + i), `Raider${i}`, "Warrior-Fury", "melee", i % 2 ? "late" : "signed"));
+        const twoChars = { ...su("200", "Twin", "Priest-Holy", "healer"), characters: [
+            { character: "Twin", spec: "Priest-Holy", role: "healer" },
+            { character: "Twinwar", spec: "Warrior-Protection", role: "tank" },
+        ] };
+        const others = [su("300", "Maybe", "Mage-Fire", "ranged", "tentative"), su("301", "Bench", "Mage-Fire", "ranged", "bench"), su("302", "Gone", "Mage-Fire", "ranged", "absence")];
+        const payload = buildEventMessage(event({ size: 25 }), [...many, twoChars, ...others], { emojis, now: NOW });
+        expect(emojiless(payload.embeds[0].fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **27** signed up");
     });
 
     it("lists late, tentative, bench and absence as lines with icon, count, number box and spec icon (#355)", () => {
@@ -290,7 +303,7 @@ describe("services/events/eventMessage", () => {
         const embed = payload.embeds[0];
         expect(embed.fields.slice(0, 3).map((f) => f.value)).toEqual([
             "Leader: <@7>\nDate: <t:2000000000:D>",
-            "Signed up: **5** / 10\nTime: <t:2000000000:t>",
+            "**5** signed up\nTime: <t:2000000000:t>",
             "Deadline: <t:1999990000:f>\nStart: <t:2000000000:R>",
         ]);
         expect(embed.fields[3].value).toBe("Tanks **2**/2\nHealers **1**/3");
@@ -504,7 +517,7 @@ describe("services/events/eventMessage", () => {
         const fields = payload.embeds[0].fields;
         expect(fields.some((f) => emojiless(f.name) === "Setup")).toBe(false);
         const links = fields[fields.length - 1].value;
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");
@@ -515,16 +528,23 @@ describe("services/events/eventMessage", () => {
             const fields = buildEventMessage(event(), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics", ...opts }).embeds[0].fields;
             return fields[fields.length - 1].value;
         };
-        expect(links({})).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        // "Comp" is the setup link of #520 (always there); the sheet of #357 is "Sheet" since
+        const head = "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)";
+        expect(links({})).toBe(`${head}  ·  [Calendar](https://eh.example/ics/eh-1.ics)`);
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc" })).toBe(
-            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+            `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
         expect(links({ srUrl: "https://softres.it/raid/abc" })).toBe(
-            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+            `${head}  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc", srUrl: "https://softres.it/raid/abc" })).toBe(
-            "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)",
+            `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [SR](https://softres.it/raid/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
         );
+    });
+
+    it("links Comp to the redirect route of the event, one link for everybody (#520)", () => {
+        const fields = buildEventMessage(event({ id: "eh-2" }), signups, { now: NOW }).embeds[0].fields;
+        expect(fields[fields.length - 1].value).toContain("[Comp](https://eh.example/e/eh-2/comp)");
     });
 
     it("posts the message with the application emojis and remembers where it sits and what it shows", async () => {

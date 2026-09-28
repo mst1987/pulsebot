@@ -131,6 +131,19 @@ describe("GET /api/signups", () => {
         expect(data.events[1].mine).toEqual({ status: "signed", specName: "Arcane" });
     });
 
+    it("zählt je Zeile die einzelnen Discord-Accounts (#520): doppelte Einträge eines Kontos einmal, Absage nicht", async () => {
+        mockGroups[1].events[0].signUps = [
+            { userId: BERT.id, specName: "Arcane", status: "signed" },
+            { userId: BERT.id, specName: "Holy", status: "late" },
+            { userId: ANNA.id, specName: "Fire", status: "late" },
+            { userId: ORGA.id, specName: "Absence", status: "absence" },
+        ];
+        const data = json(await call(route.getSignups, ORGA)).data;
+        const rh = data.events.find((e) => e.source === "raidhelper");
+        expect(rh).toMatchObject({ attending: 3, accounts: 2 });
+        expect(data.events.find((e) => e.source === "eventhelper")).toMatchObject({ accounts: 0, counts: { accounts: 0 } });
+    });
+
     it("blendet Kategorien mit Raider-Rollen aus, die das Mitglied nicht hat", async () => {
         mockConfig = { categoryIds: ["cat-kara", "cat-t5"], categoryRoles: { "cat-t5": ["role-t5"] } };
         mockRoleIds = ["role-other"];
@@ -238,7 +251,7 @@ describe("POST /api/signups/bulk (#293)", () => {
         expect(status(res)).toBe(200);
         const { results } = json(res).data;
         expect(results.map((r) => [r.eventId, r.ok, r.code])).toEqual([["eh-kara", true, ""], ["eh-ssc", true, ""], ["eh-late", false, "deadline"]]);
-        expect(results[0].counts).toMatchObject({ attending: 1 });
+        expect(results[0].counts).toMatchObject({ attending: 1, accounts: 1 });
         expect(results[2]).toMatchObject({ signup: null, counts: null, error: expect.stringContaining("Anmeldeschluss") });
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(true);
         expect([...mockSignups.keys()].some((k) => k.endsWith(BERT.id))).toBe(false);
