@@ -195,6 +195,42 @@ export function saveSetupExtraRole(eventId: string, userId: string, role: "tank"
     return send("POST", "/api/raids/setup/extra-role", { event: eventId, userId, role, on });
 }
 
+/** A spec the orga may give a character (#521): every spec of its class, `inProfile` = the raider's profile lists it. */
+export type SetupSignupSpec = { key: string; label: string; icon: string; role: GameRole; inProfile: boolean; gear: string };
+
+/** A character the orga may put a raider's signup on: the profile's, or one the signup already names (`inProfile: false`). */
+export type SetupSignupOption = {
+    character: string;
+    key: string;
+    classId: string;
+    classLabel: string;
+    classColor: string;
+    classIcon: string;
+    inProfile: boolean;
+    specs: SetupSignupSpec[];
+};
+
+/** GET /api/raids/setup/signup: one raider's signup and what the orga may change it to. */
+export type SetupSignupEdit = {
+    userId: string;
+    status: SignupStatus;
+    characters: { character: string; spec: string; status: string }[];
+    statuses: SignupStatus[];
+    options: SetupSignupOption[];
+};
+
+/** PUT /api/raids/setup/signup: `from` = the character the setup shows, the one `character`/`spec` replace. */
+export type SetupSignupInput = { userId: string; status: SignupStatus; from?: string; character?: string; spec?: string };
+
+export function getSetupSignup(eventId: string, userId: string): Promise<SetupSignupEdit> {
+    return get(`/api/raids/setup/signup?event=${encodeURIComponent(eventId)}&user=${encodeURIComponent(userId)}`);
+}
+
+/** Change a raider's signup as the orga — the answer is the editor's payload, the setup already following. */
+export function saveSetupSignup(eventId: string, input: SetupSignupInput): Promise<SetupEditorData & { warning?: string }> {
+    return send("PUT", "/api/raids/setup/signup", { event: eventId, ...input });
+}
+
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */
 export type SetupPlacementInput = {
     version: number;

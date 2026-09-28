@@ -6,7 +6,7 @@ import { roleLabel } from "../../../lib/wowNames";
 import { useT } from "../../../i18n";
 import { IconButton } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
-import { LockIcon, UnlockIcon } from "../../../components/icons";
+import { EditIcon, LockIcon, UnlockIcon } from "../../../components/icons";
 import { classColorProps } from "../../../components/ClassSpec";
 import SpecTile from "../SpecTile";
 import { specText, statusLabel } from "./setupText";
@@ -27,6 +27,8 @@ export type Interaction = {
     /** raiders marked as an extra tank / healer, by user id */
     extraRoles: Record<string, string[]>;
     onLock: (userId: string) => void;
+    /** "Anmeldung bearbeiten" (#521): the pencil on the slot and a right click open it; missing = read-only. */
+    onEdit?: (userId: string) => void;
 };
 
 /** One raider line. `inPool` (#517): signed up, not in the setup — no lock (there is no place to keep), a "Bank" signup marked. */
@@ -64,6 +66,7 @@ function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPo
             onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
             onDragOver={ui.editable ? (e) => e.preventDefault() : undefined}
             onDrop={ui.editable ? drop : undefined}
+            onContextMenu={ui.editable && ui.onEdit ? (e) => { e.preventDefault(); ui.onEdit?.(p.userId); } : undefined}
         >
             <SpecTile iconUrl={p.specIcon ? wowIconUrl(p.specIcon, 36) : undefined} classColor={p.classColor} />
             <span className="se-slot-text">
@@ -80,6 +83,17 @@ function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPo
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
+            {ui.editable && ui.onEdit && (
+                <IconButton
+                    className={`se-editbtn${inPool ? " se-editbtn-alone" : ""}`}
+                    size="sm"
+                    icon={<EditIcon />}
+                    tip={t("setup.signupEdit.open")}
+                    tipSub={t("setup.signupEdit.openSub")}
+                    onClick={(e) => { e.stopPropagation(); ui.onEdit?.(p.userId); }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                />
+            )}
             {ui.editable && !inPool && (
                 <IconButton
                     className={`se-lock${p.locked ? " is-on" : ""}`}

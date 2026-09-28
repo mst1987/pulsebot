@@ -274,5 +274,20 @@
         "outdated": "Die Nachricht zeigt noch Stand {version} – „Setup posten“ aktualisiert sie.",
         "tip": "Setup im Kanal",
         "reapproveSub": "Bei erneuter Freigabe wird die Nachricht bearbeitet, nicht neu gepostet."
+    },
+    "signupEdit": {
+        "open": "Anmeldung bearbeiten …",
+        "openSub": "Anmeldeart, Charakter und Spec als Orga ändern (auch per Rechtsklick).",
+        "kicker": "Anmeldung · als Orga",
+        "hint": "Anmeldeschluss und Profil gelten für die Orga nicht. Anmelde-Nachricht und Protokoll ziehen nach, der Platz im Setup bleibt.",
+        "status": "Anmeldeart",
+        "character": "Charakter",
+        "spec": "Spec",
+        "notInProfile": "nicht im Profil",
+        "notInProfileHint": "{spec} steht nicht im Profil von {character} – gilt nur für diesen Raid.",
+        "absenceHint": "Abgemeldet: fliegt aus Gruppen und Bank und steht nicht mehr unter „Angemeldet“.",
+        "loading": "Lade Anmeldung …",
+        "loadFailed": "Anmeldung nicht geladen: {message}",
+        "failed": "Anmeldung nicht gespeichert."
     }
 }

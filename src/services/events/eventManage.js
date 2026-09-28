@@ -65,6 +65,7 @@ const ACTION_LABELS = {
     series: "Von Serie angelegt",
     lock: "Anmeldung automatisch geschlossen",
     announce: "Angekündigt",
+    signupEdit: "Anmeldung geändert (Orga)",
 };
 
 const STATUS_LABELS = {

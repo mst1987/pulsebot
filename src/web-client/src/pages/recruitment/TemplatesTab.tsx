@@ -11,7 +11,8 @@ import DataTable from "../../components/ui/DataTable";
 import { PartHead } from "../../components/ui/PartHead";
 import { useT } from "../../i18n";
 import { ICONS } from "./shared";
-import { EditIcon, WantedIcons } from "./RecruitmentBits";
+import { WantedIcons } from "./RecruitmentBits";
+import { EditIcon } from "../../components/icons";
 
 type TemplateSortKey = "name" | "wanted" | "button" | "posted";
 

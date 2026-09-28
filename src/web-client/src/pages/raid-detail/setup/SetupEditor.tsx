@@ -14,7 +14,7 @@
 // server. Posting carries the bench only with "Bench mitposten" ticked.
 
 import { useEffect, useRef, useState } from "react";
-import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, updateRaidSize, type ApiError, type SetupEditorData, type SetupPerson, type SetupPlacementInput } from "../../../api";
+import { approveRaidSetup, getRaidSetup, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, updateRaidSize, type ApiError, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, moveRaider, peopleOf, resizeLineup, respecRaider, suggestGroup, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type SetupTarget } from "../../../lib/setupEditor";
 import { useT } from "../../../i18n";
@@ -34,6 +34,7 @@ import { Summary } from "./Summary";
 import { SlotTip, TipEmpty } from "./SlotTip";
 import { ExplainModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
+import { SignupEditModal } from "./SignupEditModal";
 
 export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
@@ -46,6 +47,8 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [inspected, setInspected] = useState<string | null>(null);
     const [dialog, setDialog] = useState<"weights" | "explain" | "search" | null>(null);
     const [posting, setPosting] = useState(false);
+    // "Anmeldung bearbeiten" (#521): the raider whose signup the dialog changes
+    const [editing, setEditing] = useState<string | null>(null);
     // "Bench mitposten" (#517): null = what the event remembered from the last post (off by default)
     const [benchChoice, setBenchChoice] = useState<boolean | null>(null);
     const [compact, setCompact] = useState(readCompact);
@@ -268,6 +271,19 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    /**
+     * The orga changes a raider's signup (#521). Waits for the moves still on
+     * their way, then the server saves the signup and the setup follows (place
+     * kept, a signed-off raider out) — its answer is drawn like any other.
+     * A failure stays in the dialog (it throws back).
+     */
+    const saveSignup = async (input: SetupSignupInput) => {
+        await chain.current;
+        const next = await saveSetupSignup(ctx.eventId, input);
+        accept(next, next.message);
+        setEditing(null);
+    };
+
     const savePingText = async (text: string) => {
         try {
             const next = await saveSetupPingText(ctx.eventId, text);
@@ -306,9 +322,10 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const suggest = movingPerson ? suggestGroup(movingPerson, withAllGroups(setup.groups, data.groupCount || 1)) : null;
     // looked up fresh every render, so a move redraws the panel's group and buffs
     const inspectedPerson = inspected ? peopleOf(setup).get(inspected) : undefined;
+    const editPerson = editing ? peopleOf(setup).get(editing) : undefined;
     // on the bench or in the pool: no slot yet, so no "im Setup als" and no extra role
     const inspectedIsBench = !!inspectedPerson && [...setup.bench, ...(setup.pool || [])].some((b) => b.userId === inspectedPerson.userId);
-    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)) };
+    const ui: Interaction = { editable: !busy, selected, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: setInspected, onPick: pick, onDrop: move, onDrag: setDragging, onLock: (userId) => save(toggleLock(toInput(current.current?.setup || setup), userId)), onEdit: setEditing };
     const groups = withAllGroups(setup.groups, data.groupCount || 1);
     const partyBuffs = setup.checks.buffs.party;
     const lockedCount = [...setup.groups.flatMap((g) => g.slots), ...setup.bench].filter((p) => p.locked).length;
@@ -386,6 +403,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
 
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={ctx} search={data.search} />
+            {editPerson && <SignupEditModal key={editPerson.userId} eventId={ctx.eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}
             <ExplainModal open={dialog === "explain"} onClose={() => setDialog(null)} ctx={ctx} data={data} setup={setup} onDone={load} />
         </div>
     );
