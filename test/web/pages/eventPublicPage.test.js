@@ -117,7 +117,9 @@ describe("web/pages/eventPublicPage", () => {
             const withDraft = publicEventView(event({ setup: { status: "draft", groups: approved.groups, bench: [] } }), signups(), { now: NOW });
             expect(withDraft.setup).toBe(null);
 
-            const view = publicEventView(event({ setup: { status: "approved", approved } }), signups(), { now: NOW });
+            // #517: the bench only once the orga posted it with the setup
+            expect(publicEventView(event({ setup: { status: "approved", approved } }), signups(), { now: NOW }).setup.bench).toEqual([]);
+            const view = publicEventView(event({ setup: { status: "approved", approved }, setupPost: { bench: true } }), signups(), { now: NOW });
             expect(view.setup.groups).toEqual([{ index: 1, members: [{ character: "Brokk", spec: "Warrior-Protection", specLabel: "Protection", specIcon: "ability_warrior_defensivestance", role: "tank" }] }]);
             expect(view.setup.bench.map((b) => b.character)).toEqual(["Kael"]);
             expect(JSON.stringify(view.setup)).not.toContain("War zuletzt");

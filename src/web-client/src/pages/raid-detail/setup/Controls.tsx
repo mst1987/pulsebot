@@ -79,12 +79,15 @@ export function StatusBadge({ setup }: { setup: StoredSetup }) {
  * One calm line under the bar (#290): before the approval what it will post and
  * send, after it what it did — the details in the tooltip, one "Setup posten".
  */
-export function PublishLine({ data, setup, busy, posting, onPost }: {
+export function PublishLine({ data, setup, busy, posting, onPost, bench = false, onBench }: {
     data: SetupEditorData;
     setup: StoredSetup;
     busy: boolean;
     posting: boolean;
     onPost: () => void;
+    /** "Bench mitposten" (#517): whether the next post (the approval's or "Setup posten") carries the bench */
+    bench?: boolean;
+    onBench?: (on: boolean) => void;
 }) {
     const t = useT();
     const hint = publishHint(data.publish, setup.status === "approved", clock);
@@ -95,6 +98,13 @@ export function PublishLine({ data, setup, busy, posting, onPost }: {
             <span className="se-publish-text" data-tip={hint.tip} data-tip-sub={hint.sub}>{hint.text}</span>
             {!data.publish?.dmsEnabled && !hint.canPost && !data.publish?.cancelled && (
                 <Link className="se-publish-link" to="/settings?section=kategorien">{t("setup.publishLine.enableDms")}</Link>
+            )}
+            {/* only with somebody on the bench — the pool ("Angemeldet") is never posted */}
+            {onBench && setup.bench.length > 0 && !data.publish?.cancelled && (
+                <label className="se-publish-bench" data-tip={t("setup.publishLine.bench")} data-tip-sub={t("setup.publishLine.benchSub")}>
+                    <input type="checkbox" checked={bench} disabled={busy} onChange={(e) => onBench(e.target.checked)} />
+                    {t("setup.publishLine.bench")}
+                </label>
             )}
             {hint.canPost && (
                 <Button

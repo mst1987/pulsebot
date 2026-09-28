@@ -92,6 +92,6 @@ describe("buildModel — fixed places", () => {
             fixed: [{ userId: "a", bench: true }],
         });
         expect(model.warnings).toEqual(["Pflicht-Buff „notabuff“ gibt es in TBC Anniversary nicht."]);
-        expect(fixedOf(model)).toEqual({ a: { bench: true } });
+        expect(fixedOf(model)).toEqual({ a: { bench: true, locked: true } });
     });
 });

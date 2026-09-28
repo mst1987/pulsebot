@@ -89,7 +89,8 @@ describe("buildSetupProposal", () => {
             expect(out.checks.roles.tank).toMatchObject({ count: 2, ok: true });
             expect(out.checks.roles.healer).toMatchObject({ count: 3, ok: true });
             expect(out.checks.ok).toBe(true);
-            expect(out.bench.length).toBe(input.signups.length - 10);
+            expect(out.pool.length).toBe(input.signups.length - 10);
+            expect(out.bench).toEqual([]);
             expectHardRules(input, out);
         });
 
@@ -154,7 +155,7 @@ describe("buildSetupProposal", () => {
     it("handles an empty input", () => {
         const out = buildSetupProposal({ events: [{ id: "e", size: 10, composition: { tank: 2, healer: 3 } }], signups: [] });
         expect(out.groups).toHaveLength(2);
-        expect(out.bench).toEqual([]);
+        expect(out.pool).toEqual([]);
         expect(out.checks.ok).toBe(false);
         expect(buildSetupProposal({}).groups).toEqual([]);
     });
@@ -207,7 +208,7 @@ describe("buildSetupProposal", () => {
             const signups = [su("a", "Mage-Fire", { status: "absence" }), su("b", "Mage-Fire"), su("c", "Mage-Fire")];
             const out = buildSetupProposal({ events: [event], signups });
             expect(placedIds(out)).toEqual(expect.not.arrayContaining(["a"]));
-            expect(out.bench.map((b) => b.userId)).not.toContain("a");
+            expect(out.pool.map((b) => b.userId)).not.toContain("a");
             expect(out.checks.size).toEqual({ count: 2, size: 5, ok: false });
         });
 
@@ -218,7 +219,7 @@ describe("buildSetupProposal", () => {
             ];
             const out = buildSetupProposal({ events: [event], signups });
             expect(placedIds(out).sort()).toEqual(["a", "b", "c", "d", "l"]);
-            expect(out.bench[0]).toMatchObject({ userId: "t", reasons: expect.arrayContaining(["Nur „Vielleicht“ angemeldet"]) });
+            expect(out.pool[0]).toMatchObject({ userId: "t", reasons: expect.arrayContaining(["Nur „Vielleicht“ angemeldet"]) });
             expect(slotOf(out, "l").reasons).toContain("Kommt später");
         });
 
@@ -226,6 +227,9 @@ describe("buildSetupProposal", () => {
             const five = ["a", "b", "c", "d", "e"].map((x) => su(x, "Mage-Fire"));
             const full = buildSetupProposal({ events: [event], signups: [su("x", "Mage-Fire", { status: "bench" }), ...five] });
             expect(placedIds(full)).not.toContain("x");
+            // #517: a "Bank" signup left over waits in the pool with its status, the bench stays the orga's
+            expect(full.pool.find((b) => b.userId === "x")).toMatchObject({ status: "bench", locked: false });
+            expect(full.bench).toEqual([]);
             const short = buildSetupProposal({ events: [event], signups: [su("x", "Mage-Fire", { status: "bench" }), ...five.slice(1)] });
             expect(placedIds(short)).toContain("x");
             expect(slotOf(short, "x").reasons.join(" ")).toMatch(/Ersatz/);
@@ -262,7 +266,7 @@ describe("buildSetupProposal", () => {
             expect(out.checks.roles.healer.ok).toBe(false);
             expectHardRules(input, out);
             const noOther = buildSetupProposal({ ...input, signups: [su("druid", "Druid-Restoration", { character: "Bär" })] });
-            expect(noOther.bench[0].reasons).toEqual(["Keine Spec mit brauchbarem Gear"]);
+            expect(noOther.pool[0].reasons).toEqual(["Keine Spec mit brauchbarem Gear"]);
         });
 
         it("reads can-offtank from the profile", () => {
@@ -328,7 +332,8 @@ describe("buildSetupProposal", () => {
             for (let night = 0; night < n; night++) {
                 const id = `night${night}`;
                 const out = buildSetupProposal({ events: [event(id, fairness)], signups: signups().map((s) => ({ ...s, eventId: id })), history });
-                const bench = out.bench.map((b) => b.userId);
+                // #517: the orga puts who was left over onto the bench — only that explicit bench counts
+                const bench = out.pool.map((b) => b.userId);
                 benched.push(bench);
                 history.push({ eventId: id, startTime: night, placed: placedIds(out), bench });
             }
@@ -356,8 +361,8 @@ describe("buildSetupProposal", () => {
             const history = [{ eventId: "old", startTime: 1, placed: ["tank", "a", "b", "c", "d"], bench: ["e", "f", "g"] }];
             const out = buildSetupProposal({ events: [event("new", true)], signups: signups(), history });
             expect(slotOf(out, "e").reasons).toContain("War zuletzt auf der Bank – hat Vorrang");
-            expect(out.bench.map((b) => b.userId)).toEqual(["b", "c", "d"]);
-            expect(out.bench[0].reasons).toContain("War zuletzt dabei");
+            expect(out.pool.map((b) => b.userId)).toEqual(["b", "c", "d"]);
+            expect(out.pool[0].reasons).toContain("War zuletzt dabei");
             expect(out.weights.fairness).toBeGreaterThan(0);
             const off = buildSetupProposal({ events: [event("new", true)], signups: signups(), history }, { fairness: false });
             expect(off.weights.fairness).toBe(0);
@@ -455,7 +460,7 @@ describe("buildSetupProposal", () => {
             expect(out.events).toHaveLength(2);
             expect(out.events.map((e) => e.checks.size.count)).toEqual([10, 10]);
             expect(out.events.every((e) => e.checks.roles.tank.ok && e.checks.roles.healer.ok)).toBe(true);
-            expect(out.bench).toHaveLength(base.length - 20);
+            expect(out.pool).toHaveLength(base.length - 20);
             const r05 = out.events.findIndex((e) => e.groups.some((g) => g.slots.some((s) => s.userId === "r05")));
             const r15 = out.events.findIndex((e) => e.groups.some((g) => g.slots.some((s) => s.userId === "r15")));
             expect(r05).toBe(r15);

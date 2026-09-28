@@ -117,7 +117,35 @@ describe("setup editor moves (client)", () => {
         expect(drawn.groups[1].slots).toEqual([]);
     });
 
-    it("resizes the raid live: drops whole groups beyond the new count, then trims the rest onto the bench", () => {
+    // #517: "Angemeldet" — signed up, neither placed nor benched; not part of the save request
+    it("moves between the groups, the bench and the pool \"Angemeldet\"", () => {
+        const withPool = { ...setup(), pool: [person("p", "Druid-Restoration", "healer", { status: "bench" })] };
+        const pin = lib.toInput(withPool);
+        const ppl = lib.peopleOf(withPool);
+        expect(pin).not.toHaveProperty("pool");
+        // pool -> group: in with their own spec
+        const toGroup = lib.moveRaider(pin, "p", { group: 2 }, ppl, 25);
+        expect(toGroup.input.groups[1].slots.map((x) => [x.userId, x.spec])).toEqual([["w", "Warlock-Destruction"], ["p", "Druid-Restoration"]]);
+        // pool -> bench only by hand
+        expect(lib.moveRaider(pin, "p", { bench: true }, ppl, 25).input.bench.map((b) => b.userId)).toEqual(["b", "p"]);
+        // group or bench -> pool: simply out of the request
+        const out = lib.moveRaider(pin, "h", { pool: true }, ppl, 25).input;
+        expect(out.groups[0].slots.map((x) => x.userId)).toEqual(["t", "m1", "m2", "r"]);
+        expect(lib.moveRaider(pin, "b", { pool: true }, ppl, 25).input.bench).toEqual([]);
+        expect(lib.moveRaider(pin, "p", { pool: true }, ppl, 25).input).toBeNull();
+        // a swap with somebody in the pool: the pool raider takes the exact place, the other goes into the pool
+        const swap = lib.moveRaider(pin, "p", { userId: "h" }, ppl, 25).input;
+        expect(swap.groups[0].slots[1]).toMatchObject({ userId: "p", spec: "Druid-Restoration", pos: 2 });
+        expect(lib.moveRaider(pin, "b", { userId: "p" }, ppl, 25).input.bench).toEqual([{ userId: "p", locked: false }]);
+        // a full raid refuses a pool raider like a bench one
+        expect(lib.moveRaider(pin, "p", { group: 2 }, ppl, 6).error).toMatch(/Raid ist voll/);
+        // drawn locally: who left a group or the bench is in the pool at once
+        const drawn = lib.applyLocal(withPool, out);
+        expect(drawn.pool.map((x) => x.userId)).toEqual(["p", "h"]);
+        expect(drawn.pool.every((x) => !x.locked)).toBe(true);
+    });
+
+    it("resizes the raid live: drops whole groups beyond the new count, then trims the rest back into the pool", () => {
         const big = () => ({
             version: 1,
             groups: [1, 2, 3, 4, 5].map((idx) => ({
@@ -131,15 +159,14 @@ describe("setup editor moves (client)", () => {
         const toTen = lib.resizeLineup(big(), 10);
         expect(toTen.groups.map((g) => g.index)).toEqual([1, 2]);
         expect(toTen.groups.every((g) => g.slots.length === 5)).toBe(true);
-        expect(toTen.bench).toHaveLength(1 + 15);
+        // #517: who is bumped goes back into the pool ("Angemeldet"), the bench stays the orga's
+        expect(toTen.bench).toEqual([{ userId: "b1", locked: false }]);
 
         // 25 -> 12: groups 4/5 drop whole, then group 3 (the highest kept) is trimmed from its last slot down
         const toTwelve = lib.resizeLineup(big(), 12);
         expect(toTwelve.groups.map((g) => [g.index, g.slots.length])).toEqual([[1, 5], [2, 5], [3, 2]]);
         expect(toTwelve.groups.reduce((n, g) => n + g.slots.length, 0)).toBe(12);
-        expect(toTwelve.bench.map((b) => b.userId)).toEqual([
-            "b1", "g4s1", "g4s2", "g4s3", "g4s4", "g4s5", "g5s1", "g5s2", "g5s3", "g5s4", "g5s5", "g3s5", "g3s4", "g3s3",
-        ]);
+        expect(toTwelve.bench.map((b) => b.userId)).toEqual(["b1"]);
 
         // growing touches nothing that already fits (the slots only gain their places)
         // the place is left out on purpose: growing only adds places, the rest must stay the same
@@ -154,7 +181,8 @@ describe("setup editor moves (client)", () => {
         withLock.groups[4].slots[0].locked = true;
         const shrunk = lib.resizeLineup(withLock, 5);
         expect(bare(shrunk.groups)).toEqual([{ index: 1, slots: withLock.groups[0].slots }]);
-        expect(shrunk.bench.find((b) => b.userId === "g5s1")).toEqual({ userId: "g5s1", locked: true });
+        expect(shrunk.bench.find((b) => b.userId === "g5s1")).toBeUndefined();
+        expect(shrunk.groups.flatMap((g) => g.slots).some((s) => s.userId === "g5s1")).toBe(false);
 
         // the original input is never mutated
         const original = big();

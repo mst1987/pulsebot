@@ -21,7 +21,8 @@ Für eine **neue** Anmeldung braucht man ggf. eine Raider-Rolle der jeweiligen K
 Technik: [setup.md](setup.md)
 
 - Ein Setup ist erst sichtbar, sobald die Orga es **freigegeben** hat — vorher sieht kein Raider etwas davon.
-- Nach der Freigabe erscheint es als eigene Nachricht im Event-Kanal (Gruppen, Bank) und optional als **DM** ("Du bist in Gruppe 2 als Heiler", "Diesmal Bank – nächstes Mal Vorrang").
+- Nach der Freigabe erscheint es als eigene Nachricht im Event-Kanal (die Gruppen, die Bank nur wenn die Orga sie mitpostet) und optional als **DM** ("Du bist in Gruppe 2 als Heiler"; "Diesmal Bank – nächstes Mal Vorrang" nur, wenn die Bank mitgepostet wird).
+- Wer angemeldet ist, aber nicht im Setup steht, bekommt keine Nachricht und keine DM — die Orga wählt im Setup aus allen Anmeldungen.
 - Der Button **"Invite callen"** an der Setup-Nachricht ist nur für die Orga und pingt die eigene Gruppe zum Einladen.
 - `/show-mysetups` — die eigenen freigegebenen Setups über mehrere Raids hinweg.
 - `/show-allsetups` — alle aktuell freigegebenen Setups.

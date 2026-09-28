@@ -345,7 +345,7 @@ describe("buildOutput", () => {
         const benched = cand(2, { options: [opt({ main: false, character: "Off" }), opt({ character: "Main", eventIdx: 0 })] });
         const absent = cand(3, { options: [], absentIn: new Set([0]) });
         const noGear = cand(4, { options: [], noGear: ["Priest-Holy"], name: "" });
-        const fixedOut = cand(5, { options: [], fixed: { bench: true }, signedIn: new Set() });
+        const fixedOut = cand(5, { options: [], fixed: { bench: true, locked: true }, signedIn: new Set() });
         const cands = [healer, tank, benched, absent, noGear, fixedOut];
         const m = model({ cands, avoidPairs: [{ a: 0, b: 1 }], avoidOverride: true, warnings: ["w1"] });
         const state = { opt: [0, 0, -1, -1, -1, -1], grp: [0, 0, 0, 0, 0, 0], lockOpt: [false, true] };
@@ -378,8 +378,11 @@ describe("buildOutput", () => {
             userId: "u5", character: "Name5", classId: "", spec: "", role: "", status: "",
             eventIds: [], locked: true, reasons: ["Von der Orga auf die Bank gesetzt"],
         };
-        expect(out.events[0].bench).toEqual([benchEntry, noGearEntry]);
-        expect(out.bench).toEqual([benchEntry, noGearEntry, fixedEntry]);
+        // #517: who is left over is the pool, the bench only holds the orga's own choice
+        expect(out.events[0].pool).toEqual([benchEntry, noGearEntry]);
+        expect(out.events[0].bench).toEqual([]);
+        expect(out.pool).toEqual([benchEntry, noGearEntry]);
+        expect(out.bench).toEqual([fixedEntry]);
         expect(out).toMatchObject({
             version: 3,
             versionId: "tbc",
@@ -432,8 +435,9 @@ describe("buildOutput", () => {
             ],
         });
         expect(out.checks.avoid).toEqual({ on: false, together: 1, total: 3 });
-        expect(out.bench.map((e) => e.userId)).toEqual(["u3"]);
-        expect(out.events[0].bench.map((e) => e.userId)).toEqual(["u3"]);
+        expect(out.pool.map((e) => e.userId)).toEqual(["u3"]);
+        expect(out.events[0].pool.map((e) => e.userId)).toEqual(["u3"]);
+        expect(out.bench).toEqual([]);
     });
 
     it("keeps apart a pair in different groups of one raid", () => {
@@ -453,6 +457,7 @@ describe("buildOutput", () => {
             versionId: "tbc",
             groups: [],
             bench: [],
+            pool: [],
             checks: {
                 ok: true,
                 size: { count: 0, size: 0, ok: false },

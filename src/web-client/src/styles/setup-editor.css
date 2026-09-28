@@ -34,6 +34,9 @@
 .se-publish-bad .se-publish-text { color: var(--high); }
 .se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
 .se-publish-link:hover { text-decoration: underline; }
+/* "Bench mitposten" (#517): a small checkbox beside the post line */
+.se-publish-bench { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.se-publish-bench input { margin: 0; accent-color: var(--accent); }
 
 /* the top area, below the bar and the channel line: left the ping message over the evening's numbers, right the raider panel. ONE fixed height
    (330 px) for the whole row — the panel never grows or shrinks with its content, so the groups underneath stay put while the pointer moves
@@ -142,6 +145,9 @@
 .se-bench::before { content: ""; position: absolute; left: 0; right: 0; top: -16px; border-top: 2px solid var(--line); }
 .se-bench-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px 4px; min-height: 40px; }
 .se-bench-chunks { margin-top: 4px; }
+/* "Angemeldet" (#517): signed up, not in the setup — a little quieter than the bench */
+.se-pool .se-group-title { color: var(--muted); }
+.se-extra.se-extra-lead { margin: 0 6px 0 0; }
 
 /* a free place: an empty box as high as a raider line */
 .se-ph { box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }

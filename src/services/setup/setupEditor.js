@@ -10,7 +10,9 @@
 // Stored on the event (eventStore.setEventSetup) as one object:
 //   status              "draft" | "approved"
 //   version             bumps on every proposal and every change of the lineup
-//   groups, bench, checks, weights, score, warnings, historySource
+//   groups, bench, pool, checks, weights, score, warnings, historySource
+//                       bench = only who the orga put there, pool = everybody else
+//                       signed up and not placed ("Angemeldet", #517)
 //                       the proposal's output v1 (utils/setup/proposal.js) for the
 //                       event — a manual change is valued by evaluateSetup(), so
 //                       both read alike
@@ -30,7 +32,7 @@ const { validatePlacement, placeSlots } = require("../../utils/setup/manual");
 const { DEFAULT_WEIGHTS, MAX_WEIGHT } = require("../../utils/setup/score");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { str } = require("../../utils/text");
-const { approvedSetupOf, pingTextOf } = require("./setupCore");
+const { approvedSetupOf, pingTextOf, benchAndPool } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 
 
@@ -99,7 +101,9 @@ function lineupSignature(setup) {
     const groups = (setup.groups || [])
         .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`).join(",")}`)
         .sort();
-    return groups.join("|");
+    // #517: the bench is an explicit, posted list — moving somebody onto it or off it is a change
+    const bench = benchAndPool(setup).bench.map((b) => String(b.userId)).sort();
+    return bench.length ? `${groups.join("|")}|bench:${bench.join(",")}` : groups.join("|");
 }
 
 /** The frozen, raider-facing copy of a lineup: names, specs, groups — no reasons, no wishes. */
@@ -110,7 +114,8 @@ function snapshotOf(setup, { at, by }) {
         approvedAt: at,
         approvedBy: by,
         groups: (setup.groups || []).map((g) => ({ index: g.index, slots: (g.slots || []).map(person) })),
-        bench: (setup.bench || []).map(person),
+        // only the orga's explicit bench (#517) — the pool ("Angemeldet") is never part of what raiders see
+        bench: benchAndPool(setup).bench.map(person),
     };
 }
 
@@ -121,6 +126,7 @@ function stored(result) {
         versionId: result.versionId,
         groups: result.groups,
         bench: result.bench,
+        pool: result.pool || [],
         checks: result.checks,
         weights: result.weights,
         score: result.score,
@@ -319,7 +325,8 @@ function setupSummary(event) {
         version: setup.version || 0,
         placed,
         size: Number(event.size) || 0,
-        bench: (setup.bench || []).length,
+        bench: benchAndPool(setup).bench.length,
+        pool: benchAndPool(setup).pool.length,
         ok: !!(setup.checks && setup.checks.ok),
         approvedAt: setup.approvedAt || (setup.approved && setup.approved.approvedAt) || 0,
     };
@@ -393,6 +400,7 @@ function withBuffInfoAll(lineup, table) {
         ...lineup,
         groups: lineup.groups.map((g) => ({ ...g, slots: g.slots.map((s) => withBuffInfo(s, g, lineup.groups, table)) })),
         bench: lineup.bench.map((b) => withBuffInfo(b, null, lineup.groups, table)),
+        pool: (lineup.pool || []).map((b) => withBuffInfo(b, null, lineup.groups, table)),
     };
 }
 
@@ -421,7 +429,8 @@ function decoratePerson(x, table, names) {
 function withSetupDefaults(setup, size) {
     if (!setup) return setup;
     const groups = Array.isArray(setup.groups) ? setup.groups : [];
-    const bench = Array.isArray(setup.bench) ? setup.bench : [];
+    // an old setup (no pool) is read the #517 way: its unlocked bench is the pool
+    const { bench, pool } = benchAndPool(setup);
     const c = setup.checks && typeof setup.checks === "object" ? setup.checks : {};
     const b = c.buffs && typeof c.buffs === "object" ? c.buffs : {};
     const placed = groups.reduce((n, g) => n + ((g && g.slots) || []).length, 0);
@@ -440,6 +449,7 @@ function withSetupDefaults(setup, size) {
         origin: setup.origin || "manual",
         groups: groups.map((g) => ({ ...g, slots: Array.isArray(g && g.slots) ? g.slots : [] })),
         bench,
+        pool,
         checks,
         weights: setup.weights && typeof setup.weights === "object" ? setup.weights : {},
         score: setup.score && typeof setup.score === "object" ? setup.score : { total: 0 },
@@ -457,13 +467,15 @@ function decorateLineup(setup, table, names) {
         // every slot with a place of its own (a proposal or an old draft has none: 1, 2, 3 …)
         groups: (setup.groups || []).map((g) => ({ ...g, slots: placeSlots((g.slots || []).map((s) => decoratePerson(s, table, names))) })),
         bench: (setup.bench || []).map((b) => decoratePerson(b, table, names)),
+        pool: (setup.pool || []).map((b) => decoratePerson(b, table, names)),
     };
 }
 
 /**
  * Signups nobody placed yet — someone who signed up after the last proposal
- * or save, so the orga's draft never falls behind (#354): they land on the
- * bench, so they can be dragged into a group by hand like anyone else there.
+ * or save, so the orga's draft never falls behind (#354): they land in the
+ * pool ("Angemeldet", #517), so they can be dragged into a group or onto the
+ * bench by hand like anyone else there.
  * Represented by their first signed character (priority 0) — the full
  * off-spec/`canAlso` option logic of setupInput.js is out of scope for a
  * manually-added bench entry. Only the draft gains them; `approved` is never
@@ -474,6 +486,7 @@ function addUnplacedSignups(decorated, signups, table, names) {
     const placed = new Set();
     for (const g of decorated.groups || []) for (const s of g.slots || []) placed.add(String(s.userId));
     for (const b of decorated.bench || []) placed.add(String(b.userId));
+    for (const b of decorated.pool || []) placed.add(String(b.userId));
     const extra = (signups || [])
         .filter((s) => s && s.userId && s.status !== "absence" && !placed.has(String(s.userId)))
         .map((s) => decoratePerson({
@@ -482,7 +495,7 @@ function addUnplacedSignups(decorated, signups, table, names) {
             role: s.role || (table.specs.get(s.spec) || {}).role || "",
             status: s.status || "", locked: false,
         }, table, names));
-    return extra.length ? { ...decorated, bench: [...decorated.bench, ...extra] } : decorated;
+    return extra.length ? { ...decorated, pool: [...(decorated.pool || []), ...extra] } : decorated;
 }
 
 /**

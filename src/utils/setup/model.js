@@ -412,7 +412,8 @@ function fixedGroup(f, event, lockedPerGroup, warnings) {
 
 /** A candidate's `fixed` state for one fixed place, or null when a hard rule refuses it. */
 function fixedPlace(f, cand, ctx, locked, warnings) {
-    if (f.bench === true) return { bench: true };
+    // #517: the bench is the orga's explicit list; `locked` only says whether the editor shows the lock
+    if (f.bench === true) return { bench: true, locked: f.locked !== false };
     const events = ctx.events;
     const event = f.eventId ? ctx.eventById.get(str(f.eventId)) : (events.length === 1 ? events[0] : null);
     if (!event) {

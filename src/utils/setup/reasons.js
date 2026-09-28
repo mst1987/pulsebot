@@ -164,9 +164,26 @@ function benchEntryOf(model, state, c, reasons) {
         role: o ? o.role : "",
         status: o ? o.status : "",
         eventIds: [...new Set(cand.options.map((x) => model.events[x.eventIdx].id))],
-        locked: !!(cand.fixed && cand.fixed.bench),
+        locked: !!(cand.fixed && cand.fixed.bench && cand.fixed.locked),
         reasons,
     };
+}
+
+/**
+ * The raiders nobody placed (#517), split: the **bench** is only who the orga put
+ * there (`fixed.bench`), everybody else signed up and not placed is the **pool**
+ * ("Angemeldet") — a proposal never benches anybody on its own.
+ */
+function unplacedOf(model, facts, state, filter) {
+    const bench = [];
+    const pool = [];
+    for (const c of model.cands) {
+        if (state.opt[c.idx] >= 0 || !filter(c)) continue;
+        const entry = benchEntryOf(model, state, c.idx, benchReasons(model, facts, state, c.idx));
+        if (c.fixed && c.fixed.bench) bench.push(entry);
+        else pool.push({ ...entry, locked: false });
+    }
+    return { bench, pool };
 }
 
 function wishCheck(model, state, eventIdx) {
@@ -259,21 +276,17 @@ function buildOutput(model, scorer, state, { version, weights }) {
                 .sort((a, b) => ROLE_ORDER[a.opt.role] - ROLE_ORDER[b.opt.role] || a.cand.idx - b.cand.idx)
                 .map((m) => slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits))),
         }));
-        const bench = model.cands
-            .filter((c) => state.opt[c.idx] < 0)
-            .filter((c) => c.options.some((o) => o.eventIdx === e) || (c.signedIn.has(e) && !c.absentIn.has(e)))
-            .map((c) => benchEntryOf(model, state, c.idx, benchReasons(model, facts, state, c.idx)));
+        const { bench, pool } = unplacedOf(model, facts, state, (c) => c.options.some((o) => o.eventIdx === e) || (c.signedIn.has(e) && !c.absentIn.has(e)));
         return {
             eventId: event.id,
             title: event.title,
             groups,
             bench,
+            pool,
             checks: eventChecks(model, facts, state, e),
         };
     });
-    const bench = model.cands
-        .filter((c) => state.opt[c.idx] < 0 && c.options.length + (c.fixed && c.fixed.bench ? 1 : 0) + c.noGear.length > 0)
-        .map((c) => benchEntryOf(model, state, c.idx, benchReasons(model, facts, state, c.idx)));
+    const { bench, pool } = unplacedOf(model, facts, state, (c) => c.options.length + (c.fixed && c.fixed.bench ? 1 : 0) + c.noGear.length > 0);
     const first = events[0] || { groups: [], checks: { ok: false, size: { count: 0, size: 0, ok: false }, roles: {}, buffs: { ok: true, required: [], raid: [], party: [] }, wishes: { met: 0, total: 0, pairs: [] } } };
     const wishes = model.events.length > 1 ? wishCheck(model, state, null) : first.checks.wishes;
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));
@@ -282,6 +295,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
         versionId: model.versionId,
         groups: first.groups,
         bench,
+        pool,
         checks: { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) },
         events,
         weights,

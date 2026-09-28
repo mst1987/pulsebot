@@ -85,7 +85,7 @@ beforeEach(() => {
 describe("buildSetupMessage", () => {
     it("draws the groups as inline blocks with spec icons, the bench in one line, the role totals", () => {
         const event = seed();
-        const msg = sm.buildSetupMessage(event, event.setup.approved, { emojis });
+        const msg = sm.buildSetupMessage(event, event.setup.approved, { emojis, bench: true });
         const embed = msg.embeds[0];
         expect(embed.title).toBe("Setup · Kara Donnerstag");
         expect(embed.description).toContain("<t:2000000000:D>");
@@ -125,25 +125,49 @@ describe("buildSetupMessage", () => {
         }]);
     });
 
+    it.each([5, 6, 7, 8])("keeps every one of %i groups in its column: three inline fields per row, empty ones fill the last", (count) => {
+        const event = seed({ size: count * 5 });
+        const a = { version: 1, groups: [], bench: [p("99", "Thalia", "Priest-Shadow", "ranged")] };
+        for (let g = 1; g <= count; g++) a.groups.push({ index: g, slots: [p(String(g), `R${g}`, "Mage-Fire", "ranged")] });
+        const fields = sm.buildSetupMessage(event, a, { emojis, bench: true }).embeds[0].fields;
+        const inline = fields.filter((f) => f.inline);
+        expect(inline.length % 3).toBe(0);
+        expect(inline.length).toBe(Math.ceil(count / 3) * 3);
+        // the groups first, in order, then only fillers; the bench and the link stay full-width rows after them
+        expect(inline.slice(0, count).map((f) => f.name)).toEqual(Array.from({ length: count }, (_, i) => `Group ${i + 1}`));
+        expect(inline.slice(count).every((f) => f.name === "\u200b" && f.value === "\u200b")).toBe(true);
+        expect(fields.findIndex((f) => !f.inline)).toBe(inline.length);
+        expect(fields.find((f) => f.name.includes("Bench")).inline).toBe(false);
+    });
+
+    it("leaves the bench out unless the orga posts it (#517)", () => {
+        const event = seed();
+        const without = sm.buildSetupMessage(event, event.setup.approved, { emojis }).embeds[0];
+        expect(without.fields.some((f) => f.name.includes("Bench"))).toBe(false);
+        expect(JSON.stringify(without)).not.toContain("Thalia");
+        expect(sm.placementsOf(event.setup.approved).map((x) => x.userId)).toEqual(["1", "2", "3", "4"]);
+        expect(sm.placementsOf(event.setup.approved, { bench: true }).map((x) => x.userId)).toEqual(["1", "2", "3", "4", "5"]);
+    });
+
     it("marks a raider's own confirmation, keeping every line the same width (#setup-confirm)", () => {
         const event = seed();
         const confirmations = { 1: "confirmed", 4: "declined" };
-        const value = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+        const value = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations, bench: true }).embeds[0]
             .fields.find((f) => f.name === "Group 1").value;
         // "1" (Brokk) confirmed, "2" (Zibbo) has not answered yet — plain-text fallback (no app emojis)
         expect(value).toBe("✔ **Brokk** · Protection\n**Zibbo** · Holy");
-        const g2 = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+        const g2 = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations, bench: true }).embeds[0]
             .fields.find((f) => f.name === "Group 2").value;
         expect(g2).toContain("✖ **Kael**");
         // the bench never carries a mark — it is not part of the confirm flow
-        const bench = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations }).embeds[0]
+        const bench = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, confirmations, bench: true }).embeds[0]
             .fields.find((f) => f.name.includes("Bench")).value;
         expect(bench).not.toMatch(/[✔✖]/);
     });
 
     it("reads the same without app emojis (text fallbacks)", () => {
         const event = seed();
-        const embed = sm.buildSetupMessage(event, event.setup.approved, { emojis: {} }).embeds[0];
+        const embed = sm.buildSetupMessage(event, event.setup.approved, { emojis: {}, bench: true }).embeds[0];
         expect(embed.fields.find((f) => f.name === "Group 1").value).toBe("**Brokk** · Protection\n**Zibbo** · Holy");
         expect(embed.description).toContain("Tank 1");
         expect(embed.fields.find((f) => f.name.includes("Bench")).name).toMatch(/^Bench \(\d+\)$/);
@@ -188,7 +212,7 @@ describe("buildSetupMessage", () => {
             a.groups.push({ index: g, slots: Array.from({ length: 5 }, () => p(String(id++), long, "Druid-Restoration", "healer")) });
         }
         for (let i = 0; i < 60; i++) a.bench.push(p(String(id++), long, "Shaman-Restoration", "healer"));
-        const embed = sm.buildSetupMessage(event, a, { emojis }).embeds[0];
+        const embed = sm.buildSetupMessage(event, a, { emojis, bench: true }).embeds[0];
         expect(sm.embedLength(embed)).toBeLessThanOrEqual(sm.LIMITS.total);
         expect(embed.fields.length).toBeLessThanOrEqual(25);
         for (const f of embed.fields) expect(f.value.length).toBeLessThanOrEqual(1024);
@@ -314,7 +338,7 @@ describe("DMs", () => {
 
     it("tells every raider once per placement and records failures", async () => {
         mockConfig = { categorySetupDms: { cat1: true } };
-        seed({ setupPost: { channelId: "c1", messageId: "m1" } });
+        seed({ setupPost: { channelId: "c1", messageId: "m1", bench: true } });
         discord.sendDirectMessage.mockImplementation(async (userId) => (userId === "4" ? { ok: false, error: "Cannot send messages to this user" } : { ok: true }));
         const first = await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
         expect(first.sent).toBe(4);
@@ -344,12 +368,23 @@ describe("DMs", () => {
         expect(discord.sendDirectMessage.mock.calls[0][1].content).toContain("Group 1");
     });
 
+    it("sends no DM to the bench while it is not posted (#517)", async () => {
+        mockConfig = { categorySetupDms: { cat1: true } };
+        seed({ setupPost: { channelId: "c1", messageId: "m1" } });
+        discord.sendDirectMessage.mockResolvedValue({ ok: true });
+        const run = await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
+        expect(run.sent).toBe(4);
+        expect(discord.sendDirectMessage.mock.calls.map((c) => c[0])).toEqual(["1", "2", "3", "4"]);
+    });
+
     it("publishSetup posts first and starts the DMs only with the switch", async () => {
         seed();
         fakeChannel();
         discord.sendDirectMessage.mockResolvedValue({ ok: true });
-        const off = await sm.publishSetup("eh-1", { config: {}, delayMs: 0 });
+        const off = await sm.publishSetup("eh-1", { config: {}, delayMs: 0, bench: true });
         expect(off.post).toEqual({ action: "posted" });
+        // "Bench mitposten" is remembered on the event and used by the next run (#517)
+        expect(mockEvents.get("eh-1").setupPost.bench).toBe(true);
         expect(off.dms).toBeNull();
 
         const on = await sm.publishSetup("eh-1", { config: { categorySetupDms: { cat1: true } }, delayMs: 0 });
@@ -387,7 +422,10 @@ describe("publishView", () => {
         const event = seed();
         mockEvents.set("eh-1", { ...event, setup: { ...event.setup, status: "draft", approved: null } });
         const view = sm.publishView(mockEvents.get("eh-1"), { config: { categorySetupDms: {} }, channelName: "kara-do" });
-        expect(view).toMatchObject({ channelName: "kara-do", dmsEnabled: false, recipients: 5, pendingDms: 5, posted: null, dms: null });
+        // #517: the bench is not posted by default, so it gets no DM either
+        expect(view).toMatchObject({ channelName: "kara-do", dmsEnabled: false, recipients: 4, pendingDms: 4, posted: null, dms: null, bench: false, benchCount: 1 });
+        const withBench = sm.publishView({ ...mockEvents.get("eh-1"), setupPost: { bench: true } }, { config: { categorySetupDms: {} } });
+        expect(withBench).toMatchObject({ recipients: 5, pendingDms: 5, bench: true });
     });
 
     it("says after it what did, failures included", () => {
@@ -402,7 +440,7 @@ describe("publishView", () => {
         expect(view.dmsEnabled).toBe(true);
         expect(view.posted).toMatchObject({ messageUrl: "https://discord.com/channels/g1/c1/m1", postedAt: 10, version: 1 });
         expect(view.outdated).toBe(true);
-        expect(view.pendingDms).toBe(4);
+        expect(view.pendingDms).toBe(3);
         expect(view.dms.failed).toEqual([{ userId: "4", character: "Kael", error: "closed" }]);
     });
 });

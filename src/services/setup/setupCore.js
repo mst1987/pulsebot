@@ -16,6 +16,26 @@ function approvedSetupOf(event) {
     return setup && setup.approved && Array.isArray(setup.approved.groups) ? setup.approved : null;
 }
 
+/**
+ * The explicit bench and the pool ("Angemeldet") of a stored setup (#517). A
+ * setup stored before #517 has no `pool`: its bench was everybody left over, so
+ * there only the entries the orga locked count as the explicit bench and the
+ * rest is the pool.
+ */
+function benchAndPool(setup) {
+    const bench = Array.isArray(setup && setup.bench) ? setup.bench.filter(Boolean) : [];
+    if (setup && Array.isArray(setup.pool)) return { bench, pool: setup.pool.filter(Boolean) };
+    return { bench: bench.filter((b) => b.locked), pool: bench.filter((b) => !b.locked).map((b) => ({ ...b, locked: false })) };
+}
+
+/**
+ * Whether the setup message and its DMs carry the bench (#517): the orga's last
+ * choice when posting ("Bench mitposten"), off by default. The pool is never posted.
+ */
+function benchPosted(event) {
+    return !!(event && event.setupPost && event.setupPost.bench === true);
+}
+
 // ---- "Ping everyone" ------------------------------------------------------------
 
 /** The line everyone reads without the orga ever setting their own — raider-facing, so English. */
@@ -77,7 +97,7 @@ function pingButtonRow(eventId) {
 }
 
 module.exports = {
-    approvedSetupOf,
+    approvedSetupOf, benchAndPool, benchPosted,
     PING_TEXT, PING_TEXT_MAX, pingTextOf,
     confirmationsFor,
     CONFIRM_PREFIX, INVITE_PREFIX, PING_PREFIX, confirmId, inviteId, pingId,

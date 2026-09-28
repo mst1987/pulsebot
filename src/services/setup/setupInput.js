@@ -25,6 +25,7 @@ const settingsStore = require("../../stores/settingsStore");
 const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
+const { benchAndPool } = require("./setupCore");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -97,8 +98,9 @@ function fixedFromSetup(event) {
             }
         }
     }
-    for (const b of Array.isArray(setup.bench) ? setup.bench : []) {
-        if (b && b.locked && b.userId) out.push({ userId: String(b.userId), bench: true });
+    // #517: the whole explicit bench stays on the bench — a new proposal never undoes the orga's choice
+    for (const b of benchAndPool(setup).bench) {
+        if (b.userId) out.push({ userId: String(b.userId), bench: true, locked: !!b.locked });
     }
     return out;
 }

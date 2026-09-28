@@ -19,7 +19,7 @@
 // classesOf / rosterCounts / messagePhase), so the page and the channel can
 // never disagree about who stands where.
 const { rosterEntries, classesOf, rosterCounts, messagePhase } = require("../../services/events/eventMessage");
-const { approvedSetupOf } = require("../../services/setup/setupCore");
+const { approvedSetupOf, benchPosted } = require("../../services/setup/setupCore");
 const { getEvent } = require("../../stores/eventStore");
 const { listSignups } = require("../../stores/signupStore");
 const { instance } = require("../../config/gameVersions");
@@ -125,7 +125,8 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
         groups: (approved.groups || [])
             .filter((g) => (g.slots || []).length)
             .map((g) => ({ index: Number(g.index) || 0, members: (g.slots || []).map((s) => member(s, table)) })),
-        bench: (approved.bench || []).map((b) => member(b, table)),
+        // the bench only when the orga posted it with the setup (#517)
+        bench: benchPosted(event) ? (approved.bench || []).map((b) => member(b, table)) : [],
     } : null;
 
     return {
