@@ -91,7 +91,34 @@ export function effectiveCounts(board: RaidplanBoard, besetzung: Besetzung, rost
  */
 export function ensureBesetzung(board: RaidplanBoard, besetzung: Besetzung | null, roster: RaidplanPlayer[]): RaidplanBoard {
     if (!besetzung) return board;
-    return fillBesetzung(repairSlots(dropGone(board, roster), besetzung, roster), besetzung, roster);
+    const dropped = dropGone(board, roster);
+    // the places a raider just left (not in the lineup, or outside "Gruppen im Plan", #529): filled again AFTER the Besetzung is complete,
+    // so a slot the bench raider made above the raid's numbers goes away with the repair and the regular slots are filled first
+    const freed = dropped === board ? [] : dropped.slots.filter((s, i) => !s.userId && board.slots[i] && board.slots[i].userId).map((s) => s.id);
+    const full = fillBesetzung(repairSlots(dropped, besetzung, roster), besetzung, roster);
+    return freed.length > 0 ? refillVacated(full, freed, roster) : full;
+}
+
+/**
+ * The role slots `dropGone` just freed (`vacated`: their ids; a raider who left the setup, or one outside "Gruppen im Plan", #529) are
+ * filled again from the players the board has - ONLY those places: an open place the orga left open stays open. The slot's classes
+ * first, then its role (a flex role of this boss counts), a player who already stands in a slot or as a free token is not taken. The
+ * server does the same for the read view (raidplanGroups.refillSlots over raidplanBoard.fillSlots).
+ */
+export function refillVacated(after: RaidplanBoard, vacatedIds: string[], roster: RaidplanPlayer[]): RaidplanBoard {
+    const order = ["tank", "healer", "melee", "ranged", "dps"];
+    const vacated = new Set(after.slots.filter((s) => vacatedIds.indexOf(s.id) >= 0 && !s.userId && order.indexOf(s.kind) >= 0).map((s) => s.id));
+    if (vacated.size === 0) return after;
+    const taken = new Set([...after.slots.map((s) => s.userId).filter(Boolean), ...after.tokens.map((k) => k.userId)]);
+    const fits = (kind: string, p: RaidplanPlayer) => { const r = roleOn(after, p); return kind === "dps" ? r !== "tank" && r !== "healer" : r === kind; };
+    const open = after.slots.filter((s) => vacated.has(s.id)).sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.n - b.n);
+    const fills: Record<string, string> = {};
+    const take = (s: RaidplanSlot, p: RaidplanPlayer | undefined) => { if (p) { taken.add(p.userId); fills[s.id] = p.userId; } };
+    // the places that ask for a class first (nobody of the class = open, a stranger never takes it), then the others by role
+    for (const s of open) for (const cls of s.preferredClasses || []) { if (fills[s.id]) break; take(s, roster.find((p) => !taken.has(p.userId) && fits(s.kind, p) && p.classId === cls)); }
+    for (const s of open) if ((s.preferredClasses || []).length === 0) take(s, roster.find((p) => !taken.has(p.userId) && fits(s.kind, p)));
+    if (Object.keys(fills).length === 0) return after;
+    return { ...after, slots: after.slots.map((s) => (fills[s.id] ? { ...s, userId: fills[s.id] } : s)) };
 }
 
 /**

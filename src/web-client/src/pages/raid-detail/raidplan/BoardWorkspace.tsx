@@ -56,7 +56,7 @@ import { WorkspaceSide, type DockTab } from "./workspace/WorkspaceSide";
  * Enter jumps to its properties; Ctrl+Z / Ctrl+Y undo and redo.
  */
 export default function BoardWorkspace({
-    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
+    mode, eventId, besetzung, catalog, boss, allBosses, board, edit, editAll, roster, outside, canWrite, limits, profileName, onPickProfile, onSaveTactic, saveState, notice, history, status, actions, bossNav, mapRows, onMapsChanged, defaultRows, onCopyDefaults, me,
 }: {
     mode: "event" | "template";
     /** the event whose plan this is ("" in a template): suggestions read its lineup */
@@ -71,8 +71,10 @@ export default function BoardWorkspace({
     board: RaidplanBoard;
     /** Applies a change to this boss's board; `coalesce` = one step of undo with the change right before (a drag, a slider). */
     edit: (fn: (b: RaidplanBoard) => RaidplanBoard, coalesce?: boolean) => void;
-    /** The players of the setup (empty in a template). */
+    /** The players of the setup the plan picks from ("Gruppen im Plan", #529; empty in a template). */
     roster: RaidplanPlayer[];
+    /** the rest of the lineup (bench, groups switched off): only to name a raider a row still holds, marked "nicht im Plan" */
+    outside?: RaidplanPlayer[];
     canWrite: boolean;
     /** the same change on every board of the plan (colours and marks of the groups are plan-wide); without it only this board */
     editAll?: (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
@@ -122,7 +124,7 @@ export default function BoardWorkspace({
     const frameEl = useRef<HTMLDivElement | null>(null);
     const panelRef = useRef<HTMLElement>(null);
     const workRef = useRef<HTMLDivElement>(null);
-    const players = useMemo(() => rosterMap(roster), [roster]);
+    const players = useMemo(() => rosterMap(outside && outside.length > 0 ? [...roster, ...outside] : roster), [roster, outside]);
     const isEvent = mode === "event";
     const scope = scopeOf(boss);
     /** no map board: "Allgemein" (raid-wide rows) and the Standard (the basics every boss inherits) are only assignments */

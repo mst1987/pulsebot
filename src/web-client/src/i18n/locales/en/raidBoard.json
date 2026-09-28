@@ -574,6 +574,21 @@
         "refill": "Re-assign by class",
         "refillTip": "Fill the class-bound slots anew"
     },
+    "groups": {
+        "title": "Groups in the plan",
+        "label": "Groups",
+        "tip": "Which setup groups the raid plan takes its players from: roster slots, class assignments, suggestions, auto icons and the read view. Default: the groups up to the raid size, no bench.",
+        "on": "in the plan",
+        "off": "not in the plan",
+        "bench": "Bench",
+        "benchTip": "Bench ({count})",
+        "groupTip": "Group {n} ({count})",
+        "countTip": "{count} players in the plan",
+        "reset": "Back to the groups up to the raid size",
+        "outName": "{name} (not in the plan)",
+        "outBench": "{name} is on the bench – not in the plan. The assignment stays, please give it to someone else.",
+        "outGroup": "{name} is in group {n}, which is not in the plan. The assignment stays, please give it to someone else."
+    },
     "mobs": {
         "title": "Mobs",
         "tip": "Everything that can be tanked or marked in this section: the boss, its adds from the catalog and the mobs you add. They are always available as a tank target in the assignments.",

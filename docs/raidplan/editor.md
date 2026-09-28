@@ -604,3 +604,36 @@ mark 210 px.
   leaves the column and the page does not scroll sideways (puppeteer at 1280 and 390 px).
 - Tests: `src/web-client/src/pages/raid-detail/raidplan/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
   remembered tab, the badge fields, a short inspector without tabs).
+
+## Groups in the plan: no bench in the assignments (#529)
+
+"Die Bench sollte auch nicht ins Setup uebernommen werden ... Manche Einteilungen wurden jetzt von Bench-Leuten eingeteilt." The plan read
+its raiders from the setup INCLUDING the bench (`rosterFrom` added it as group 0): a bench healer became "Heiler 8" of the Besetzung
+(`effectiveCounts` counted him), class references and priorities (#525) could pick him, the suggestions named him, and the raidsheet's
+assignment columns (healers, kicks, soulstones, debuffs) took raiders of a Raid-Helper setup's groups 6+.
+
+- **One reader** (model.md, "Groups in the plan"): `raidplanGroups.planRoster` (server) / `lib/raidplan/planGroups.ts splitRoster`
+  (client twin, the same cases in `planGroups.test.ts` against the server module). `RaidplanTab` splits `view.roster` once: `roster` =
+  the raiders of the plan's groups, handed to every consumer as before (Besetzung, `expandClassRefs`, suggestions, auto tokens,
+  "Nicht platziert", group markers, the plan-wide open rows); `outside` only goes to the name lookup (`BoardWorkspace` `players`,
+  `openAssignments`). The server applies the same in `publicView` (resolution, steps, group tables), `suggestFor` (roster and the
+  heal row's groups) and `postApply` (`applyTemplate`'s `fillIncluded`: a template's open slots never get a bench raider).
+- **UI** (`raidplan/PlanGroups.tsx`, in the tool bar's status): "GRUPPEN (1)(2)(3)(4)(5) Bank 25" - a filled chip is in the plan, a
+  dashed one not; the tooltip names the group and its size; the number is how many raiders the plan picks from; the arrow (only when
+  the selection differs) goes back to the default. Groups beyond the raid's size appear only when the setup has them; "Bank" only
+  when there is a bench. Readers see the chips disabled. A click saves at once (`POST /api/raidplan/groups`, optimistic, back on an
+  error); it is a setting of the plan like publishing, no version step, so the unsaved draft of the boards stays valid.
+- **Existing plans, no migration:** a raider outside the plan who is NAMED in a row (`user:` assignee or player target) keeps his
+  place; the chip is yellow with a warning sign and says "<Name> sitzt auf der Bank - nicht im Plan ..." or "... ist in Gruppe 5, die
+  nicht im Plan ist ..." (`isMissing` counts it, so the row is open and the plan's "n offene Einteilungen" names "<Name> (nicht im
+  Plan)"). Class references and priority rows resolve anew without him. A role slot he stands in is taken from him and ONLY that place
+  is filled again from the plan (`ensureBesetzung` -> `refillVacated`, after the Besetzung is complete; the server's twin for the read
+  view is `raidplanGroups.refillSlots` over `fillSlots`); a free token of his is dropped (`dropGone`). The read view names such a
+  raider where a row names him (`outOfPlan`, group 0, no warning for raiders), never in a group ring, group table or auto token.
+- **Raidsheet** (`utils/setup/fillSetup.js buildSetupWrite`): only raiders of groups 1..5 are read (a slot without a group number
+  after the 25th is group 6) - the bench of a Raid-Helper setup no longer lands in the sheet's healer, kick, soulstone or debuff cells.
+  An own event's sheet (`raidHelperSlots`) never had the bench or the pool.
+- Tests: `test/services/raidplan/raidplanGroups.test.js`, `test/web/apiRoutes/raidplan.groups.test.js` (25 + 3 bench + 2 pool: the
+  editor payload, the read view's priority, named bench raider, slot refill, the toggle, suggestions, template apply),
+  `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/planGroups.test.ts`,
+  `src/web-client/src/pages/raid-detail/raidplan/PlanGroups.test.tsx`.

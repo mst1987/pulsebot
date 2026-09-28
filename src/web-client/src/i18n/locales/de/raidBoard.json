@@ -574,6 +574,21 @@
         "refill": "Neu zuweisen nach Klasse",
         "refillTip": "Klassengebundene Slots neu belegen"
     },
+    "groups": {
+        "title": "Gruppen im Plan",
+        "label": "Gruppen",
+        "tip": "Aus welchen Setup-Gruppen der Raidplan seine Spieler nimmt: Besetzung, Klassen-Einteilungen, Vorschläge, Auto-Symbole und die Lese-Ansicht. Standard: die Gruppen bis zur Raidgröße, ohne Bank.",
+        "on": "im Plan",
+        "off": "nicht im Plan",
+        "bench": "Bank",
+        "benchTip": "Bank ({count})",
+        "groupTip": "Gruppe {n} ({count})",
+        "countTip": "{count} Spieler im Plan",
+        "reset": "Zurück auf die Gruppen bis zur Raidgröße",
+        "outName": "{name} (nicht im Plan)",
+        "outBench": "{name} sitzt auf der Bank – nicht im Plan. Die Einteilung bleibt stehen, bitte neu vergeben.",
+        "outGroup": "{name} ist in Gruppe {n}, die nicht im Plan ist. Die Einteilung bleibt stehen, bitte neu vergeben."
+    },
     "mobs": {
         "title": "Mobs",
         "tip": "Alles, was sich in diesem Abschnitt tanken oder markieren lässt: der Boss, seine Adds aus dem Katalog und die Mobs, die du hinzufügst. Sie sind in den Einteilungen immer als Tankziel wählbar.",

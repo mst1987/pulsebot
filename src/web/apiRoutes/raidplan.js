@@ -4,6 +4,7 @@
 //   GET    /api/raidplan?event=<id>           raids read: plan, bosses, players, profiles
 //   PUT    /api/raidplan                      raids write: save the bosses (version-checked)
 //   POST   /api/raidplan/publish              raids write: publish / withdraw / new link
+//   POST   /api/raidplan/groups               raids write: "Gruppen im Plan" (#529), the setup groups the plan picks from
 //   POST   /api/raidplan/map?key=<key>        raids write: upload a room map (raw PNG/JPG/WebP body)
 //   POST   /api/raidplan/map/delete           raids write: remove a room map
 //   POST   /api/raidplan/apply                raids write: copy a template into the plan (snapshot,
@@ -116,6 +117,21 @@ const postPublish = withUser({ write: "raids", csrf: true, body: true }, async (
     ok(res, raidplan.editorView(await refreshed(found), { canWrite: true }));
 });
 
+/**
+ * POST /api/raidplan/groups — body `{ event, includedGroups }` ("Gruppen im Plan", #529): the group numbers and "bench" the plan picks its
+ * raiders from, `null` = back to the default (the groups up to the raid's size). Written at once, no version step (the unsaved draft
+ * of the boards stays valid); only valid values are kept. Answers the stored value and the one in effect.
+ */
+const postGroups = withUser({ write: "raids", csrf: true, body: true }, async ({ user, body, res }) => {
+    const found = await eventOf(res, body.event);
+    if (!found) return;
+    const raw = body.includedGroups === null ? null : Array.isArray(body.includedGroups) ? body.includedGroups : undefined;
+    if (raw === undefined) return error(res, 400, "invalid", "Ungültige Gruppenauswahl.");
+    const result = store.setIncludedGroups(found.event.id, raw, { userId: user.id });
+    if (result.error) return sendFailure(res, result);
+    ok(res, { includedGroups: result.plan.includedGroups || null, included: raidplan.planIncluded(found.event, result.plan) });
+});
+
 /** The event of a request again after a write: the plan changed (a Raid-Helper event's gone raiders are read from it). */
 async function refreshed(found) {
     if (found.kind !== "raidhelper") return found.event;
@@ -173,6 +189,8 @@ const postApply = withUser({ write: "raids", csrf: true, body: true }, async ({ 
         bossKeys: raidplan.planKeys(event),
         // the open slots are filled from who is in the line-up now (a raider Raid-Helper no longer lists is not placed anew)
         roster: found.kind === "raidhelper" ? found.loaded : raidplan.editorRoster(event),
+        // ... but only from the groups in the plan (#529): a bench raider never takes a place of the template
+        fillIncluded: raidplan.planIncluded(event, store.getPlan(event.id)),
         userId: user.id,
         trackKnown: !!knownRosterOf(found),
     });
@@ -388,6 +406,7 @@ const routes = [
     { method: "PUT", path: "/api/raidplan", handler: putPlan, area: "raids" },
     { method: "POST", path: "/api/raidplan/suggest", handler: postSuggest, area: "raids" },
     { method: "POST", path: "/api/raidplan/publish", handler: postPublish, area: "raids" },
+    { method: "POST", path: "/api/raidplan/groups", handler: postGroups, area: "raids" },
     { method: "POST", path: "/api/raidplan/map", handler: postMap, area: "raids" },
     { method: "POST", path: "/api/raidplan/map/delete", handler: postMapDelete, area: "raids" },
     { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raids" },
@@ -415,7 +434,7 @@ const routes = [
 
 module.exports = {
     getLink, postLink,
-    getPlan, putPlan, postSuggest, postPublish, postMap, postMapDelete,
+    getPlan, putPlan, postSuggest, postPublish, postGroups, postMap, postMapDelete,
     getCatalog, postMob, patchMob, deleteMob,
     postSpell, patchSpell, deleteSpell, postCatalogReset,
     getProfiles, postProfile, patchProfile, deleteProfile, getPublic,

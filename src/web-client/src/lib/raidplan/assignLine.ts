@@ -6,6 +6,7 @@
 import { classPlaceNameFor, classRefLabelFor, offRole, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "./assign";
 import { classGroups, classPriorityOf, expandClassRefs, isClassRef, parseClassRef, rowCount } from "./classRefs";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../api";
+import { t } from "../../i18n";
 
 /**
  * One entry of a column: a single chip, a bracket of a class reference with a count ("Jäger x2") holding what it resolves to, or the
@@ -48,6 +49,8 @@ export type CardSum = { rows: number; open: number };
 
 /** Whether a resolved chip is an open place that is missing (yellow): a class nobody fills, or an empty role slot in an EVENT (in a template a slot is only a placeholder, grey). */
 export function isMissing(r: Resolved, isEvent: boolean): boolean {
+    // a raider outside "Gruppen im Plan" (#529) a row still names: he keeps his place, but the row warns
+    if (r.player && r.player.outOfPlan) return isEvent;
     if (!r.open) return false;
     if (r.kind === "class") return true;
     return isEvent && r.kind === "slot";
@@ -132,6 +135,7 @@ function itemName(x: LineItem, openWord: string): string {
 
 /** What an open place is missing, by name: a class place as the row names it ("Magier-Tank", "Jäger"), an open slot by its label. */
 function missingName(x: LineItem, r: Resolved, type: string): string {
+    if (r.player && r.player.outOfPlan) return t("raidBoard.groups.outName", { name: r.player.character });
     if (x.kind === "prio") return r.label;
     if (r.kind === "class") {
         const q = parseClassRef(r.ref);
@@ -145,8 +149,9 @@ function missingName(x: LineItem, r: Resolved, type: string): string {
  * missing. Only for an event plan (a template has no setup, nothing can be missing there). Each section's rows are resolved round robin
  * like the editor does.
  */
-export function openAssignments(sections: { key: string; name: string; board: RaidplanBoard }[], roster: RaidplanPlayer[]): OpenRow[] {
-    const players = new Map(roster.map((p) => [p.userId, p]));
+export function openAssignments(sections: { key: string; name: string; board: RaidplanBoard }[], roster: RaidplanPlayer[], outside: RaidplanPlayer[] = []): OpenRow[] {
+    // `outside`: the raiders outside "Gruppen im Plan" (#529) - a row that names one is open ("Benchy (nicht im Plan)")
+    const players = new Map([...roster, ...outside].map((p) => [p.userId, p]));
     const out: OpenRow[] = [];
     for (const sec of sections) {
         const list = (sec.board && sec.board.assignments) || [];

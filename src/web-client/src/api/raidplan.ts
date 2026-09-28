@@ -103,7 +103,13 @@ export type RaidplanPlayer = {
     nameFromRh?: boolean;
     /** a Raid-Helper event: Raid-Helper no longer lists him; he keeps his places until the next save with a loaded line-up */
     gone?: boolean;
+    /** on the bench of the setup: part of the plan only with "Bank" in "Gruppen im Plan" (#529) */
+    bench?: boolean;
+    /** outside the groups of the plan (#529, lib/raidplan/planGroups.ts): named in a row he keeps his place, marked "nicht im Plan" */
+    outOfPlan?: boolean;
 };
+/** "Gruppen im Plan" (#529): group numbers and "bench"; null = the groups up to the raid's size, no bench. */
+export type IncludedGroups = (number | "bench")[];
 /** Where a Raid-Helper event's players come from right now (raidplanRosterSource.js); null for an own event. */
 export type RaidplanRosterSource = {
     kind: "raidhelper";
@@ -203,7 +209,7 @@ export type RaidplanView = {
     eventId: string;
     event: { id: string; title: string; startTime: number };
     canWrite: boolean;
-    plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number };
+    plan: { version: number; status: "draft" | "published"; publicPath: string; templateId: string; templateName: string; bosses: Record<string, Partial<RaidplanBoard>>; updatedAt: number; includedGroups?: IncludedGroups | null };
     bosses: RaidplanBoss[];
     besetzung: Besetzung;
     catalog: Catalog;
@@ -274,6 +280,11 @@ export function deleteCatalogEntry(kind: "mobs" | "spells", id: string): Promise
 /** A default entry back to what the code says (its override goes, a hidden one is shown again). */
 export function resetCatalogEntry(kind: "mobs" | "spells", id: string): Promise<CatalogAdmin> {
     return send("POST", "/api/raidplan/catalog/reset", { kind, id });
+}
+
+/** "Gruppen im Plan" (#529): written at once (no version step); null = back to the default. */
+export function saveRaidplanGroups(input: { event: string; includedGroups: IncludedGroups | null }): Promise<{ includedGroups: IncludedGroups | null; included: IncludedGroups }> {
+    return send("POST", "/api/raidplan/groups", input);
 }
 
 export function publishRaidplan(input: { event: string; published: boolean; rotate?: boolean }): Promise<RaidplanView> {

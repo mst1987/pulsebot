@@ -38,6 +38,7 @@ const { str } = require("../utils/text");
 const { isSnowflake } = require("../utils/ids");
 const catalogStore = require("./raidplanCatalogStore");
 const migrateDefaults = require("../services/raidplan/raidplanDefaultsMigration");
+const groupsOf = require("../services/raidplan/raidplanGroups");
 
 const LIMITS = { ...board.LIMITS, mapBytes: 3 * 1024 * 1024 };
 
@@ -225,6 +226,8 @@ function normalizePlan(raw, eventId) {
         known: normalizeKnown(r.known),
         // the rows of the Standard were written into every boss before #524; true = the plan is past that switch (migrateEventDefaults)
         defaultsMigrated: r.defaultsMigrated === true,
+        // "Gruppen im Plan" (#529): the setup groups the plan picks its raiders from; missing = the groups up to the raid's size
+        ...(groupsOf.cleanIncludedGroups(r.includedGroups) ? { includedGroups: groupsOf.cleanIncludedGroups(r.includedGroups) } : {}),
     };
 }
 
@@ -354,7 +357,7 @@ function savePlan(eventId, { version, bosses }, { bossKeys, allowedUserIds, prof
  * are left alone. Later changes to the template do not reach the plan. `version`
  * is checked like a save. Returns `{ plan }` or `{ code, error }`.
  */
-function applyTemplate(eventId, template, { version, bossKeys, roster, userId, trackKnown = false, now = Date.now() }) {
+function applyTemplate(eventId, template, { version, bossKeys, roster, fillIncluded = null, userId, trackKnown = false, now = Date.now() }) {
     const id = str(eventId);
     const plans = readAll();
     const idx = plans.findIndex((p) => p && p.eventId === id);
@@ -365,6 +368,8 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, t
     const allowed = new Set(bossKeys);
     const bosses = { ...current.bosses };
     const allowedUserIds = roster.map((p) => p.userId);
+    // the open slots are filled only from the groups in the plan (#529, "Gruppen im Plan"): never from the bench
+    const fillRoster = fillIncluded ? groupsOf.planRoster(roster, fillIncluded) : roster;
     // the template's Standard becomes the event's Standard (#524): its rows stay inherited by every boss and trash of the event (a later
     // change there reaches them all), under the template's row ids, so the bosses' `inheritOff`, their deviations (`origin`) and the moved
     // tanks of inherited rows (`autoPos` keys) keep pointing at them. Class references stay references (resolved against the setup on read).
@@ -380,7 +385,7 @@ function applyTemplate(eventId, template, { version, bossKeys, roster, userId, t
         if (!allowed.has(key)) continue;
         const tb = (template.bosses || {})[key] || {};
         const copy = board.reidBoard({ ...tb, tokens: [], profileId: tb.profileId || "" });
-        copy.slots = board.fillSlots(copy.slots, roster);
+        copy.slots = board.fillSlots(copy.slots, fillRoster);
         const cleaned = board.cleanBoard(copy, { allowedUserIds, profileIds: tb.profileId ? [tb.profileId] : [] });
         if (cleaned.error) return cleaned;
         if (board.boardHasContent(cleaned.board)) bosses[key] = cleaned.board; else delete bosses[key];
@@ -403,6 +408,25 @@ function setPublished(eventId, published, { rotate = false, userId, now = Date.n
     const current = idx === -1 ? emptyPlan(id) : normalizePlan(plans[idx], id);
     const next = { ...current, status: published ? "published" : "draft", updatedAt: now, updatedBy: str(userId) };
     if ((published && !next.publicToken) || rotate) next.publicToken = newToken();
+    if (idx === -1) plans.push(next); else plans[idx] = next;
+    writeAll(plans);
+    return { plan: next };
+}
+
+/**
+ * "Gruppen im Plan" (#529): which setup groups (and whether the bench) the plan picks its raiders from. A setting of the plan like its
+ * publishing state: written at once, no version step (an unsaved draft of the boards stays valid). `null` = back to the default.
+ * Returns `{ plan }` or `{ code, error }`.
+ */
+function setIncludedGroups(eventId, list, { userId, now = Date.now() } = {}) {
+    const id = str(eventId);
+    if (!/^[\w-]{3,40}$/.test(id)) return { code: "invalid", error: "Unbekanntes Event." };
+    const plans = readAll();
+    const idx = plans.findIndex((p) => p && p.eventId === id);
+    const current = idx === -1 ? emptyPlan(id) : normalizePlan(plans[idx], id);
+    const clean = groupsOf.cleanIncludedGroups(list);
+    const next = { ...current, updatedAt: now, updatedBy: str(userId) };
+    if (clean) next.includedGroups = clean; else delete next.includedGroups;
     if (idx === -1) plans.push(next); else plans[idx] = next;
     writeAll(plans);
     return { plan: next };
@@ -571,7 +595,7 @@ function mapForBoss(boss, { eventId = "", templateId = "" } = {}) {
 
 module.exports = {
     useFile, LIMITS, bossKeyOf, bossesForInstances, isMapKey, getPlan, getPublishedByToken, emptyPlan, savePlan, applyTemplate, mapScope,
-    templateMapKey, eventMapKey, setPublished, deletePlan, setLink, migrateEventDefaults, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
+    templateMapKey, eventMapKey, setPublished, setIncludedGroups, deletePlan, setLink, migrateEventDefaults, playersOf, readMap, saveMap, deleteMap, mapVersion, mapForBoss,
     // only for the tests (#424): not part of the module's API
     _internal: {
         slug, normalizeLink, knownAfter, sniffImage,
