@@ -80,6 +80,24 @@ describe("utils/setup/fillSetup", () => {
 
         // Kick priority: Kick, then Pummel/Shield Bash, Earth Shock last.
         // The input order is deliberately mixed so the test pins the sorting.
+        it("never gives a bench raider (group 6+, or a slot after the 25th) a place in the sheet's assignments (#529)", () => {
+            const raid = Array.from({ length: 25 }, (_, i) => ({ name: `R${i}`, spec: "Fury", groupNumber: Math.floor(i / 5) + 1 }));
+            const bench = [
+                { name: "BenchHeal", spec: "Holy1", groupNumber: 6 },
+                { name: "BenchRogue", spec: "Combat", groupNumber: 7 },
+            ];
+            const { writeData, summary, playerColors } = buildSetupWrite([...raid, ...bench]);
+            const all = JSON.stringify(writeData);
+            expect(all).not.toContain("BenchHeal");
+            expect(all).not.toContain("BenchRogue");
+            expect(summary.playerCount).toBe(25);
+            expect(summary.healers).toBe(0);
+            expect(playerColors.map((p) => p.name)).not.toContain("BenchHeal");
+            // without group numbers the 26th slot is group 6: the bench as well
+            const plain = buildSetupWrite([...raid.map((s) => ({ name: s.name, spec: s.spec })), { name: "LateHeal", spec: "Holy1" }]);
+            expect(JSON.stringify(plain.writeData)).not.toContain("LateHeal");
+        });
+
         it("orders the kick column rogues, then warriors, then enhancers", () => {
             const slots = [
                 { name: "Enh", spec: "Enhancement", groupNumber: 1 },

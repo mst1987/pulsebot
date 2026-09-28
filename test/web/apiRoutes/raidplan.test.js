@@ -415,8 +415,8 @@ describe("GET /api/raidplan/public", () => {
         await call(route.putPlan, ORGA, { event: "eh_1", version: 0, bosses: { "bt/supremus": { assignments: [{ id: "a", type: "other", assignees: ["role:ranged"], targets: [] }], roles: { u1: "ranged" } } } });
         const on = body(await call(route.postPublish, ORGA, { event: "eh_1", published: true }));
         const d = body(await publicGet(on.plan.publicPath.replace("/p/", "")));
-        // u3 is ranged by spec, u1 a tank who plays ranged here; u2 (healer) is not named
-        expect(d.roster.map((p) => p.userId).sort()).toEqual(["u1", "u3"]);
+        // u1 is a tank who plays ranged here; u3 (ranged by spec) sits on the bench: not part of the plan (#529); u2 (healer) is not named
+        expect(d.roster.map((p) => p.userId).sort()).toEqual(["u1"]);
         expect(d.bosses[0].roles).toEqual({ u1: "ranged" });
         expect(d.bosses[0].assignments[0].assignees).toEqual(["role:ranged"]);
     });

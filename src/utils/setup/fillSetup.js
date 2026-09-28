@@ -180,13 +180,13 @@ function buildSetupWrite(slots, opts = {}) {
     const tab = opts.tab || process.env.GOOGLE_SHEET_NAME || "Setup";
     const tank3 = opts.tank3 || "";
 
-    const players = enrichPlayers(slots);
+    // Only the raid's five groups count (#529): a Raid-Helper setup lists its bench as group 6+ (or, without group numbers, as the
+    // slots after the 25th), and those raiders must not take a healer, kick, soulstone or debuff place of the sheet either.
+    const players = enrichPlayers(slots).filter((p) => p.group >= 1 && p.group <= 5);
 
     // ---- Groups ----
     const groups = { 1: [], 2: [], 3: [], 4: [], 5: [] };
-    for (const p of players) {
-        if (p.group >= 1 && p.group <= 5) groups[p.group].push(p);
-    }
+    for (const p of players) groups[p.group].push(p);
 
     // ---- Role filters ----
     const protPalas   = players.filter((p) => isProtPala(p.entry));

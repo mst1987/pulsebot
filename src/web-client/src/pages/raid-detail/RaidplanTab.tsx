@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, LayoutTemplate, RotateCw, Send, Share2 } from "lucide-react";
 import {
-    applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan,
-    type ApiError, type RaidplanBoard, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
+    applyRaidplanTemplate, getRaidplan, publishRaidplan, saveRaidplan, saveRaidplanGroups,
+    type ApiError, type IncludedGroups, type RaidplanBoard, type RaidplanPlayer, type RaidplanView, type RaidplanProfile, type RaidplanTemplateSummary } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, IconButton, Modal, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/Jobs";
@@ -25,6 +25,14 @@ import { useDraftHistory } from "./raidplan/useDraftHistory";
 import "../../styles/raidplan/index.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "./raidplan/RhSource";
+import PlanGroups from "./raidplan/PlanGroups";
+import { includedGroups, splitRoster } from "../../lib/raidplan/planGroups";
+
+/** The players a plan picks from ("Gruppen im Plan", #529) and the rest of the lineup (only to name a raider a row still holds). */
+function rosterOfView(v: RaidplanView | null): { roster: RaidplanPlayer[]; outside: RaidplanPlayer[] } {
+    if (!v) return { roster: [], outside: [] };
+    return splitRoster(v.roster, includedGroups(v.plan.includedGroups, v.besetzung ? v.besetzung.groups : 5));
+}
 
 /**
  * Raid-Detail › Raidplan (an own event, docs/raidplan.md), inside the raid detail's
@@ -53,6 +61,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const [modal, setModal] = useState<"" | "pick" | "profiles" | "save" | "share" | "template" | "open">("");
     const [profiles, setProfiles] = useState<RaidplanProfile[]>([]);
     const [reloading, setReloading] = useState(false);
+    const [groupsBusy, setGroupsBusy] = useState(false);
     const selectedRef = useRef("");
     selectedRef.current = selected;
 
@@ -91,7 +100,11 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const bossKeys = useMemo(() => (view ? view.bosses.map((b) => b.key) : []), [view]);
     // remember the open section per plan (this browser)
     useEffect(() => { if (selected) rememberSection(eventId, selected); }, [eventId, selected]);
-    const roster = useMemo(() => (view ? view.roster : []), [view]);
+    // "Gruppen im Plan" (#529): every consumer below gets only the raiders of the plan's groups; the rest only names a raider a row holds
+    const split = useMemo(() => rosterOfView(view || null), [view]);
+    const roster = split.roster;
+    const outside = split.outside;
+    const included = useMemo(() => includedGroups(view ? view.plan.includedGroups : null, view && view.besetzung ? view.besetzung.groups : 5), [view]);
     const boss = view ? view.bosses.find((b) => b.key === selected) || null : null;
     const besetzung = view ? view.besetzung : null;
     const mine = useMemo(() => (view ? view.meIds || [] : []), [view]);
@@ -101,7 +114,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
     const openSummary = (list: OpenRow[]) => { const names = missingNames(list).join(", "); return list.length === 1 ? t("raidBoard.aline.openSummaryOne", { names }) : t("raidBoard.aline.openSummary", { n: list.length, names }); };
     // each section with its Besetzung as the editor shows it (a slot reference names whoever stands in that slot); a row of the Standard
     // counts once, in the Standard (#524), not again in every boss that inherits it
-    const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster) : []), [view, draft, besetzung, roster]);
+    const openRows = useMemo(() => (view ? openAssignments(view.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(draft, b.key), besetzung, roster) })), roster, outside) : []), [view, draft, besetzung, roster, outside]);
     const canWrite = !!view && view.canWrite;
     // "Einteilungen posten" (#502) publishes a draft plan on the way: the page's reload after the post brings the new state here
     const postedPath = ctx.data.raidplanPost?.publicPath || "";
@@ -169,6 +182,23 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    /** "Gruppen im Plan" (#529): written at once (no version step, the draft stays); shown at once, back on an error. */
+    const setGroups = async (next: IncludedGroups | null) => {
+        if (!view || groupsBusy) return;
+        const before = view.plan.includedGroups ?? null;
+        setView((cur) => (cur ? { ...cur, plan: { ...cur.plan, includedGroups: next } } : cur));
+        setGroupsBusy(true);
+        try {
+            const r = await saveRaidplanGroups({ event: eventId, includedGroups: next });
+            setView((cur) => (cur ? { ...cur, plan: { ...cur.plan, includedGroups: r.includedGroups } } : cur));
+        } catch (err) {
+            setView((cur) => (cur ? { ...cur, plan: { ...cur.plan, includedGroups: before } } : cur));
+            toast((err as ApiError).message, "err");
+        } finally {
+            setGroupsBusy(false);
+        }
+    };
+
     // ---- templates ----------------------------------------------------------------------------
     const applyTemplate = async (tpl: RaidplanTemplateSummary) => {
         if (!view) return;
@@ -184,7 +214,8 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             setModal("");
             toast(t("raidBoard.template.applied", { name: tpl.name }));
             // what the setup could not fill, in one sentence ("2 Einteilungen offen: Magier, Jäger fehlen")
-            const open = openAssignments(v.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(v.plan.bosses, b.key), v.besetzung, v.roster) })), v.roster);
+            const vr = rosterOfView(v);
+            const open = openAssignments(v.bosses.map((b) => ({ key: b.key, name: b.name, board: ensureBesetzung(boardOf(v.plan.bosses, b.key), v.besetzung, vr.roster) })), vr.roster, vr.outside);
             if (open.length > 0) toast(openSummary(open), "err");
         } catch (err) {
             const e = err as ApiError;
@@ -241,7 +272,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
             {boss && (
                 <RaidplanBoundary resetKey={selected}>
                 <BoardWorkspace
-                    mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} canWrite={canWrite} limits={view.limits}
+                    mode="event" eventId={eventId} besetzung={view.besetzung} catalog={view.catalog} boss={boss} allBosses={view.bosses} board={board} edit={editBoard} editAll={editAllBoards} roster={roster} outside={outside} canWrite={canWrite} limits={view.limits}
                     profileName={profile ? profile.name : ""} onPickProfile={() => setModal("pick")} onSaveTactic={() => setModal("save")}
                     history={{ undo, redo, canUndo, canRedo }}
                     mapRows={mapRows} onMapsChanged={reloadMaps} me={mine}
@@ -252,6 +283,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                         <>
                             <Badge tone={published ? "ok" : undefined}>{published ? t("raidBoard.bar.published") : t("raidBoard.bar.draft")}</Badge>
                             {!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}
+                            <PlanGroups roster={view.roster} groupCount={view.besetzung ? view.besetzung.groups : 5} included={included} canWrite={canWrite} busy={groupsBusy} onChange={setGroups} />
                             {canWrite && open > 0 && <Badge tone="mid" tip={t("raidBoard.slot.openTip")}>{t("raidBoard.slot.openCount", { count: open })}</Badge>}
                             {canWrite && openRows.length > 0 && (
                                 <button type="button" className="rp-openbadge" data-tip={t("raidBoard.aline.openHint")} onClick={() => setModal("open")}>

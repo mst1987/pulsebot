@@ -12,7 +12,8 @@ const store = require("../../stores/raidplanStore");
 const inherit = require("../../services/raidplan/raidplanInherit");
 const profileStore = require("../../stores/raidplanProfileStore");
 const templateStore = require("../../stores/raidplanTemplateStore");
-const { approvedSetupOf } = require("../../services/setup/setupCore");
+const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
+const groupsOf = require("../../services/raidplan/raidplanGroups");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
@@ -50,7 +51,7 @@ function rosterFrom(lineup, versionId) {
     }
     const out = [];
     const seen = new Set();
-    const add = (p, group) => {
+    const add = (p, group, bench = false) => {
         const userId = String(p.userId || "");
         if (!userId || seen.has(userId)) return;
         seen.add(userId);
@@ -69,6 +70,8 @@ function rosterFrom(lineup, versionId) {
             specRole: (spec && spec.role) || "",
             iconUrl: wowIconUrl((spec && spec.icon) || (cls && cls.icon) || "", 56),
             group,
+            // on the bench of the setup: part of the plan only with "Bank" in "Gruppen im Plan" (#529)
+            ...(bench && !p.gone ? { bench: true } : {}),
             // a Raid-Helper raider (raidhelperRoster.js): the name Raid-Helper shows, and whether no profile character was found for it
             ...(p.rhName ? { rhName: String(p.rhName) } : {}),
             ...(p.nameFromRh ? { nameFromRh: true } : {}),
@@ -77,7 +80,7 @@ function rosterFrom(lineup, versionId) {
         });
     };
     for (const g of (lineup && lineup.groups) || []) for (const s of g.slots || []) add(s, Number(g.index) || 0);
-    for (const b of (lineup && lineup.bench) || []) add(b, 0);
+    for (const b of (lineup && lineup.bench) || []) add(b, 0, true);
     return out;
 }
 
@@ -89,7 +92,19 @@ function editorRoster(event) {
     if (Array.isArray(event.roster)) return event.roster;
     const setup = event.setup;
     const hasDraft = setup && Array.isArray(setup.groups) && (setup.groups.length || (setup.bench || []).length);
-    return rosterFrom(hasDraft ? setup : approvedSetupOf(event), event.versionId);
+    // the draft's explicit bench only (#517: a setup stored before it listed everybody left over there - the pool never comes in)
+    return rosterFrom(hasDraft ? { groups: setup.groups, bench: benchAndPool(setup).bench } : approvedSetupOf(event), event.versionId);
+}
+
+/** The Besetzung of an event's plan: the template's when the plan came from one, else the event's own size and composition. */
+function planBesetzung(event, plan) {
+    const template = plan && plan.templateId ? templateStore.getTemplate(plan.templateId) : null;
+    return template ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts) : eventBesetzung(event);
+}
+
+/** "Gruppen im Plan" (#529): the groups (and "bench") the plan picks its raiders from - what it stores, else the groups up to its size. */
+function planIncluded(event, plan) {
+    return groupsOf.includedGroups(plan ? plan.includedGroups : null, planBesetzung(event, plan).groups);
 }
 
 /** The players a public page names: the approved setup only. */
@@ -188,12 +203,12 @@ function editorView(event, { canWrite, me = "" }) {
             templateName: template ? template.name : "",
             bosses: plan.bosses,
             updatedAt: plan.updatedAt,
+            // "Gruppen im Plan" (#529): null = the groups up to the raid's size, no bench (lib/raidplan/planGroups.ts reads it)
+            includedGroups: plan.includedGroups || null,
         },
         bosses: withStandard(bossList(event, { templateId: template ? template.id : "" })),
         // the role slots of this raid: the template's when the plan came from one, else the event's own size and composition
-        besetzung: template
-            ? besetzungOf.effectiveBesetzung(template.instanceIds, template.size, template.counts)
-            : eventBesetzung(event),
+        besetzung: planBesetzung(event, plan),
         roster: editorRoster(event),
         // which players of the lineup the logged-in user is (account + the characters of the raider profile): highlighted on the board
         meIds: identify(me, (me ? (raiderProfiles.getProfile(me) || { characters: [] }).characters : []).map((c) => c.key), editorRoster(event)),
@@ -232,10 +247,15 @@ function identify(viewerId, keys, roster) {
 }
 
 function publicView(plan, event, { me = "" } = {}) {
-    const roster = publicRoster(event);
-    const known = new Set(roster.map((r) => r.userId));
+    const lineup = publicRoster(event);
+    // who a row may still name (the whole approved lineup), and who the plan picks from: the groups in the plan (#529)
+    const known = new Set(lineup.map((r) => r.userId));
+    const included = planIncluded(event, plan);
+    const roster = groupsOf.planRoster(lineup, included);
+    // (group 0: a raider outside the plan is never listed in a group table or ring of the page)
+    const outside = groupsOf.outOfPlanRoster(lineup, included).map((p) => ({ ...p, group: 0 }));
     const profile = me ? raiderProfiles.getProfile(me) : null;
-    const meIds = identify(me, profile ? profile.characters.map((c) => c.key) : [], roster);
+    const meIds = identify(me, profile ? profile.characters.map((c) => c.key) : [], lineup);
     const catalogMobs = catalogStore.listMobs();
     // a boss without a board of its own still shows what it inherits from the Standard (#524)
     const inheritsRows = (b) => inherit.inherits(b.key) && sectionRows(plan.bosses, b, catalogMobs).length > 0;
@@ -244,6 +264,10 @@ function publicView(plan, event, { me = "" } = {}) {
         .filter((b) => (plan.bosses[b.key] || inheritsRows(b)) && (plan.bosses[b.key] || {}).inSheet !== false)
         .map((b) => {
             const board = plan.bosses[b.key] || EMPTY_BOARD;
+            // the role slots as the editor shows them (#529): a raider outside the plan (bench, a group switched off) leaves his slot and
+            // only that place is filled again from the plan; a raider who is not in the approved setup leaves it open
+            const slots = groupsOf.refillSlots((board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, board.roles || {}, (board.tokens || []).map((t) => t.userId));
+            const inPlanIds = new Set(roster.map((r) => r.userId));
             // a section switched to "no map" sends no map and no objects of the map (like a section left out of the sheet): only its Besetzung,
             // the slots, which the assignments resolve against, and they are not drawn
             const mapOn = board.showMap !== false && !b.general;
@@ -251,8 +275,8 @@ function publicView(plan, event, { me = "" } = {}) {
             return {
                 key: b.key, name: b.name, instanceName: b.instanceName, iconUrl: b.iconUrl, mapUrl: mapOn ? b.mapUrl : "", trash: !!b.trash, general: !!b.general, showMap: mapOn,
                 // objects switched off in the editor's layer list are not drawn here either
-                tokens: onMap(board.tokens.filter((t) => known.has(t.userId) && !t.hidden)),
-                slots: (board.slots || []).filter((sl) => !sl.hidden).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "", ...(mapOn ? {} : { placed: false }) })),
+                tokens: onMap(board.tokens.filter((t) => inPlanIds.has(t.userId) && !t.hidden)),
+                slots: slots.filter((sl) => !sl.hidden).map((sl) => ({ ...sl, ...(mapOn ? {} : { placed: false }) })),
                 marks: onMap((board.marks || []).filter((m) => !m.hidden)),
                 icons: onMap((board.icons || []).filter((i) => !i.hidden)),
                 objectScale: board.objectScale === undefined ? 1 : board.objectScale,
@@ -284,9 +308,9 @@ function publicView(plan, event, { me = "" } = {}) {
                     ...a,
                     assignees: a.assignees.filter((r) => !r.startsWith("user:") || known.has(r.slice(5))),
                     targets: a.targets.filter((t) => t.kind !== "player" || known.has(t.ref)),
-                })), (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, board.roles || {}),
+                })), slots, roster, board.roles || {}),
                 // the tactic: each step resolved on its own from the approved setup (a missing class stays its reference: an open chip)
-                steps: stepsOf.resolveSteps(board.steps || [], { slots: (board.slots || []).map((sl) => ({ ...sl, userId: known.has(sl.userId) ? sl.userId : "" })), roster, roles: board.roles || {}, known }),
+                steps: stepsOf.resolveSteps(board.steps || [], { slots, roster, roles: board.roles || {}, known }),
                 notes: board.notes,
                 profileName: (profileStore.getProfile(board.profileId) || {}).name || "",
             };
@@ -320,7 +344,8 @@ function publicView(plan, event, { me = "" } = {}) {
         // how many sections hold something but are left out of the sheet (a number only, nothing of them)
         hiddenCount: bossList(event, { templateId: plan.templateId }).filter((b) => plan.bosses[b.key] && plan.bosses[b.key].inSheet === false).length,
         bosses,
-        roster: roster.filter((r) => used.has(r.userId)),
+        // a raider outside the plan only when a row names him, marked `outOfPlan` (the page leaves him out of groups and auto tokens)
+        roster: [...roster, ...outside].filter((r) => used.has(r.userId)),
         me: meIds[0] || "",
         meIds,
         catalog: catalogStore.catalogView(event.versionId || "tbc"),
@@ -336,9 +361,11 @@ function publicView(plan, event, { me = "" } = {}) {
 function suggestFor(type, { event = null, slots = [], roles = {}, preferredClasses = [], allowOthers = false, keep = [], preferredRole = "", context = [] } = {}) {
     // flex: on this boss somebody plays another role than in the setup
     const flex = roles && typeof roles === "object" ? roles : {};
-    const roster = (event ? editorRoster(event) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
-    const size = event ? Number(event.size) || 25 : 25;
-    const groups = Array.from({ length: Math.max(1, Math.ceil(size / 5)) }, (_, i) => i + 1);
+    // the raiders of the groups in the plan (#529): a bench raider is never suggested
+    const plan = event ? store.getPlan(event.id) : null;
+    const included = event ? planIncluded(event, plan) : groupsOf.defaultIncludedGroups(5);
+    const roster = (event ? groupsOf.planRoster(editorRoster(event), included) : []).map((p) => (flex[p.userId] ? { ...p, role: flex[p.userId] } : p));
+    const groups = groupsOf.groupNumbers(included);
     let clean = (Array.isArray(slots) ? slots : []).map((s) => ({ kind: String(s && s.kind), n: Number(s && s.n) || 0, userId: String((s && s.userId) || "") })).filter((s) => s.n > 0);
     // in an event only the tank and healer slots somebody actually stands in count (a healer who plays DPS here leaves his slot open)
     if (event) clean = clean.filter((s) => (s.kind !== "tank" && s.kind !== "healer") || s.userId);
@@ -365,4 +392,4 @@ function eventBesetzung(event) {
     return { ...base, counts: { tank, healer, dps: Math.max(0, base.size - tank - healer), melee: 0, ranged: 0 }, split: false };
 }
 
-module.exports = { withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };
+module.exports = { planBesetzung, planIncluded, withStandard, planKeys, sectionRows, identify, suggestFor, editorView, publicView, editorRoster, publicRoster, bossList, rosterFrom, resolveRole, templateSummary, templatesFor, templateView };

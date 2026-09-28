@@ -15,6 +15,11 @@ import { useT } from "../../../i18n";
 export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }: { r: Resolved; open: boolean; mine: boolean; order: number; ctx: AssignCtx; readOnly?: boolean; asTank?: boolean }) {
     const t = useT();
     const no = order > 0 ? <span className="rp-achip-no">{order}</span> : null;
+    if (r.player && r.player.outOfPlan && !readOnly) {
+        // a raider outside "Gruppen im Plan" (#529) the row still names: he keeps his place, the chip warns like a missing place
+        const tip = r.player.bench ? t("raidBoard.groups.outBench", { name: r.player.character }) : t("raidBoard.groups.outGroup", { name: r.player.character, n: r.player.group });
+        return <span className="rp-lc is-open is-out" data-tip={tip} aria-label={tip}>{no}<TokenIcon player={r.player} size="sm" /><PlayerName player={r.player} /><AlertTriangle size={12} aria-hidden="true" /></span>;
+    }
     if (r.player) {
         // a player outside his spec role on a tanking row (a mage tank) says so: class name in the tooltip, "als Tank" beside the name
         // the sheet: the full name in the tooltip (a very long one ends in "…" on the chip)
