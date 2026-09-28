@@ -125,6 +125,21 @@ describe("buildSetupMessage", () => {
         }]);
     });
 
+    it.each([5, 6, 7, 8])("keeps every one of %i groups in its column: three inline fields per row, empty ones fill the last", (count) => {
+        const event = seed({ size: count * 5 });
+        const a = { version: 1, groups: [], bench: [p("99", "Thalia", "Priest-Shadow", "ranged")] };
+        for (let g = 1; g <= count; g++) a.groups.push({ index: g, slots: [p(String(g), `R${g}`, "Mage-Fire", "ranged")] });
+        const fields = sm.buildSetupMessage(event, a, { emojis, bench: true }).embeds[0].fields;
+        const inline = fields.filter((f) => f.inline);
+        expect(inline.length % 3).toBe(0);
+        expect(inline.length).toBe(Math.ceil(count / 3) * 3);
+        // the groups first, in order, then only fillers; the bench and the link stay full-width rows after them
+        expect(inline.slice(0, count).map((f) => f.name)).toEqual(Array.from({ length: count }, (_, i) => `Group ${i + 1}`));
+        expect(inline.slice(count).every((f) => f.name === "\u200b" && f.value === "\u200b")).toBe(true);
+        expect(fields.findIndex((f) => !f.inline)).toBe(inline.length);
+        expect(fields.find((f) => f.name.includes("Bench")).inline).toBe(false);
+    });
+
     it("leaves the bench out unless the orga posts it (#517)", () => {
         const event = seed();
         const without = sm.buildSetupMessage(event, event.setup.approved, { emojis }).embeds[0];

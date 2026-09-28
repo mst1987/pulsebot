@@ -119,6 +119,9 @@ function roleCounts(approved) {
     return counts;
 }
 
+/** Inline fields per row in a Discord embed (desktop): the group grid of the setup message. */
+const GRID_COLUMNS = 3;
+
 /**
  * The setup message — pure, plain API JSON. `null` without an approved lineup:
  * a draft is never turned into a message.
@@ -179,6 +182,10 @@ function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, b
             value: clip(g.slots.map((s) => markedPersonText(s, emojis, { icons: v.groupIcons }, confirmations)).join("\n"), LIMITS.fieldValue),
             inline: true,
         }));
+        // Discord spreads a short last row over the whole width (two fields at half
+        // width each), so Group 5 would sit in the middle instead of under Group 2.
+        // Empty inline fields fill the last row up to three: every group keeps its column.
+        while (fields.length % GRID_COLUMNS) fields.push({ name: "\u200b", value: "\u200b", inline: true });
         if (bench.length) {
             fields.push({
                 name: `${[emojiText(emojis, statusEmojiName("bench")), "Bench"].filter(Boolean).join(" ")} (${bench.length})`,

@@ -147,6 +147,7 @@
 .se-bench-chunks { margin-top: 4px; }
 /* "Angemeldet" (#517): signed up, not in the setup — a little quieter than the bench */
 .se-pool .se-group-title { color: var(--muted); }
+.se-extra.se-extra-lead { margin: 0 6px 0 0; }
 
 /* a free place: an empty box as high as a raider line */
 .se-ph { box-sizing: border-box; height: var(--se-row); display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font: 700 11px var(--mono); opacity: .7; }

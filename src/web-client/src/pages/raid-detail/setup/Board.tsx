@@ -69,13 +69,14 @@ function Slot({ p, ui, inPool = false }: { p: SetupPerson; ui: Interaction; inPo
             <span className="se-slot-text">
                 <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                 <span className="se-sub">
+                    {/* first, so a long spec text never cuts it off (#517) */}
+                    {inPool && p.status === "bench" && <span className="se-extra se-extra-lead" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
                     {specText(p)}
                     {/* an off-spec role is tinted — "Zweitspec" itself is in the tooltip */}
                     {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>}
                     {(ui.extraRoles[p.userId] || []).map((r) => (
                         <span key={r} className="se-extra" data-tip={t("setup.extra.tip", { role: roleLabel(r) })}>{t(`setup.extra.short.${r}`)}</span>
                     ))}
-                    {inPool && p.status === "bench" && <span className="se-extra" data-tip={t("setup.pool.benchSignupTip")}>{t("setup.pool.benchSignup")}</span>}
                 </span>
             </span>
             {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
